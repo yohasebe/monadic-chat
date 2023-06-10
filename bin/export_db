@@ -1,0 +1,4 @@
+#!/bin/sh
+DIR=$(cd $(dirname "$0"); pwd)
+
+pg_dump monadic | gzip > "${DIR}/../data/monadic.gz"

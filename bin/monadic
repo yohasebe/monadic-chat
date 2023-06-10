@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+
+# frozen_string_literal: false
+
+require "optimist"
+
+require_relative "../lib/monadic/version"
+
+DEFAULT_PORT = 4567
+
+# Parse command line options
+opts = Optimist.options do
+  version Monadic::VERSION.to_s
+  banner "Usage: monadic [start|stop|restart] [options]"
+  opt :daemonize, "Enable or disable daemon mode", default: false
+  opt :log, "Enable or disable logging mode", default: false
+  opt :port, "Specify the port number", type: :integer, default: DEFAULT_PORT
+end
+
+# Start the server
+def start_server(opts)
+  cmd = "thin start -R config.ru -p #{opts[:port] || DEFAULT_PORT}"
+  cmd += " --daemonize" if opts[:daemonize]
+  cmd += " --log thin.log" if opts[:log]
+  if system(cmd)
+    puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
+  else
+    puts "Server failed to start"
+  end
+end
+
+# Stop the server
+def stop_server
+  if system("thin stop")
+    puts "Server stopped"
+  else
+    puts "Server failed to stop"
+  end
+end
+
+# Restart the server
+def restart_server(opts)
+  stop_server
+  start_server(opts)
+end
+
+# Parse subcommand
+subcommand = ARGV.shift
+
+# Execute subcommand
+case subcommand
+when "start"
+  start_server(opts)
+when "stop"
+  stop_server
+when "restart"
+  restart_server(opts)
+else
+  Optimist.die "Unknown subcommand. Use \"start\", \"stop\", or \"restart\"."
+end

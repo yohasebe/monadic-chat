@@ -11,7 +11,7 @@
 > The command-line program Monadic Chat was renamed to **[Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)** and moved to a separate repository. Going forward, Monadic Chat will be developed as a web-based application on this repository.
 
 <p>&nbsp;</p>
-<div align="center"><img src="./assets/images/screenshot-01.png" width="100%"/></div>
+<div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>
 <p>&nbsp;</p>
 
 ## About
@@ -58,10 +58,14 @@
 
 ### Dependencies
 
+Install the following software:
+
 - [Git](https://github.com/git-guides/install-git)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Google Chrome](https://www.google.com/chrome/) or [Microsoft Edge](https://www.microsoft.com/edge/)
 - A terminal emulator app (i.e., Terminal.app for Mac, Windows Terminal for Windows)
+
+Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT or ChatGPT Plus account. Sign up and get an API key at the [OpenAI API sign-up page](https://platform.openai.com/account/api-keys).
 
 ### Setting Up
 
@@ -69,15 +73,15 @@
 
 2. Open a terminal emulator app
 
-2. Clone the git repository
+3. Clone the git repository
 
     `git clone git@github.com:yohasebe/monadic-chat.git`
 
-3. Change directory
+4. Change directory
 
     `cd monadic-chat`
 
-4. Build Docker image
+5. Build Docker image
 
     `docker-compose build`
 
@@ -85,21 +89,15 @@
 
     `docker-compose build --no-cache`
 
-This will take some time when running for the first time
+### Start Monadic Chat
 
-5. Build a Docker container and start
+Run `docker-compose up`
 
-    `docker-compose up`
+Add `-d` to start the system in the background: `docker-compose up -d`
 
-    Or, add `-d` to start the system in the background
+And access `http://localhost:4567` with Google Chrome or Microsoft Edge
 
-    `docker-compose up -d`
-
-6. Access with a web browser
-
-    Access `http://localhost:4567` with Google Chrome or Microsoft Edge
-
-### Shutting down
+### Stop Monadic Chat
 
 1. If the system is run in the foreground:
 
@@ -109,9 +107,56 @@ This will take some time when running for the first time
 
     Run `docker-compose stop`
 
+### Update Monadic Chat
+
+Inside the `monadic-chat` folder, run `git pull`
+
 ### Uninstall the Docker container and image
 
 Run `docker-compose rm`
+
+## Base Apps
+
+Currently, the following base apps are available for use. By selecting one of them and changing the parameters or rewriting the initial prompt, you can adjust the behavior of the AI agent. You can export/import the adjusted settings to/from an external JSON file.
+
+### Chat
+
+This is the standard application for monadic chat. It can be used in basically the same way as ChatGPT.
+### Language Practice
+
+This is a language learning application where conversations begin with the assistant's speech. The assistant's speech is played back in a synthesized voice. To speak, press the Enter key to start speech input, and press Enter again to stop speech input.
+
+### Language Practice Plus
+
+This is a language learning application where conversations start with the assistant’s speech. The assistant’s speech is played back in a synthesized voice. To speak, press the Enter key to start speech input, and press Enter again to stop speech input. The assistant’s response will include linguistic advice in addition to the usual content. The language advice is presented only as text and not as text-to-speech.
+
+### Novel
+
+This is an application for collaboratively writing a novel with an assistant. The assistant writes a paragraph summarizing the theme, topic, or event presented in the prompt. Always use the same language as the assistant in your response.
+
+### PDF Navigator
+
+This is an application that reads a PDF file, and the assistant answers the user's questions based on its content. First, click on the "Upload PDF" button and specify the file. The content of the file will be divided into segments of approximately max_tokens length, and the text embedding will be calculated for each segment. When input is received from the user, the text segment that is closest to the text embedding value of the input text is given to GPT along with the user's input value, and an answer is generated based on that content.
+
+### Translate
+
+The assistant will translate the user's input text into another language. First, the assistant will ask for the target language. Then, the input text will be translated into the target language. If you want the assistant to use a specific translation, please put parentheses after the relevant part of the input text and specify the translation in the parentheses.
+
+### Voice Chat
+
+This app enables users to chat using voice through OpenAI’s Whisper API and the browser’s text-to-speech API. The initial prompt is the same as the one for the Chat app. Please note that a web browser with the latter API, such as Google Chrome or Microsoft Edge, is required.
+
+### Wikipedia
+
+This is essentially the same as Chat, but for questions that GPT cannot answer, such as questions about events that occurred after the language model cutoff time, it searches Wikipedia to answer them. If the query is in a non-English language, the Wikipedia search is performed in English, and the results are translated into the original language.
+
+### Linguistic Analysis
+
+This app utilizes Monadic Chat’s feature that allows for updating a pre-specified JSON object with multiple properties while providing a regular response. As the main response to the user’s query, it returns a syntactic structure of the input sentence. In the process, the app updates the values of the JSON object with the properties of `topic`, `sentence_type`, and `sentiment`.
+
+### Creating New Apps
+
+UNDER CONSTRUCTION
 
 ## Author
 

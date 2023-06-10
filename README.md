@@ -5,7 +5,6 @@
 <div align="center" style="color: #777777 "><b>A highly configurable Ruby framework for creating intelligent chatbots </b></div>
 
 <p>&nbsp;</p>
-<p>&nbsp;</p>
 
 > **Note**
 > The command-line program Monadic Chat was renamed to **[Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)** and moved to a separate repository. Going forward, Monadic Chat will be developed as a web-based application on this repository.

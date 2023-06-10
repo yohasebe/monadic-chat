@@ -84,7 +84,7 @@ Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT o
 
     `docker-compose build`
 
-    Or, add `--no-cache` to rebuild the image without using cached data
+    To rebuild the image without using cached data, add `--no-cache`:
 
     `docker-compose build --no-cache`
 
@@ -108,7 +108,9 @@ And access `http://localhost:4567` with Google Chrome or Microsoft Edge
 
 ### Update Monadic Chat
 
-Inside the `monadic-chat` folder, run `git pull`
+1. Inside the `monadic-chat` folder, run `git pull`.
+
+2. Then run `docker-compose build`.
 
 ### Uninstall the Docker container and image
 

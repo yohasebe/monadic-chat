@@ -1,4 +1,4 @@
-<p align="center"><img src="./docs/img/monadic-chat.svg" width="500px"/></p>
+<p align="center"><img src="./assets/images/monadic-chat.svg" width="500px"/></p>
 
 <p align="center"><b>A highly configurable Ruby framework for creating intelligent chatbots </b></p>
 

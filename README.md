@@ -11,6 +11,8 @@
 > The command-line program Monadic Chat was renamed to **[Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)** and moved to a separate repository. Going forward, Monadic Chat will be developed as a web-based application on this repository.
 
 <p>&nbsp;</p>
+<div align="center"><img src="./assets/images/screenshot-01.png" width="100%"/></div>
+<p>&nbsp;</p>
 
 ## About
 

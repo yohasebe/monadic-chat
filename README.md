@@ -62,7 +62,7 @@ Install the following software:
 - [Git](https://github.com/git-guides/install-git)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Google Chrome](https://www.google.com/chrome/) or [Microsoft Edge](https://www.microsoft.com/edge/)
-- A terminal emulator app (i.e., Terminal.app for Mac, Windows Terminal for Windows)
+- A terminal emulator app (e.g., Terminal.app for Mac, Windows Terminal for Windows)
 
 Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT or ChatGPT Plus account. Sign up and get an API key at the [OpenAI API sign-up page](https://platform.openai.com/account/api-keys).
 

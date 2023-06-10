@@ -1,0 +1,377 @@
+@font-face {
+ font-family: 'Montserrat';
+ font-weight: 400;
+ src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
+}
+
+@font-face {
+ font-family: 'Montserrat';
+ font-weight: 500;
+ src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
+}
+
+@font-face {
+ font-family: 'Montserrat';
+ font-weight: 600;
+ src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
+}
+
+@font-face {
+ font-family: 'Montserrat';
+ font-weight: 700;
+ src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #999 transparent;
+}
+
+body {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
+  color: #333;
+  background-color: #ccc;
+}
+
+body, html {
+  height: 100%;
+  margin: 0;
+}
+
+.navbar-brand, .func-copy, .func-play, .func-delete, .func-edit {
+  cursor: pointer;
+}
+
+div.highlight {
+  padding: 0.8em;
+  margin-bottom: 1em;
+}
+
+.list-group-item {
+  color: #777
+}
+
+.badge {
+  font-weight: 300;
+}
+
+a {
+  text-decoration: none;
+}
+
+div.card-body {
+  font-size: 1.1em;
+}
+
+div.card-body.role-gpt {
+  background-color: #fcedee
+}
+
+div.card-body.role-user {
+  background-color: #f6faff
+}
+
+div.card-body.role-system {
+  background-color: #f1fcf7
+}
+
+div.highlight, div.highlight pre {
+  background-color: #fff;
+}
+
+#back_to_top {
+    position: fixed;
+    top: 128px;
+    right: 11px;
+    z-index: 1050;
+    display: inline;
+}
+
+#back_to_bottom {
+    position: fixed;
+    top: 176px;
+    right: 11px;
+    z-index: 1050;
+    display: inline;
+}
+
+#back_to_top a, #back_to_bottom a {
+    border-radius: 4px;
+    color: #fff;
+    background-color: #666;
+    text-align: center;
+    text-decoration: none;
+    padding: 10px 10px;
+}
+
+#back_to_top a:hover, #back_to_bottom a:hover {
+    background-color: #777;
+}
+
+span.status {
+  /* box-shadow: 0px 0px 1px rgba(0,0,0,0.5); */
+  font-family: var(--bs-font-sans-serif);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #212529;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  --bs-gutter-x: 1.5rem;
+  --bs-gutter-y: 0;
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: middle;
+  vertical-align: text-bottom;
+  border-radius: 50%;
+  width: 1rem;
+  height: 1rem;
+  background-color: #E2966F;
+}
+
+span.status.active {
+  /* text-shadow: 0px 0px 1px rgba(0,0,0,0.5); */
+  background-color: #ACDC4C;
+}
+
+span.status.speaking {
+  /* text-shadow: 0px 0px 1px rgba(0,0,0,0.5); */
+  font-size: 0.8em;
+  color: #DC4C64;
+}
+
+button.fixed-width {
+  width: 140px !important;
+}
+
+.monadic-color {
+  color: #ffc107;
+}
+
+.gpt-color {
+  color: #DC4C64;
+}
+
+.user-color {
+  color: #4CACDC;
+}
+
+.system-color {
+  color: #4CDC7C;
+}
+
+#error-box-wrapper {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  pointer-events: none;
+}
+
+#error-box {
+    position: relative;
+    width: 360px;
+    z-index: 1041;
+    margin: 0 auto;
+    display: inline-block;
+  pointer-events: auto;
+}
+
+#alert-box-wrapper {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  pointer-events: none;
+}
+
+#alert-box {
+    position: relative;
+    min-width: 360px;
+    z-index: 1040;
+    margin: 0 auto;
+    display: inline-block;
+    pointer-events: auto;
+}
+
+/* .shaded { */
+/*   box-shadow: 2px 2px 2px rgba(0,0,0,0.3); */
+/* } */
+
+/* .shaded-y { */
+/*   box-shadow: 0px 2px 2px rgba(0,0,0,0.3); */
+/* } */
+
+.shaded-panel, .discourse {
+  /* box-shadow: 2px 2px 2px rgba(0,0,0,0.3); */
+  background-color: #eeeeee;
+}
+
+#alert-message table td {
+  padding-left: 0;
+  border-bottom: 0;
+  color: rgba(0,0,0,.6);
+}
+
+#alert-message {
+  color: rgba(0,0,0,.6);
+}
+
+a {
+  color:#2268cf;
+}
+
+a:hover {
+  color: #174890;
+}
+
+pre {
+  scrollbar-width: thin;
+}
+
+pre code {
+  font-size: 0.96em;
+}
+
+.icon-container {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background-color: #777;
+  border-radius: 0.25rem;
+}
+
+.app-icon {
+  color: #ffc107;
+  font-size: 1.4em;
+}
+
+h3, .like-h3 {
+  color: #777;
+  font-weight: 500;
+  font-size: 1.4em;
+}
+
+h5, .like-h5 {
+  color: #777;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+h5 i, .like-h5 i {
+  display: inline-block;
+  margin-right: 0.2em;
+  color: #ffc107;
+  filter:drop-shadow(1px 1px 0px #999); /*シャドー(影)*/
+}
+
+h6, .like-h6 {
+  color: #777;
+  font-weight: 600;
+  font-size: 1.0em;
+}
+
+#toggle-menu{
+  padding: 0.25rem 0.75rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  border-color: rgba(0,0,0,.1);
+}
+
+#menu  {
+  padding-bottom: 16px;
+}
+
+#main {
+  padding-bottom: 16px;
+}
+
+/* Hide the menu column by default */
+.scrollable {
+
+  overflow-y: scroll; /* Enable vertical scrolling */
+  height: calc(100vh - 108px - 14px); /* Set the height to 100% minus the navbar and margin heights */
+  display: block;
+  height: auto;
+}
+
+/* Show the menu column when the window width is greater than or equal to 768px */
+@media (min-width: 768px) {
+  .scrollable {
+    display: block;
+    overflow-y: scroll; /* Enable vertical scrolling */
+    height: calc(100vh - 108px - 14px); /* Set the height to 100% minus the navbar and margin heights */
+  }
+
+  body, html {
+    overflow: hidden; /* Disable the regular page scrollbar */
+  }
+
+  #back_to_top {
+    display: none;
+  }
+
+  #back_to_bottom {
+    display: none;
+  }
+}
+
+/* Reset default styles for pre and code elements */
+pre, code {
+  margin: 0;
+  padding: 0;
+  border: none;
+  white-space: pre; /* Change this property from 'pre-wrap' to 'pre' */
+  overflow: auto;
+}
+
+/* For WebKit-based browsers (Chrome, Safari, etc.) */
+pre::-webkit-scrollbar {
+  width: 8px; /* Change this value to set the vertical scroll bar width */
+  height: 8px; /* Change this value to set the horizontal scroll bar height */
+}
+
+pre::-webkit-scrollbar-track {
+  background-color: #F5F5F5;
+}
+
+pre::-webkit-scrollbar-thumb {
+  background-color: #777;
+  border-radius: 8px;
+}
+
+/* For Firefox */
+pre {
+  scrollbar-width: thin; /* You can use 'thin', 'auto', or 'none' */
+  scrollbar-color: #777 #F5F5F5;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 0px;
+  background: #777;
+}
+
+textarea {
+  white-space: pre-wrap;
+}
+
+#role-icon {
+  color: #999;
+}
+
+#alert-message {
+  color: #0a58ca;
+}
+
+#alert-message code{
+  color: #0a58ca;
+}

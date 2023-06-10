@@ -1,0 +1,24 @@
+version: '3.9'
+services:
+  db:
+    image: ankane/pgvector
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    volumes:
+      - ./docker_db:/var/lib/postgresql/data
+  web:
+    volumes:
+      - .:/monadic
+    build: .
+    ports:
+      - "4567:4567"
+    depends_on:
+      - db
+    restart: on-failure
+    stdin_open: true
+    tty: true
+    command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567"]
+    env_file: .env
+volumes:
+  docker_db:
+    driver: local

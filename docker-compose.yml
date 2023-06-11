@@ -4,6 +4,8 @@ services:
     image: ankane/pgvector
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
+      POSTGRES_DB: monadic
+      POSTGRES_USER: postgres
     volumes:
       - ./vector_db:/var/lib/postgresql/data
   web:

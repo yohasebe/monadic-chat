@@ -9,7 +9,7 @@ RUN apk update && \
         gobject-introspection-dev curl-dev curl wget gcompat && \
     rm -rf /var/cache/apk/*
 
-COPY Gemfile monadic-gpt.gemspec $WORKSPACE/
+COPY Gemfile monadic.gemspec $WORKSPACE/
 RUN bundle install -j4 --without development test && \
     rm -rf /usr/local/bundle/cache/*
 

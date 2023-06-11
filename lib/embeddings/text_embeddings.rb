@@ -28,6 +28,13 @@ class TextEmbeddings
 
       # Create the database
       conn.exec("CREATE DATABASE #{db_name}")
+    else
+      # Check if the database exists
+      result = conn.exec_params("SELECT 1 FROM pg_database WHERE datname = $1", [db_name])
+      if result.ntuples.zero?
+        # Create the database if it does not exist
+        conn.exec("CREATE DATABASE #{db_name}")
+      end
     end
 
     conn.close

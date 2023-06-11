@@ -120,6 +120,15 @@ And access `http://localhost:4567` with Google Chrome or Microsoft Edge
 
 Run `docker-compose rm`
 
+### Import/Export Vector Database
+
+**Export**
+
+`docker-compose exec db pg_dump -U postgres -F t monadic > ~/Desktop/monadic.tar`
+
+**Import**
+
+
 ## Base Apps
 
 Currently, the following base apps are available for use. By selecting one of them and changing the parameters or rewriting the initial prompt, you can adjust the behavior of the AI agent. You can export/import the adjusted settings to/from an external JSON file.

@@ -14,7 +14,7 @@
 /test/version_tmp/
 /tmp/
 /log/
-/docker_db/
+/vector_db/
 /notes/
 /docs/
 

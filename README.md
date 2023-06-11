@@ -1,6 +1,6 @@
 <p>&nbsp;</p>
 
-<div align="center"><img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
+<div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
 
 <div align="center" style="color: #777777 "><b>A highly configurable Ruby framework for creating intelligent chatbots </b></div>
 

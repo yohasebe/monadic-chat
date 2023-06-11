@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
     volumes:
-      - ./docker_db:/var/lib/postgresql/data
+      - ./vector_db:/var/lib/postgresql/data
   web:
     volumes:
       - .:/monadic
@@ -20,5 +20,5 @@ services:
     command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567"]
     env_file: .env
 volumes:
-  docker_db:
+  vector_db:
     driver: local

@@ -144,7 +144,7 @@ function connect_websocket(callback) {
         $("#send, #clear, #voice").prop("disabled", false);
         $("#chat").html("");
         $("#chat-card").hide();
-        $("#spinner-gpt").hide();
+        $("#indicator").hide();
         $("#user-panel").show();
 
         // check if $("#discourse .card").last() is a user card
@@ -320,7 +320,7 @@ function connect_websocket(callback) {
         } else if (data["content"] === "CLEAR") {
           $("#chat").html("");
           $("#chat-card .status").hide();
-          $("#spinner-gpt").show();
+          $("#indicator").show();
         }
         break;
       case "html":
@@ -345,7 +345,7 @@ function connect_websocket(callback) {
 
         $("#chat").html("");
         $("#chat-card").hide();
-        $("#spinner-gpt").hide();
+        $("#indicator").hide();
         $("#user-panel").show();
         if (!isElementInViewport(mainPanel)){
           mainPanel.scrollIntoView(false);
@@ -358,7 +358,7 @@ function connect_websocket(callback) {
         $("#discourse").append(userElement);
         $("#chat-card").show();
         $("#chat-card .status").hide();
-        $("#spinner-gpt").show();
+        $("#indicator").show();
         $("#user-panel").hide();
         break;
       case "sentence":
@@ -372,7 +372,7 @@ function connect_websocket(callback) {
         }
         break;
       default:
-        $("#spinner-gpt").show();
+        $("#indicator").show();
         msgBuffer.push(data["content"]);
         $("#chat").html($("#chat").html() + data["content"].replace(/\n/g, "<br />"));
         if (!isElementInViewport(chatBottom)){

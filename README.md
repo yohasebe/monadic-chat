@@ -7,7 +7,11 @@
 <p>&nbsp;</p>
 
 > **Note**
+>
 > The command-line program Monadic Chat was renamed to **[Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)** and moved to a separate repository. Going forward, Monadic Chat will be developed as a web-based application on this repository.
+
+- Monadic Chat: [https://github.com/yohasebe/monadic-chat](https://github.com/yohasebe/monadic-chat) (this repo)
+- Monadic Chat CLI: [https://github.com/yohasebe/monadic-chat-cli](https://github.com/yohasebe/monadic-chat-cli)
 
 <p>&nbsp;</p>
 <div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>

@@ -23,7 +23,7 @@ class Wikipedia < MonadicApp
   def settings
     {
       "app_name": "Wikipedia",
-      "model": "gpt-4",
+      "model": "gpt-3.5-turbo",
       "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 1000,
@@ -33,11 +33,14 @@ class Wikipedia < MonadicApp
       "icon": icon,
       "easy_submit": false,
       "auto_speech": false,
-      "custom_search_key": "SEARCH_WIKI"
+      "functions": [{
+        "name" => "search_wikipedia",
+        "description" => "A function to search Wikipedia articles, requiring one argument representing the query to be searched."
+      }]
     }
   end
 
-  def custom_search(keywords, num_retrial: 10)
+  def search_wikipedia(keywords, num_retrials: 10)
     base_url = "https://en.wikipedia.org/w/api.php"
 
     search_params = {
@@ -91,10 +94,10 @@ class Wikipedia < MonadicApp
       "SOURCE": https://en.wikipedia.org/wiki/#{title}
     TEXT
   rescue StandardError
-    num_retrial -= 1
-    if num_retrial.positive?
+    num_retrials -= 1
+    if num_retrials.positive?
       sleep 1
-      custom_search(keywords, num_retrial: num_retrial)
+      search_wikipedia(keywords, num_retrials: num_retrials)
     else
       <<~TEXT
         "SEARCH SNIPPETS: ```

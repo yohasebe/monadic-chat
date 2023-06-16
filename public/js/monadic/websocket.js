@@ -161,6 +161,13 @@ function connect_websocket(callback) {
 
         break;
       case "token_verified":
+
+        const model_options = data['models'].map(
+          model => `<option value="${model}">${model}</option>`
+        );
+        $("#model-options").html(model_options);
+        $("#model-options").val("gpt-3.5-turbo");
+
         if (messages.length === 0) {
           const token_verified = `\
             <p>${data['content']}</p>\
@@ -293,7 +300,7 @@ function connect_websocket(callback) {
               $("#discourse").append(userElement);
               break;
             case "assistant":
-              const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 gpt-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
+              const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
               if (apps[loadedApp]["mathjax"] === "true") {
                 applyMathJax(gptElement);
@@ -328,7 +335,7 @@ function connect_websocket(callback) {
         msgBuffer.length = 0;
         let htmlElement;
         if (data["content"]["role"] === "assistant") {
-          htmlElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 gpt-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+          htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {
           htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "system") {

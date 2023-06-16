@@ -150,7 +150,7 @@ button.fixed-width {
   color: #ffc107;
 }
 
-.gpt-color {
+.assistant-color {
   color: #DC4C64;
 }
 
@@ -375,3 +375,4 @@ textarea {
 #alert-message code{
   color: #0a58ca;
 }
+

@@ -72,6 +72,7 @@ Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT o
 
 ### Setting Up
 
+
 1. Start Docker Desktop
 
 2. Open a terminal emulator app
@@ -94,13 +95,21 @@ Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT o
 
 ### Start Monadic Chat
 
-Run `docker-compose up`
+Do as follows inside the `monadic-chat` folder:
 
-Add `-d` to start the system in the background: `docker-compose up -d`
+1. To start the system in the foreground, run:
 
-And access `http://localhost:4567` with Google Chrome or Microsoft Edge
+    `docker-compose up`
+
+2. To start the system in the background, run: 
+
+    `docker-compose up -d`
+
+Then access `http://localhost:4567` with Google Chrome or Microsoft Edge
 
 ### Stop Monadic Chat
+
+Do as follows inside the `monadic-chat` folder:
 
 1. If the system is run in the foreground:
 
@@ -108,19 +117,29 @@ And access `http://localhost:4567` with Google Chrome or Microsoft Edge
 
 2. If the system is run in the background:
 
-    Run `docker-compose stop`
+    `docker-compose stop`
 
 ### Update Monadic Chat
 
-1. Inside the `monadic-chat` folder, run `git pull`.
+Do as follows inside the `monadic-chat` folder:
 
-2. Then run `docker-compose build`.
+1. Stop the system and remove the Docker container with
+
+    `docker-compose down`
+
+2. Run `git pull`.
+
+3. Then run `docker-compose build`.
 
 ### Uninstall the Docker container and image
+
+Do as follows inside the `monadic-chat` folder:
 
 Run `docker-compose rm`
 
 ### Import/Export Vector Database
+
+Do as follows inside the `monadic-chat` folder:
 
 **Export**
 

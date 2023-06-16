@@ -115,20 +115,24 @@ module WebSocketHelper
           @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
         when "HTML"
           thread&.join
-          text = queue.pop["choices"][0]["text"]
-          # if the current app has a monadic_html method, use it to generate html
-          html = if session["parameters"]["monadic"]
-                   APPS[session["parameters"]["app_name"]].monadic_html(text)
-                 else
-                   markdown_to_html(text)
-                 end
-          new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
-          @channel.push({ "type" => "html", "content" => new_data }.to_json)
-          session[:messages] << new_data
-          messages = session[:messages].filter { |m| m["type"] != "search" }
-          past_messages_data = check_past_messages(session[:parameters])
-          @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
-          @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+          begin
+            text = queue.pop["choices"][0]["text"]
+            # if the current app has a monadic_html method, use it to generate html
+            html = if session["parameters"]["monadic"]
+                     APPS[session["parameters"]["app_name"]].monadic_html(text)
+                   else
+                     markdown_to_html(text)
+                   end
+            new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
+            @channel.push({ "type" => "html", "content" => new_data }.to_json)
+            session[:messages] << new_data
+            messages = session[:messages].filter { |m| m["type"] != "search" }
+            past_messages_data = check_past_messages(session[:parameters])
+            @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
+            @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+          rescue StandardError
+            @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
+          end
         when "SAMPLE"
           text = obj["content"]
           new_data = { "mid" => SecureRandom.hex(4),

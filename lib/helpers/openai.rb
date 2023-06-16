@@ -129,6 +129,32 @@ module OpenAIHelper
       "frequency_penalty" => frequency_penalty
     }
 
+    if obj["functions"] && !obj["functions"].empty?
+      body["functions"] = APPS[app].settings[:functions].map { |func| APPS[app].function_to_json(func["name"], func["description"]) }
+      body["function_call"] = "auto"
+      body["stream"] = false
+    end
+    pp body
+
+    # if obj["custom_search_key"] && obj["custom_search_key"] != ""
+    #   body["functions"] = [
+    #     {
+    #       "name" => obj["custom_search_key"],
+    #       "parameters" => {
+    #         "type" => "object",
+    #         "properties" => {
+    #           "search_key" => {
+    #             "type" => "string",
+    #             "description" => "The search key to use for the search."
+    #           }
+    #         }
+    #       }
+    #     }
+    #   ]
+    #   body["function_call"] = "auto"
+    #   body["stream"] = false
+    # end
+
     case MODE
     when "completions"
       body["prompt"] = message
@@ -155,97 +181,122 @@ module OpenAIHelper
     json = nil
 
     last_processed_time = Time.now
-    res.body.each do |chunk|
-      chunk.split("\n\n").each do |data|
-        current_time = Time.now
-        elapsed_time = current_time - last_processed_time
 
-        if elapsed_time > STREAMING_TIMEOUT
-          error_message = "Error: No new response received within 5 seconds after the last response has been processed."
-          res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-          pp res
-          block&.call res
-          return res
-        end
+    if body["stream"]
+      res.body.each do |chunk|
+        chunk.split("\n\n").each do |data|
+          current_time = Time.now
+          elapsed_time = current_time - last_processed_time
 
-        unless data[0..5] == "data: "
-          typecheck = JSON.parse(data)
-          begin
-            if typecheck["error"]
-              res = { "type" => "error", "content" => typecheck["error"]["message"] }
-              pp res
-              block&.call res
-              return res
-            end
-          rescue JSON::ParserError
-            res = { "type" => "error", "content" => "Error: JSON Parsing" }
+          if elapsed_time > STREAMING_TIMEOUT
+            error_message = "Error: No new response received within 5 seconds after the last response has been processed."
+            res = { "type" => "error", "content" => "ERROR: #{error_message}" }
             pp res
             block&.call res
             return res
           end
-        end
 
-        content = data.strip[6..]
-        break if content == "[DONE]"
-
-        begin
-          stream = JSON.parse(content)
-        rescue JSON::ParserError
-          next
-        end
-
-        fragment = case MODE
-                   when "completions"
-                     stream["choices"][0]["text"]
-                   when "chat/completions"
-                     stream["choices"][0]["delta"]["content"] || ""
-                   end
-        res = { "type" => "fragment", "content" => fragment, "finish_reason" => stream["finish_reason"] }
-        block&.call res
-        if !json
-          json = stream
-        else
-          case MODE
-          when "completions"
-            json["choices"][0]["text"] << fragment
-          when "chat/completions"
-            json["choices"][0]["text"] ||= +""
-            json["choices"][0]["text"] << fragment
+          unless data[0..5] == "data: "
+            typecheck = JSON.parse(data)
+            begin
+              if typecheck["error"]
+                res = { "type" => "error", "content" => typecheck["error"]["message"] }
+                pp res
+                block&.call res
+                return res
+              end
+            rescue JSON::ParserError
+              res = { "type" => "error", "content" => "Error: JSON Parsing" }
+              pp res
+              block&.call res
+              return res
+            end
           end
+
+          content = data.strip[6..]
+          # pp content
+          break if content == "[DONE]"
+
+          begin
+            stream = JSON.parse(content)
+          rescue JSON::ParserError
+            next
+          end
+
+          fragment = case MODE
+                     when "completions"
+                       stream["choices"][0]["text"]
+                     when "chat/completions"
+                       stream["choices"][0]["delta"]["content"] || ""
+                     end
+          res = { "type" => "fragment", "content" => fragment, "finish_reason" => stream["finish_reason"] }
+          block&.call res
+          if !json
+            json = stream
+          else
+            case MODE
+            when "completions"
+              json["choices"][0]["text"] << fragment
+            when "chat/completions"
+              json["choices"][0]["text"] ||= +""
+              json["choices"][0]["text"] << fragment
+            end
+          end
+          last_processed_time = Time.now
+        rescue Timeout::Error
+          error_message = "Error: No new response received within #{STREAMING_TIMEOUT} seconds after the last response has been processed."
+          res = { "type" => "error", "content" => "ERROR: #{error_message}" }
+          pp res
+          block&.call res
+          return res
+        rescue StandardError => e
+          res = { "type" => "error", "content" => "ERROR: #{e.message}" }
+          pp res
+          block&.call res
+          return res
         end
-        last_processed_time = Time.now
-      rescue Timeout::Error
-        error_message = "Error: No new response received within #{STREAMING_TIMEOUT} seconds after the last response has been processed."
-        res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-        pp res
-        block&.call res
-        return res
-      rescue StandardError => e
-        res = { "type" => "error", "content" => "ERROR: #{e.message}" }
+      end
+    else
+      begin
+        json = JSON.parse(res.body)
+      rescue JSON::ParserError
+        res = { "type" => "error", "content" => "Error: JSON Parsing" }
         pp res
         block&.call res
         return res
       end
     end
 
-    if role == "user"
-      custom_search_key = obj["custom_search_key"]
-      # CUSTOM SEARCH
-      if custom_search_key && custom_search_key != ""
-        search_key = json["choices"][0]["text"]
-        if /\b#{custom_search_key}\("?(.+?)"?\)/m =~ search_key
-          # This will be only kept for the current session (not in the saved session)
-          search_record = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => search_key, "type" => "search" }
-          session[:messages] << search_record
+    if role == "user" && obj["functions"]
+      custom_search_keys = APPS[app].settings[:functions]
+      if custom_search_keys && !custom_search_keys.empty?
+        custom_search_key = custom_search_keys.map { |f| f["name"] }.first
+        pp json
+        arguments = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"]).values
 
-          res = { "type" => "message", "content" => "CLEAR" }
-          block&.call res
-          search_key = Regexp.last_match(1)
-          message = APPS[app].custom_search(search_key)
-          obj["message"] = message if message
-          return completion_api_request("system", &block)
-        end
-      # MONADIC_MAP (BIND)
+        # if /\b#{custom_search_key}\("?(.+?)"?\)/m =~ search_key
+        # This will be only kept for the current session (not in the saved session)
+        # search_record = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => search_key, "type" => "search" }
+
+        search_record = { "mid" => SecureRandom.hex(4),
+                          "role" => "assistant",
+                          "text" => "#{custom_search_key}(\"#{arguments.join(", ")}\")",
+                          "type" => "search" }
+        session[:messages] << search_record
+
+        # res = { "type" => "message", "content" => "CLEAR" }
+        # block&.call res
+        # search_key = Regexp.last_match(1)
+        obj.delete("functions")
+        obj["function_call"] = "none"
+        message = APPS[app].send(custom_search_key, *arguments)
+        obj["message"] = message if message
+        obj["stream"] = true
+        return completion_api_request("system", &block)
+
+        # end
+        # MONADIC_MAP (BIND)
+
       elsif obj["monadic"]
         message = json["choices"][0]["text"]
         json["choices"][0]["text"] = APPS[app].monadic_map(message)

@@ -97,4 +97,29 @@ class MonadicApp
 
     "<div class='mb-3'>#{output}</div>"
   end
+
+  def function_to_json(function_name, function_description = nil)
+    method = method(function_name).source
+    parameters = method.scan(/\((.*?)\)/).flatten[0].split(",").map(&:strip)
+
+    function_json = {
+      "name" => function_name.to_s,
+      "parameters" => {
+        "type" => "object",
+        "properties" => {}
+      }
+    }
+
+    function_json["description"] = function_description if function_description
+
+    parameters.each do |param|
+      next if /(?::|=>)/ =~ param
+
+      function_json["parameters"]["properties"][param] = {
+        "type" => "string"
+      }
+    end
+
+    function_json
+  end
 end

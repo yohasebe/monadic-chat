@@ -18,7 +18,7 @@ class Code < MonadicApp
 
   def settings
     {
-      "model": "gpt-4",
+      "model": "gpt-3.5-turbo",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,

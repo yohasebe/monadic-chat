@@ -87,11 +87,11 @@ Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT o
 
 5. Build Docker image
 
-    `docker-compose build`
+    `docker compose build`
 
     To rebuild the image without using cached data, add `--no-cache`:
 
-    `docker-compose build --no-cache`
+    `docker compose build --no-cache`
 
 ### Start Monadic Chat
 
@@ -99,11 +99,11 @@ Do as follows inside the `monadic-chat` folder:
 
 1. To start the system in the foreground, run:
 
-    `docker-compose up`
+    `docker compose up`
 
 2. To start the system in the background, run: 
 
-    `docker-compose up -d`
+    `docker compose up -d`
 
 Then access `http://localhost:4567` with Google Chrome or Microsoft Edge
 
@@ -117,7 +117,7 @@ Do as follows inside the `monadic-chat` folder:
 
 2. If the system is run in the background:
 
-    `docker-compose stop`
+    `docker compose stop`
 
 ### Update Monadic Chat
 
@@ -125,17 +125,17 @@ Do as follows inside the `monadic-chat` folder:
 
 1. Stop the system and remove the Docker container with
 
-    `docker-compose down`
+    `docker compose down`
 
 2. Run `git pull`.
 
-3. Then run `docker-compose build`.
+3. Then run `docker compose build`.
 
 ### Uninstall the Docker container and image
 
 Do as follows inside the `monadic-chat` folder:
 
-Run `docker-compose rm`
+Run `docker compose rm`
 
 ### Import/Export Vector Database
 
@@ -143,7 +143,7 @@ Do as follows inside the `monadic-chat` folder:
 
 **Export**
 
-`docker-compose exec db pg_dump -U postgres -F t monadic > ~/Desktop/monadic.tar`
+`docker compose exec db pg_dump -U postgres -F t monadic > ~/Desktop/monadic.tar`
 
 **Import**
 

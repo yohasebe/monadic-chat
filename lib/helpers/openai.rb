@@ -134,26 +134,6 @@ module OpenAIHelper
       body["function_call"] = "auto"
       body["stream"] = false
     end
-    pp body
-
-    # if obj["custom_search_key"] && obj["custom_search_key"] != ""
-    #   body["functions"] = [
-    #     {
-    #       "name" => obj["custom_search_key"],
-    #       "parameters" => {
-    #         "type" => "object",
-    #         "properties" => {
-    #           "search_key" => {
-    #             "type" => "string",
-    #             "description" => "The search key to use for the search."
-    #           }
-    #         }
-    #       }
-    #     }
-    #   ]
-    #   body["function_call"] = "auto"
-    #   body["stream"] = false
-    # end
 
     case MODE
     when "completions"
@@ -274,29 +254,17 @@ module OpenAIHelper
         pp json
         arguments = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"]).values
 
-        # if /\b#{custom_search_key}\("?(.+?)"?\)/m =~ search_key
-        # This will be only kept for the current session (not in the saved session)
-        # search_record = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => search_key, "type" => "search" }
-
         search_record = { "mid" => SecureRandom.hex(4),
                           "role" => "assistant",
                           "text" => "#{custom_search_key}(\"#{arguments.join(", ")}\")",
                           "type" => "search" }
         session[:messages] << search_record
-
-        # res = { "type" => "message", "content" => "CLEAR" }
-        # block&.call res
-        # search_key = Regexp.last_match(1)
         obj.delete("functions")
         obj["function_call"] = "none"
         message = APPS[app].send(custom_search_key, *arguments)
         obj["message"] = message if message
         obj["stream"] = true
         return completion_api_request("system", &block)
-
-        # end
-        # MONADIC_MAP (BIND)
-
       elsif obj["monadic"]
         message = json["choices"][0]["text"]
         json["choices"][0]["text"] = APPS[app].monadic_map(message)

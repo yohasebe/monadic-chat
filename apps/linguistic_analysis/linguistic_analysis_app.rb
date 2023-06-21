@@ -15,9 +15,9 @@ class LinguisticAnalysis < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      Create a response to the user's message, which is embedded in a JSON object. Set your response to the "message" property of a new JSON object with the same structure as the one shown in the "JSON STRUCTURE" section below. Then, update the contents of the ‘context’ as instructed in the "INSTRUCTION" section below. Finally, return the updated JSON object.
+      Create a response to the user's message, which is embedded in a JSON object. Set your response to the "message" property of a new JSON object with the same structure as the one shown in the "STRUCTURE" below. Then, update the contents of the "context" as instructed in the "INSTRUCTION" below. Finally, return the updated JSON object.
 
-      JSON STRUCTURE:
+      STRUCTURE:
 
       ```json
       {

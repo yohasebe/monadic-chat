@@ -13,7 +13,7 @@ class Wikipedia < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time in September 2021, please use a Wikipedia search. To do a Wikipedia search, say "SEARCH_WIKI(query)" and read the snippets in the result. When responding based on the Wikipedia search, make sure to refer to the source article in "SOURCE".
+      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time in September 2021, please run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(query)` and read "SNIPPETS" in the result. When responding based on the Wikipedia search, make sure to refer to the source article in "SOURCE".
 
       If the search results do not contain enough information, please let the user know. Even if the user's question is in a language other than English, please make a Wikipedia query in English and then answer in the user's language.
     TEXT
@@ -35,7 +35,17 @@ class Wikipedia < MonadicApp
       "auto_speech": false,
       "functions": [{
         "name" => "search_wikipedia",
-        "description" => "A function to search Wikipedia articles, requiring one argument representing the query to be searched."
+        "description" => "A function to search Wikipedia articles, requiring one argument representing the query to be searched.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "keywords": {
+              "type": "string",
+              "description": "Wikipedia search keywords"
+            }
+          },
+          "required": ["keywords"]
+        }
       }]
     }
   end

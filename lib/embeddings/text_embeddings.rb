@@ -11,12 +11,14 @@ def in_container?
   File.file?("/.dockerenv")
 end
 
+IN_CONTAINER = in_container?
+
 class TextEmbeddings
   attr_accessor :conn
 
   # Set up PostgreSQL connection
   def self.connect_to_db(db_name, recreate_db: false)
-    conn = if in_container?
+    conn = if IN_CONTAINER
              PG.connect(dbname: "postgres", host: "db", port: 5432, user: "postgres")
            else
              PG.connect(dbname: "postgres")
@@ -41,7 +43,7 @@ class TextEmbeddings
 
     # Connect to the new database and set up the table and extension
     begin
-      conn = if in_container?
+      conn = if IN_CONTAINER
                PG.connect(dbname: db_name, host: "db", port: 5432, user: "postgres")
              else
                PG.connect(dbname: db_name)

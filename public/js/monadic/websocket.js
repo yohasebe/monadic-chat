@@ -143,7 +143,7 @@ function connect_websocket(callback) {
         msgBuffer.length = 0;
         $("#send, #clear, #voice").prop("disabled", false);
         $("#chat").html("");
-        $("#chat-card").hide();
+        $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
 
@@ -199,6 +199,9 @@ function connect_websocket(callback) {
         $("#api-token").focus();
         break;
       case "apps":
+        let version_string = data["version"]
+        data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
+        $("#monadic-version-number").html(version_string);
         if (Object.keys(apps).length === 0) {
           for (const [key, value] of Object.entries(data["content"])) {
             apps[key] = value;
@@ -283,9 +286,9 @@ function connect_websocket(callback) {
           const card = $(`#${msg["mid"]}`);
           if (card.length) {
             if (msg["active"]) {
-              card.find(".status").addClass("active");
+              card.find(".status").addClass("active").attr("title", "Active");
             } else {
-              card.find(".status").removeClass("active");
+              card.find(".status").removeClass("active").attr("title", "Inactive");
             }
           }
         });
@@ -326,7 +329,7 @@ function connect_websocket(callback) {
           ws.send(JSON.stringify({"message": "HTML"}));
         } else if (data["content"] === "CLEAR") {
           $("#chat").html("");
-          $("#chat-card .status").hide();
+          $("#temp-card .status").hide();
           $("#indicator").show();
         }
         break;
@@ -351,7 +354,7 @@ function connect_websocket(callback) {
         }
 
         $("#chat").html("");
-        $("#chat-card").hide();
+        $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
         if (!isElementInViewport(mainPanel)){
@@ -363,8 +366,8 @@ function connect_websocket(callback) {
         messages.push({ "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] });
         const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         $("#discourse").append(userElement);
-        $("#chat-card").show();
-        $("#chat-card .status").hide();
+        $("#temp-card").show();
+        $("#temp-card .status").hide();
         $("#indicator").show();
         $("#user-panel").hide();
         break;
@@ -372,7 +375,6 @@ function connect_websocket(callback) {
         // speak the text if auto_speak is enabled
         if (data["content"] !== null) {
           const text = removeEmojis(data["content"]).trim();
-          // if ($("#check-auto-speech").is(":checked")) {
           if (params["auto_speech"]) {
             speak(text, data["lang"], function () {});
           }

@@ -95,7 +95,7 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
       $("#chat").html("")
-      $("#chat-card").hide();
+      $("#temp-card").hide();
       $("#parameter-panel").show();
       $("#user-panel").show();
       setInputFocus()
@@ -107,7 +107,7 @@ $(function () {
       $("#discourse").show();
 
       if($("#initiate-from-assistant").is(":checked")) {
-        $("#chat-card").show();
+        $("#temp-card").show();
         $("#user-panel").hide();
         reconnect_websocket(ws, function (ws) {
           ws.send(JSON.stringify(params));
@@ -117,6 +117,16 @@ $(function () {
         setInputFocus()
       }
     }
+  });
+
+  $("#cancel-query").on("click", function () {
+    // send cancel message to server
+    ws.send(JSON.stringify({message: "CANCEL"}));
+    // reset UI
+    $("#chat").html("");
+    $("#temp-card").hide();
+    $("#user-panel").show();
+    setInputFocus();
   });
 
   $("#check-token").on("click", function (event) {
@@ -399,5 +409,11 @@ $(function () {
       $("#speech-lang").prop("disabled", false);
       $("#speech-voice").prop("disabled", false);
     }
+  });
+
+  $("#discourse").tooltip({
+    selector: '.card-header [title]',
+    delay: { show: 0, hide: 0 },
+    show: 100
   });
 });

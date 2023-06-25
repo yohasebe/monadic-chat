@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Monadic :: Chat</title>
+    <title>Monadic Chat</title>
     <link href="ext/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="ext/jquery/jquery-ui.min.css" rel="stylesheet">
     <link href="ext/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/pigments-default.css" rel="stylesheet">
     <link href="css/monadic.css" rel="stylesheet">
@@ -34,7 +35,23 @@
     <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 108px;">
       <div class="row g-3 mt-3 my-3">
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 100px;">
-          <div id="app-panel" class="p-3 mb-3 rounded shaded-panel">
+
+          <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
+            <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-message"></i></span> Monadic Chat</h5>
+
+            <div class="mb-2" style="display: flex; align-items: center;">
+              <div id="monadic-homepage">
+                <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer">Homepage</a></span>
+                &nbsp;&nbsp;
+                <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer">GitHub Repo</a></span>
+              </div>
+            </div>
+            <div class="mb-4" style="display: flex; align-items: center;">
+              <div id="monadic-version">
+                <span class="text text-secondary"><i class="fa-solid fa-circle-info"></i> Version:</span> <span class="text text-secondary" id="monadic-version-number"></span>
+              </div>
+            </div>
+
             <h5 class="pb-2"><span class="text"><i class="fas fa-bolt"></i></span> Current Base App</h5>
             <div style="display: flex; align-items: center;">
               <div class="icon-container">
@@ -195,13 +212,17 @@
             <h5 class="pb-0 mb-0" style="color: #777;"><span class="text"><i class="fas fa-comments"></i> Dialog</span></h5>
             <div id="discourse" style="width: 100%; border: 0xp; overflow-y: auto; display: none;"></div>
 
-            <div id="chat-card" class="card mt-3" style="display:none;">
+            <div id="temp-card" class="card mt-3" style="display:none;">
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
                 <div class="fs-5 card-title mb-0">
                   <span class='text-secondary'><i class='fas fa-bars'></i></span>
                   <span class='fw-bold assistant-color'>Assistant</span>
                 </div>
-                <div class="me-1"><span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner" style="display: none;"></span></div>
+                <!-- div class="me-1"><span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner" style="display: none;"></span></div -->
+                <div class="me-1 text-secondary d-flex align-items-center">
+                  <span id="cancel-query" class="me-3 text text-danger">CANCEL <i class="fa-regular fa-circle-stop"></i></span>
+                  <span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner"></span>
+                </div>
               </div>
               <div class="card-body role-assistant pb-0">
                 <div id="chat" class="card-text pt-0 color: #333; font-weight: 700"></div>

@@ -1,7 +1,7 @@
 version: '3.9'
-volumes:
-  vector_db:
-    driver: local
+# volumes:
+#   vector_db:
+#     driver: local
 services:
   db:
     image: ankane/pgvector
@@ -9,8 +9,8 @@ services:
       POSTGRES_HOST_AUTH_METHOD: "trust"
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
-    volumes:
-      - ./vector_db:/var/lib/postgresql/data
+    # volumes:
+    #   - ./vector_db:/var/lib/postgresql/data
   web:
     volumes:
       - .:/monadic

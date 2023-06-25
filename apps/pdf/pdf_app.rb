@@ -35,8 +35,4 @@ class PDF < MonadicApp
       "pdf": true
     }
   end
-
-  def search(_keywords)
-    false
-  end
 end

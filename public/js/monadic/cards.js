@@ -3,6 +3,8 @@ const mids = [];
 function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   const status_class = status === true ? "active" : "";
+  const status_name = status === true ? "Active" : "Inactive";
+
   let className
   if (role === "user") {
     className = "role-user";
@@ -29,11 +31,11 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
     card.attr("id", mid);
     card.find(".card-header").append(`
         <div class="me-1 text-secondary d-flex align-items-center">
-          <span class="func-copy me-3"><i class="fas fa-copy"></i></span>
-          <span class="func-play me-3"><i class="fas fa-play"></i></span>
-          <span class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-          <span class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-          <span class="status ${status_class}"></span>
+          <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+          <span title="Text to Speech" class="func-play me-3"><i class="fas fa-play"></i></span>
+          <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+          <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+          <span title="${status_name}" class="status ${status_class}"></span>
         </div>
       `);
   }

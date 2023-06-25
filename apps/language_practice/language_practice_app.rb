@@ -34,8 +34,4 @@ class LanguagePractice < MonadicApp
       "pdf": false
     }
   end
-
-  def search(_keywords)
-    false
-  end
 end

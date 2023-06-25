@@ -34,8 +34,4 @@ class Code < MonadicApp
       "mathjax": true
     }
   end
-
-  def search(_keywords)
-    false
-  end
 end

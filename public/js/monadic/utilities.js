@@ -334,7 +334,7 @@ function resetEvent(event) {
     $("#main-panel").hide();
     $("#discourse").html("").hide();
     $("#chat").html("")
-    $("#chat-card").hide();
+    $("#temp-card").hide();
     $("#config").show();
     $("#back-to-settings").hide();
     $("#paramList").html("")

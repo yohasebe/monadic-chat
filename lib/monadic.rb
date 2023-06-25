@@ -22,6 +22,7 @@ require "uri"
 require_relative "embeddings/pdf_text_extractor"
 require_relative "embeddings/text_embeddings"
 require_relative "monadic/monadic_app"
+require_relative "monadic/version"
 
 require_relative "helpers/openai"
 helpers OpenAIHelper
@@ -84,6 +85,8 @@ end
 get "/" do
   session[:parameters] ||= {}
   session[:messages] ||= []
+  session[:version] = Monadic::VERSION
+  session[:docker] = IN_CONTAINER
 
   if Faye::WebSocket.websocket?(env)
     websocket_handler(env)

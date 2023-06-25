@@ -62,6 +62,10 @@ module WebSocketHelper
         msg = obj["message"] || ""
 
         case msg
+        when "CANCEL"
+          thread&.kill
+          thread = nil
+          queue.clear
         when "PDF_TITLES"
           ws.send({ "type" => "pdf_titles", "content" => list_pdf_titles }.to_json)
         when "DELETE_PDF"
@@ -101,7 +105,7 @@ module WebSocketHelper
             end
           end
           messages = session[:messages].filter { |m| m["type"] != "search" }
-          @channel.push({ "type" => "apps", "content" => apps }.to_json) unless apps.empty?
+          @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
           @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
           @channel.push({ "type" => "past_messages", "content" => messages }.to_json) unless session[:messages].empty?
           past_messages_data = check_past_messages(session[:parameters])

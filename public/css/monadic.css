@@ -213,10 +213,6 @@ button.fixed-width {
   color: rgba(0,0,0,.6);
 }
 
-#alert-message {
-  color: rgba(0,0,0,.6);
-}
-
 a {
   color:#2268cf;
 }
@@ -366,10 +362,6 @@ textarea {
 
 #role-icon {
   color: #999;
-}
-
-#alert-message {
-  color: #0a58ca;
 }
 
 #alert-message code{

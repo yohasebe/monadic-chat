@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start Docker
-systemctl start docker
+sudo systemctl start docker
 
 # Wait for Docker to become available
 until docker info > /dev/null 2>&1; do

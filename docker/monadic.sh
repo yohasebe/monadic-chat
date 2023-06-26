@@ -12,22 +12,28 @@ LINUX_SCRIPT="${ROOT_DIR}/docker/linux-start-docker.sh"
 function start_docker_compose {
     # Determine the operating system
     case "$(uname -s)" in
-        Darwin)
-            # macOS
-            sh "$MAC_SCRIPT"
-            ;;
-        Linux)
-            # Linux
-            sh "$LINUX_SCRIPT"
-            ;;
-        CYGWIN*|MINGW32*|MSYS*|MINGW*)
-            # Windows
-            sh "$WINDOWS_SCRIPT"
-            ;;
-        *)
-            echo "Unsupported operating system: $(uname -s)"
-            exit 1
-            ;;
+      Darwin)
+        # macOS
+        sh "$MAC_SCRIPT"
+        ;;
+      Linux)
+        # Linux
+        if grep -q microsoft /proc/version; then
+          # WSL2
+          sh "$WINDOWS_SCRIPT"
+        else
+          # Native Linux
+          sh "$LINUX_SCRIPT"
+        fi
+        ;;
+      CYGWIN*|MINGW32*|MSYS*|MINGW*)
+        # Windows
+        sh "$WINDOWS_SCRIPT"
+        ;;
+      *)
+        echo "Unsupported operating system: $(uname -s)"
+        exit 1
+        ;;
     esac
 
     # Build and start the Docker Compose services
@@ -71,6 +77,16 @@ function restart_docker_compose {
     start_docker_compose
 }
 
+# Define a function to import the database contents from an external file
+function import_database {
+    sh "${ROOT_DIR}/docker/import_vector_db.sh"
+}
+
+# Define a function to export the database contents to an external file
+function export_database {
+    sh "${ROOT_DIR}/docker/export_vector_db.sh"
+}
+
 # Parse the user command
 case "$1" in
     start)
@@ -82,8 +98,14 @@ case "$1" in
     restart)
         restart_docker_compose
         ;;
+    import)
+        import_database
+        ;;
+    export)
+        export_database
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart}"
+        echo "Usage: $0 {start|stop|restart|import|export}"
         exit 1
         ;;
 esac

@@ -9,15 +9,9 @@ layout: default
 [English](https://yohasebe.github.io/monadic-chat/documentation) |
 [日本語](https://yohasebe.github.io/monadic-chat/documentation_ja)
 
-### 目次
-{:.no_toc}
-
-0. toc
-{:toc}
-
 ### インストール (MacOS）
 
-1. Homebrew
+#### Homebrew
 
 まずは[Homebrew](https://brew.sh/index_ja)をインストールします。HomebrewはMacOSのパッケージ管理システムです。
 
@@ -27,7 +21,7 @@ layout: default
 $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
-2. Git
+#### Git
 
 次にgitコマンドを使えるようにしましょう。gitはソースコードのバージョン管理システムです。
 
@@ -35,7 +29,7 @@ $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/inst
 $ brew install git
 ```
 
-3. Docker Desktop
+#### Docker Desktop
 
 次にDocker Desktopをインストールします。Docker Desktopはコンテナ型の仮想環境を作成するためのソフトウェアです。
 
@@ -50,7 +44,7 @@ $ sysctl -n machdep.cpu.brand_string
 
 ダウンロードしたdmgファイルをダブルクリックするとインストールが始まります。インストールが完了したら、Docker Desktopを起動してください。Docker Desktopを起動すると、メニューバーにDockerのアイコンが表示されます。
 
-4. Monadic Chat ソースコードのダウンロード
+#### Monadic Chat ソースコードのダウンロード
 
 ターミナルを開いて、Monadic Chatのソースコードをコピーする場所に移動します。ここでは、ホームディレクトリににソースコードをコピーすることにします。通常はターミナルを開くとそこがホームディレクトリですが、念のため次のコマンドでホームディレクトリに移動しましょう。
 
@@ -64,7 +58,7 @@ $ cd ~
 $ git clone https://github.com/yohasebe/monadic-chat.git
 ```
 
-5. Monadic Chatのビルド
+#### Monadic Chatのビルド
 
 先ほどダウンロードしたソースコードのディレクトリに移動しましょう。
 
@@ -80,7 +74,7 @@ $ ./docker/monadic.sh start
 
 初回はビルドに時間がかかりますが、2回目以降はすぐに起動できます。
 
-6. Monadic Chatの起動
+#### Monadic Chatの起動
 
 ビルドが済んでいる場合は、以下のコマンドでMonadic Chatを起動できます。Docker Desktopが起動していない場合は、このコマンドにより自動で起動します。
 
@@ -91,7 +85,7 @@ $ ./docker/monadic.sh start
 
 MacではMonadic Chatの起動が完了すると、システムのデフォルト・ブラウザ上でホーム画面が開きます。もし、画面が開かない場合は、ブラウザで`http://localhost:4567`を開いてください（または再読み込みしてください）。
 
-7. Monadic Chatの停止
+#### Monadic Chatの停止
 
 Monadic Chatを停止するには、以下のコマンドを実行します。
 
@@ -100,7 +94,7 @@ $ cd ~/monadic-chat
 $ ./docker/monadic.sh stop
 ```
 
-8. Monadic Chatのアップデート
+#### Monadic Chatのアップデート
 
 Monadic Chatのアップデートは、以下のコマンドを実行します。
 

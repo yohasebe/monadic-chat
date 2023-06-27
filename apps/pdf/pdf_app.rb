@@ -20,7 +20,7 @@ class PDF < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo",
+      "model": "gpt-3.5-turbo-0613",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,

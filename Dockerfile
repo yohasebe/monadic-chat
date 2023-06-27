@@ -19,5 +19,5 @@ COPY tmp/ $WORKSPACE/tmp/
 COPY views/ $WORKSPACE/views/
 COPY config.ru Gemfile LICENSE Rakefile README.md $WORKSPACE/
 
-COPY docker/wait-for-postgres.sh /usr/local/bin/wait-for-postgres.sh
+COPY docker/support_scripts/wait-for-postgres.sh /usr/local/bin/wait-for-postgres.sh
 RUN chmod +x /usr/local/bin/wait-for-postgres.sh

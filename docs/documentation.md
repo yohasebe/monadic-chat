@@ -17,7 +17,7 @@ First, install [Homebrew](https://brew.sh), which is a package management system
 Open the terminal. The location of the terminal on Mac is `Application -> Utilities -> Terminal.app`. Once you have opened the terminal, execute the following command (the first `$` represents the command line prompt).
 
 ```shell
-$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" 
 ```
 
 #### Git

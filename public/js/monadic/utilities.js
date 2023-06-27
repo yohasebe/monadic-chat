@@ -176,6 +176,7 @@ function listParams(params) {
   let table = `<table class="table table-sm text-secondary"><tbody>`;
 
   for (const [key, value] of Object.entries(params)) {
+    console.log(key);
     const excluded_keys = [
       "app_name",
       "auto_speech",
@@ -190,7 +191,8 @@ function listParams(params) {
       "speech_voice",
       "speech_rate",
       "initial_prompt",
-      "description"
+      "description",
+      "functions"
     ];
     if (excluded_keys.includes(key) || !value || value === "") {
       continue;

@@ -46,10 +46,10 @@ function start_docker_compose {
   docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
   # Wait for the services to be up and running
-  timeout=10
+  timeout=15
 
   while [[ $(docker-compose -f "$ROOT_DIR/docker-compose.yml" ps -q | xargs docker inspect --format '{{.State.Running}}') == "true" ]]; do
-    sleep 1
+    sleep 3
     timeout=$((timeout-1))
     if [[ $timeout -eq 0 ]]; then
       break

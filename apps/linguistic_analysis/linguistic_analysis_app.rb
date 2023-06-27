@@ -63,7 +63,7 @@ class LinguisticAnalysis < MonadicApp
   def settings
     {
       "app_name": "Linguistic Analysis",
-      "model": "gpt-3.5-turbo",
+      "model": "gpt-3.5-turbo-0613",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 1000,

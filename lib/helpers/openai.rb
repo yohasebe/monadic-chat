@@ -251,7 +251,6 @@ module OpenAIHelper
       custom_search_keys = APPS[app].settings[:functions]
       if custom_search_keys && !custom_search_keys.empty?
         custom_search_key = custom_search_keys.map { |f| f["name"] }.first
-        pp json
         arguments = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"]).values
 
         search_record = { "mid" => SecureRandom.hex(4),

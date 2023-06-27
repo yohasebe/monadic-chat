@@ -4,10 +4,9 @@ layout: default
 ---
 
 # ドキュメンテーション
-{:.no_toc}
 
-[English](https://yohasebe.github.io/monadic-chat/documentation) |
-[日本語](https://yohasebe.github.io/monadic-chat/documentation_ja)
+[English](https://yohasebe.github.io/monadic-chat-web/documentation) |
+[日本語](https://yohasebe.github.io/monadic-chat-web/documentation_ja)
 
 ### インストール (MacOS）
 

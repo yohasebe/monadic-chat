@@ -1,0 +1,29 @@
+@import "{{ site.theme }}";
+
+@media screen and (min-width: 64em) {
+  .main-content {
+    max-width: 72rem;
+  }
+}
+
+div.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media only screen and (max-width: 768px) {
+  div.grid {
+    display: block;
+  }
+}
+
+h3 {
+  border-bottom: 1px solid lightgray;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  padding-bottom: 0.5em;
+}
+
+a i {
+  margin: 5px;
+}

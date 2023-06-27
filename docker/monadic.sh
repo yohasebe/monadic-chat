@@ -4,9 +4,9 @@
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. >/dev/null 2>&1 && pwd)"
 
 # Define the paths to the support scripts
-MAC_SCRIPT="${ROOT_DIR}/docker/mac-start-docker.sh"
-WINDOWS_SCRIPT="${ROOT_DIR}/docker/windows-start-docker.sh"
-LINUX_SCRIPT="${ROOT_DIR}/docker/linux-start-docker.sh"
+MAC_SCRIPT="${ROOT_DIR}/docker/support_scripts/mac-start-docker.sh"
+WINDOWS_SCRIPT="${ROOT_DIR}/docker/support_scripts/windows-start-docker.sh"
+LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 
 # Define a function to start Docker Compose
 function start_docker_compose {
@@ -41,7 +41,7 @@ function start_docker_compose {
     docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
     # Wait for the services to be up and running
-    timeout=5 # 1 minute timeout
+    timeout=10
 
     while [[ $(docker-compose -f "$ROOT_DIR/docker-compose.yml" ps -q | xargs docker inspect --format '{{.State.Running}}') == "true" ]]; do
         sleep 1
@@ -79,12 +79,27 @@ function restart_docker_compose {
 
 # Define a function to import the database contents from an external file
 function import_database {
-    sh "${ROOT_DIR}/docker/import_vector_db.sh"
+    sh "${ROOT_DIR}/docker/support_scripts/import_vector_db.sh"
 }
 
 # Define a function to export the database contents to an external file
 function export_database {
-    sh "${ROOT_DIR}/docker/export_vector_db.sh"
+    sh "${ROOT_DIR}/docker/support_scripts/export_vector_db.sh"
+}
+
+# Download the latest version of Monadic Chat and rebuild the Docker image
+function update_monadic {
+    # Stop the Docker Compose services
+    docker-compose -f "$ROOT_DIR/docker-compose.yml" down
+
+    # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
+    cd "$ROOT_DIR" && git pull
+
+    # Build and start the Docker Compose services
+    docker-compose -f "$ROOT_DIR/docker-compose.yml" build
+
+    # Show message to the user
+    echo "Monadic Chat has been updated successfully!"
 }
 
 # Parse the user command
@@ -103,6 +118,9 @@ case "$1" in
         ;;
     export)
         export_database
+        ;;
+    update)
+        update_monadic
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|import|export}"

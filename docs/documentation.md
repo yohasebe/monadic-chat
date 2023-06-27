@@ -9,15 +9,9 @@ layout: default
 [English](https://yohasebe.github.io/monadic-chat/documentation) |
 [日本語](https://yohasebe.github.io/monadic-chat/documentation_ja)
 
-### Table of Contents
-{:.no_toc}
-
-0. toc
-{:toc}
-
 ### Installation (MacOS)
 
-1. Homebrew
+#### Homebrew
 
 First, install [Homebrew](https://brew.sh), which is a package management system for MacOS.
 
@@ -27,7 +21,7 @@ Open the terminal. The location of the terminal on Mac is `Application -> Utilit
 $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
-2. Git
+#### Git
 
 Next, let's make sure you can use the git command, which is a version control system for source code.
 
@@ -35,7 +29,7 @@ Next, let's make sure you can use the git command, which is a version control sy
 $ brew install git
 ```
 
-3. Docker Desktop
+#### Docker Desktop
 
 Next, install Docker Desktop, which is software for creating container-based virtual environments.
 
@@ -49,7 +43,7 @@ Download Docker Desktop from [Install Docker Desktop on Mac](https://hub.docker.
 
 Double-click the downloaded dmg file to start the installation. Once the installation is complete, start Docker Desktop. When you start Docker Desktop, the Docker icon will appear in the menu bar.
 
-4. Download the Monadic Chat source code
+#### Download the Monadic Chat source code
 
 Open the terminal and move to the location where you want to copy the Monadic Chat source code. Here, we will copy the source code to the home directory. Normally, when you open the terminal, that is the home directory, but just in case, let's move to the home directory with the following command:
 
@@ -63,7 +57,7 @@ If you execute the following command here, a directory called `monadic-chat` wil
 $ git clone https://github.com/yohasebe/monadic-chat.git
 ```
 
-5. Build Monadic Chat
+#### Build Monadic Chat
 
 Move to the directory of the source code you downloaded earlier.
 
@@ -79,7 +73,7 @@ $ ./docker/monadic.sh start
 
 The first time it may take some time to build, but from the second time on, it will start immediately.
 
-6. Start Monadic Chat
+#### Start Monadic Chat
 
 If the build is complete, you can start Monadic Chat with the following command. If Docker Desktop is not running, it will start automatically with this command.
 
@@ -90,7 +84,7 @@ $ ./docker/monadic.sh start
 
 On Mac, when Monadic Chat starts up, the home screen will open in the system's default browser. If the screen does not open, please open `http://localhost:4567` in your browser (or reload the page).
 
-7. Stop Monadic Chat
+#### Stop Monadic Chat
 
 To stop Monadic Chat, execute the following command:
 
@@ -99,7 +93,7 @@ $ cd ~/monadic-chat
 $ ./docker/monadic.sh stop
 ```
 
-8. Update Monadic Chat
+#### Update Monadic Chat
 
 To update Monadic Chat, execute the following command:
 

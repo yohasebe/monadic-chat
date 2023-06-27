@@ -20,7 +20,7 @@
 
 title: Monadic Chat
 email: yohasebe@gmail.com
-description: Syntax tree generator made with Ruby
+description: "A highly configurable Ruby framework for creating intelligent chatbots"
 baseurl: "/monadic-chat/"
 domain: "yohasebe.github.io"
 url: "https://yohasebe.github.io"

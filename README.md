@@ -74,7 +74,7 @@ See [Setting up Monadic Chat](https://yohasebe.github.io/monadic-chat-web/setup)
 
 ### GPT Settings
 
-<img src="./assets/images/gpt-settings.png" width="600px"/>
+<img src="./assets/images/gpt-settings.png" width="700px"/>
 
 **API Token** <br />
 Enter your OpenAI API key here. Once a valid API key is confirmed, a file named `.env` will be created in the root directory of Monadic Chat, and a variable named `OPENAI_API_KEY` will be defined inside it. The value of this variable will be used thereafter.
@@ -122,7 +122,7 @@ Click this button to start the chat based on the options and parameters specifie
 
 ### Dialog
 
-<img src="./assets/images/dialog.png" width="600px"/>
+<img src="./assets/images/dialog.png" width="700px"/>
 
 ## Base Apps
 

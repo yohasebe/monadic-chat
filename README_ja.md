@@ -73,56 +73,39 @@ See [Setting up Monadic Chat](https://yohasebe.github.io/monadic-chat-web/setup)
 ## Settings and Options
 
 ### GPT Settings
-
 <img src="./assets/images/gpt-settings.png" width="600px"/>
 
 **API Token** <br />
-Enter your OpenAI API key here. Once a valid API key is confirmed, a file named `.env` will be created in the root directory of Monadic Chat, and a variable named `OPENAI_API_KEY` will be defined inside it. The value of this variable will be used thereafter.
+ここにはOpenAIのAPI keyを入れます。有効なAPI keyが確認されると、Monadic Chatのルート・ディレクトリに`.env`というファイルが作成され、その中に`OPENAI_API_KEY`という変数が定義され、その後はこの変数の値が用いられます。
 
 **Base App** <br />
-Choose one of the pre-built apps provided in Monadic Chat. Each app has different default parameter values and comes with its own initial prompt. For more information about each Base App's features, refer to [Base Apps](#base-apps).
+Monadic Chatであらかじめ用意されたアプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各Base Appの特徴については [Base Apps](#base-apps)を参照してください。
 
 **Select Model** <br />
-Choose one of the models provided by OpenAI. Each Base App has a default model specified, but you can change it according to your needs.
+OpenAIが提供するモデルの中から1つを選びます。各Base Appでデフォルトのモデルが指定されていますが、目的に応じて変更することができます。
 
 **Max Tokens** <br />
-Specify the "maximum token value" to be sent as a parameter to the Chat API. This includes the token count of the text sent as a prompt and the token count of the text returned as a response. For information on how tokens are counted in the OpenAI API, refer to [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
+Chat APIにパラメターとして送られる「トークンの最大値」を指定します。これにはプロンプトとして送られるテキストのトークン数と、レスポンスとして返ってくるテキストのトークン数が含まれます。OpenAIのAPIにおけるトークンのカウント方法については[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
 
 **Context Size** <br />
-This is the maximum number of active utterances to keep in the ongoing chat. Only active utterances are sent as context information to the OpenAI chat API. Inactive utterances are still visible on the screen and will be saved when exporting.
+現在進行中のチャットに含まれるやりとりの中で、アクティブなものとして保つ発話の最大数です。アクティブな発話のみがOpenAIのchat APIに文脈情報として送信されます。インアクティブな発話も画面上では参照可能であり、エクスポートの際にも保存対象となります。
 
 **Temperature**<br />
 **Top P** <br />
 **Presence Penalty** <br />
 **Frequency Penalty**
 
-These elements are sent as parameters to the API. For more details on each parameter, refer to the [Reference](https://platform.openai.com/docs/api-reference/chat) of the Chat API.
+以上の要素はパラメターとしてAPIに送られます。各パラメターの詳細はChat APIの[Reference](https://platform.openai.com/docs/api-reference/chat)を参照してください。
 
 **Initial Prompt**<br />
-This is the text sent to the API as the initial prompt. You can specify the character settings for the conversation and the format of the response. Each Base App has a default text set according to its purpose, but you can freely change it.
+初期プロンプトとしてAPIに送られるテキストです。会話のキャラクター設定や、レスポンスの形式などを指定することができます。各Base Appの目的に応じたデフォルトのテキストが設定されていますが、自由に変更することが可能です。
 
 **Initiate from the assistant**<br />
 
-When this option is turned on, the assistant will make the first utterance when starting the conversation.
+このオプションをオンにすると、会話を始める時にアシスタント側が最初の発話を行います。
 
 **Start Session** <br />
-Click this button to start the chat based on the options and parameters specified in the GPT Settings.
-
-### Session
-
-<img src="./assets/images/session.png" width="400px"/>
-
-### Speech
-
-<img src="./assets/images/speech.png" width="400px"/>
-
-### PDF Database
-
-<img src="./assets/images/pdf-database.png" width="400px"/>
-
-### Dialog
-
-<img src="./assets/images/dialog.png" width="600px"/>
+このボタンをクリックすると、GPT Settiingsで指定したオプションやパラメターのもとにチャットが開始されます。
 
 ## Base Apps
 

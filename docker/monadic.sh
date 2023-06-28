@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. >/dev/null 2>&1 && pwd)"
 # Define the paths to the support scripts
 MAC_SCRIPT="${ROOT_DIR}/docker/support_scripts/mac-start-docker.sh"
 WINDOWS_SCRIPT="${ROOT_DIR}/docker/support_scripts/windows-start-docker.sh"
+WSL2_SCRIPT="${ROOT_DIR}/docker/support_scripts/wsl2-start-docker.sh"
 LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 
 
@@ -20,7 +21,7 @@ function start_docker {
       # Linux
       if grep -q microsoft /proc/version; then
         # WSL2
-        sh "$WINDOWS_SCRIPT"
+        sh "$WSL2_SCRIPT"
       else
         # Native Linux
         sh "$LINUX_SCRIPT"

@@ -7,16 +7,16 @@
 <p>&nbsp;</p>
 
 
-> 📢 **Important Notice**
->
+📢 **Important Notice**
+
 > This software is currently under active development and is subject to frequent changes. Please exercise caution when using it.
 >
 > I appreciate any contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly valued in shaping the future of this project.
 
 &nbsp;
 
-> 🔄 **Project Restructuring**
->
+🔄 **Project Restructuring**
+
 > The command-line program "Monadic Chat" has undergone some changes. It has been renamed to "Monadic Chat CLI" and moved to a separate repository. Moving forward, Monadic Chat will be developed as a web-based application on this repository.
 >
 > - Monadic Chat (this repository): [https://github.com/yohasebe/monadic-chat](https://github.com/yohasebe/monadic-chat)

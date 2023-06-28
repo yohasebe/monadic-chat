@@ -6,12 +6,21 @@
 
 <p>&nbsp;</p>
 
-> **Note**
->
-> The command-line program Monadic Chat was renamed to **[Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)** and moved to a separate repository. Going forward, Monadic Chat will be developed as a web-based application on this repository.
 
-- Monadic Chat: [https://github.com/yohasebe/monadic-chat](https://github.com/yohasebe/monadic-chat) (this repo)
-- Monadic Chat CLI: [https://github.com/yohasebe/monadic-chat-cli](https://github.com/yohasebe/monadic-chat-cli)
+> 📢 **Important Notice**
+>
+> This software is currently under active development and is subject to frequent changes. Please exercise caution when using it.
+>
+> I appreciate any contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly valued in shaping the future of this project.
+
+&nbsp;
+
+> 🔄 **Project Restructuring**
+>
+> The command-line program "Monadic Chat" has undergone some changes. It has been renamed to "Monadic Chat CLI" and moved to a separate repository. Moving forward, Monadic Chat will be developed as a web-based application on this repository.
+>
+> - Monadic Chat (this repository): [https://github.com/yohasebe/monadic-chat](https://github.com/yohasebe/monadic-chat)
+> - Monadic Chat CLI: [https://github.com/yohasebe/monadic-chat-cli](https://github.com/yohasebe/monadic-chat-cli)
 
 <p>&nbsp;</p>
 <div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>
@@ -19,134 +28,47 @@
 
 ## About
 
-**Monadic Chat** is a platform for creating and using AI assistant apps that can be easily accessed through a web browser using **OpenAI's Chat API**.
+🌟 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
 
 ## Features
 
-### General
+### Basic Structure
 
-- Uses **GPT-3.5** or **GPT-4** via OpenAI’s Chat API, with no limit on the number of conversation turns
-- Easy to install using **Docker for Mac, Windows, or Linux**
+- 🤖 Powered by **GPT-3.5** or **GPT-4** via OpenAI's Chat API, with unlimited conversation turns
+- 👩‍💻 Easy installation using **Docker** for Mac, Windows, or Linux
 
-### Data Storage and Retrieval
+### Data Management
 
-- Has functionalities to **export/import** messages
-- Can specify the number of recent messages (**active messages**) to send to the API. Messages beyond the specified number (**inactive messages**) can be stored in the system and exported to an external file
-- Can create **text embeddings** from data contained in multiple **PDF files** and make inquiries about their content (using OpenAI’s text embedding API)
+- 💾 **Export/import** messages functionality
+- 💬 Specify the number of recent messages (**active messages**) to send to the API, while storing and exporting older messages (**inactive messages**)
+- 🔢 Generate **text embeddings** from data in multiple **PDF files** and query their content using OpenAI's text embedding API
 
-### Voice Input and Output
+### Voice Interaction
 
-- Can automatically transcribe messages from **microphone input** (using OpenAI’s Whisper API)
-- Can use **text-to-speech** functionality to voice responses from the AI assistant
-- Can specify the **language and voice** for text-to-speech functionality available on the browser being used (Google Chrome or Microsoft Edge)
-- Can **automatically detect the language** of the message and play the text-to-speech accordingly
-- Can combine speech recognition and text-to-speech functionality to enable **voice conversations** with the AI agent
+- 🎙️ Automatic transcription of **microphone input** using OpenAI's Whisper API
+- 🔈 **Text-to-speech** functionality for AI assistant responses
+- 🗣️ Choose the **language and voice** for text-to-speech (available on Google Chrome or Microsoft Edge)
+- 🗺️ **Automatic language detection** for appropriate text-to-speech playback
+- 😊 Enable **voice conversations** with the AI agent using speech recognition and text-to-speech
 
-### Chat Settings and Configuration
+### Configuration and Extension
 
-- Can easily define the character of the AI agent by specifying **API **parameters and the **system**** prompt****
-- Can implement additional functionality using the **Ruby** programming language
+- 💡 Customize the AI agent's behavior by specifying **API parameters** and the **system prompt**
+- 💎 Extend functionality using the **Ruby** programming language
 
-###  Message Editing
+### Message Editing
 
-- Can **edit previous messages** and try again when the expected response from the AI agent is not obtained
-- Can **delete specific messages** from previous conversations
-- Can **add past messages** specifying the role **user**, **assistant**, or **system**.
+- 📝 **Edit** previous messages and retry when the desired AI agent response is not obtained
+- 🗑️ **Delete** specific messages from previous conversations
+- 📜 **Add** preceding messages with user, assistant, or system roles
 
 ### Advanced
 
-- Can obtain additional information in parallel with the AI assistant's primary response message and keep it within a predefined JSON object as the **conversation state**
+- 🪄 Obtain additional information alongside the primary AI assistant response and store it as the **conversation state** in a predefined JSON object
 
 ## Installation
 
-### Dependencies
-
-Install the following software:
-
-- [Git](https://github.com/git-guides/install-git)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Google Chrome](https://www.google.com/chrome/) or [Microsoft Edge](https://www.microsoft.com/edge/)
-- A terminal emulator app (e.g., Terminal.app for Mac, Windows Terminal for Windows)
-
-Also, you need an OpenAI API key. Note that it is does not come with a ChatGPT or ChatGPT Plus account. Sign up and get an API key at the [OpenAI API sign-up page](https://platform.openai.com/account/api-keys).
-
-### Setting Up
-
-
-1. Start Docker Desktop
-
-2. Open a terminal emulator app
-
-3. Clone the git repository
-
-    `git clone git@github.com:yohasebe/monadic-chat.git`
-
-4. Change directory
-
-    `cd monadic-chat`
-
-5. Build Docker image
-
-    `docker compose build`
-
-    To rebuild the image without using cached data, add `--no-cache`:
-
-    `docker compose build --no-cache`
-
-### Start Monadic Chat
-
-Do as follows inside the `monadic-chat` folder:
-
-1. To start the system in the foreground, run:
-
-    `docker compose up`
-
-2. To start the system in the background, run: 
-
-    `docker compose up -d`
-
-Then access `http://localhost:4567` with Google Chrome or Microsoft Edge
-
-### Stop Monadic Chat
-
-Do as follows inside the `monadic-chat` folder:
-
-1. If the system is run in the foreground:
-
-    Press `ctrl-c`
-
-2. If the system is run in the background:
-
-    `docker compose stop`
-
-### Update Monadic Chat
-
-Do as follows inside the `monadic-chat` folder:
-
-1. Stop the system and remove the Docker container with
-
-    `docker compose down`
-
-2. Run `git pull`.
-
-3. Then run `docker compose build`.
-
-### Uninstall the Docker container and image
-
-Do as follows inside the `monadic-chat` folder:
-
-Run `docker compose rm`
-
-### Import/Export Vector Database
-
-Do as follows inside the `monadic-chat` folder:
-
-**Export**
-
-`docker compose exec db pg_dump -U postgres -F t monadic > ~/Desktop/monadic.tar`
-
-**Import**
-
+See [Setting up Monadic Chat](https://yohasebe.github.io/monadic-chat-web/setup)
 
 ## Base Apps
 

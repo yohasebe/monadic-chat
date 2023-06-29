@@ -17,7 +17,7 @@ layout: default
 ### Basic Structure
 
 - 🤖 Powered by **GPT-3.5** or **GPT-4** via OpenAI's Chat API, with unlimited conversation turns
-- 👩‍💻 Easy installation using **Docker** for Mac, Windows, or Linux
+- 👩‍💻 Multi-OS support using **Docker** for Mac, Windows, or Linux
 
 ### Data Management
 

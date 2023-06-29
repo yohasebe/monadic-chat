@@ -68,23 +68,6 @@ The command-line program “Monadic Chat” has undergone some changes. It has b
 
 - 🪄 Obtain additional information alongside the primary AI assistant response and store it as the **conversation state** in a predefined JSON object
 
-## Installation
-
-- [Installation on MacOS](https://yohasebe.github.io/monadic-chat-web#macos)
-- [Installation on Windows Home](https://yohasebe.github.io/monadic-chat-web#windows)
-
-## Settings and Options
-
-- [Settings and Options](https://yohasebe.github.io/monadic-chat-web/settings)
-
-## Base Apps
-
-- [Settings and Options](https://yohasebe.github.io/monadic-chat-web/base_apps)
-
-## Creating New Base Apps
-
-🚧 UNDER CONSTRUCTION
-
 ## Author
 
 Yoichiro HASEBE

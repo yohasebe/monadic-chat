@@ -37,7 +37,7 @@
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 100px;">
 
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-message"></i></span> Monadic Chat</h5>
+            <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-message"></i></span> Monadic Chat Info</h5>
 
             <div class="mb-2" style="display: flex; align-items: center;">
               <div id="monadic-homepage">
@@ -113,6 +113,12 @@
             <h5><span class="text"><i class="fas fa-sliders"></i> Parameters</span></h5>
             <ul id="paramList" class="list-group list-group-flush mt-3"></ul>
           </div>
+
+          <div class="mb-4" style="display: flex; align-items: center; justify-content: right;">
+            <div id="author">
+              <span class="text text-secondary"><i class="fa-solid fa-copyright"></i> 2023 <a href="https://github.com/yohasebe" target="_blank" rel="noopener noreferrer">Yoichiro HASEBE</a></span>
+            </div>
+          </div>
         </div>
 
         <div id="main" class="col-md-8 order-md-1 scrollable" style="padding-bottom: 100px;">
@@ -157,12 +163,12 @@
               </div>
               <div class="col-2 ms-3">
                 <label class="form-label text-nowrap" for="max-tokens">Max Tokens</label>
-                <input type="number" id="max-tokens" stop="1" value="1000" class="form-control" />
+                <input type="number" id="max-tokens" stop="1" min="100" max="16000" value="1000" class="form-control" />
               </div>
 
               <div class="col-2 ms-2">
                 <label class="form-label text-nowrap" for="context-size">Context Size</label>
-                <input type="number" id="context-size" stop="1" value="10" class="form-control" />
+                <input type="number" id="context-size" min="1" max="100" stop="1" value="10" class="form-control" />
               </div>
             </form>
 
@@ -248,15 +254,18 @@
 
                 <div class="col-auto d-flex align-items-center mt-3">
                   <label class="form-check-lebel me-2" for="select-role">Role</label>
+                  &nbsp;
+                  <div style="display: inline-block; max-width: 100%;">
+                    <span style="font-size: 1.3em; vertical-align: bottom; color: #777;" id="role-icon"><i class="fa-solid fa-face-smile"></i></span>
+                  </div>
+                  &nbsp;
+                  &nbsp;
                   <select id="select-role" class="form-select me-3">
                     <option value="user">User</option>
                     <option value="sample-user">User (to add to past messages)</option>
                     <option value="sample-assistant">Assistant (to add to past messages)</option>
                     <option value="sample-system">System (to provide additional direction)</option>
                   </select>
-                  <div style="display: inline-block; max-width: 100%;">
-                    <span style="font-size: 1.3em; vertical-align: bottom; color: #777;" id="role-icon"><i class="fa-solid fa-face-smile"></i></span>
-                  </div>
                 </div>
               </div>
 

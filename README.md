@@ -41,7 +41,7 @@ The command-line program “Monadic Chat” has undergone some changes. It has b
 
 ### Data Management
 
-- 💾 **Export/import** messages functionality
+- 💾 **Export/import** messages and settings
 - 💬 Specify the number of recent messages (**active messages**) to send to the API, while storing and exporting older messages (**inactive messages**)
 - 🔢 Generate **text embeddings** from data in multiple **PDF files** and query their content using OpenAI's text embedding API
 

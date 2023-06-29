@@ -53,9 +53,6 @@ exclude:
 github:
   - repository_url: https://github.com/yohasebe/monadic-chat-web
 
-collections:
-  - examples
-
 social-media:
   email:
     id: 'yohasebe@gmail.com'

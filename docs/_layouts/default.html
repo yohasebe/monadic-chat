@@ -20,12 +20,20 @@
     <a id="skip-to-content" href="#content">Skip to the content.</a>
 
     <header class="page-header" role="banner">
-      <h1 class="project-name">
-        {{ page.title | default: site.title | default: site.github.repository_name }}
-      </h1>
+
+      {% comment %} <h1 class="project-name"> {% endcomment %}
+      {% comment %}   {{ page.title | default: site.title | default: site.github.repository_name }} {% endcomment %}
+      {% comment %} </h1> {% endcomment %}
+
+    <a href="{{site.url}}/monadic-chat-web/overview">
+        <img src="./assets/images/monadic-chat-logo.png" width=600></img>
+      </a>
+
       <h2 class="project-tagline">{{ page.description | default: site.description | default: site.github.project_tagline }}</h2>
-        <a href="{{site.url}}/monadic-chat-web/setup_mac" class="btn">Installation (MacOS)</a>
-        <a href="{{site.url}}/monadic-chat-web/setup_win" class="btn">Installation (Windows)</a>
+        <a href="{{site.url}}/monadic-chat-web/overview" class="btn">Overview</a>
+        <a href="{{site.url}}/monadic-chat-web/installation" class="btn">Installation</a>
+        <a href="{{site.url}}/monadic-chat-web/settings" class="btn">Settings</a>
+        <a href="{{site.url}}/monadic-chat-web/base_apps" class="btn">Base Apps</a>
         <a href="https://github.com/yohasebe/monadic-chat-web" class="btn">GitHub</a>
     </header>
 

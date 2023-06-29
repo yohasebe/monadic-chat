@@ -1,80 +1,22 @@
-<p>&nbsp;</p>
+---
+title: Monadic Chat
+layout: default
+---
 
-<div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
+# Settings (JA)
+{:.no_toc}
 
-<div align="center" style="color: #777777 "><b>A highly configurable Ruby framework for creating intelligent chatbots </b></div>
+[English](/monadic-chat-web/setup_mac) |
+[日本語](/monadic-chat-web/setup_mac_ja)
 
-- [README (English)](/monadic-chat-web/blob/main/README.md)
-- [README (日本語)](/monadic-chat-web/blob/main/README_ja.md)
+## Table of Contents
+{:.no_toc}
 
-> ⚠️  **ご注意**
->
-> このソフトウェアは現在、開発中であり、細部の仕様は今後変更される可能性があります。また、一部動作が不安定な機能があるかもしれませんので、使用の際にはご注意ください。
->
-> 📢 **協力のお願い**
->
-> コードの改善、テストの追加、ドキュメントの作成などの協力を歓迎します。
->
-> 🔄 プロジェクトの再構成
->
-> これまで開発してきたコマンドラインプログラムMonadic Chatは、名称をMonadic Chat CLIに更し、別のリポジトリに移動しました。今後Monadic Chatは、本リポジトリでウェブベースのアプリケーションとして開発されます。
-> 
-> - Monadic Chat（このリポジトリ）：https://github.com/yohasebe/monadic-chat
-> - Monadic Chat CLI：https://github.com/yohasebe/monadic-chat-cli
+1. toc
+{:toc}
 
-<p>&nbsp;</p>
-<div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>
-<p>&nbsp;</p>
 
-## 概要
-
-🌟 **Monadic Chat**はOpenAIのChat APIとWhisper API、そしてプログラミング言語のRubyを活用して高機能なチャットボットを作成・使用するためのフレームワークです。
-
-## 特徴
-
-### 基本構造
-
-- 🤖 OpenAIのChat API（**GPT-3.5**または**GPT-4**）を使用し、ターン数制限のないチャットを実現
-- 👩‍💻 **Docker Desktop**を使用して、Mac、Windows、Linuxにインストール可能
-
-### データ管理
-
-- 💾 会話データの**エクスポート/インポート**
-- 💬 文脈データとしてAPIに送信するメッセージ（**アクティブメッセージ**）数の指定
-- 🔢 Text Embedding APIを使用した、**PDFファイル**からの**テキスト埋め込み**生成とVector Databaseの構築
-
-### 音声インタラクション
-
-- 🎙️ Whisper APIを使用した、**マイク音声認識**
-- 🔈 AIアシスタントによるレスポンス**テキスト読み上げ**
-- 🗺️ テキスト読み上げのための**自動言語検出**
-- 🗣️ テキスト読み上げのための**言語とボイス**の選択（Google ChromeまたはMicrosoft Edgeで利用可能）
-- 😊 音声認識とテキスト読み上げを使用した、AIエージェントとの**インタラクティブな会話**
-
-### 設定と拡張
-
-- 💡 **APIパラメータ**と**システムプロンプト**を指定して、AIエージェントの設定や動作をカスタマイズ
-- 💎 プログラミング言語Rubyを使用して機能を拡張することが可能
-
-### メッセージの編集
-
-- 📝 過去のメッセージの**再編集**が可能
-- 🗑️ 特定のメッセージの**削除**が可能
-- 📜 新規メッセージのロール（ユーザー、アシスタント、システム）設定
-
-### 高度な機能
-
-- 🪄 AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内に値を格納することで会話の**状態**を実現
-
-## インストール
-
-- [環境構築とインストール（MacOS）](https://yohasebe.github.io/monadic-chat-web/setup_mac_ja)
-    
-- [環境構築とインストール（Windows Home）](https://yohasebe.github.io/monadic-chat-web/setup_win_ja)
-
-## 設定項目と機能
-
-### GPT Settings
+## GPT Settings
 <img src="./assets/images/gpt-settings.png" width="600px"/>
 
 **API Token** <br />
@@ -109,7 +51,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 **Start Session** <br />
 このボタンをクリックすると、GPT Settiingsで指定したオプションやパラメターのもとにチャットが開始されます。
 
-### Monadic Chat Info Panel 
+## Monadic Chat Info Panel 
 
 <img src="./assets/images/monadic-chat-info.png" width="400px"/>
 
@@ -119,7 +61,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 **Current Base App**<br />
 現在選択しているBase Appの名前と説明が表示されます。Monadic Chatの起動時にはデフォルトのBase Appである`Chat`に関する情報が表示されます。
 
-### Session Panel
+## Session Panel
 
 <img src="./assets/images/session.png" width="400px"/>
 
@@ -135,7 +77,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 **Export**<br />
 `Export`ボタンをクリックすると、現在の設定項目の値と会話データを外部ファイル（JSON）に保存します。
 
-### Speech Panel
+## Speech Panel
 
 <img src="./assets/images/speech.png" width="400px"/>
 
@@ -153,7 +95,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 **Rate**<br />
 音声合成の際の発話スピードを0.5から1.5の間で指定することができます（デフォルト：0.0）。
 
-### PDF Database Panel
+## PDF Database Panel
 
 <img src="./assets/images/pdf-database.png" width="400px"/>
 
@@ -165,7 +107,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 <img src="./assets/images/app-pdf.png" width="400px"/>
 <img src="./assets/images/import-pdf.png" width="400px"/>
 
-### Dialog Panel
+## Dialog Panel
 
 <img src="./assets/images/dialog.png" width="700px"/>
 
@@ -207,57 +149,19 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 
 <img src="./assets/images/voice-input-stop.png" width="400px"/>
 
-## Base Apps
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 
-以下は、使用可能なBase Appの一覧です。これらのいずれかを選択し、パラメータを変更したり初期プロンプトを書き換えたりすることで、AIエージェントの動作を調整することができます。調整した設定を外部のJSONファイルにエクスポート/インポートすることもできます。
+---
 
-### Chat
-
-<img src="./assets/icons/chat.png" width="40px"/>Monadic Chatの標準アプリケーションです。ChatGPTと基本的に同じような方法で使用することができます。 
-
-### Language Practice
-
-<img src="./assets/icons/language-practice.png" width="40px"/>AIアシスタントの音声で会話が始まる言語学習アプリケーションです。アシスタントの音声は合成音声で再生されます。Enterキーを押すと音声入力が開始します。再度Enterキーを押すと音声入力が停止します。
-
-### Language Practice Plus
-
-<img src="./assets/icons/language-practice-plus.png" width="40px"/>AIアシスタントの音声で会話が始まる言語学習アプリケーションです。アシスタントの音声は合成音声で再生されます。Enterキーを押すと音声入力が開始します。再度Enterキーを押すと音声入力が停止します。 通常のレスポンスに加えて、学習言語のアドバイスが示されます。アドバイスは読み上げられず、通常のテキストとして表示されます。
-
-### Novel
-
-<img src="./assets/icons/novel.png" width="40px"/> アシスタントと共同で小説を執筆するためのアプリケーションです。プロンプトでテーマ、トピック、またはイベントを提示すると、それらを含んだパラグラフを書きます。
-
-### PDF Navigator
-
-<img src="./assets/icons/pdf-navigator.png" width="40px"/>PDFファイルを読み込み、AIアシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。`PDF Upload`ボタンをクリックしてファイルを指定します。ファイルの内容は、`max_tokens`で指定した長さに収まるサイズのセグメントに分割され、各セグメントのテキスト埋め込みが生成されます。ユーザーからメッセージを受け取ると、そのメッセージのテキスト埋め込みに最も近いセグメントがGPTに与えられ、その内容に基づいた回答が行われます。
-
-### Translate
-
-<img src="./assets/icons/translate.png" width="40px"/>AIアシスタントが、ユーザーの入力テキストを別の言語に翻訳します。アシスタントは最初に対象言語を尋ねます。AIアシスタントに特定の訳語を使わせたいときは、入力テキストの該当部分の後ろに括弧を付け、括弧内にその訳語をあらかじめ指定することができます
-
-### Voice Chat
-
-<img src="./assets/icons/voice-chat.png" width="40px"/>OpenAIのWhisper APIとブラウザのテキスト読み上げAPIを使用して、音声を通じてチャットすることができます。初期プロンプトはChatアプリと同じです。音声認識機能を使用するためにはGoogle ChromeまたはMicrosoft Edgeを使用する必要があります。
-
-### Wikipedia
-
-<img src="./assets/icons/wikipedia.png" width="40px"/> 基本的にChatと同じですが、言語モデルのカットオフ時点以降に発生したイベントなど、GPTが答えられない質問については、Wikipediaを検索して回答します。クエリが非英語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
-
-### Linguistic Analysis
-
-<img src="./assets/icons/linguistic-analysis.png" width="40px"/>指定された構造のJSONオブジェクトを「状態」とみなして、これを更新するタイプのBase Appです。ユーザーへのレスポンスとして、入力文の統語構造を返します。その背後でtopic、sentence_type、sentimentの状態値を更新します。
-
-## 新規Base Appの作成手順
-
-🚧 UNDER CONSTRUCTION
-
-## 開発者
-
-Yoichiro HASEBE<br />
-[yohasebe@gmail.com](yohasebe@gmail.com)
-
-## ライセンス
-
-このソフトウェアは [MIT License](aki:wkttps://opensource.org/licenses/MIT) の条件の下でオープンソースとして利用可能です。
-
-
+<script>
+  function copyToClipBoard(id){
+    var copyText =  document.getElementById(id).innerText;
+    document.addEventListener('copy', function(e) {
+        e.clipboardData.setData('text/plain', copyText);
+        e.preventDefault();
+      }, true);
+    document.execCommand('copy');
+    alert('copied');
+  }
+</script>

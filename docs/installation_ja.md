@@ -3,7 +3,7 @@ title: Monadic Chat
 layout: default
 ---
 
-# Installation (JA)
+# インストール
 {:.no_toc}
 
 [English](/monadic-chat-web/setup_mac) |
@@ -146,7 +146,9 @@ $ ./docker/monadic.sh update
 
 これにより、Githubから最新のソースコードがダウンロードされ、Monadic Chatが再ビルドされます。
 
-## Windows 11
+## Windows
+
+以下ではWindows 11 HomeにMonadic Chatをインストールする方法を説明します。Windows 11 ProやWindows 11 Educationの場合でも基本的に同様の方法でインストール可能です。
 
 ### WSL2のインストール
 

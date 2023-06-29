@@ -3,7 +3,7 @@ title: Monadic Chat
 layout: default
 ---
 
-# Settings (JA)
+# 設定項目
 {:.no_toc}
 
 [English](/monadic-chat-web/setup_mac) |
@@ -23,10 +23,10 @@ layout: default
 ここにはOpenAIのAPI keyを入れます。有効なAPI keyが確認されると、Monadic Chatのルート・ディレクトリに`.env`というファイルが作成され、その中に`OPENAI_API_KEY`という変数が定義され、その後はこの変数の値が用いられます。
 
 **Base App** <br />
-Monadic Chatであらかじめ用意されたアプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各Base Appの特徴については [Base Apps](#base-apps)を参照してください。
+Monadic Chatであらかじめ用意された基本アプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各アプリの特徴については [Base Apps](#base-apps)を参照してください。
 
 **Select Model** <br />
-OpenAIが提供するモデルの中から1つを選びます。各Base Appでデフォルトのモデルが指定されていますが、目的に応じて変更することができます。
+OpenAIが提供するモデルの中から1つを選びます。各アプリでデフォルトのモデルが指定されていますが、目的に応じて変更することができます。
 
 **Max Tokens** <br />
 Chat APIにパラメターとして送られる「トークンの最大値」を指定します。これにはプロンプトとして送られるテキストのトークン数と、レスポンスとして返ってくるテキストのトークン数が含まれます。OpenAIのAPIにおけるトークンのカウント方法については[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
@@ -42,8 +42,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 以上の要素はパラメターとしてAPIに送られます。各パラメターの詳細はChat APIの[Reference](https://platform.openai.com/docs/api-reference/chat)を参照してください。
 
 **Initial Prompt**<br />
-初期プロンプトとしてAPIに送られるテキストです。会話のキャラクター設定や、レスポンスの形式などを指定することができます。各Base Appの目的に応じたデフォルトのテキストが設定されていますが、自由に変更することが可能です。
-
+初期プロンプトとしてAPIに送られるテキストです。会話のキャラクター設定や、レスポンスの形式などを指定することができます。各アプリ の目的に応じたデフォルトのテキストが設定されていますが、自由に変更することが可能です。
 **Initiate from the assistant**<br />
 
 このオプションをオンにすると、会話を始める時にアシスタント側が最初の発話を行います。
@@ -59,14 +58,14 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 関連するウェブサイトへのリンクとMonadic Chatのバージョンが示されます。`API Usage`をクリックするとOpenAIのページにアクセスします。API Usageで示されるのはAPI使用量の全体であり、Monadic Chatによるものだけとは限らないことに注意してください。バージョン番号の後の括弧には、Monadic Chatをインストールした際の様式に応じて、DockerもしくはLocalが表示されます。
 
 **Current Base App**<br />
-現在選択しているBase Appの名前と説明が表示されます。Monadic Chatの起動時にはデフォルトのBase Appである`Chat`に関する情報が表示されます。
+現在選択している基本アプリの名前と説明が表示されます。Monadic Chatの起動時にはデフォルトのアプリである`Chat`に関する情報が表示されます。
 
 ## Session Panel
 
 <img src="./assets/images/session.png" width="400px"/>
 
 **Reset**<br />
-`Reset`ボタンをクリックすると、現在の会話が破棄され、初期状態に戻ります。Base Appもデフォルトの`Chat`に戻ります。
+`Reset`ボタンをクリックすると、現在の会話が破棄され、初期状態に戻ります。アプリの選択もデフォルトの`Chat`に戻ります。
 
 **Settings**<br />
 `Settings`ボタンをクリックすると、現在の会話を破棄しないで、GPT Settingsパネルに戻ります。その後、現在の会話に戻るには`Continue Session`をクリックします。
@@ -99,7 +98,7 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 
 <img src="./assets/images/pdf-database.png" width="400px"/>
 
-**NOTE**: このパネルはPDF読み込み機能を備えたBase Appを選択しているときだけ表示されます。
+**NOTE**: このパネルはPDF読み込み機能を備えたアプリを選択しているときだけ表示されます。
 
 **Uploaded PDF**<br />
 ここには、`Import PDF`ボタンをクリックしてアップロードしたPDFのリストが表示されます。PDFをアップロードする際に、ファイルに個別の表示名を付けることができます。指定しない場合はオリジナルのファイル名が使用されます。複数のPDFファイルをアップロードすることが可能です。PDFファイル表示名の右側のゴミ箱アイコンをクリックするとそのPDFファイルの内容が破棄されます。

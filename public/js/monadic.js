@@ -20,7 +20,6 @@ $(function () {
         $("#discourse").html("");
       } else {
         $("#apps").val(lastApp);
-        console.log("c");
       }
     }
     lastApp = this.value;

@@ -6,8 +6,8 @@
 
 <p>&nbsp;</p>
 
-- [README (English)](/monadic-chat-web/README.md)
-- [README (日本語)](/monadic-chat-web//README_ja.md)
+- [README (English)](/monadic-chat-web/blob/main/README.md)
+- [README (日本語)](/monadic-chat-web/blob/main/README_ja.md)
 
 ⚠️  **Important Notice**
 

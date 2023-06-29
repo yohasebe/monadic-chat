@@ -4,12 +4,12 @@
 
 <div align="center" style="color: #777777 "><b>A highly configurable Ruby framework for creating intelligent chatbots </b></div>
 
-- [README (English)](/monadic-chat-web/README.md)
-- [README (日本語)](/monadic-chat-web//README_ja.md)
+- [README (English)](/monadic-chat-web/blob/main/README.md)
+- [README (日本語)](/monadic-chat-web/blob/main/README_ja.md)
 
 > ⚠️  **ご注意**
 >
-> このソフトウェアは現在、開発中であり、細部の仕様は今後変更される可能性があります。また使用の際にはご注意ください。
+> このソフトウェアは現在、開発中であり、細部の仕様は今後変更される可能性があります。また、一部動作が不安定な機能があるかもしれませんので、使用の際にはご注意ください。
 >
 > 📢 **協力のお願い**
 >

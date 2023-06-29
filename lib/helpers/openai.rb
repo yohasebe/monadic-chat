@@ -21,7 +21,7 @@ module OpenAIHelper
     http = HTTP.headers(headers)
     res = http.timeout(STREAMING_TIMEOUT).get(target_uri)
     data = JSON.parse(res.body)["data"]
-    models = data.sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") }
+    models = data.sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") && item.include?("0613") }
 
     if api_token
       File.open(".env", "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }

@@ -140,7 +140,9 @@ $ ./docker/monadic.sh update
 
 The above command downloads the latest source code from Github and rebuilds Monadic Chat.
 
-## Windows 11
+## Windows
+
+Below, the method to install Monadic Chat on Windows 11 Home will be explained. The same method can be used for Windows 11 Pro and Windows 11 Education as well.
 
 ### Install WSL2
 

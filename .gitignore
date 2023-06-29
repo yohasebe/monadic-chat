@@ -13,11 +13,11 @@
 /test/tmp/
 /test/version_tmp/
 /tmp/
-/log/
 /vector_db/
 /notes/
 
 /data/*
+/log/*
 
 .env
 

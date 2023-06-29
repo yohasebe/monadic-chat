@@ -13,9 +13,11 @@ COPY Gemfile monadic.gemspec $WORKSPACE/
 RUN bundle install -j4 --without development test && \
     rm -rf /usr/local/bundle/cache/*
 
+COPY apps/ $WORKSPACE/apps/
+COPY assets/ $WORKSPACE/assets/
 COPY bin/ $WORKSPACE/bin/
 COPY lib/ $WORKSPACE/lib/
-COPY tmp/ $WORKSPACE/tmp/
+COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/
 COPY config.ru Gemfile LICENSE Rakefile README.md $WORKSPACE/
 

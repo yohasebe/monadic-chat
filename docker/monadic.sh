@@ -9,6 +9,10 @@ WINDOWS_SCRIPT="${ROOT_DIR}/docker/support_scripts/windows-start-docker.sh"
 WSL2_SCRIPT="${ROOT_DIR}/docker/support_scripts/wsl2-start-docker.sh"
 LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 
+// create empty ".env" file if not existing
+if [ ! -f "${ROOT_DIR}/.env" ]; then
+  touch "${ROOT_DIR}/.env"
+fi
 
 function start_docker {
   # Determine the operating system

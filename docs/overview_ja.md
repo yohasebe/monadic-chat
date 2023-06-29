@@ -3,7 +3,7 @@ title: Monadic Chat
 layout: default
 ---
 
-# Overview (JA)
+# 概要
 
 [English](/monadic-chat-web/overview) |
 [日本語](/monadic-chat-web/overview_ja)
@@ -34,7 +34,7 @@ layout: default
 ## 設定と拡張
 
 - 💡 **APIパラメータ**と**システムプロンプト**を指定して、AIエージェントの設定や動作をカスタマイズ
-- 💎 プログラミング言語**Ruby**を使用した機能拡張（Base Appの開発）
+- 💎 プログラミング言語**Ruby**を使用した機能拡張（基本アプリの開発）
 
 ## メッセージの編集
 

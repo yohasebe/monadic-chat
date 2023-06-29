@@ -9,11 +9,9 @@ services:
       POSTGRES_HOST_AUTH_METHOD: "trust"
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
-    # volumes:
-    #   - ./vector_db:/var/lib/postgresql/data
   web:
     volumes:
-      - .:/monadic
+      - ./log:/monadic/log
     build: .
     ports:
       - "4567:4567"

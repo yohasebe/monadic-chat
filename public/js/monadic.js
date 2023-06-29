@@ -82,6 +82,7 @@ $(function () {
   })
 
   $("#start").on("click", function () {
+    elemError.hide();
     if (checkParams()) {
       params = setParams();
     } else {

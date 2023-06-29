@@ -3,11 +3,11 @@ title: Monadic Chat
 layout: default
 ---
 
-# Base Apps (JA)
+# 基本アプリ
 {:.no_toc}
 
-[English](/monadic-chat-web/base_apps) |
-[日本語](/monadic-chat-web/base_apps_ja)
+[English](/monadic-chat-web/apps) |
+[日本語](/monadic-chat-web/apps_ja)
 
 ## Table of Contents
 {:.no_toc}
@@ -15,8 +15,7 @@ layout: default
 1. toc
 {:toc}
 
-以下は、使用可能なBase Appの一覧です。これらのいずれかを選択し、パラメータを変更したり初期プロンプトを書き換えたりすることで、AIエージェントの動作を調整することができます。調整した設定を外部のJSONファイルにエクスポート/インポートすることもできます。
-
+以下は、使用可能な基本アプリ（base app）の一覧です。これらのいずれかを選択し、パラメータを変更したり初期プロンプトを書き換えたりすることで、AIエージェントの動作を調整することができます。調整した設定を外部のJSONファイルにエクスポート/インポートすることもできます。
 ## Chat
 
 <img src="./assets/icons/chat.png" width="40px"/>Monadic Chatの標準アプリケーションです。ChatGPTと基本的に同じような方法で使用することができます。 
@@ -51,7 +50,7 @@ layout: default
 
 ## Linguistic Analysis
 
-<img src="./assets/icons/linguistic-analysis.png" width="40px"/>指定された構造のJSONオブジェクトを「状態」とみなして、これを更新するタイプのBase Appです。ユーザーへのレスポンスとして、入力文の統語構造を返します。その背後でtopic、sentence_type、sentimentの状態値を更新します。
+<img src="./assets/icons/linguistic-analysis.png" width="40px"/>指定された構造のJSONオブジェクトを「状態」とみなして、これを更新するタイプのアプリです。ユーザーへのレスポンスとして、入力文の統語構造を返します。その背後でtopic、sentence_type、sentimentの状態値を更新します。
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

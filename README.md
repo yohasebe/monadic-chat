@@ -70,8 +70,7 @@ The command-line program “Monadic Chat” has undergone some changes. It has b
 
 ## Author
 
-Yoichiro HASEBE
-
+Yoichiro HASEBE<br />
 [yohasebe@gmail.com](yohasebe@gmail.com)
 
 ## License

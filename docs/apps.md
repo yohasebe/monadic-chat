@@ -53,6 +53,10 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/linguistic-analysis.png" width="40px"/> This app utilizes Monadic Chat’s feature that allows for updating a pre-specified JSON object with multiple properties while providing a regular response. As the main response to the user’s query, it returns a syntactic structure of the input sentence. In the process, the app updates the values of the JSON object with the properties of `topic`, `sentence_type`, and `sentiment`.
 
+## Math
+
+<img src="./assets/icons/math.png" width="40px"/> This is an application that allows an AI chatbot to respond using MathJax mathematical notation. Please note that while this app can display mathematical notations, the math calculation ability is based on OpenAI's GPT models, which are known to occasionally produce errors. Therefore, please use this app with caution when accuracy in calculations is required.
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

@@ -21,7 +21,7 @@
 title: Monadic Chat
 email: yohasebe@gmail.com
 description: "A highly configurable Ruby framework for creating intelligent chatbots"
-baseurl: "/monadic-chat-web/"
+baseurl: "/monadic-chat/"
 domain: "yohasebe.github.io"
 url: "https://yohasebe.github.io"
 twitter_username: yohasebe
@@ -51,7 +51,7 @@ exclude:
 #  - gemfiles/
 
 github:
-  - repository_url: https://github.com/yohasebe/monadic-chat-web
+  - repository_url: https://github.com/yohasebe/monadic-chat
 
 social-media:
   email:

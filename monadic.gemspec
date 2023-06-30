@@ -59,5 +59,4 @@ Gem::Specification.new do |spec|
   spec.add_dependency "sinatra"
   spec.add_dependency "thin"
   spec.add_dependency "tiktoken_ruby"
-  spec.add_dependency "unicorn"
 end

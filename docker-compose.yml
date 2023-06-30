@@ -1,7 +1,4 @@
 version: '3.9'
-# volumes:
-#   vector_db:
-#     driver: local
 services:
   db:
     image: ankane/pgvector

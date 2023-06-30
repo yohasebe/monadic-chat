@@ -6,8 +6,8 @@ layout: default
 # 開発
 {:.no_toc}
 
-[English](/monadic-chat-web/development) |
-[日本語](/monadic-chat-web/development_ja)
+[English](/monadic-chat/development) |
+[日本語](/monadic-chat/development_ja)
 
 ## Table of Contents
 {:.no_toc}

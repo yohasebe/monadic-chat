@@ -30,8 +30,7 @@ class Code < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
-      "pdf": false,
-      "mathjax": true
+      "pdf": false
     }
   end
 end

@@ -3,7 +3,7 @@
 # We can't use the name Math because it is a reserved word in Ruby
 class MathJax < MonadicApp
   def icon
-    "<i class='fas fa-laptop-code'></i></i>"
+    "<i class='fa-solid fa-square-root-variable'></i>"
   end
 
   def description

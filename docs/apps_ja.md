@@ -52,6 +52,10 @@ layout: default
 
 <img src="./assets/icons/linguistic-analysis.png" width="40px"/>指定された構造のJSONオブジェクトを「状態」とみなして、これを更新するタイプのアプリです。ユーザーへのレスポンスとして、入力文の統語構造を返します。その背後でtopic、sentence_type、sentimentの状態値を更新します。
 
+## Math
+
+<img src="./assets/icons/math.png" width="40px"/> AIチャットボットがMathJaxの数学表記を使用して応答するためのアプリケーションです。このアプリは数学的表記を表示することができますが、数学の計算能力はOpenAIのGPTモデルに基づいており、単純な計算においても誤りが生じ得ることが知られています。計算の正確性が必要な場合には注意して使用してください。
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

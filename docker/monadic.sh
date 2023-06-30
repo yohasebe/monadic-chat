@@ -9,7 +9,6 @@ WINDOWS_SCRIPT="${ROOT_DIR}/docker/support_scripts/windows-start-docker.sh"
 WSL2_SCRIPT="${ROOT_DIR}/docker/support_scripts/wsl2-start-docker.sh"
 LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 
-// create empty ".env" file if not existing
 if [ ! -f "${ROOT_DIR}/.env" ]; then
   touch "${ROOT_DIR}/.env"
 fi
@@ -54,12 +53,14 @@ function start_docker_compose {
   timeout=15
 
   while [[ $(docker-compose -f "$ROOT_DIR/docker-compose.yml" ps -q | xargs docker inspect --format '{{.State.Running}}') == "true" ]]; do
-    sleep 3
+    sleep 1
     timeout=$((timeout-1))
     if [[ $timeout -eq 0 ]]; then
       break
     fi
   done
+
+  sleep 5
 
   # Open the default browser and access "http://localhost:4567"
   if which xdg-open > /dev/null 2>&1; then

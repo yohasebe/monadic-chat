@@ -1,5 +1,7 @@
 .DS_Store
 
+/public/ext
+
 *.gem
 *.rbc
 /.config

@@ -12,6 +12,7 @@ services:
   web:
     volumes:
       - ./log:/monadic/log
+      - ./.env:/monadic/.env
     build: .
     ports:
       - "4567:4567"
@@ -21,4 +22,3 @@ services:
     stdin_open: true
     tty: true
     command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567"]
-    env_file: .env

@@ -12,6 +12,14 @@ layout: default
 
 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
 
+⚠️  **Important Notice**
+
+This software is currently under active development and is subject to frequent changes. Some features may still be unstable at this moment. Please exercise caution when using it.
+
+📢 **Call for Contributions**
+
+I welcome contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly appreciated.
+
 ## Features
 
 ### Basic Structure

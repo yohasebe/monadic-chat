@@ -6,8 +6,8 @@ layout: default
 # インストール
 {:.no_toc}
 
-[English](/monadic-chat-web/setup_mac) |
-[日本語](/monadic-chat-web/setup_mac_ja)
+[English](/monadic-chat/setup_mac) |
+[日本語](/monadic-chat/setup_mac_ja)
 
 
 ## もくじ
@@ -101,7 +101,7 @@ $ ./docker/monadic.sh start
 
 ```text
 ✔️ Container monadic-chat-db-1  Started
-✔️ Container monadic-chat-web-1 Starte
+✔️ Container monadic-chat-web-1 Started
 ```
 
 Macでは、デフォルト・ブラウザ上でホーム画面が開きます。もし画面が開かない場合は、ブラウザで`http://localhost:4567`を開いてください（または再読み込みしてください）。

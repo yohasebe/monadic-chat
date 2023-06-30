@@ -6,8 +6,8 @@ layout: default
 # Settings
 {:.no_toc}
 
-[English](/monadic-chat-web/settings) |
-[日本語](/monadic-chat-web/settings_ja)
+[English](/monadic-chat/settings) |
+[日本語](/monadic-chat/settings_ja)
 
 ## Table of Contents
 {:.no_toc}

@@ -5,8 +5,8 @@ layout: default
 
 # Overview
 
-[English](/monadic-chat-web/overview) |
-[日本語](/monadic-chat-web/overview_ja)
+[English](/monadic-chat/overview) |
+[日本語](/monadic-chat/overview_ja)
 
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 

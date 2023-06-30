@@ -6,8 +6,8 @@ layout: default
 # Installation
 {:.no_toc}
 
-[English](/monadic-chat-web/installation) |
-[日本語](/monadic-chat-web/installation_ja)
+[English](/monadic-chat/installation) |
+[日本語](/monadic-chat/installation_ja)
 
 
 ## Table of Contents
@@ -95,7 +95,7 @@ Once the build is complete, the following message will be displayed:
 
 ```text
 ✔️ Container monadic-chat-db-1  Started
-✔️ Container monadic-chat-web-1 Starte
+✔️ Container monadic-chat-web-1 Started
 ```
 
 Now you can access Monadic Chat from your browser at `http://localhost:4567`. 

@@ -66,11 +66,15 @@
           link.setAttribute("href", href + "_ja");
           // Change the label to the Japanese version
           link.innerHTML = link.getAttribute("data-ja");
+          // Change the title to the Japanese version
+          link.setAttribute("title", link.getAttribute("data-ja"));
         } else {
           // Remove the "_ja" from the link to revert to the original version
           link.setAttribute("href", href.replace("_ja", ""));
           // Change the label to the English version
           link.innerHTML = link.getAttribute("data-en");
+          // Change the title to the English version
+          link.setAttribute("title", link.getAttribute("data-en"));
         }
       }
     </script>

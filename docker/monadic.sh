@@ -137,7 +137,7 @@ case "$1" in
     update_monadic
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart|import|export}"
+    echo "Usage: $0 {start|stop|restart|update|import|export}"
     exit 1
     ;;
 esac

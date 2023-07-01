@@ -24,7 +24,7 @@ layout: default
 > For Monadic Chat, the following APIs are used:
 > 
 > - [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5) (Standard large language model, recommended)
-> - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (Requires application [as of July 2023], high-performance as of )
+> - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (Requires application [as of July 2023], expensive but high-performance)
 > - [Whisper](https://platform.openai.com/docs/models/whisper) (Speech recognition model)
 > - [Ada v2](https://platform.openai.com/docs/models/embeddings) (Text embedding model for PDF reading)
 

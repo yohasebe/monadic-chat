@@ -30,13 +30,13 @@
       </a>
 
       <h2 class="project-tagline">{{ page.description | default: site.description | default: site.github.project_tagline }}</h2>
-        <a href="{{site.url}}/monadic-chat/overview" class="btn">Overview</a>
-        <a href="{{site.url}}/monadic-chat/installation" class="btn">Installation</a>
-        <a href="{{site.url}}/monadic-chat/settings" class="btn">Settings</a>
-        <a href="{{site.url}}/monadic-chat/apps" class="btn">Apps</a>
-        <a href="{{site.url}}/monadic-chat/faq" class="btn">FAQ</a>
-        <a href="{{site.url}}/monadic-chat/development" class="btn">Development</a>
-        <a href="https://github.com/yohasebe/monadic-chat" class="btn">GitHub</a>
+        <a href="{{site.url}}/monadic-chat/overview" class="btn" data-en="Overview" data-ja="概要">Overview</a>
+        <a href="{{site.url}}/monadic-chat/installation" class="btn" data-en="Installation" data-ja="インストール">Installation</a>
+        <a href="{{site.url}}/monadic-chat/settings" class="btn" data-en="Settings" data-ja="設定">Settings</a>
+        <a href="{{site.url}}/monadic-chat/apps" class="btn" data-en="Apps" data-ja="基本アプリ">Apps</a>
+        <a href="{{site.url}}/monadic-chat/faq" class="btn" data-en="FAQ" data-ja="よくある質問">FAQ</a>
+        <a href="{{site.url}}/monadic-chat/development" class="btn" data-en="Development" data-ja="開発">Development</a>
+        <a href="https://github.com/yohasebe/monadic-chat" class="btn" data-en="GitHub" data-ja="GitHub">GitHub</a>
     </header>
 
     <main id="content" class="main-content" role="main">
@@ -50,23 +50,27 @@
 
     <script>
       // Check if the current page is a Japanese version
-      var isJapanesePage = window.location.href.includes("_ja");
+      const isJapanesePage = window.location.href.includes("_ja");
 
       // Get all the links with class "btn"
-      var links = document.getElementsByClassName("btn");
+      const links = document.getElementsByClassName("btn");
 
       // Loop through each link
-      for (var i = 0; i < links.length; i++) {
-        var link = links[i];
-        var href = link.getAttribute("href");
+      for (let i = 0; i < links.length; i++) {
+        const link = links[i];
+        const href = link.getAttribute("href");
 
         // Modify the link URL based on the current page language
         if (isJapanesePage) {
           // Change the link to the Japanese version
           link.setAttribute("href", href + "_ja");
+          // Change the label to the Japanese version
+          link.innerHTML = link.getAttribute("data-ja");
         } else {
           // Remove the "_ja" from the link to revert to the original version
           link.setAttribute("href", href.replace("_ja", ""));
+          // Change the label to the English version
+          link.innerHTML = link.getAttribute("data-en");
         }
       }
     </script>

@@ -1,27 +1,3 @@
-@font-face {
- font-family: 'Montserrat';
- font-weight: 400;
- src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
-}
-
-@font-face {
- font-family: 'Montserrat';
- font-weight: 500;
- src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
-}
-
-@font-face {
- font-family: 'Montserrat';
- font-weight: 600;
- src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
-}
-
-@font-face {
- font-family: 'Montserrat';
- font-weight: 700;
- src: url(/font/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
-}
-
 html {
   scrollbar-width: thin;
   scrollbar-color: #999 transparent;

@@ -6,8 +6,8 @@ layout: default
 # Base Apps
 {:.no_toc}
 
-[English](/monadic-chat/base_apps) |
-[日本語](/monadic-chat/base_apps_ja)
+[English](/monadic-chat/apps) |
+[日本語](/monadic-chat/apps_ja)
 
 ## Table of Contents
 {:.no_toc}

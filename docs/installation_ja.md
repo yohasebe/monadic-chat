@@ -47,8 +47,6 @@ After a while, the installation will be completed. If "Run these two commands in
 次に`git`コマンドが使えるようにします。Gitはソースコードのバージョン管理システムです。以下のコマンドを実行してください。
 
 ```shell
-
-```shell
 $ brew install git
 ```
 
@@ -159,8 +157,6 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 <img src="./assets/images/win-powershell.png" width="800px"/>
 
 次にPowerShell上で次のコマンドを実行します（最初の`>`はコマンドラインのプロンプトを表します）。
-
-```shell
 
 ```shell
 > wsl --install

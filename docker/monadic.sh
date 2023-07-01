@@ -60,7 +60,7 @@ function start_docker_compose {
     fi
   done
 
-  sleep 5
+  sleep 6
 
   # Open the default browser and access "http://localhost:4567"
   if which xdg-open > /dev/null 2>&1; then

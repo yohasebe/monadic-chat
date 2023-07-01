@@ -131,7 +131,9 @@ $(function () {
 
   $("#check-token").on("click", function (event) {
     event.preventDefault();
-    ws.send(JSON.stringify({ message: "CHECK_TOKEN", contents: $("#api-token").val() }));
+    reconnect_websocket(ws, function (ws) {
+      ws.send(JSON.stringify({ message: "CHECK_TOKEN", contents: $("#api-token").val() }));
+    });
   })
 
   $("#send").on("click", function(event) {

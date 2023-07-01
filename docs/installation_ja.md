@@ -6,8 +6,8 @@ layout: default
 # インストール
 {:.no_toc}
 
-[English](/monadic-chat/setup_mac) |
-[日本語](/monadic-chat/setup_mac_ja)
+[English](/monadic-chat/installation) |
+[日本語](/monadic-chat/installation_ja)
 
 
 ## もくじ

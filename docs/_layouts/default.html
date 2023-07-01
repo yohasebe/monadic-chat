@@ -47,5 +47,29 @@
         {% include social_media_links.html %}
       </footer>
     </main>
+
+    <script>
+      // Check if the current page is a Japanese version
+      var isJapanesePage = window.location.href.includes("_ja");
+
+      // Get all the links with class "btn"
+      var links = document.getElementsByClassName("btn");
+
+      // Loop through each link
+      for (var i = 0; i < links.length; i++) {
+        var link = links[i];
+        var href = link.getAttribute("href");
+
+        // Modify the link URL based on the current page language
+        if (isJapanesePage) {
+          // Change the link to the Japanese version
+          link.setAttribute("href", href + "_ja");
+        } else {
+          // Remove the "_ja" from the link to revert to the original version
+          link.setAttribute("href", href.replace("_ja", ""));
+        }
+      }
+    </script>
+
   </body>
 </html>

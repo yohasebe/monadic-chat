@@ -286,11 +286,12 @@ function connect_websocket(callback) {
           const card = $(`#${msg["mid"]}`);
           if (card.length) {
             if (msg["active"]) {
-              card.find(".status").addClass("active").attr("title", "Active");
+              card.find(".status").addClass("active");
             } else {
-              card.find(".status").removeClass("active").attr("title", "Inactive");
+              card.find(".status").removeClass("active");
             }
           }
+
         });
         break;
       case "past_messages":

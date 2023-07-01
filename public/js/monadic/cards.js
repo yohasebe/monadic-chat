@@ -3,7 +3,6 @@ const mids = [];
 function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   const status_class = status === true ? "active" : "";
-  const status_name = status === true ? "Active" : "Inactive";
 
   let className
   if (role === "user") {
@@ -35,7 +34,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
           <span title="Text to Speech" class="func-play me-3"><i class="fas fa-play"></i></span>
           <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
           <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-          <span title="${status_name}" class="status ${status_class}"></span>
+          <span class="status ${status_class}"></span>
         </div>
       `);
   }

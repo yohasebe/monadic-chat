@@ -33,6 +33,45 @@ PostgreSQLとその上でVector DBを使うためのモジュールpgvectorが�
 
 - [pgvector](https://github.com/pgvector/pgvector)
 
+### インストール
+
+```bash
+$ git clone https://github.com/yohasebe/monadic-chat.git
+$ cd monadic-chat
+$ bundle install
+$ chmod -R +x ./bin
+```
+
+### Monadic Chatの起動・停止・再起動
+
+`start`
+
+```bash
+# pwd: monadic-chat
+$ ./bin/monadic start
+```
+
+`stop`
+
+```bash
+# pwd: monadic-chat
+$ ./bin/monadic stop 
+```
+
+`restart`
+
+```bash
+# pwd: monadic-chat
+$ ./bin/monadic restart 
+```
+
+### Monadic Chatのアップデート
+
+```bash
+# pwd: monadic-chat
+$ git pull
+```
+
 ## 基本アプリの開発
 
 ### ディレクトリ／ファイル構成

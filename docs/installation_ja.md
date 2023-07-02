@@ -9,8 +9,6 @@ layout: default
 [English](/monadic-chat/installation) |
 [日本語](/monadic-chat/installation_ja)
 
-最終更新日: {% last_modified_at %}
-
 ## もくじ
 {:.no_toc}
 

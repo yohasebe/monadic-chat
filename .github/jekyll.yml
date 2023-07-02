@@ -24,12 +24,10 @@ jobs:
         bundle install
 
     - name: Build Jekyll site
-      run: bundle exec jekyll build
+      run: bundle exec jekyll build --source docs --destination ./docs/_site
 
-    - name: Commit changes
-      run: |
-        git config --local user.email "yohasebe@gmail.com"
-        git config --local user.name "yohasebe"
-        git add .
-        git commit -m "Build Jekyll site"
-        git push
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_site

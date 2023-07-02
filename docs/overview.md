@@ -8,6 +8,8 @@ layout: default
 [English](/monadic-chat/overview) |
 [日本語](/monadic-chat/overview_ja)
 
+Last Modified: {% last_modified_at %}
+
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 
 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.

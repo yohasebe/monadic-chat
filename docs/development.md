@@ -17,21 +17,62 @@ Last Modified: {% last_modified_at %}
 1. toc
 {:toc}
 
-## Installation without using Docker Desktop
+## Installation and Launch without Using Docker Desktop
 
-### Ruby
+### Dependencies
+
+#### Ruby
 
 Recommended version is 3.1 or above
 
-### Rust
+#### Rust
 
 Rust is required for token caluculation using ticktoken gem for Ruby
 
-### PostgreSQL + pgvector
+#### PostgreSQL + pgvector
 
 PostgreSQL and pgvector module are required for storing and searching vectors
 
 - [pgvector](https://github.com/pgvector/pgvector)
+
+### Installation
+
+```bash
+$ git clone https://github.com/yohasebe/monadic-chat.git
+$ cd monadic-chat
+$ bundle install
+$ chmod -R +x ./bin
+```
+
+### Start/Stop/Restart Monadic Chat
+
+`start`
+
+```bash
+# pwd: monadic-chat
+$ ./bin/monadic start
+```
+
+`stop`
+
+```bash
+# pwd: monadic-chat
+$ ./bin/monadic stop 
+```
+
+`restart`
+
+```bash
+# pwd: monadic-chat
+$ ./bin/monadic restart 
+```
+
+### Update Monadic Chat
+
+```bash
+# pwd: monadic-chat
+$ git pull
+```
 
 ## Basic App Development
 

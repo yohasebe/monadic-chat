@@ -77,6 +77,21 @@
           link.setAttribute("title", link.getAttribute("data-en"));
         }
       }
+
+      // Get the banner image link
+      const bannerLink = document.querySelector(".page-header a");
+
+      // Get the original banner image link URL
+      const originalHref = bannerLink.getAttribute("href");
+
+      // Modify the banner image link URL based on the current page language
+      if (isJapanesePage) {
+        // Change the banner image link to the Japanese version
+        bannerLink.setAttribute("href", originalHref + "_ja");
+      } else {
+        // Remove the "_ja" from the banner image link to revert to the original version
+        bannerLink.setAttribute("href", originalHref.replace("_ja", ""));
+      }
     </script>
 
   </body>

@@ -9,8 +9,6 @@ layout: default
 [English](/monadic-chat/settings) |
 [日本語](/monadic-chat/settings_ja)
 
-Last Modified: {% last_modified_at %}
-
 ## Table of Contents
 {:.no_toc}
 

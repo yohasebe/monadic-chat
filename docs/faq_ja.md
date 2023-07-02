@@ -8,8 +8,6 @@ layout: default
 [English](/monadic-chat/faq) |
 [日本語](/monadic-chat/faq_ja)
 
-最終更新日: {% last_modified_at %}
-
 **Q**: OpenAIのAPIトークンはどのように取得できますか？
 
 > **A**: 下記のURLでアカウント作成を行うことができます。OpenAIのAPIアカウントはChatGPTのアカウントとは別であることに注意してください。ChatGPT Plusをサブスクライブしていても、それだけではAPI Tokenを得ることはできません。なお、APIアカウントを作成するにはクレジットカードが必要です（2023年7月時点ではアカウント開設後3ヶ月までの期間は5ドル分が無料で試用できます）。

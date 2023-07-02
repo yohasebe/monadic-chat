@@ -3,7 +3,7 @@
 <head>
   <script>
     window.onload = function() {
-        window.location.href = "/monadic-chat/overview_ja/";
+        window.location.href = "/monadic-chat/overview_ja";
     };
   </script>
 </head>

@@ -3,7 +3,7 @@ title: Monadic Chat
 layout: default
 ---
 
-# 設定項目
+# 設定・操作
 {:.no_toc}
 
 [English](/monadic-chat/settings) |

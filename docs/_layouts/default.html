@@ -30,13 +30,13 @@
       </a>
 
       <h2 class="project-tagline">{{ page.description | default: site.description | default: site.github.project_tagline }}</h2>
-        <a href="{{site.url}}/monadic-chat/overview" class="btn" data-en="Overview" data-ja="概要">Overview</a>
-        <a href="{{site.url}}/monadic-chat/installation" class="btn" data-en="Installation" data-ja="インストール">Installation</a>
-        <a href="{{site.url}}/monadic-chat/settings" class="btn" data-en="Settings" data-ja="設定">Settings</a>
-        <a href="{{site.url}}/monadic-chat/apps" class="btn" data-en="Apps" data-ja="基本アプリ">Apps</a>
-        <a href="{{site.url}}/monadic-chat/faq" class="btn" data-en="FAQ" data-ja="よくある質問">FAQ</a>
-        <a href="{{site.url}}/monadic-chat/development" class="btn" data-en="Development" data-ja="開発">Development</a>
-        <a href="https://github.com/yohasebe/monadic-chat" class="btn" data-en="GitHub" data-ja="GitHub">GitHub</a>
+        <a href="{{site.url}}/monadic-chat/overview" class="btn page" data-en="Overview" data-ja="概要">Overview</a>
+        <a href="{{site.url}}/monadic-chat/installation" class="btn page" data-en="Installation" data-ja="インストール">Installation</a>
+        <a href="{{site.url}}/monadic-chat/settings" class="btn page" data-en="Settings" data-ja="設定">Settings</a>
+        <a href="{{site.url}}/monadic-chat/apps" class="btn page" data-en="Apps" data-ja="基本アプリ">Apps</a>
+        <a href="{{site.url}}/monadic-chat/faq" class="btn page" data-en="FAQ" data-ja="よくある質問">FAQ</a>
+        <a href="{{site.url}}/monadic-chat/development" class="btn page" data-en="Development" data-ja="開発">Development</a>
+        <a href="https://github.com/yohasebe/monadic-chat" class="btn" >GitHub</a>
     </header>
 
     <main id="content" class="main-content" role="main">
@@ -52,8 +52,8 @@
       // Check if the current page is a Japanese version
       const isJapanesePage = window.location.href.includes("_ja");
 
-      // Get all the links with class "btn"
-      const links = document.getElementsByClassName("btn");
+      // Get all the links with class "page"
+      const links = document.getElementsByClassName("page");
 
       // Loop through each link
       for (let i = 0; i < links.length; i++) {

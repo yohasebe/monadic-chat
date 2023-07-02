@@ -8,6 +8,8 @@ layout: default
 [English](/monadic-chat/overview) |
 [日本語](/monadic-chat/overview_ja)
 
+最終更新日: {% last_modified_at %}
+
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 
 **Monadic Chat**はOpenAIのChat APIとWhisper API、そしてプログラミング言語のRubyを活用して高機能なチャットボットを作成・使用するためのフレームワークです。

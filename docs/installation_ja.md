@@ -87,7 +87,7 @@ $ git clone https://github.com/yohasebe/monadic-chat.git
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 初回はビルドに時間がかかりますが、2回目以降はすぐに起動できます。
@@ -113,21 +113,21 @@ Monadic Chatを起動/停止/再起動するには、以下のコマンドを実
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 **`stop`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh stop
+$ ./monadic.sh stop
 ```
 
 **`restart`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh restart
+$ ./monadic.sh restart
 ```
 
 ### Monadic Chatのアップデート
@@ -138,7 +138,7 @@ Monadic Chatを最新版に更新するには、以下のコマンドを実行�
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh update
+$ ./monadic.sh update
 ```
 
 これにより、Githubから最新のソースコードがダウンロードされ、Monadic Chatが再ビルドされます。
@@ -203,7 +203,7 @@ Then move inside this directory and execute the `start` command as below:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 The first time you run the `start` command, it may take some time for the build process to finish, but from the second time on, the app will start immediately.
@@ -231,21 +231,21 @@ Monadic Chatを起動/停止/再起動するには、以下のコマンドを実
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 **`stop`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh stop
+$ ./monadic.sh stop
 ```
 
 **`restart`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh restart
+$ ./monadic.sh restart
 ```
 
 ### Monadic Chatのアップデート
@@ -257,7 +257,7 @@ Monadic Chatを最新版に更新するには、以下のコマンドを実行�
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh update
+$ ./monadic.sh update
 ```
 
 これにより、Githubから最新のソースコードがダウンロードされ、Monadic Chatが再ビルドされます。

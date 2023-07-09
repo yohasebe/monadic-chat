@@ -33,7 +33,8 @@ helpers WebSocketHelper
 require_relative "helpers/utilities"
 helpers UtilitiesHelper
 
-Dotenv.load
+envpath = File.expand_path OpenAIHelper::ENV_PATH
+Dotenv.load(envpath)
 
 # OpenAI API configuration
 MODEL = "gpt-3.5-turbo"

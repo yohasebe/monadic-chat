@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Monadic Chat Console</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    #output {
+      flex: 1;
+      overflow: auto;
+      margin: 10px;
+    }
+    .status-wrapper {
+      text-align: left;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 10px;
+    }
+    .button-group {
+      margin: 10px;
+    }
+    .button-group button {
+      background-color: #ffc107;
+      color: #000;
+      border: none;
+      border-radius: 5px;
+      padding: 5px 10px;
+      margin-right: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .button-group button:hover {
+      background-color: #e0ac07;
+    }
+    .status.running {
+      color: green;
+    }
+    .status.stopped {
+      color: orange;
+    }
+  </style>
+</head>
+<body>
+  <div class="status-wrapper">
+    <span>Status: </span>
+    <span id="status" class="status">Running</span>
+  </div>
+  <pre id="output"></pre>
+  <div class="button-group">
+    <button id="start"><i class="fa-solid fa-play"></i> Start</button>
+    <button id="stop"><i class="fa-solid fa-stop"></i> Stop</button>
+    <button id="restart"><i class="fa-solid fa-rotate-right"></i> Restart</button>
+    <button id="browser"><i class="fa-solid fa-window-maximize"></i> Open Browser</button>
+    <button id="exit"><i class="fa-solid fa-xmark"></i> Quit</button>
+  </div>
+  <script src="preload.js"></script>
+  <script src="mainScreen.js"></script>
+</body>
+</html>

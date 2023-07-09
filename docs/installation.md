@@ -83,7 +83,7 @@ Then move inside this directory and execute the `start` command as below:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 The first time you run the `start` command, it may take some time for the build process to finish, but from the second time on, the app will start immediately.
@@ -109,21 +109,21 @@ To start/stop/restart Monadic Chat, run one of the following commands:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 **`stop`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh stop
+$ ./monadic.sh stop
 ```
 
 **`restart`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh restart
+$ ./monadic.sh restart
 ```
 
 ### Update Monadic Chat
@@ -134,7 +134,7 @@ To update Monadic Chat, execute the following command:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh update
+$ ./monadic.sh update
 ```
 
 The above command downloads the latest source code from Github and rebuilds Monadic Chat.
@@ -195,7 +195,7 @@ Then move inside this directory and execute the `start` command as below:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 The first time you run the `start` command, it may take some time for the build process to finish, but from the second time on, the app will start immediately.
@@ -221,21 +221,21 @@ To start/stop/restart Monadic Chat, run one of the following commands:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh start
+$ ./monadic.sh start
 ```
 
 **`stop`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh stop
+$ ./monadic.sh stop
 ```
 
 **`restart`**
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh restart
+$ ./monadic.sh restart
 ```
 
 ### Update Monadic Chat
@@ -246,7 +246,7 @@ To update Monadic Chat, execute the following command:
 
 ```shell
 $ cd ~/monadic-chat
-$ ./docker/monadic.sh update
+$ ./monadic.sh update
 ```
 
 The above command downloads the latest source code from Github and rebuilds Monadic Chat.

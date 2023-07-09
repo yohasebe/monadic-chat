@@ -4,9 +4,9 @@
 open -a Docker
 
 # Wait for Docker to become available
-until docker info > /dev/null 2>&1; do
-    echo "Waiting for Docker to start..."
+until /usr/local/bin/docker info > /dev/null 2>&1; do
+    echo "Waiting for Docker Desktop to start..."
     sleep 5
 done
 
-echo "Docker is now available."
+echo "Docker Desktop has been loaded"

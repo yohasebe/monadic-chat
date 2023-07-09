@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="256px" height="256px" fill="currentColor" class="bi bi-chat-left-text-fill" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" xmlns:bx="https://boxy-svg.com">
+  <defs>
+    <bx:guide x="2.02" y="0.378" angle="0"/>
+    <bx:guide x="6.035" y="8.015" angle="90"/>
+    <bx:guide x="14.013" y="0.425" angle="0"/>
+  </defs>
+  <rect width="12" height="12" style="stroke: rgb(0, 0, 0); stroke-width: 0px; paint-order: fill; fill: rgb(0, 0, 0);" rx="2.723" ry="2.723" x="2" y="2"/>
+  <path d="M 8.112 4.52 C 8.052 4.497 7.987 4.497 7.927 4.52 L 4.927 5.72 L 8.018 6.955 L 11.112 5.72 L 8.112 4.52 Z M 11.538 6.091 L 8.269 7.397 L 8.269 11.376 L 11.538 10.072 L 11.538 6.091 Z M 7.767 11.379 L 7.767 7.397 L 4.502 6.091 L 4.502 10.072 L 7.767 11.379 Z M 7.739 4.053 C 7.919 3.982 8.12 3.982 8.3 4.053 L 11.882 5.484 C 11.976 5.524 12.039 5.615 12.039 5.72 L 12.039 10.072 C 12.039 10.276 11.914 10.462 11.723 10.537 L 8.112 11.982 C 8.052 12.006 7.987 12.006 7.927 11.982 L 4.316 10.537 C 4.125 10.462 4 10.276 4 10.072 L 4 5.72 C 4 5.615 4.06 5.524 4.157 5.484 L 7.739 4.053 Z" style="fill: rgb(255, 255, 255);"/>
+</svg>

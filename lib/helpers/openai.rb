@@ -9,6 +9,7 @@ module OpenAIHelper
   COMPLETION_TIMEOUT = 300
   WHISPER_TIMEOUT = 60
   RETRY_DELAY = 1
+  ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
 
   def set_api_token(api_token = nil)
     settings.api_key = api_token if settings.api_key.nil? || settings.api_key == ""
@@ -24,7 +25,7 @@ module OpenAIHelper
     models = data.sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") && item.include?("0613") }
 
     if api_token
-      File.open(".env", "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
+      File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
       { "type" => "models", "content" => "A new API token has been verified and stored in <code>.env</code> file.", "models" => models }
     else
       { "type" => "models", "content" => "API token stored in <code>.env</code> file has been verified.", "models" => models }

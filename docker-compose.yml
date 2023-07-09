@@ -9,7 +9,7 @@ services:
   web:
     volumes:
       - ./log:/monadic/log
-      - ./.env:/monadic/.env
+      - ~/monadic:/monadic/data
     build: .
     ports:
       - "4567:4567"

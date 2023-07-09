@@ -17,4 +17,5 @@ while ! docker system info > /dev/null 2>&1; do
     fi
 done
 
-echo "Docker is now available."
+echo "Docker Desktop has been loaded"
+

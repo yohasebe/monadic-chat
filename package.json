@@ -1,0 +1,127 @@
+{
+  "name": "monadic-chat",
+  "version": "0.1.4",
+  "description": "Launcher application responsible for starting and stopping Monadic Chat",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac-arm64": "electron-builder --mac --arm64 --dir",
+    "build:mac-x64": "electron-builder --mac --x64 --dir",
+    "build:mac": "electron-builder --mac --universal",
+    "build:win": "electron-builder --win --x64"
+  },
+  "keywords": [],
+  "author": "Yoichiro Hasebe",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.2.0",
+    "electron-builder": "^24.4.0"
+  },
+  "build": {
+    "asar": false,
+    "appId": "com.yohasebe.monadic",
+    "extraResources": [
+      {
+        "from": "./apps",
+        "to": "app/apps",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./assets",
+        "to": "app/assets",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./bin",
+        "to": "app/bin",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./docker",
+        "to": "app/docker",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./lib",
+        "to": "app/lib",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./public",
+        "to": "app/public",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./views",
+        "to": "app/views",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./monadic.sh",
+        "to": "app/monadic.sh"
+      },
+      {
+        "from": "./monadic.gemspec",
+        "to": "app/monadic.gemspec"
+      },
+      {
+        "from": "./docker-compose.yml",
+        "to": "app/docker-compose.yml"
+      },
+      {
+        "from": "./Dockerfile",
+        "to": "app/Dockerfile"
+      },
+      {
+        "from": "./Gemfile",
+        "to": "app/Gemfile"
+      },
+      {
+        "from": "./Rakefile",
+        "to": "app/Rakefile"
+      },
+      {
+        "from": "./config.ru",
+        "to": "app/config.ru"
+      },
+      {
+        "from": "./LICENSE",
+        "to": "app/LICENSE"
+      },
+      {
+        "from": "./README.md",
+        "to": "app/README.md"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "mainScreen.js",
+      "index.html",
+      "menu_icons/**/*"
+    ],
+    "mac": {
+      "icon": "menu_icons/icon.icns"
+    },
+    "win": {
+      "icon": "menu_icons/icon.ico"
+    }
+  },
+  "dependencies": {
+    "electron-context-menu": "^3.6.1"
+  }
+}

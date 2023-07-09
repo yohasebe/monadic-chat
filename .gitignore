@@ -8,6 +8,7 @@
 /coverage/
 /InstalledFiles
 /pkg/
+/dist/
 /electron/
 /spec/reports/
 /spec/examples.txt
@@ -16,6 +17,7 @@
 /tmp/
 /vector_db/
 /notes/
+/node_modules/
 
 /data/*
 /log/*

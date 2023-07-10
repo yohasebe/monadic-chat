@@ -15,7 +15,8 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^25.2.0",
-    "electron-builder": "^24.4.0"
+    "electron-builder": "^24.4.0",
+    "semver": ">=7.5.2"
   },
   "build": {
     "asar": false,

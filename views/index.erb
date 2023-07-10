@@ -234,7 +234,6 @@
                   <span class='text-secondary'><i class='fas fa-bars'></i></span>
                   <span class='fw-bold assistant-color'>Assistant</span>
                 </div>
-                <!-- div class="me-1"><span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner" style="display: none;"></span></div -->
                 <div class="me-1 text-secondary d-flex align-items-center">
                   <span id="cancel-query" class="me-3 text text-danger">CANCEL <i class="fa-regular fa-circle-stop"></i></span>
                   <span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner"></span>
@@ -439,11 +438,11 @@
       };
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js" integrity="sha512-6FaAxxHuKuzaGHWnV00ftWqP3luSBRSopnNAA2RvQH1fOfnF/A1wOfiUWF7cLIOFcfb1dEhXwo5VG3DAisocRw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="js/monadic/cards.js"></script>
-    <script src="js/monadic/utilities.js"></script>
-    <script src="js/monadic/websocket.js"></script>
-    <script src="js/monadic/speech.js"></script>
-    <script src="js/monadic/recording.js"></script>
-    <script src="js/monadic.js"></script>
+    <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/websocket.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/speech.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/recording.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
   </body>
 </html>

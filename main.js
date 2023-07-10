@@ -143,7 +143,7 @@ function quitApp() {
         return false;
         ;
       }
-    }, 500);
+    }, 1000);
   })
 
 }
@@ -233,7 +233,6 @@ function initializeApp() {
 
     extendedContextMenu({});
 
-    updateStatus();
     createMainWindow();
     contextMenu = Menu.buildFromTemplate(menuItems);
 
@@ -266,8 +265,6 @@ function initializeApp() {
     if (mainWindow) {
       mainWindow.show();
     }
-
-    writeToScreen(`Monadic Chat ${app.getVersion()}\n`);
   })
 }
 
@@ -397,7 +394,7 @@ function createMainWindow() {
 
   setTimeout(() => {
     writeToScreen(openingText);
-  }, 500);
+  }, 1000);
 
   mainWindow.loadFile('index.html');
 
@@ -416,6 +413,11 @@ function createMainWindow() {
       event.preventDefault();
       mainWindow.hide();
     }
+  });
+
+  // Send the current status to the main window right after it is created
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.send('updateStatusIndicator', currentStatus);
   });
 }
 

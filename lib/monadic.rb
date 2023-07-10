@@ -84,6 +84,7 @@ end
 
 # Accept requests from the client
 get "/" do
+  @timestamp = Time.now.to_i
   session[:parameters] ||= {}
   session[:messages] ||= []
   session[:version] = Monadic::VERSION

@@ -83,11 +83,17 @@ function checkForUpdates() {
 function checkDockerInstallation() {
   return new Promise((resolve, reject) => {
     if (os.platform() === 'win32') {
-      exec('wsl -l -v', function (_err, stdout, _stderr) {
-        if (stdout.includes('docker') || stdout.includes('Docker')) {
-          resolve();
+      exec('docker -v', function (_err, _stdout, _stderr) {
+        if (_err) {
+          reject("Docker is not installed. Please install Docker Desktop for Windows.");
         } else {
-          reject("Docker is not installed. Please install Docker Desktop for Windows and enable WSL 2.");
+          exec('wsl -l -v', function (_err, _stdout, _stderr) {
+            if (_err) {
+              reject("WSL 2 is not installed. Please install WSL 2 and set it as the default version for your WSL distributions.");
+            } else {
+              resolve();
+            }
+          });
         }
       });
     } else if (os.platform() === 'darwin') {
@@ -119,7 +125,7 @@ function quitApp() {
     defaultId: 1,
     title: 'Confirm Quit',
     message: 'Do you want to quit Monadic Chat?',
-    checkboxLabel: 'Shut down Docker Desktop',
+    checkboxLabel: 'Shut down Docker Desktop (if possible)',
     checkboxChecked: false,
     icon: path.join(iconDir, 'monadic-chat.png')
   };
@@ -261,8 +267,7 @@ function initializeApp() {
       mainWindow.show();
     }
 
-    // Set initial status indicator
-    updateStatusIndicator(currentStatus);
+    writeToScreen(`Monadic Chat ${app.getVersion()}\n`);
   })
 }
 
@@ -377,8 +382,8 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 480,
-    minWidth: 480,
+    width: 490,
+    minWidth: 490,
     height: 260,
     minHeight: 260,
     webPreferences: {
@@ -388,7 +393,11 @@ function createMainWindow() {
     }
   });
 
-  writeToScreen(`Monadic Chat (Version: ${app.getVersion()})\n`);
+  const openingText = `Monadic Chat ${app.getVersion()}\n\nRun "Build" once after an update of the app\n`;
+
+  setTimeout(() => {
+    writeToScreen(openingText);
+  }, 500);
 
   mainWindow.loadFile('index.html');
 

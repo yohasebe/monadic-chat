@@ -123,5 +123,8 @@
   },
   "dependencies": {
     "electron-context-menu": "^3.6.1"
+  },
+  "overrides": {
+    "semver": "^7.5.3"
   }
 }

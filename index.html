@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Monadic Chat Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     body {
@@ -10,21 +13,34 @@
       flex-direction: column;
       height: 100vh;
       margin: 0;
-      font-family: Arial, sans-serif;
+      color: #333;
+      background-color: #eeeeee;
+    }
+    body, input, textarea, button {
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
     }
     #output {
       flex: 1;
       overflow: auto;
+      padding: 5px;
       margin: 10px;
+      margin-top: 5px;
+      margin-bottom: 5px;
+      background-color: #fff;
     }
     .status-wrapper {
+      font-weight: bold;
       text-align: left;
       font-size: 14px;
-      font-weight: bold;
       margin: 10px;
+      margin-bottom: 5px;
+    }
+    .status-wrapper .status{
+      font-weight: bold;
     }
     .button-group {
       margin: 10px;
+      margin-top: 5px;
     }
     .button-group button {
       background-color: #ffc107;
@@ -50,11 +66,11 @@
 <body>
   <div class="status-wrapper">
     <span>Status: </span>
-    <span id="status" class="status">Running</span>
+    <span id="status" class="status"></span>
   </div>
   <pre id="output"></pre>
   <div class="button-group">
-    <button id="start"><i class="fa-solid fa-play"></i> Start</button>
+    <button id="start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
     <button id="stop"><i class="fa-solid fa-stop"></i> Stop</button>
     <button id="restart"><i class="fa-solid fa-rotate-right"></i> Restart</button>
     <button id="browser"><i class="fa-solid fa-window-maximize"></i> Open Browser</button>

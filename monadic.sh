@@ -124,6 +124,7 @@ function update_monadic {
 # Parse the user command
 case "$1" in
   build)
+    stop_docker_compose
     build_docker_compose
     ;;
   start)
@@ -137,10 +138,12 @@ case "$1" in
     ;;
   import)
     start_docker
+    stop_docker_compose
     import_database
     ;;
   export)
     start_docker
+    stop_docker_compose
     export_database
     ;;
   update)

@@ -11,17 +11,17 @@ $(function () {
   let lastApp = defaultApp;
   $("#apps").on("change", function(event) {
     event.preventDefault();
-    if (messages.length > 0) {
-      if (this.value === lastApp) {
-        return;
-      } else if (confirm("Are you sure you want to change the app?")) {
-        ws.send(JSON.stringify({"message": "RESET"}));
-        messages = [];
-        $("#discourse").html("");
-      } else {
-        $("#apps").val(lastApp);
-      }
-    }
+    // if (messages.length > 0) {
+    //   if (this.value === lastApp) {
+    //     return;
+    //   } else if (confirm("Are you sure you want to change the app?")) {
+    //     ws.send(JSON.stringify({"message": "RESET"}));
+    //     messages = [];
+    //     $("#discourse").html("");
+    //   } else {
+    //     $("#apps").val(lastApp);
+    //   }
+    // }
     lastApp = this.value;
     Object.assign(params, apps[$(this).val()]);
     loadParams(params, "changeApp");

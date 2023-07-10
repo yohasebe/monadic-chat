@@ -5,8 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:mac-arm64": "electron-builder --mac --arm64 --dir",
-    "build:mac-x64": "electron-builder --mac --x64 --dir",
+    "build:mac-arm64": "electron-builder --mac --arm64",
+    "build:mac-x64": "electron-builder --mac --x64",
     "build:mac": "electron-builder --mac --universal",
     "build:win": "electron-builder --win --x64"
   },

@@ -236,6 +236,9 @@ function initializeApp() {
     createMainWindow();
     contextMenu = Menu.buildFromTemplate(menuItems);
 
+    // Check server status and set tray icon
+    updateStatus();
+
     ipcMain.on('command', (_event, command) => {
       switch (command) {
         case 'start':
@@ -267,7 +270,6 @@ function initializeApp() {
     }
   })
 }
-
 
 function toUnixPath(p) {
   return p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();

@@ -12,6 +12,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
   } else {
     className = "role-system";
   }
+
   const card = $(`
     <div class="card mt-3">
       <div class="card-header p-2 ps-3 d-flex justify-content-between">

@@ -70,6 +70,40 @@ module OpenAIHelper
     end
   end
 
+  def dalle2_api_request(prompt, num = 1, img_size = 256, format = "url")
+    url = "#{API_ENDPOINT}/images/generations"
+    response = nil
+
+    begin
+      options = {}
+      form_data = HTTP::FormData.create(options)
+
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{settings.api_key}"
+      }
+
+      body = {
+        "prompt" => prompt,
+        "n" => num,
+        "size" => "256x256",
+        "response_format" => format
+      }
+
+      response = HTTP.headers(headers).timeout(WHISPER_TIMEOUT).post(url, json: body)
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      return { "type" => "error", "content" => "ERROR: #{e.message}" }
+    end
+
+    if response.status.success?
+      puts "Image generated successfully"
+      JSON.parse(response.body)
+    else
+      pp "Error: #{response.status} - #{response.body}"
+      { "type" => "error", "content" => "DALL-E 2 API Error" }
+    end
+  end
+
   # Connect to OpenAI API and get a response
   def completion_api_request(role, &block)
     obj = session[:parameters]

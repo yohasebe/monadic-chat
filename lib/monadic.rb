@@ -61,7 +61,6 @@ def init_apps
   klass = Object.const_get("MonadicApp")
   klass.subclasses.each do |app|
     app = app.new
-    app.settings
     app_name = app.settings[:app_name]
     apps[app_name] = app
   end

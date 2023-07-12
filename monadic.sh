@@ -77,7 +77,7 @@ function build_docker_compose {
 }
 
 function start_docker_compose {
-  start_docker
+  build_docker_compose
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
   echo "Monadic Chat has been started"
@@ -87,6 +87,8 @@ function start_docker_compose {
 # Define a function to stop Docker Compose
 function stop_docker_compose {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
+  # remove unused docker volumes created by docker-compose
+  $DOCKER volume prune -f
   echo "Monadic Chat has been stopped"
 }
 

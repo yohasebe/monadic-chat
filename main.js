@@ -392,7 +392,7 @@ function createMainWindow() {
     }
   });
 
-  const openingText = `Monadic Chat ${app.getVersion()}\n\nRun "Build" once after an update of the app\n`;
+  const openingText = `Monadic Chat ${app.getVersion()}\n`;
 
   setTimeout(() => {
     writeToScreen(openingText);

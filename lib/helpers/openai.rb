@@ -10,6 +10,8 @@ module OpenAIHelper
   WHISPER_TIMEOUT = 60
   RETRY_DELAY = 1
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
+  # create ENV_PATH if it doesn't exist
+  FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
   def set_api_token(api_token = nil)
     settings.api_key = api_token if settings.api_key.nil? || settings.api_key == ""

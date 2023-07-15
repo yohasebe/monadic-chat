@@ -3,10 +3,12 @@
 class MonadicApp
   TOKENIZER = Tiktoken.get_encoding("cl100k_base")
 
+  attr_accessor :api_key
   attr_reader :context
 
   def initialize
     @context = {}
+    @api_key = ""
   end
 
   # Wrap the user's message in a monad
@@ -98,28 +100,57 @@ class MonadicApp
     "<div class='mb-3'>#{output}</div>"
   end
 
-  def function_to_json(function_name, function_description = nil)
-    method = method(function_name).source
-    parameters = method.scan(/\((.*?)\)/).flatten[0].split(",").map(&:strip)
+  def generate_image(hash, num_retrials: 10)
+    prompt = hash[:prompt]
+    num = hash[:num] || 1
+    size = hash[:size] || 256
+    format = hash[:format] || "url"
 
-    function_json = {
-      "name" => function_name.to_s,
-      "parameters" => {
-        "type" => "object",
-        "properties" => {}
+    raise "Size must be 256, 512, or 1024" unless [256, 512, 1024].include?(size)
+    raise "Number of images must be between 1 and 10" unless (1..10).include?(num)
+
+    url = "https://api.openai.com/v1/images/generations"
+    res = nil
+
+    begin
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{@api_key}"
       }
-    }
 
-    function_json["description"] = function_description if function_description
-
-    parameters.each do |param|
-      next if /(?::|=>)/ =~ param
-
-      function_json["parameters"]["properties"][param] = {
-        "type" => "string"
+      body = {
+        "prompt" => prompt,
+        "n" => num,
+        "size" => "#{size}x#{size}",
+        "response_format" => format
       }
+
+      res = HTTP.headers(headers).post(url, json: body)
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      return { "type" => "error", "content" => "ERROR: #{e.message}" }
     end
 
-    function_json
+    if res.status.success?
+      puts "Image generated successfully"
+      img = JSON.parse(res.body)
+      "<img class='generate_image' src='#{img["data"][0]["url"]}' />"
+    else
+      pp "Error: #{res.status} - #{res.body}"
+      { "type" => "error", "content" => "DALL-E 2 API Error" }
+    end
+  rescue StandardError => e
+    pp e.message
+    pp e.backtrace
+    num_retrials -= 1
+    if num_retrials.positive?
+      sleep 1
+      generate_image(hash, num_retrials: num_retrials)
+    else
+      <<~TEXT
+        "SEARCH SNIPPETS: ```
+        information not found"
+        ```
+      TEXT
+    end
   end
 end

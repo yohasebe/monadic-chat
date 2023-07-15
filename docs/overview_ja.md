@@ -10,7 +10,7 @@ layout: default
 
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 
-**Monadic Chat**はOpenAIのChat APIとWhisper API、そしてプログラミング言語のRubyを活用して高機能なチャットボットを作成・使用するためのフレームワークです。
+🌟 **Monadic Chat**はOpenAIのChat APIとWhisper API、そしてプログラミング言語のRubyを活用して高機能なチャットボットを作成・使用するためのフレームワークです。
 
 ⚠️  **ご注意**
 
@@ -38,6 +38,10 @@ layout: default
 - 🗺️ テキスト読み上げのための**自動言語検出**
 - 🗣️ テキスト読み上げのための**言語とボイス**の選択
 - 😊 音声認識とテキスト読み上げを使用した、AIエージェントとの**インタラクティブな会話**
+
+## 画像生成
+
+- 🖼️ DALL·E 2 APIを利用した**画像生成**
 
 ## 設定と拡張
 

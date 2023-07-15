@@ -11,17 +11,24 @@ $(function () {
   let lastApp = defaultApp;
   $("#apps").on("change", function(event) {
     event.preventDefault();
-    // if (messages.length > 0) {
-    //   if (this.value === lastApp) {
-    //     return;
-    //   } else if (confirm("Are you sure you want to change the app?")) {
-    //     ws.send(JSON.stringify({"message": "RESET"}));
-    //     messages = [];
-    //     $("#discourse").html("");
-    //   } else {
-    //     $("#apps").val(lastApp);
-    //   }
-    // }
+    if (messages.length > 0) {
+      if (this.value === lastApp) {
+        return;
+      }
+
+      $("#clearConfirmation").modal("show");
+      // if `#clearConfirmed` button is clicked, clear the current conversation
+      $("#clearConfirmed").on("click", function () {
+        ws.send(JSON.stringify({"message": "RESET"}));
+        messages = [];
+        $("#discourse").html("");
+        $("#clearConfirmation").modal("hide");
+      });
+      // if `#clearNotConfirmed` button is clicked, just hide the modal
+      $("#clearNotConfirmed").on("click", function () {
+        $("#clearConfirmation").modal("hide");
+      });
+    }
     lastApp = this.value;
     Object.assign(params, apps[$(this).val()]);
     loadParams(params, "changeApp");

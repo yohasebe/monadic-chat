@@ -112,8 +112,10 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
     if (speechSynthesis.speaking) {
       speechSynthesis.cancel();
     }
+
     const confirmed = confirm(`Are you sure to delete the message "${text}"?`);
     if (confirmed) {
+      $(this).tooltip('hide');
       $(`#${mid}`).remove();
       const index = messages.findIndex((m) => m.mid === mid);
       messages.splice(index, 1);

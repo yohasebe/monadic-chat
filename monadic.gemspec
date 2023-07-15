@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rb_sys"
   spec.add_development_dependency "rspec"
+  spec.add_development_dependency "solargraph"
 
   spec.add_dependency "cld"
   spec.add_dependency "dotenv"

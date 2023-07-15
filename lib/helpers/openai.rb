@@ -73,37 +73,6 @@ module OpenAIHelper
     end
   end
 
-  def dalle2_api_request(prompt, num = 1, img_size = 256, format = "url")
-    url = "#{API_ENDPOINT}/images/generations"
-    response = nil
-
-    begin
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{settings.api_key}"
-      }
-
-      body = {
-        "prompt" => prompt,
-        "n" => num,
-        "size" => "256x256",
-        "response_format" => format
-      }
-
-      response = HTTP.headers(headers).timeout(WHISPER_TIMEOUT).post(url, json: body)
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      return { "type" => "error", "content" => "ERROR: #{e.message}" }
-    end
-
-    if response.status.success?
-      puts "Image generated successfully"
-      JSON.parse(response.body)
-    else
-      pp "Error: #{response.status} - #{response.body}"
-      { "type" => "error", "content" => "DALL-E 2 API Error" }
-    end
-  end
-
   # Connect to OpenAI API and get a response
   def completion_api_request(role, &block)
     obj = session[:parameters]
@@ -282,19 +251,20 @@ module OpenAIHelper
       end
     end
 
-    pp json
-
     if role == "user" && obj["functions"] && (!json["choices"] || json["choices"] && json["choices"][0]["finish_reason"] != "stop")
       custom_function_keys = APPS[app].settings[:functions]
       if custom_function_keys && !custom_function_keys.empty?
         custom_function_key = custom_function_keys.map { |f| f["name"] }.first
         argument_hash = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"])
-        argument_hash = argument_hash.inject({}){|memo,(k,v)| memo[k.to_sym] = v; memo}
+        argument_hash = argument_hash.inject({}) do |memo, (k,v)|
+          memo[k.to_sym] = v
+          memo
+        end
 
         function_record = { "mid" => SecureRandom.hex(4),
-                          "role" => "assistant",
-                          "text" => "#{custom_function_key}(\"#{argument_hash.to_s}\")",
-                          "type" => "function calling" }
+                            "role" => "assistant",
+                            "text" => "#{custom_function_key}(\"#{argument_hash}\")",
+                            "type" => "function calling" }
         session[:messages] << function_record
         obj.delete("functions")
         obj["function_call"] = "none"

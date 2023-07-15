@@ -33,6 +33,7 @@ class Wikipedia < MonadicApp
       "icon": icon,
       "easy_submit": false,
       "auto_speech": false,
+      "initiate_from_assistant": false,
       "functions": [{
         "name" => "search_wikipedia",
         "description" => "A function to search Wikipedia articles, requiring one argument representing the query to be searched.",

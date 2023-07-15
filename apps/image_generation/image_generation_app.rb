@@ -46,6 +46,7 @@ class ImageGeneration < MonadicApp
       "icon": icon,
       "easy_submit": false,
       "auto_speech": false,
+      "initiate_from_assistant": false,
       "functions": [{
         "name" => "generate_image",
         "description" => "Generate an image based on a description.",

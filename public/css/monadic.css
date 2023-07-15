@@ -344,3 +344,9 @@ textarea {
   color: #0a58ca;
 }
 
+blockquote {
+  padding: 10px;
+  background-color: #eee;
+  color: #333;
+}
+

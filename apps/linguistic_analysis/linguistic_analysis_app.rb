@@ -73,6 +73,7 @@ class LinguisticAnalysis < MonadicApp
       "icon": icon,
       "easy_submit": false,
       "auto_speech": false,
+      "initiate_from_assistant": false,
       "monadic": true
     }
   end

@@ -50,7 +50,8 @@ class Wikipedia < MonadicApp
     }
   end
 
-  def search_wikipedia(keywords, num_retrials: 10)
+  def search_wikipedia(hash, num_retrials: 10)
+    keywords = hash[:keywords]
     base_url = "https://en.wikipedia.org/w/api.php"
 
     search_params = {

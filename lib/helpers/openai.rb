@@ -10,11 +10,12 @@ module OpenAIHelper
   WHISPER_TIMEOUT = 60
   RETRY_DELAY = 1
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
-  # create ENV_PATH recursively if it doesn't exist
-  FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
+  # create ENV_PATH if it doesn't exist
+  FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
-  def set_api_token(api_token = nil)
-    settings.api_key = api_token if settings.api_key.nil? || settings.api_key == ""
+  def set_api_key(api_key = nil)
+    api_key = api_key.strip if api_key
+    settings.api_key = api_key if settings.api_key.nil? || settings.api_key == ""
     target_uri = "#{API_ENDPOINT}/models"
 
     headers = {
@@ -26,7 +27,7 @@ module OpenAIHelper
     data = JSON.parse(res.body)["data"]
     models = data.sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") && item.include?("0613") }
 
-    if api_token
+    if api_key
       File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
       { "type" => "models", "content" => "A new API token has been verified and stored in <code>.env</code> file.", "models" => models }
     else
@@ -77,9 +78,6 @@ module OpenAIHelper
     response = nil
 
     begin
-      options = {}
-      form_data = HTTP::FormData.create(options)
-
       headers = {
         "Content-Type" => "application/json",
         "Authorization" => "Bearer #{settings.api_key}"
@@ -111,7 +109,7 @@ module OpenAIHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
-    api_token = settings.api_key
+    api_key = settings.api_key
 
     message = obj["message"].to_s
     if obj["monadic"].to_s == "true" && message != ""
@@ -151,7 +149,7 @@ module OpenAIHelper
 
     headers = {
       "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_token}"
+      "Authorization" => "Bearer #{api_key}"
     }
 
     body = {
@@ -167,7 +165,7 @@ module OpenAIHelper
     }
 
     if obj["functions"] && !obj["functions"].empty?
-      body["functions"] = APPS[app].settings[:functions].map { |func| APPS[app].function_to_json(func["name"], func["description"]) }
+      body["functions"] = APPS[app].settings[:functions]
       body["function_call"] = "auto"
       body["stream"] = false
     end
@@ -199,7 +197,7 @@ module OpenAIHelper
 
     last_processed_time = Time.now
 
-    if body["stream"]
+    if body["stream"] && !(res["choices"] && res["choices"][0]["finish_reason"] == "stop")
       res.body.each do |chunk|
         chunk.split("\n\n").each do |data|
           current_time = Time.now
@@ -284,20 +282,23 @@ module OpenAIHelper
       end
     end
 
-    if role == "user" && obj["functions"]
-      custom_search_keys = APPS[app].settings[:functions]
-      if custom_search_keys && !custom_search_keys.empty?
-        custom_search_key = custom_search_keys.map { |f| f["name"] }.first
-        arguments = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"]).values
+    pp json
 
-        search_record = { "mid" => SecureRandom.hex(4),
+    if role == "user" && obj["functions"] && (!json["choices"] || json["choices"] && json["choices"][0]["finish_reason"] != "stop")
+      custom_function_keys = APPS[app].settings[:functions]
+      if custom_function_keys && !custom_function_keys.empty?
+        custom_function_key = custom_function_keys.map { |f| f["name"] }.first
+        argument_hash = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"])
+        argument_hash = argument_hash.inject({}){|memo,(k,v)| memo[k.to_sym] = v; memo}
+
+        function_record = { "mid" => SecureRandom.hex(4),
                           "role" => "assistant",
-                          "text" => "#{custom_search_key}(\"#{arguments.join(", ")}\")",
-                          "type" => "search" }
-        session[:messages] << search_record
+                          "text" => "#{custom_function_key}(\"#{argument_hash.to_s}\")",
+                          "type" => "function calling" }
+        session[:messages] << function_record
         obj.delete("functions")
         obj["function_call"] = "none"
-        message = APPS[app].send(custom_search_key, *arguments)
+        message = APPS[app].send(custom_function_key.to_sym, argument_hash)
         obj["message"] = message if message
         obj["stream"] = true
         return completion_api_request("system", &block)
@@ -316,10 +317,11 @@ module OpenAIHelper
     block&.call res
     false
   rescue StandardError => e
+    pp json
     puts e.message
     puts e.backtrace
     puts e.inspect
-    res = { "type" => "error", "content" => "ERROR: #{e.message}" }
+    res = { "type" => "error", "content" => "ERROR: Something went wrong" }
     block&.call res
     false
   end

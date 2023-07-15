@@ -78,7 +78,7 @@ module WebSocketHelper
           end
         when "CHECK_TOKEN"
           token = obj["contents"]
-          res = set_api_token(token)
+          res = set_api_key(token)
           if res["type"] == "error"
             ws.send({ "type" => "token_not_found", "content" => "" }.to_json)
           else
@@ -103,6 +103,7 @@ module WebSocketHelper
             v.settings.each do |p, m|
               apps[k][p] = m ? m.to_s : nil
             end
+            v.api_key = settings.api_key
           end
           messages = session[:messages].filter { |m| m["type"] != "search" }
           @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
@@ -120,7 +121,8 @@ module WebSocketHelper
         when "HTML"
           thread&.join
           begin
-            text = queue.pop["choices"][0]["text"]
+            content = queue.pop["choices"][0]
+            text = content["text"] || content["message"]["content"]
             # if the current app has a monadic_html method, use it to generate html
             html = if session["parameters"]["monadic"]
                      APPS[session["parameters"]["app_name"]].monadic_html(text)

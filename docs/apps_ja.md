@@ -56,6 +56,10 @@ layout: default
 
 <img src="./assets/icons/math.png" width="40px"/> AIチャットボットがMathJaxの数学表記を使用して応答するためのアプリケーションです。このアプリは数学的表記を表示することができますが、数学の計算能力はOpenAIのGPTモデルに基づいており、単純な計算においても誤りが生じ得ることが知られています。計算の正確性が必要な場合には注意して使用してください。
 
+## Image Generator
+
+<img src="./assets/icons/image-generator.png" width="40px"/> 画像生成のためのアプリです。初期プロンプトを入力するとOpenAIのDALL·E APIを用いて画像を生成します。会話のモデルとしてGPT 4.0を指定すると、AI chatbotとのインタラクションを通じてプロンプトを少しずつ改善して、望む画像を得ることができます。（GPT 3.5の場合、最初の画像を生成することができますが、段階的に改善することはできません。）
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

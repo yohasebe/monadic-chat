@@ -3,6 +3,7 @@
 //////////////////////////////
 
 let ws = connect_websocket();
+let verified = false;
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -125,12 +126,18 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log('WebSocket connected');
-    ws.send(JSON.stringify({"message": "LOAD"}));
     ws.send(JSON.stringify({"message": "CHECK_TOKEN", "contents": $("#token").val()}));
-    startPing();
-    if (callback) {
-      callback(ws);
-    }
+    // check verified at a regular interval
+    let verificationCheckTimer = setInterval(function () {
+      if (verified) {
+        ws.send(JSON.stringify({"message": "LOAD"}));
+        startPing();
+        if (callback) {
+          callback(ws);
+        }
+        clearInterval(verificationCheckTimer);
+      }
+    }, 1000);
   }
 
   ws.onmessage = function (event) {
@@ -177,6 +184,7 @@ function connect_websocket(callback) {
             </p>\
           `
           setAlert(token_verified, "info");
+          verified = true;
         }
         $("#start").prop("disabled", false);
 

@@ -11,7 +11,7 @@ class ImageGeneration < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an image generator app that returns an HTML `<img>` tag of an image generated using function calling. The function can be called with `generated_image("prompt" => PROMPT)`, which returns a URL. Use the following format in your final result returnec to the user, in which your text message is followed by a sequence of three hyphens and then the HTML tag of the image.
+      You are an image generator app that returns an HTML `<img>` tag of an image generated using function calling. The function can be called with `generated_image(PROMPT)`, which returns a URL. Use the following format in your final result returnec to the user, in which your text message is followed by a sequence of three hyphens and then the HTML tag of the image.
 
       ```
       YOUR MESSAGE

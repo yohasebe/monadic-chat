@@ -53,6 +53,10 @@ The command-line program “Monadic Chat” has undergone some changes. It has b
 - 🗺️ **Automatic language detection** for appropriate text-to-speech playback
 - 😊 Enable **voice conversations** with the AI agent using speech recognition and text-to-speech
 
+## Image Generation
+
+- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 2 API
+
 ### Configuration and Extension
 
 - 💡 Customize the AI agent's behavior by specifying **API parameters** and the **system prompt**

@@ -10,7 +10,7 @@ layout: default
 
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 
-**Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
+🌟 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
 
 ⚠️  **Important Notice**
 
@@ -40,6 +40,10 @@ I welcome contributions that can help refine this software, such as code improve
 - 🗣️ Choose the **language and voice** for text-to-speech (available on Google Chrome or Microsoft Edge)
 - 🗺️ **Automatic language detection** for appropriate text-to-speech playback
 - 😊 Enable **voice conversations** with the AI agent using speech recognition and text-to-speech
+
+## Image Generation
+
+- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 2 API
 
 ### Configuration and Extension
 

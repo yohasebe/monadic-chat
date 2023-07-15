@@ -254,21 +254,23 @@ module OpenAIHelper
     if role == "user" && obj["functions"] && (!json["choices"] || json["choices"] && json["choices"][0]["finish_reason"] != "stop")
       custom_function_keys = APPS[app].settings[:functions]
       if custom_function_keys && !custom_function_keys.empty?
-        custom_function_key = custom_function_keys.map { |f| f["name"] }.first
-        argument_hash = JSON.parse(json["choices"][0]["message"]["function_call"]["arguments"])
-        argument_hash = argument_hash.inject({}) do |memo, (k,v)|
+        function_call = json["choices"][0]["message"]["function_call"]
+        function_name = function_call["name"]
+        argument_hash = JSON.parse(function_call["arguments"])
+        argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
           memo[k.to_sym] = v
           memo
         end
 
-        function_record = { "mid" => SecureRandom.hex(4),
-                            "role" => "assistant",
-                            "text" => "#{custom_function_key}(\"#{argument_hash}\")",
-                            "type" => "function calling" }
-        session[:messages] << function_record
-        obj.delete("functions")
-        obj["function_call"] = "none"
-        message = APPS[app].send(custom_function_key.to_sym, argument_hash)
+        # function_record = { "mid" => SecureRandom.hex(4),
+        #                     "role" => "assistant",
+        #                     "text" => "#{custom_function_key}(\"#{argument_hash}\")",
+        #                     "type" => "function calling" }
+        # session[:messages] << function_record
+        # obj.delete("functions")
+        # obj["function_call"] = "none"
+
+        message = APPS[app].send(function_name.to_sym, argument_hash)
         obj["message"] = message if message
         obj["stream"] = true
         return completion_api_request("system", &block)

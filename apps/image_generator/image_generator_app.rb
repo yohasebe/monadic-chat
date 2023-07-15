@@ -37,7 +37,7 @@ class ImageGeneration < MonadicApp
     {
       "app_name": "Image Generator",
       "model": "gpt-3.5-turbo-0613",
-      "temperature": 0.0,
+      "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 1000,
       "context_size": 10,

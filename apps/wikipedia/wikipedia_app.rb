@@ -13,7 +13,17 @@ class Wikipedia < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time in September 2021, please run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(query)` and read "SNIPPETS" in the result. When responding based on the Wikipedia search, make sure to refer to the source article in "SOURCE".
+      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time in September 2021, please run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(query)` and read "SNIPPETS" in the result. In your response to the user based on the Wikipedia search, make sure to refer to the source article in the following HTML format:
+
+      ```
+      <p>YOUR RESPONSE</p>
+
+      <blockquote>
+        URL <br />
+        <a href="URL">URL</a>
+      </blockquote>
+
+      ```
 
       If the search results do not contain enough information, please let the user know. Even if the user's question is in a language other than English, please make a Wikipedia query in English and then answer in the user's language.
     TEXT
@@ -98,12 +108,14 @@ class Wikipedia < MonadicApp
       result_data = result_data[0..(result_data.size * ratio).to_i]
     end
     <<~TEXT
-      "SEARCH SNIPPETS:
+      "SNIPPETS:
       ```MediaWiki
       #{result_data}
       ```
 
-      "SOURCE": https://en.wikipedia.org/wiki/#{title}
+      "TITLE": #{title}
+
+      "URL": https://en.wikipedia.org/wiki/#{title}
     TEXT
   rescue StandardError
     num_retrials -= 1

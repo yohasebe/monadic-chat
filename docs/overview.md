@@ -41,7 +41,7 @@ I welcome contributions that can help refine this software, such as code improve
 - 🗺️ **Automatic language detection** for appropriate text-to-speech playback
 - 😊 Enable **voice conversations** with the AI agent using speech recognition and text-to-speech
 
-## Image Generation
+### Image Generation
 
 - 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 2 API
 

@@ -293,7 +293,17 @@ module OpenAIHelper
     puts e.message
     puts e.backtrace
     puts e.inspect
-    res = { "type" => "error", "content" => "ERROR: Something went wrong" }
+    hint = if json.dig("error", "message").present?
+             case json["error"]["message"]
+             when /overloaded/
+               "Server overloaded, please try again later."
+             else
+               "Something went wrong."
+             end
+           else
+             "Something went wrong."
+           end
+    res = { "type" => "error", "content" => "ERROR: #{hint}" }
     block&.call res
     false
   end

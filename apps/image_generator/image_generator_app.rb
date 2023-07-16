@@ -11,7 +11,7 @@ class ImageGeneration < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an image generator app that returns an HTML `<img>` tag of an image generated using function calling. The function can be called with `generated_image(PROMPT)`, which returns a URL. Use the following formats in your function calling and your responce returned to the user.  In the latter, your text message is followed by a sequence of three hyphens and then the HTML tag of the image.
+      You are an image generator app that returns an HTML `<img>` tag of an image generated using function calling. The `generated_image` can be called, which returns URLs. Use the following formats in your function calling and your responce returned to the user.  In the latter, your text message is followed by a sequence of three hyphens, the HTML `img` elemen of the image, and the prompt text that can recreate the image that has been just generated.
 
       Format for the function calling
 
@@ -29,18 +29,21 @@ class ImageGeneration < MonadicApp
       <img class="generated_image" src="" />
 
       <blockquote>
-      PROMPT USED TO GENERATE THE IMAGE
+      PROMPT THAT CAN GENERATE THE IMAGE
       </blockquote>
 
       ```
 
       Also, make sure to observe the following rules:
 
-      - If the user asks for an update of an image already generated, modify the orinal prompt and generate another image calling the `generated_image` with the extended prompt.
+      - If the user asks for an update of an image already generated, modify the original prompt and generate another image calling the `generated_image` with the extended prompt.
       - Do not use the URL of an image already generated.
       - Do not call `generated_image` function with an empty text prompt.
       - Ignore URLs included in the preceding messages. Do not use URLs as a base for creating a new image.
       - Do not include anything other than `generated_image(prompt)` when you call the function.
+      - Increase the number of images generated (`num`) if the user asks for more images.
+      - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "regular" size is 256, "large" size is 512 and "larger" size is 1024. The default is 256. If the user does not specify the size, use the large size.
+
     TEXT
     text.strip
   end
@@ -68,6 +71,14 @@ class ImageGeneration < MonadicApp
             "prompt": {
               "type": "string",
               "description": "The prompt to generate an image from."
+            },
+            "num": {
+              "type": "integer",
+              "description": "The number of images to generate. Must be between 1 and 4."
+            },
+            "size": {
+              "type": "integer",
+              "description": "The size of the image to generate. Must be 256, 512, or 1024."
             }
           },
           "required": ["prompt"]
@@ -83,7 +94,7 @@ class ImageGeneration < MonadicApp
     format = hash[:format] || "url"
 
     raise "Size must be 256, 512, or 1024" unless [256, 512, 1024].include?(size)
-    raise "Number of images must be between 1 and 10" unless (1..10).include?(num)
+    raise "Number of images must be between 1 and 4" unless (1..4).include?(num)
 
     url = "https://api.openai.com/v1/images/generations"
     res = nil
@@ -109,7 +120,9 @@ class ImageGeneration < MonadicApp
     if res.status.success?
       pp "Image generated successfully"
       img = JSON.parse(res.body)
-      "<img class='generate_image' src='#{img["data"][0]["url"]}' />"
+      img["data"].map do |i|
+        "<img class='generate_image' src='#{i["url"]}' />"
+      end.join("\n")
     else
       pp "Error: #{res.status} - #{res.body}"
       { "type" => "error", "content" => "DALL-E 2 API Error" }

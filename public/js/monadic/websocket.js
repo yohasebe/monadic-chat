@@ -73,9 +73,10 @@ function startPing() {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({message: 'PING'}));
     } else {
-      alert('WebSocket is not open: It seems Monadic Chat is not running' );
+      clearInterval(pingInterval);
+      alert("WebSocket is not open: Please refresh the page.");
     }
-  }, 20000);
+  }, 30000);
 }
 
 const chatBottom = $("#chat-bottom").get(0);

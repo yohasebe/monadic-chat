@@ -114,7 +114,7 @@ function update_monadic {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
-  cd "$ROOT_DIR" && git pull
+  cd "$ROOT_DIR" && git pull origin main
 
   # Build and start the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build

@@ -8,7 +8,6 @@ services:
       POSTGRES_USER: postgres
   web:
     volumes:
-      - ./log:/monadic/log
       - ~/monadic:/monadic/data
     build: .
     ports:

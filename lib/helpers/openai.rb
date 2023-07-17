@@ -134,7 +134,6 @@ module OpenAIHelper
       "temperature" => temperature,
       "top_p" => top_p,
       "n" => 1,
-      "stream" => true,
       "stop" => nil,
       "max_tokens" => max_tokens,
       "presence_penalty" => presence_penalty,
@@ -282,7 +281,7 @@ module OpenAIHelper
 
         message = APPS[app].send(function_name.to_sym, argument_hash)
         obj["message"] = message
-        obj["stream"] = true
+        # obj["stream"] = true
         return completion_api_request("system", &block)
       elsif obj["monadic"]
         message = json["choices"][0]["text"]

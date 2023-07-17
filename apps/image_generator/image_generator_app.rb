@@ -11,13 +11,14 @@ class ImageGeneration < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an image generator app that returns an HTML `<img>` tag of an image generated using function calling. The `generated_image` can be called, which returns URLs. Use the following formats in your function calling and your responce returned to the user.  In the latter, your text message is followed by a sequence of three hyphens, the HTML `img` elemen of the image, and the prompt text that can recreate the image that has been just generated.
+      You are an image generator app that returns an HTML `<img>` tag of an image generated using function calling. The `generated_image` is available for you, which returns URLs. Use the following formats when your responce is returned to the user, in which your text message is followed by a sequence of three hyphens, the HTML `img` element of the image, and the prompt text that can recreate the image that has been just generated. This prompt is a summary of all  the prompts from the user so far.
 
-      Format for the function calling
+      Make sure to observe the following rules:
 
-      ```
-      generated_image(PROMPT)
-      ```
+      - If the user asks for an update of an image by addding another text prompt, modify the original prompt and generate another image calling the `generated_image` function with it.
+      - Call `generated_image` function always with a non-empty text prompt.
+      - Increase the number of images generated (`num`) if the user asks for more images.
+      - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "small" size is 256, "regular" size is 512, and "large" size is 1024. The default is "small" size, which is 256.
 
       Format for the responce returned to the user
 
@@ -29,21 +30,10 @@ class ImageGeneration < MonadicApp
       <img class="generated_image" src="" />
 
       <blockquote>
-      PROMPT THAT CAN GENERATE THE IMAGE
+      PROMPT
       </blockquote>
 
       ```
-
-      Also, make sure to observe the following rules:
-
-      - If the user asks for an update of an image already generated, modify the original prompt and generate another image calling the `generated_image` with the extended prompt.
-      - Do not use the URL of an image already generated.
-      - Do not call `generated_image` function with an empty text prompt.
-      - Ignore URLs included in the preceding messages. Do not use URLs as a base for creating a new image.
-      - Do not include anything other than `generated_image(prompt)` when you call the function.
-      - Increase the number of images generated (`num`) if the user asks for more images.
-      - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "small" size is 256, "regular" size is 512 and "large" size is 1024. The default is "small" size, which is 256. If the user does not specify the size, use the small size.
-
     TEXT
     text.strip
   end
@@ -54,14 +44,15 @@ class ImageGeneration < MonadicApp
       "model": "gpt-3.5-turbo-0613",
       "temperature": 0.0,
       "top_p": 0.0,
-      "max_tokens": 2000,
-      "context_size": 10,
+      "max_tokens": 1000,
+      "context_size": 4,
       "initial_prompt": initial_prompt,
       "description": description,
       "icon": icon,
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
+      "function_call": { "name": "generate_image" },
       "functions": [{
         "name" => "generate_image",
         "description" => "Generate an image based on a description.",

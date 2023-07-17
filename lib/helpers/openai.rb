@@ -10,7 +10,7 @@ module OpenAIHelper
   WHISPER_TIMEOUT = 60
   RETRY_DELAY = 1
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
-  # create ENV_PATH if it doesn't exist
+  FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
   def set_api_key(api_key = nil, num_retrial = 0)
@@ -262,7 +262,8 @@ module OpenAIHelper
     if role == "user" && obj["functions"] && (!json["choices"] || json["choices"] && json["choices"][0]["finish_reason"] != "stop")
       custom_function_keys = APPS[app].settings[:functions]
       if custom_function_keys && !custom_function_keys.empty?
-        function_call = json["choices"][0]["message"]["function_call"]
+        json_message = json["choices"][0]["message"]
+        function_call = json_message["function_call"]
         function_name = function_call["name"]
         argument_hash = JSON.parse(function_call["arguments"])
         argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
@@ -272,7 +273,7 @@ module OpenAIHelper
 
         # function_record = { "mid" => SecureRandom.hex(4),
         #                     "role" => "assistant",
-        #                     "text" => "#{custom_function_key}(\"#{argument_hash}\")",
+        #                     "text" => json_message.to_json,
         #                     "type" => "function calling" }
         # session[:messages] << function_record
 
@@ -280,7 +281,7 @@ module OpenAIHelper
         obj["function_call"] = "none"
 
         message = APPS[app].send(function_name.to_sym, argument_hash)
-        obj["message"] = message if message
+        obj["message"] = message
         obj["stream"] = true
         return completion_api_request("system", &block)
       elsif obj["monadic"]

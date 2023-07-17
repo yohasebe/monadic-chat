@@ -121,7 +121,7 @@ module WebSocketHelper
         when "HTML"
           thread&.join
           begin
-            pp last_one = queue.pop
+            last_one = queue.pop
             content = last_one["choices"][0]
             text = content["text"] || content["message"]["content"]
             # if the current app has a monadic_html method, use it to generate html

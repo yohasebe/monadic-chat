@@ -381,8 +381,8 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 490,
-    minWidth: 490,
+    width: 520,
+    minWidth: 520,
     height: 260,
     minHeight: 260,
     webPreferences: {

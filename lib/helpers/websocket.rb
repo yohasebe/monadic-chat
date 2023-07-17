@@ -121,7 +121,8 @@ module WebSocketHelper
         when "HTML"
           thread&.join
           begin
-            content = queue.pop["choices"][0]
+            pp last_one = queue.pop
+            content = last_one["choices"][0]
             text = content["text"] || content["message"]["content"]
             # if the current app has a monadic_html method, use it to generate html
             html = if session["parameters"]["monadic"]
@@ -138,6 +139,7 @@ module WebSocketHelper
             @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
             @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
           rescue StandardError => e
+            pp queue
             pp e.message
             pp e.backtrace
             @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)

@@ -206,7 +206,7 @@ module OpenAIHelper
           end
 
           content = data.strip[6..]
-          # pp content
+
           break if content == "[DONE]"
 
           begin
@@ -275,8 +275,9 @@ module OpenAIHelper
         #                     "text" => "#{custom_function_key}(\"#{argument_hash}\")",
         #                     "type" => "function calling" }
         # session[:messages] << function_record
-        # obj.delete("functions")
-        # obj["function_call"] = "none"
+
+        obj.delete("functions")
+        obj["function_call"] = "none"
 
         message = APPS[app].send(function_name.to_sym, argument_hash)
         obj["message"] = message if message

@@ -118,7 +118,6 @@ class ImageGeneration < MonadicApp
     end
 
     if res.status.success?
-      pp "Image generated successfully"
       img = JSON.parse(res.body)
       img["data"].map do |i|
         "<img class='generate_image' src='#{i["url"]}' />"

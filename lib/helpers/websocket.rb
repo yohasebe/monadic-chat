@@ -80,7 +80,7 @@ module WebSocketHelper
           token = obj["contents"]
           res = set_api_key(token)
           if res["type"] == "error"
-            ws.send({ "type" => "token_not_found", "content" => "" }.to_json)
+            ws.send({ "type" => "token_not_verified", "content" => "" }.to_json)
           else
             ws.send({ "type" => "token_verified", "content" => res["content"], "models" => res["models"] }.to_json)
           end
@@ -137,7 +137,9 @@ module WebSocketHelper
             past_messages_data = check_past_messages(session[:parameters])
             @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
             @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
-          rescue StandardError
+          rescue StandardError => e
+            pp e.message
+            pp e.backtrace
             @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
           end
         when "SAMPLE"

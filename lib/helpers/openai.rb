@@ -5,7 +5,7 @@ module OpenAIHelper
 
   TEMP_AUDIO_FILE = "temp_audio_file"
 
-  STREAMING_TIMEOUT = 20
+  STREAMING_TIMEOUT = 30
   COMPLETION_TIMEOUT = 300
   WHISPER_TIMEOUT = 60
   RETRY_DELAY = 1
@@ -13,7 +13,7 @@ module OpenAIHelper
   # create ENV_PATH if it doesn't exist
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
-  def set_api_key(api_key = nil)
+  def set_api_key(api_key = nil, num_retrial = 0)
     api_key = api_key.strip if api_key
     settings.api_key = api_key if settings.api_key.nil? || settings.api_key == ""
     target_uri = "#{API_ENDPOINT}/models"
@@ -24,16 +24,24 @@ module OpenAIHelper
     }
     http = HTTP.headers(headers)
     res = http.timeout(STREAMING_TIMEOUT).get(target_uri)
-    data = JSON.parse(res.body)["data"]
-    models = data.sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") && item.include?("0613") }
-
-    if api_key
-      File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
-      { "type" => "models", "content" => "A new API token has been verified and stored in <code>.env</code> file.", "models" => models }
+    res_body = JSON.parse(res.body)
+    if res_body && res_body["data"]
+      models = res_body["data"].sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") && item.include?("0613") }
+      if api_key
+        File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
+        { "type" => "models", "content" => "A new API token has been verified and stored in <code>.env</code> file.", "models" => models }
+      else
+        { "type" => "models", "content" => "API token stored in <code>.env</code> file has been verified.", "models" => models }
+      end
     else
-      { "type" => "models", "content" => "API token stored in <code>.env</code> file has been verified.", "models" => models }
+      return { "type" => "error", "content" => "ERROR: API token is not accepted" } if num_retrial >= 3
+
+      sleep RETRY_DELAY
+      set_api_key(api_key, num_retrial + 1)
     end
   rescue StandardError => e
+    pp e.message
+    pp e.backtrace
     { "type" => "error", "content" => "ERROR: #{e.message}" }
   end
 

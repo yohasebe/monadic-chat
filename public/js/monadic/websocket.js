@@ -171,7 +171,7 @@ function connect_websocket(callback) {
 
         break;
       case "token_verified":
-
+        console.log("Token verified");
         const model_options = data['models'].map(
           model => `<option value="${model}">${model}</option>`
         );
@@ -200,7 +200,8 @@ function connect_websocket(callback) {
         });
 
         break;
-      case "token_not_found":
+      case "token_not_verified":
+        console.log("Token not verified");
         if (messages.length === 0) {
           const not_found = "<p>Please set a valid API token and press Verify Token.</p>"
           setAlert(not_found, "warning");

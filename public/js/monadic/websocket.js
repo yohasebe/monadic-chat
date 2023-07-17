@@ -72,9 +72,6 @@ function startPing() {
   pingInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({message: 'PING'}));
-    } else {
-      clearInterval(pingInterval);
-      alert("WebSocket is not open: Please refresh the page.");
     }
   }, 30000);
 }

@@ -42,7 +42,7 @@ class ImageGeneration < MonadicApp
       - Ignore URLs included in the preceding messages. Do not use URLs as a base for creating a new image.
       - Do not include anything other than `generated_image(prompt)` when you call the function.
       - Increase the number of images generated (`num`) if the user asks for more images.
-      - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "regular" size is 256, "large" size is 512 and "larger" size is 1024. The default is 256. If the user does not specify the size, use the large size.
+      - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "small" size is 256, "regular" size is 512 and "large" size is 1024. The default is "small" size, which is 256. If the user does not specify the size, use the small size.
 
     TEXT
     text.strip

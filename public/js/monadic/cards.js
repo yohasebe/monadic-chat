@@ -40,6 +40,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
   }
 
   $(document).on("click", `#${mid} .func-play`, function () {
+    $(this).tooltip('hide');
     // cutoff text after <hr> or <hr/> or <hr /> of text content and remove all HTML tags
     const content = html.split(/<hr\s*\/?>/, 1)[0].replace(/<[^>]*>?/gm, '');
     const $this = $(this); // Store the reference to the clicked element
@@ -63,6 +64,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   // click on the copy icon will copy the message
   $(document).on("click", `#${mid} .func-copy`, function () {
+    $(this).tooltip('hide');
     const $this = $(this); // Store the reference to the clicked element
     const text = $(`#${mid} .card-text`).text();
     navigator.clipboard.writeText(text).then(function () {
@@ -80,6 +82,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   // click on the edit icon will enable editing the message
   $(document).on("click", `#${mid} .func-edit`, function () {
+    $(this).tooltip('hide');
     const $this = $(this); // Store the reference to the clicked element
     // confirm to delete this message and all the messages after this message
     const confirmed = confirm(`Are you sure to edit this message?\nThis will delete all the messages after it.`);

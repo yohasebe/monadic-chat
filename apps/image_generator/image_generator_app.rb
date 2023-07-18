@@ -27,7 +27,9 @@ class ImageGeneration < MonadicApp
 
       ---
 
-      <img class="generated_image" src="" />
+      <div style="overflow-x: auto">
+        <img class="generated_image" src="" />
+      </div>
 
       <blockquote>
       PROMPT

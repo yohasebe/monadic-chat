@@ -161,7 +161,7 @@ function processSpeakQueue() {
         clearInterval(waitForVoices);
         read();
       }
-    }, 100);
+    }, 200);
   } else {
     read();
   }

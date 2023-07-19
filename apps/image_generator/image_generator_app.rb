@@ -15,7 +15,7 @@ class ImageGeneration < MonadicApp
 
       Make sure to observe the following rules:
 
-      - If the user asks for an update of an image by addding another text prompt, modify the original prompt and generate another image calling the `generated_image` function with it.
+      - If the user asks to add something to a generated image, or to modify it, re-generate another image calling the `generated_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous messages.
       - Call `generated_image` function always with a non-empty text prompt.
       - Increase the number of images generated (`num`) if the user asks for more images.
       - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "small" size is 256, "regular" size is 512, and "large" size is 1024. The default is "small" size, which is 256.

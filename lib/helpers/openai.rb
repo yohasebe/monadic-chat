@@ -300,9 +300,9 @@ module OpenAIHelper
     false
   rescue StandardError => e
     pp json
-    puts e.message
-    puts e.backtrace
-    puts e.inspect
+    pp e.message
+    pp e.backtrace
+    pp e.inspect
     hint = if json.dig("error", "message").present?
              case json["error"]["message"]
              when /overloaded/

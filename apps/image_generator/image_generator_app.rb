@@ -27,7 +27,7 @@ class ImageGeneration < MonadicApp
 
       ---
 
-      <div style="overflow-x: auto">
+      <div style="overflow-x: auto; margin-bottom: 16px;">
         <img class="generated_image" src="" />
       </div>
 

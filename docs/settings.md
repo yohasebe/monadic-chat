@@ -15,6 +15,25 @@ layout: default
 1. toc
 {:toc}
 
+## Monadic Chat Console
+
+<img src="./assets/images/monadic-chat-console.png" width="500px"/>
+
+**Start** <br />
+Starts Monadic Chat. It may take some time for the initial setup on Docker.
+
+**Stop** <br />
+Stops Monadic Chat.
+
+**Restart** <br />
+Restarts Monadic Chat.
+
+**Open Browser** <br />
+Opens the default browser to access `http://localhost:4567` for using Monadic Chat.
+
+**Quit**
+Quits the Monadic Chat Console. If Monadic Chat is running, it will be stopped first, which may take some time.
+
 ## GPT Settings Panel
 
 <img src="./assets/images/gpt-settings.png" width="700px"/>

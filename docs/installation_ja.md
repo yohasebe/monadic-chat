@@ -15,41 +15,29 @@ layout: default
 1. toc
 {:toc}
 
-## MacOS
+## 基本的な手順
 
-### HomebrewとGitのインストール
+### MacOS
 
-まずは[Homebrew](https://brew.sh/index_ja)をインストールします。HomebrewはMacOSのパッケージ管理システムです。
+1. Docker Desktop for Macをインストールします（[詳細](#install-docker-macos)）。
+2. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-ターミナルを開いてください。Macのターミナルの場所は、`Application -> ユーティリティー -> ターミナル.app`です。
+- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.0/monadic-chat-0.2.0-arm64.dmg)
+- [📦 Installer packager for MacOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.0/monadic-chat-0.2.0.dmg)
 
-<img src="./assets/images/mac-terminal.png" width="800px"/>
+### Windows
 
-ターミナルを開いたら、以下のコマンドを実行してください（最初の`$`はコマンドラインのプロンプトを表しています）。
+1. WSL2をインストールします（[詳細](#install-wsl2-win)）。
+2. Docker Desktop for Windowsをインストールします（[詳細](#install-docker-win)）。
+3. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-```shell
-$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" 
-```
+- [📦 Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/0.2.0/monadic-chat.Setup.0.2.0.exe)
 
-<img src="./assets/images/mac-homebrew-01.png" width="800px"/>
+## 依存ソフトウェアのインストール
 
-If you are asked for your password, enter your Mac's password. The password will not be displayed on the screen, so enter it carefully.
+### MacOS
 
-Homebrewのインストール時にEnterキーを押すように求められますので、Enterキーを押してください。
-
-<img src="./assets/images/mac-homebrew-02.png" width="800px"/>
-
-After a while, the installation will be completed. If "Run these two commands in your terminal to add Homebrew to your PATH" is displayed as in the screenshot above, copy the commands and execute them in the terminal.
-
-しばらくするとインストールが完了します。"Run these two commands in your terminal to add Homebrew to your PATH"というメッセージが表示されたら、表示されている2つのコマンドをターミナル上で実行してください（`brew`コマンドのパスを通すためです）。
-
-次に`git`コマンドが使えるようにします。Gitはソースコードのバージョン管理システムです。以下のコマンドを実行してください。
-
-```shell
-$ brew install git
-```
-
-### Docker Desktopのインストール
+<b id="install-docker-macos">Docker Desktopのインストール</b>
 
 次にDocker Desktopをインストールします。Docker Desktopはコンテナ型の仮想環境を作成するためのソフトウェアです。
 
@@ -67,87 +55,11 @@ $ sysctl -n machdep.cpu.brand_string
 
 Docker Desktopの起動が完了すると、メニューバーにDockerのアイコンが表示されます。ここでDocker Desktopのダッシュボード・ウィンドウは閉じてしまって構いません。
 
-### Monadic Chatのダウンロードとビルド
-
-Open the terminal once again and move to the location where you want to copy the Monadic Chat source code. If you use your home directory, execute the following command to go to the home directory:
-
-再びターミナルを開いて、Monadic Chatのソースコードをコピーしたい場所に移動します。ここでは、ホームディレクトリににソースコードをコピーすることにします。次のコマンドでホームディレクトリに移動できます。
-
-```shell
-$ cd ~
-```
-
-ここで以下のコマンドを実行すると、ホームディレクトリに`monadic-chat`というディレクトリが作成され、その中にソースコードがダウンロードされます。
-
-```shell
-$ git clone https://github.com/yohasebe/monadic-chat.git
-```
-
-ダウンロードが完了したら、下記のように、ソースコードのディレクトリ内に移動して、次に`start`コマンドを実行してください。
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh start
-```
-
-初回はビルドに時間がかかりますが、2回目以降はすぐに起動できます。
-
-<img src="./assets/images/mac-build-source.png" width="800px"/>
-
-ソースコードのビルドが成功し、Monadic Chatが無事に起動すると、以下のメッセージが表示されます。
-
-```text
-✔️ Container monadic-chat-db-1  Started
-✔️ Container monadic-chat-web-1 Started
-```
-
-Macでは、デフォルト・ブラウザ上でホーム画面が開きます。もし画面が開かない場合は、ブラウザで`http://localhost:4567`を開いてください（または再読み込みしてください）。
-
-<img src="./assets/images/mac-browser.png" width="800px"/>
-
-### Monadic Chatの起動/停止/再起動
-
-Monadic Chatを起動/停止/再起動するには、以下のコマンドを実行します。
-
-**`start`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh start
-```
-
-**`stop`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh stop
-```
-
-**`restart`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh restart
-```
-
-### Monadic Chatのアップデート
-
-Monadic Chatを最新版に更新するには、以下のコマンドを実行します。
-
-**`update`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh update
-```
-
-これにより、Githubから最新のソースコードがダウンロードされ、Monadic Chatが再ビルドされます。
-
-## Windows
+### Windows
 
 以下ではWindows 11 HomeにMonadic Chatをインストールする方法を説明します。Windows 11 ProやWindows 11 Educationの場合でも基本的に同様の方法でインストール可能です。
 
-### WSL2のインストール
+<b id="install-wsl2-win">WSL2のインストール</b>
 
 まずはをインストールします。[WSL2](https://brew.sh)はWindows上でLinux環境を実現する仕組みです。
 
@@ -169,7 +81,7 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 
 <img src="./assets/images/win-ubuntu.png" width="800px"/>
 
-### Docker Desktopのインストール
+<b id="install-docker-win">Docker Desktopのインストール</b>
 
 次に、コンテナを使った仮想環境を作成するためのソフトウェアであるDocker Desktopをインストールします。
 
@@ -180,80 +92,6 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 ダウンロードしたexeファイルをダブルクリックしてインストールを開始します。インストールが完了したら、Docker Desktopを起動します。Docker Desktopを初めて起動するとき、サービス契約に同意するかどうか（→同意する）、設定を選択するかどうか（→推奨設定を使用する）を求められます。
 
 これらが完了すると、画面右下のタスクトレイにDocker Desktopのアイコンが表示されます。Docker Desktopが起動したら、Docker Desktop Dashboardウィンドウを閉じて構いません。
-
-### Monadic Chatのダウンロードとビルド
-
-Ubuntuのターミナルを再度開き、Monadic Chatのソースコードをコピーしたい場所に移動します。ホームディレクトリを使う場合は、以下のコマンドを実行してホームディレクトリに移動してください。
-
-```shell
-$ cd ~
-```
-
-Now let us clone the Monadic Chat source code package in the home directory. The following command will download the source code from Github and copy it to the `~/monadic-chat` directory.
-
-ここにMonadic Chatのソースコードをダウンロードします。以下のコマンドを実行すると、Githubからソースコードがダウンロードされ、すべての必要なファイルが`~/monadic-chat`ディレクトリの中にコピーされます。
-
-```shell
-$ git clone https://github.com/yohasebe/monadic-chat.git
-```
-
-Then move inside this directory and execute the `start` command as below:
-
-このディレクトリの中に移動して、以下のように`start`コマンドを実行してください。
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh start
-```
-
-The first time you run the `start` command, it may take some time for the build process to finish, but from the second time on, the app will start immediately.
-
-`start`コマンドを実行するのが初めての場合、ビルドに若干の時間がかかります。いったんビルドが完了すると、2回目以降はアプリがすぐに起動します。
-
-<img src="./assets/images/win-build-source.png" width="800px"/>
-
-ビルドが成功して、Monadic Chatが起動すると、以下のようなメッセージが表示されます。
-
-```text
-✔️ Container monadic-chat-db-1  Started
-✔️ Container monadic-chat-web-1 Started
-```
-
-このメッセージが表示されたら、ブラウザで`http://localhost:4567`にアクセスしてMonadic Chatにアクセスできます。
-
-<img src="./assets/images/win-browser.png" width="800px"/>
-
-### Monadic Chatの起動/停止/再起動
-
-Monadic Chatを起動/停止/再起動するには、以下のコマンドを実行します。
-
-**`start`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh start
-```
-
-**`stop`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh stop
-```
-
-**`restart`**
-
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh restart
-```
-
-### Monadic Chatのアップデート
-
-Monadic Chatを最新版に更新するには、以下のコマンドを実行します。
-
-
-**`update`**
 
 ```shell
 $ cd ~/monadic-chat

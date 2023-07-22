@@ -15,6 +15,24 @@ layout: default
 1. toc
 {:toc}
 
+## Monadic Chat Console
+
+<img src="./assets/images/monadic-chat-console.png" width="500px"/>
+
+**Start** <br />
+Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
+
+**Stop** <br />
+Monadic Chatを停止します。
+
+**Restart** <br />
+Monadic Chatを再起動します。
+
+**Open Browser** <br />
+Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
+
+**Quit**
+Monadic Chat Consoleを終了します。Monadic Chatが起動している場合は、Monadic Chatを先に停止するため、少し時間がかかります。
 
 ## GPT Settings
 <img src="./assets/images/gpt-settings.png" width="600px"/>

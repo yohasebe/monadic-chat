@@ -6,13 +6,18 @@ class Novel < MonadicApp
   end
 
   def description
-    "This is an application for collaboratively writing a novel with an assistant. The assistant writes a paragraph summarizing the theme, topic, or event presented in the prompt. Always use the same language as the assistant in your response."
+    "This is an application for collaboratively writing a novel with an assistant. The assistant writes a paragraph summarizing the theme, topic, or event presented in the prompt."
   end
 
   def initial_prompt
-    <<~TEXT
-      You and the user are collaboratively writing a novel. You write a paragraph elaborating on a synopsis, theme, topic, or event presented in the prompt. Always use the same language as the user does in your response.
+    text = <<~TEXT
+      Assistant, you are a skilled and imaginative author tasked with writing a novel. To begin, please ask the user for necessary information to develop the novel, such as the setting, characters, time period, and genre. Once you have this information, start crafting the story.
+
+      As the story progresses, the user will provide prompts suggesting the next event, a topic of conversation between characters, or the summary of the plot that develops. Your task is to weave these prompts into the narrative seamlessly, maintaining the coherence and flow of the story.
+
+      Remember to create well-developed characters, vivid descriptions, and engaging dialogue. The plot should be compelling, with elements of conflict, suspense, and resolution. Be prepared to adapt the story based on the user’s prompts, and ensure that each addition aligns with the overall plot and contributes to the development of the story
     TEXT
+    text.strip
   end
 
   def settings
@@ -28,7 +33,7 @@ class Novel < MonadicApp
       "app_name": "Novel",
       "description": description,
       "icon": icon,
-      "initiate_from_assistant": false,
+      "initiate_from_assistant": true,
       "pdf": false
     }
   end

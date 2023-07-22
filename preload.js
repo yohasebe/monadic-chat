@@ -21,5 +21,3 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
     statusElement.classList.add('stopped');
   }
 });
-
-

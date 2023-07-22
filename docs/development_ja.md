@@ -53,14 +53,14 @@ $ ./bin/monadic start
 
 ```bash
 # pwd: monadic-chat
-$ ./bin/monadic stop 
+$ ./bin/monadic stop
 ```
 
 `restart`
 
 ```bash
 # pwd: monadic-chat
-$ ./bin/monadic restart 
+$ ./bin/monadic restart
 ```
 
 ### Monadic Chatのアップデート
@@ -96,8 +96,8 @@ apps
 │   └── translate_app.rb
 ├── voice_chat
 │   └── voice_chat_app.rb
-├── wikipedia 
-│   └── wikipedia_app.rb 
+├── wikipedia
+│   └── wikipedia_app.rb
 └── NEW_APP_FOLDER
     └── NEW_APP.rb
 ```
@@ -106,7 +106,7 @@ apps
 
 ```ruby
 # すべての基本アプリはMonadicAppクラスを継承する
-class AppName < MonadicApp 
+class AppName < MonadicApp
   # iconは<i>タグで表現する（FontAwesomeを利用）
   def icon
     "<i class='fas fa-comments'></i>"
@@ -120,7 +120,7 @@ class AppName < MonadicApp
   # initial_promptは初期システムプロンプトとして使用される
   def initial_prompt
     text = <<~TEXT
-      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user’s input at the beginning of your response.
+      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
     TEXT
     text.strip
   end
@@ -155,7 +155,7 @@ class AppName < MonadicApp
       # PDFをアップロードしてVector DBに格納するフォームを表示するかどうか
       "pdf": false,
       # $$で囲まれた数式をMathJaxでレンダリングするかどうか（インラインの数式は$で囲む）
-      "mathjax": false, 
+      "mathjax": false,
       # 関数呼び出しを行う場合、関数の定義を記述する（下記参照）
       "functions": [],
       # Monadicモードを使用する（下記参照）

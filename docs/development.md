@@ -55,14 +55,14 @@ $ ./bin/monadic start
 
 ```bash
 # pwd: monadic-chat
-$ ./bin/monadic stop 
+$ ./bin/monadic stop
 ```
 
 `restart`
 
 ```bash
 # pwd: monadic-chat
-$ ./bin/monadic restart 
+$ ./bin/monadic restart
 ```
 
 ### Update Monadic Chat
@@ -98,8 +98,8 @@ apps
 │   └── translate_app.rb
 ├── voice_chat
 │   └── voice_chat_app.rb
-├── wikipedia 
-│   └── wikipedia_app.rb 
+├── wikipedia
+│   └── wikipedia_app.rb
 └── NEW_APP_FOLDER
     └── NEW_APP.rb
 ```
@@ -108,7 +108,7 @@ apps
 
 ```ruby
 # All basic apps inherit from the MonadicApp class
-class AppName < MonadicApp 
+class AppName < MonadicApp
   # The icon is represented by the <i> tag (using FontAwesome)
   def icon
     "<i class='fas fa-comments'></i>"
@@ -122,7 +122,7 @@ class AppName < MonadicApp
   # The initial system prompt used
   def initial_prompt
     text = <<~TEXT
-      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user’s input at the beginning of your response.
+      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
     TEXT
     text.strip
   end
@@ -157,7 +157,7 @@ class AppName < MonadicApp
       # Whether to display a form to upload PDFs and store them in Vector DB
       "pdf": false,
       # Whether to render $$-enclosed equations with MathJax (inline equations are enclosed in $)
-      "mathjax": false, 
+      "mathjax": false,
       # If function calls are needed, provide the function definitions (see below)
       "functions": [],
       # Use Monadic mode (see below)

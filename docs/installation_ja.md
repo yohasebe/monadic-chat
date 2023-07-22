@@ -23,7 +23,7 @@ layout: default
 2. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
 - [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.0/monadic-chat-0.2.0-arm64.dmg)
-- [📦 Installer packager for MacOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.0/monadic-chat-0.2.0.dmg)
+- [📦 Installer package for MacOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.0/monadic-chat-0.2.0.dmg)
 
 ### Windows
 

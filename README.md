@@ -30,6 +30,8 @@ The command-line program “Monadic Chat” has undergone some changes. It has b
 
 <p>&nbsp;</p>
 <div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>
+
+<div align="center"><img src="./assets/images/screenshot-02.png" width="500px"/></div>
 <p>&nbsp;</p>
 
 ## Features

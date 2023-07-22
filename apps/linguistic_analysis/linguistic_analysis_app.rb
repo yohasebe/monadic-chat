@@ -28,7 +28,7 @@ class LinguisticAnalysis < MonadicApp
 
       INSTRUCTIONS:
 
-      - Your "response" is a string that represents the syntactic structure of the user’s message.
+      - Your "response" is a string that represents the syntactic structure of the user's message.
       - The result of the syntactic parsing should be in the Penn Treebank format.
       - Use square brackets instead of parentheses for the syntactic parsing.
       - Paired brackets should be balanced and nested properly with a certain number of spaces from the left margin.

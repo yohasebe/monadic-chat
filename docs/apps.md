@@ -29,7 +29,7 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/language-practice-plus.png" width="40px"/> This is a language learning application where conversations start with the assistant's speech. The assistant's speech is played back in a synthesized voice. To speak, press the Enter key to start speech input, and press Enter again to stop speech input. The assistant's response will include linguistic advice in addition to the usual content. The language advice is presented only as text and not as text-to-speech.
 
-## Novel
+## Novel Writer
 
 <img src="./assets/icons/novel.png" width="40px"/> This is an application for collaboratively writing a novel with an assistant. The assistant writes a paragraph summarizing the theme, topic, or event presented in the prompt. Always use the same language as the assistant in your response.
 
@@ -53,7 +53,7 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/linguistic-analysis.png" width="40px"/> This app utilizes Monadic Chat's feature that allows for updating a pre-specified JSON object with multiple properties while providing a regular response. As the main response to the user's query, it returns a syntactic structure of the input sentence. In the process, the app updates the values of the JSON object with the properties of `topic`, `sentence_type`, and `sentiment`.
 
-## Math
+## Math Tutor
 
 <img src="./assets/icons/math.png" width="40px"/> This is an application that allows an AI chatbot to respond using MathJax mathematical notation. Please note that while this app can display mathematical notations, the math calculation ability is based on OpenAI's GPT models, which are known to occasionally produce errors. Therefore, please use this app with caution when accuracy in calculations is required.
 

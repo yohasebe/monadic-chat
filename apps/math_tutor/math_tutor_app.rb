@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 # We can't use the name Math because it is a reserved word in Ruby
-class MathJax < MonadicApp
+class MathTutor < MonadicApp
   def icon
     "<i class='fa-solid fa-square-root-variable'></i>"
   end
@@ -27,7 +27,7 @@ class MathJax < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
-      "app_name": "Math",
+      "app_name": "Math Tutor",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,

@@ -28,7 +28,7 @@ layout: default
 
 <img src="./assets/icons/language-practice-plus.png" width="40px"/>AIアシスタントの音声で会話が始まる言語学習アプリケーションです。アシスタントの音声は合成音声で再生されます。Enterキーを押すと音声入力が開始します。再度Enterキーを押すと音声入力が停止します。 通常のレスポンスに加えて、学習言語のアドバイスが示されます。アドバイスは読み上げられず、通常のテキストとして表示されます。
 
-## Novel
+## Novel Writer
 
 <img src="./assets/icons/novel.png" width="40px"/> アシスタントと共同で小説を執筆するためのアプリケーションです。プロンプトでテーマ、トピック、またはイベントを提示すると、それらを含んだパラグラフを書きます。
 
@@ -52,7 +52,7 @@ layout: default
 
 <img src="./assets/icons/linguistic-analysis.png" width="40px"/>指定された構造のJSONオブジェクトを「状態」とみなして、これを更新するタイプのアプリです。ユーザーへのレスポンスとして、入力文の統語構造を返します。その背後でtopic、sentence_type、sentimentの状態値を更新します。
 
-## Math
+## Math Tutor
 
 <img src="./assets/icons/math.png" width="40px"/> AIチャットボットがMathJaxの数学表記を使用して応答するためのアプリケーションです。このアプリは数学的表記を表示することができますが、数学の計算能力はOpenAIのGPTモデルに基づいており、単純な計算においても誤りが生じ得ることが知られています。計算の正確性が必要な場合には注意して使用してください。
 

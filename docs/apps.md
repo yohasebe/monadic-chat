@@ -61,6 +61,10 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/image-generator.png" width="40px"/> This is an application for image generation. When an initial prompt is entered, the image is generated using OpenAI's DALL-E API. If you specify GPT 4.0 as the model for the conversation, you can gradually improve the prompt through interaction with the AI chatbot to get the desired image.
 
+## Mail Composer
+
+<img src="./assets/icons/mail-composer.png" width="40px"/> This is an application for writing draft novels of email messages in collaboration with an assistant. The assistant writes the email draft according to the user's requests and specifications.
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

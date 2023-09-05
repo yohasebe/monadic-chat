@@ -13,26 +13,17 @@
 - [Monadic Chat (English)](https://yohasebe.github.io/monadic-chat/overview)
 - [Monadic Chat (日本語)](https://yohasebe.github.io/monadic-chat/overview_ja)
 
-⚠️  **Important Notice**
-
-This software is currently under active development and is subject to frequent changes. Some features may still be unstable at this moment. Please exercise caution when using it.
-
-📢 **Call for Contributions**
-
-I welcome contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly appreciated.
-
-🔄 **Project Restructuring**
-
-The command-line program “Monadic Chat” has undergone some changes. It has been renamed to “Monadic Chat CLI” and moved to a separate repository. Moving forward, Monadic Chat will be developed as a web-based application in this repository.
-
-- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repository)
-- [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
-
 <p>&nbsp;</p>
 <div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>
 
 <div align="center"><img src="./assets/images/screenshot-02.png" width="500px"/></div>
 <p>&nbsp;</p>
+
+🌟 **Command Line Version**
+
+There are two types of Monadic Chat: one is a web browser-based app provided in this repository, which is installed using Docker. The other is a command line application, which is provided as a RubyGem. The URL of the repository for the command line version is as follows 
+
+- [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
 
 ## Features
 

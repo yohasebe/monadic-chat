@@ -108,12 +108,15 @@ function setupLanguages(refresh, default_lang) {
   }
 }
 
-function processSpeakQueue() {
+function processSpeakQueue(callback) {
   if (speakQueue.length === 0) {
+    if (callback){
+      callback();
+    }
     return;
   }
 
-  const { text, lang, callback } = speakQueue.shift();
+  const { text, lang } = speakQueue.shift();
   const read = function () {
     const utterance = new SpeechSynthesisUtterance(text);
 
@@ -121,7 +124,7 @@ function processSpeakQueue() {
       switch (lang) {
         case "ja":
           utterance.lang = "ja-JP";
-          utterance.voice = speechSynthesis.getVoices().filter((voice) => voice.name === "Google 日本語")[0];
+          // utterance.voice = speechSynthesis.getVoices().filter((voice) => voice.name === "Google 日本語")[0];
           break;
         case "en":
           utterance.lang = "en-US";
@@ -144,11 +147,9 @@ function processSpeakQueue() {
       utterance.rate = params["speech_rate"];
     }
 
+
     utterance.onend = function () {
-      if (callback) {
-        callback();
-      }
-      processSpeakQueue();
+      processSpeakQueue(callback);
     };
 
     speechSynthesis.speak(utterance);
@@ -168,8 +169,8 @@ function processSpeakQueue() {
 }
 
 function speak(text, lang, callback) {
-  speakQueue.push({ text, lang, callback });
-  processSpeakQueue();
+  speakQueue.push({ text, lang });
+  processSpeakQueue(callback);
 }
 
 function setupVoices(refresh, voice){

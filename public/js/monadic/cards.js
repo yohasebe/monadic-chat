@@ -46,14 +46,16 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
     const $this = $(this); // Store the reference to the clicked element
     if (speechSynthesis.speaking) {
       speechSynthesis.cancel();
-      $this.find("i").removeClass("fa-stop").addClass("fa-play").css("color", "");
+      $this.find("i").removeClass("fa-stop").addClass("fa-play")
     } else {
-      $this.find("i").removeClass("fa-play").addClass("fa-stop").css("color", "#DC4C64");
-      const sentences = removeEmojis(content).split(/[.?!:;。．？！]/).filter(Boolean);
+      $this.find("i").removeClass("fa-play").addClass("fa-stop")
+      let sentences = removeEmojis(content).split(/[.?!:;。．？！]/).filter(Boolean);
+          sentences = sentences.filter((s) => s.trim().length > 0);
+      console.log(sentences);
       for (let i = 0; i < sentences.length; i++) {
         if(i === sentences.length - 1) {
           speak(sentences[i].trim(), lang, function () {
-            $this.find("i").removeClass("fa-stop").addClass("fa-play").css("color", "");
+            $this.find("i").removeClass("fa-stop").addClass("fa-play")
           });
         } else {
           speak(sentences[i].trim(), lang, function (){} );
@@ -131,16 +133,16 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
   // this feature is disabled when the text to speech is playing
 
   $(document).on("mouseenter", `#${mid} .func-play`, function () {
-    if (speechSynthesis.speaking) {
-      return;
-    }
+    // if (speechSynthesis.speaking) {
+    //   return;
+    // }
     $(this).find("i").css("color", "#DC4C64");
   });
 
   $(document).on("mouseleave", `#${mid} .func-play`, function () {
-    if (speechSynthesis.speaking) {
-      return;
-    }
+    // if (speechSynthesis.speaking) {
+    //   return;
+    // }
     $(this).find("i").css("color", "");
   });
 

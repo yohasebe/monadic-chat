@@ -112,12 +112,6 @@ span.status.active {
   background-color: #ACDC4C;
 }
 
-span.status.speaking {
-  /* text-shadow: 0px 0px 1px rgba(0,0,0,0.5); */
-  font-size: 0.8em;
-  color: #DC4C64;
-}
-
 button.fixed-width {
   width: 140px !important;
 }

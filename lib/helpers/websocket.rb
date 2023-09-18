@@ -175,7 +175,10 @@ module WebSocketHelper
             cutoff = false
             response = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
-                @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json)
+                # retry if error occurs only once
+                completion_api_request("user") do |fragment2|
+                  @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
+                end
               elsif fragment["type"] == "fragment" && !cutoff
                 buffer << fragment["content"] unless fragment["content"].empty? || fragment["content"] == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)

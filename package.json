@@ -1,6 +1,6 @@
 {
   "name": "monadic-chat",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {

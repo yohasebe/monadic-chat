@@ -19,7 +19,7 @@ class ImageGeneration < MonadicApp
       - Increase the number of images generated (`num`) if the user asks for more images.
       - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "small" size is 256, "regular" size is 512, and "large" size is 1024.
       - If the user does not specify the number of images to generate, set 1 to the `num` parameter and 256 to the `size` parameter.
-      - If the user asks to add something to generated images or to modify it, re-generate another image, calling the `generate_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous messages.
+      - If the user asks to add something to generated images or to modify it, re-generate another image, calling the `generate_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous messages. Show the modified prompt in the response.
 
       Here is the format for the response returned to the user:
 

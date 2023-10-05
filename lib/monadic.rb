@@ -146,7 +146,7 @@ post "/pdf" do
     pdf_file_handler.close
 
     # Use the temporary file path to extract the text using the poppler gem
-    pdf = PDF2Text.new(temp_file.path)
+    pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
     pdf.extract
 
     # Close and delete the temporary file

@@ -89,6 +89,7 @@ module OpenAIHelper
     api_key = settings.api_key
 
     message = obj["message"].to_s
+
     if obj["monadic"].to_s == "true" && message != ""
       message = APPS[app].monadic_unit(message) if message != ""
       html = markdown_to_html(obj["message"]) if message != ""

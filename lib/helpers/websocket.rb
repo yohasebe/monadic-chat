@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "./text_splitter"
+
 module WebSocketHelper
   # Handle websocket connection
 
@@ -84,6 +86,12 @@ module WebSocketHelper
           else
             ws.send({ "type" => "token_verified", "content" => res["content"], "models" => res["models"] }.to_json)
           end
+        when "NUM_TOKENS"
+          half_max = obj["max_tokens"].to_i / 2
+          doc = TextSplitter.new(text: obj["message"], max_tokens: half_max, separator: "\n", overwrap_lines: 0)
+          split_texts = doc.split_text
+          total_num_tokens = split_texts.map { |t| t["tokens"] }.sum
+          ws.send({ "type" => "num_tokens", "content" => total_num_tokens }.to_json)
         when "PING"
           @channel.push({ "type" => "pong" }.to_json)
         when "RESET"
@@ -170,9 +178,11 @@ module WebSocketHelper
           end
         else
           session[:parameters].merge! obj
+
           thread = Thread.new do
             buffer = []
             cutoff = false
+
             response = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
                 # retry if error occurs only once

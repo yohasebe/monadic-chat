@@ -1,35 +1,24 @@
 # frozen_string_literal: false
 
-require "poppler"
-require "parallel"
 require "tiktoken_ruby"
 
-class PDF2Text
+class TextSplitter
   THREADS = 4
 
   attr_reader :file_path, :text_data
 
-  # Initializes the PDF2Text class
-  def initialize(path:, max_tokens: 800, separator: "\n", overwrap_lines: 2)
+  def initialize(text: nil, path: nil, max_tokens: 800, separator: "\n", overwrap_lines: 2)
     @file_path = path
-    @file_name = File.basename(path)
+    if text
+      @text_data = text
+    elsif @file_path && File.exist?(@file_path)
+      @text_data = File.read(@file_path).gsub(/\R/, "\n")
+    else
+      raise "Either text or path must be provided"
+    end
     @max_tokens = max_tokens
-    @text_data = ""
     @separator = separator
     @overwrap_lines = overwrap_lines
-  end
-
-  # Extracts the text from the PDF file
-  def extract
-    doc = Poppler::Document.new(@file_path)
-    @text_data = ""
-
-    Parallel.each(0...doc.n_pages, in_threads: THREADS) do |page_num|
-      page = doc.get_page(page_num)
-      @text_data += "#{page.get_text}\n"
-    end
-
-    @text_data
   end
 
   # Splits the text into chunks of `max_tokens` tokens
@@ -64,19 +53,19 @@ class PDF2Text
   end
 end
 
-# If this file is run directly, it will extract the text from the PDF file given as argument
+# If this file is run directly, it will split the text to files
+# with less than half the maximum num of tokens
 if $PROGRAM_NAME == __FILE__
   if ARGV.length != 1
-    puts "Usage: ruby pdf_text_extractor.rb <pdf_file_path>"
+    puts "Usage: ruby text_splitter.rb <file_path>"
     exit
   end
 
   file_path = ARGV[0]
 
   if File.exist?(file_path)
-    pdf = PDF2Text.new(path: file_path, max_tokens: 1000, separator: "\n", overwrap_lines: 2)
-    pdf.extract
-    split_texts = pdf.split_text
+    doc = TextSplitter.new(path: file_path, max_tokens: 1000, separator: "\n\n", overwrap_lines: 2)
+    split_texts = doc.split_text
     split_texts.each_with_index do |split_text, index|
       puts "Section #{index + 1}:"
       puts split_text["text"]
@@ -87,3 +76,4 @@ if $PROGRAM_NAME == __FILE__
     puts "File not found: #{file_path}"
   end
 end
+

@@ -23,7 +23,7 @@ layout: default
 
 ### Rust
 
-ticktoken gemを使ったトークン数の計算にRustが必要
+tiktoken gemを使ったトークン数の計算にRustが必要
 
 ### PostgreSQL + pgvector
 

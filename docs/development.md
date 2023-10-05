@@ -25,7 +25,7 @@ Recommended version is 3.1 or above
 
 #### Rust
 
-Rust is required for token caluculation using ticktoken gem for Ruby
+Rust is required for token caluculation using tiktoken gem for Ruby
 
 #### PostgreSQL + pgvector
 

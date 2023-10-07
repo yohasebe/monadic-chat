@@ -214,7 +214,7 @@ function listParams(params) {
 
 function loadParams(params, calledFor = "loadParams") {
   $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
-  $("#model").val(params["model"] || "gpt-3.5-turbo");
+  $("#model").val(params["model"]);
   $("#temperature").val(params["temperature"] || "0.3");
   $("#temperature-value").text(params["temperature"] || "0.3");
   $("#top-p").val(params["top_p"] || "0.0");

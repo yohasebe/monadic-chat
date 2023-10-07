@@ -22,8 +22,8 @@ layout: default
 1. Install Docker Desktop for Mac (see [below](#install-docker-macos)).
 2. Install Monadic Chat.
 
-- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.3/monadic-chat-0.2.3-arm64.dmg) (0.2.3)
-- [📦 Installer package for MacOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.3/monadic-chat-0.2.3.dmg) (0.2.3)
+- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.5/monadic-chat-0.2.5-arm64.dmg) (0.2.5)
+- [📦 Installer package for MacOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/0.2.5/monadic-chat-0.2.5.dmg) (0.2.5)
 
 ### Windows
 
@@ -31,7 +31,7 @@ layout: default
 2. Install Docker Desktop for Windows (see [below](#install-docker-win)).
 2. Install Monadic Chat.
 
-- [📦 Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/0.2.3/monadic-chat.Setup.0.2.3.exe) (0.2.3)
+- [📦 Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/0.2.5/monadic-chat.Setup.0.2.5.exe) (0.2.5)
 
 ## How to Install Dependencies
 

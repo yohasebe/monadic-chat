@@ -83,10 +83,27 @@ function build_docker_compose {
 
 function start_docker_compose {
   build_docker_compose
+
+  # Start the Docker Compose services and wait for them to be ready
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+
+  # Once the services are ready, the script will continue
+  echo "Waiting for Monadic Chat to be ready..."
+
+   # Wait for the services to be ready
+   while ! nc -z localhost 4567; do
+     sleep 0.1 # wait for 1/10 of the second before check again
+     echo -n "."
+   done
 
   echo "Monadic Chat has been started"
   echo "Access http://localhost:4567 on your browser"
+  echo ""
+  echo "----------------------------------------------"
+  echo "If the browser window is blank, wait a moment,"
+  echo "and then refresh the page. It may take a while"
+  echo "when you run the app for the first time."
+  echo "----------------------------------------------"
 }
 
 # Define a function to stop Docker Compose

@@ -18,11 +18,6 @@ MAC_SCRIPT="${ROOT_DIR}/docker/support_scripts/mac-start-docker.sh"
 WSL2_SCRIPT="${ROOT_DIR}/docker/support_scripts/wsl2-start-docker.sh"
 LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 
-# check if HOME_DIR/data/.env exists and create it if not
-# if [ ! -f "$HOME_DIR/monadic/.env" ]; then
-#   touch "$HOME_DIR/monadic/.env"
-# fi
-
 # check if ${ROOT_DIR}/data/.env exists and create it if not
 if [ ! -f "${ROOT_DIR}/data/.env" ]; then
   touch "${ROOT_DIR}/data/.env"

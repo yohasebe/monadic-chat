@@ -17,4 +17,4 @@ services:
     restart: on-failure
     stdin_open: true
     tty: true
-    command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567"]
+    command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]

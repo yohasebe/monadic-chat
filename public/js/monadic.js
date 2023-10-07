@@ -253,11 +253,6 @@ $(function () {
     }
   });
 
-  $("#clear-model").click(function(event) {
-    event.preventDefault();
-    $("#model").val("").focus();
-  });
-
   $("#temperature").on("input", function() {
     $("#temperature-value").text(parseFloat($(this).val()).toFixed(1));
   });

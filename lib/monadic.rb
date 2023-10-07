@@ -78,7 +78,7 @@ configure do
   set :public_folder, "public"
   set :views, "views"
   set :api_key, ENV["OPENAI_API_KEY"]
-  # enable :cross_origin
+  enable :cross_origin
 end
 
 # Accept requests from the client

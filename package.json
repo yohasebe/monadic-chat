@@ -13,8 +13,11 @@
   "author": "Yoichiro Hasebe",
   "license": "MIT",
   "devDependencies": {
+    "dotenv": "^16.3.1",
     "electron": "^26.3.0",
-    "electron-builder": "^24.6.4"
+    "electron-builder": "^24.6.4",
+    "electron-notarize": "^1.2.2",
+    "electron-osx-sign": "^0.6.0"
   },
   "build": {
     "asar": false,
@@ -114,8 +117,13 @@
       "menu_icons/**/*"
     ],
     "mac": {
-      "icon": "menu_icons/icon.icns"
+      "icon": "menu_icons/icon.icns",
+      "entitlements": "entitlements.plist",
+      "entitlementsInherit": "entitlements.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
     },
+    "afterSign": "notarize.js",
     "win": {
       "icon": "menu_icons/icon.ico"
     }

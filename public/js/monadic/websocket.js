@@ -172,8 +172,8 @@ function connect_websocket(callback) {
         const model_options = data['models'].map(
           model => `<option value="${model}">${model}</option>`
         );
-        $("#model-options").html(model_options);
-        $("#model-options").val("gpt-3.5-turbo");
+        $("#model").html(model_options);
+        $("#model").val("gpt-3.5-turbo-0613");
 
         if (messages.length === 0) {
           const token_verified = `\

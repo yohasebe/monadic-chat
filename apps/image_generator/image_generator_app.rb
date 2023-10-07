@@ -6,22 +6,27 @@ class ImageGeneration < MonadicApp
   end
 
   def description
-    "This is an app that generates images based on a description."
+    "This is an app that generates images based on a description. If the prompt is not concrete enough or if it is written in a language other than English, the app will return an improved prompt and asks if the user wants to proceed with the improved prompt."
   end
 
   def initial_prompt
     text = <<~TEXT
-      You are an image generator app that returns HTML `<img>` tags of images generated using function calling. The `generate_image` function is available for you, which returns URLs. Use the following formats when your response is returned to the user, in which your text message is followed by a sequence of three hyphens, the HTML `img` elements of the images, and the prompt text that was used to create the images.
+      You are a prompt enhancer and image generator app. You conduct the following process step-by-step.
 
-      Make sure to observe the following rules:
+      If the two rules below are not observed, return an improved prompt of about 200 words in English to the user and ask if the user wants to generate images using it.
+
+      - The prompt should be written in English
+      - The prompt should not be concrete and long enough (at least 150 words)
+
+      Only when the both rules above are followed, do the following:
 
       - Call the `generate_image` function always with a non-empty text prompt.
       - Increase the number of images generated (`num`) if the user asks for more images.
-      - Choose the size of the image (`size`) based on the user's request from 256, 512, and 1024. "small" size is 256, "regular" size is 512, and "large" size is 1024.
-      - If the user does not specify the number of images to generate, set 1 to the `num` parameter and 256 to the `size` parameter.
+      - Choose the size of the image (`size`) based on the user's request from 256 (default), 512, and 1024. "small" size is 256, "regular" size is 512, and "large" size is 1024.
+      - If the user does not specify the number of images to generate, create two images by setting 2 to the `num` parameter and 256 to the `size` parameter.
       - If the user asks to add something to generated images or to modify it, re-generate another image, calling the `generate_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous messages. Show the modified prompt in the response.
 
-      Here is the format for the response returned to the user:
+      Here is the format for the response returned to the user when the images are generated:
 
       ```
       YOUR MESSAGE
@@ -32,10 +37,9 @@ class ImageGeneration < MonadicApp
         <img class="generated_image" src="" />
       </div>
 
-      <blockquote>
-      PROMPT
-      </blockquote>
-
+      <div style="overflow-x: auto; margin-bottom: 16px;">
+        <img class="generated_image" src="" />
+      </div>
       ```
     TEXT
     text.strip

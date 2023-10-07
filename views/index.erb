@@ -162,12 +162,7 @@
             <form class="row my-3">
               <div class="col-5 pe-0">
                 <label for="model" class="form-label text-nowrap">Select Model</label>
-                <div id="model-group" class="input-group">
-                  <input class="form-control" list="model-options" id="model" value="gpt-3.5-turbo">
-                  <datalist id="model-options">
-                  </datalist>
-                  <button class="btn btn-secondary" id="clear-model">Clear</button>
-                </div>
+                <select class="form-select me-3" id="model" ></select>
               </div>
               <div class="col-2 ms-3">
                 <label class="form-label text-nowrap" for="max-tokens">Max Tokens</label>

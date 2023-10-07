@@ -26,7 +26,13 @@ module OpenAIHelper
     res = http.timeout(STREAMING_TIMEOUT).get(target_uri)
     res_body = JSON.parse(res.body)
     if res_body && res_body["data"]
-      models = res_body["data"].sort_by { |item| item["created"] }.reverse[0..10].map { |item| item["id"] }.filter { |item| item.include?("gpt") && item.include?("0613") }
+      models = res_body["data"].sort_by do |item|
+        item["created"]
+      end.reverse[0..10].map do |item| item["id"] 
+      end.filter do |item|
+        item.include?("gpt") && !item.include?("instruct") && item.include?("0613")
+      end
+
       if api_key
         File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
         { "type" => "models", "content" => "A new API token has been verified and stored in <code>.env</code> file.", "models" => models }
@@ -66,6 +72,8 @@ module OpenAIHelper
         "Content-Type" => form_data.content_type
       ).timeout(WHISPER_TIMEOUT).post(url, body: form_data.to_s)
     rescue HTTP::Error, HTTP::TimeoutError => e
+      pp e.message
+      pp e.backtrace
       return { "type" => "error", "content" => "ERROR: #{e.message}" }
     ensure
       temp_file.close
@@ -130,12 +138,20 @@ module OpenAIHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
+    if model.include?("-instruct")
+      mode = "completions"
+      stream = false
+    else
+      mode = "chat/completions"
+      stream = true
+    end
+
     body = {
       "model" => model,
       "temperature" => temperature,
       "top_p" => top_p,
       "n" => 1,
-      "stream" => true,
+      "stream" => stream,
       "stop" => nil,
       "max_tokens" => max_tokens,
       "presence_penalty" => presence_penalty,
@@ -148,7 +164,7 @@ module OpenAIHelper
       body["stream"] = false
     end
 
-    case MODE
+    case mode
     when "completions"
       body["prompt"] = message
     when "chat/completions"
@@ -165,7 +181,7 @@ module OpenAIHelper
       body["messages"] = context.compact.map { |msg| { "role" => msg["role"], "content" => msg["text"] } }
     end
 
-    target_uri = "#{API_ENDPOINT}/#{MODE}"
+    target_uri = "#{API_ENDPOINT}/#{mode}"
     headers["Accept"] = "text/event-stream"
 
     http = HTTP.headers(headers)
@@ -200,18 +216,18 @@ module OpenAIHelper
             next
           end
 
-          fragment = case MODE
-                     when "completions"
-                       stream["choices"][0]["text"]
-                     when "chat/completions"
+          fragment = stream["choices"][0]["delta"]["content"] || ""
+          fragment = if body["stream"]
                        stream["choices"][0]["delta"]["content"] || ""
+                     else
+                       stream["choices"][0]["text"]
                      end
           res = { "type" => "fragment", "content" => fragment, "finish_reason" => stream["finish_reason"] }
           block&.call res
           if !json
             json = stream
           else
-            case MODE
+            case mode
             when "completions"
               json["choices"][0]["text"] << fragment
             when "chat/completions"
@@ -228,8 +244,9 @@ module OpenAIHelper
           block&.call res
           return res
         rescue StandardError, JSON::ParserError  => e
+          pp e.message
+          pp e.backtrace
           res = { "type" => "error", "content" => "ERROR: #{e.message}" }
-          pp res
           block&.call res
           return res
         end

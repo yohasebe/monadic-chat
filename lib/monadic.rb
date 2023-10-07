@@ -36,10 +36,6 @@ helpers UtilitiesHelper
 envpath = File.expand_path OpenAIHelper::ENV_PATH
 Dotenv.load(envpath)
 
-# OpenAI API configuration
-MODEL = "gpt-3.5-turbo"
-MODE = "chat/completions"
-
 # Connect to the database
 EMBEDDINGS_DB = TextEmbeddings.new("monadic", recreate_db: false)
 

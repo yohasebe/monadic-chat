@@ -4,6 +4,7 @@ const extendedContextMenu = require('electron-context-menu');
 const path = require('path')
 const os = require('os');
 const https = require('https');
+const net = require('net');
 
 let tray = null;
 let currentStatus = 'Stopped';
@@ -338,22 +339,33 @@ function runCommand(command, message, statusAfterCommand, sync = false) {
   }
 }
 
+function isPortTaken(port, callback) {
+  const tester = net.createServer()
+    .once('error', err => {
+      if (err.code === 'EADDRINUSE') {
+        callback(true);
+      } else {
+        callback(err);
+      }
+    })
+    .once('listening', () => {
+      tester.once('close', () => {
+        callback(false);
+      }).close();
+    })
+    .listen(port);
+}
+
 function updateStatus() {
   const port = 4567;
-  const cmd = os.platform() === 'darwin' ? `lsof -i :${port} | grep LISTEN` : `netstat -ano | findstr :${port}`;
 
-  currentStatus = 'Stopped';
-  statusMenuItem.label = 'Stopped';
-  updateContextMenu();
-
-  exec(cmd, (err, stdout, _stderr) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    if (stdout.trim() !== '') {
+  isPortTaken(port, (taken) => {
+    if (taken) {
       currentStatus = 'Running';
       statusMenuItem.label = 'Running';
+    } else {
+      currentStatus = 'Stopped';
+      statusMenuItem.label = 'Stopped';
     }
     updateContextMenu();
     updateStatusIndicator(currentStatus); // Pass the currentStatus

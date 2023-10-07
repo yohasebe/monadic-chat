@@ -162,7 +162,7 @@ function processSpeakQueue(callback) {
         clearInterval(waitForVoices);
         read();
       }
-    }, 200);
+    }, 1000);
   } else {
     read();
   }

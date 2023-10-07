@@ -1,6 +1,6 @@
 {
   "name": "monadic-chat",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -13,8 +13,8 @@
   "author": "Yoichiro Hasebe",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^25.8.4",
-    "electron-builder": "^24.4.0"
+    "electron": "^26.3.0",
+    "electron-builder": "^24.6.4"
   },
   "build": {
     "asar": false,

@@ -177,7 +177,10 @@ module OpenAIHelper
 
     if body["stream"] && !(res["choices"] && res["choices"][0]["finish_reason"] == "stop")
       res.body.each do |chunk|
-        chunk.split("\n\n").each do |data|
+
+        chunk.scan(/data: (\{.*\})/i).flatten.each do |data|
+          content = data.strip
+
           current_time = Time.now
           elapsed_time = current_time - last_processed_time
 
@@ -188,25 +191,6 @@ module OpenAIHelper
             block&.call res
             return res
           end
-
-          unless data[0..5] == "data: "
-            typecheck = JSON.parse(data)
-            begin
-              if typecheck["error"]
-                res = { "type" => "error", "content" => typecheck["error"]["message"] }
-                pp res
-                block&.call res
-                return res
-              end
-            rescue JSON::ParserError
-              res = { "type" => "error", "content" => "Error: JSON Parsing" }
-              pp res
-              block&.call res
-              return res
-            end
-          end
-
-          content = data.strip[6..]
 
           break if content == "[DONE]"
 
@@ -236,13 +220,14 @@ module OpenAIHelper
             end
           end
           last_processed_time = Time.now
+
         rescue Timeout::Error
           error_message = "Error: No new response received within #{STREAMING_TIMEOUT} seconds after the last response has been processed."
           res = { "type" => "error", "content" => "ERROR: #{error_message}" }
           pp res
           block&.call res
           return res
-        rescue StandardError => e
+        rescue StandardError, JSON::ParserError  => e
           res = { "type" => "error", "content" => "ERROR: #{e.message}" }
           pp res
           block&.call res
@@ -271,12 +256,6 @@ module OpenAIHelper
           memo[k.to_sym] = v
           memo
         end
-
-        # function_record = { "mid" => SecureRandom.hex(4),
-        #                     "role" => "assistant",
-        #                     "text" => json_message.to_json,
-        #                     "type" => "function calling" }
-        # session[:messages] << function_record
 
         obj.delete("functions")
         obj["function_call"] = "none"

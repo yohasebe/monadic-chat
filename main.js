@@ -179,21 +179,21 @@ const menuItems = [
     label: 'Start',
     click: () => {
       openMainWindow();
-      runCommand('start', 'Monadic Chat starting...', 'Running');
+      runCommand('start', 'Monadic Chat starting. Please wait.', 'Running');
     }
   },
   {
     label: 'Stop',
     click: () => {
       openMainWindow();
-      runCommand('stop', 'Monadic Chat is stopping...', 'Stopped');
+      runCommand('stop', 'Monadic Chat is stopping. Please wait.', 'Stopped');
     }
   },
   {
     label: 'Restart',
     click: () => {
       openMainWindow();
-      runCommand('restart', 'Monadic Chat is restarting...', 'Running');
+      runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Running');
     }
   },
   { type: 'separator' },
@@ -242,13 +242,13 @@ function initializeApp() {
     ipcMain.on('command', (_event, command) => {
       switch (command) {
         case 'start':
-          runCommand('start', 'Monadic Chat starting...', 'Running');
+          runCommand('start', 'Monadic Chat starting. Please wait.', 'Running');
           break;
         case 'stop':
           runCommand('stop', 'Monadic Chat is stopping...', 'Stopped');
           break;
         case 'restart':
-          runCommand('restart', 'Monadic Chat is restarting...', 'Running');
+          runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Running');
           break;
         case 'browser':
           openBrowser();
@@ -361,6 +361,8 @@ function updateStatus() {
 }
 
 function updateStatusIndicator(status) {
+  // Send the current status to the main window unless it is closed
+  if (!mainWindow) return;
   mainWindow.webContents.send('updateStatusIndicator', status);
 }
 
@@ -392,7 +394,7 @@ function createMainWindow() {
     }
   });
 
-  const openingText = `Monadic Chat ${app.getVersion()}\n`;
+  const openingText = `Monadic Chat ${app.getVersion()}\nPress Start to initialize the server.`;
 
   setTimeout(() => {
     writeToScreen(openingText);

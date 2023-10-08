@@ -10,8 +10,13 @@
 
 🌟 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
 
-- [Monadic Chat (English)](https://yohasebe.github.io/monadic-chat/overview)
-- [Monadic Chat (日本語)](https://yohasebe.github.io/monadic-chat/overview_ja)
+- Documentation
+  - [English](https://yohasebe.github.io/monadic-chat/overview)
+  - [日本語](https://yohasebe.github.io/monadic-chat/overview_ja)
+
+- Download Installer
+  - [MacOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
+  - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
 <p>&nbsp;</p>
 <div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>

@@ -15,7 +15,7 @@ layout: default
 1. toc
 {:toc}
 
-## Basic Steps
+## Installer Download 
 
 ### MacOS
 

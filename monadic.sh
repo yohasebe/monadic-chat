@@ -84,13 +84,6 @@ function start_docker_compose {
 
   # Once the services are ready, the script will continue
   echo "Waiting for Monadic Chat to be ready..."
-
-   # Wait for the services to be ready
-   while ! nc -z localhost 4567; do
-     sleep 0.1 # wait for 1/10 of the second before check again
-     echo -n "."
-   done
-
   echo "Monadic Chat has been started"
   echo "Access http://localhost:4567 on your browser"
   echo ""

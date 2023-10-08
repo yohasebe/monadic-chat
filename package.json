@@ -118,8 +118,6 @@
     ],
     "mac": {
       "icon": "menu_icons/icon.icns",
-      "entitlements": "entitlements.plist",
-      "entitlementsInherit": "entitlements.plist",
       "hardenedRuntime": true,
       "gatekeeperAssess": false
     },

@@ -277,7 +277,7 @@ function setParams() {
   params["temperature"] = $("#temperature").val();
   params["top_p"] = $("#top-p").val();
   params["presence_penalty"] = $("#presence-penalty").val();
-  params["frequency_penalty"] = $("#frequency_penalty").val();
+  params["frequency_penalty"] = $("#frequency-penalty").val();
   params["max_tokens"] = $("#max-tokens").val();
   params["context_size"] = $("#context-size").val();
   params["speech_rate"] = $("#speech-rate").val();
@@ -287,6 +287,7 @@ function setParams() {
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
+  console.log(params);
   return params;
 }
 

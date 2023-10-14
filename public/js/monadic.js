@@ -144,6 +144,7 @@ $(function () {
   })
 
   $("#send").on("click", function(event) {
+    elemError.hide();
     event.preventDefault();
     if (message.value === "") {
       return;
@@ -172,6 +173,7 @@ $(function () {
   });
 
   $("#settings").on("click", function () {
+    elemError.hide();
     $("#config").show();
     $("#back-to-settings").hide();
     $("#main-panel").hide();
@@ -186,6 +188,7 @@ $(function () {
 
 
   $("#reset, .navbar-brand").on("click", function (event) {
+    elemError.hide();
     resetEvent(event);
     $("#select-role").val("user").trigger("change");
     $("#start-label").text("Start Session");

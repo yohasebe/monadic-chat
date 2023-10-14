@@ -186,6 +186,13 @@ module OpenAIHelper
 
     http = HTTP.headers(headers)
     res = http.timeout(COMPLETION_TIMEOUT).post(target_uri, json: body)
+    unless res.status.success?
+      error_report = JSON.parse(res.body)["error"]
+      res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+      pp res
+      block&.call res
+      return res
+    end
 
     json = nil
 

@@ -79,10 +79,14 @@ function build_docker_compose {
 function start_docker_compose {
   build_docker_compose
 
-  # Start the Docker Compose services and wait for them to be ready
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
-  # Once the services are ready, the script will continue
+  stop_docker_compose
+
+  build_docker_compose
+
+  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+
   echo "Waiting for Monadic Chat to be ready..."
   echo "Monadic Chat has been started"
   echo "Access http://localhost:4567 on your browser"
@@ -94,6 +98,7 @@ function start_docker_compose {
   echo "----------------------------------------------"
 }
 
+
 # Define a function to stop Docker Compose
 function stop_docker_compose {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
@@ -104,7 +109,6 @@ function stop_docker_compose {
 
 # Define a function to restart Docker Compose
 function restart_docker_compose {
-  stop_docker_compose
   start_docker_compose
 }
 

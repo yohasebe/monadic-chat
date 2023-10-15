@@ -223,7 +223,6 @@ module OpenAIHelper
             next
           end
 
-          fragment = stream["choices"][0]["delta"]["content"] || ""
           fragment = if body["stream"]
                        stream["choices"][0]["delta"]["content"] || ""
                      else

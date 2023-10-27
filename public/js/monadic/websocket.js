@@ -309,7 +309,8 @@ function connect_websocket(callback) {
           messages.push(msg);
           switch (msg["role"]) {
             case "user":
-              const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg["text"] + "</p>", msg["lang"], msg["mid"], msg["active"]);
+              let msg_text = msg["text"].replace(/\n/g, "<br />");
+              const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(userElement);
               break;
             case "assistant":
@@ -350,7 +351,8 @@ function connect_websocket(callback) {
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {
-          htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + data['content']['text'] + "</p>", data["content"]["lang"], data["content"]["mid"], true);
+          let content_text = data["content"]["text"].replace(/\n/g, "<br />");
+          htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "system") {
           htmlElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         }
@@ -374,7 +376,8 @@ function connect_websocket(callback) {
         break;
       case "user":
         messages.push({ "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] });
-        const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + data['content']['text'] + "</p>", data["content"]["lang"], data["content"]["mid"], true);
+        let content_text = data["content"]["text"].replace(/\n/g, "<br />");
+        const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true);
         $("#discourse").append(userElement);
         $("#temp-card").show();
         $("#temp-card .status").hide();

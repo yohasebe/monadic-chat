@@ -8,7 +8,7 @@ module OpenAIHelper
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
-  MAX_RETRIES = 20
+  MAX_RETRIES = 10
   RETRY_DELAY = 1
 
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")

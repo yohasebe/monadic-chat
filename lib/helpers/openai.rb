@@ -5,15 +5,19 @@ module OpenAIHelper
 
   TEMP_AUDIO_FILE = "temp_audio_file"
 
-  STREAMING_TIMEOUT = 30
-  COMPLETION_TIMEOUT = 300
-  WHISPER_TIMEOUT = 60
+  OPEN_TIMEOUT = 5
+  READ_TIMEOUT = 60
+  WRITE_TIMEOUT = 60
+  MAX_RETRIES = 20
   RETRY_DELAY = 1
+
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
   FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
-  def set_api_key(api_key = nil, num_retrial = 0)
+  def set_api_key(api_key = nil)
+    num_retrial = 0
+
     api_key = api_key.strip if api_key
     settings.api_key = api_key if settings.api_key.nil? || settings.api_key == ""
     target_uri = "#{API_ENDPOINT}/models"
@@ -23,12 +27,13 @@ module OpenAIHelper
       "Authorization" => "Bearer #{settings.api_key}"
     }
     http = HTTP.headers(headers)
-    res = http.timeout(STREAMING_TIMEOUT).get(target_uri)
+    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).get(target_uri)
     res_body = JSON.parse(res.body)
     if res_body && res_body["data"]
       models = res_body["data"].sort_by do |item|
         item["created"]
-      end.reverse[0..10].map do |item| item["id"] 
+      end.reverse[0..10].map do |item|
+        item["id"]
       end.filter do |item|
         item.include?("gpt") && !item.include?("instruct") && item.include?("0613")
       end
@@ -40,18 +45,23 @@ module OpenAIHelper
         { "type" => "models", "content" => "API token stored in <code>.env</code> file has been verified.", "models" => models }
       end
     else
-      return { "type" => "error", "content" => "ERROR: API token is not accepted" } if num_retrial >= 3
-
-      sleep RETRY_DELAY
-      set_api_key(api_key, num_retrial + 1)
+      { "type" => "error", "content" => "ERROR: API token is not accepted" } if num_retrial >= 3
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    { "type" => "error", "content" => "ERROR: #{e.message}" }
+    if num_retrial < MAX_RETRIES
+      num_retrial += 1
+      sleep RETRY_DELAY
+      retry
+    else
+      pp e.message
+      pp e.backtrace
+      { "type" => "error", "content" => "ERROR: #{e.message}" }
+    end
   end
 
   def whisper_api_request(blob, format, lang_code)
+    num_retrial = 0
+
     url = "#{API_ENDPOINT}/audio/transcriptions"
     file_name = TEMP_AUDIO_FILE
     response = nil
@@ -70,11 +80,17 @@ module OpenAIHelper
       response = HTTP.headers(
         "Authorization" => "Bearer #{settings.api_key}",
         "Content-Type" => form_data.content_type
-      ).timeout(WHISPER_TIMEOUT).post(url, body: form_data.to_s)
+      ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(url, body: form_data.to_s)
     rescue HTTP::Error, HTTP::TimeoutError => e
-      pp e.message
-      pp e.backtrace
-      return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        pp e.message
+        pp e.backtrace
+        return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      end
     ensure
       temp_file.close
       temp_file.unlink
@@ -91,6 +107,8 @@ module OpenAIHelper
 
   # Connect to OpenAI API and get a response
   def completion_api_request(role, &block)
+    num_retrial = 0
+
     obj = session[:parameters]
     app = obj["app_name"]
 
@@ -185,7 +203,7 @@ module OpenAIHelper
     headers["Accept"] = "text/event-stream"
 
     http = HTTP.headers(headers)
-    res = http.timeout(COMPLETION_TIMEOUT).post(target_uri, json: body)
+    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
       res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
@@ -196,24 +214,11 @@ module OpenAIHelper
 
     json = nil
 
-    last_processed_time = Time.now
-
     if body["stream"] && !(res["choices"] && res["choices"][0]["finish_reason"] == "stop")
       res.body.each do |chunk|
 
         chunk.scan(/data: (\{.*\})/i).flatten.each do |data|
           content = data.strip
-
-          current_time = Time.now
-          elapsed_time = current_time - last_processed_time
-
-          if elapsed_time > STREAMING_TIMEOUT
-            error_message = "Error: No new response received within 5 seconds after the last response has been processed."
-            res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-            pp res
-            block&.call res
-            return res
-          end
 
           break if content == "[DONE]"
 
@@ -241,20 +246,6 @@ module OpenAIHelper
               json["choices"][0]["text"] << fragment
             end
           end
-          last_processed_time = Time.now
-
-        rescue Timeout::Error
-          error_message = "Error: No new response received within #{STREAMING_TIMEOUT} seconds after the last response has been processed."
-          res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-          pp res
-          block&.call res
-          return res
-        rescue StandardError, JSON::ParserError  => e
-          pp e.message
-          pp e.backtrace
-          res = { "type" => "error", "content" => "ERROR: #{e.message}" }
-          block&.call res
-          return res
         end
       end
     else
@@ -296,11 +287,17 @@ module OpenAIHelper
     res = { "type" => "message", "content" => "DONE" }
     block&.call res
     json
-  rescue HTTP::TimeoutError
-    pp error_message = "The request has timed out after #{COMPLETION_TIMEOUT} seconds."
-    res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-    block&.call res
-    false
+  rescue HTTP::Error, HTTP::TimeoutError
+    if num_retrial < MAX_RETRIES
+      num_retrial += 1
+      sleep RETRY_DELAY
+      retry
+    else
+      pp error_message = "The request has timed out."
+      res = { "type" => "error", "content" => "ERROR: #{error_message}" }
+      block&.call res
+      false
+    end
   rescue StandardError => e
     pp json
     pp e.message

@@ -29,6 +29,25 @@ class MonadicApp
     JSON.parse(json)
   end
 
+  # sanitize the data to remove invalid characters
+  def sanitize_data(data)
+    if data.is_a? String
+      return data.encode('UTF-8', invalid: :replace, undef: :replace, replace: '')
+    end
+
+    if data.is_a? Hash
+      data.each do |key, value|
+        data[key] = sanitize_data(value)
+      end
+    elsif data.is_a? Array
+      data.map! do |value|
+        sanitize_data(value)
+      end
+    end
+
+    data
+  end
+
   # Unwrap the monad and return the message after applying a given process (if any)
   def monadic_map(monad)
     obj = monadic_unwrap(monad)
@@ -37,7 +56,7 @@ class MonadicApp
     <<~MONAD
 
       ```json
-      #{JSON.pretty_generate(obj)}
+      #{JSON.pretty_generate(sanitize_data(obj))}
       ```
 
     MONAD

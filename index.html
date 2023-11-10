@@ -61,6 +61,13 @@
     .status.stopped {
       color: orange;
     }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    button:disabled:hover {
+      background-color: #ccc;
+    }
   </style>
 </head>
 <body>
@@ -71,9 +78,9 @@
   <pre id="output"></pre>
   <div class="button-group">
     <button id="start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
-    <button id="stop"><i class="fa-solid fa-stop"></i> Stop</button>
-    <button id="restart"><i class="fa-solid fa-rotate-right"></i> Restart</button>
-    <button id="browser"><i class="fa-solid fa-window-maximize"></i> Open Browser</button>
+    <button id="stop" disabled><i class="fa-solid fa-stop"></i> Stop</button>
+    <button id="restart" disabled><i class="fa-solid fa-rotate-right"></i> Restart</button>
+    <button id="browser" disabled><i class="fa-solid fa-window-maximize"></i> Open Browser</button>
     <button id="exit"><i class="fa-solid fa-xmark"></i> Quit</button>
   </div>
   <script src="preload.js"></script>

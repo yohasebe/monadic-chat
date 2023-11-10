@@ -13,11 +13,33 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
   const statusElement = document.getElementById('status');
   statusElement.textContent = status;
 
-  if (status === 'Running') {
+  if (status === 'Port in use') {
+    statusElement.classList.remove('running');
+    statusElement.classList.add('stopped');
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('restart').disabled = true;
+    document.getElementById('browser').disabled = true;
+  } else if (status === 'Running') {
     statusElement.classList.remove('stopped');
     statusElement.classList.add('running');
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled = false;
+    document.getElementById('restart').disabled = false;
+    document.getElementById('browser').disabled = false;
   } else if (status === 'Stopped') {
     statusElement.classList.remove('running');
     statusElement.classList.add('stopped');
+    document.getElementById('start').disabled = false;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('restart').disabled = true;
+    document.getElementById('browser').disabled = true;
+  } else {
+    statusElement.classList.remove('running');
+    statusElement.classList.add('stopped');
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('restart').disabled = true;
+    document.getElementById('browser').disabled = true;
   }
 });

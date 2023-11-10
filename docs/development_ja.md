@@ -137,7 +137,7 @@ class AppName < MonadicApp
       # デフォルトのシステムプロンプト（上で定義したinitial_prompt）
       "initial_prompt": initial_prompt,
       # デフォルトのOpenAIのGPTのモデル
-      "model": "gpt-3.5-turbo-0613",
+      "model": "gpt-3.5-turbo",
       # デフォルトのtemperature
       "temperature": 0.5,
       # デフォルトのtop_p

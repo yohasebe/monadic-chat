@@ -23,7 +23,7 @@ class VoiceChat < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo-0613",
+      "model": "gpt-3.5-turbo",
       "temperature": 0.7,
       "top_p": 0.0,
       "max_tokens": 1000,

@@ -7,6 +7,8 @@ const https = require('https');
 const net = require('net');
 
 let tray = null;
+let justLaunched = true;
+let portInUse = false;
 let currentStatus = 'Stopped';
 let isQuitting = false;
 const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
@@ -313,6 +315,7 @@ function runCommand(command, message, statusAfterCommand, sync = false) {
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `${statusAfterCommand}`;
+
       updateContextMenu();
       updateStatusIndicator(currentStatus); // Pass the currentStatus
       if (mainWindow) {
@@ -362,10 +365,8 @@ function updateStatus() {
   isPortTaken(port, (taken) => {
     if (taken) {
       currentStatus = 'Running';
-      statusMenuItem.label = 'Running';
     } else {
       currentStatus = 'Stopped';
-      statusMenuItem.label = 'Stopped';
     }
     updateContextMenu();
     updateStatusIndicator(currentStatus); // Pass the currentStatus
@@ -406,7 +407,22 @@ function createMainWindow() {
     }
   });
 
-  const openingText = `Monadic Chat ${app.getVersion()}\nPress Start to initialize the server.`;
+  let openingText;
+
+  if(justLaunched){
+    isPortTaken(4567, function(taken){
+      if(taken){
+        openingText = "Port 4567 is already in use.\nPlease stop the process using this port and try again.";
+        portInUse = true;
+        currentStatus = 'Port in use';
+      } else {
+        openingText = `Monadic Chat ${app.getVersion()}\nPress Start to initialize the server.`;
+        portInUse = false;
+        justLaunched = false;
+        currentStatus = 'Stopped';
+      }
+    })
+  };
 
   setTimeout(() => {
     writeToScreen(openingText);

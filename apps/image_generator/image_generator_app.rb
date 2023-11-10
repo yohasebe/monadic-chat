@@ -32,7 +32,7 @@ class ImageGeneration < MonadicApp
 
       - Call the `generate_image` function always with a non-empty text prompt.
       - Increase the number of images generated (`num`) if the user asks for more images.
-      - Choose the size of the image (`size`) based on the user's request from 256 (default), 512, and 1024. "small" size is 256, "regular" size is 512, and "large" size is 1024.
+      - Choose the size of the image (`size`) based on the user's request from 1024x1024, 1024x1792, 1792x1024. "small" size is 1024x1024, "regular" size is 1024x1792, and "large" size is 1792x1024.
       - If the user does not specify the number of images to generate, create two images by setting 2 to the `num` parameter and 256 to the `size` parameter.
       - If the user asks to add something to generated images or to modify it, re-generate another image, calling the `generate_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous messages. Show the modified prompt in the response.
 
@@ -55,7 +55,7 @@ class ImageGeneration < MonadicApp
   def settings
     {
       "app_name": "Image Generator",
-      "model": "gpt-3.5-turbo-0613",
+      "model": "gpt-3.5-turbo",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 1000,
@@ -83,7 +83,7 @@ class ImageGeneration < MonadicApp
             },
             "size": {
               "type": "integer",
-              "description": "The size of the image to generate. Must be 256, 512, or 1024."
+              "description": "The size of the image to generate. Must be 1024x1024, 1024x1792, or 1792x1024"
             }
           },
           "required": ["prompt"]
@@ -95,10 +95,10 @@ class ImageGeneration < MonadicApp
   def generate_image(hash, num_retrials: 10)
     prompt = hash[:prompt]
     num = hash[:num] || 1
-    size = hash[:size] || 256
+    size = hash[:size] || "1024x1024"
     format = hash[:format] || "url"
 
-    raise "Size must be 256, 512, or 1024" unless [256, 512, 1024].include?(size)
+    raise "Size must be 1024x1024, 1024x1792, 792x1024" unless ["1024x1024", "1024x1792", "1792x1024"].include?(size)
     raise "Number of images must be between 1 and 4" unless (1..4).include?(num)
 
     url = "https://api.openai.com/v1/images/generations"
@@ -111,6 +111,7 @@ class ImageGeneration < MonadicApp
       }
 
       body = {
+        "model" => "dall-e-3",
         "prompt" => prompt,
         "n" => num,
         "size" => "#{size}x#{size}",
@@ -129,7 +130,7 @@ class ImageGeneration < MonadicApp
       end.join("\n")
     else
       pp "Error: #{res.status} - #{res.body}"
-      { "type" => "error", "content" => "DALL-E 2 API Error" }
+      { "type" => "error", "content" => "DALL-E 3 API Error" }
     end
   rescue StandardError => e
     pp e.message

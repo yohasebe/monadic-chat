@@ -59,7 +59,7 @@ Currently, the following base apps are available for use. By selecting one of th
 
 ## Image Generator
 
-<img src="./assets/icons/image-generator.png" width="40px"/> This is an application for image generation. When an initial prompt is entered, the image is generated using OpenAI's DALL-E API. If you specify GPT 4.0 as the model for the conversation, you can gradually improve the prompt through interaction with the AI chatbot to get the desired image.
+<img src="./assets/icons/image-generator.png" width="40px"/> This is an application for image generation. When an initial prompt is entered, the image is generated using OpenAI's DALL-E API (`dall-e-3`). If you specify GPT 4.0 as the model for the conversation, you can gradually improve the prompt through interaction with the AI chatbot to get the desired image.
 
 ## Mail Composer
 

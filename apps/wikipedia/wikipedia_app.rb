@@ -33,7 +33,7 @@ class Wikipedia < MonadicApp
   def settings
     {
       "app_name": "Wikipedia",
-      "model": "gpt-3.5-turbo-0613",
+      "model": "gpt-3.5-turbo-1106",
       "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 1000,

@@ -4,6 +4,9 @@ $(function () {
   const backToTop = $("#back_to_top");
   const backToBottom = $("#back_to_bottom");
 
+  // button#broser is disabled when the system has started
+  $("#browser").prop("disabled", true);
+
   //////////////////////////////
   // UI event handlers
   //////////////////////////////

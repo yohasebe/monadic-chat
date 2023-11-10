@@ -173,7 +173,7 @@ function connect_websocket(callback) {
           model => `<option value="${model}">${model}</option>`
         );
         $("#model").html(model_options);
-        $("#model").val("gpt-3.5-turbo-0613");
+        $("#model").val("gpt-3.5-turbo");
 
         if (messages.length === 0) {
           const token_verified = `\

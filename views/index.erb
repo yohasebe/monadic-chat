@@ -95,7 +95,34 @@
             <div id="alert-message"></div>
           </div>
 
-          <div id="speech-panel" class="p-3 mb-3 rounded shaded-panel">
+          <div id="tts-panel" class="p-3 mb-3 rounded shaded-panel">
+            <h5 class=""><span class="text"><i class="fas fa-comment-dots"></i> Speech</span></h5>
+
+
+            <div class="form-check form-switch my-3">
+              <label class="form-check-label" for="tts-quality">Use HD voice</label>
+              <input class="form-check-input" type="checkbox" id="tts-quality">
+            </div>
+
+            <div class="my-1">
+              <label for="tts-voice" class="div-label my-2">Voice</label>
+              <select class="form-select" id="tts-voice">
+                <option value="alloy">Alloy</option>
+                <option value="echo">Echo</option>
+                <option value="fable">Fable</option>
+                <option value="onyx">Onyx</option>
+                <option value="nova">Nova</option>
+                <option value="shimmer">Shimmer</option>
+              </select>
+            </div>
+            <div class="my-1">
+              <label for="tts-speed" class="div-label my-2">Speed (<span id="tts-speed-value">1.0</span>)</label><br />
+              <input type="range" class="div-range" min="0.25" max="4.0" step="0.05" value="1.0" id="tts-speed">
+            </div>
+          </div>
+
+          <!--
+          <div id="tts-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class=""><span class="text"><i class="fas fa-comment-dots"></i> Speech</span></h5>
 
             <div class="form-check form-switch my-3">
@@ -116,6 +143,7 @@
               <input type="range" class="div-range" min="0.5" max="1.5" step="0.1" value="1.0" id="speech-rate">
             </div>
           </div>
+          -->
 
           <div id="parameter-panel" class="p-3 my-3 rounded shaded-panel" style="display: none;">
             <h5><span class="text"><i class="fas fa-sliders"></i> Parameters</span></h5>
@@ -451,7 +479,8 @@
     <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/websocket.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/speech.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/tts.js?timestamp=<%= @timestamp %>"></script>
+    <!--<script src="js/monadic/speech.js?timestamp=<%= @timestamp %>"></script>-->
     <script src="js/monadic/recording.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
   </body>

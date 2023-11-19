@@ -53,7 +53,7 @@ module WebSocketHelper
       sid = nil
 
       @channel = EventMachine::Channel.new
-      ws = Faye::WebSocket.new(env)
+      ws = Faye::WebSocket.new(env, nil, { ping: 15 })
 
       ws.on :open do
         sid = @channel.subscribe { |obj| ws.send(obj) }
@@ -64,6 +64,24 @@ module WebSocketHelper
         msg = obj["message"] || ""
 
         case msg
+        when "TTS"
+          text = obj["text"]
+          voice = obj["voice"]
+          speed = obj["speed"]
+          model = obj["model"]
+          tts_api_request(text, voice, speed, model) do |fragment|
+            @channel.push(fragment.to_json)
+          end
+        when "TTS_STREAM"
+          thread = Thread.new do
+            text = obj["text"]
+            voice = obj["voice"]
+            speed = obj["speed"]
+            model = obj["model"]
+            tts_api_request(text, voice, speed, model) do |fragment|
+              @channel.push(fragment.to_json)
+            end
+          end
         when "CANCEL"
           thread&.kill
           thread = nil
@@ -186,9 +204,9 @@ module WebSocketHelper
             response = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
                 # retry if error occurs only once
-                completion_api_request("user") do |fragment2|
-                  @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
-                end
+                # completion_api_request("user") do |fragment2|
+                #   @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
+                # end
               elsif fragment["type"] == "fragment" && !cutoff
                 buffer << fragment["content"] unless fragment["content"].empty? || fragment["content"] == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
@@ -197,34 +215,36 @@ module WebSocketHelper
                   candidate = segments.first
                   splitted = candidate.split("---")
                   cutoff = true if splitted.size > 1
-                  @channel.push({ "type" => "sentence", "content" => candidate, "lang" => detect_language(candidate) }.to_json) if splitted[0] != "" && candidate != ""
+                  # @channel.push({ "type" => "sentence", "content" => candidate }.to_json) if splitted[0] != "" && candidate != ""
                   buffer = segments[1..]
                 end
               end
               @channel.push(fragment.to_json)
             end
             unless cutoff
-              candidate = buffer.join
-              splitted = candidate.split("---")
-              @channel.push({ "type" => "sentence", "content" => splitted[0], "lang" => detect_language(splitted[0]) }.to_json) if splitted[0] != ""
+              # candidate = buffer.join
+              # splitted = candidate.split("---")
+              # @channel.push({ "type" => "sentence", "content" => splitted[0] }.to_json) if splitted[0] != ""
             end
             if response && response["type"] == "error"
               @channel.push({ "type" => "error", "content" => response["content"] }.to_json)
             else
+              text = response["choices"][0]["text"]
+              @channel.push({ "type" => "sentence", "content" => text }.to_json)
               queue.push(response)
             end
           end
         end
       end
 
-      ping_timer = EventMachine.add_periodic_timer(30) do
-        ws&.ping("ping") do
-          puts "Received PING"
-        end
-      end
+      # ping_timer = EventMachine.add_periodic_timer(30) do
+      #   ws&.ping("ping") do
+      #     puts "Received PING"
+      #   end
+      # end
 
       ws.on :close do |event|
-        EventMachine.cancel_timer(ping_timer)
+        # EventMachine.cancel_timer(ping_timer)
         p [:close, event.code, event.reason]
         ws = nil
         @channel.unsubscribe(sid)

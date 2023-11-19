@@ -31,7 +31,8 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
     card.find(".card-header").append(`
         <div class="me-1 text-secondary d-flex align-items-center">
           <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-          <span title="Text to Speech" class="func-play me-3"><i class="fas fa-play"></i></span>
+          <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
+          <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
           <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
           <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
           <span class="status ${status_class}"></span>
@@ -39,29 +40,43 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
       `);
   }
 
+  // $(document).on("click", `#${mid} .func-play`, function () {
+  //   $(this).tooltip('hide');
+  //   // cutoff text after <hr> or <hr/> or <hr /> of text content and remove all HTML tags
+  //   const content = html.split(/<hr\s*\/?>/, 1)[0].replace(/<[^>]*>?/gm, '');
+  //   const $this = $(this); // Store the reference to the clicked element
+  //   if (speechSynthesis.speaking) {
+  //     speechSynthesis.cancel();
+  //     $this.find("i").removeClass("fa-stop").addClass("fa-play")
+  //   } else {
+  //     $this.find("i").removeClass("fa-play").addClass("fa-stop")
+  //     let sentences = removeEmojis(content).split(/[.?!:;。．？！]/).filter(Boolean);
+  //         sentences = sentences.filter((s) => s.trim().length > 0);
+  //     console.log(sentences);
+  //     for (let i = 0; i < sentences.length; i++) {
+  //       if(i === sentences.length - 1) {
+  //         speak(sentences[i].trim(), lang, function () {
+  //           $this.find("i").removeClass("fa-stop").addClass("fa-play")
+  //         });
+  //       } else {
+  //         speak(sentences[i].trim(), lang, function (){} );
+  //       }
+  //     }
+  //   }
+  // });
+
+
   $(document).on("click", `#${mid} .func-play`, function () {
     $(this).tooltip('hide');
     // cutoff text after <hr> or <hr/> or <hr /> of text content and remove all HTML tags
     const content = html.split(/<hr\s*\/?>/, 1)[0].replace(/<[^>]*>?/gm, '');
     const $this = $(this); // Store the reference to the clicked element
-    if (speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-      $this.find("i").removeClass("fa-stop").addClass("fa-play")
-    } else {
-      $this.find("i").removeClass("fa-play").addClass("fa-stop")
-      let sentences = removeEmojis(content).split(/[.?!:;。．？！]/).filter(Boolean);
-          sentences = sentences.filter((s) => s.trim().length > 0);
-      console.log(sentences);
-      for (let i = 0; i < sentences.length; i++) {
-        if(i === sentences.length - 1) {
-          speak(sentences[i].trim(), lang, function () {
-            $this.find("i").removeClass("fa-stop").addClass("fa-play")
-          });
-        } else {
-          speak(sentences[i].trim(), lang, function (){} );
-        }
-      }
-    }
+    ttsSpeak(content.trim(), true, function (){} );
+  });
+
+  $(document).on("click", `#${mid} .func-stop`, function () {
+    $(this).tooltip('hide');
+    ttsStop();
   });
 
   // click on the copy icon will copy the message
@@ -114,9 +129,11 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   $(document).on("click", `#${mid} .func-delete`, function () {
     const text = $(`#${mid} .card-text`).text();
-    if (speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-    }
+    // if (speechSynthesis.speaking) {
+    //   speechSynthesis.cancel();
+    // }
+
+    ttsStop();
 
     const confirmed = confirm(`Are you sure to delete the message "${text}"?`);
     if (confirmed) {

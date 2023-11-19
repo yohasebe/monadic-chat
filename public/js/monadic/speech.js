@@ -56,7 +56,6 @@ function setupLanguages(refresh, default_lang) {
 
   if ($('#speech-lang option').length === 0) {
     const lctagsUrl = "http://localhost:4567/lctags"
-
     fetch(lctagsUrl)
       .then((response) => {
         if (!response.ok) {

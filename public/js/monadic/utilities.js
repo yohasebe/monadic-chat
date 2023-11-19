@@ -83,9 +83,11 @@ function saveObjToJson(obj, fileName) {
   const objToSave = Object.assign({}, obj);
   delete objToSave["parameters"]["message"];
   delete objToSave["parameters"]["pdf"];
-  delete objToSave["parameters"]["speech_lang"];
-  delete objToSave["parameters"]["speech_voice"];
-  delete objToSave["parameters"]["speech_rate"];
+  // delete objToSave["parameters"]["speech_lang"];
+  // delete objToSave["parameters"]["speech_voice"];
+  // delete objToSave["parameters"]["speech_rate"];
+  delete objToSave["parameters"]["tts_voice"];
+  delete objToSave["parameters"]["tts_speed"];
   const data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objToSave));
   const downloadLink = $('<a></a>')
     .attr('href', 'data:' + data)
@@ -186,9 +188,11 @@ function listParams(params) {
       "message",
       "pdf",
       "show_notification",
-      "speech_lang",
-      "speech_voice",
-      "speech_rate",
+      // "speech_lang",
+      // "speech_voice",
+      // "speech_rate",
+      "tts_voice",
+      "tts_speed",
       "initial_prompt",
       "description",
       "functions"
@@ -280,9 +284,11 @@ function setParams() {
   params["frequency_penalty"] = $("#frequency-penalty").val();
   params["max_tokens"] = $("#max-tokens").val();
   params["context_size"] = $("#context-size").val();
-  params["speech_rate"] = $("#speech-rate").val();
-  params["speech_lang"] = $("#speech-lang").val();
-  params["speech_voice"] = $("#speech-voice").val();
+  // params["speech_rate"] = $("#speech-rate").val();
+  params["tts_speed"] = $("#tts-speed").val();
+  // params["speech_lang"] = $("#speech-lang").val();
+  // params["speech_voice"] = $("#speech-voice").val();
+  params["tts_voice"] = $("#tts-voice").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');

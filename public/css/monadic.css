@@ -14,7 +14,7 @@ body, html {
   margin: 0;
 }
 
-.navbar-brand, .func-copy, .func-play, .func-delete, .func-edit {
+.navbar-brand, .func-copy, .func-play, .func-stop, .func-delete, .func-edit {
   cursor: pointer;
 }
 

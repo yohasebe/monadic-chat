@@ -307,47 +307,58 @@ $(function () {
 
   resetParams();
 
-  let default_lang = "en-US";
-  let voices;
-  let waitCount = 0;
-  let timer = setInterval(function () {
-    waitCount++;
-    voices = window.speechSynthesis.getVoices();
-    if (Object.keys(params).length > 0 && voices && voices.length > 0) {
-      utterance = new SpeechSynthesisUtterance();
-      setupLanguages(true, params["speech_lang"] || default_lang);
-      window.speechSynthesis.onvoiceschanged = function () {
-        setupLanguages(false, params["speech_lang"] || default_lang);
-      };
-      clearInterval(timer);
-      $("#lang_controller").show();
-      $("#voice_controller").show();
-      setInputFocus()
+  // let default_lang = "en-US";
+  // let voices;
+  // let waitCount = 0;
+  // let timer = setInterval(function () {
+  //   waitCount++;
+  //   voices = window.speechSynthesis.getVoices();
+  //   if (Object.keys(params).length > 0 && voices && voices.length > 0) {
+  //     utterance = new SpeechSynthesisUtterance();
+  //     setupLanguages(true, params["speech_lang"] || default_lang);
+  //     window.speechSynthesis.onvoiceschanged = function () {
+  //       setupLanguages(false, params["speech_lang"] || default_lang);
+  //     };
+  //     clearInterval(timer);
+  //     $("#lang_controller").show();
+  //     $("#voice_controller").show();
+  //     setInputFocus()
 
-    } else if (waitCount == 50) {
-      clearInterval(timer);
-      return false;
-    }
-  }, 100);
+  //   } else if (waitCount == 50) {
+  //     clearInterval(timer);
+  //     return false;
+  //   }
+  // }, 100);
 
 
-  $("#speech-lang").on("change", function(){
-    setupVoices(true);
-    params["speech_lang"] = $("#speech-lang option:selected").val();
-    params["speech_voice"] = $("#speech-voice option:selected").val();
-    setCookie("userLang", params["speech_lang"], 30);
-    setCookie("userVoice", params["speech_voice"], 30);
+  // $("#speech-lang").on("change", function(){
+  //   setupVoices(true);
+  //   params["speech_lang"] = $("#speech-lang option:selected").val();
+  //   params["speech_voice"] = $("#speech-voice option:selected").val();
+  //   setCookie("userLang", params["speech_lang"], 30);
+  //   setCookie("userVoice", params["speech_voice"], 30);
+  // });
+
+  // $("#speech-voice").on("change", function(){
+  //   params["speech_voice"] = $("#speech-voice option:selected").val();
+  //   setCookie("userVoice", params["speech_voice"], 30);
+  // });
+
+  $("#tts-voice").on("change", function(){
+    params["tts_voice"] = $("#tts-voice option:selected").val();
+    setCookie("userVoice", params["tts_voice"], 30);
   });
 
-  $("#speech-voice").on("change", function(){
-    params["speech_voice"] = $("#speech-voice option:selected").val();
-    setCookie("userVoice", params["speech_voice"], 30);
-  });
+  // $("#speech-rate").on("input", function() {
+  //   $("#speech-rate-value").text(parseFloat($(this).val()).toFixed(1));
+  //   params["speech_rate"] = parseFloat($(this).val());
+  //   setCookie("userRate", params["speech_rate"], 30);
+  // });
 
-  $("#speech-rate").on("input", function() {
-    $("#speech-rate-value").text(parseFloat($(this).val()).toFixed(1));
-    params["speech_rate"] = parseFloat($(this).val());
-    setCookie("userRate", params["speech_rate"], 30);
+  $("#tts-speed").on("input", function() {
+    $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
+    params["tts_speed_rate"] = parseFloat($(this).val());
+    setCookie("userSpeed", params["tts_speed_rate"], 30);
   });
 
   $("#error-close").on("click", function (event) {
@@ -366,11 +377,11 @@ $(function () {
     }
   });
 
-  if (!runningOnChrome) {
-    voiceButton.hide();
-    $("#auto-speech").hide();
-    $("#auto-speech-form").hide();
-  }
+  // if (!runningOnChrome) {
+  //   voiceButton.hide();
+  //   $("#auto-speech").hide();
+  //   $("#auto-speech-form").hide();
+  // }
 
   $("#select-role").on("change", function () {
     const role = $("#select-role option:selected").val();
@@ -411,15 +422,15 @@ $(function () {
   });
 
   // if $("#auto-lang") is checked, then disable the language selector
-  $("#auto-lang").on("change", function () {
-    if ($(this).is(":checked")) {
-      $("#speech-lang").prop("disabled", true);
-      $("#speech-voice").prop("disabled", true);
-    } else {
-      $("#speech-lang").prop("disabled", false);
-      $("#speech-voice").prop("disabled", false);
-    }
-  });
+  // $("#auto-lang").on("change", function () {
+  //   if ($(this).is(":checked")) {
+  //     $("#speech-lang").prop("disabled", true);
+  //     $("#speech-voice").prop("disabled", true);
+  //   } else {
+  //     $("#speech-lang").prop("disabled", false);
+  //     $("#speech-voice").prop("disabled", false);
+  //   }
+  // });
 
   $("#discourse").tooltip({
     selector: '.card-header [title]',

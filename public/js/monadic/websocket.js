@@ -76,6 +76,12 @@ function startPing() {
   }, 30000);
 }
 
+function stopPing() {
+  if (pingInterval) {
+    clearInterval(pingInterval);
+  }
+}
+
 const chatBottom = $("#chat-bottom").get(0);
 const mainPanel = $("#main-panel").get(0);
 const defaultApp = "Chat";
@@ -118,8 +124,25 @@ function applyMathJax(element) {
     });
 }
 
+let mediaSource = null;
+let audio = null;
+let sourceBuffer = null;
+let audioDataQueue = [];
+
+function processAudioDataQueue() {
+  if (audioDataQueue.length > 0 && sourceBuffer && !sourceBuffer.updating) {
+    const audioData = audioDataQueue.shift();
+    if (audioData) {
+      sourceBuffer.appendBuffer(audioData);
+    }
+  } else {
+    ;
+  }
+}
+
 function connect_websocket(callback) {
   const ws = new WebSocket('ws://localhost:4567');
+
 
   let loadedApp = "Chat";
   let infoHtml = "";
@@ -127,6 +150,21 @@ function connect_websocket(callback) {
   ws.onopen = function () {
     console.log('WebSocket connected');
     ws.send(JSON.stringify({"message": "CHECK_TOKEN", "contents": $("#token").val()}));
+
+    if (!mediaSource) {
+      mediaSource = new MediaSource();
+      mediaSource.addEventListener('sourceopen', () => {
+        console.log('MediaSource opened');
+        sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+      });
+    }
+
+    if (!audio) {
+      audio = new Audio();
+      audio.src = URL.createObjectURL(mediaSource);
+    }
+
     // check verified at a regular interval
     let verificationCheckTimer = setInterval(function () {
       if (verified) {
@@ -143,6 +181,10 @@ function connect_websocket(callback) {
   ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data["type"]) {
+      case "audio":
+        const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
+        audioDataQueue.push(audioData);
+        processAudioDataQueue();
       case "pong":
         console.log("Received PONG");
         break;
@@ -163,7 +205,7 @@ function connect_websocket(callback) {
         $("#message").val(params["message"]);
 
         setAlert(data["content"], "danger");
-        
+
         setInputFocus()
 
         break;
@@ -177,12 +219,12 @@ function connect_websocket(callback) {
 
         if (messages.length === 0) {
           const token_verified = `\
-            <p>${data['content']}</p>\
-            <div class='like-h5'><i class='fa-solid fa-robot'></i> Available Models</div>\
-            <p>\
-              ${data['models'].join('<br />')}\
-            </p>\
-          `
+              <p>${data['content']}</p>\
+              <div class='like-h5'><i class='fa-solid fa-robot'></i> Available Models</div>\
+              <p>\
+                ${data['models'].join('<br />')}\
+              </p>\
+            `
           setAlert(token_verified, "info");
           verified = true;
         }
@@ -359,6 +401,11 @@ function connect_websocket(callback) {
 
         $("#discourse").append(htmlElement);
 
+        if (params["auto_speech"]) {
+          const text = removeEmojis(data["content"]["text"].replace(/\n/g, " "));
+          ttsSpeak(text, true, function () {});
+        }
+
         const htmlContent = $("#discourse div.card:last");
 
         if (params["mathjax"] === "true") {
@@ -385,22 +432,22 @@ function connect_websocket(callback) {
         $("#user-panel").hide();
         break;
       case "sentence":
-        // speak the text if auto_speak is enabled
+        console.log("sentence: " + data["content"]);
         if (data["content"] !== null) {
-          const text = removeEmojis(data["content"]).trim();
-          if (params["auto_speech"]) {
-            speak(text, data["lang"], function () {});
-          }
+          const text = data["content"].trim();
         }
         break;
       default:
         $("#indicator").show();
         msgBuffer.push(data["content"]);
-        $("#chat").html($("#chat").html() + data["content"].replace(/\n/g, "<br />"));
+        // check if data["content"] is defined
+        if (data["content"] !== undefined) {
+          $("#chat").html($("#chat").html() + data["content"].replace(/\n/g, "<br />"));
+        }
         if (!isElementInViewport(chatBottom)){
           chatBottom.scrollIntoView(false);
         }
-    };
+    }
   }
 
   ws.onclose = function (e) {

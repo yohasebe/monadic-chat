@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# frozen_string_literal: false
 
 module OpenAIHelper
   API_ENDPOINT = "https://api.openai.com/v1"
@@ -60,6 +60,63 @@ module OpenAIHelper
       pp e.message
       pp e.backtrace
       { "type" => "error", "content" => "ERROR: #{e.message}" }
+    end
+  end
+
+  def tts_api_request(text, voice, speed, model, &block)
+    body = {
+      "input" => text,
+      "model" => model,
+      "voice" => voice,
+      "speed" => speed,
+      "response_format" => "mp3"
+    }
+
+    num_retrial = 0
+    api_key = settings.api_key
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/audio/speech"
+
+    http = HTTP.headers(headers)
+    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+    unless res.status.success?
+      error_report = JSON.parse(res.body)["error"]
+      res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+      block&.call res
+      return res
+    end
+
+    index = 0
+    results = { "type" => "audio", "content" => "" }
+    res.body.each do |chunk|
+      index += 1
+      content = Base64.strict_encode64(chunk)
+      results["content"] += content
+      res = { "type" => "audio", "content" => content, "index" => index, "finished" => false }
+      block&.call res
+    end
+    index += 1
+    finish = { "type" => "audio", "content" => "", "index" => index, "finished" => true }
+    block&.call finish
+    results
+
+    # res = { "type" => "audio", "content" => nil, "finished" => true, "index" => index + 1 }
+    # block&.call res
+  rescue HTTP::Error, HTTP::TimeoutError
+    if num_retrial < MAX_RETRIES
+      num_retrial += 1
+      sleep RETRY_DELAY
+      retry
+    else
+      pp error_message = "The request has timed out."
+      res = { "type" => "error", "content" => "ERROR: #{error_message}" }
+      block&.call res
+      false
     end
   end
 
@@ -216,57 +273,69 @@ module OpenAIHelper
       return res
     end
 
-    json = nil
+    results = nil
 
-    if body["stream"] && !(res["choices"] && res["choices"][0]["finish_reason"] == "stop")
+    if body["stream"]
+      buffer = ""
+      break_flag = false
       res.body.each do |chunk|
+        break if break_flag
 
-        chunk.scan(/data: (\{.*\})/i).flatten.each do |data|
-          content = data.strip
+        buffer << chunk
+        break_flag = true if /\Rdata: [DONE]\R/ =~ buffer
+        scanner = StringScanner.new(buffer)
+        pattern = /data: (\{.*?\})(?=\n|\z)/m
+        until scanner.eos?
+          matched = scanner.scan_until(pattern)
+          if matched
+            json_data = matched.match(pattern)[1]
 
-          break if content == "[DONE]"
+            begin
+              json = JSON.parse(json_data)
+              choice = json.dig("choices", 0)
 
-          begin
-            stream = JSON.parse(content)
-          rescue JSON::ParserError
-            next
-          end
+              fragment = choice.dig("delta", "content").to_s
+              next if !fragment || fragment == ""
 
-          fragment = if body["stream"]
-                       stream["choices"][0]["delta"]["content"] || ""
-                     else
-                       stream["choices"][0]["text"]
-                     end
-          res = { "type" => "fragment", "content" => fragment, "finish_reason" => stream["finish_reason"] }
-          block&.call res
-          if !json
-            json = stream
-          else
-            case mode
-            when "completions"
-              json["choices"][0]["text"] << fragment
-            when "chat/completions"
-              json["choices"][0]["text"] ||= +""
-              json["choices"][0]["text"] << fragment
+              res = { "type" => "fragment", "content" => fragment, "finish_reason" => choice["finish_reason"] }
+              block&.call res
+
+              results ||= json
+              results["choices"][0]["text"] ||= +""
+              results["choices"][0]["text"] << fragment
+
+              if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+                finish = { "type" => "message", "content" => "DONE" }
+                block&.call finish
+                break
+              end
+            rescue JSON::ParserError
+              res = { "type" => "error", "content" => "Error: JSON Parsing" }
+              pp res
+              block&.call res
+              res
             end
+          else
+            buffer = scanner.rest
+            break
           end
         end
       end
     else
       begin
-        json = JSON.parse(res.body)
+        results = JSON.parse(res.body)
       rescue JSON::ParserError
-        res = { "type" => "error", "content" => "Error: JSON Parsing" }
+        results = { "type" => "error", "content" => "Error: JSON Parsing" }
         pp res
         block&.call res
-        return res
+        return results
       end
     end
 
-    if role == "user" && obj["functions"] && (!json["choices"] || json["choices"] && json["choices"][0]["finish_reason"] != "stop")
+    if role == "user" && obj["functions"] && (!results["choices"] || results["choices"] && results["choices"][0]["finish_reason"] != "stop")
       custom_function_keys = APPS[app].settings[:functions]
       if custom_function_keys && !custom_function_keys.empty?
-        json_message = json["choices"][0]["message"]
+        json_message = results["choices"][0]["message"]
         function_call = json_message["function_call"]
         function_name = function_call["name"]
         argument_hash = JSON.parse(function_call["arguments"])
@@ -283,14 +352,14 @@ module OpenAIHelper
         obj["stream"] = true
         return completion_api_request("system", &block)
       elsif obj["monadic"]
-        message = json["choices"][0]["text"]
-        json["choices"][0]["text"] = APPS[app].monadic_map(message)
+        message = results["choices"][0]["text"]
+        results["choices"][0]["text"] = APPS[app].monadic_map(message)
       end
     end
 
     res = { "type" => "message", "content" => "DONE" }
     block&.call res
-    json
+    results
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -307,18 +376,18 @@ module OpenAIHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    hint = if json.dig("error", "message").present?
-             case json["error"]["message"]
-             when /overloaded/
-               "Server overloaded, please try again later."
-             else
-               "Something went wrong."
-             end
-           else
-             "Something went wrong."
-           end
-    res = { "type" => "error", "content" => "ERROR: #{hint}" }
-    block&.call res
-    false
+    # hint = if json.dig("error", "message").present?
+    #          case json["error"]["message"]
+    #          when /overloaded/
+    #            "Server overloaded, please try again later."
+    #          else
+    #            "Something went wrong."
+    #          end
+    #        else
+    #          "Something went wrong."
+    #        end
+    # res = { "type" => "error", "content" => "ERROR: #{hint}" }
+    # block&.call res
+    # false
   end
 end

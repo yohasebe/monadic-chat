@@ -127,18 +127,19 @@ voiceButton.on("click", function () {
 
         blobToBase64(event.data, function (base64) {
           let lang_code
-          if ($("#auto-lang").is(":checked")) {
-            lang_code = null;
-          } else if (params["speech_lang"]) {
-            lang_code = params["speech_lang"].split("-")[0];
-          }
+          // if ($("#auto-lang").is(":checked")) {
+          //   lang_code = null;
+          // } else if (params["speech_lang"]) {
+          //   lang_code = params["speech_lang"].split("-")[0];
+          // }
           let format = "mp3";
           if (runningOnChrome) {
             format = "webm";
           } else if (runningOnFirefox) {
             format = "ogg";
           }
-          const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});
+          // const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});
+          const json = JSON.stringify({message: "AUDIO", content: base64, format: format});
           reconnect_websocket(ws, function () {
             ws.send(json);
           });

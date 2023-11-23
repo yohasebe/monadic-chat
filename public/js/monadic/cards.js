@@ -28,16 +28,28 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
   } else if (mid !== "") {
     mids.push(mid);
     card.attr("id", mid);
-    card.find(".card-header").append(`
-        <div class="me-1 text-secondary d-flex align-items-center">
-          <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-          <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
-          <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
-          <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-          <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-          <span class="status ${status_class}"></span>
-        </div>
-      `);
+
+    if (runningOnFirefox) {
+      card.find(".card-header").append(`
+          <div class="me-1 text-secondary d-flex align-items-center">
+            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+            <span class="status ${status_class}"></span>
+          </div>
+        `);
+    } else {
+      card.find(".card-header").append(`
+          <div class="me-1 text-secondary d-flex align-items-center">
+            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+            <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
+            <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
+            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+            <span class="status ${status_class}"></span>
+          </div>
+        `);
+    }
   }
 
   // $(document).on("click", `#${mid} .func-play`, function () {
@@ -64,7 +76,6 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
   //     }
   //   }
   // });
-
 
   $(document).on("click", `#${mid} .func-play`, function () {
     $(this).tooltip('hide');

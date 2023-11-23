@@ -377,11 +377,11 @@ $(function () {
     }
   });
 
-  // if (!runningOnChrome) {
-  //   voiceButton.hide();
-  //   $("#auto-speech").hide();
-  //   $("#auto-speech-form").hide();
-  // }
+  if (!runningOnChrome && !runningOnEdge && !runningOnSafari && !runningOnFirefox) {
+    voiceButton.hide();
+    $("#auto-speech").hide();
+    $("#auto-speech-form").hide();
+  }
 
   $("#select-role").on("change", function () {
     const role = $("#select-role option:selected").val();

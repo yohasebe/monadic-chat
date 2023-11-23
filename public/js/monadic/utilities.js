@@ -1,5 +1,7 @@
 const runningOnChrome = navigator.userAgent.includes("Chrome");
+const runningOnEdge = navigator.userAgent.includes("Edge");
 const runningOnFirefox = navigator.userAgent.includes("Firefox");
+const runningOnSafari = navigator.userAgent.includes("Safari");
 
 const elemError = $("#error-box")
 const textError = $("#error-message")

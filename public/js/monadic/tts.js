@@ -1,4 +1,7 @@
 function ttsSpeak(text, stream, callback) {
+  if (runningOnFirefox) {
+    return false;
+  }
 
   let mode = "TTS"
   if(stream){
@@ -25,7 +28,11 @@ function ttsSpeak(text, stream, callback) {
   if (quality) {
     model = "tts-1-hd"
   }
-  response_format = "mp3"
+
+  let response_format = "mp3"
+  if(runningOnFirefox){
+    response_format = "aac"
+  }
 
   reconnect_websocket(ws, function (ws) {
     ws.send(JSON.stringify({
@@ -33,7 +40,8 @@ function ttsSpeak(text, stream, callback) {
       text: text,
       voice: voice,
       speed: speed,
-      model: model
+      model: model,
+      response_format: response_format
     }));
   });
 }
@@ -50,7 +58,11 @@ function ttsStop() {
   mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', () => {
     console.log('MediaSource opened');
-    sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+    if (runningOnFirefox) {
+      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+    } else {
+      sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+    }
     sourceBuffer.addEventListener('updateend', processAudioDataQueue);
   });
 

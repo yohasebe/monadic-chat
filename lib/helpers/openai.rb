@@ -63,13 +63,13 @@ module OpenAIHelper
     end
   end
 
-  def tts_api_request(text, voice, speed, model, &block)
+  def tts_api_request(text, voice, speed, response_format, model, &block)
     body = {
       "input" => text,
       "model" => model,
       "voice" => voice,
       "speed" => speed,
-      "response_format" => "mp3"
+      "response_format" => response_format
     }
 
     num_retrial = 0
@@ -84,6 +84,7 @@ module OpenAIHelper
 
     http = HTTP.headers(headers)
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
       res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
@@ -92,21 +93,21 @@ module OpenAIHelper
     end
 
     index = 0
-    results = { "type" => "audio", "content" => "" }
-    res.body.each do |chunk|
-      index += 1
-      content = Base64.strict_encode64(chunk)
-      results["content"] += content
-      res = { "type" => "audio", "content" => content, "index" => index, "finished" => false }
-      block&.call res
-    end
-    index += 1
-    finish = { "type" => "audio", "content" => "", "index" => index, "finished" => true }
-    block&.call finish
-    results
 
-    # res = { "type" => "audio", "content" => nil, "finished" => true, "index" => index + 1 }
-    # block&.call res
+    if block_given?
+      res.body.each do |chunk|
+        index += 1
+        content = Base64.strict_encode64(chunk)
+        hash_res = { "type" => "audio", "content" => content, "index" => index, "finished" => false }
+        block&.call hash_res
+      end
+      index += 1
+      finish = { "type" => "audio", "content" => "", "index" => index, "finished" => true }
+      block&.call finish
+    else
+      results = { "type" => "audio", "content" => Base64.strict_encode64(res) }
+      return results
+    end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

@@ -26,7 +26,6 @@ function setupLanguages(refresh, default_lang) {
   $("#speech-rate").val(default_rate || 1.0);
   $("#speech-rate-value").text(default_rate);
 
-
   const voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) {
     return false;

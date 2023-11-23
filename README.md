@@ -46,9 +46,9 @@ There are two types of Monadic Chat: one is a web browser-based app provided in 
 ### Voice Interaction
 
 - 🎙️ Automatic transcription of **microphone input** using OpenAI's Whisper API
-- 🔈 Natural **text-to-speech** voices are available for AI assistant responses
+- 🔈 Natural **text-to-speech** voices for AI assistant responses
 - 🗺️ **Automatic language detection** for appropriate text-to-speech playback
-- 😊 Enable **voice conversations** with the AI agent using speech recognition and text-to-speech
+- 😊 **Voice chat** with the AI agent using speech recognition and text-to-speech
 
 ### Image Generation
 

@@ -406,7 +406,9 @@ function connect_websocket(callback) {
         $("#discourse").append(htmlElement);
 
         if (params["auto_speech"]) {
-          const text = removeEmojis(data["content"]["text"].replace(/\n/g, " "));
+          let text = data["content"]["text"]
+          text = removeCode(text);
+          text = removeEmojis(text);
           ttsSpeak(text, true, function () {});
         }
 

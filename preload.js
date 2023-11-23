@@ -14,43 +14,43 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
   statusElement.textContent = status;
 
   if (status === 'Port in use') {
-    statusElement.classList.remove('running');
-    statusElement.classList.add('stopped');
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = true;
     document.getElementById('restart').disabled = true;
     document.getElementById('browser').disabled = true;
   } else if (status === 'Starting') {
-    statusElement.classList.remove('stopped');
-    statusElement.classList.add('starting');
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = true;
     document.getElementById('restart').disabled = true;
     document.getElementById('browser').disabled = true;
   } else if (status === 'Running') {
-    statusElement.classList.remove('starting');
-    statusElement.classList.add('running');
+    statusElement.classList.remove('inactive');
+    statusElement.classList.add('active');
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = false;
     document.getElementById('restart').disabled = false;
     document.getElementById('browser').disabled = false;
   } else if (status === 'Stopping') {
-    statusElement.classList.remove('running');
-    statusElement.classList.add('stopping');
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = true;
     document.getElementById('restart').disabled = true;
     document.getElementById('browser').disabled = true;
   } else if (status === 'Stopped') {
-    statusElement.classList.remove('stopping');
-    statusElement.classList.add('stopped');
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
     document.getElementById('start').disabled = false;
     document.getElementById('stop').disabled = true;
     document.getElementById('restart').disabled = true;
     document.getElementById('browser').disabled = true;
   } else {
-    statusElement.classList.remove('running');
-    statusElement.classList.add('stopped');
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = true;
     document.getElementById('restart').disabled = true;

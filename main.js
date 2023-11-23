@@ -136,7 +136,7 @@ function quitApp() {
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
       if (result.response === 1) {
-        runCommand('stop', 'Monadic Chat is stopping...', 'Stopped', true);
+        runCommand('stop', 'Monadic Chat is stopping...', 'Stopping', 'Stopped', true);
         if (result.checkboxChecked) {
           shutdownDocker();
         }
@@ -174,7 +174,7 @@ const menuItems = [
     label: 'Build',
     click: () => {
       openMainWindow();
-      runCommand('build', 'Building Monadic Chat...', 'stopped');
+      runCommand('build', 'Building Monadic Chat...', 'Building', 'Stopped');
     }
   },
   { type: 'separator' },
@@ -182,21 +182,21 @@ const menuItems = [
     label: 'Start',
     click: () => {
       openMainWindow();
-      runCommand('start', 'Monadic Chat starting. Please wait.', 'Running');
+      runCommand('start', 'Monadic Chat starting. Please wait.', 'Starting', 'Running');
     }
   },
   {
     label: 'Stop',
     click: () => {
       openMainWindow();
-      runCommand('stop', 'Monadic Chat is stopping. Please wait.', 'Stopped');
+      runCommand('stop', 'Monadic Chat is stopping. Please wait.', 'Stopping', 'Stopped');
     }
   },
   {
     label: 'Restart',
     click: () => {
       openMainWindow();
-      runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Running');
+      runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Restarting', 'Running');
     }
   },
   { type: 'separator' },
@@ -245,13 +245,13 @@ function initializeApp() {
     ipcMain.on('command', (_event, command) => {
       switch (command) {
         case 'start':
-          runCommand('start', 'Monadic Chat starting. Please wait.', 'Running');
+          runCommand('start', 'Monadic Chat starting. Please wait.', 'Starting', 'Running');
           break;
         case 'stop':
-          runCommand('stop', 'Monadic Chat is stopping...', 'Stopped');
+          runCommand('stop', 'Monadic Chat is stopping...', 'Stopping', 'Stopped');
           break;
         case 'restart':
-          runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Running');
+          runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Restarting', 'Running');
           break;
         case 'browser':
           openBrowser();
@@ -296,13 +296,15 @@ function shutdownDocker() {
   });
 }
 
-function runCommand(command, message, statusAfterCommand, sync = false) {
+function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
   tray.setImage(path.join(iconDir, `${capitalizeFirstLetter(command)}.png`));
   statusMenuItem.label = `${capitalizeFirstLetter(command)}`;
 
   const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
+
+  updateStatusIndicator(statusWhileCommand);
 
   if (sync) {
     execSync(cmd, (err, stdout, _stderr) => {

@@ -68,17 +68,18 @@ module WebSocketHelper
           text = obj["text"]
           voice = obj["voice"]
           speed = obj["speed"]
+          response_format = obj["response_format"]
           model = obj["model"]
-          tts_api_request(text, voice, speed, model) do |fragment|
-            @channel.push(fragment.to_json)
-          end
+          res_hash = tts_api_request(text, voice, speed, response_format, model)
+          @channel.push(res_hash.to_json)
         when "TTS_STREAM"
           thread = Thread.new do
             text = obj["text"]
             voice = obj["voice"]
             speed = obj["speed"]
+            response_format = obj["response_format"]
             model = obj["model"]
-            tts_api_request(text, voice, speed, model) do |fragment|
+            tts_api_request(text, voice, speed, response_format, model) do |fragment|
               @channel.push(fragment.to_json)
             end
           end
@@ -184,6 +185,7 @@ module WebSocketHelper
           if obj["content"].nil?
             @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
           else
+
             blob = Base64.decode64(obj["content"])
             res = whisper_api_request(blob, obj["format"], obj["lang_code"])
             if res["text"] && res["text"] == ""

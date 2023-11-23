@@ -130,13 +130,13 @@ let sourceBuffer = null;
 let audioDataQueue = [];
 
 function processAudioDataQueue() {
-  if (audioDataQueue.length > 0 && sourceBuffer && !sourceBuffer.updating) {
+  if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && sourceBuffer && !sourceBuffer.updating) {
     const audioData = audioDataQueue.shift();
-    if (audioData) {
+    try {
       sourceBuffer.appendBuffer(audioData);
+    } catch (e) {
+      console.error('Error appending buffer:', e);
     }
-  } else {
-    ;
   }
 }
 
@@ -155,7 +155,11 @@ function connect_websocket(callback) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
         console.log('MediaSource opened');
-        sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        if (runningOnFirefox) {
+          sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+        } else {
+          sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        }
         sourceBuffer.addEventListener('updateend', processAudioDataQueue);
       });
     }

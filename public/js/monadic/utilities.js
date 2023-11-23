@@ -120,6 +120,15 @@ function setInputFocus() {
 // format a message to show in the chat
 //////////////////////////////
 
+function removeCode(text) {
+  let replaced = text.replace(/```[\s\S]+?[\s]```/g, " ");
+  replaced = replaced.replace(/<script>[\s\S]+?<\/script>/g, " ");
+  replaced = replaced.replace(/<style>[\s\S]+?<\/style>/g, " ");
+  replaced = replaced.replace(/<img [\s\S]+?\/>/g, " ");
+  console.log(replaced);
+  return replaced;
+}
+
 function removeEmojis(text){
   // in case of error, return the original text
   try {

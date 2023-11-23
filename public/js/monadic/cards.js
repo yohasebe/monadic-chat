@@ -79,10 +79,12 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   $(document).on("click", `#${mid} .func-play`, function () {
     $(this).tooltip('hide');
-    // cutoff text after <hr> or <hr/> or <hr /> of text content and remove all HTML tags
-    const content = html.split(/<hr\s*\/?>/, 1)[0].replace(/<[^>]*>?/gm, '');
+    // cutoff text after <hr> or <hr/> or <hr /> of text content
+    const content = html.split(/<hr\s*\/?>/, 1)[0];
     const $this = $(this); // Store the reference to the clicked element
-    ttsSpeak(content.trim(), true, function (){} );
+    let text = removeCode(content.trim());
+    text = removeEmojis(text);
+    ttsSpeak(text, true, function (){} );
   });
 
   $(document).on("click", `#${mid} .func-stop`, function () {

@@ -20,15 +20,29 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
     document.getElementById('stop').disabled = true;
     document.getElementById('restart').disabled = true;
     document.getElementById('browser').disabled = true;
-  } else if (status === 'Running') {
+  } else if (status === 'Starting') {
     statusElement.classList.remove('stopped');
+    statusElement.classList.add('starting');
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('restart').disabled = true;
+    document.getElementById('browser').disabled = true;
+  } else if (status === 'Running') {
+    statusElement.classList.remove('starting');
     statusElement.classList.add('running');
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = false;
     document.getElementById('restart').disabled = false;
     document.getElementById('browser').disabled = false;
-  } else if (status === 'Stopped') {
+  } else if (status === 'Stopping') {
     statusElement.classList.remove('running');
+    statusElement.classList.add('stopping');
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('restart').disabled = true;
+    document.getElementById('browser').disabled = true;
+  } else if (status === 'Stopped') {
+    statusElement.classList.remove('stopping');
     statusElement.classList.add('stopped');
     document.getElementById('start').disabled = false;
     document.getElementById('stop').disabled = true;

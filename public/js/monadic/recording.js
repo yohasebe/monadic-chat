@@ -75,6 +75,14 @@ let localStream;
 let isListening = false;
 let silenceDetected = true;
 
+let workerOptions = {};
+
+workerOptions = {
+  OggOpusEncoderWasmPath: "https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OggOpusEncoder.wasm",
+  WebMOpusEncoderWasmPath: "https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/WebMOpusEncoder.wasm"
+};
+window.MediaRecorder = OpusMediaRecorder;
+
 voiceButton.on("click", function () {
   if (speechSynthesis.speaking) {
     speechSynthesis.cancel();
@@ -94,7 +102,9 @@ voiceButton.on("click", function () {
     navigator.mediaDevices.getUserMedia({audio: true})
       .then(function (stream) {
         localStream = stream;
-        mediaRecorder = new MediaRecorder(stream);
+        const options = {mimeType: "audio/webm;codecs=opus"};
+        mediaRecorder = new window.MediaRecorder(stream, options, workerOptions);
+
         mediaRecorder.start();
 
         // Detect silence and stop recording if silence lasts more than the specified duration
@@ -109,8 +119,8 @@ voiceButton.on("click", function () {
         // Add this line to store the closeAudioContext function in the localStream object
         localStream.closeAudioContext = closeAudioContext;
 
-      }).catch(function (_err) {
-        // console.log(err);
+      }).catch(function (err) {
+        console.log(err);
       });
 
     // "Stop" button is pressed
@@ -121,42 +131,33 @@ voiceButton.on("click", function () {
     $("#send, #clear, #voice").prop("disabled", true);
     isListening = false;
 
-    try {
-      // Set the event listener before stopping the mediaRecorder
-      mediaRecorder.ondataavailable = function (event) {
+    if(mediaRecorder){
+      try {
+        // Set the event listener before stopping the mediaRecorder
+        mediaRecorder.ondataavailable = function (event) {
 
-        blobToBase64(event.data, function (base64) {
-          let lang_code
-          // if ($("#auto-lang").is(":checked")) {
-          //   lang_code = null;
-          // } else if (params["speech_lang"]) {
-          //   lang_code = params["speech_lang"].split("-")[0];
-          // }
-          let format = "mp3";
-          if (runningOnChrome) {
-            format = "webm";
-          } else if (runningOnFirefox) {
-            format = "ogg";
-          }
-          // const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});
-          const json = JSON.stringify({message: "AUDIO", content: base64, format: format});
-          reconnect_websocket(ws, function () {
-            ws.send(json);
+          blobToBase64(event.data, function (base64) {
+            let lang_code
+            let format = "webm";
+            const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});
+            reconnect_websocket(ws, function () {
+              ws.send(json);
+            });
           });
-        });
-      }
+        }
 
-      mediaRecorder.stop();
-      // console.log("Status: " + mediaRecorder.state);
-      localStream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stop();
+        // console.log("Status: " + mediaRecorder.state);
+        localStream.getTracks().forEach(track => track.stop());
 
-      // Add this line to close the audio context
-      localStream.closeAudioContext();
-      $("#amplitude").hide();
-    } catch (e) {
-      console.log(e);
-      $("#send, #clear, #voice").prop("disabled", false);
-    } 
+        // Add this line to close the audio context
+        localStream.closeAudioContext();
+        $("#amplitude").hide();
+      } catch (e) {
+        console.log(e);
+        $("#send, #clear, #voice").prop("disabled", false);
+      } 
+    }
 
   } else {
     voiceButton.toggleClass("btn-warning btn-danger");

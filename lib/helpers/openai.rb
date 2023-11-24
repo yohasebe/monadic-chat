@@ -8,18 +8,17 @@ module OpenAIHelper
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
-  MAX_RETRIES = 10
+  MAX_RETRIES = 5
   RETRY_DELAY = 1
 
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
   FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
-  def set_api_key(api_key = nil)
-    num_retrial = 0
-
+  def set_api_key(api_key = nil, num_retrial = 0)
     api_key = api_key.strip if api_key
-    settings.api_key = api_key if settings.api_key.nil? || settings.api_key == ""
+    # settings.api_key = api_key if settings.api_key.nil? || settings.api_key == ""
+    settings.api_key = api_key
     target_uri = "#{API_ENDPOINT}/models"
 
     headers = {
@@ -49,17 +48,13 @@ module OpenAIHelper
         { "type" => "models", "content" => "API token stored in <code>.env</code> file has been verified.", "models" => models }
       end
     else
-      { "type" => "error", "content" => "ERROR: API token is not accepted" } if num_retrial >= 3
-    end
-  rescue StandardError => e
-    if num_retrial < MAX_RETRIES
-      num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      pp e.message
-      pp e.backtrace
-      { "type" => "error", "content" => "ERROR: #{e.message}" }
+      if num_retrial > MAX_RETRIES
+        { "type" => "error", "content" => "ERROR: API token is not accepted" }
+      else
+        num_retrial += 1
+        sleep RETRY_DELAY
+        set_api_key(api_key, num_retrial)
+      end
     end
   end
 
@@ -377,18 +372,5 @@ module OpenAIHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    # hint = if json.dig("error", "message").present?
-    #          case json["error"]["message"]
-    #          when /overloaded/
-    #            "Server overloaded, please try again later."
-    #          else
-    #            "Something went wrong."
-    #          end
-    #        else
-    #          "Something went wrong."
-    #        end
-    # res = { "type" => "error", "content" => "ERROR: #{hint}" }
-    # block&.call res
-    # false
   end
 end

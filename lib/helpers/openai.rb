@@ -16,9 +16,11 @@ module OpenAIHelper
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
   def set_api_key(api_key = nil, num_retrial = 0)
-    api_key = api_key.strip if api_key
-    # settings.api_key = api_key if settings.api_key.nil? || settings.api_key == ""
-    settings.api_key = api_key
+    if api_key
+      api_key = api_key.strip
+      settings.api_key = api_key
+    end
+
     target_uri = "#{API_ENDPOINT}/models"
 
     headers = {

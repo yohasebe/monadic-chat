@@ -140,10 +140,17 @@ function removeEmojis(text){
 }
 
 function setAlertClass(alertType = "danger") {
-  elemAlert.removeClass(function(_index, className) {
-    return (className.match(/\balert-\S+/g) || []).join(' ');
-  });
-  elemAlert.addClass(`alert-${alertType}`);
+  if(alertType === "danger"){
+    elemAlert.removeClass(function(_index, className) {
+      return (className.match(/\balert-\S+/g) || []).join(' ');
+    });
+    elemAlert.addClass(`alert-${alertType}`);
+  } else {
+    textAlert.removeClass(function(_index, className) {
+      return (className.match(/\bmessage-\S+/g) || []).join(' ');
+    });
+    textAlert.addClass(`message-${alertType}`);
+  }
 }
 
 function setAlert(text = "", alertType = "success") {

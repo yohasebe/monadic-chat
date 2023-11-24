@@ -149,6 +149,7 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log('WebSocket connected');
+    setAlert("Verifying token . . .", "warning");
     ws.send(JSON.stringify({"message": "CHECK_TOKEN", "contents": $("#token").val()}));
 
     if (!mediaSource) {

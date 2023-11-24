@@ -281,7 +281,21 @@ function toUnixPath(p) {
 function shutdownDocker() {
   const command = "shutdown"
   const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
-  const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
+
+  let cmd;
+  if (os.platform() === 'win32') {
+    cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
+  }
+  else if (os.platform() === 'darwin') {
+    cmd = `osascript -e 'quit app "Docker"'`;
+  }
+  else if (os.platform() === 'linux') {
+    cmd = `sudo systemctl stop docker`;
+  }
+  else {
+    console.error('Unsupported platform');
+    return;
+  }
 
   exec(cmd, (err, stdout, _stderr) => {
     if (err) {

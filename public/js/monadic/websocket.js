@@ -37,7 +37,7 @@ message.addEventListener("keydown", function(event) {
 function handleVisibilityChange() {
   if (document.hidden) {
     // If the document is not visible, close the WebSocket connection
-    ws.close();
+    // ws.close();
   } else {
     // If the document becomes visible again, you can reconnect the WebSocket if needed
     // Make sure to check if the socket is already connected before attempting to reconnect
@@ -215,6 +215,9 @@ function connect_websocket(callback) {
         break;
       case "token_verified":
         console.log("Token verified");
+        // insert data["token"] into the api-token input field
+        $("#api-token").val(data["token"]);
+
         const model_options = data['models'].map(
           model => `<option value="${model}">${model}</option>`
         );
@@ -250,7 +253,7 @@ function connect_websocket(callback) {
           setAlert(not_found, "warning");
           $("#start").prop("disabled", true);
         }
-        $("#api-token-form").show();
+        // $("#api-token-form").show();
         $("#api-token").focus();
         break;
       case "apps":

@@ -99,11 +99,12 @@ module WebSocketHelper
           end
         when "CHECK_TOKEN"
           token = obj["contents"]
-          res = set_api_key(token)
-          if res["type"] == "error"
+          token ||= ENV["OPENAI_API_KEY"]
+          res = set_api_key(token) if token
+          if !token || res["type"] == "error"
             ws.send({ "type" => "token_not_verified", "content" => "" }.to_json)
           else
-            ws.send({ "type" => "token_verified", "content" => res["content"], "models" => res["models"] }.to_json)
+            ws.send({ "type" => "token_verified", "token" => token, "content" => res["content"], "models" => res["models"] }.to_json)
           end
         when "NUM_TOKENS"
           half_max = obj["max_tokens"].to_i / 2

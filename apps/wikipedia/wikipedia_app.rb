@@ -13,13 +13,12 @@ class Wikipedia < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time in September 2021, please run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(query)` and read "SNIPPETS" in the result. In your response to the user based on the Wikipedia search, make sure to refer to the source article in the following HTML format:
+      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time, please run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(query)` and read "SNIPPETS" in the result. In your response to the user based on the Wikipedia search, make sure to refer to the source article in the following HTML format:
 
       ```
       <p>YOUR RESPONSE</p>
 
       <blockquote>
-        URL <br />
         <a href="URL">URL</a>
       </blockquote>
 
@@ -36,8 +35,8 @@ class Wikipedia < MonadicApp
       "model": "gpt-3.5-turbo-1106",
       "temperature": 0.3,
       "top_p": 0.0,
-      "max_tokens": 1000,
-      "context_size": 10,
+      "max_tokens": 2000,
+      "context_size": 6,
       "initial_prompt": initial_prompt,
       "description": description,
       "icon": icon,
@@ -62,6 +61,7 @@ class Wikipedia < MonadicApp
   end
 
   def search_wikipedia(hash, num_retrials: 10)
+    pp hash
     keywords = hash[:keywords]
     base_url = "https://en.wikipedia.org/w/api.php"
 

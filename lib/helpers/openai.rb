@@ -45,10 +45,8 @@ module OpenAIHelper
 
       if api_key
         File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
-        { "type" => "models", "content" => "A new API token has been verified and stored in <code>.env</code> file.", "models" => models }
-      else
-        { "type" => "models", "content" => "API token stored in <code>.env</code> file has been verified.", "models" => models }
       end
+      { "type" => "models", "content" => "API token verified and stored in <code>.env</code> file.", "models" => models }
     else
       if num_retrial >= MAX_RETRIES
         { "type" => "error", "content" => "ERROR: API token is not accepted" }

@@ -287,7 +287,9 @@ function shutdownDocker() {
     cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
   }
   else if (os.platform() === 'darwin') {
-    cmd = `osascript -e 'quit app "Docker"'`;
+    // gracefully shutdown Docker Desktop on MacOS
+    cmd = `osascript -e 'quit app "Docker Desktop"'`;
+
   }
   else if (os.platform() === 'linux') {
     cmd = `sudo systemctl stop docker`;

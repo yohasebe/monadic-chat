@@ -1,8 +1,6 @@
 # frozen_string_literal: false
 
 class LinguisticAnalysis < MonadicApp
-  MAX_TOKENS_WIKI = ENV["MAX_TOKENS_WIKI"] || 1024
-
   attr_accessor :context
 
   def icon

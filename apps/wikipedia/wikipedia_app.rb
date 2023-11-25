@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 class Wikipedia < MonadicApp
-  MAX_TOKENS_WIKI = ENV["MAX_TOKENS_WIKI"] || 1024
+  MAX_TOKENS_WIKI = ENV["MAX_TOKENS_WIKI"] || 1500
 
   def icon
     "<i class='fab fa-wikipedia-w'></i>"
@@ -13,7 +13,7 @@ class Wikipedia < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that refer to events after the data cutoff time, please run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(search_query, language_code)` and read "SNIPPETS" in the result. In your response to the user based on the Wikipedia search, make sure to refer to the source article in the following HTML format:
+      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that possibly requires information after the data cutoff time, run a Wikipedia search function To do a Wikipedia search, run `search_wikipedia(search_query, language_code)` and read "SNIPPETS" in the result. In your response to the user based on the Wikipedia search, make sure to refer to the source article in the following HTML format:
 
       ```
       <p>YOUR RESPONSE</p>
@@ -24,7 +24,7 @@ class Wikipedia < MonadicApp
 
       ```
 
-      If the user requests for more details about your response, retrieve the contents of the URL of the above wikipedia article by running `read_wikipedia_article(url)`, and then refer to the information therein to respond to the user.
+      If the user requests for more details about your response, retrieve the most relevant part of the contents of the URL of the above wikipedia article by running `analyze_wikipedia_article(topic, url)`, and then refer to the information therein to respond to the user.
     TEXT
     text.strip
   end
@@ -52,7 +52,7 @@ class Wikipedia < MonadicApp
             "properties": {
               "search_query": {
                 "type": "string",
-                "description": "Wikipedia search query"
+                "description": "query to be searched"
               },
               "language_code": {
                 "type": "string",
@@ -63,17 +63,21 @@ class Wikipedia < MonadicApp
           }
         },
         {
-          "name" => "read_wikipedia_article",
-          "description" => "A function to get Wikipedia article text, requiring one argument representing the url of the article.",
+          "name" => "analyze_wikipedia_article",
+          "description" => "A function to get a topic and a Wikipedia article url. It analyzes the contents of the url, splits it into chunks, picks up one of the chunks that is most similar to the topic in terms of their text embeddings, and returns it",
           "parameters": {
             "type": "object",
             "properties": {
+              "topic": {
+                "type": "string",
+                "description": "text to be compared with the contents of the Wikipedia article"
+              },
               "url": {
                 "type": "string",
-                "description": "Wikipedia article url"
+                "description": "url of the Wikipedia article to be analyzed"
               }
             },
-            "required": ["url"]
+            "required": ["topic", "url"]
           }
         }]
     }
@@ -103,26 +107,25 @@ class Wikipedia < MonadicApp
     TEXT
   end
 
-  def read_wikipedia_article(hash)
+  def analyze_wikipedia_article(hash)
+    topic = hash[:topic]
     url = hash[:url]
     article_uri = URI(url)
 
     article_response = perform_request_with_retries(article_uri)
 
-    # parse the response as HTML and retrieve all the text contents of <p> tags in the article
-    # and join them with a space
-    article_data_text = Nokogiri::HTML(article_response).css('p').map(&:text).join(' ').to_s
+    article_data = Nokogiri::HTML(article_response)
+    article_data_text = article_data.css('p, table, h1, h2, h3, h4, h5').map(&:text).join(' ')
 
-    tokenized = TOKENIZER.encode(article_data_text)
-    if tokenized.size > MAX_TOKENS_WIKI.to_i
-      ratio = MAX_TOKENS_WIKI.to_f / tokenized.size
-      article_data_text = article_data_text[0..(article_data_text.size * ratio).to_i]
-    end
+    # picks up one of the chunks that is most similar to the text in terms of their text embeddings
+    article_data_text_segments = split_text(article_data_text)
+    most_similar_text_index = most_similar_text_index(topic, article_data_text_segments)
+    most_similar_text = article_data_text_segments[most_similar_text_index]
 
     <<~TEXT
       "SNIPPETS:
       ```json
-      #{article_data_text}
+      #{most_similar_text}
       ```
     TEXT
   end
@@ -143,5 +146,60 @@ class Wikipedia < MonadicApp
         raise
       end
     end
+  end
+
+  def cosine_similarity(a, b)
+    raise ArgumentError, "a and b must be of the same size" if a.size != b.size
+    dot_product = a.zip(b).map { |x, y| x * y }.sum
+    magnitude_a = Math.sqrt(a.map { |x| x**2 }.sum)
+    magnitude_b = Math.sqrt(b.map { |x| x**2 }.sum)
+    dot_product / (magnitude_a * magnitude_b)
+  end
+
+  def most_similar_text_index(topic, texts)
+    embeddings = get_embeddings(topic)
+    texts_embeddings = texts.map { |t| get_embeddings(t) }
+    cosine_similarities = texts_embeddings.map { |e| cosine_similarity(embeddings, e) }
+    cosine_similarities.each_with_index.max[1]
+  end
+
+  def split_text(text)
+    tokenized = TOKENIZER.encode(text)
+    segments = []
+    while tokenized.size > MAX_TOKENS_WIKI.to_i
+      segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
+      segments << TOKENIZER.decode(segment)
+      tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
+    end
+    segments << TOKENIZER.decode(tokenized)
+    segments
+  end
+
+  def get_embeddings(text, retries: 3)
+    raise ArgumentError, "text cannot be empty" if text.empty?
+
+    uri = URI("https://api.openai.com/v1/engines/text-embedding-ada-002/embeddings")
+    request = Net::HTTP::Post.new(uri)
+    request["Content-Type"] = "application/json"
+
+    api_key = ENV["OPENAI_API_KEY"]
+
+    request["Authorization"] = "Bearer #{api_key}"
+    request.body = { input: text }.to_json
+
+    response = nil
+    retries.times do |i|
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
+        http.request(request)
+      end
+      break if response.is_a?(Net::HTTPSuccess)
+    rescue StandardError => e
+      puts "Error: #{e.message}. Retrying in #{i + 1} seconds..."
+      sleep(i + 1)
+    end
+
+    raise StandardError, "Failed to retrieve text embeddings after #{retries} retries" if response.nil?
+
+    JSON.parse(response.body)["data"][0]["embedding"]
   end
 end

@@ -149,7 +149,7 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log('WebSocket connected');
-    setAlert("<p>Verifying token . . .</p>", "warning");
+    setAlert("<p>Verifying token . . .</p>", "info");
     ws.send(JSON.stringify({"message": "CHECK_TOKEN", "contents": $("#token").val()}));
 
     if (!mediaSource) {
@@ -237,6 +237,7 @@ function connect_websocket(callback) {
           verified = true;
         }
         $("#start").prop("disabled", false);
+        $("#send, #clear, #voice").prop("disabled", false);
 
         // filter out the models that are not available from the dropdown
         const available_models = data['models']
@@ -249,9 +250,11 @@ function connect_websocket(callback) {
         break;
       case "token_not_verified":
         console.log("Token not verified");
+        $("#api-token").val("");
         if (messages.length === 0) {
           const message = "<p>Please set a valid API token and press Verify Token.</p>"
           $("#start").prop("disabled", true);
+          $("#send, #clear, #voice").prop("disabled", true);
           $("#api-token").focus();
           setAlert(message, "warning");
         }

@@ -104,20 +104,22 @@ module WebSocketHelper
           res = set_api_key(token) if token
 
           # Check if res is a hash and has a "type" key
-          if res.is_a?(Hash) && res.key?("type")
-            if token.nil? || res["type"] == "error"
+          if token && res.is_a?(Hash) && res.key?("type")
+            if res["type"] == "error"
               # try ENV["OPENAI_API_KEY"] and if that fails, send error
-              token = ENV["OPENAI_API_KEY"]
-              res = set_api_key(token)
-              if res && res["type"] == "error"
+              # token = ENV["OPENAI_API_KEY"]
+              # res = set_api_key(token)
+              # if res && res["type"] == "error"
                 ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
-              else
-                message = "Verification failed. Existing API key is used."
-                ws.send({ "type" => "token_verified", "token" => token, "content" => message, "models" => res["models"] }.to_json)
-              end
+              # else
+                # message = "Verification failed. Existing API key is used."
+                # ws.send({ "type" => "token_verified", "token" => token, "content" => message, "models" => res["models"] }.to_json)
+              # end
             else
               ws.send({ "type" => "token_verified", "token" => token, "content" => res["content"], "models" => res["models"] }.to_json)
             end
+          else
+            ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
           end
         when "NUM_TOKENS"
           half_max = obj["max_tokens"].to_i / 2

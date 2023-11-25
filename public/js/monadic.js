@@ -142,7 +142,7 @@ $(function () {
   $("#check-token").on("click", function (event) {
     event.preventDefault();
     reconnect_websocket(ws, function (ws) {
-      setAlert("<p>Verifying token . . .</p>", "warning");
+      setAlert("<p>Verifying token . . .</p>", "info");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", contents: $("#api-token").val() }));
     });
   })

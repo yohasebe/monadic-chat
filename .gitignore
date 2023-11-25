@@ -23,6 +23,7 @@
 /log/*
 
 .env
+.cursorignore
 
 .byebug_history
 

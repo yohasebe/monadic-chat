@@ -32,6 +32,7 @@ div.highlight {
 }
 
 a {
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -76,7 +77,6 @@ div.highlight, div.highlight pre {
     color: #fff;
     background-color: #666;
     text-align: center;
-    text-decoration: none;
     padding: 10px 10px;
 }
 
@@ -345,7 +345,14 @@ blockquote {
   color: #333;
 }
 
-#alert-message.message-warning {
-  color: #FF7F07;
+#alert-message.message-success p {
+  color: #2268cf;
 }
 
+#alert-message.message-info p {
+  color: #568D59;
+}
+
+#alert-message.message-warning p {
+  color: #FF7F07;
+}

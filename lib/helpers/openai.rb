@@ -8,7 +8,7 @@ module OpenAIHelper
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
-  MAX_RETRIES = 2
+  MAX_RETRIES = 1
   RETRY_DELAY = 1
 
   ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
@@ -48,6 +48,7 @@ module OpenAIHelper
       end
       { "type" => "models", "content" => "API token verified and stored in <code>.env</code> file.", "models" => models }
     else
+      File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=" }
       if num_retrial >= MAX_RETRIES
         { "type" => "error", "content" => "ERROR: API token is not accepted" }
       else
@@ -368,7 +369,6 @@ module OpenAIHelper
       false
     end
   rescue StandardError => e
-    pp json
     pp e.message
     pp e.backtrace
     pp e.inspect

@@ -149,7 +149,7 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log('WebSocket connected');
-    setAlert("Verifying token . . .", "warning");
+    setAlert("<p>Verifying token . . .</p>", "warning");
     ws.send(JSON.stringify({"message": "CHECK_TOKEN", "contents": $("#token").val()}));
 
     if (!mediaSource) {
@@ -229,11 +229,11 @@ function connect_websocket(callback) {
           const token_verified = `\
               <p>${data['content']}</p>\
               <div class='like-h5'><i class='fa-solid fa-robot'></i> Available Models</div>\
-              <p>\
+              <div>\
                 ${data['models'].join('<br />')}\
-              </p>\
+              </div>\
             `
-          setAlert(token_verified, "info");
+          setAlert(token_verified, "success");
           verified = true;
         }
         $("#start").prop("disabled", false);
@@ -250,12 +250,11 @@ function connect_websocket(callback) {
       case "token_not_verified":
         console.log("Token not verified");
         if (messages.length === 0) {
-          const not_found = "<p>Please set a valid API token and press Verify Token.</p>"
-          setAlert(not_found, "warning");
+          const message = "<p>Please set a valid API token and press Verify Token.</p>"
           $("#start").prop("disabled", true);
+          $("#api-token").focus();
+          setAlert(message, "warning");
         }
-        // $("#api-token-form").show();
-        $("#api-token").focus();
         break;
       case "apps":
         let version_string = data["version"]

@@ -150,7 +150,7 @@ function connect_websocket(callback) {
   ws.onopen = function () {
     console.log('WebSocket connected');
     setAlert("<p>Verifying token . . .</p>", "info");
-    ws.send(JSON.stringify({"message": "CHECK_TOKEN", "contents": $("#token").val()}));
+    ws.send(JSON.stringify({message: "CHECK_TOKEN", initial: true, contents: $("#token").val()}));
 
     if (!mediaSource) {
       mediaSource = new MediaSource();
@@ -469,6 +469,8 @@ function connect_websocket(callback) {
 
   ws.onerror = function (err) {
     console.error('Socket encountered error: ', err.message, 'Closing socket');
+    // set a message in the alert box
+    setAlert("<p>Connection terminated.</p>", "warning");
     ws.close();
   }
   return ws;

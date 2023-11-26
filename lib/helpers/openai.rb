@@ -15,7 +15,7 @@ module OpenAIHelper
   FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
-  def set_api_key(api_key = nil, num_retrial = 0)
+  def set_api_key(api_key, num_retrial = 0)
     if api_key
       api_key = api_key.strip
       settings.api_key = api_key
@@ -49,6 +49,8 @@ module OpenAIHelper
       { "type" => "models", "content" => "API token verified and stored in <code>.env</code> file.", "models" => models }
     else
       File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=" }
+      ENV["OPENAI_API_KEY"] = ""
+      settings.api_key = ""
       if num_retrial >= MAX_RETRIES
         { "type" => "error", "content" => "ERROR: API token is not accepted" }
       else

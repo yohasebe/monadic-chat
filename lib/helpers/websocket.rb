@@ -98,7 +98,11 @@ module WebSocketHelper
             ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting <b>#{title}</b>" }.to_json)
           end
         when "CHECK_TOKEN"
-          token = obj["contents"] || ENV["OPENAI_API_KEY"]
+          if obj["initial"].to_s == "true"
+            token = settings.api_key
+          else
+            token = obj["contents"]
+          end
 
           # If token is present, try to set it as the API key
           res = set_api_key(token) if token

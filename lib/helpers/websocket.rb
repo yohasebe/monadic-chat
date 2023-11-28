@@ -104,21 +104,11 @@ module WebSocketHelper
             token = obj["contents"]
           end
 
-          # If token is present, try to set it as the API key
           res = set_api_key(token) if token
 
-          # Check if res is a hash and has a "type" key
           if token && res.is_a?(Hash) && res.key?("type")
             if res["type"] == "error"
-              # try ENV["OPENAI_API_KEY"] and if that fails, send error
-              # token = ENV["OPENAI_API_KEY"]
-              # res = set_api_key(token)
-              # if res && res["type"] == "error"
-                ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
-              # else
-                # message = "Verification failed. Existing API key is used."
-                # ws.send({ "type" => "token_verified", "token" => token, "content" => message, "models" => res["models"] }.to_json)
-              # end
+              ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
             else
               ws.send({ "type" => "token_verified", "token" => token, "content" => res["content"], "models" => res["models"] }.to_json)
             end

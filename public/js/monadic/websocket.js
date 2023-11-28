@@ -225,17 +225,16 @@ function connect_websocket(callback) {
         $("#model").html(model_options);
         $("#model").val("gpt-3.5-turbo");
 
-        if (messages.length === 0) {
-          const token_verified = `\
+        const token_verified = `\
               <p>${data['content']}</p>\
               <div class='like-h5'><i class='fa-solid fa-robot'></i> Available Models</div>\
               <div>\
                 ${data['models'].join('<br />')}\
               </div>\
             `
-          setAlert(token_verified, "success");
-          verified = true;
-        }
+        setAlert(token_verified, "success");
+        verified = true;
+
         $("#start").prop("disabled", false);
         $("#send, #clear, #voice").prop("disabled", false);
 
@@ -251,13 +250,13 @@ function connect_websocket(callback) {
       case "token_not_verified":
         console.log("Token not verified");
         $("#api-token").val("");
-        if (messages.length === 0) {
-          const message = "<p>Please set a valid API token and press Verify Token.</p>"
-          $("#start").prop("disabled", true);
-          $("#send, #clear, #voice").prop("disabled", true);
-          $("#api-token").focus();
-          setAlert(message, "warning");
-        }
+
+        const message = "<p>Please set a valid API token and press Verify Token.</p>"
+        $("#start").prop("disabled", true);
+        $("#send, #clear, #voice").prop("disabled", true);
+        $("#api-token").focus();
+        setAlert(message, "warning");
+
         break;
       case "apps":
         let version_string = data["version"]

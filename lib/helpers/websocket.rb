@@ -227,33 +227,29 @@ module WebSocketHelper
                   candidate = segments.first
                   splitted = candidate.split("---")
                   cutoff = true if splitted.size > 1
-                  # @channel.push({ "type" => "sentence", "content" => candidate }.to_json) if splitted[0] != "" && candidate != ""
+
+                  @channel.push({ "type" => "sentence", "content" => candidate }.to_json) if splitted[0] != "" && candidate != ""
+
                   buffer = segments[1..]
                 end
               end
               @channel.push(fragment.to_json)
             end
             unless cutoff
-              # candidate = buffer.join
-              # splitted = candidate.split("---")
-              # @channel.push({ "type" => "sentence", "content" => splitted[0] }.to_json) if splitted[0] != ""
+              candidate = buffer.join
+              splitted = candidate.split("---")
+              @channel.push({ "type" => "sentence", "content" => splitted[0] }.to_json) if splitted[0] != ""
             end
             if response && response["type"] == "error"
               @channel.push({ "type" => "error", "content" => response["content"] }.to_json)
             else
               text = response["choices"][0]["text"]
-              @channel.push({ "type" => "sentence", "content" => text }.to_json)
+              # @channel.push({ "type" => "sentence", "content" => text }.to_json)
               queue.push(response)
             end
           end
         end
       end
-
-      # ping_timer = EventMachine.add_periodic_timer(30) do
-      #   ws&.ping("ping") do
-      #     puts "Received PING"
-      #   end
-      # end
 
       ws.on :close do |event|
         # EventMachine.cancel_timer(ping_timer)

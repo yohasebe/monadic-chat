@@ -84,7 +84,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
     const $this = $(this); // Store the reference to the clicked element
     let text = removeCode(content.trim());
     text = removeEmojis(text);
-    ttsSpeak(text, true, function (){} );
+    ttsSpeak(text, true, false, function (){} );
   });
 
   $(document).on("click", `#${mid} .func-stop`, function () {
@@ -142,9 +142,6 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
 
   $(document).on("click", `#${mid} .func-delete`, function () {
     const text = $(`#${mid} .card-text`).text();
-    // if (speechSynthesis.speaking) {
-    //   speechSynthesis.cancel();
-    // }
 
     ttsStop();
 

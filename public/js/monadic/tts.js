@@ -1,30 +1,15 @@
 function ttsSpeak(text, stream, callback) {
-  if (runningOnFirefox) {
-    return false;
-  }
-
-  let mode = "TTS"
-  if(stream){
-    mode = "TTS_STREAM"
-  }
-  console.log("start: " + text);
-  if (!text) {
-    return;
-  }
-
-  ttsStop();
-
-  console.log("speaking started");
-  let playPromise = audio.play();
-  if (playPromise !== undefined) {
-    playPromise.then(_ => {}).catch(error => {});
-  }
 
   const quality = $("#tts-quality").is(":checked");
   const voice = $("#tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
-  model = "tts-1"
+  let mode = "TTS"
+  if(stream){
+    mode = "TTS_STREAM"
+  }
+
+  let model = "tts-1"
   if (quality) {
     model = "tts-1-hd"
   }
@@ -34,19 +19,31 @@ function ttsSpeak(text, stream, callback) {
     response_format = "aac"
   }
 
-  reconnect_websocket(ws, function (ws) {
-    ws.send(JSON.stringify({
-      message: mode,
-      text: text,
-      voice: voice,
-      speed: speed,
-      model: model,
-      response_format: response_format
-    }));
-  });
+  let playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.then(_ => {}).catch(error => {});
+  }
+
+  if (runningOnFirefox) {
+    return false;
+  }
+
+  if (!text) {
+    return;
+  }
+
+  ws.send(JSON.stringify({
+    message: mode,
+    text: text,
+    voice: voice,
+    speed: speed,
+    model: model,
+    response_format: response_format
+  }));
 }
 
 function ttsStop() {
+
   if (audio) {
     audio.pause();
     audio = null;
@@ -68,4 +65,5 @@ function ttsStop() {
 
   audio = new Audio();
   audio.src = URL.createObjectURL(mediaSource);
+  audio.load();
 }

@@ -410,13 +410,6 @@ function connect_websocket(callback) {
 
         $("#discourse").append(htmlElement);
 
-        if (params["auto_speech"]) {
-          let text = data["content"]["text"]
-          text = removeCode(text);
-          text = removeEmojis(text);
-          ttsSpeak(text, true, function () {});
-        }
-
         const htmlContent = $("#discourse div.card:last");
 
         if (params["mathjax"] === "true") {
@@ -445,13 +438,19 @@ function connect_websocket(callback) {
       case "sentence":
         console.log("sentence: " + data["content"]);
         if (data["content"] !== null) {
-          const text = data["content"].trim();
+          let text = data["content"].trim();
+
+          if (params["auto_speech"]) {
+            text = removeCode(text);
+            text = removeEmojis(text);
+            ttsSpeak(text, false, function () {});
+          }
+
         }
         break;
       default:
         $("#indicator").show();
         msgBuffer.push(data["content"]);
-        // check if data["content"] is defined
         if (data["content"] !== undefined) {
           $("#chat").html($("#chat").html() + data["content"].replace(/\n/g, "<br />"));
         }

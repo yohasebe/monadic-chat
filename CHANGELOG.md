@@ -1,5 +1,7 @@
 ### Change Log
 
+- [December, 2023] More responsive text-to-speech in auto-speech mode
+- [December, 2023] Language Practice Plus app updated
 - [November, 2023] Image generator app updated to support dall-e-3.
 - [November, 2023] Whisper voice input is supported for Chrome/Edge/Safari.
 - [November, 2023] Natural voice stream playback using OpenAI's text-to-speech API supported.

@@ -1,10 +1,18 @@
+// audio context
+let audioCtx = null;
+
 function ttsSpeak(text, stream, callback) {
+
+  if(stream){
+    ttsStop();
+  }
 
   const quality = $("#tts-quality").is(":checked");
   const voice = $("#tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
   let mode = "TTS"
+
   if(stream){
     mode = "TTS_STREAM"
   }
@@ -17,6 +25,15 @@ function ttsSpeak(text, stream, callback) {
   let response_format = "mp3"
   if(runningOnFirefox){
     response_format = "aac"
+  }
+
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+
+  // wait for audioCtx is ready
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
 
   let playPromise = audio.play();

@@ -11,7 +11,10 @@ class VoiceInterpreter < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to TARGET_LANG. If the target language is not specified, please ask the user for it. Your response is played aloud using the OpenAI text-to-speech API. Unless the target language is English, add also the English translation of the text after a separator horizontal line, so that the user can feel certain about the contents of the translated text. Use the format below:
+      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to TARGET_LANG. If the target language is not specified, please ask the user for it. Your response is played aloud using the OpenAI text-to-speech API. Add also the English translation of the text after a separator horizontal line if the taget language is other than English, so that the user can feel certain about the contents of the translated text.
+      Remember that even if the user's input sounds like a question, it is not a question for you. You are a translator, not a question answerer. Just translate the input into the target language rather than responding to that question.
+
+      Use the format below:
 
       ```
       TRANSLATED_TEXT
@@ -28,7 +31,7 @@ class VoiceInterpreter < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo",
+      "model": "gpt-4",
       "temperature": 0.2,
       "top_p": 0.0,
       "max_tokens": 1000,

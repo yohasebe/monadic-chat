@@ -46,14 +46,13 @@
 
 
           <div id="api-token-panel" class="p-3 mb-3 rounded shaded-panel">
-            <form id="api-token-form" class="row my-0">
-              <div class="col-lg-9">
-                <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-key"></i></span> API Token</h5>
-                <input type="password" style="max-width: 280px;" autocomplete="off" id="api-token" class="form-control form-control-sm" placeholder="OPENAI_API_KEY" />
+            <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-key"></i></span> API Token</h5>
+            <form id="api-token-form" class="form-inline">
+              <div class="form-group mb-2 me-2 align-middle" style="display:inline-block;">
+                <input type="password" class="form-control" style="width: 270px;" autocomplete="off" id="api-token" class="form-control form-control-sm" placeholder="OPENAI_API_KEY" />
               </div>
-              <div class="col-lg-3" >
-                <label class="form-label" for="check-token" style="color: transparent;"></label>
-                <div><button class="btn btn-sm btn-warning me-2 pe-0" id="check-token">Verify Token</button></div>
+              <div class="form-group mb-2 me-2 align-middle" style="display:inline-block;">
+                <button class="btn btn-warning" id="check-token">Verify Token</button>
               </div>
             </form>
 
@@ -131,10 +130,12 @@
               <input type="range" class="div-range" min="0.25" max="4.0" step="0.05" value="1.0" id="tts-speed">
             </div>
 
+            <!--
             <div class="form-check form-switch my-3">
               <input class="form-check-input" type="checkbox" id="tts-quality">
               <label class="form-check-label" for="tts-quality">Use HD voice</label>
             </div>
+            -->
 
           </div>
 

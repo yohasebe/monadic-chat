@@ -215,9 +215,11 @@ module WebSocketHelper
 
             response = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
-                completion_api_request("user") do |fragment2|
-                  @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
-                end
+                # sleep 1
+                # completion_api_request("user") do |fragment2|
+                  # @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
+                # end
+                @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json)
               elsif fragment["type"] == "fragment" && !cutoff
                 buffer << fragment["content"] unless fragment["content"].empty? || fragment["content"] == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)

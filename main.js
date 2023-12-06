@@ -11,9 +11,10 @@ let justLaunched = true;
 let portInUse = false;
 let currentStatus = 'Stopped';
 let isQuitting = false;
-const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
-
 let contextMenu = null;
+let initialLaunch = true;
+
+const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
 
 checkDockerInstallation()
   .then(initializeApp)
@@ -230,7 +231,7 @@ const menuItems = [
 
 function initializeApp() {
   app.whenReady().then(() => {
-    tray = new Tray(path.join(iconDir, 'Stop.png'))
+    tray = new Tray(path.join(iconDir, 'Stopped.png'))
     tray.setToolTip('Monadic Chat')
     tray.setContextMenu(contextMenu)
 
@@ -239,7 +240,6 @@ function initializeApp() {
     createMainWindow();
     contextMenu = Menu.buildFromTemplate(menuItems);
 
-    // Check server status and set tray icon
     updateStatus();
 
     ipcMain.on('command', (_event, command) => {
@@ -335,7 +335,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       statusMenuItem.label = `${statusAfterCommand}`;
 
       updateContextMenu();
-      updateStatusIndicator(currentStatus); // Pass the currentStatus
+      updateStatusIndicator(currentStatus);
       if (mainWindow) {
         mainWindow.webContents.send('commandOutput', stdout);
       }
@@ -352,7 +352,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `${statusAfterCommand}`;
       updateContextMenu();
-      updateStatusIndicator(currentStatus); // Pass the currentStatus
+      updateStatusIndicator(currentStatus);
       if (mainWindow) {
         mainWindow.webContents.send('commandOutput', stdout);
       }
@@ -381,13 +381,14 @@ function updateStatus() {
   const port = 4567;
 
   isPortTaken(port, (taken) => {
-    if (taken) {
+    if (taken && !initialLaunch) {
       currentStatus = 'Running';
+      initialLaunch = false;
     } else {
       currentStatus = 'Stopped';
     }
     updateContextMenu();
-    updateStatusIndicator(currentStatus); // Pass the currentStatus
+    updateStatusIndicator(currentStatus);
   });
 }
 

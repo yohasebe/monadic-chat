@@ -7,7 +7,7 @@ function ttsSpeak(text, stream, callback) {
     ttsStop();
   }
 
-  const quality = $("#tts-quality").is(":checked");
+  // const quality = $("#tts-quality").is(":checked");
   const voice = $("#tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
@@ -18,9 +18,9 @@ function ttsSpeak(text, stream, callback) {
   }
 
   let model = "tts-1"
-  if (quality) {
-    model = "tts-1-hd"
-  }
+  // if (quality) {
+  //   model = "tts-1-hd"
+  // }
 
   let response_format = "mp3"
   if(runningOnFirefox){

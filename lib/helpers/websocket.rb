@@ -167,7 +167,6 @@ module WebSocketHelper
                    else
                      markdown_to_html(text)
                    end
-            # text = text.split("---", 2)[0]
             new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
             @channel.push({ "type" => "html", "content" => new_data }.to_json)
             session[:messages] << new_data
@@ -183,12 +182,14 @@ module WebSocketHelper
           end
         when "SAMPLE"
           text = obj["content"]
+          image = obj["image"]
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => obj["role"],
                        "text" => text,
                        "html" => markdown_to_html(text),
                        "lang" => detect_language(text),
                        "active" => true }
+          new_data["image"] = image if image
           @channel.push({ "type" => "html", "content" => new_data }.to_json)
           session[:messages] << new_data
         when "AUDIO"
@@ -215,10 +216,6 @@ module WebSocketHelper
 
             response = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
-                # sleep 1
-                # completion_api_request("user") do |fragment2|
-                  # @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
-                # end
                 @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json)
               elsif fragment["type"] == "fragment" && !cutoff
                 buffer << fragment["content"] unless fragment["content"].empty? || fragment["content"] == "DONE"

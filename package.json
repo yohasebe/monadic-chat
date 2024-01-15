@@ -1,6 +1,6 @@
 {
   "name": "monadic-chat",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -121,7 +121,9 @@
     },
     "afterSign": "notarize.js",
     "win": {
-      "icon": "menu_icons/icon.ico"
+      "icon": "menu_icons/icon.ico",
+      "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
+      "certificateSha1":"4F833B9F1030A709A2014DBC64FE12F7E0EAEBCE"
     }
   },
   "dependencies": {

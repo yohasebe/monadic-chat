@@ -88,7 +88,6 @@ voiceButton.on("click", function () {
     speechSynthesis.cancel();
   }
 
-
   // "Start" button is pressed
   if (!isListening) {
     $("#amplitude").show();
@@ -135,8 +134,11 @@ voiceButton.on("click", function () {
       try {
         // Set the event listener before stopping the mediaRecorder
         mediaRecorder.ondataavailable = function (event) {
+          soundToBase64(event.data, function (base64) {
 
-          blobToBase64(event.data, function (base64) {
+            console.log("Y");
+
+
             let lang_code
             let format = "webm";
             const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});
@@ -176,7 +178,7 @@ voiceButton.on("click", function () {
   }
 });
 
-function blobToBase64(blob, callback) {
+function soundToBase64(blob, callback) {
   const reader = new FileReader();
   reader.onload = function () {
     const dataUrl = reader.result;
@@ -185,3 +187,4 @@ function blobToBase64(blob, callback) {
   };
   reader.readAsDataURL(blob);
 }
+

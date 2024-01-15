@@ -37,7 +37,7 @@ selectFileButton.on("click", function () {
       $("#imageModal button").prop("disabled", true);
 
       try {
-        blobToBase64(file, function (base64) {
+        imageToBase64(file, function (base64) {
           imageTitle = file.name;
           imageType = file.type;
           imageData = "data:" + imageType + ";base64," + base64;
@@ -56,7 +56,7 @@ selectFileButton.on("click", function () {
   });
 });
 
-function blobToBase64(blob, callback) {
+function imageToBase64(blob, callback) {
   const reader = new FileReader();
   reader.onload = function (e) {
     const dataUrl = reader.result;

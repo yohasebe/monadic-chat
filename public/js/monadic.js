@@ -211,7 +211,11 @@ $(function () {
 
   $("#save").on("click", function () {
     const textOnly = messages.map(function (message) {
-      return { "role": message.role, "text": message.text, "mid": message.mid };
+      let message_obj = { "role": message.role, "text": message.text, "mid": message.mid };
+      if(message.image){
+        message_obj.image = message.image;
+      }
+      return message_obj;
     });
     obj = { "parameters": setParams(), "messages": textOnly };
     saveObjToJson(obj, "monadic.json");

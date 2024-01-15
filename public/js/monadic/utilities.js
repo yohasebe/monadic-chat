@@ -125,7 +125,6 @@ function removeCode(text) {
   replaced = replaced.replace(/<script>[\s\S]+?<\/script>/g, " ");
   replaced = replaced.replace(/<style>[\s\S]+?<\/style>/g, " ");
   replaced = replaced.replace(/<img [\s\S]+?\/>/g, " ");
-  console.log(replaced);
   return replaced;
 }
 
@@ -302,16 +301,15 @@ function setParams() {
   params["frequency_penalty"] = $("#frequency-penalty").val();
   params["max_tokens"] = $("#max-tokens").val();
   params["context_size"] = $("#context-size").val();
-  // params["speech_rate"] = $("#speech-rate").val();
   params["tts_speed"] = $("#tts-speed").val();
-  // params["speech_lang"] = $("#speech-lang").val();
-  // params["speech_voice"] = $("#speech-voice").val();
   params["tts_voice"] = $("#tts-voice").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
-  console.log(params);
+  // params["speech_rate"] = $("#speech-rate").val();
+  // params["speech_lang"] = $("#speech-lang").val();
+  // params["speech_voice"] = $("#speech-voice").val();
   return params;
 }
 

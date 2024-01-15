@@ -436,10 +436,13 @@ function connect_websocket(callback) {
         setInputFocus()
         break;
       case "user":
-        messages.push({ "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] });
+        let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
+        if(data["image"] !== undefined) {
+          message_obj.image = data["image"];
+        }
+        messages.push(message_obj);
         let content_text = data["content"]["text"].replace(/\n/g, "<br />");
         let image_data;
-        console.log(data);
         if(data["image"] !== undefined){
           image_data = data["image"]["data"];
         }

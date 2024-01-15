@@ -119,7 +119,9 @@ post "/load" do
           text = msg["text"]
           html = markdown_to_html(text)
         end
-        { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+        message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+        message_obj["image"] = msg["image"] if msg["image"]
+        message_obj
       end
     rescue JSON::ParserError
       session[:error] = "Error: Invalid JSON file. Please upload a valid JSON file."

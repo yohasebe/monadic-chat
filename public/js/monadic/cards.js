@@ -1,7 +1,6 @@
 const mids = [];
 
-function createCard(role, badge, html, lang = "en", mid = "", status = true) {
-
+function createCard(role, badge, html, lang = "en", mid = "", status = true, image_data = "") {
   const status_class = status === true ? "active" : "";
 
   let className
@@ -12,13 +11,15 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
   } else {
     className = "role-system";
   }
+
+  image_data = image_data === "" ? "" : `<img style='max-width: 400px; max-height: 200px; margin:0; margin-bottom:20px;' src='${image_data}' />`;
   const card = $(`
     <div class="card mt-3">
       <div class="card-header p-2 ps-3 d-flex justify-content-between">
         <div class="fs-5 card-title mb-0">${badge}</div>
       </div>
       <div class="card-body ${className} pb-1">
-        <div class="card-text">${html}</div>
+        <div class="card-text">${html}${image_data}</div>
       </div>
     </div>
     `);
@@ -51,31 +52,6 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true) {
         `);
     }
   }
-
-  // $(document).on("click", `#${mid} .func-play`, function () {
-  //   $(this).tooltip('hide');
-  //   // cutoff text after <hr> or <hr/> or <hr /> of text content and remove all HTML tags
-  //   const content = html.split(/<hr\s*\/?>/, 1)[0].replace(/<[^>]*>?/gm, '');
-  //   const $this = $(this); // Store the reference to the clicked element
-  //   if (speechSynthesis.speaking) {
-  //     speechSynthesis.cancel();
-  //     $this.find("i").removeClass("fa-stop").addClass("fa-play")
-  //   } else {
-  //     $this.find("i").removeClass("fa-play").addClass("fa-stop")
-  //     let sentences = removeEmojis(content).split(/[.?!:;。．？！]/).filter(Boolean);
-  //         sentences = sentences.filter((s) => s.trim().length > 0);
-  //     console.log(sentences);
-  //     for (let i = 0; i < sentences.length; i++) {
-  //       if(i === sentences.length - 1) {
-  //         speak(sentences[i].trim(), lang, function () {
-  //           $this.find("i").removeClass("fa-stop").addClass("fa-play")
-  //         });
-  //       } else {
-  //         speak(sentences[i].trim(), lang, function (){} );
-  //       }
-  //     }
-  //   }
-  // });
 
   $(document).on("click", `#${mid} .func-play`, function () {
     $(this).tooltip('hide');

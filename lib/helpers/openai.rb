@@ -38,7 +38,6 @@ module OpenAIHelper
       end.filter do |item|
         item.include?("gpt") &&
           !item.include?("instruct") &&
-          !item.include?("-vision") &&
           !item.include?("0301") &&
           !item.include?("0613")
       end
@@ -196,7 +195,15 @@ module OpenAIHelper
     message_with_snippet = nil
 
     if message != "" && role == "user"
-      res = { "type" => "user", "content" => { "mid" => request_id, "text" => obj["message"], "html" => html, "lang" => detect_language(obj["message"]) } }
+      res = { "type" => "user",
+              "content" => {
+                "mid" => request_id,
+                "text" => obj["message"],
+                "html" => html,
+                "lang" => detect_language(obj["message"])
+              }
+      }
+      res["image"] = obj["image"] if obj["image"]
       block&.call res
     end
 
@@ -248,7 +255,17 @@ module OpenAIHelper
     when "chat/completions"
       initial = { "role" => "system", "text" => initial_prompt, "html" => initial_prompt, "lang" => detect_language(initial_prompt) } if initial_prompt != ""
       if message != "" && role == "user"
-        res = { "mid" => request_id, "role" => role, "text" => message, "html" => markdown_to_html(message), "lang" => detect_language(message), "active" => true }
+        res = { "mid" => request_id,
+                "role" => role,
+                "text" => message,
+                "html" => markdown_to_html(message),
+                "lang" => detect_language(message),
+                "active" => true,
+        }
+        if obj["image"]
+          res["image"] = obj["image"]
+        end
+
         session[:messages] << res
       end
       session[:messages].each { |msg| msg["active"] = false }
@@ -256,7 +273,19 @@ module OpenAIHelper
       context = [initial] + latest_messages
       context << { "role" => role, "text" => message } if message != "" && role == "system"
       context.last["text"] = message_with_snippet if message_with_snippet
-      body["messages"] = context.compact.map { |msg| { "role" => msg["role"], "content" => msg["text"] } }
+      messages_containing_img = false
+      body["messages"] = context.compact.map do |msg|
+        message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
+        if msg["image"]
+          message["content"] << { "type" => "image_url", "image_url" => msg["image"]["data"] }
+          messages_containing_img = true
+        end
+        message
+      end
+      if messages_containing_img
+        body["model"] = "gpt-4-vision-preview" 
+        body.delete("stop")
+      end
     end
 
     target_uri = "#{API_ENDPOINT}/#{mode}"

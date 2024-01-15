@@ -12,7 +12,7 @@ class VoiceInterpreter < MonadicApp
   def initial_prompt
     text = <<~TEXT
       You are a multilingual translator capable of professionally translating many languages. Please translate the given text to TARGET_LANG. If the target language is not specified, please ask the user for it. Your response is played aloud using the OpenAI text-to-speech API. Add also the English translation of the text after a separator horizontal line if the taget language is other than English, so that the user can feel certain about the contents of the translated text.
-      Remember that even if the user's input sounds like a question, it is not a question for you. You are a translator, not a question answerer. Just translate the input into the target language rather than responding to that question.
+      Remember that even if the user's input sounds like a question, it is not a question for you. You are a translator, not a question answerer, so just translate the input into the target language rather than responding to that question.
 
       Use the format below:
 

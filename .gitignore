@@ -47,7 +47,7 @@ tags
 Gemfile.lock
 .ruby-version
 .ruby-gemset
-
+/.ruby-lsp/
 .rvmrc
 
 .rubocop.yml

@@ -157,15 +157,26 @@ $(function () {
     if ($("#select-role").val() !== "user") {
       reconnect_websocket(ws, function (ws) {
         const role = $("#select-role").val().split("-")[1];
-        ws.send(JSON.stringify({ message: "SAMPLE", content: $("#message").val(), role: role}));
+        ws.send(JSON.stringify({ message: "SAMPLE",
+                                 content: $("#message").val(), role: role}));
       });
       $("#message").css("height", "96px").val("");
       $("#select-role").val("").trigger("change");
     } else {
       reconnect_websocket(ws, function (ws) {
+        if(imageData) {
+          params.image = { data: imageData, title: imageTitle, type: imageType }
+        } else {
+          params.image = null;
+        }
         ws.send(JSON.stringify(params));
+        imageData = null;
+        imageTitle = null;
+        imageType = null;
       });
       $("#message").css("height", "96px").val("");
+      $("#image-used").html("");
+      $("#image-base64").html("");
     }
     $("#select-role").val("user");
   });
@@ -307,43 +318,6 @@ $(function () {
   });
 
   resetParams();
-
-  // let default_lang = "en-US";
-  // let voices;
-  // let waitCount = 0;
-  // let timer = setInterval(function () {
-  //   waitCount++;
-  //   voices = window.speechSynthesis.getVoices();
-  //   if (Object.keys(params).length > 0 && voices && voices.length > 0) {
-  //     utterance = new SpeechSynthesisUtterance();
-  //     setupLanguages(true, params["speech_lang"] || default_lang);
-  //     window.speechSynthesis.onvoiceschanged = function () {
-  //       setupLanguages(false, params["speech_lang"] || default_lang);
-  //     };
-  //     clearInterval(timer);
-  //     $("#lang_controller").show();
-  //     $("#voice_controller").show();
-  //     setInputFocus()
-
-  //   } else if (waitCount == 50) {
-  //     clearInterval(timer);
-  //     return false;
-  //   }
-  // }, 100);
-
-
-  // $("#speech-lang").on("change", function(){
-  //   setupVoices(true);
-  //   params["speech_lang"] = $("#speech-lang option:selected").val();
-  //   params["speech_voice"] = $("#speech-voice option:selected").val();
-  //   setCookie("userLang", params["speech_lang"], 30);
-  //   setCookie("userVoice", params["speech_voice"], 30);
-  // });
-
-  // $("#speech-voice").on("change", function(){
-  //   params["speech_voice"] = $("#speech-voice option:selected").val();
-  //   setCookie("userVoice", params["speech_voice"], 30);
-  // });
 
   $("#tts-voice").on("change", function(){
     params["tts_voice"] = $("#tts-voice option:selected").val();

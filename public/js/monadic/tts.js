@@ -24,7 +24,7 @@ function ttsSpeak(text, stream, callback) {
 
   let response_format = "mp3"
   if(runningOnFirefox){
-    response_format = "aac"
+    response_format = "mp3"
   }
 
   if (!audioCtx) {
@@ -73,7 +73,7 @@ function ttsStop() {
   mediaSource.addEventListener('sourceopen', () => {
     console.log('MediaSource opened');
     if (runningOnFirefox) {
-      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
     } else {
       sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
     }

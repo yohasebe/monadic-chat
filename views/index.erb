@@ -49,7 +49,7 @@
             <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-key"></i></span> API Token</h5>
             <form id="api-token-form" class="form-inline">
               <div class="form-group mb-2 me-2 align-middle" style="display:inline-block;">
-                <input type="password" class="form-control" style="width: 270px;" autocomplete="off" id="api-token" class="form-control form-control-sm" placeholder="OPENAI_API_KEY" />
+                <input type="password" class="form-control" style="width: 100%;" autocomplete="off" id="api-token" class="form-control form-control-sm" placeholder="OPENAI_API_KEY" />
               </div>
               <div class="form-group mb-2 me-2 align-middle" style="display:inline-block;">
                 <button class="btn btn-warning" id="check-token">Verify Token</button>
@@ -308,7 +308,10 @@
 
               <div class="row">
                 <div class="col-12 h-25 mt-3">
-                  <textarea id="message" class="form-control" style="resize: vertical;" rows="4" placeholder="Type your message..." ></textarea>
+                  <textarea id="message" class="form-control" style="resize: vertical; margin-bottom: 16px;" rows="4" placeholder="Type your message..." ></textarea>
+                  <div style="margin-bottom: 4px;" id="image-used"></div>
+                  <div id="image-base64"></div>
+                  <p class="mt-2 mb-0" style="color: #777; font-size: 0.9em;">Press <span class="text-secondary"><i class="fas fa-paper-plane"></i> Send</span> to send your message.</p>
                 </div>
               </div>
 
@@ -316,7 +319,8 @@
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
-                    <button id="clear" class="btn btn-secondary me-2" ><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="clear" class="btn btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="image-file" class="btn btn-warning me-2"><i class="fas fa-file"></i> Use Image</button>
                     <button id="voice" class="btn btn-warning fixed-width me-0" ><i class="fas fa-microphone"></i> Voice Input</button>
                   </div>
                 </div>
@@ -394,7 +398,6 @@
       </div>
     </div>
 
-
     <!-- Modal -->
     <div class="modal fade" id="pdfDeleteConfirmation" tabindex="-1" aria-labelledby="pdfDeleteConfirmationLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -461,6 +464,24 @@
       </div>
     </div>
 
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-file"></i> Select File</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <label for="imageFile" class="form-label">File to import</label>
+            <input class="form-control" id="imageFile" type="file" name="imageFile" accept=".jpg,.jpeg,.png,.gif">
+          </div>
+          <div class="modal-footer">
+            <button type="submit" id="uploadImage" value="image" class="btn btn-primary" disabled>Import</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="back_to_top" style="display: none;"><a href="#"><i class="fas fa-arrow-up"></i></a></div>
     <div id="back_to_bottom" style="display: none;"><a href="#"><i class="fas fa-arrow-down"></i></a></div>
 
@@ -494,6 +515,7 @@
     <script src="js/monadic/tts.js?timestamp=<%= @timestamp %>"></script>
     <!--<script src="js/monadic/speech.js?timestamp=<%= @timestamp %>"></script>-->
     <script src="js/monadic/recording.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/select_image.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
   </body>
 </html>

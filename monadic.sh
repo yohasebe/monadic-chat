@@ -72,20 +72,22 @@ function shutdown_docker {
 
 function build_docker_compose {
   start_docker
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build
+  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
   echo "Monadic Chat Docker image has been built successfully!"
 }
 
 function start_docker_compose {
-  build_docker_compose
+  start_docker
 
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
-
-  stop_docker_compose
-
-  build_docker_compose
-
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+  # Check if the Docker image and container exist
+  if $DOCKER images | grep -q "monadic-chat"; then
+    echo "Monadic Chat Docker image already exists"
+    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+  else
+    echo "Monadic Chat Docker image does not exist"
+    build_docker_compose
+    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+  fi
 
   echo "Waiting for Monadic Chat to be ready..."
   echo "Monadic Chat has been started"
@@ -137,6 +139,21 @@ function update_monadic {
   echo "Monadic Chat has been updated successfully!"
 }
 
+# Remove the Docker image and container
+function remove_docker {
+  # Stop the Docker Compose services
+  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
+
+  # Remove the Docker image
+  $DOCKER rmi monadic-chat
+
+  # Remove the Docker container
+  $DOCKER rm monadic-chat
+
+  # Show message to the user
+  echo "Monadic Chat has been removed successfully!"
+}
+
 # Parse the user command
 case "$1" in
   build)
@@ -169,8 +186,11 @@ case "$1" in
   shutdown)
     shutdown_docker
     ;;
+  remove)
+    remove_docker
+    ;;
   *)
-    echo "Usage: $0 {start|stop|restart|update}"
+    echo "Usage: $0 {build|start|stop|restart|update|shutdown|remove}}"
     exit 1
     ;;
 esac

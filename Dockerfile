@@ -1,4 +1,4 @@
-FROM ruby:3.3.0-alpine3.19:
+FROM ruby:3.2.2-alpine3.17
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 

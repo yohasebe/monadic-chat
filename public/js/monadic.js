@@ -416,4 +416,10 @@ $(function () {
     delay: { show: 0, hide: 0 },
     show: 100
   });
+
+  $(document).on("click", ".base64-image", function () {
+    // open a new window to show the image
+    const w = window.open();
+    w.document.write(this.outerHTML);
+  });
 });

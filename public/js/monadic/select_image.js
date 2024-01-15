@@ -1,5 +1,5 @@
 //////////////////////////////
-// Read file contents 
+// Read image file contents 
 //////////////////////////////
 
 const selectFileButton = $("#image-file");
@@ -44,7 +44,7 @@ selectFileButton.on("click", function () {
           $("#imageModal button").prop("disabled", false);
           $("#imageModal").modal("hide");
           $("#image-used").html("Image: " + imageTitle);
-          $("#image-base64").html("<img style='max-width: 400px; max-height: 200px;' src='data:" + imageType + ";base64," + base64 + "' />");
+          $("#image-base64").html("<img class='base64-image' src='data:" + imageType + ";base64," + base64 + "' />");
         });
       } catch (error) {
         $("#imageModal button").prop("disabled", false);
@@ -58,10 +58,43 @@ selectFileButton.on("click", function () {
 
 function blobToBase64(blob, callback) {
   const reader = new FileReader();
-  reader.onload = function () {
+  reader.onload = function (e) {
     const dataUrl = reader.result;
-    const base64 = dataUrl.split(',')[1];
-    callback(base64);
+    const image = new Image();
+    image.onload = function () {
+      let width = image.width;
+      let height = image.height;
+      const MAX_LONG_SIDE = 2000;
+      const MAX_SHORT_SIDE = 768;
+
+      // Determine the long and short sides
+      const longSide = Math.max(width, height);
+      const shortSide = Math.min(width, height);
+
+      // Check if the image needs resizing
+      if (longSide > MAX_LONG_SIDE || shortSide > MAX_SHORT_SIDE) {
+        const longSideScale = MAX_LONG_SIDE / longSide;
+        const shortSideScale = MAX_SHORT_SIDE / shortSide;
+        const scale = Math.min(longSideScale, shortSideScale);
+        width = width * scale;
+        height = height * scale;
+
+        // Resize the image with a canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0, width, height);
+        const resizedDataUrl = canvas.toDataURL(blob.type);
+        const base64 = resizedDataUrl.split(',')[1];
+        callback(base64);
+      } else {
+        // No resizing necessary, use original base64
+        const base64 = dataUrl.split(',')[1];
+        callback(base64);
+      }
+    };
+    image.src = dataUrl;
   };
   reader.readAsDataURL(blob);
 }

@@ -356,3 +356,15 @@ blockquote {
 #alert-message.message-warning p {
   color: #FF7F07;
 }
+img.base64-image {
+  max-width: 400px;
+  max-height: 200px;
+  margin: 0;
+  margin-bottom:20px;
+  cursor: pointer;
+}
+
+.textbox-caption {
+  font-size: 0.9em;
+  color: #777;
+}

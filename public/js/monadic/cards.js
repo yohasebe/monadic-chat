@@ -12,7 +12,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     className = "role-system";
   }
 
-  image_data = image_data === "" ? "" : `<img style='max-width: 400px; max-height: 200px; margin:0; margin-bottom:20px;' src='${image_data}' />`;
+  image_data = image_data === "" ? "" : `<img class='base64-image' src='${image_data}' />`;
   const card = $(`
     <div class="card mt-3">
       <div class="card-header p-2 ps-3 d-flex justify-content-between">

@@ -4,6 +4,8 @@
 
 *.gem
 *.rbc
+*.bak
+
 /.config
 /coverage/
 /InstalledFiles

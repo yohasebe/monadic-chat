@@ -183,7 +183,7 @@ const menuItems = [
     label: 'Start',
     click: () => {
       openMainWindow();
-      runCommand('start', 'Monadic Chat starting. Please wait.', 'Starting', 'Running');
+      runCommand('start', 'Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.', 'Starting', 'Running');
     }
   },
   {
@@ -341,21 +341,32 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       }
     });
   } else {
-    exec(cmd, (err, stdout, _stderr) => {
-      if (err) {
-        dialog.showErrorBox('Error', err.message);
-        console.error(err);
-        return;
+    let subprocess = spawn(cmd, [], { shell: true })
+    subprocess.stdout.on('data', function (data) {
+      const lines = data.toString().split(require('os').EOL);
+      if (lines[lines.length - 1] === '') {
+        lines.pop();
       }
-      console.log(stdout);
+      for (let i = 0; i < lines.length; i++) {
+        console.log(`Line ${i}: ${lines[i]}`);
+        if (mainWindow) {
+          mainWindow.webContents.send('commandOutput', lines[i]);
+        }
+      }
+    });
+
+    subprocess.stderr.on('data', function (data) {
+      console.error(data.toString());
+      return;
+    });
+
+    subprocess.on('close', function (code) {
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `${statusAfterCommand}`;
+
       updateContextMenu();
       updateStatusIndicator(currentStatus);
-      if (mainWindow) {
-        mainWindow.webContents.send('commandOutput', stdout);
-      }
     });
   }
 }

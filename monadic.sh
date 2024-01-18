@@ -81,15 +81,23 @@ function start_docker_compose {
 
   # Check if the Docker image and container exist
   if $DOCKER images | grep -q "monadic-chat"; then
-    echo "Monadic Chat Docker image exists"
-    echo "Starting Monadic Chat Docker image ..."
-    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" start
+    if $DOCKER container ls --all | grep -q "monadic-chat"; then
+      echo "Monadic Chat Docker image and container exist"
+      echo "Starting Monadic Chat container ..."
+      $DOCKER container start monadic-chat-web-container
+      $DOCKER container start monadic-chat-pgvector-container
+      $DOCKER container start monadic-chat-container
+    else
+      echo "Monadic Chat Docker image exist"
+      echo "Building Monadic Chat container ..."
+      $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+    fi
   else
-    echo "Monadic Chat Docker image does not exist"
+    echo "[IMAGE DOES NOT EXIST]"
     echo "Building Monadic Chat Docker image. This may take a while ..."
     build_docker_compose
     echo "Starting Monadic Chat Docker image ..."
-    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
 
     # periodically check if the image is ready
     while true; do

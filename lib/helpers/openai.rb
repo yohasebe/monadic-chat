@@ -282,10 +282,9 @@ module OpenAIHelper
         end
         message
       end
-      if messages_containing_img
-        body["model"] = "gpt-4-vision-preview" 
-        body.delete("stop")
-      end
+
+      body["model"] = "gpt-4-vision-preview" if messages_containing_img
+      body.delete("stop") if /\-vision/ =~ body["model"]
     end
 
     target_uri = "#{API_ENDPOINT}/#{mode}"

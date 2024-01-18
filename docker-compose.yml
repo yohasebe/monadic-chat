@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
   web:
+    image: monadic-chat
     volumes:
       - ~/monadic:/monadic/data
     build: .

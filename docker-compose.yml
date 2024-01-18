@@ -2,12 +2,14 @@ version: '3.9'
 services:
   db:
     image: ankane/pgvector
+    container_name: monadic-chat-pgvector-container
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
   web:
-    image: monadic-chat
+    image: yohasebe/monadic-chat
+    container_name: monadic-chat-web-container
     volumes:
       - ~/monadic:/monadic/data
     build: .

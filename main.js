@@ -348,6 +348,14 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         lines.pop();
       }
       for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === "[IMAGE DOES NOT EXIST]"){
+          currentStatus = "Building"
+          tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+          statusMenuItem.label = currentStatus;
+
+          updateContextMenu();
+          updateStatusIndicator(currentStatus);
+        }
         console.log(`Line ${i}: ${lines[i]}`);
         if (mainWindow) {
           mainWindow.webContents.send('commandOutput', lines[i]);
@@ -442,11 +450,11 @@ function createMainWindow() {
   if(justLaunched){
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = "Port 4567 is already in use.\nPlease stop the process using this port and try again.";
+        openingText = "Port 4567 is already in use.\nIf apps other than Monadic Chat uses it,\n shut them down and try again.\nOtherwise, Press \"Start\".";
         portInUse = true;
         currentStatus = 'Port in use';
       } else {
-        openingText = `Monadic Chat ${app.getVersion()}\nPress Start to initialize the server.`;
+        openingText = `Monadic Chat ${app.getVersion()}\nPress \"Start\" to initialize the server.`;
         portInUse = false;
         justLaunched = false;
         currentStatus = 'Stopped';

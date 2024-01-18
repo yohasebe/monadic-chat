@@ -73,7 +73,7 @@ function shutdown_docker {
 function build_docker_compose {
   start_docker
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
-  echo "Monadic Chat Docker image has been built successfully!"
+  echo "Monadic Chat Docker image has been built successfully"
 }
 
 function start_docker_compose {
@@ -81,12 +81,23 @@ function start_docker_compose {
 
   # Check if the Docker image and container exist
   if $DOCKER images | grep -q "monadic-chat"; then
-    echo "Monadic Chat Docker image already exists"
-    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+    echo "Monadic Chat Docker image exists"
+    echo "Starting Monadic Chat Docker image ..."
+    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" start
   else
     echo "Monadic Chat Docker image does not exist"
+    echo "Building Monadic Chat Docker image. This may take a while ..."
     build_docker_compose
+    echo "Starting Monadic Chat Docker image ..."
     $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+
+    # periodically check if the image is ready
+    while true; do
+      if $DOCKER images | grep -q "monadic-chat"; then
+        break
+      fi
+      sleep 1
+    done
   fi
 
   echo "Waiting for Monadic Chat to be ready..."
@@ -98,14 +109,19 @@ function start_docker_compose {
   echo "and then refresh the page. It may take a while"
   echo "when you run the app for the first time."
   echo "----------------------------------------------"
+  echo ""
 }
 
-
-# Define a function to stop Docker Compose
-function stop_docker_compose {
+function down_docker_compose {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
   # remove unused docker volumes created by docker-compose
   $DOCKER volume prune -f
+  echo "Monadic Chat has been stopped and containers have been removed"
+}
+
+# Define a function to stop Docker Compose
+function stop_docker_compose {
+  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" stop 
   echo "Monadic Chat has been stopped"
 }
 

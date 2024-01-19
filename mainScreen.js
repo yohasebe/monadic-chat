@@ -1,6 +1,14 @@
 window.electron.receiveCommandOutput((output) => {
-  const outputElement = document.getElementById('output');
-  outputElement.textContent += output + '\n';
+  output = output.trim();
+  let outputElement;
+  if (output.startsWith("[HTML]:")) {
+    const message = output.replace("[HTML]:", "");
+    outputElement = document.getElementById('messages');
+    outputElement.innerHTML += message + '\n';
+  } else {
+    outputElement = document.getElementById('output');
+    outputElement.textContent += output + '\n';
+  }
   outputElement.scrollTop = outputElement.scrollHeight;
 });
 

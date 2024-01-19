@@ -45,7 +45,8 @@
       background-color: #fff;
     }
     #messages p {
-      margin: 0;
+      margin-top: 0;
+      margin-bottom: 0.5em;
       padding: 0;
     }
     #output {
@@ -57,7 +58,6 @@
       background-color: #DCDCDC;
     }
     .status-wrapper {
-      font-weight: bold;
       text-align: left;
       font-size: 14px;
       margin: 10px;
@@ -100,7 +100,9 @@
 </head>
 <body>
   <div class="status-wrapper">
-    <span>Status: </span>
+    <span><b>Monadic Chat</b> </span>
+    <span id="version"></span>
+    <span><b> | </b></span>
     <span id="status" class="status"></span>
   </div>
   <div class="message-wrapper">

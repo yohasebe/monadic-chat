@@ -66,7 +66,7 @@ function checkForUpdates() {
             type: 'info',
             buttons: ['OK'],
             title: 'Update Available',
-            message: 'A new version of the app is available. Please update to the latest version.',
+            message: `A new version (${latestVersion}) of the app is available. Please update to the latest version.`,
             icon: path.join(iconDir, 'monadic-chat.png')
           });
         } else {
@@ -74,7 +74,7 @@ function checkForUpdates() {
             type: 'info',
             buttons: ['OK'],
             title: 'Up to Date',
-            message: 'You are already using the latest version of the app.',
+            message: `You are already using the latest version (${latestVersion}) of the app.`,
             icon: path.join(iconDir, 'monadic-chat.png')
           });
         }
@@ -206,12 +206,22 @@ const menuItems = [
   { type: 'separator' },
   {
     label: 'Open Browser',
-    click: openBrowser
+    click: () => {
+      openMainWindow();
+      openBrowser('http://localhost:4567');
+    }
   },
   {
     label: 'Open Console',
     click: () => {
       openMainWindow();
+    }
+  },
+  { type: 'separator' },
+  {
+    label: 'Documentation',
+    click: () => {
+      openBrowser('https://yohasebe.github.io/monadic-chat/');
     }
   },
   { type: 'separator' },
@@ -244,6 +254,7 @@ function initializeApp() {
     contextMenu = Menu.buildFromTemplate(menuItems);
 
     updateStatus();
+    mainWindow.webContents.send('updateVersion', app.getVersion());
 
     ipcMain.on('command', (_event, command) => {
       switch (command) {
@@ -257,7 +268,7 @@ function initializeApp() {
           runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
           break;
         case 'browser':
-          openBrowser();
+          openBrowser('http://localhost:4567');
           break;
         case 'exit':
           quitApp();
@@ -288,7 +299,7 @@ function shutdownDocker() {
   let cmd;
   if (os.platform() === 'win32') {
     // cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
-    cmd = "net stop docker"
+    cmd = 'taskkill /IM "Docker Desktop.exe" /F'
   }
   else if (os.platform() === 'darwin') {
     // gracefully shutdown Docker Desktop on MacOS
@@ -452,14 +463,14 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
-    openingText = `[HTML]: <p><b>Monadic Chat</b> ${app.getVersion()}</p><p>Press <b>Start</b> to initialize the server.</p>`;
+    openingText = `[HTML]: <p>Press <b>Start</b> to initialize the server.</p>`;
     portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = `[HTML]: <p><b>Monadic Chat</b> ${app.getVersion()}</p><p>Port 4567 is already in use.</p><p>Press <b>Start</b> to initialize the server.</p>`
+        openingText = `[HTML]: <p>Port 4567 is already in use.</p><p>If other applications use it, shut them down first. Otherwise, Press <b>Start</b> to initialize the server.</p>`
         portInUse = true;
         currentStatus = 'Port in use';
       } 
@@ -495,8 +506,7 @@ function createMainWindow() {
   });
 }
 
-function openBrowser() {
-  const url = 'http://localhost:4567';
+function openBrowser(url) {
   const openCommands = {
     win32: ['cmd', ['/c', 'start', url]],
     darwin: ['open', [url]],
@@ -516,3 +526,4 @@ function openBrowser() {
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+

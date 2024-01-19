@@ -54,6 +54,10 @@ There are two types of Monadic Chat: one is a web browser-based app provided in 
 
 - 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 2 API
 
+### Image Understanding
+
+- 👀 **Local images** can be uploaded and let AI assistant analyze what are in them
+
 ### Configuration and Extension
 
 - 💡 Customize the AI agent's behavior by specifying **API parameters** and the **system prompt**

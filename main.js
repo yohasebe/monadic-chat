@@ -448,17 +448,24 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
+    openingText = `
+Monadic Chat ${app.getVersion()}
+
+----------------------------------------------
+Press Start to initialize the server.
+----------------------------------------------
+
+`;
+    portInUse = false;
+    justLaunched = false;
+    currentStatus = 'Stopped';
+
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = "Port 4567 is already in use.\nIf apps other than Monadic Chat uses it,\n shut them down and try again.\nOtherwise, Press \"Start\".";
+        openingText = "Port 4567 is already in use.\n" + openingText;
         portInUse = true;
         currentStatus = 'Port in use';
-      } else {
-        openingText = `Monadic Chat ${app.getVersion()}\nPress \"Start\" to initialize the server.`;
-        portInUse = false;
-        justLaunched = false;
-        currentStatus = 'Stopped';
-      }
+      } 
     })
   };
 

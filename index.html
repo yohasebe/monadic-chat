@@ -19,24 +19,41 @@
     body, input, textarea, button, pre {
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
     }
+    .message-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 35px); /* Subtract the height of the button group and any margins */
+      overflow: hidden; /* Prevents the content from overflowing */
+    }
+    #messages, #output {
+      overflow: auto;
+      margin: 0; /* Reset margins for accurate calculations */
+      flex-shrink: 1; /* Allows these elements to shrink if necessary */
+    }
+    .divider {
+      flex: 0 0 auto; /* The divider should not grow or shrink */
+      height: 10px;
+      cursor: row-resize;
+    }
+
     #messages {
       font-size: 13px;
-      flex: 0.7;
-      overflow: auto;
       padding: 5px;
       margin: 10px;
       margin-top: 5px;
-      margin-bottom: 5px;
+      margin-bottom: 0px;
       background-color: #fff;
+    }
+    #messages p {
+      margin: 0;
+      padding: 0;
     }
     #output {
       font-size: 13px;
-      flex: 0.3;
-      overflow: auto;
       padding: 5px;
       margin: 10px;
-      margin-top: 5px;
-      margin-bottom: 5px;
+      margin-top: 2px;
+      margin-bottom: 2px;
       background-color: #DCDCDC;
     }
     .status-wrapper {
@@ -50,8 +67,8 @@
       font-weight: bold;
     }
     .button-group {
+      height: 35px;
       margin: 10px;
-      margin-top: 5px;
     }
     .button-group button {
       background-color: #ffc107;
@@ -86,8 +103,11 @@
     <span>Status: </span>
     <span id="status" class="status"></span>
   </div>
-  <div id="messages"></div>
-  <pre id="output"></pre>
+  <div class="message-wrapper">
+    <div id="messages"></div>
+    <div id="divider" class="divider"></div>
+    <pre id="output"></pre>
+  </div>
   <div class="button-group">
     <button id="start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
     <button id="stop" disabled><i class="fa-solid fa-stop"></i> Stop</button>
@@ -95,6 +115,50 @@
     <button id="browser" disabled><i class="fa-solid fa-window-maximize"></i> Open Browser</button>
     <button id="exit"><i class="fa-solid fa-xmark"></i> Quit</button>
   </div>
+  <script>
+    const messageWrapper = document.querySelector('.message-wrapper');
+    const messages = document.getElementById('messages');
+    const output = document.getElementById('output');
+    const divider = document.getElementById('divider');
+    let isDragging = false;
+
+    // Function to set initial heights based on a ratio
+    function setInitialHeights(ratio) {
+      const wrapperHeight = messageWrapper.clientHeight - divider.offsetHeight;
+      const messagesHeight = wrapperHeight * ratio;
+      const outputHeight = wrapperHeight - messagesHeight;
+      messages.style.height = `${messagesHeight}px`;
+      output.style.height = `${outputHeight}px`;
+    }
+
+    // Set the initial ratio
+    setInitialHeights(0.75); // Adjust this value to your preferred starting ratio
+
+    // Add the draggable functionality
+    divider.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      e.preventDefault(); // Prevent text selection during drag
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      const totalHeight = messageWrapper.clientHeight - divider.offsetHeight;
+      const messagesHeight = e.clientY - messageWrapper.offsetTop - divider.offsetHeight / 2;
+      const outputHeight = totalHeight - messagesHeight;
+      messages.style.height = `${messagesHeight}px`;
+      output.style.height = `${outputHeight}px`;
+    });
+
+    document.addEventListener('mouseup', function(e) {
+      isDragging = false;
+    });
+
+    // Adjust the heights on window resize
+    window.addEventListener('resize', function() {
+      const currentRatio = messages.offsetHeight / (messages.offsetHeight + output.offsetHeight);
+      setInitialHeights(currentRatio);
+    });
+  </script>
   <script src="preload.js"></script>
   <script src="mainScreen.js"></script>
 </body>

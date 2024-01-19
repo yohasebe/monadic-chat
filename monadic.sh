@@ -113,9 +113,8 @@ function start_docker_compose {
   echo "Access http://localhost:4567 on your browser"
   echo ""
   echo "----------------------------------------------"
-  echo "If the browser window is blank, wait a moment,"
-  echo "and then refresh the page. It may take a while"
-  echo "when you run the app for the first time."
+  echo "Monadic Chat is running in the background"
+  echo "Press Open Browser to open the application"
   echo "----------------------------------------------"
   echo ""
 }
@@ -130,7 +129,6 @@ function down_docker_compose {
 # Define a function to stop Docker Compose
 function stop_docker_compose {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" stop 
-  echo "Monadic Chat has been stopped"
 }
 
 # Define a function to restart Docker Compose
@@ -157,7 +155,7 @@ function update_monadic {
   cd "$ROOT_DIR" && git pull origin main
 
   # Build and start the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build
+  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
 
   # Show message to the user
   echo "Monadic Chat has been updated successfully!"
@@ -168,11 +166,14 @@ function remove_docker {
   # Stop the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
 
-  # Remove the Docker image
-  $DOCKER rmi monadic-chat
-
   # Remove the Docker container
-  $DOCKER rm monadic-chat
+  $DOCKER rm monadic-chat-web-container
+  $DOCKER rm monadic-chat-pgvector-container
+  $DOCKER rm monadic-chat-container
+
+  # Remove the Docker image
+  $DOCKER rmi yohasebe/monadic-chat
+  $DOCKER rmi ankane/pgvector
 
   # Show message to the user
   echo "Monadic Chat has been removed successfully!"

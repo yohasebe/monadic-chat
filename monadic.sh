@@ -73,7 +73,6 @@ function shutdown_docker {
 function build_docker_compose {
   start_docker
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
-  echo "Monadic Chat Docker image has been built successfully"
 }
 
 function start_docker_compose {
@@ -83,20 +82,20 @@ function start_docker_compose {
   if $DOCKER images | grep -q "monadic-chat"; then
     if $DOCKER container ls --all | grep -q "monadic-chat"; then
       echo "[IMAGE EXISTS]"
-      echo "Starting Monadic Chat container ..."
+      echo "[HTML]: Starting Monadic Chat container . . ."
       $DOCKER container start monadic-chat-web-container
       $DOCKER container start monadic-chat-pgvector-container
-      $DOCKER container start monadic-chat-container
     else
-      echo "Monadic Chat Docker image exist"
-      echo "Building Monadic Chat container ..."
+
+      echo "[HTML]: <p>Monadic Chat Docker image exist.</p><p>Building Monadic Chat container . . .</p>"
+
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
     fi
   else
     echo "[IMAGE DOES NOT EXIST]"
-    echo "Building Monadic Chat Docker image. This may take a while ..."
+    echo "[HTML]: Building Monadic Chat Docker image. This may take a while . . ."
     build_docker_compose
-    echo "Starting Monadic Chat Docker image ..."
+    echo "[HTML]: Starting Monadic Chat Docker image . . ."
     $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
 
     # periodically check if the image is ready
@@ -107,33 +106,18 @@ function start_docker_compose {
       sleep 1
     done
   fi
-
-  echo "Waiting for Monadic Chat to be ready..."
-  echo "Monadic Chat has been started"
-  echo "Access http://localhost:4567 on your browser"
-  echo ""
-  echo "----------------------------------------------"
-  echo "Monadic Chat is running in the background"
-  echo "Press Open Browser to open the application"
-  echo "----------------------------------------------"
-  echo ""
 }
 
 function down_docker_compose {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
   # remove unused docker volumes created by docker-compose
   $DOCKER volume prune -f
-  echo "Monadic Chat has been stopped and containers have been removed"
 }
 
 # Define a function to stop Docker Compose
 function stop_docker_compose {
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" stop 
-}
-
-# Define a function to restart Docker Compose
-function restart_docker_compose {
-  start_docker_compose
+  $DOCKER container stop monadic-chat-web-container
+  $DOCKER container stop monadic-chat-pgvector-container
 }
 
 # Define a function to import the database contents from an external file
@@ -156,9 +140,6 @@ function update_monadic {
 
   # Build and start the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
-
-  # Show message to the user
-  echo "Monadic Chat has been updated successfully!"
 }
 
 # Remove the Docker image and container
@@ -174,9 +155,6 @@ function remove_docker {
   # Remove the Docker image
   $DOCKER rmi yohasebe/monadic-chat
   $DOCKER rmi ankane/pgvector
-
-  # Show message to the user
-  echo "Monadic Chat has been removed successfully!"
 }
 
 # Parse the user command
@@ -184,15 +162,20 @@ case "$1" in
   build)
     stop_docker_compose
     build_docker_compose
+    echo "[HTML]: Monadic Chat Docker image has been built successfully"
     ;;
   start)
     start_docker_compose
+    echo "[HTML]: <p>Monadic Chat has been started.</p><p>Access http://localhost:4567 on the web browser.</p><p>Or just press <b>Open Browser</b> button.</p>"
     ;;
   stop)
     stop_docker_compose
+    echo "[HTML]: Monadic Chat has been stopped."
     ;;
   restart)
+    stop_docker_compose
     restart_docker_compose
+    echo "[HTML]: <p>Monadic Chat has been restarted.</p><p>Access http://localhost:4567 on the web browser.</p><p>Or just press <b>Open Browser</b> button.</p>"
     ;;
   import)
     start_docker
@@ -207,12 +190,18 @@ case "$1" in
   update)
     start_docker
     update_monadic
+    echo "[HTML]: Monadic Chat has been updated successfully!"
+    ;;
+  down)
+    down_docker_compose
+    echo "[HTML]: Monadic Chat has been stopped and containers have been removed"
     ;;
   shutdown)
     shutdown_docker
     ;;
   remove)
     remove_docker
+    echo "[HTML]: Monadic Chat has been removed successfully!"
     ;;
   *)
     echo "Usage: $0 {build|start|stop|restart|update|shutdown|remove}}"

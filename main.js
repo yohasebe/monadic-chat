@@ -1,4 +1,5 @@
 const { app, dialog, Menu, Tray, BrowserWindow, ipcMain } = require('electron')
+app.commandLine.appendSwitch('no-sandbox');
 const { exec, execSync, spawn} = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
 const path = require('path')
@@ -66,6 +67,7 @@ function checkForUpdates() {
             buttons: ['OK'],
             title: 'Update Available',
             message: 'A new version of the app is available. Please update to the latest version.',
+            icon: path.join(iconDir, 'monadic-chat.png')
           });
         } else {
           dialog.showMessageBox({
@@ -73,6 +75,7 @@ function checkForUpdates() {
             buttons: ['OK'],
             title: 'Up to Date',
             message: 'You are already using the latest version of the app.',
+            icon: path.join(iconDir, 'monadic-chat.png')
           });
         }
       } else {
@@ -137,7 +140,7 @@ function quitApp() {
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
       if (result.response === 1) {
-        runCommand('stop', 'Monadic Chat is stopping...', 'Stopping', 'Stopped', true);
+        runCommand('stop', '[html]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped', true);
         if (result.checkboxChecked) {
           shutdownDocker();
         }
@@ -175,7 +178,7 @@ const menuItems = [
     label: 'Build',
     click: () => {
       openMainWindow();
-      runCommand('build', 'Building Monadic Chat...', 'Building', 'Stopped');
+      runCommand('build', '[HTML]: <p>Building Monadic Chat . . .</p>', 'Building', 'Stopped');
     }
   },
   { type: 'separator' },
@@ -183,21 +186,21 @@ const menuItems = [
     label: 'Start',
     click: () => {
       openMainWindow();
-      runCommand('start', 'Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.', 'Starting', 'Running');
+      runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
     }
   },
   {
     label: 'Stop',
     click: () => {
       openMainWindow();
-      runCommand('stop', 'Monadic Chat is stopping. Please wait.', 'Stopping', 'Stopped');
+      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping. Please wait . . .</p>', 'Stopping', 'Stopped');
     }
   },
   {
     label: 'Restart',
     click: () => {
       openMainWindow();
-      runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Restarting', 'Running');
+      runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
     }
   },
   { type: 'separator' },
@@ -245,13 +248,13 @@ function initializeApp() {
     ipcMain.on('command', (_event, command) => {
       switch (command) {
         case 'start':
-          runCommand('start', 'Monadic Chat starting. Please wait.', 'Starting', 'Running');
+          runCommand('start', '[HTML]: <p>Monadic Chat starting. Please wait . . .</p>', 'Starting', 'Running');
           break;
         case 'stop':
-          runCommand('stop', 'Monadic Chat is stopping...', 'Stopping', 'Stopped');
+          runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
           break;
         case 'restart':
-          runCommand('restart', 'Monadic Chat is restarting. Please wait.', 'Restarting', 'Running');
+          runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
           break;
         case 'browser':
           openBrowser();
@@ -284,7 +287,8 @@ function shutdownDocker() {
 
   let cmd;
   if (os.platform() === 'win32') {
-    cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
+    // cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
+    cmd = "net stop docker"
   }
   else if (os.platform() === 'darwin') {
     // gracefully shutdown Docker Desktop on MacOS
@@ -434,9 +438,9 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 520,
-    minWidth: 520,
-    height: 260,
+    width: 560,
+    minWidth: 560,
+    height: 320,
     minHeight: 260,
     webPreferences: {
       nodeIntegration: false,
@@ -448,21 +452,14 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
-    openingText = `
-Monadic Chat ${app.getVersion()}
-
-----------------------------------------------
-Press Start to initialize the server.
-----------------------------------------------
-
-`;
+    openingText = `[HTML]: <p><b>Monadic Chat</b> ${app.getVersion()}</p><p>Press <b>Start</b> to initialize the server.</p>`;
     portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = "Port 4567 is already in use.\n" + openingText;
+        openingText = `[HTML]: <p><b>Monadic Chat</b> ${app.getVersion()}</p><p>Port 4567 is already in use.</p><p>Press <b>Start</b> to initialize the server.</p>`
         portInUse = true;
         currentStatus = 'Port in use';
       } 

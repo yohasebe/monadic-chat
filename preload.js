@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('electron', {
   }
 });
 
+ipcRenderer.on('updateVersion', (_event, version) => {
+  document.getElementById('version').textContent = version;
+});
+
 ipcRenderer.on('updateStatusIndicator', (_event, status) => {
   const statusElement = document.getElementById('status');
   statusElement.textContent = status;

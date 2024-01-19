@@ -81,18 +81,16 @@ function start_docker_compose {
   # Check if the Docker image and container exist
   if $DOCKER images | grep -q "monadic-chat"; then
     if $DOCKER container ls --all | grep -q "monadic-chat"; then
-      echo "[IMAGE EXISTS]"
+      echo "[CONTAINERS FOUND]"
       echo "[HTML]: Starting Monadic Chat container . . ."
       $DOCKER container start monadic-chat-web-container
       $DOCKER container start monadic-chat-pgvector-container
     else
-
       echo "[HTML]: <p>Monadic Chat Docker image exist.</p><p>Building Monadic Chat container . . .</p>"
-
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
     fi
   else
-    echo "[IMAGE DOES NOT EXIST]"
+    echo "[IMAGE NOT FOUND]"
     echo "[HTML]: Building Monadic Chat Docker image. This may take a while . . ."
     build_docker_compose
     echo "[HTML]: Starting Monadic Chat Docker image . . ."
@@ -116,8 +114,8 @@ function down_docker_compose {
 
 # Define a function to stop Docker Compose
 function stop_docker_compose {
-  $DOCKER container stop monadic-chat-web-container
-  $DOCKER container stop monadic-chat-pgvector-container
+  $DOCKER container stop monadic-chat-web-container >/dev/null
+  $DOCKER container stop monadic-chat-pgvector-container >/dev/null
 }
 
 # Define a function to import the database contents from an external file
@@ -162,7 +160,8 @@ case "$1" in
   build)
     stop_docker_compose
     build_docker_compose
-    echo "[HTML]: Monadic Chat Docker image has been built successfully"
+    echo "[HTML]: <p>Monadic Chat Docker image has been built successfully.</p>"
+    echo "[HTML]: <p>Press <b>Start</b> to initialize the server.</p>"
     ;;
   start)
     start_docker_compose

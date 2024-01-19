@@ -140,7 +140,7 @@ function quitApp() {
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
       if (result.response === 1) {
-        runCommand('stop', '[html]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped', true);
+        runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped', true);
         if (result.checkboxChecked) {
           shutdownDocker();
         }
@@ -352,7 +352,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         lines.pop();
       }
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim() === "[IMAGE DOES NOT EXIST]"){
+        if (lines[i].trim() === "[IMAGE NOT FOUND]"){
           currentStatus = "Building"
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
           statusMenuItem.label = currentStatus;
@@ -440,7 +440,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 560,
     minWidth: 560,
-    height: 320,
+    height: 340,
     minHeight: 260,
     webPreferences: {
       nodeIntegration: false,

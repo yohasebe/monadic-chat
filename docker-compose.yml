@@ -7,6 +7,8 @@ services:
       POSTGRES_HOST_AUTH_METHOD: "trust"
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
+    volumes:
+      - postgres-data-volume:/var/lib/postgresql/data:rw
   web:
     image: yohasebe/monadic-chat
     container_name: monadic-chat-web-container
@@ -21,3 +23,7 @@ services:
     stdin_open: true
     tty: true
     command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]
+volumes:
+  postgres-data-volume:
+    name: monadic-chat-pgvector-data
+    driver: local

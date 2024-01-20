@@ -7,11 +7,11 @@ ROOT_DIR=$(dirname "$0")
 HOME_DIR=$(eval echo ~${SUDO_USER})
 
 # Define the full path to docker-compose
-# if [[ "$(uname -s)" == "Darwin"* ]]; then
-#   DOCKER=/usr/local/bin/docker
-# else
+if [[ "$(uname -s)" == "Darwin"* ]]; then
+  DOCKER=/usr/local/bin/docker
+else
   DOCKER=docker
-# fi
+fi
 
 # Define the paths to the support scripts
 MAC_SCRIPT="${ROOT_DIR}/docker/support_scripts/mac-start-docker.sh"
@@ -82,18 +82,19 @@ function start_docker_compose {
   if $DOCKER images | grep -q "monadic-chat"; then
     if $DOCKER container ls --all | grep -q "monadic-chat"; then
       echo "[CONTAINERS FOUND]"
-      echo "[HTML]: Starting Monadic Chat container . . ."
       $DOCKER container start monadic-chat-web-container
       $DOCKER container start monadic-chat-pgvector-container
+      echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
     else
       echo "[HTML]: <p>Monadic Chat Docker image exist.</p><p>Building Monadic Chat container . . .</p>"
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
     fi
   else
     echo "[IMAGE NOT FOUND]"
-    echo "[HTML]: Building Monadic Chat Docker image. This may take a while . . ."
+    sleep 1
+    echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
     build_docker_compose
-    echo "[HTML]: Starting Monadic Chat Docker image . . ."
+    echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
     $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
 
     # periodically check if the image is ready

@@ -12,9 +12,9 @@ error_output=$(mktemp)
 ) > /dev/null
 
 if [ $? -eq 0 ]; then
-  echo "Everything went successfully."
+  echo "[HTML]: Everything went successfully.</p>"
 else
-  echo "An error occurred:"
+  echo "[HTML]: An error occurred:</p>"
   cat "$error_output"
 fi
 

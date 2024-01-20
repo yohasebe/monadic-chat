@@ -126,16 +126,19 @@ function checkDockerInstallation() {
 }
 
 function quitApp() {
-  const options = {
+  let options = {
     type: 'question',
     buttons: ['Cancel', 'Quit'],
     defaultId: 1,
     title: 'Confirm Quit',
     message: 'Do you want to quit Monadic Chat?',
-    checkboxLabel: 'Shut down Docker Desktop (if possible)',
-    checkboxChecked: false,
     icon: path.join(iconDir, 'monadic-chat.png')
   };
+
+  if (process.platform === 'darwin') {
+    options.checkboxLabel = 'Shut down Docker Desktop (if possible)';
+    options.checkboxChecked = false;
+  }
 
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
@@ -298,11 +301,15 @@ function shutdownDocker() {
 
   let cmd;
   if (os.platform() === 'win32') {
-    // cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
-    cmd = 'taskkill /IM "Docker Desktop.exe" /F'
+    // $isrunning = Get-Process "Docker Desktop" -ErrorAction SilentlyContinue
+    // if ($isrunning) {
+    //   $isrunning.CloseMainWindow()
+    //   $isrunning | Stop-Process -Force
+    // }
+    // run the above in powershell
+    cmd = `powershell.exe -Command "& { $isrunning = Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue; if ($isrunning) { $isrunning.CloseMainWindow(); $isrunning | Stop-Process -Force } }"`;
   }
   else if (os.platform() === 'darwin') {
-    // gracefully shutdown Docker Desktop on MacOS
     cmd = `osascript -e 'quit app "Docker Desktop"'`;
 
   }
@@ -364,7 +371,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       }
       for (let i = 0; i < lines.length; i++) {
         if (lines[i].trim() === "[IMAGE NOT FOUND]"){
-          currentStatus = "Building"
+          currentStatus = "Building";
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
           statusMenuItem.label = currentStatus;
 

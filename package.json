@@ -121,6 +121,7 @@
     },
     "afterSign": "notarize.js",
     "win": {
+      "target": "nsis",
       "icon": "menu_icons/icon.ico",
       "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
       "certificateSha1":"4F833B9F1030A709A2014DBC64FE12F7E0EAEBCE"

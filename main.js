@@ -87,6 +87,28 @@ function checkForUpdates() {
   });
 }
 
+function uninstall() {
+  let options = {
+    type: 'question',
+    buttons: ['Cancel', 'Uninstall'],
+    defaultId: 1,
+    title: 'Confirm Uninstall',
+    message: 'If you continue, all containers and images will be deleted. You can then exit and uninstall the application yourself. Do you want to continue?',
+    icon: path.join(iconDir, 'monadic-chat.png')
+  };
+
+  dialog.showMessageBox(null, options).then((result) => {
+    setTimeout(() => {
+      if (result.response === 1) {
+        runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled', false);
+      } else {
+        return false;
+        ;
+      }
+    }, 1000);
+  })
+}
+
 function checkDockerInstallation() {
   return new Promise((resolve, reject) => {
     if (os.platform() === 'win32') {
@@ -181,8 +203,9 @@ const menuItems = [
     label: 'Build',
     click: () => {
       openMainWindow();
-      runCommand('build', '[HTML]: <p>Building Monadic Chat . . .</p>', 'Building', 'Stopped');
-    }
+      runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+    },
+    enabled: true
   },
   { type: 'separator' },
   {
@@ -190,21 +213,24 @@ const menuItems = [
     click: () => {
       openMainWindow();
       runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
-    }
+    },
+    enabled: true
   },
   {
     label: 'Stop',
     click: () => {
       openMainWindow();
       runCommand('stop', '[HTML]: <p>Monadic Chat is stopping. Please wait . . .</p>', 'Stopping', 'Stopped');
-    }
+    },
+    enabled: true
   },
   {
     label: 'Restart',
     click: () => {
       openMainWindow();
       runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
-    }
+    },
+    enabled: true
   },
   { type: 'separator' },
   {
@@ -212,20 +238,23 @@ const menuItems = [
     click: () => {
       openMainWindow();
       openBrowser('http://localhost:4567');
-    }
+    },
+    enabled: true
   },
   {
     label: 'Open Console',
     click: () => {
       openMainWindow();
-    }
+    },
+    enabled: true
   },
   { type: 'separator' },
   {
     label: 'Documentation',
     click: () => {
       openBrowser('https://yohasebe.github.io/monadic-chat/');
-    }
+    },
+    enabled: true
   },
   { type: 'separator' },
   {
@@ -233,7 +262,16 @@ const menuItems = [
     click: () => {
       openMainWindow();
       checkForUpdates();
-    }
+    },
+    enabled: true
+  },
+  { type: 'separator' },
+  {
+    label: 'Uninstall',
+    click: () => {
+      uninstall();
+    },
+    enabled: true
   },
   { type: 'separator' },
   {
@@ -241,7 +279,8 @@ const menuItems = [
     click: () => {
       openMainWindow();
       quitApp();
-    }
+    },
+    enabled: true
   }
 ]
 
@@ -300,16 +339,7 @@ function shutdownDocker() {
   const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
 
   let cmd;
-  if (os.platform() === 'win32') {
-    // $isrunning = Get-Process "Docker Desktop" -ErrorAction SilentlyContinue
-    // if ($isrunning) {
-    //   $isrunning.CloseMainWindow()
-    //   $isrunning | Stop-Process -Force
-    // }
-    // run the above in powershell
-    cmd = `powershell.exe -Command "& { $isrunning = Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue; if ($isrunning) { $isrunning.CloseMainWindow(); $isrunning | Stop-Process -Force } }"`;
-  }
-  else if (os.platform() === 'darwin') {
+  if (os.platform() === 'darwin') {
     cmd = `osascript -e 'quit app "Docker Desktop"'`;
 
   }
@@ -327,7 +357,6 @@ function shutdownDocker() {
       console.error(err);
       return;
     }
-    console.log(stdout);
     if (mainWindow) {
       mainWindow.webContents.send('commandOutput', stdout);
     }
@@ -342,6 +371,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
   const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
 
+  updateContextMenu(true);
   updateStatusIndicator(statusWhileCommand);
 
   if (sync) {
@@ -351,19 +381,20 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         console.error(err);
         return;
       }
-      console.log(stdout);
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `${statusAfterCommand}`;
 
-      updateContextMenu();
-      updateStatusIndicator(currentStatus);
       if (mainWindow) {
         mainWindow.webContents.send('commandOutput', stdout);
       }
+
+      updateContextMenu(false);
+      updateStatusIndicator(currentStatus);
     });
   } else {
     let subprocess = spawn(cmd, [], { shell: true })
+
     subprocess.stdout.on('data', function (data) {
       const lines = data.toString().split(require('os').EOL);
       if (lines[lines.length - 1] === '') {
@@ -375,10 +406,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
           statusMenuItem.label = currentStatus;
 
-          updateContextMenu();
-          updateStatusIndicator(currentStatus);
         }
-        console.log(`Line ${i}: ${lines[i]}`);
         if (mainWindow) {
           mainWindow.webContents.send('commandOutput', lines[i]);
         }
@@ -395,7 +423,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `${statusAfterCommand}`;
 
-      updateContextMenu();
+      updateContextMenu(false);
       updateStatusIndicator(currentStatus);
     });
   }
@@ -428,7 +456,7 @@ function updateStatus() {
     } else {
       currentStatus = 'Stopped';
     }
-    updateContextMenu();
+    updateContextMenu(false);
     updateStatusIndicator(currentStatus);
   });
 }
@@ -439,8 +467,29 @@ function updateStatusIndicator(status) {
   mainWindow.webContents.send('updateStatusIndicator', status);
 }
 
-function updateContextMenu() {
+function updateContextMenu(disableControls = false) {
   tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+  if (disableControls) {
+    menuItems[2].enabled = false;
+    menuItems[4].enabled = false;
+    menuItems[5].enabled = false;
+    menuItems[6].enabled = false;
+    menuItems[8].enabled = false;
+    menuItems[9].enabled = false;
+    menuItems[11].enabled = false;
+    menuItems[13].enabled = false;
+    menuItems[15].enabled = false;
+  } else {
+    menuItems[2].enabled = true;
+    menuItems[4].enabled = true;
+    menuItems[5].enabled = true;
+    menuItems[6].enabled = true;
+    menuItems[8].enabled = true;
+    menuItems[9].enabled = true;
+    menuItems[11].enabled = true;
+    menuItems[13].enabled = true;
+    menuItems[15].enabled = true;
+  }
   contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
 }
@@ -449,7 +498,6 @@ function writeToScreen(text) {
   if (mainWindow) {
     mainWindow.webContents.send('commandOutput', text);
   }
-  console.log(text);
 }
 
 function createMainWindow() {

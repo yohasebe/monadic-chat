@@ -52,7 +52,7 @@ There are two types of Monadic Chat: one is a web browser-based app provided in 
 
 ### Image Generation
 
-- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 2 API
+- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 3 API
 
 ### Image Understanding
 

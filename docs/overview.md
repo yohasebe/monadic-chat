@@ -45,7 +45,11 @@ I welcome contributions that can help refine this software, such as code improve
 
 ### Image Generation
 
-- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 2 API
+- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 3 API
+
+### Image Understanding
+
+- 👀 **Local images** can be uploaded and let AI assistant analyze what are in them
 
 ### Configuration and Extension
 

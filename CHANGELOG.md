@@ -1,5 +1,7 @@
 ### Change Log
 
+- [January, 2024] Mac/Win Monadic Chat Console UI improved
+- [January, 2024] Image understanging feature
 - [December, 2023] Voice Interpreter app added
 - [December, 2023] More responsive text-to-speech in auto-speech mode
 - [December, 2023] Language Practice Plus app updated

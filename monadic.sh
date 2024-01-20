@@ -47,29 +47,6 @@ function start_docker {
   esac
 }
 
-function shutdown_docker {
-  case "$(uname -s)" in
-    Darwin)
-      # macOS
-      killall Docker
-      ;;
-    Linux)
-      # Linux
-      if grep -q microsoft /proc/version; then
-        # WSL2
-        powershell.exe -Command "Stop-Process -Name 'Docker Desktop' -Force"
-      else
-        # Native Linux
-        sudo systemctl stop docker
-      fi
-      ;;
-    *)
-      echo "Unsupported operating system: $(uname -s)"
-      exit 1
-      ;;
-  esac
-}
-
 function build_docker_compose {
   start_docker
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
@@ -82,11 +59,12 @@ function start_docker_compose {
   if $DOCKER images | grep -q "monadic-chat"; then
     if $DOCKER container ls --all | grep -q "monadic-chat"; then
       echo "[CONTAINERS FOUND]"
+      sleep 1
+      echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
       $DOCKER container start monadic-chat-web-container
       $DOCKER container start monadic-chat-pgvector-container
-      echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
     else
-      echo "[HTML]: <p>Monadic Chat Docker image exist.</p><p>Building Monadic Chat container . . .</p>"
+      echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container . . .</p>"
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
     fi
   else
@@ -142,40 +120,37 @@ function update_monadic {
 }
 
 # Remove the Docker image and container
-function remove_docker {
+function remove_containers {
   # Stop the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
 
-  # Remove the Docker container
-  $DOCKER rm monadic-chat-web-container
-  $DOCKER rm monadic-chat-pgvector-container
-  $DOCKER rm monadic-chat-container
-
-  # Remove the Docker image
+  # Remove the Docker images and volumes
   $DOCKER rmi yohasebe/monadic-chat
   $DOCKER rmi ankane/pgvector
+  $DOCKER volume rm monadic-chat-pgvector-data
 }
 
 # Parse the user command
 case "$1" in
   build)
-    stop_docker_compose
+    start_docker
+    start_docker_compose
     build_docker_compose
     echo "[HTML]: <p>Monadic Chat Docker image has been built successfully.</p>"
     echo "[HTML]: <p>Press <b>Start</b> to initialize the server.</p>"
     ;;
   start)
     start_docker_compose
-    echo "[HTML]: <p>Monadic Chat has been started.</p><p>Access http://localhost:4567 on the web browser, or just press <b>Open Browser</b> button.</p>"
+    echo "[HTML]: <p>Monadic Chat has been started. Press <b>Open Browser</b> button.</p>"
     ;;
   stop)
     stop_docker_compose
-    echo "[HTML]: Monadic Chat has been stopped."
+    echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
     ;;
   restart)
     stop_docker_compose
-    restart_docker_compose
-    echo "[HTML]: <p>Monadic Chat has been restarted.</p><p>Access http://localhost:4567 on the web browser, or just press <b>Open Browser</b> button.</p>"
+    start_docker_compose
+    echo "[HTML]: <p>Monadic Chat has been restarted.</p><p>Press <b>Open Browser</b> button.</p>"
     ;;
   import)
     start_docker
@@ -190,21 +165,20 @@ case "$1" in
   update)
     start_docker
     update_monadic
-    echo "[HTML]: Monadic Chat has been updated successfully!"
+    echo "[HTML]: <p>Monadic Chat has been updated successfully!</p>"
     ;;
   down)
+    start_docker
     down_docker_compose
-    echo "[HTML]: Monadic Chat has been stopped and containers have been removed"
-    ;;
-  shutdown)
-    shutdown_docker
+    echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
     ;;
   remove)
-    remove_docker
-    echo "[HTML]: Monadic Chat has been removed successfully!"
+    start_docker
+    remove_containers
+    echo "[HTML]: <p>Containers and images have been removed successfully!</p><p>Now you can quit Monadic Chat and unstall the app safely.</p>"
     ;;
   *)
-    echo "Usage: $0 {build|start|stop|restart|update|shutdown|remove}}"
+    echo "Usage: $0 {build|start|stop|restart|update|remove}}"
     exit 1
     ;;
 esac

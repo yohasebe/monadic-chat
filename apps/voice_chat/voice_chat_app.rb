@@ -6,7 +6,7 @@ class VoiceChat < MonadicApp
   end
 
   def description
-    "This app enables users to chat using voice through OpenAI's Whisper API and the browser's text-to-speech API. The initial prompt is the same as the one for the Chat app. Please note that a web browser with the latter API, such as Google Chrome or Microsoft Edge, is required."
+    "This app enables users to chat using voice through OpenAI's Whisper voice-to-text API and text-to-speech API. The initial prompt is the same as the one for the Chat app."
   end
 
   def initial_prompt

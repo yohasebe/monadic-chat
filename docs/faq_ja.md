@@ -26,7 +26,8 @@ layout: default
 > - [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5) （標準の大規模言語モデル・推奨）
 > - [GPT-4](https://platform.openai.com/docs/models/gpt-4) （2023年7月現在は申請が必要・高価だけど高性能）
 > - [Whisper](https://platform.openai.com/docs/models/whisper) （音声認識モデル）
-> - [DALL·E 2](https://platform.openai.com/docs/models/dall-e) (画像生成モデル)
+> - [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (画像生成モデル)
+> - [Vision](https://platform.openai.com/docs/guides/vision) （画像認識モデル）
 > - [Ada v2](https://platform.openai.com/docs/models/embeddings) （PDF読み込みのためのテキスト埋め込みモデル）
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>

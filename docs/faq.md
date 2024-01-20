@@ -27,6 +27,7 @@ layout: default
 > - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (Requires application [as of July 2023], expensive but high-performance)
 > - [Whisper](https://platform.openai.com/docs/models/whisper) (Speech recognition model)
 > - [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (Image generation model)
+> - [Vision](https://platform.openai.com/docs/guides/vision) (Image recognition model)
 > - [Ada v2](https://platform.openai.com/docs/models/embeddings) (Text embedding model for PDF reading)
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>

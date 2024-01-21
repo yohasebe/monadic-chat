@@ -58,7 +58,7 @@ function start_docker_compose {
   # Check if the Docker image and container exist
   if $DOCKER images | grep -q "monadic-chat"; then
     if $DOCKER container ls --all | grep -q "monadic-chat"; then
-      echo "[CONTAINERS FOUND]"
+      echo "[HTML]: <p>Monadic Chat Docker image and container found.</p>"
       sleep 1
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
       $DOCKER container start monadic-chat-web-container
@@ -125,16 +125,20 @@ function remove_containers {
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
 
   # Remove the Docker images and volumes
-  $DOCKER rmi yohasebe/monadic-chat
-  $DOCKER rmi ankane/pgvector
-  $DOCKER volume rm monadic-chat-pgvector-data
+  #
+  $DOCKER container rm -f monadic-chat-web-container >/dev/null
+  $DOCKER container rm -f  monadic-chat-pgvector-container >/dev/null
+
+  $DOCKER rmi -f yohasebe/monadic-chat >/dev/null
+  $DOCKER rmi -f ankane/pgvector >/dev/null
+  $DOCKER volume rm monadic-chat-pgvector-data >/dev/null
 }
 
 # Parse the user command
 case "$1" in
   build)
     start_docker
-    start_docker_compose
+    remove_containers
     build_docker_compose
     echo "[HTML]: <p>Monadic Chat Docker image has been built successfully.</p>"
     echo "[HTML]: <p>Press <b>Start</b> to initialize the server.</p>"
@@ -175,7 +179,7 @@ case "$1" in
   remove)
     start_docker
     remove_containers
-    echo "[HTML]: <p>Containers and images have been removed successfully!</p><p>Now you can quit Monadic Chat and unstall the app safely.</p>"
+    echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and unstall the app safely.</p>"
     ;;
   *)
     echo "Usage: $0 {build|start|stop|restart|update|remove}}"

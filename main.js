@@ -90,10 +90,10 @@ function checkForUpdates() {
 function uninstall() {
   let options = {
     type: 'question',
-    buttons: ['Cancel', 'Uninstall'],
+    buttons: ['Cancel', 'Delete all'],
     defaultId: 1,
     title: 'Confirm Uninstall',
-    message: 'If you continue, all containers and images will be deleted. You can then exit and uninstall the application yourself. Do you want to continue?',
+    message: 'This will remove all the Monadic Chat images and containers. Do you want to continue?',
     icon: path.join(iconDir, 'monadic-chat.png')
   };
 
@@ -114,11 +114,11 @@ function checkDockerInstallation() {
     if (os.platform() === 'win32') {
       exec('docker -v', function (_err, _stdout, _stderr) {
         if (_err) {
-          reject("Docker is not installed. Please install Docker Desktop for Windows.");
+          reject("Docker is not installed. Please install Docker Desktop for Windows first and then try starting Monadic Chat.");
         } else {
           exec('wsl -l -v', function (_err, _stdout, _stderr) {
             if (_err) {
-              reject("WSL 2 is not installed. Please install WSL 2 and set it as the default version for your WSL distributions.");
+              reject("WSL 2 is not installed. Please install WSL 2 first and then try starting Monadic Chat.");
             } else {
               resolve();
             }
@@ -130,7 +130,7 @@ function checkDockerInstallation() {
         if (stdout.includes('docker') || stdout.includes('Docker')) {
           resolve();
         } else {
-          reject("Docker is not installed. Please install Docker Desktop for Mac.");
+          reject("Docker is not installed. Please install Docker Desktop for Mac first and then try starting Monadic Chat.");
         }
       });
     } else if (os.platform() === 'linux') {
@@ -138,7 +138,7 @@ function checkDockerInstallation() {
         if (stdout.includes('docker') || stdout.includes('Docker')) {
           resolve();
         } else {
-          reject("Docker is not installed. Please install Docker for Linux.");
+          reject("Docker is not installed. Please install Docker for Linux first and then try starting Monadic Chat.");
         }
       });
     } else {
@@ -365,12 +365,12 @@ function shutdownDocker() {
 
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
-  tray.setImage(path.join(iconDir, `${capitalizeFirstLetter(command)}.png`));
-  statusMenuItem.label = `${capitalizeFirstLetter(command)}`;
+  statusMenuItem.label = statusWhileCommand;
 
   const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
 
+  currentStatus = statusWhileCommand;
   updateContextMenu(true);
   updateStatusIndicator(statusWhileCommand);
 
@@ -384,11 +384,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `${statusAfterCommand}`;
-
-      if (mainWindow) {
-        mainWindow.webContents.send('commandOutput', stdout);
-      }
-
+      writeToScreen(stdout);
       updateContextMenu(false);
       updateStatusIndicator(currentStatus);
     });
@@ -402,13 +398,13 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       }
       for (let i = 0; i < lines.length; i++) {
         if (lines[i].trim() === "[IMAGE NOT FOUND]"){
+          writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
           currentStatus = "Building";
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
           statusMenuItem.label = currentStatus;
-
-        }
-        if (mainWindow) {
-          mainWindow.webContents.send('commandOutput', lines[i]);
+          updateStatusIndicator(currentStatus);
+        } else {
+          writeToScreen(lines[i]);
         }
       }
     });
@@ -490,6 +486,19 @@ function updateContextMenu(disableControls = false) {
     menuItems[13].enabled = true;
     menuItems[15].enabled = true;
   }
+  
+  if(currentStatus !== 'Stopped' && currentStatus !== 'Uninstalled'){
+    menuItems[2].enabled = false;
+    menuItems[5].enabled = false;
+  }
+  if(currentStatus === 'Uninstalled'){
+    menuItems[15].enabled = false;
+  }
+  if(currentStatus !== 'Running'){
+    menuItems[4].enabled = false;
+    menuItems[6].enabled = false;
+  }
+
   contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
 }
@@ -575,10 +584,25 @@ function openBrowser(url) {
     return;
   }
 
-  spawn(...openCommands[platform]);
+  // wait until the system is ready on the port 4567
+  // before opening the browser with the timeout of 20 seconds
+  const timeout = 20000;
+  const interval = 100;
+  let time = 0;
+  const timer = setInterval(() => {
+    isPortTaken(4567, (taken) => {
+      if (taken) {
+        writeToScreen("[HTML]: <p>The server is running on port 4567. Opening the browser.</p>");
+        clearInterval(timer);
+        spawn(...openCommands[platform]);
+      } else {
+        writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
+        time += interval;
+        if (time >= timeout) {
+          clearInterval(timer);
+          dialog.showErrorBox('Error', 'Failed to start the server. Please try again.');
+        }
+      }
+    });
+  }, interval);
 }
-
-function capitalizeFirstLetter(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-}
-

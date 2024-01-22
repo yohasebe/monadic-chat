@@ -9,6 +9,10 @@ services:
       POSTGRES_USER: postgres
     volumes:
       - postgres-data-volume:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      retries: 3
   web:
     image: yohasebe/monadic-chat
     container_name: monadic-chat-web-container
@@ -18,11 +22,12 @@ services:
     ports:
       - "4567:4567"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: on-failure
     stdin_open: true
     tty: true
-    command: ["sh", "/usr/local/bin/wait-for-postgres.sh", "db", "thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]
+    command: ["thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]
 volumes:
   postgres-data-volume:
     name: monadic-chat-pgvector-data

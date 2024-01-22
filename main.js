@@ -403,11 +403,9 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
           statusMenuItem.label = `Status: ${currentStatus}`;
           updateStatusIndicator(currentStatus);
-        } else if (lines[i].trim() === "[SERVER STARTED]"){
-          // make a request to check if localhost:4567 is available using fetch and if it is, handle the callback
-          fetch('http://localhost:4567').then(function(response) {
-            writeToScreen('[HTML]: <p>Monadic Chat has been started. Press <b>Open Browser</b> button.</p>');
-          });
+        } else if (lines[i].trim() === "[SERVER STARTED]") {
+          writeToScreen('[HTML]: <p>Monadic Chat is ready. Press <b>Open Browser</b> button.</p>');
+          fetch('http://localhost:4567')
         } else {
           writeToScreen(lines[i]);
         }

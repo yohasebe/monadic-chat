@@ -145,7 +145,7 @@ case "$1" in
     ;;
   start)
     start_docker_compose
-    echo "[HTML]: <p>Monadic Chat has been started. Press <b>Open Browser</b> button.</p>"
+    echo "[SERVER STARTED]"
     ;;
   stop)
     stop_docker_compose
@@ -154,7 +154,7 @@ case "$1" in
   restart)
     stop_docker_compose
     start_docker_compose
-    echo "[HTML]: <p>Monadic Chat has been restarted.</p><p>Press <b>Open Browser</b> button.</p>"
+    echo "[SERVER STARTED]"
     ;;
   import)
     start_docker

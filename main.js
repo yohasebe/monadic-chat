@@ -5,6 +5,7 @@ const extendedContextMenu = require('electron-context-menu');
 const path = require('path')
 const os = require('os');
 const https = require('https');
+const http = require('http');
 const net = require('net');
 
 let tray = null;
@@ -192,7 +193,7 @@ function openMainWindow() {
 }
 
 let statusMenuItem = {
-  label: 'Stopped',
+  label: 'Status: Stopped',
   enabled: false
 };
 
@@ -365,7 +366,7 @@ function shutdownDocker() {
 
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
-  statusMenuItem.label = statusWhileCommand;
+  statusMenuItem.label = `Status: ${statusWhileCommand}`;
 
   const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
@@ -383,7 +384,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       }
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
-      statusMenuItem.label = `${statusAfterCommand}`;
+      statusMenuItem.label = `Status: ${statusAfterCommand}`;
       writeToScreen(stdout);
       updateContextMenu(false);
       updateStatusIndicator(currentStatus);
@@ -401,7 +402,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
           currentStatus = "Building";
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-          statusMenuItem.label = currentStatus;
+          statusMenuItem.label = `Status: ${currentStatus}`;
           updateStatusIndicator(currentStatus);
         } else {
           writeToScreen(lines[i]);
@@ -417,7 +418,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
     subprocess.on('close', function (code) {
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
-      statusMenuItem.label = `${statusAfterCommand}`;
+      statusMenuItem.label = `Status: ${statusAfterCommand}`;
 
       updateContextMenu(false);
       updateStatusIndicator(currentStatus);
@@ -494,9 +495,16 @@ function updateContextMenu(disableControls = false) {
   if(currentStatus === 'Uninstalled'){
     menuItems[15].enabled = false;
   }
-  if(currentStatus !== 'Running'){
+  if(currentStatus === 'Running'){
     menuItems[4].enabled = false;
+    menuItems[5].enabled = true;
+    menuItems[6].enabled = true;
+  } else {
     menuItems[6].enabled = false;
+  }
+  if(currentStatus === 'Stopped'){
+    menuItems[4].enabled = true;
+    menuItems[5].enabled = false;
   }
 
   contextMenu = Menu.buildFromTemplate(menuItems);

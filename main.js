@@ -5,7 +5,6 @@ const extendedContextMenu = require('electron-context-menu');
 const path = require('path')
 const os = require('os');
 const https = require('https');
-const http = require('http');
 const net = require('net');
 
 let tray = null;
@@ -404,6 +403,11 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
           statusMenuItem.label = `Status: ${currentStatus}`;
           updateStatusIndicator(currentStatus);
+        } else if (lines[i].trim() === "[SERVER STARTED]"){
+          // make a request to check if localhost:4567 is available using fetch and if it is, handle the callback
+          fetch('http://localhost:4567').then(function(response) {
+            writeToScreen('[HTML]: <p>Monadic Chat has been started. Press <b>Open Browser</b> button.</p>');
+          });
         } else {
           writeToScreen(lines[i]);
         }

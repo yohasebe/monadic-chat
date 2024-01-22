@@ -154,6 +154,7 @@ case "$1" in
   restart)
     stop_docker_compose
     start_docker_compose
+    sleep 1
     echo "[SERVER STARTED]"
     ;;
   import)

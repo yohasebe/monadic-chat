@@ -363,6 +363,32 @@ function shutdownDocker() {
   });
 }
 
+function fetchWithRetry(url, options = {}, retries = 20, delay = 1000) {
+  const attemptFetch = (attempt) => {
+    return fetch(url, options)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return true
+      })
+      .catch(error => {
+        console.log(`Connecting to server: Attempt ${attempt} failed.`);
+        if (attempt <= retries) {
+          console.log(`Retrying in ${delay}ms . . .`);
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(attemptFetch(attempt + 1));
+            }, delay);
+          });
+        } else {
+          throw error;
+        }
+      });
+  };
+  return attemptFetch(1);
+};
+
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
@@ -404,8 +430,14 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           statusMenuItem.label = `Status: ${currentStatus}`;
           updateStatusIndicator(currentStatus);
         } else if (lines[i].trim() === "[SERVER STARTED]") {
-          writeToScreen('[HTML]: <p>Monadic Chat is ready. Press <b>Open Browser</b> button.</p>');
-          fetch('http://localhost:4567')
+          writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
+          fetchWithRetry('http://localhost:4567')
+            .then(data => {
+              writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
+            })
+            .catch(error => {
+              console.error('Fetch operation failed after retries:', error);
+            });
         } else {
           writeToScreen(lines[i]);
         }

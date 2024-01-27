@@ -370,10 +370,11 @@ function fetchWithRetry(url, options = {}, retries = 20, delay = 1000) {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
+        console.log(`Connecting to server: success`);
         return true
       })
       .catch(error => {
-        console.log(`Connecting to server: Attempt ${attempt} failed.`);
+        console.log(`Connecting to server: attempt ${attempt} failed`);
         if (attempt <= retries) {
           console.log(`Retrying in ${delay}ms . . .`);
           return new Promise((resolve) => {
@@ -569,14 +570,14 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
-    openingText = `[HTML]: <p>Press <b>Start</b> to initialize the server.</p>`;
+    openingText = `[HTML]: <p>Press <b>Start</b> button to initialize the server.</p>`;
     portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = `[HTML]: <p>Port 4567 is already in use.</p><p>If other applications use it, shut them down first. Otherwise, Press <b>Start</b> to initialize the server.</p>`
+        openingText = `[HTML]: <p>Port 4567 is already in use.</p><p>If other applications use it, shut them down first. Otherwise, Press <b>Start</b> button to initialize the server.</p>`
         portInUse = true;
         currentStatus = 'Port in use';
       } 

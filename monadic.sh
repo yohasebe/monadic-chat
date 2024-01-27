@@ -61,8 +61,8 @@ function start_docker_compose {
       echo "[HTML]: <p>Monadic Chat Docker image and container found.</p>"
       sleep 1
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
-      $DOCKER container start monadic-chat-web-container
-      $DOCKER container start monadic-chat-pgvector-container
+      $DOCKER container start monadic-chat-web-container >/dev/null
+      $DOCKER container start monadic-chat-pgvector-container >/dev/null
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container . . .</p>"
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
@@ -141,7 +141,7 @@ case "$1" in
     remove_containers
     build_docker_compose
     echo "[HTML]: <p>Monadic Chat Docker image has been built successfully.</p>"
-    echo "[HTML]: <p>Press <b>Start</b> to initialize the server.</p>"
+    echo "[HTML]: <p>Press <b>Start</b> button to initialize the server.</p>"
     ;;
   start)
     start_docker_compose

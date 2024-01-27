@@ -31,3 +31,5 @@ document.getElementById('browser').addEventListener('click', () => {
 document.getElementById('exit').addEventListener('click', () => {
   window.electron.sendCommand('exit');
 });
+
+

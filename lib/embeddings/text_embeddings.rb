@@ -12,6 +12,7 @@ def in_container?
 end
 
 IN_CONTAINER = in_container?
+EMBEDDINGS_MODEL = "text-embedding-3-small"
 
 class TextEmbeddings
   attr_accessor :conn
@@ -76,7 +77,7 @@ class TextEmbeddings
   def get_embeddings(text, api_key: nil, retries: 3)
     raise ArgumentError, "text cannot be empty" if text.empty?
 
-    uri = URI("https://api.openai.com/v1/engines/text-embedding-ada-002/embeddings")
+    uri = URI("https://api.openai.com/v1/engines/#{EMBEDDINGS_MODEL}/embeddings")
     request = Net::HTTP::Post.new(uri)
     request["Content-Type"] = "application/json"
 

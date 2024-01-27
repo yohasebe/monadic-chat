@@ -33,7 +33,7 @@ Also, please make sure that when you present a Wikipedia article link to the use
   def settings
     {
       "app_name": "Wikipedia",
-      "model": "gpt-3.5-turbo-1106",
+      "model": "gpt-4-turbo-preview",
       "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 2000,

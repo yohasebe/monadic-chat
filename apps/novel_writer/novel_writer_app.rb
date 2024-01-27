@@ -22,7 +22,7 @@ class NovelWriter < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo",
+      "model": "gpt-4-turbo-preview",
       "temperature": 0.5,
       "top_p": 0.0,
       "max_tokens": 1000,

@@ -58,14 +58,14 @@ function start_docker_compose {
   # Check if the Docker image and container exist
   if $DOCKER images | grep -q "monadic-chat"; then
     if $DOCKER container ls --all | grep -q "monadic-chat"; then
-      echo "[HTML]: <p>Monadic Chat Docker image and container found.</p>"
+      echo "[HTML]: <p>Monadic Chat image and container found.</p>"
       sleep 1
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
       $DOCKER container start monadic-chat-web-container >/dev/null
       $DOCKER container start monadic-chat-pgvector-container >/dev/null
     else
-      echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container . . .</p>"
-      $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" up -d
+      echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
+      $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
     fi
   else
     echo "[IMAGE NOT FOUND]"
@@ -140,8 +140,12 @@ case "$1" in
     start_docker
     remove_containers
     build_docker_compose
-    echo "[HTML]: <p>Monadic Chat Docker image has been built successfully.</p>"
-    echo "[HTML]: <p>Press <b>Start</b> button to initialize the server.</p>"
+    # check if the above command succeeds
+    if $DOCKER images | grep -q "monadic-chat"; then
+      echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p>"
+    else
+      echo "[HTML]: <p>Monadic Chat has failed to build.</p>"
+    fi
     ;;
   start)
     start_docker_compose

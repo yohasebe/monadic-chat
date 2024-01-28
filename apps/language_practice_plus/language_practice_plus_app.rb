@@ -35,7 +35,7 @@ class LanguagePracticePlus < MonadicApp
 
   def settings
     {
-      "model": "gpt-4-turbo-preview",
+      "model": "gpt-3.5-turbo-1106",
       "temperature": 0.2,
       "top_p": 0.0,
       "max_tokens": 500,

@@ -424,7 +424,19 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         lines.pop();
       }
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim() === "[IMAGE NOT FOUND]"){
+        if (lines[i].trim().startsWith('[VERSION]: ')) { 
+          // get the version number from the output
+          const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
+          if (compareVersions(imageVersion, app.getVersion()) > 0) {
+            dialog.showMessageBox({
+              type: 'info',
+              buttons: ['OK'],
+              title: 'Update Available',
+              message: `A new version (${version}) of the app is available. Please update to the latest version.`,
+              icon: path.join(iconDir, 'monadic-chat.png')
+            });
+          }
+        } else if (lines[i].trim() === "[IMAGE NOT FOUND]"){
           writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
           currentStatus = "Building";
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
@@ -556,9 +568,9 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 560,
-    minWidth: 560,
-    height: 340,
+    width: 600,
+    minWidth: 600,
+    height: 420,
     minHeight: 260,
     webPreferences: {
       nodeIntegration: false,
@@ -570,14 +582,14 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
-    openingText = `[HTML]: <p>Press <b>Start</b> button to initialize the server.</p>`;
+    openingText = `[HTML]: <p>Monadic Chat Docker image and container found.</p><hr /><p><b>IMPORTANT</b></p><p>If you have upgraded Monadic Chat from a previous version, click <b>Build</b> in the taskbar menu to rebuild the image.</p><p>Otherwise, press <b>Start</b> button to initialize the server.</p><hr />`;
     portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = `[HTML]: <p>Port 4567 is already in use.</p><p>If other applications use it, shut them down first. Otherwise, Press <b>Start</b> button to initialize the server.</p>`
+        openingText = `[HTML]: <p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b></p><p>If other applications is using port 4567, shut them down first. Otherwise, Press <b>Start</b> button to initialize the server.</p>`
         portInUse = true;
         currentStatus = 'Port in use';
       } 

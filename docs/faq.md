@@ -23,12 +23,12 @@ layout: default
 > 
 > Monadic Chat uses the following APIs:
 > 
-> - [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5) (Standard large language model, recommended)
-> - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (Requires application [as of July 2023], expensive but high-performance)
+> - [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5) (Standard large language model, default)
+> - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (High-performance large language model, recommended)
 > - [Whisper](https://platform.openai.com/docs/models/whisper) (Speech recognition model)
 > - [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (Image generation model)
 > - [Vision](https://platform.openai.com/docs/guides/vision) (Image recognition model)
-> - [Ada v2](https://platform.openai.com/docs/models/embeddings) (Text embedding model for PDF reading)
+> - [Embedding V3](https://platform.openai.com/docs/models/embeddings) (Text embedding model)
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

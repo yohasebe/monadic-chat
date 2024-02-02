@@ -642,7 +642,7 @@ function openBrowser(url) {
   // wait until the system is ready on the port 4567
   // before opening the browser with the timeout of 20 seconds
   const timeout = 20000;
-  const interval = 100;
+  const interval = 500;
   let time = 0;
   const timer = setInterval(() => {
     isPortTaken(4567, (taken) => {
@@ -651,7 +651,9 @@ function openBrowser(url) {
         clearInterval(timer);
         spawn(...openCommands[platform]);
       } else {
-        writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
+        if (time == 0) {
+          writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
+        }
         time += interval;
         if (time >= timeout) {
           clearInterval(timer);

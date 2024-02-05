@@ -19,15 +19,15 @@
   - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
 <p>&nbsp;</p>
-<div align="center"><img src="./assets/images/screenshot-01.png" width="800px"/></div>
+<div align="center"><img src="./assets/images/screenshot-01.png" width="700px"/></div>
 
 <div align="center"><img src="./assets/images/screenshot-02.png" width="500px"/></div>
-<p>&nbsp;</p>
 
-🌟 **Command Line Version**
+<div align="center"><img src="./assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
-There are two types of Monadic Chat: one is a web browser-based app provided in this repository, which is installed using Docker. The other is a command line application, which is provided as a RubyGem. The URL of the repository for the command line version is as follows 
+There are two types of Monadic Chat: one is a web browser-based app provided in this repository, which is installed using Docker. The other is a command line application, which is provided as a RubyGem.
 
+- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repo) 
 - [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
 
 ## Features

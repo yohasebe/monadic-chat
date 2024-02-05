@@ -12,6 +12,8 @@ layout: default
 
 <img src="./assets/images/monadic-chat-console.png" width="500px"/>
 
+<img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
+
 🌟 **Monadic Chat**はOpenAIのChat APIとWhisper API、そしてプログラミング言語のRubyを活用して高機能なチャットボットを作成・使用するためのフレームワークです。
 
 ⚠️  **ご注意**

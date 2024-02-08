@@ -45,6 +45,8 @@
 - 💬 Specify the number of recent messages (**active messages**) to send to the API, while storing and exporting older messages (**inactive messages**)
 - 🔢 Generate **text embeddings** from data in multiple **PDF files** and query their content using OpenAI's text embedding API
 
+<div align="center"><img src="./assets/images/rag.png" width="600px"/></div>
+
 ### Voice Interaction
 
 - 🎙️ Automatic transcription of **microphone input** using OpenAI's Whisper API

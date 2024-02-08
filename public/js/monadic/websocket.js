@@ -223,7 +223,7 @@ function connect_websocket(callback) {
           model => `<option value="${model}">${model}</option>`
         );
         $("#model").html(model_options);
-        $("#model").val("gpt-3.5-turbo-1106");
+        $("#model").val("gpt-3.5-turbo-0125");
 
         const token_verified = `\
               <p>${data['content']}</p>\

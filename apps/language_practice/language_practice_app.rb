@@ -20,7 +20,7 @@ class LanguagePractice < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo-1106",
+      "model": "gpt-3.5-turbo-0125",
       "temperature": 0.5,
       "top_p": 0.0,
       "max_tokens": 500,

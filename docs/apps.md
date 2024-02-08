@@ -37,7 +37,7 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/pdf-navigator.png" width="40px"/> This is an application that reads a PDF file, and the assistant answers the user's questions based on its content. First, click on the "Upload PDF" button and specify the file. The content of the file will be divided into segments of approximately max_tokens length, and the text embedding will be calculated for each segment. When input is received from the user, the text segment that is closest to the text embedding value of the input text is given to GPT along with the user's input value, and an answer is generated based on that content.
 
-<img src="./assets/images/rag.png" width="800px"/>
+<img src="./assets/images/rag.png" width="600px"/>
 
 ## Translate
 

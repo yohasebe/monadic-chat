@@ -35,12 +35,15 @@ $(function () {
     lastApp = this.value;
     Object.assign(params, apps[$(this).val()]);
     loadParams(params, "changeApp");
-    if (apps[$(this).val()]["pdf"]) {
-      $("#pdf-div").show();
+    if (apps[$(this).val()]["pdf"]){
+      $("#file-div").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({message: "PDF_TITLES"}));
+    } else if (apps[$(this).val()]["file"]){
+      $("#pdf-panel").hide();
+      $("#file-div").show();
     } else {
-      $("#pdf-div").hide();
+      $("#file-div").hide();
       $("#pdf-panel").hide();
     }
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
@@ -228,49 +231,81 @@ $(function () {
 
   });
 
-  $("#pdf").on("click", function (event) {
+  $("#file").on("click", function (event) {
     event.preventDefault();
-    $("#pdf-title").val("");
-    $("#pdfFile").val("");
-    $("#pdfModal").modal("show");
+    $("#file-title").val("");
+    $("#fileFile").val("");
+    $("#fileModal").modal("show");
   });
 
-  $("#pdfModal").on("shown.bs.modal", function () {
-    $("#pdf-title").focus();
+  $("#fileModal").on("shown.bs.modal", function () {
+    $("#file-title").focus();
   });
 
-  $("#uploadPDF").on("click", function () {
-    const fileInput = $("#pdfFile")[0];
+  let fileTitle = "";
+  let fileContents = "";
+
+  $("#uploadFile").on("click", function () {
+    const fileInput = $("#fileFile")[0];
     const file = fileInput.files[0];
 
     if (file) {
-      const title = $("#pdf-title").val()
-      $("#pdfModal button").prop("disabled", true);
-      $("#pdf-spinner").show();
-      const formData = new FormData();
-      formData.append("pdfFile", file);
-      formData.append("pdfTitle", title);
+      // check if the file is a PDF file
+      if (file.type === "application/pdf") {
+        fileTitle = $("#file-title").val()
+        $("#fileModal button").prop("disabled", true);
+        $("#file-spinner").show();
+        const formData = new FormData();
+        formData.append("pdfFile", file);
+        formData.append("pdfTitle", fileTitle);
 
-      $.ajax({
-        url: "/pdf",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false
-      }).done(function(_filename) {
-        $("#pdf-spinner").hide();
-        $("#pdfModal button").prop('disabled', false);
-        $("#pdfModal").modal("hide");
-        ws.send(JSON.stringify({message: "PDF_TITLES"}));
-        setAlert(`File uploaded successfully.<br /><b>${title}</b>`, "success");
-      }).fail(function(error) {
-        $("#pdf-spinner").hide();
-        $("#pdfModal button").prop("disabled", false);
-        $("#pdfModal").modal("hide");
-        setAlert(`Error uploading file: ${error}`, "danger");
-      }).always(function() {
-        console.log('complete');
-      });
+        $.ajax({
+          url: "/pdf",
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false
+        }).done(function(_filename) {
+          $("#file-spinner").hide();
+          $("#fileModal button").prop('disabled', false);
+          $("#fileModal").modal("hide");
+          ws.send(JSON.stringify({message: "PDF_TITLES"}));
+          setAlert(`File uploaded successfully.<br /><b>${fileTitle}</b>`, "success");
+        }).fail(function(error) {
+          $("#file-spinner").hide();
+          $("#fileModal button").prop("disabled", false);
+          $("#fileModal").modal("hide");
+          setAlert(`Error uploading file: ${error}`, "danger");
+        }).always(function() {
+          console.log('complete');
+        });
+      } else {
+        // if it is not pdf, it is a plain text file 
+        // read the contents and store it in a variable
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          $("#fileModal button").prop("disabled", true);
+          $("#file-spinner").show();
+          const contents = e.target.result;
+          fileTitle = $("#file-title").val();
+          // if fileTitle is empty, use the file name
+          if (fileTitle === "") {
+            fileTitle = file.name;
+          }
+          fileContents = e.target.result;
+          fileContents = "\n\nIMPORTED FILE: " + fileTitle + "\n\n```\n" + fileContents + "\n```";
+          $("#initial-prompt").val($("#initial-prompt").val() + fileContents);
+          autoResize($("#initial-prompt"));
+        }
+        // once the file is read, send the contents to the server
+        reader.readAsText(file);
+        reader.onloadend = function() {
+          $("#fileModal button").prop("disabled", false);
+          $("#file-spinner").hide();
+          $("#fileModal").modal("hide");
+          setAlert(`File contents have been successfully appended to the initial prompt.<br /><b>${fileTitle}</b>`, "success");
+        }
+      }
     } else {
       alert("Please select a PDF file to upload");
     }
@@ -296,30 +331,28 @@ $(function () {
   // Set up the initial state of the UI
   //////////////////////////////
 
-  window.scroll({top: 0});
-  $(window).scroll(function () {
+  // if scrollbar inside `#main` is visible, show the back-to-top and back-to-bottom buttons
+  $("#main").scroll(function () {
     if ($(this).scrollTop() > 200) {
-      backToTop.fadeIn();
+      backToTop.css("opacity", "0.5");
     } else {
-      backToTop.fadeOut();
+      backToTop.css("opacity", "0.0");
     }
-
-    if ($(this).scrollTop() < $(document).height() - $(window).height() - 200) {
-      backToBottom.fadeIn();
+    if ($(this).scrollTop() < $(this).prop("scrollHeight") - $(this).height() - 200) {
+      backToBottom.css("opacity", "0.5");
     } else {
-      backToBottom.fadeOut();
+      backToBottom.css("opacity", "0.0");
     }
   });
 
   backToTop.click(function (e) {
     e.preventDefault();
-    $("body, html").animate({scrollTop: 0}, 0);
-    return false;
+    $("#main").animate({scrollTop: 0}, 500);
   });
 
   backToBottom.click(function (e) {
     e.preventDefault();
-    window.scroll({ top: $(document).height() - $(window).height(), behavior: "smooth" });
+    $("#main").animate({scrollTop: $("#main").prop("scrollHeight")}, 500);
   });
 
   resetParams();
@@ -351,7 +384,7 @@ $(function () {
     elemAlert.hide();
   })
 
-  $("#message").on("input", function() {
+  $("#message, #initial-prompt").on("input", function() {
     if (message.dataset.ime !== "true") {
       autoResize($(this));
     }
@@ -390,14 +423,14 @@ $(function () {
     }
   });
 
-  const filePDF = $('#pdfFile');
-  const pdfButton = $('#uploadPDF');
+  const fileFile = $('#fileFile');
+  const fileButton = $('#uploadFile');
 
-  filePDF.on('change', function() {
-    if (filePDF[0].files.length > 0) {
-      pdfButton.prop('disabled', false);
+  fileFile.on('change', function() {
+    if (fileFile[0].files.length > 0) {
+      fileButton.prop('disabled', false);
     } else {
-      pdfButton.prop('disabled', true);
+      fileButton.prop('disabled', true);
     }
   });
 
@@ -411,6 +444,7 @@ $(function () {
   //     $("#speech-voice").prop("disabled", false);
   //   }
   // });
+  
 
   $("#discourse").tooltip({
     selector: '.card-header [title]',
@@ -423,4 +457,18 @@ $(function () {
     const w = window.open();
     w.document.write(this.outerHTML);
   });
+
+  $(document).ready(function() {
+    document.getElementById("initial-prompt-toggle").addEventListener("change", function() {
+      if (this.checked) {
+        $("#initial-prompt").css("display", "");
+        autoResize($("#initial-prompt"));
+      } else {
+        $("#initial-prompt").css("display", "none");
+      }
+    });
+    $("#initial-prompt").css("display", "none");
+    $("#initial-prompt-toggle").prop("checked", false);
+  });
+
 });

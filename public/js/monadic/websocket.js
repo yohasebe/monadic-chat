@@ -102,6 +102,11 @@ function isElementInViewport(element) {
 }
 
 function applyMathJax(element) {
+  // do the following only outside <div class="diagram"> elements
+  if (element.hasClass("diagram")) {
+    return;
+  }
+
   if (!/\$[^$]+\$/.test(element.text())) {
     return;
   }
@@ -122,6 +127,102 @@ function applyMathJax(element) {
     .catch((err) => {
       console.error('Error re-rendering MathJax element:', err);
     });
+}
+
+const mermaid_config = {
+  startOnLoad: true,
+  securityLevel: 'strict',
+  theme: 'default',
+  themeVariables: {
+    arrowheadSize: '1.5em', // Larger arrowheads
+    classBackground: '#ffffff',
+    classBorder: '1px solid #0077CC',
+    classText: '#333333',
+    edgeLabelBackground: '#ffffff', // White background for edge labels
+    flowchartNodeSpacing: '50px', // Spacing between nodes in flowcharts
+    fontFamily: '"Arial", sans-serif',
+    fontSize: '16px',
+    ganttLineColor: '#0077CC',
+    gitBranchLabelBackground: '#DDDDDD',
+    gitBranchLabelColor: '#333333',
+    gitCommitDotColor: '#0077CC',
+    lineColor: '#0077CC', // Use a consistent color for lines
+    nodeBackground: '#ffffff', // Background color for nodes
+    nodeBorder: '2px solid #333333',
+    noteBackgroundColor: '#DDDDDD',
+    noteBorderColor: '#0077CC',
+    pie1: '#FFCC00', // Custom color for the first slice
+    pie2: '#0077CC', // Custom color for the second slice
+    primaryBorderColor: '#333333',
+    primaryColor: '#0077CC', // Color for entities
+    primaryTextColor: '#333333',  textColor: '#333333',
+    relationshipLineColor: '#333333', // Color for lines
+    sequenceDiagramMargin: '50px', // Margin around sequence diagrams
+    sequenceNumberColor: '#333333',
+    stateBorderColor: '#0077CC',
+    stateLabelBackground: '#ffffff',
+    stateTextColor: '#333333',
+    strokeWidth: '2px', // Thicker lines for visibility
+    textColor: '#333333', // Ensure text is readable
+  },
+  flowchart: {
+    useMaxWidth: true,
+    htmlLabels: true,
+    curve: 'linear' // Makes the paths straight
+  },
+  sequence: {
+    diagramMarginX: 50,
+    diagramMarginY: 10,
+    actorMargin: 50,
+    width: 150,
+    height: 65,
+    boxMargin: 10,
+    boxTextMargin: 5,
+    noteMargin: 10,
+    messageMargin: 35,
+    mirrorActors: true
+  },
+  gantt: {
+    titleTopMargin: 25,
+    barHeight: 20,
+    barGap: 4,
+    topPadding: 50,
+    leftPadding: 75,
+    gridLineStartPadding: 35,
+    fontSize: 11,
+    numberSectionStyles: 4,
+    axisFormat: '%Y-%m-%d'
+  },
+  class: {
+    arrowMarkerAbsolute: true
+  },
+  state: {
+    dividerMargin: 10,
+    sizeUnit: 5,
+    padding: 8,
+    textHeight: 10,
+    titleShift: -15
+  },
+  pie: {
+    useMaxWidth: true
+  },
+  er: {
+    layoutDirection: 'TB' // Top-Bottom layout
+  },
+  gitGraph: {
+    showCommitLabel: true // Show commit messages
+  }
+};
+
+function applyMermaid(element) {
+  // Get the DOM element from the jQuery object
+  const domElement = element.get(0);
+  element.find("mermaid").each(function () {
+    const mermaidElement = $(this);
+    const mermaidText = mermaidElement.text();
+    mermaidElement.replaceWith(`<pre class='mermaid'>${mermaidText}</pre>`);
+  });
+  mermaid.init(mermaid_config, ".mermaid");
 }
 
 let mediaSource = null;
@@ -317,7 +418,6 @@ function connect_websocket(callback) {
           }).join("") +
           "</tbody></table>";
         $("#pdf-titles").html(pdf_table);
-        $("#pdf-db").show();
         data["content"].map((title, index) => {
           $(`#pdf-del-${index}`).click(function () {
             $("#pdfDeleteConfirmation").modal("show");
@@ -360,7 +460,7 @@ function connect_websocket(callback) {
           messages.push(msg);
           switch (msg["role"]) {
             case "user":
-              let msg_text = msg["text"].replace(/\n/g, "<br />");
+              let msg_text = msg["text"].replace(/\n/g, "<br />").replace(/</g, "&lt;").replace(/>/g, "&gt;")
               let image_data;
               if(msg["image"] !== undefined){
                 image_data = msg["image"]["data"];
@@ -373,9 +473,15 @@ function connect_websocket(callback) {
             case "assistant":
               const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
+
+              if (apps[loadedApp]["mermaid"] === "true") {
+                applyMermaid(htmlContent);
+              }
+
               if (apps[loadedApp]["mathjax"] === "true") {
                 applyMathJax(gptElement);
               }
+
               break;
             case "system":
               const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
@@ -408,7 +514,7 @@ function connect_websocket(callback) {
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {
-          let content_text = data["content"]["text"].replace(/\n/g, "<br />");
+          let content_text = data["content"]["text"].replace(/\n/g, "<br />").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           let image_data;
           if(data["image"] !== undefined){
             image_data = data["image"]["data"];
@@ -421,6 +527,10 @@ function connect_websocket(callback) {
         $("#discourse").append(htmlElement);
 
         const htmlContent = $("#discourse div.card:last");
+
+        if (params["mermaid"] === "true") {
+          applyMermaid(htmlContent);
+        }
 
         if (params["mathjax"] === "true") {
           applyMathJax(htmlContent);
@@ -441,7 +551,7 @@ function connect_websocket(callback) {
           message_obj.image = data["image"];
         }
         messages.push(message_obj);
-        let content_text = data["content"]["text"].replace(/\n/g, "<br />");
+        let content_text = data["content"]["text"].replace(/\n/g, "<br />").replace(/</g, "&lt;").replace(/>/g, "&gt;")
         let image_data;
         if(data["image"] !== undefined){
           image_data = data["image"]["data"];

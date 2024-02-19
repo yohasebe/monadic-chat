@@ -293,7 +293,7 @@ $(function () {
             fileTitle = file.name;
           }
           fileContents = e.target.result;
-          fileContents = "\n\nIMPORTED FILE: " + fileTitle + "\n\n```\n" + fileContents + "\n```";
+          fileContents = "\n\nTARGET DOCUMENT: " + fileTitle + "\n\n```\n" + fileContents + "\n```";
           $("#initial-prompt").val($("#initial-prompt").val() + fileContents);
           autoResize($("#initial-prompt"));
         }

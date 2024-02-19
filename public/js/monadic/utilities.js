@@ -248,7 +248,7 @@ function loadParams(params, calledFor = "loadParams") {
   $("#context-size").val(params["context_size"] || "10");
 
   if (calledFor === "reset") {
-    $("#pdf-div").hide();
+    $("#file-div").hide();
     $("#apps").val(defaultApp);
     $(`#apps option[value="${defaultApp}"]`).attr('selected','selected');
   } else if (calledFor === "loadParams" || calledFor === "changeApp") {
@@ -280,10 +280,12 @@ function resetParams() {
   setTimeout(function () {
     $("#apps select").val(params["app_name"]);
     if (params["pdf"] === "true") {
-      $("#pdf-div").show();
+      $("#file-div").show();
       $("#pdf-panel").show();
+    } else if (params["file"] === "true") {
+      $("#file-div").show();
     } else {
-      $("#pdf-div").hide();
+      $("#file-div").hide();
       $("#pdf-panel").hide();
     }
   }, 500);

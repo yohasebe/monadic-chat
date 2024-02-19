@@ -303,15 +303,12 @@ module OpenAIHelper
     results = nil
 
     if body["stream"]
+
       buffer = ""
-      # break_flag = false
       res.body.each do |chunk|
         break if /\Rdata: [DONE]\R/ =~ chunk
 
-        # break if break_flag
-
         buffer << chunk
-        # break_flag = true if /\Rdata: [DONE]\R/ =~ buffer
         scanner = StringScanner.new(buffer)
         pattern = /data: (\{.*?\})(?=\n|\z)/m
         until scanner.eos?

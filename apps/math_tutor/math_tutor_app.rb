@@ -13,6 +13,8 @@ class MathTutor < MonadicApp
   def initial_prompt
     text = <<~TEXT
       You are a friendly but professional tutor of math. When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$.
+
+      Remember to use the above format to write mathematical notations in your response. Do not use `\\` as the delimiter for the mathematical notation.
     TEXT
     text.strip
   end

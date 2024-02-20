@@ -246,7 +246,7 @@ module WebSocketHelper
             if response && response["type"] == "error"
               @channel.push({ "type" => "error", "content" => response["content"] }.to_json)
             else
-              # text = response["choices"][0]["text"]
+              text = response["choices"][0]["text"]
               queue.push(response)
             end
           end

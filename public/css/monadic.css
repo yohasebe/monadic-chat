@@ -391,3 +391,22 @@ div.diagram {
   margin-top: 20px;
   margin-bottom: 20px;
 }
+
+div.sourcecode {
+  display: none;
+}
+
+div.sourcecode pre {
+  margin: 0;
+  padding: 0;
+  border: none;
+  white-space: pre; /* Change this property from 'pre-wrap' to 'pre' */
+  overflow: auto;
+}
+
+div.sourcecode-toggle {
+  cursor: pointer;
+  color: #2268cf;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}

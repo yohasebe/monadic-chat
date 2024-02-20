@@ -136,7 +136,7 @@ const mermaid_config = {
   themeVariables: {
     arrowheadSize: '1.5em', // Larger arrowheads
     classBackground: '#ffffff',
-    classBorder: '1px solid #0077CC',
+    classBorder: '1px solid #333333',
     classText: '#333333',
     edgeLabelBackground: '#ffffff', // White background for edge labels
     flowchartNodeSpacing: '50px', // Spacing between nodes in flowcharts
@@ -148,9 +148,9 @@ const mermaid_config = {
     gitCommitDotColor: '#0077CC',
     lineColor: '#0077CC', // Use a consistent color for lines
     nodeBackground: '#ffffff', // Background color for nodes
-    nodeBorder: '2px solid #333333',
+    nodeBorder: '1px solid #333333',
     noteBackgroundColor: '#DDDDDD',
-    noteBorderColor: '#0077CC',
+    noteBorderColor: '#333333',
     pie1: '#FFCC00', // Custom color for the first slice
     pie2: '#0077CC', // Custom color for the second slice
     primaryBorderColor: '#333333',
@@ -159,7 +159,7 @@ const mermaid_config = {
     relationshipLineColor: '#333333', // Color for lines
     sequenceDiagramMargin: '50px', // Margin around sequence diagrams
     sequenceNumberColor: '#333333',
-    stateBorderColor: '#0077CC',
+    stateBorderColor: '#333333',
     stateLabelBackground: '#ffffff',
     stateTextColor: '#333333',
     strokeWidth: '2px', // Thicker lines for visibility
@@ -566,7 +566,7 @@ function connect_websocket(callback) {
       case "sentence":
         console.log("sentence: " + data["content"]);
         if (data["content"] !== null) {
-          let text = data["content"].trim();
+          let text = data["content"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
 
           if (params["auto_speech"]) {
             text = removeCode(text);
@@ -580,7 +580,7 @@ function connect_websocket(callback) {
         $("#indicator").show();
         msgBuffer.push(data["content"]);
         if (data["content"] !== undefined) {
-          $("#chat").html($("#chat").html() + data["content"].replace(/\n/g, "<br />"));
+          $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />"));
         }
         if (!isElementInViewport(chatBottom)){
           chatBottom.scrollIntoView(false);

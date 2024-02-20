@@ -458,6 +458,15 @@ $(function () {
     w.document.write(this.outerHTML);
   });
 
+  $(document).on("click", ".sourcecode-toggle", function () {
+    const code = $(".sourcecode");
+    if (code.is(":visible")) {
+      code.hide();
+    } else {
+      code.show();
+    }
+  });
+
   $(document).ready(function() {
     document.getElementById("initial-prompt-toggle").addEventListener("change", function() {
       if (this.checked) {

@@ -11,7 +11,7 @@ class DataVisualizer < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a capable data visualizer that uses mermaid.js to create diagrams and charts to visualize data. First, you decide which diagram type to use for the data the user provides or you create among the following types.
+      You are a capable data visualizer that uses mermaid.js to create diagrams and charts to visualize data. First, you decide which diagram type to use for the data the user provides or you create from the following types.
 
       - flowchart: Flowcharts are composed of nodes (geometric shapes) and edges (arrows or lines).
       - sequenceDiagram: A Sequence diagram is an interaction diagram that shows how processes operate with one another and in what order.
@@ -28,12 +28,10 @@ class DataVisualizer < MonadicApp
       - timeline:A timeline is a type of diagram used to illustrate a chronology of events, dates, or periods of time.
       - xychart-beta: In the context of mermaid-js, the XY chart is a comprehensive charting module that encompasses various types of charts that utilize both x-axis and y-axis for data representation
       - mindmap: A mind map is a diagram used to visually organize information into a hierarchy, showing relationships among pieces of the whole.
-      - block-beta: A block diagram is a diagram of a system in which the principal parts or functions are represented by blocks connected by lines that show the relationships of the blocks.
-      - C4Context: The C4 model is an "abstraction-first" approach to diagramming software architecture, based upon abstractions that reflect how software architects and developers think about and build software.
 
-      Then you call a function `mermaid_documentation(diagram_type)` and read the documentation returned from the function call about that particular mermaid diagram type. Next you provide the user with the mermaid code constructed according to the information you have got from the documentation. Always check the documentation for the details of the syntax and the usage of the diagram type.
+      Then you call a function `mermaid_documentation(diagram_type)` and get the documentation returned from the function call about that particular mermaid diagram type. Next you provide the user with the mermaid code constructed according to the information from the documentation. Always check the documentation for the details of the syntax and the usage of the diagram type.
 
-      Do not use any document types other than the ones listed above. If the user's reques cannot be expressed with any of the above diagram types, you should inform the user about the situation and ask for a different request.
+      Do not use any diagram types other than the ones listed above. You cannot use diagram types, for instance, `line` or `linechart`. Use `xychart-beta` instead to create a line chart.
 
       In your response, use the following format to include a diagram with the mermaid code:
 
@@ -55,6 +53,8 @@ class DataVisualizer < MonadicApp
 
       Do not use the \`\`\` delimiters for the mermaid code.
 
+      Be careful not to use brackets and parentheses in the mermaid code. If you need to use them as part of labels, use the following escape characters: \[ \], \( \). Also, use necessary quotes for the labels.
+
       In your respopnse, use the language in which the users speaks or writes. 
 
       The user may provide data to visualize. If there is user data, it is marked with `TARGET DOCUMENT: TITLE` below. 
@@ -66,7 +66,6 @@ class DataVisualizer < MonadicApp
   def settings
     {
       "model": "gpt-3.5-turbo-0125",
-      "frequency_penalty": 0.1,
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,
@@ -106,7 +105,7 @@ class DataVisualizer < MonadicApp
       "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2",
       "erDiagram", "journey", "gantt", "pie", "quadrantChart",
       "requirementDiagram", "gitGraph", "sankey-beta", "timeline",
-      "xychart-beta", "mindmap", "block-beta", "C4Context"
+      "xychart-beta", "mindmap"
     ]
 
     begin

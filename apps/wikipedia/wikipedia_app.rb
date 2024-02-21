@@ -37,50 +37,55 @@ Also, please make sure that when you present a Wikipedia article link to the use
       "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 2000,
-      "context_size": 8,
+      "context_size": 10,
       "initial_prompt": initial_prompt,
       "description": description,
       "icon": icon,
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      "functions":
-        [{
-          "name" => "search_wikipedia",
-          "description" => "A function to search Wikipedia articles, requiring one argument representing the query to be searched.",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "search_query": {
-                "type": "string",
-                "description": "query to be searched"
+      "tools": [
+        { "type": "function",
+          "function": {
+            "name": "search_wikipedia",
+            "description": "A function to search Wikipedia articles, requiring one argument representing the query to be searched.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "search_query": {
+                  "type": "string",
+                  "description": "query to be searched"
+                },
+                "language_code": {
+                  "type": "string",
+                  "description": "language code of the Wikipedia to be searched"
+                }
               },
-              "language_code": {
-                "type": "string",
-                "description": "language code of the Wikipedia to be searched"
-              }
-            },
-            "required": ["search_query", "language_code"]
+              "required": ["search_query", "language_code"]
+            }
           }
         },
-        {
-          "name" => "analyze_wikipedia_article",
-          "description" => "A function to get a topic and a Wikipedia article url. It analyzes the contents of the url, splits it into chunks, picks up one of the chunks that is most similar to the topic in terms of their text embeddings, and returns it",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "topic": {
-                "type": "string",
-                "description": "text to be compared with the contents of the Wikipedia article"
+        { "type": "function",
+          "function": {
+            "name": "analyze_wikipedia_article",
+            "description": "A function to get a topic and a Wikipedia article url. It analyzes the contents of the url, splits it into chunks, picks up one of the chunks that is most similar to the topic in terms of their text embeddings, and returns it",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "topic": {
+                  "type": "string",
+                  "description": "text to be compared with the contents of the Wikipedia article"
+                },
+                "url": {
+                  "type": "string",
+                  "description": "url of the Wikipedia article to be analyzed"
+                }
               },
-              "url": {
-                "type": "string",
-                "description": "url of the Wikipedia article to be analyzed"
-              }
-            },
-            "required": ["topic", "url"]
+              "required": ["topic", "url"]
+            }
           }
-        }]
+        }
+      ]
     }
   end
 

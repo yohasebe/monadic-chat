@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 module OpenAIHelper
+  MAX_FUNC_CALLS = 5
   API_ENDPOINT = "https://api.openai.com/v1"
 
   TEMP_AUDIO_FILE = "temp_audio_file"
@@ -243,9 +244,9 @@ module OpenAIHelper
       "frequency_penalty" => frequency_penalty
     }
 
-    if obj["functions"] && !obj["functions"].empty?
-      body["functions"] = APPS[app].settings[:functions]
-      body["function_call"] = "auto"
+    if obj["tools"] && !obj["tools"].empty?
+      body["tools"] = APPS[app].settings[:tools]
+      body["tool_choice"] = "auto"
       body["stream"] = false
     end
 
@@ -358,20 +359,24 @@ module OpenAIHelper
       end
     end
 
-    if role == "user" && obj["functions"] && (!results["choices"] || results["choices"] && results["choices"][0]["finish_reason"] != "stop")
-      custom_function_keys = APPS[app].settings[:functions]
+    first_result = results.dig("choices", 0)
+
+    if role == "user" && obj["tools"] && (!results["choices"] || results["choices"] && results["choices"][0]["finish_reason"] != "stop")
+      custom_function_keys = APPS[app].settings[:tools]
       if custom_function_keys && !custom_function_keys.empty?
         json_message = results["choices"][0]["message"]
-        function_call = json_message["function_call"]
+
+        function_call = json_message["tool_calls"].first["function"]
         function_name = function_call["name"]
+
         argument_hash = JSON.parse(function_call["arguments"])
         argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
           memo[k.to_sym] = v
           memo
         end
 
-        obj.delete("functions")
-        obj["function_call"] = "none"
+        obj.delete("tools")
+        obj["tool_choice"] = "none"
 
         message = APPS[app].send(function_name.to_sym, argument_hash)
         obj["message"] = message

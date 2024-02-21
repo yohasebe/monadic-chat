@@ -57,19 +57,21 @@ class ImageGeneration < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      "function_call": { "name": "generate_image" },
-      "functions": [{
-        "name" => "generate_image",
-        "description" => "Generate an image based on a description.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "prompt": {
-              "type": "string",
-              "description": "The prompt to generate an image from."
-            }
-          },
-          "required": ["prompt"]
+      "tools": [{
+        "type": "function",
+        "function": {
+          "name": "generate_image",
+          "description": "Generate an image based on a description.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "The prompt to generate an image from."
+              }
+            },
+            "required": ["prompt"]
+          }
         }
       }]
     }

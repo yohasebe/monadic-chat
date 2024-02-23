@@ -214,7 +214,7 @@ const mermaid_config = {
   }
 };
 
-function applyMermaid(element) {
+async function applyMermaid(element) {
   // Get the DOM element from the jQuery object
   const domElement = element.get(0);
   element.find("mermaid").each(function () {
@@ -222,7 +222,13 @@ function applyMermaid(element) {
     const mermaidText = mermaidElement.text();
     mermaidElement.replaceWith(`<pre class='mermaid'>${mermaidText}</pre>`);
   });
-  mermaid.init(mermaid_config, ".mermaid");
+
+  mermaid.initialize({ startOnLoad: true });
+  await mermaid.run({
+    querySelector: '.mermaid',
+    logLevel: 1,
+    securityLevel: 'loose',
+  });
 }
 
 let mediaSource = null;

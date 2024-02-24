@@ -225,9 +225,7 @@ async function applyMermaid(element) {
 
   mermaid.initialize({ startOnLoad: true });
   await mermaid.run({
-    querySelector: '.mermaid',
-    logLevel: 1,
-    securityLevel: 'loose',
+    querySelector: '.mermaid'
   });
 }
 

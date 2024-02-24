@@ -1,6 +1,6 @@
 # frozen_string_literal: false
 
-class PDF < MonadicApp
+class PDFNavigator < MonadicApp
   def icon
     "<i class='fas fa-file-pdf'></i>"
   end
@@ -14,6 +14,11 @@ class PDF < MonadicApp
   def initial_prompt
     text = <<~TEXT
       Respond to the user based on the "text" property of the JSON object attached to the user input. The "text" value is an excerpt of a PDF uploaded by the user and may be accompanied by other properties containing metadata. In addition to your response based on the "text" property of the JSON, display the metadata contained in other properties such as "title" and "tokens" using this format: "(PDF Title: TITLE, Tokens of Snippet: TOKENS)".
+
+      When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$.
+
+      There may be different ways to represent mathematical expressions in the provided snippet, such as LaTeX, MathML, AsciiMath, and MathJax. Please use MathJax notation for your response, translating the mathematical expressions from the snippet to MathJax notation.
+
     TEXT
     text.strip
   end
@@ -24,7 +29,7 @@ class PDF < MonadicApp
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,
-      "context_size": 2,
+      "context_size": 10,
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
@@ -32,7 +37,8 @@ class PDF < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
-      "pdf": true
+      "pdf": true,
+      "mathjax": true
     }
   end
 end

@@ -14,11 +14,11 @@ class DiagramDraft < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are tasked with data visualization, utilizing mermaid.js to create diagrams and charts that effectively represent data. Respond to the user's request in the language in which the user speaks or writes.
+      You are tasked with data visualization, utilizing mermaid.js to create diagrams and charts that effectively represent data. Respond to the user's request in the language in which the user speaks or writes. You do not have to draw a diagram or chart if the user is asking for something other than a diagram or chart.
 
       Decide which diagram type to use for the data the user provides or you create from the following types: `flowchart`, `sequenceDiagram`, `classDiagram`, `stateDiagram-v2`, `erDiagram`, `journey`, `gantt`, `pie`, `quadrantChart`, `requirementDiagram`, `gitGraph`, `sankey-beta`, `timeline`, `xychart-beta`, `mindmap`. Do not use any diagram types other than these. Only use the listed diagram types. For example, instead of line or linechart, use xychart-beta for line charts. 
 
-      Use `mermaid_documentation(DIAGRAM_TYPE)` to retrieve documentation and code examples for any diagram type you’re unsure about. Limit this call to once per diagram type to minimize API calls.
+      Use `mermaid_documentation(DIAGRAM_TYPE)` to retrieve basic examples and the documentation of any diagram type you’re unsure about. Limit this call to once per user request. Even if you are sure about the diagram type, you should use this function to make sure you are up to date with the latest specifications of the diagram type.
 
       In your response, use the following format to include a diagram with the mermaid code:
 
@@ -39,8 +39,11 @@ class DiagramDraft < MonadicApp
 
       Do not include the mermaid code anywhere outside the above format.
 
+      Do not confuse different diagram types. For example, do not use the `flowchart` type with the code for the `sequenceDiagram` type. Always check the documentation for the correct usage of the diagram type.
 
-      Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \[ \] for brackets, \( \) for parentheses. Do not use the \`\`\` delimiters for the mermaid code.
+      Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \[ \] for brackets, \( \) for parentheses. 
+
+      Do not use the \`\`\` delimiters around the mermaid code in your response.
 
       The user may provide data to visualize below. User-provided data for visualization will be clearly marked as `TARGET DOCUMENT: TITLE`.
     TEXT
@@ -51,7 +54,7 @@ class DiagramDraft < MonadicApp
   def settings
     {
       "model": "gpt-3.5-turbo-0125",
-      "temperature": 0.0,
+      "temperature": 0.5,
       "top_p": 0.0,
       "max_tokens": 2000,
       "context_size": 10,
@@ -103,10 +106,13 @@ class DiagramDraft < MonadicApp
         file_path = File.join(__dir__, "documentation", "#{diagram_type}.md")
         if File.exist?(file_path)
           diagram_type_content = File.read(file_path)
-          basic_example_path = File.join(__dir__, "documentation", "examples.md")
-          basic_examples = File.read(basic_example_path)
-          results = diagram_type_content + "\n\n" + basic_examples
-          results
+          # basic_examples_path = File.join(__dir__, "documentation", "examples.md")
+          # basic_examples = File.read(basic_examples_path)
+          # jison_contents = File.read(File.join(__dir__, "documentation", "#{diagram_type}.jison"))
+
+          <<~DOCS
+            #{diagram_type_content}
+          DOCS
         else
           "Documentation file not found for the diagram type: #{diagram_type}."
         end

@@ -423,6 +423,26 @@
 
     <!-- Modal -->
     <!-- loading procedure is implemented in monadic.rb -->
+    <div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> Load File</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+          </div>
+          <form action="/load" method="post" enctype="multipart/form-data" type="hidden">
+            <div class="modal-body">
+              <label for="file-load" class="form-label">Select file to load</label>
+              <input id="file-load" class="form-control" type="file" name="file" accept=".json">
+            </div>
+            <div class="modal-footer">
+              <button id="import-button" type="submit" value="load" class="btn btn-primary" disabled>Load</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="fileModal" tabindex="-1" aria-labelledby="fileModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -480,7 +500,7 @@
         tex: {
           inlineMath: [
             ['$', '$'],
-            ['\\(', '\\)']
+            ["\\(", "\\)"]
           ]
         },
         options: {

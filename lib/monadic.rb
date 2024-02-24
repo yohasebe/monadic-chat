@@ -60,6 +60,17 @@ def init_apps
   klass.subclasses.each do |app|
     app = app.new
     app_name = app.settings[:app_name]
+
+    if app.settings[:mathjax]
+      original_settings = app.settings.dup
+      mathjax_prompt =<<~PROMPT
+      When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$.
+      PROMPT
+      app.define_singleton_method(:settings) do
+        original_settings.merge({ initial_prompt: "#{original_settings[:initial_prompt]}\n\n#{mathjax_prompt}" })
+      end
+    end
+
     apps[app_name] = app
   end
   apps.sort_by { |k, _v| k }.to_h

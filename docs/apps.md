@@ -67,6 +67,14 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/mail-composer.png" width="40px"/> This is an application for writing draft novels of email messages in collaboration with an assistant. The assistant writes the email draft according to the user's requests and specifications.
 
+## Document Reader
+
+<img src="./assets/icons/document-reader.png" width="40px"/> This is an application for reading a document. The assistant will read the document and explain its content from the beginning to the end splitting the content into segments of small size. The user can ask questions about the content of the document, and the assistant will answer them based on the content of the document.
+
+## Diagram Draft
+
+<img src="./assets/icons/diagram-draft.png" width="40px"/> This is an application for drafting diagrams. The assistant will create a diagram using the Mermaid library based on the user's input. The user can ask the assistant to create a diagram by specifying the type of diagram and the content of the diagram.
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

@@ -1,6 +1,8 @@
 ### Change Log
 
-- [January, 2024] Default model set to `gpt-3.5-turbo-0125`
+- [February, 2024] Mermaid diagram support
+- [February, 2024] File reading feature
+- [February, 2024] Stability improvement with several apps modified
 - [January, 2024] Default model set to `gpt-3.5-turbo-1106`
 - [January, 2024] OpenAI's January 2024 models supported
 - [January, 2024] Mac/Win Monadic Chat Console UI improved

@@ -66,6 +66,14 @@ layout: default
 
 <img src="./assets/icons/mail-composer.png" width="40px"/> AIアシスタントと共同でメールの文章を書くためのアプリケーションです。ユーザーの要望や仕様に合わせてアシスタントが文面や改善案を提案します。 
 
+## Document Reader
+
+<img src="./assets/icons/document-reader.png" width="40px"/> 効率的に文書を読むためのアプリケーションです。アシスタントが文書を読み上げ、その内容を最初から最後まで小さなまとまりに分割して説明します。ユーザーは文書の内容について質問することができ、アシスタントは文書の内容に基づいてそれに答えます。
+
+## Diagram Draft
+
+<img src="./assets/icons/diagram-draft.png" width="40px"/> ダイアグラムの雛形を作成するためのアプリケーションです。ユーザーの入力をもとに、アシスタントがMermaidライブラリを使って図を作成します。ユーザーはダイアグラムの種類と内容を指定することで、アシスタントにダイアグラムの作成を依頼することができます。
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

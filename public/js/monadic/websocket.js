@@ -107,9 +107,9 @@ function applyMathJax(element) {
     return;
   }
 
-  if (!/\$[^$]+\$/.test(element.text())) {
-    return;
-  }
+  // if (!/\$[^$]+\$/.test(element.text())) {
+  //   return;
+  // }
 
   if (typeof MathJax === 'undefined') {
     console.error('MathJax is not loaded. Please make sure to include the MathJax script in your HTML file.');

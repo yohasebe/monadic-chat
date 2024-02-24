@@ -106,9 +106,6 @@ class DiagramDraft < MonadicApp
         file_path = File.join(__dir__, "documentation", "#{diagram_type}.md")
         if File.exist?(file_path)
           diagram_type_content = File.read(file_path)
-          # basic_examples_path = File.join(__dir__, "documentation", "examples.md")
-          # basic_examples = File.read(basic_examples_path)
-          # jison_contents = File.read(File.join(__dir__, "documentation", "#{diagram_type}.jison"))
 
           <<~DOCS
             #{diagram_type_content}
@@ -123,33 +120,4 @@ class DiagramDraft < MonadicApp
       "An error occurred while reading documentation for the diagram type: #{diagram_type}. Error: #{e.message}"
     end
   end
-
-  # def validate_mermaid_code(hash, num_retrials: 3)
-  #   mermaid_code = hash[:mermaid_code]
-  #   mmdc_path = `which mmdc`.strip
-  #   Tempfile.create(["mermaid", ".mmd"]) do |tempfile|
-  #     tempfile.write(mermaid_code)
-  #     tempfile.close
-  #     Tempfile.create(["output", ".svg"]) do |output_tempfile|
-  #       # Capture the path before closing because closing the tempfile might make it inaccessible
-  #       output_path = output_tempfile.path
-  #       output_tempfile.close
-  #       output, error_str, status = Open3.capture3("#{mmdc_path} -i #{tempfile.path} -o #{output_path}", :err=>[:child, :out])
-  #       if status.success?
-  #         message = "The mermaid code is valid."
-  #       else
-  #         # Attempt to capture the first line of the error, or the full error if that's empty
-  #         error_message = error_str.split("\n").first
-  #         error_message = error_str if error_message.nil? || error_message.strip.empty?
-  #         message = error_message
-  #       end
-  #       # Explicitly unlink (delete) the SVG output file after checking the code 
-  #       File.unlink(output_path) if File.exist?(output_path)
-  #       return message
-  #     end
-  #   end
-  # rescue => e
-  #   puts "An error occurred: #{e.message}"
-  #   return false, e.message
-  # end
 end

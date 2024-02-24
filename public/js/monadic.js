@@ -228,7 +228,6 @@ $(function () {
   $("#load").on("click", function (event) {
     event.preventDefault();
     $("#loadModal").modal("show");
-
   });
 
   $("#file").on("click", function (event) {
@@ -238,7 +237,7 @@ $(function () {
     $("#fileModal").modal("show");
   });
 
-  $("#fileModal").on("shown.bs.modal", function () {
+  $("#loadModal").on("shown.bs.modal", function () {
     $("#file-title").focus();
   });
 

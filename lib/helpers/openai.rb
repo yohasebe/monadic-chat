@@ -184,6 +184,7 @@ module OpenAIHelper
     end
 
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    
     model = obj["model"]
     max_tokens = obj["max_tokens"].to_i
     temperature = obj["temperature"].to_f
@@ -213,7 +214,9 @@ module OpenAIHelper
       message_with_snippet = <<~TEXT
         #{obj["message"]}
 
-        SNIPPET:```
+        SNIPPET:
+
+        ```
           #{snippet.to_json}
         ```
       TEXT

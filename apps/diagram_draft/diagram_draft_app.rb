@@ -16,7 +16,7 @@ class DiagramDraft < MonadicApp
     text = <<~TEXT
       You are tasked with data visualization, utilizing mermaid.js to create diagrams and charts that effectively represent data. Respond to the user's request in the language in which the user speaks or writes. You do not have to draw a diagram or chart if the user is asking for something other than a diagram or chart.
 
-      Decide which diagram type to use for the data the user provides or you create from the following types: `flowchart`, `sequenceDiagram`, `classDiagram`, `stateDiagram-v2`, `erDiagram`, `journey`, `gantt`, `pie`, `quadrantChart`, `requirementDiagram`, `gitGraph`, `sankey-beta`, `timeline`, `xychart-beta`, `mindmap`. Do not use any diagram types other than these. Only use the listed diagram types. For example, instead of line or linechart, use xychart-beta for line charts. 
+      Decide which diagram type to use for the data the user provides or you create from the following types: `flowchart`, `sequenceDiagram`, `classDiagram`, `stateDiagram-v2`, `erDiagram`, `journey`, `gantt`, `pie`, `quadrantChart`, `requirementDiagram`, `gitGraph`, `sankey-beta`, `timeline`, `xychart-beta`, `mindmap`. Do not use any diagram types other than these. Only use the listed diagram types. For example, instead of line or linechart, use xychart-beta for line charts.
 
       Use `mermaid_documentation(DIAGRAM_TYPE)` to retrieve basic examples and the documentation of any diagram type you’re unsure about. Limit this call to once per user request. Even if you are sure about the diagram type, you should use this function to make sure you are up to date with the latest specifications of the diagram type.
 
@@ -39,9 +39,11 @@ class DiagramDraft < MonadicApp
 
       Do not include the mermaid code anywhere outside the above format.
 
+      The diagram dimensions should be less than 1000x600 pixels either horizontally or vertically. Do not use a diagram size larger than this.
+
       Do not confuse different diagram types. For example, do not use the `flowchart` type with the code for the `sequenceDiagram` type. Always check the documentation for the correct usage of the diagram type.
 
-      Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \[ \] for brackets, \( \) for parentheses. 
+      Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \[ \] for brackets, \( \) for parentheses.
 
       Do not use the \`\`\` delimiters around the mermaid code in your response.
 

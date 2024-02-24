@@ -4,8 +4,8 @@ require "poppler"
 require "parallel"
 require "tiktoken_ruby"
 
-DAG_TOKENS = 2000
-DAG_OVERLAP_LINES = 5
+RAG_TOKENS = 4000
+RAG_OVERLAP_LINES = 5
 
 class PDF2Text
   THREADS = 4
@@ -13,7 +13,7 @@ class PDF2Text
   attr_reader :file_path, :text_data
 
   # Initializes the PDF2Text class
-  def initialize(path:, max_tokens: DAG_TOKENS, separator: "\n", overwrap_lines: DAG_OVERLAP_LINES)
+  def initialize(path:, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES)
     @file_path = path
     @file_name = File.basename(path)
     @max_tokens = max_tokens
@@ -77,7 +77,7 @@ if $PROGRAM_NAME == __FILE__
   file_path = ARGV[0]
 
   if File.exist?(file_path)
-    pdf = PDF2Text.new(path: file_path, max_tokens: DAG_TOKENS, separator: "\n", overwrap_lines: DAG_OVERLAP_LINES)
+    pdf = PDF2Text.new(path: file_path, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES)
     pdf.extract
     split_texts = pdf.split_text
     split_texts.each_with_index do |split_text, index|

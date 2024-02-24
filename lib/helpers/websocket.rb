@@ -161,6 +161,7 @@ module WebSocketHelper
             last_one = queue.pop
             content = last_one["choices"][0]
             text = content["text"] || content["message"]["content"]
+            # text = text.gsub(/\\/, "\\\\")
             # if the current app has a monadic_html method, use it to generate html
             html = if session["parameters"]["monadic"]
                      APPS[session["parameters"]["app_name"]].monadic_html(text)
@@ -221,7 +222,8 @@ module WebSocketHelper
                   @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
                 end
               elsif fragment["type"] == "fragment" && !cutoff
-                buffer << fragment["content"] unless fragment["content"].empty? || fragment["content"] == "DONE"
+                text = fragment["content"]
+                buffer << text unless text.empty? || text == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
                 if segments.size > 1
@@ -246,7 +248,6 @@ module WebSocketHelper
             if response && response["type"] == "error"
               @channel.push({ "type" => "error", "content" => response["content"] }.to_json)
             else
-              # text = response["choices"][0]["text"]
               queue.push(response)
             end
           end

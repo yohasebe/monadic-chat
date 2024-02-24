@@ -64,7 +64,13 @@ def init_apps
     if app.settings[:mathjax]
       original_settings = app.settings.dup
       mathjax_prompt =<<~PROMPT
-      When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$.
+      When incorporating mathematical expressions into your response, please adhere to the following notation guidelines:
+
+      - Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block.
+      - Use single dollar signs `$` for expressions that should appear inline with the text.
+      - To prevent the backslash `\\` from being interpreted as an escape character, please double each backslash. For example, use `\\\\` instead of `\`.
+
+      For instance, to present the square root of 2 as a standalone equation, format it as `$$\\\\sqrt{2}$$`. To include it within a sentence, use `$\\\\sqrt{2}$`.
       PROMPT
       app.define_singleton_method(:settings) do
         original_settings.merge({ initial_prompt: "#{original_settings[:initial_prompt]}\n\n#{mathjax_prompt}" })

@@ -14,10 +14,7 @@ class PDFNavigator < MonadicApp
   def initial_prompt
     text = <<~TEXT
       Respond to the user based on the "text" property of the JSON object attached to the user input. The "text" value is an excerpt of a PDF uploaded by the user and may be accompanied by other properties containing metadata. In addition to your response based on the "text" property of the JSON, display the metadata contained in other properties such as "title" and "tokens" using this format: "(PDF Title: TITLE, Tokens of Snippet: TOKENS)".
-
-      There may be different ways to represent mathematical expressions in the provided snippet, such as LaTeX, MathML, AsciiMath, and MathJax. Please use MathJax notation for your response, translating the mathematical expressions from the snippet to MathJax notation.
-
-    TEXT
+      TEXT
     text.strip
   end
 
@@ -26,8 +23,8 @@ class PDFNavigator < MonadicApp
       "model": "gpt-3.5-turbo-0125",
       "temperature": 0.0,
       "top_p": 0.0,
-      "max_tokens": 2000,
-      "context_size": 10,
+      "max_tokens": 4000,
+      "context_size": 8,
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,

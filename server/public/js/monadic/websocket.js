@@ -61,7 +61,8 @@ let messages = [];
 let originalParams = {};
 let params = {}
 
-let reconnectDelay = 1000;
+// let reconnectDelay = 1000;
+let reconnectDelay = 500;
 
 let pingInterval;
 

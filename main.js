@@ -336,7 +336,8 @@ function toUnixPath(p) {
 
 function shutdownDocker() {
   const command = "shutdown"
-  const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
+
+  const monadicScriptPath = path.join(__dirname, 'server', 'monadic.sh').replace('app.asar', 'app');
 
   let cmd;
   if (os.platform() === 'darwin') {
@@ -393,8 +394,9 @@ function fetchWithRetry(url, options = {}, retries = 20, delay = 1000) {
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
+  
+  const monadicScriptPath = path.join(__dirname, 'server', 'monadic.sh').replace('app.asar', 'app');
 
-  const monadicScriptPath = path.isPackaged ? path.join(process.resourcesPath, 'monadic.sh') : path.join(__dirname, 'monadic.sh');
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
 
   currentStatus = statusWhileCommand;

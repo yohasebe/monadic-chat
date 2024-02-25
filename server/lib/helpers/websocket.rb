@@ -168,6 +168,10 @@ module WebSocketHelper
                    else
                      markdown_to_html(text)
                    end
+            if session["parameters"]["response_suffix"]
+              html += "\n\n" + session["parameters"]["response_suffix"]
+            end
+
             new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
             @channel.push({ "type" => "html", "content" => new_data }.to_json)
             session[:messages] << new_data

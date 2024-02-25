@@ -85,9 +85,6 @@ function saveObjToJson(obj, fileName) {
   const objToSave = Object.assign({}, obj);
   delete objToSave["parameters"]["message"];
   delete objToSave["parameters"]["pdf"];
-  // delete objToSave["parameters"]["speech_lang"];
-  // delete objToSave["parameters"]["speech_voice"];
-  // delete objToSave["parameters"]["speech_rate"];
   delete objToSave["parameters"]["tts_voice"];
   delete objToSave["parameters"]["tts_speed"];
   const data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objToSave));
@@ -205,14 +202,13 @@ function listParams(params) {
       "message",
       "pdf",
       "show_notification",
-      // "speech_lang",
-      // "speech_voice",
-      // "speech_rate",
       "tts_voice",
       "tts_speed",
       "initial_prompt",
       "description",
-      "functions"
+      "functions",
+      "image_generation",
+      "file"
     ];
     if (excluded_keys.includes(key) || !value || value === "") {
       continue;

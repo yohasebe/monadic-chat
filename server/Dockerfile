@@ -19,4 +19,4 @@ COPY bin/ $WORKSPACE/bin/
 COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/
-COPY config.ru Gemfile LICENSE Rakefile README.md $WORKSPACE/
+COPY config.ru $WORKSPACE/

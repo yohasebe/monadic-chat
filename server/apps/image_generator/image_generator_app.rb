@@ -25,17 +25,6 @@ class ImageGeneration < MonadicApp
       <div style="margin-bottom: 16px;">
         <img style="max-width: 100%;" class="generated_image" src="" />
       </div>
-
-      <script>
-        document.querySelectorAll('.generated_image').forEach((img) => {
-          img.addEventListener('click', (e) => {
-            window.open(e.target.src, '_blank');
-          });
-        });
-        document.querySelectorAll('.generated_image').forEach((img) => {
-          img.style.cursor = 'pointer';
-        });
-      </script>
       ```
 
       If the user asks to add something to generated images or to modify it, re-generate another image, calling the `generate_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous message.
@@ -57,6 +46,7 @@ class ImageGeneration < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
+      "image_generation": true,
       "tools": [{
         "type": "function",
         "function": {

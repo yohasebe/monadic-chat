@@ -184,6 +184,7 @@ module OpenAIHelper
     end
 
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    prompt_suffix = obj["prompt_suffix"]
     
     model = obj["model"]
     max_tokens = obj["max_tokens"].to_i
@@ -276,7 +277,12 @@ module OpenAIHelper
       latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
       context = [initial] + latest_messages
       context << { "role" => role, "text" => message } if message != "" && role == "system"
-      context.last["text"] = message_with_snippet if message_with_snippet
+
+      last_text = context.last["text"]
+      last_text = message_with_snippet if message_with_snippet.to_s != ""
+      last_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
+      context.last["text"] = last_text
+
       messages_containing_img = false
       body["messages"] = context.compact.map do |msg|
         message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }

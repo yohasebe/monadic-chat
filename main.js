@@ -44,7 +44,7 @@ function compareVersions(version1, version2) {
 }
 
 function checkForUpdates() {
-  const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/lib/monadic/version.rb';
+  const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/server/lib/monadic/version.rb';
 
   https.get(url, (res) => {
     let data = '';

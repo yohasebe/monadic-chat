@@ -38,30 +38,23 @@ class DiagramDraft < MonadicApp
 
       Finally, respond with the mermaid diagram code in the following HTML format:
 
-      ---
       <div class="sourcecode-toggle">show/hide sourcecode</div>
       <div class="sourcecode">
-        <pre>
-          <code>
-            MERMAID_CODE
-          </code>
-        </pre>
+        <pre><code>RAW_MERMAID_CODE (without "mermaid" tags)</code></pre>
       </div>
 
       <div class="diagram">
         <mermaid>
-          MERMAID_CODE
+          RAW_MERMAID_CODE
         </mermaid>
       </div>
-      ---
 
       Some important notes:
 
-      - Do not include the mermaid code anywhere outside the above format.
+      - Do not include the mermaid code anywhere outside the div elements above.
       - The diagram dimensions should be less than 1000x600 pixels either horizontally or vertically. Do not use a diagram size larger than this.
       - Do not confuse different diagram types. For example, do not use the `flowchart` type with the code for the `sequenceDiagram` type. Always check the documentation for the correct usage of the diagram type.
       - Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \[ \] for brackets, \( \) for parentheses.
-      - Do not use the \`\`\` delimiters around the mermaid code in your response.
       - The user may provide data to visualize below. User-provided data for visualization will be clearly marked as `TARGET DOCUMENT: TITLE`.
     TEXT
 
@@ -69,7 +62,6 @@ class DiagramDraft < MonadicApp
   end
 
   def settings
-
     {
       "model": "gpt-3.5-turbo-0125",
       "temperature": 0.0,
@@ -99,7 +91,7 @@ class DiagramDraft < MonadicApp
               "properties": {
                 "diagram_type": {
                   "type": "string",
-                  "description": "the type of the mermaid diagram",
+                  "description": "the type of the mermaid diagram"
                 }
               },
               "required": ["diagram_type"]
@@ -110,14 +102,10 @@ class DiagramDraft < MonadicApp
     }
   end
 
-  def mermaid_documentation(hash, num_retrials: 3)
+  def mermaid_documentation(hash)
     diagram_type = hash[:diagram_type]
-    diagram_types = [
-      "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2",
-      "erDiagram", "journey", "gantt", "pie", "quadrantChart",
-      "requirementDiagram", "gitGraph", "sankey-beta", "timeline",
-      "xychart-beta", "mindmap"
-    ]
+    diagram_types = ["flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2", "erDiagram", "journey", "gantt", "pie", "quadrantChart",
+      "requirementDiagram", "gitGraph", "sankey-beta", "timeline", "xychart-beta", "mindmap"]
 
     begin
       if diagram_types.include?(diagram_type)
@@ -134,7 +122,7 @@ class DiagramDraft < MonadicApp
       else
         "No documentation found for the diagram type: #{diagram_type}."
       end
-    rescue => e
+    rescue StandardError => e
       "An error occurred while reading documentation for the diagram type: #{diagram_type}. Error: #{e.message}"
     end
   end

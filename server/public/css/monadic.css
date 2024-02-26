@@ -19,7 +19,7 @@ body, html {
   cursor: pointer;
 }
 
-div.highlight {
+div.highlight, div.sourcecode {
   padding: 0.8em;
   margin-bottom: 1em;
 }
@@ -53,7 +53,7 @@ div.card-body.role-system {
   background-color: #f1fcf7
 }
 
-div.highlight, div.highlight pre {
+div.highlight, div.highlight pre, div.sourcecode, div.sourcecode pre {
   background-color: #fff;
 }
 

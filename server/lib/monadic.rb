@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# frozen_string_literal: false
 
 require "cld"
 require "dotenv"
@@ -66,46 +66,56 @@ def init_apps
     response_suffix = ""
 
     if app.settings[:mathjax]
-      initial_prompt_suffix =<<~INITIAL
-      When incorporating mathematical expressions into your response, please adhere to the following notation guidelines:
+      initial_prompt_suffix << <<~INITIAL
+        When incorporating mathematical expressions into your response, please adhere to the following notation guidelines:
 
-      - Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block.
-      - Use single dollar signs `$` for expressions that should appear inline with the text.
-      - To prevent the backslash `\\` from being interpreted as an escape character, please double each backslash. For example, use `\\\\` instead of `\`.
+        - Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block.
+        - Use single dollar signs `$` for expressions that should appear inline with the text.
+        - To prevent the backslash `\\` from being interpreted as an escape character, please double each backslash. For example, use `\\\\` instead of `\`.
 
-      For instance, to present the square root of 2 as a standalone equation, format it as `$$\\\\sqrt{2}$$`. To include it within a sentence, use `$\\\\sqrt{2}$`.
+        For instance, to present the square root of 2 as a standalone equation, format it as `$$\\\\sqrt{2}$$`. To include it within a sentence, use `$\\\\sqrt{2}$`.
       INITIAL
 
-      prompt_suffix =<<~SUFFIX
-      Remember to use the correct delimiter for inline mathematical expressions `$`.
+      prompt_suffix << <<~SUFFIX
+        Remember to use the correct delimiter for inline mathematical expressions `$`.
       SUFFIX
-    elsif app.settings[:image_generation]
-      response_suffix =<<~INITIAL
-      <script>
-        document.querySelectorAll('.generated_image').forEach((img) => {
-          img.addEventListener('click', (e) => {
-            window.open(e.target.src, '_blank');
+    end
+
+    if app.settings[:image_generation]
+      response_suffix << <<~INITIAL
+        <script>
+          document.querySelectorAll('.generated_image').forEach((img) => {
+            img.addEventListener('click', (e) => {
+              window.open(e.target.src, '_blank');
+            });
           });
-        });
-        document.querySelectorAll('.generated_image').forEach((img) => {
-          img.style.cursor = 'pointer';
-        });
-      </script>
+          document.querySelectorAll('.generated_image').forEach((img) => {
+            img.style.cursor = 'pointer';
+          });
+        </script>
+      INITIAL
+    end
+
+    if app.settings[:mermaid]
+      prompt_suffix << <<~INITIAL
+        Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams.
       INITIAL
     end
 
     if !initial_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?
-      initial_prompt_suffix = "\n\n" + initial_prompt_suffix.strip if !initial_prompt_suffix.empty?
-      prompt_suffix = "\n\n" + prompt_suffix.strip if !prompt_suffix.empty?
-      response_suffix = "\n\n" + response_suffix.strip if !response_suffix.empty?
+      initial_prompt_suffix = "\n\n" + initial_prompt_suffix.strip unless initial_prompt_suffix.empty?
+      prompt_suffix = "\n\n" + prompt_suffix.strip unless prompt_suffix.empty?
+      response_suffix = "\n\n" + response_suffix.strip unless response_suffix.empty?
 
       original_settings = app.settings.dup
       app.define_singleton_method(:settings) do
-        original_settings.merge({
-          initial_prompt:  "#{original_settings[:initial_prompt]}#{initial_prompt_suffix}".strip,
-          prompt_suffix:   "#{original_settings[:prompt_suffix]}#{prompt_suffix}".strip,
-          response_suffix: "#{original_settings[:response_suffix]}#{response_suffix}".strip
-        })
+        original_settings.merge(
+          {
+            initial_prompt: "#{original_settings[:initial_prompt]}#{initial_prompt_suffix}".strip,
+            prompt_suffix: "#{original_settings[:prompt_suffix]}#{prompt_suffix}".strip,
+            response_suffix: "#{original_settings[:response_suffix]}#{response_suffix}".strip
+          }
+        )
       end
     end
 

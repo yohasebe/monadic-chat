@@ -3,9 +3,9 @@ let audioCtx = null;
 
 function ttsSpeak(text, stream, callback) {
 
-  if(stream){
-    ttsStop();
-  }
+  // if(stream){
+  //   ttsStop();
+  // }
 
   // const quality = $("#tts-quality").is(":checked");
   const voice = $("#tts-voice").val();
@@ -31,7 +31,6 @@ function ttsSpeak(text, stream, callback) {
     audioCtx = new AudioContext();
   }
 
-  // wait for audioCtx is ready
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }

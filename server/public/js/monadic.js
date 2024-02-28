@@ -344,11 +344,6 @@ $(function () {
     }
   }
 
-  $("#main").scroll(adjustScrollButtons);
-  $(window).resize(adjustScrollButtons);
-  // call adjustScrollButtons() when reset or settings button is clicked
-  $("#reset, #settings").on("click", adjustScrollButtons);
-
   backToTop.click(function (e) {
     e.preventDefault();
     $("#main").animate({scrollTop: 0}, 500);
@@ -471,6 +466,10 @@ $(function () {
     }
   });
 
+  $("#main").scroll(adjustScrollButtons);
+  $("#reset, #settings").on("click", adjustScrollButtons);
+  $(window).resize(adjustScrollButtons);
+
   $(document).ready(function() {
     document.getElementById("initial-prompt-toggle").addEventListener("change", function() {
       if (this.checked) {
@@ -482,6 +481,7 @@ $(function () {
     });
     $("#initial-prompt").css("display", "none");
     $("#initial-prompt-toggle").prop("checked", false);
+    adjustScrollButtons();
   });
 
 });

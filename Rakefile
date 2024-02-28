@@ -15,6 +15,7 @@ task default: %i[spec rubocop]
 
 # task to build win/mac x64/mac arm64 packages
 task :build do
+  # sh "npm run build:linux"
   sh "npm run build:win"
   sh "npm run build:mac-x64"
   sh "npm run build:mac-arm64"
@@ -22,11 +23,14 @@ task :build do
   necessary_files = [
     "monadic-chat-#{version}-arm64.dmg",
     "monadic-chat-#{version}.dmg",
-    "monadic-chat Setup #{version}.exe"
+    "monadic-chat Setup #{version}.exe",
+    # "monadic-chat_#{version}_amd64.deb",
   ].map { |file| File.expand_path("dist/#{file}") }
 
   Dir.glob("dist/*").each do |file|
     filepath = File.expand_path(file)
     FileUtils.rm_rf(filepath) unless necessary_files.include?(filepath)
   end
+
+  # FileUtils.mv("dist/monadic-chat_#{version}_amd64.deb", "dist/monadic-chat_#{version}_x64.deb")
 end

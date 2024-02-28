@@ -135,10 +135,6 @@ voiceButton.on("click", function () {
         // Set the event listener before stopping the mediaRecorder
         mediaRecorder.ondataavailable = function (event) {
           soundToBase64(event.data, function (base64) {
-
-            console.log("Y");
-
-
             let lang_code
             let format = "webm";
             const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});

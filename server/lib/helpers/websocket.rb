@@ -215,6 +215,13 @@ module WebSocketHelper
         else
           session[:parameters].merge! obj
 
+          if obj["auto_speech"]
+            voice = obj["tts_voice"]
+            speed = obj["tts_speed"]
+            response_format = "mp3"
+            model = "tts-1"
+          end
+
           thread = Thread.new do
             buffer = []
             cutoff = false
@@ -235,7 +242,10 @@ module WebSocketHelper
                   splitted = candidate.split("---")
                   cutoff = true if splitted.size > 1
 
-                  @channel.push({ "type" => "sentence", "content" => candidate }.to_json) if splitted[0] != "" && candidate != ""
+                  if obj["auto_speech"]
+                    res_hash = tts_api_request(candidate, voice, speed, response_format, model) if splitted[0] != "" && candidate != ""
+                    @channel.push(res_hash.to_json)
+                  end
 
                   buffer = segments[1..]
                 end
@@ -243,10 +253,11 @@ module WebSocketHelper
               @channel.push(fragment.to_json)
             end
 
-            unless cutoff
+            if obj["auto_speech"] && !cutoff
               candidate = buffer.join
               splitted = candidate.split("---")
-              @channel.push({ "type" => "sentence", "content" => splitted[0] }.to_json) if splitted[0] != ""
+              res_hash = tts_api_request(splitted[0], voice, speed, response_format, model) if splitted[0] != ""
+              @channel.push(res_hash.to_json)
             end
 
             if response && response["type"] == "error"

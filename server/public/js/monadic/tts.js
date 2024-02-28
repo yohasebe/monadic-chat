@@ -1,12 +1,24 @@
 // audio context
 let audioCtx = null;
+let playPromise = null;
+
+function audioInit() {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  playPromise = audio.play();
+  if (!playPromise || playPromise !== undefined) {
+    playPromise.then(_ => {}).catch(error => {});
+  }
+}
 
 function ttsSpeak(text, stream, callback) {
-
-  // if(stream){
-  //   ttsStop();
-  // }
-
+  
   // const quality = $("#tts-quality").is(":checked");
   const voice = $("#tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
@@ -27,18 +39,7 @@ function ttsSpeak(text, stream, callback) {
     response_format = "mp3"
   }
 
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-  }
-
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-
-  let playPromise = audio.play();
-  if (playPromise !== undefined) {
-    playPromise.then(_ => {}).catch(error => {});
-  }
+  audioInit();
 
   if (runningOnFirefox) {
     return false;

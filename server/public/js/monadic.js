@@ -95,6 +95,7 @@ $(function () {
   })
 
   $("#start").on("click", function () {
+    audioInit();
     elemError.hide();
     if (checkParams()) {
       params = setParams();

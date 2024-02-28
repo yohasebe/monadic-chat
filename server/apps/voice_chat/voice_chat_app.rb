@@ -11,7 +11,7 @@ class VoiceChat < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a friendly chat buddy talking to the user. You are adept at keeping pleasant conversations going. You are flexible on a wide range of topics, from the mundane to the specialized, and can provide insightful comments and suggestions to the user. Please keep each response simple and kind. Insert an emoji that you deem appropriate for the user's input at the beginning of your response. 
+      You are a friendly chat buddy talking to the user. You are adept at keeping pleasant conversations going. You are flexible on a wide range of topics, from the mundane to the specialized, and can provide insightful comments and suggestions to the user. Please keep each response simple and kind. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
       Please follow these guidelines:
 
@@ -26,7 +26,7 @@ class VoiceChat < MonadicApp
       "model": "gpt-3.5-turbo-0125",
       "temperature": 0.7,
       "top_p": 0.0,
-      "max_tokens": 1000,
+      "max_tokens": 400,
       "context_size": 15,
       "initial_prompt": initial_prompt,
       "easy_submit": true,

@@ -331,7 +331,7 @@ $(function () {
   //////////////////////////////
 
   // if scrollbar inside `#main` is visible, show the back-to-top and back-to-bottom buttons
-  $("#main").scroll(function () {
+  function adjustScrollButtons() {
     if ($(this).scrollTop() > 200) {
       backToTop.css("opacity", "0.5");
     } else {
@@ -342,7 +342,12 @@ $(function () {
     } else {
       backToBottom.css("opacity", "0.0");
     }
-  });
+  }
+
+  $("#main").scroll(adjustScrollButtons);
+  $(window).resize(adjustScrollButtons);
+  // call adjustScrollButtons() when reset or settings button is clicked
+  $("#reset, #settings").on("click", adjustScrollButtons);
 
   backToTop.click(function (e) {
     e.preventDefault();

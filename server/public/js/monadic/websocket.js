@@ -335,7 +335,7 @@ function connect_websocket(callback) {
               <p>${data['content']}</p>\
               <div class='like-h5'><i class='fa-solid fa-robot'></i> Available Models</div>\
               <div>\
-                ${data['models'].join('<br />')}\
+                ${data['models'].join('<br>')}\
               </div>\
             `
         setAlert(token_verified, "success");
@@ -465,7 +465,7 @@ function connect_websocket(callback) {
           messages.push(msg);
           switch (msg["role"]) {
             case "user":
-              let msg_text = msg["text"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
+              let msg_text = msg["text"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
               let image_data;
               if(msg["image"] !== undefined){
                 image_data = msg["image"]["data"];
@@ -519,7 +519,7 @@ function connect_websocket(callback) {
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {
-          let content_text = data["content"]["text"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
+          let content_text = data["content"]["text"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />").replace(/\s/g, "&nbsp;");
           let image_data;
           if(data["image"] !== undefined){
             image_data = data["image"]["data"];
@@ -556,7 +556,7 @@ function connect_websocket(callback) {
           message_obj.image = data["image"];
         }
         messages.push(message_obj);
-        let content_text = data["content"]["text"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
+        let content_text = data["content"]["text"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
         let image_data;
         if(data["image"] !== undefined){
           image_data = data["image"]["data"];
@@ -571,7 +571,7 @@ function connect_websocket(callback) {
       case "sentence":
         console.log("sentence: " + data["content"]);
         if (data["content"] !== null) {
-          let text = data["content"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
+          let text = data["content"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 
           if (params["auto_speech"]) {
             text = removeCode(text);
@@ -585,7 +585,7 @@ function connect_websocket(callback) {
         $("#indicator").show();
         msgBuffer.push(data["content"]);
         if (data["content"] !== undefined) {
-          $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />"));
+          $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
         }
         if (!isElementInViewport(chatBottom)){
           chatBottom.scrollIntoView(false);

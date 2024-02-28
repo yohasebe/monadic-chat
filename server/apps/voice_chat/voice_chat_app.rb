@@ -16,7 +16,8 @@ class VoiceChat < MonadicApp
       Please follow these guidelines:
 
       - Do not include a sample of user utterance at the beginning of a conversation.
-      - Limit your response to less than 100 words at a time. If you have more to say, please break it up into multiple responses.
+      - Limit your response to less than 50 words at a time. If you have more to say, please break it up into multiple responses.
+      - Try to keep your response as short as possible.
     TEXT
     text.strip
   end
@@ -26,7 +27,7 @@ class VoiceChat < MonadicApp
       "model": "gpt-3.5-turbo-0125",
       "temperature": 0.7,
       "top_p": 0.0,
-      "max_tokens": 400,
+      "max_tokens": 1000,
       "context_size": 15,
       "initial_prompt": initial_prompt,
       "easy_submit": true,

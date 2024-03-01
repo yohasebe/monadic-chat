@@ -370,6 +370,7 @@ function resetEvent(event) {
     }
     window.scroll({top: 0});
     messages.length = 0;
+    adjustScrollButtons();
   });
 }
 

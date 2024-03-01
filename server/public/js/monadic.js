@@ -468,8 +468,8 @@ $(function () {
   });
 
   $("#main").scroll(adjustScrollButtons);
-  $("#reset, #settings").on("click", adjustScrollButtons);
   $(window).resize(adjustScrollButtons);
+  $(document).click(adjustScrollButtons);
 
   $(document).ready(function() {
     document.getElementById("initial-prompt-toggle").addEventListener("change", function() {
@@ -484,5 +484,4 @@ $(function () {
     $("#initial-prompt-toggle").prop("checked", false);
     adjustScrollButtons();
   });
-
 });

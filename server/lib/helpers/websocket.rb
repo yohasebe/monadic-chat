@@ -161,7 +161,6 @@ module WebSocketHelper
             last_one = queue.pop
             content = last_one["choices"][0]
             text = content["text"] || content["message"]["content"]
-            # text = text.gsub(/\\/, "\\\\")
             # if the current app has a monadic_html method, use it to generate html
             html = if session["parameters"]["monadic"]
                      APPS[session["parameters"]["app_name"]].monadic_html(text)
@@ -232,19 +231,24 @@ module WebSocketHelper
                 completion_api_request("user") do |fragment2|
                   @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
                 end
-              elsif fragment["type"] == "fragment" && !cutoff
+              elsif fragment["type"] == "fragment"
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
-                if segments.size > 1
+                if !cutoff && segments.size > 1
                   candidate = segments.first
                   splitted = candidate.split("---")
-                  cutoff = true if splitted.size > 1
+                  if splitted.size > 1
+                    cutoff = true
+                  end
 
                   if obj["auto_speech"]
-                    res_hash = tts_api_request(candidate, voice, speed, response_format, model) if splitted[0] != "" && candidate != ""
-                    @channel.push(res_hash.to_json)
+                    text = splitted[0]
+                    if text != "" && candidate != ""
+                      res_hash = tts_api_request(text, voice, speed, response_format, model) 
+                      @channel.push(res_hash.to_json)
+                    end
                   end
 
                   buffer = segments[1..]

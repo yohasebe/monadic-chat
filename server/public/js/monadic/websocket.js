@@ -16,7 +16,6 @@ message.addEventListener("compositionend", function() {
   message.dataset.ime = "false";
 });
 
-
 document.addEventListener("keydown", function(event) {
   if($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
     event.preventDefault();
@@ -215,8 +214,6 @@ const mermaid_config = {
 };
 
 async function applyMermaid(element) {
-  // Get the DOM element from the jQuery object
-  const domElement = element.get(0);
   element.find("mermaid").each(function () {
     const mermaidElement = $(this);
     const mermaidText = mermaidElement.text();
@@ -227,6 +224,118 @@ async function applyMermaid(element) {
   await mermaid.run({
     querySelector: '.mermaid'
   });
+}
+
+function CursorControl(element_id) {
+  var self = this;
+
+  self.onStart = function() {
+    var svg = document.querySelector(`${element_id} svg`);
+    var cursor = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    cursor.setAttribute("class", "abcjs-cursor");
+    cursor.setAttributeNS(null, 'x1', 0);
+    cursor.setAttributeNS(null, 'y1', 0);
+    cursor.setAttributeNS(null, 'x2', 0);
+    cursor.setAttributeNS(null, 'y2', 0);
+    svg.appendChild(cursor);
+
+  };
+  self.beatSubdivisions = 2;
+  self.onEvent = function(ev) {
+    if (ev.measureStart && ev.left === null)
+      return; // this was the second part of a tie across a measure line. Just ignore it.
+
+    var lastSelection = document.querySelectorAll(`${element_id} svg .highlight`);
+    for (var k = 0; k < lastSelection.length; k++)
+      lastSelection[k].classList.remove("highlight");
+
+    for (var i = 0; i < ev.elements.length; i++ ) {
+      var note = ev.elements[i];
+      for (var j = 0; j < note.length; j++) {
+        note[j].classList.add("highlight");
+      }
+    }
+
+    var cursor = document.querySelector(`${element_id} svg .abcjs-cursor`);
+    if (cursor) {
+      cursor.setAttribute("x1", ev.left - 2);
+      cursor.setAttribute("x2", ev.left - 2);
+      cursor.setAttribute("y1", ev.top);
+      cursor.setAttribute("y2", ev.top + ev.height);
+    }
+  };
+  self.onFinished = function() {
+    var els = document.querySelectorAll("svg .highlight");
+    for (var i = 0; i < els.length; i++ ) {
+      els[i].classList.remove("highlight");
+    }
+    var cursor = document.querySelector(`${element_id} svg .abcjs-cursor`);
+    if (cursor) {
+      cursor.setAttribute("x1", 0);
+      cursor.setAttribute("x2", 0);
+      cursor.setAttribute("y1", 0);
+      cursor.setAttribute("y2", 0);
+    }
+  };
+}
+
+function clickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
+  var lastClicked = abcElem.midiPitches;
+  if (!lastClicked)
+    return;
+
+  ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
+}
+
+function applyAbc(element) {
+  element.find(".abc-code").each(function () {
+    const abcElement = $(this);
+    const abcId = `${Date.now()}`;
+    const abcText = abcElement.find("pre").text().replace(/\n\n+/g, "\n").trim();
+    // replace the modified text to the original text
+    abcElement.find("pre").text(abcText);
+    // add div.abc-svg with id abcId
+    const abcSVG = `abc-svg-${abcId}`;
+    const abcMidi = `abc-midi-${abcId}`;
+    abcElement.after(`<div>&nbsp;</div>`);
+    abcElement.after(`<div id="${abcMidi}" class="abc-midi"></div>`);
+    abcElement.after(`<div id="${abcSVG}" class="abc-svg"></div>`);
+    const abcOptions = {
+      add_classes: true,
+      clickListener: self.clickListener,
+      responsive: "resize",
+      format: {
+        titlefont: '"itim-music,Itim" 16',
+        gchordfont: '"itim-music,Itim" 12',
+        vocalfont: '"itim-music,Itim" 10',
+        annotationfont: '"itim-music,Itim" 10',
+        composerfont: '"itim-music,Itim" 10',
+        partsfont: '"itim-music,Itim" 10',
+        tempoFont: '"itim-music,Itim" 10',
+        wordsfont: '"itim-music,Itim" 10',
+        infofont: '"itim-music,Itim" 10',
+        measureNumbers: true,
+        dynamicVAlign: false,
+        dynamicHAlign: false 
+      }
+    };
+    const visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
+    if (ABCJS.synth.supportsAudio()) {
+      const synthControl = new ABCJS.synth.SynthController();
+      const cursorControl = new CursorControl(`#${abcSVG}`);
+      synthControl.load(`#${abcMidi}`, cursorControl, {
+        displayLoop: true,
+        displayRestart: true,
+        displayPlay: true,
+        displayProgress: true,
+        displayWarp: true
+      });
+      synthControl.setTune(visualObj, false, {});
+
+    } else {
+      document.querySelector(abcMidi).innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
+    }
+  })
 }
 
 let mediaSource = null;
@@ -486,6 +595,9 @@ function connect_websocket(callback) {
                 applyMathJax(gptElement);
               }
 
+              if (apps[loadedApp]["abc"] === "true") {
+                applyAbc(gptElement);
+              }
               break;
             case "system":
               const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
@@ -538,6 +650,10 @@ function connect_websocket(callback) {
 
         if (params["mathjax"] === "true") {
           applyMathJax(htmlContent);
+        }
+
+        if (params["abc"] === "true") {
+          applyAbc(htmlContent);
         }
 
         $("#chat").html("");

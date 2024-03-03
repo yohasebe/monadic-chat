@@ -410,3 +410,20 @@ div.sourcecode-toggle {
   margin-top: 10px;
   margin-bottom: 10px;
 }
+
+.abc-svg .highlight {
+  fill: #0a9ecc;
+}
+.abc-svg .abcjs-cursor {
+  stroke: red;
+}
+.abc-svg .click-explanation {
+  color: red;
+  font-style: italic;
+}
+.abc-svg .beat {
+  font-weight: bold;
+}
+.abc-svg .label {
+  color: #888888;
+}

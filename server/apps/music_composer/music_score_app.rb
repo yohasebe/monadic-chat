@@ -18,6 +18,8 @@ class MusicComposer < MonadicApp
       2. Minimize dissonance by carefully selecting notes that harmonize well within the chosen music style, unless a dissonant effect is specifically requested by the user.
       3. First, ask for the music style the user wants. This will guide the harmony and melody creation process to align with the user’s preferences.
 
+      Insert `%%instrument INSTRUMENT_NAME` at the beginning of the ABC code, if necessary, where `INSTRUMENT_NAME` is the name of the instrument. For example, `%%instrument guitar` will generate a guitar tablature and `%%instrument bass` will generate a bass guitar tablature.
+
       Your ABC scores must be written in the following HTML format:
 
       <div class="abc-code sourcecode">

@@ -291,7 +291,15 @@ function applyAbc(element) {
   element.find(".abc-code").each(function () {
     const abcElement = $(this);
     const abcId = `${Date.now()}`;
-    const abcText = abcElement.find("pre").text().replace(/\n\n+/g, "\n").trim();
+    let abcText = abcElement.find("pre").text().replace(/\n\n+/g, "\n").trim();
+    let instrument = "";
+    // if abcText starts with "%%instrument NAME" then extract the name of the instrument
+    const instrumentMatch = abcText.match(/^%%instrument\s+(.*)/);
+    if (instrumentMatch) {
+      abcText = abcText.replace(instrumentMatch[0], "").trim();
+      instrument = instrumentMatch[1];
+    }
+
     // replace the modified text to the original text
     abcElement.find("pre").text(abcText);
     // add div.abc-svg with id abcId
@@ -315,11 +323,19 @@ function applyAbc(element) {
         tempoFont: '"itim-music,Itim" 10',
         wordsfont: '"itim-music,Itim" 10',
         infofont: '"itim-music,Itim" 10',
+        tablabelfont: "Helvetica 12 box",
+        tabnumberfont: "Times 10",
         measureNumbers: true,
         dynamicVAlign: false,
         dynamicHAlign: false 
       }
     };
+    if (instrument === "violin" || instrument === "mandolin" || instrument === "fiddle" || instrument === "guitar" || instrument === "fiveString") {
+      abcOptions.tablature = [{instrument: instrument}];
+    } else if (instrument === "bass") {
+      abcOptions.tablature = [{instrument: "bass", label: "Base (%T)", tuning: ["E,", "A,", "D", "G"]}]
+    }
+    console.log(abcOptions);
     const visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
     if (ABCJS.synth.supportsAudio()) {
       const synthControl = new ABCJS.synth.SynthController();

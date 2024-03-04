@@ -293,8 +293,7 @@ function applyAbc(element) {
     const abcId = `${Date.now()}`;
     let abcText = abcElement.find("pre").text().replace(/\n\n+/g, "\n").trim();
     let instrument = "";
-    // if abcText starts with "%%instrument NAME" then extract the name of the instrument
-    const instrumentMatch = abcText.match(/^%%instrument\s+(.*)/);
+    const instrumentMatch = abcText.match(/^%%tablature\s+(.*)/);
     if (instrumentMatch) {
       abcText = abcText.replace(instrumentMatch[0], "").trim();
       instrument = instrumentMatch[1];
@@ -315,7 +314,7 @@ function applyAbc(element) {
       responsive: "resize",
       format: {
         titlefont: '"itim-music,Itim" 16',
-        gchordfont: '"itim-music,Itim" 12',
+        gchordfont: '"itim-music,Itim" 10',
         vocalfont: '"itim-music,Itim" 10',
         annotationfont: '"itim-music,Itim" 10',
         composerfont: '"itim-music,Itim" 10',
@@ -323,9 +322,8 @@ function applyAbc(element) {
         tempoFont: '"itim-music,Itim" 10',
         wordsfont: '"itim-music,Itim" 10',
         infofont: '"itim-music,Itim" 10',
-        tablabelfont: "Helvetica 12 box",
+        tablabelfont: "Helvetica 10 box",
         tabnumberfont: "Times 10",
-        measureNumbers: true,
         dynamicVAlign: false,
         dynamicHAlign: false 
       }

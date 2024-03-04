@@ -131,98 +131,22 @@ function applyMathJax(element) {
 const mermaid_config = {
   startOnLoad: true,
   securityLevel: 'strict',
-  theme: 'default',
-  themeVariables: {
-    arrowheadSize: '1.5em', // Larger arrowheads
-    classBackground: '#ffffff',
-    classBorder: '1px solid #333333',
-    classText: '#333333',
-    edgeLabelBackground: '#ffffff', // White background for edge labels
-    flowchartNodeSpacing: '50px', // Spacing between nodes in flowcharts
-    fontFamily: '"Arial", sans-serif',
-    fontSize: '16px',
-    ganttLineColor: '#0077CC',
-    gitBranchLabelBackground: '#DDDDDD',
-    gitBranchLabelColor: '#333333',
-    gitCommitDotColor: '#0077CC',
-    lineColor: '#0077CC', // Use a consistent color for lines
-    nodeBackground: '#ffffff', // Background color for nodes
-    nodeBorder: '1px solid #333333',
-    noteBackgroundColor: '#DDDDDD',
-    noteBorderColor: '#333333',
-    pie1: '#FFCC00', // Custom color for the first slice
-    pie2: '#0077CC', // Custom color for the second slice
-    primaryBorderColor: '#333333',
-    primaryColor: '#0077CC', // Color for entities
-    primaryTextColor: '#333333',  textColor: '#333333',
-    relationshipLineColor: '#333333', // Color for lines
-    sequenceDiagramMargin: '50px', // Margin around sequence diagrams
-    sequenceNumberColor: '#333333',
-    stateBorderColor: '#333333',
-    stateLabelBackground: '#ffffff',
-    stateTextColor: '#333333',
-    strokeWidth: '2px', // Thicker lines for visibility
-    textColor: '#333333', // Ensure text is readable
-  },
-  flowchart: {
-    useMaxWidth: true,
-    htmlLabels: true,
-    curve: 'linear' // Makes the paths straight
-  },
-  sequence: {
-    diagramMarginX: 50,
-    diagramMarginY: 10,
-    actorMargin: 50,
-    width: 150,
-    height: 65,
-    boxMargin: 10,
-    boxTextMargin: 5,
-    noteMargin: 10,
-    messageMargin: 35,
-    mirrorActors: true
-  },
-  gantt: {
-    titleTopMargin: 25,
-    barHeight: 20,
-    barGap: 4,
-    topPadding: 50,
-    leftPadding: 75,
-    gridLineStartPadding: 35,
-    fontSize: 11,
-    numberSectionStyles: 4,
-    axisFormat: '%Y-%m-%d'
-  },
-  class: {
-    arrowMarkerAbsolute: true
-  },
-  state: {
-    dividerMargin: 10,
-    sizeUnit: 5,
-    padding: 8,
-    textHeight: 10,
-    titleShift: -15
-  },
-  pie: {
-    useMaxWidth: true
-  },
-  er: {
-    layoutDirection: 'TB' // Top-Bottom layout
-  },
-  gitGraph: {
-    showCommitLabel: true // Show commit messages
-  }
+  theme: 'default'
 };
 
 async function applyMermaid(element) {
-  element.find("mermaid").each(function () {
+  element.find(".mermaid-code").each(function () {
     const mermaidElement = $(this);
-    const mermaidText = mermaidElement.text();
-    mermaidElement.replaceWith(`<pre class='mermaid'>${mermaidText}</pre>`);
+    const mermaidText = mermaidElement.text().trim();
+    // find code lement inside mermaidElement and replace its text with mermaidText
+    mermaidElement.innerHTML = `<pre><code>\n${mermaidText}</code></pre>`;
+    mermaidElement.before(`<div class="sourcecode-toggle">show/hide sourcecode</div>`);
+    mermaidElement.after(`<div class="diagram"><mermaid>\n${mermaidText}\n</mermaid></div>`);
   });
 
-  mermaid.initialize({ startOnLoad: true });
+  mermaid.initialize(mermaid_config);
   await mermaid.run({
-    querySelector: '.mermaid'
+    querySelector: 'mermaid'
   });
 }
 
@@ -295,13 +219,10 @@ function applyAbc(element) {
     let instrument = "";
     const instrumentMatch = abcText.match(/^%%tablature\s+(.*)/);
     if (instrumentMatch) {
-      abcText = abcText.replace(instrumentMatch[0], "").trim();
       instrument = instrumentMatch[1];
     }
 
-    // replace the modified text to the original text
     abcElement.find("pre").text(abcText);
-    // add div.abc-svg with id abcId
     const abcSVG = `abc-svg-${abcId}`;
     const abcMidi = `abc-midi-${abcId}`;
     abcElement.before(`<div class="sourcecode-toggle">show/hide sourcecode</div>`);

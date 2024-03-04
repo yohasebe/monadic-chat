@@ -297,6 +297,7 @@ function applyAbc(element) {
     // add div.abc-svg with id abcId
     const abcSVG = `abc-svg-${abcId}`;
     const abcMidi = `abc-midi-${abcId}`;
+    abcElement.before(`<div class="sourcecode-toggle">show/hide sourcecode</div>`);
     abcElement.after(`<div>&nbsp;</div>`);
     abcElement.after(`<div id="${abcMidi}" class="abc-midi"></div>`);
     abcElement.after(`<div id="${abcSVG}" class="abc-svg"></div>`);

@@ -150,7 +150,7 @@ async function applyMermaid(element) {
   });
 }
 
-function CursorControl(element_id) {
+function abcCursorControl(element_id) {
   var self = this;
 
   self.onStart = function() {
@@ -203,7 +203,7 @@ function CursorControl(element_id) {
   };
 }
 
-function clickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
+function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
   var lastClicked = abcElem.midiPitches;
   if (!lastClicked)
     return;
@@ -231,7 +231,7 @@ function applyAbc(element) {
     abcElement.after(`<div id="${abcSVG}" class="abc-svg"></div>`);
     const abcOptions = {
       add_classes: true,
-      clickListener: self.clickListener,
+      clickListener: self.abcClickListener,
       responsive: "resize",
       format: {
         titlefont: '"itim-music,Itim" 16',
@@ -258,7 +258,7 @@ function applyAbc(element) {
     const visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
     if (ABCJS.synth.supportsAudio()) {
       const synthControl = new ABCJS.synth.SynthController();
-      const cursorControl = new CursorControl(`#${abcSVG}`);
+      const cursorControl = new abcCursorControl(`#${abcSVG}`);
       synthControl.load(`#${abcMidi}`, cursorControl, {
         displayLoop: true,
         displayRestart: true,

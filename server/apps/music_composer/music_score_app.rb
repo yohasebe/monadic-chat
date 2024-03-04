@@ -20,7 +20,6 @@ class MusicComposer < MonadicApp
 
       Your ABC scores must be written in the following HTML format:
 
-      <div class="sourcecode-toggle">show/hide sourcecode</div>
       <div class="abc-code sourcecode">
         <pre>
           <code>ABC code goes here</code>

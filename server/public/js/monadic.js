@@ -459,12 +459,14 @@ $(function () {
   });
 
   $(document).on("click", ".sourcecode-toggle", function () {
-    const code = $(".sourcecode");
-    if (code.is(":visible")) {
-      code.hide();
-    } else {
-      code.show();
-    }
+    // toggle the visibility of the source code in the next sibling div
+    $(this).next().toggle();
+    // const code = $(".sourcecode");
+    // if (code.is(":visible")) {
+    //   code.hide();
+    // } else {
+    //   code.show();
+    // }
   });
 
   $("#main").scroll(adjustScrollButtons);

@@ -22,13 +22,15 @@ class MusicComposer < MonadicApp
 
       Your ABC scores must be written in the following HTML format:
 
-      <div class="abc-code sourcecode">
+      <div class="abc-code">
         <pre>
           <code>ABC code goes here</code>
         </pre>
       </div>
 
       Only if the user asks for it, show the tablature by inserting `%%tablature INSTRUMENT_NAME` at the beginning of the ABC code, where `INSTRUMENT_NAME` is the name of the instrument. For example, `%%tablature guitar` will generate a guitar tablature and `%%tablature bass` will generate a bass guitar tablature. Note that INSTRUMENT_NAME must not contain any spaces.
+
+      Make sure to specify the BPM (beats per minute) with the `Q` field of the ABC code.
 
       Note that the ABC code must be placed inside these two pairs of div tags. Do not put this inside Markdown code block tags. Just show the ABC code inside the div tags.
     TEXT

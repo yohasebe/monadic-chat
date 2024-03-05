@@ -458,17 +458,6 @@ $(function () {
     w.document.write(this.outerHTML);
   });
 
-  $(document).on("click", ".sourcecode-toggle", function () {
-    // toggle the visibility of the source code in the next sibling div
-    $(this).next().toggle();
-    // const code = $(".sourcecode");
-    // if (code.is(":visible")) {
-    //   code.hide();
-    // } else {
-    //   code.show();
-    // }
-  });
-
   $("#main").scroll(adjustScrollButtons);
   $(window).resize(adjustScrollButtons);
   $(document).click(adjustScrollButtons);

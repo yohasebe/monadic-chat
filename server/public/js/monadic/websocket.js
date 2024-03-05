@@ -137,10 +137,12 @@ const mermaid_config = {
 async function applyMermaid(element) {
   element.find(".mermaid-code").each(function () {
     const mermaidElement = $(this);
-    const mermaidText = mermaidElement.text().trim();
-    // find code lement inside mermaidElement and replace its text with mermaidText
-    mermaidElement.innerHTML = `<pre><code>\n${mermaidText}</code></pre>`;
-    mermaidElement.before(`<div class="sourcecode-toggle">show/hide sourcecode</div>`);
+    mermaidElement.addClass("sourcecode");
+    mermaidElement.find("pre").addClass("sourcecode");
+    let mermaidText = mermaidElement.text().trim();
+    mermaidText = mermaidText.split("\n").map((line) => line.trim()).join("\n");
+    mermaidElement.find("pre").text(mermaidText);
+    addToggleSourceCode(mermaidElement);
     mermaidElement.after(`<div class="diagram"><mermaid>\n${mermaidText}\n</mermaid></div>`);
   });
 
@@ -211,11 +213,31 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
   ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
 }
 
+function addToggleSourceCode(element) {
+  const toggleHide = "<i class='fa-solid fa-toggle-on'></i> toggle sourcecode"
+  const toggleShow = "<i class='fa-solid fa-toggle-off'></i> toggle sourcecode"
+  const controlDiv = `<div class="sourcecode-toggle unselectable">${toggleShow}</div>`;
+  element.before(controlDiv);
+  element.prev().click(function () {
+    const sourcecode = $(this).next();
+    sourcecode.toggle();
+    if (sourcecode.is(":visible")) {
+      $(this).html(toggleHide);
+    } else {
+      $(this).html(toggleShow);
+    }
+  });
+  element.hide();
+}
+
 function applyAbc(element) {
   element.find(".abc-code").each(function () {
+    $(this).addClass("sourcecode");
+    $(this).find("pre").addClass("sourcecode");
     const abcElement = $(this);
     const abcId = `${Date.now()}`;
-    let abcText = abcElement.find("pre").text().replace(/\n\n+/g, "\n").trim();
+    let abcText = abcElement.find("pre").text().trim();
+    abcText = abcText.split("\n").map((line) => line.trim()).join("\n");
     let instrument = "";
     const instrumentMatch = abcText.match(/^%%tablature\s+(.*)/);
     if (instrumentMatch) {
@@ -225,7 +247,7 @@ function applyAbc(element) {
     abcElement.find("pre").text(abcText);
     const abcSVG = `abc-svg-${abcId}`;
     const abcMidi = `abc-midi-${abcId}`;
-    abcElement.before(`<div class="sourcecode-toggle">show/hide sourcecode</div>`);
+    addToggleSourceCode(abcElement);
     abcElement.after(`<div>&nbsp;</div>`);
     abcElement.after(`<div id="${abcMidi}" class="abc-midi"></div>`);
     abcElement.after(`<div id="${abcSVG}" class="abc-svg"></div>`);
@@ -254,7 +276,6 @@ function applyAbc(element) {
     } else if (instrument === "bass") {
       abcOptions.tablature = [{instrument: "bass", label: "Base (%T)", tuning: ["E,", "A,", "D", "G"]}]
     }
-    console.log(abcOptions);
     const visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
     if (ABCJS.synth.supportsAudio()) {
       const synthControl = new ABCJS.synth.SynthController();

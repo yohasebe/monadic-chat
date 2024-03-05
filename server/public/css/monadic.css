@@ -19,7 +19,7 @@ body, html {
   cursor: pointer;
 }
 
-div.highlight, div.sourcecode {
+div.sourcecode {
   padding: 0.8em;
   margin-bottom: 1em;
 }
@@ -53,7 +53,7 @@ div.card-body.role-system {
   background-color: #f1fcf7
 }
 
-div.highlight, div.highlight pre, div.sourcecode, div.sourcecode pre {
+div.sourcecode, div.sourcecode pre {
   background-color: #fff;
 }
 
@@ -392,17 +392,6 @@ div.diagram {
   margin-bottom: 20px;
 }
 
-div.sourcecode {
-  display: none;
-}
-
-div.sourcecode pre {
-  margin: 0;
-  padding: 0;
-  border: none;
-  white-space: pre; /* Change this property from 'pre-wrap' to 'pre' */
-  overflow: auto;
-}
 
 div.sourcecode-toggle {
   cursor: pointer;
@@ -426,4 +415,13 @@ div.sourcecode-toggle {
 }
 .abc-svg .label {
   color: #888888;
+}
+
+.unselectable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }

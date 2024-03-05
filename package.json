@@ -1,6 +1,6 @@
 {
   "name": "monadic-chat",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -17,7 +17,7 @@
     "dotenv": "^16.4.5",
     "electron": "^27.3.3",
     "electron-builder": "^24.13.3",
-    "electron-notarize": "^1.2.2"
+    "@electron/notarize": ""
   },
   "build": {
     "asar": true,

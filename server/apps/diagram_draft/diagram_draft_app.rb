@@ -38,20 +38,22 @@ class DiagramDraft < MonadicApp
 
       Finally, respond with the mermaid diagram code using the following HTML format:
 
-      <div class="mermaid-code sourcecode">
+      <div class="mermaid-code">
         <pre>
-          <code>RAW_MERMAID_CODE (without "mermaid" tags and Markdown code block)</code>
+          <code>Mermaid code goes here (without "mermaid" tags and Markdown code block)</code>
         </pre>
       </div>
 
       Here are very important notes:
 
-      - Quote every text with double quotes (") when it contains non-ascii characters.
       - Use only the Mermaid syntax that is exemplified in the documentation.
       - The diagram dimensions should be less than 1000x600 pixels either horizontally or vertically. Do not use a diagram size larger than this.
       - Do not confuse different diagram types. For example, do not use the `flowchart` type with the code for the `sequenceDiagram` type. Always check the documentation for the correct usage of the diagram type.
       - Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \\[ \\] for brackets, \\( \\) for parentheses.
-      - The user may provide data to visualize below. User-provided data for visualization will be clearly marked as `TARGET DOCUMENT: TITLE`.
+
+      Again, make the diagram more complex than necessary and refrain from using complex notations. 
+
+      The user may provide data to visualize below. User-provided data for visualization will be clearly marked as `TARGET DOCUMENT: TITLE`.
     TEXT
 
     text.strip

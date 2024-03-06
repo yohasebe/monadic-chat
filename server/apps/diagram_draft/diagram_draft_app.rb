@@ -9,15 +9,27 @@ class DiagramDraft < MonadicApp
   end
 
   def description
-    "This app AI chatbot designed to suggest preliminary visualizations of data through diagrams and charts. It leverages mermaid.js for the generation of these visual aids. Upon receiving a user request, the chatbot selects the most suitable diagram type for the presented data and refers to the Mermaid documentation for code examples to optimally illustrate the data."
+    "This application hep you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram."
   end
 
   def initial_prompt
     text = <<~TEXT
-      You are tasked with data visualization, utilizing mermaid.js to create diagrams and charts that effectively represent data. Respond to the user's request in the language in which the user speaks or writes.
+      You are tasked with data visualization, utilizing mermaid.js to create diagrams and charts that effectively represent data. Typically, the user presents nodes, edges, and labels to specify a graph structure. But other diagram types supported by Mermaid.js are also available."
 
-      First, decide which diagram type to use. Use only one of these diagram types. To create a line chart, use `xychart-beta` closely following the documentation and do not try to make it more complex than necessary. The diagram types are:
+      Respond to the user's request in the language in which the user speaks or writes.
 
+      Limit the number of the diagram you create to one.
+
+      If the user does not provide data to visualize, create a simple example to visualize.
+
+      Decide which diagram type to use. Use only one of these diagram types. To create a line chart, use `xychart-beta` closely following the examples and do not try to make it more complex than necessary. 
+
+      Remember the indentation and the number of spaces in the mermaid code are important. The mermaid code should be indented either with 4 spaces or 2 spaces.
+
+      The diagram types are:
+
+      - `graph`
+      - `C4Context`
       - `flowchart`
       - `sequenceDiagram`
       - `classDiagram`
@@ -34,7 +46,7 @@ class DiagramDraft < MonadicApp
       - `sankey-beta`
       - `mindmap`
 
-      Then call `mermaid_documentation(DIAGRAM_TYPE)` to retrieve basic examples and the documentation of any diagram type you’re unsure about. Limit this call to once per user request. Even if you are sure about the diagram type, you should use this function to make sure you are up to date with the latest specifications of the diagram type.
+      Then call `mermaid_examples(DIAGRAM_TYPE)` to retrieve basic examples of any diagram type you're using. Do not use the data from the examples directly. Use the examples to understand the syntax and structure of the mermaid code.
 
       Finally, respond with the mermaid diagram code using the following HTML format:
 
@@ -46,12 +58,9 @@ class DiagramDraft < MonadicApp
 
       Here are very important notes:
 
-      - Use only the Mermaid syntax that is exemplified in the documentation.
-      - The diagram dimensions should be less than 1000x600 pixels either horizontally or vertically. Do not use a diagram size larger than this.
-      - Do not confuse different diagram types. For example, do not use the `flowchart` type with the code for the `sequenceDiagram` type. Always check the documentation for the correct usage of the diagram type.
+      - The diagram dimensions should be less than 1800x600 pixels either horizontally or vertically. Do not use a diagram size larger than this.
       - Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \\[ \\] for brackets, \\( \\) for parentheses.
-
-      Again, make the diagram more complex than necessary and refrain from using complex notations. 
+      - Use English for IDs, class names and labels, and avoid using special characters in them.
 
       The user may provide data to visualize below. User-provided data for visualization will be clearly marked as `TARGET DOCUMENT: TITLE`.
     TEXT
@@ -82,8 +91,8 @@ class DiagramDraft < MonadicApp
           "type": "function",
           "function":
           {
-            "name": "mermaid_documentation",
-            "description": "Get the documentation of a specific mermaid diagram type with code examples.",
+            "name": "mermaid_examples",
+            "description": "Get the examples of a specific mermaid diagram type with code examples.",
             "parameters": {
               "type": "object",
               "properties": {
@@ -100,14 +109,14 @@ class DiagramDraft < MonadicApp
     }
   end
 
-  def mermaid_documentation(hash)
+  def mermaid_examples(hash)
     diagram_type = hash[:diagram_type]
-    diagram_types = ["flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2", "erDiagram", "journey", "gantt", "pie", "quadrantChart",
+    diagram_types = ["graph", "C4Context", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2", "erDiagram", "journey", "gantt", "pie", "quadrantChart",
       "requirementDiagram", "gitGraph", "sankey-beta", "timeline", "xychart-beta", "mindmap"]
 
     begin
       if diagram_types.include?(diagram_type)
-        file_path = File.join(__dir__, "documentation", "#{diagram_type}.md")
+        file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
         if File.exist?(file_path)
           diagram_type_content = File.read(file_path)
 
@@ -115,13 +124,13 @@ class DiagramDraft < MonadicApp
             #{diagram_type_content}
           DOCS
         else
-          "Documentation file not found for the diagram type: #{diagram_type}."
+          "Example file not found for the diagram type: #{diagram_type}."
         end
       else
-        "No documentation found for the diagram type: #{diagram_type}."
+        "No example found for the diagram type: #{diagram_type}."
       end
     rescue StandardError => e
-      "An error occurred while reading documentation for the diagram type: #{diagram_type}. Error: #{e.message}"
+      "An error occurred while reading examples for the diagram type: #{diagram_type}. Error: #{e.message}"
     end
   end
 end

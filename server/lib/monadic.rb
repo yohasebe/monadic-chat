@@ -98,7 +98,7 @@ def init_apps
 
     if app.settings[:mermaid]
       prompt_suffix << <<~INITIAL
-        Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams.
+        Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
       INITIAL
     end
 

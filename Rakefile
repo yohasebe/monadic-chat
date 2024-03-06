@@ -31,6 +31,4 @@ task :build do
     filepath = File.expand_path(file)
     FileUtils.rm_rf(filepath) unless necessary_files.include?(filepath)
   end
-
-  # FileUtils.mv("dist/monadic-chat_#{version}_amd64.deb", "dist/monadic-chat_#{version}_x64.deb")
 end

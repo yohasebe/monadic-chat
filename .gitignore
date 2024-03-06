@@ -57,3 +57,5 @@ Gemfile.lock
 .rspec_status
 
 .solargraph.yml
+
+rsync.sh

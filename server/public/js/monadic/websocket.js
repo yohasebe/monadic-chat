@@ -140,7 +140,6 @@ async function applyMermaid(element) {
     mermaidElement.addClass("sourcecode");
     mermaidElement.find("pre").addClass("sourcecode");
     let mermaidText = mermaidElement.text().trim();
-    mermaidText = mermaidText.split("\n").map((line) => line.trim()).join("\n");
     mermaidElement.find("pre").text(mermaidText);
     addToggleSourceCode(mermaidElement);
     mermaidElement.after(`<div class="diagram"><mermaid>\n${mermaidText}\n</mermaid></div>`);
@@ -255,6 +254,7 @@ function applyAbc(element) {
       add_classes: true,
       clickListener: self.abcClickListener,
       responsive: "resize",
+      soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
       format: {
         titlefont: '"itim-music,Itim" 16',
         gchordfont: '"itim-music,Itim" 10',

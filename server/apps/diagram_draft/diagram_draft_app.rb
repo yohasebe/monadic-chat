@@ -59,8 +59,9 @@ class DiagramDraft < MonadicApp
       Here are very important notes:
 
       - The diagram dimensions should be less than 1800x600 pixels either horizontally or vertically. Do not use a diagram size larger than this.
-      - Be careful not to use brackets and parentheses in the mermaid code. Avoid using brackets and parentheses directly in the mermaid code. For labels requiring these, employ escape characters: \\[ \\] for brackets, \\( \\) for parentheses.
+      - Be careful not to use brackets and parentheses in flowcharts. Avoid using brackets and parentheses directly in the mermaid code. Escape characters: \[ ] for brackets to show a box and \( ) for parentheses to show a rounded box.
       - Use English for IDs, class names and labels, and avoid using special characters in them.
+      - Do not use spalces or quotes in the IDs and class names.
 
       The user may provide data to visualize below. User-provided data for visualization will be clearly marked as `TARGET DOCUMENT: TITLE`.
     TEXT

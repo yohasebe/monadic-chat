@@ -17,8 +17,11 @@ services:
     image: yohasebe/monadic-chat
     container_name: monadic-chat-web-container
     volumes:
-      - ~/monadic:/monadic/data
-    build: .
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/monadic/data:delegated # Adjusted to use bind mount with :delegated
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "4567:4567"
     depends_on:
@@ -28,6 +31,23 @@ services:
     stdin_open: true
     tty: true
     command: ["thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4567/"]
+      interval: 5s
+      retries: 3
+  conda_service:
+    image: yohasebe/conda
+    build:
+      context: ./docker/conda
+      dockerfile: Dockerfile
+    container_name: monadic-chat-conda-container
+    volumes:
+      - ./data:/opt/conda/envs:delegated # Adjusted to use bind mount with :delegated
+    command: ["/bin/bash", "-c", "tail -f /dev/null"]
+    healthcheck:
+      test: ["CMD", "conda", "list"]
+      interval: 5s
+      retries: 3
 volumes:
   postgres-data-volume:
     name: monadic-chat-pgvector-data

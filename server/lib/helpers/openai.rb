@@ -374,7 +374,20 @@ module OpenAIHelper
 
     first_result = results.dig("choices", 0)
 
-    if role == "user" && obj["tools"] && (!results["choices"] || results["choices"] && results["choices"][0]["finish_reason"] != "stop")
+    # pp role
+    # pp results
+    # pp obj["stream"]
+    # pp obj["tools"]
+
+    # role == "user" is given as the argument to this function: the user is waiting for a response
+    # role == "system" is given as the argument to this function: function output is being given to the assistant
+    # obj["stream"] must be false if the user is waiting for a response
+    # obj["tools"] must be non-empty if the app uses function calls
+
+    functions_callable = (role == "user" || role == "system") && obj["tools"] ? true : false
+    function_being_called = results["choices"] && results["choices"][0]["finish_reason"] == "tool_calls" ? true : false
+
+    if functions_callable && function_being_called
       custom_function_keys = APPS[app].settings[:tools]
       if custom_function_keys && !custom_function_keys.empty?
         json_message = results["choices"][0]["message"]
@@ -382,17 +395,21 @@ module OpenAIHelper
         function_call = json_message["tool_calls"].first["function"]
         function_name = function_call["name"]
 
-        argument_hash = JSON.parse(function_call["arguments"])
+        begin
+          argument_hash = JSON.parse(function_call["arguments"])
+        rescue
+          argument_hash = {}
+        end
+
         argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
           memo[k.to_sym] = v
           memo
         end
 
-        obj.delete("tools")
-        obj["tool_choice"] = "none"
-
         message = APPS[app].send(function_name.to_sym, argument_hash)
-        obj["message"] = message
+
+        obj["message"] = message.to_s
+        obj["tools"] = nil
         obj["stream"] = true
         return completion_api_request("system", &block)
       elsif obj["monadic"]

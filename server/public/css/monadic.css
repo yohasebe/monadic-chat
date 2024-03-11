@@ -19,7 +19,7 @@ body, html {
   cursor: pointer;
 }
 
-div.sourcecode {
+div.sourcecode, div.highlight {
   padding: 0.8em;
   margin-bottom: 1em;
 }
@@ -53,7 +53,8 @@ div.card-body.role-system {
   background-color: #f1fcf7
 }
 
-div.sourcecode, div.sourcecode pre {
+div.sourcecode, div.sourcecode pre,
+div.highlight, div.highlight pre {
   background-color: #fff;
 }
 
@@ -424,4 +425,9 @@ div.sourcecode-toggle {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.generated_image img {
+  max-width: 100%;
+  margin-bottom: 16px;
 }

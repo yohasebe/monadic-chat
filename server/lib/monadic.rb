@@ -153,6 +153,11 @@ get "/" do
   end
 end
 
+get "/data/:file_name" do
+  homedir = File.expand_path(File.join(__dir__, ".."))
+  send_file File.join(homedir, "data", params[:file_name])
+end
+
 # Accept requests from the client to provide language codes and country names
 get "/lctags" do
   languages = I18nData.languages

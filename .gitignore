@@ -22,6 +22,7 @@
 /node_modules/
 
 /data/*
+/server/data/*
 /log/*
 
 .env

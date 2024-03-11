@@ -18,12 +18,12 @@ class ImageGeneration < MonadicApp
       - Embed these values to the HTML template below and return it to the user.
 
       ```
-      <div style="margin-bottom: 16px;">
+      <div>
         <p class="revised_prompt"></p>
       </div>
 
-      <div style="margin-bottom: 16px;">
-        <img style="max-width: 100%;" class="generated_image" src="" />
+      <div>
+        <img class="generated_image" src="" />
       </div>
       ```
 

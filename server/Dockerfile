@@ -2,11 +2,11 @@ FROM ruby:3.2.2-alpine3.17
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 
-RUN apk update && \
-    apk add --no-cache linux-headers libxml2-dev make gcc libc-dev bash git \
-        build-base pkgconfig poppler-dev cairo-dev pango-dev gdk-pixbuf-dev \
-        postgresql-dev postgresql-client postgresql-contrib tzdata glib-dev \
-        gobject-introspection-dev curl-dev curl wget gcompat && \
+RUN apk update && apk add --no-cache \
+    linux-headers libxml2-dev make gcc libc-dev bash git \
+    build-base pkgconfig poppler-dev cairo-dev pango-dev gdk-pixbuf-dev \
+    postgresql-dev postgresql-client postgresql-contrib tzdata glib-dev \
+    gobject-introspection-dev curl-dev curl wget gcompat docker-cli && \
     rm -rf /var/cache/apk/*
 
 COPY Gemfile monadic.gemspec $WORKSPACE/
@@ -20,3 +20,8 @@ COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/
 COPY config.ru $WORKSPACE/
+
+RUN echo 'alias conda="docker exec monadic-chat-conda-container conda"' >> ~/.bashrc && \
+    echo 'alias python="docker exec monadic-chat-conda-container python"' >> ~/.bashrc && \
+    echo 'alias pip="docker exec monadic-chat-conda-container pip"' >> ~/.bashrc
+

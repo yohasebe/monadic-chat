@@ -229,6 +229,15 @@ function addToggleSourceCode(element) {
   element.hide();
 }
 
+
+function formatSourceCode(element) {
+  element.find(".sourcecode").each(function () {
+    const sourceCodeElement = $(this);
+    let sourceCode = sourceCodeElement.text().trim();
+    sourceCodeElement.find("pre").text(sourceCode);
+  })
+}
+
 function applyAbc(element) {
   element.find(".abc-code").each(function () {
     $(this).addClass("sourcecode");
@@ -555,6 +564,11 @@ function connect_websocket(callback) {
               if (apps[loadedApp]["abc"] === "true") {
                 applyAbc(gptElement);
               }
+
+              if (apps[loadedApp]["sourcecode"] === "true") {
+                formatSourceCode(gptElement);
+              }
+
               break;
             case "system":
               const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
@@ -611,6 +625,10 @@ function connect_websocket(callback) {
 
         if (params["abc"] === "true") {
           applyAbc(htmlContent);
+        }
+
+        if (params["sourcecode"] === "true") {
+          formatSourceCode(htmlContent);
         }
 
         $("#chat").html("");

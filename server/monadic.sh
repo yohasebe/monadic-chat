@@ -63,6 +63,7 @@ function start_docker_compose {
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
       $DOCKER container start monadic-chat-web-container >/dev/null
       $DOCKER container start monadic-chat-pgvector-container >/dev/null
+      $DOCKER container start monadic-chat-conda-container >/dev/null
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
@@ -95,6 +96,7 @@ function down_docker_compose {
 function stop_docker_compose {
   $DOCKER container stop monadic-chat-web-container >/dev/null
   $DOCKER container stop monadic-chat-pgvector-container >/dev/null
+  $DOCKER container stop monadic-chat-conda-container >/dev/null
 }
 
 # Define a function to import the database contents from an external file
@@ -124,14 +126,27 @@ function remove_containers {
   # Stop the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
 
-  # Remove the Docker images and volumes
-  #
-  $DOCKER container rm -f monadic-chat-web-container >/dev/null
-  $DOCKER container rm -f  monadic-chat-pgvector-container >/dev/null
+  if $DOCKER images | grep -q "monadic-chat"; then
+    $DOCKER rmi -f yohasebe/monadic-chat >/dev/null
+  fi
 
-  $DOCKER rmi -f yohasebe/monadic-chat >/dev/null
-  $DOCKER rmi -f ankane/pgvector >/dev/null
-  $DOCKER volume rm monadic-chat-pgvector-data >/dev/null
+  if $DOCKER images | grep -q "yohasebe/conda"; then
+    $DOCKER rmi -f yohasebe/conda >/dev/null
+  fi
+
+  if $DOCKER images | grep -q "pgvector"; then
+    $DOCKER rmi -f ankane/pgvector >/dev/null
+  fi
+
+  if $DOCKER container ls --all | grep -q "monadic-chat"; then
+    $DOCKER container rm -f monadic-chat-web-container >/dev/null
+    $DOCKER container rm -f monadic-chat-pgvector-container >/dev/null
+    $DOCKER container rm -f monadic-chat-conda-container >/dev/null
+  fi
+
+  if $DOCKER volume ls | grep -q "monadic-chat-pgvector-data"; then
+    $DOCKER volume rm monadic-chat-pgvector-data >/dev/null
+  fi
 }
 
 # Parse the user command

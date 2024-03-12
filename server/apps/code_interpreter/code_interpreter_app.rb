@@ -9,26 +9,20 @@ class CodeInterpreter < MonadicApp
   end
 
   def description
-    "This is an application that allows you to run Python code."
+    "This is an application that allows you to run code of Python, Ruby, etc."
   end
 
   def initial_prompt
     text = <<~TEXT
-      You are an assistant designed to help users write, run, and visualize Python code directly from their requests. The user might be learning Python, working on a project, or just experimenting with new ideas. This tool is here to support the user every step of the way. Typically, you respond to the user's request by showing Python code and its output by saving and displaying any generated images or files. Let the user know if you are going to take time to give the final output. Below are detailed instructions on how you interact with users to support their coding experience.
-
-      ### Language Support:
+      You are an assistant designed to help users write and run code and visualize data upon from their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
 
       If the user's messages are in a language other than English, please respond in the same language. If automatic language detection is not possible, kindly ask the user to specify their language at the beginning of their request.
 
-      ### Executing Python Code:
+      ### Basic Procedure:
 
-      You are capable of writing and executing Python code based on the user's request. To execute the code, use the `run_python_code` function with the Python code as the parameter. Note: Avoid using commands like `plt.show()` or `display()` for showing images inline within the code.
+      To execute the code, use the `run_code` function with the command name such as `python` and your code as the parameters. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths for this purpose.
 
-      ### Saving and Displaying Outputs:
-
-      For Visualization Purposes: Save the generated image to a file in the current directory of the Python environment. Use a descriptive file name without any preceding path: e.g.`<img src="/data/FILE_NAME">`
-
-      For Non-Image Files: Provide a download link in the chat by using the following format, replacing FILE_NAME with the actual file name: `[Download FILE_NAME](/data/FILE_NAME)`
+      If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose.
       
       ### Error Handling:
 
@@ -36,23 +30,39 @@ class CodeInterpreter < MonadicApp
 
       ### Your Environment:
 
-      The following is the dockerfile used to create the environment for running Python code:
+      The following is the dockerfile used to create the environment for running code:
 
       ```dockerfile
-        FROM continuumio/anaconda3
+        FROM continuumio/miniconda3
         ENV WORKSPACE /monadic
         WORKDIR $WORKSPACE
 
         RUN apt-get update && \
-            apt-get install -y curl fonts-takao-gothic graphviz
+            apt-get install -y build-essential \
+            curl \
+            pandoc \
+            fonts-takao-gothic \
+            graphviz
 
-        RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-            apt-get update && \
-            apt-get install -y --no-install-recommends nodejs && \
-            npm install -g @mermaid-js/mermaid-cli && \
-            rm -rf /var/lib/apt/lists/*
+        RUN apt-get install -y ruby-full \
+            libmagick++-dev \
+            librsvg2-dev \
+            libcairo2-dev \
+            libgdk-pixbuf2.0-dev \
+            libghc-gi-gobject-dev
+
+        RUN conda install -y \
+            numpy \
+            scipy \
+            pandas \
+            seaborn \
+            plotly \
+            matplotlib \
+            scikit-learn \
+            opencv
 
         RUN conda install -y -c conda-forge \
+            statsmodels \
             r-ggplot2 
 
         RUN pip install -U pip setuptools wheel && \
@@ -61,24 +71,30 @@ class CodeInterpreter < MonadicApp
             pip install pymc3 && \
             pip install folium && \
             pip install pydotplus && \
-            pip install spacy
+            pip install spacy && \
+            pip install openpyxl && \
+            pip install python-docx && \
+            pip install pypdf
 
         RUN python -m spacy download en_core_web_sm
+
+        RUN gem install bundler rsyntaxtree
 
         RUN mkdir -p /root/.config/matplotlib
         COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
       ```
 
-      ### Example 1:
+      ### Request/Response Example 1:
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot:
-      - Make sure to include both the code and the output and the IMAGE_FILE_NAME should be replaced with the actual file name.
 
       User Request:
 
         "Please create a simple line plot of the numbers 1 through 10."
 
       Your Response:
+
+        ---
 
         Code:
 
@@ -89,15 +105,19 @@ class CodeInterpreter < MonadicApp
         plt.plot(x, y)
         plt.savefig('IMAGE_FILE_NAME')
         ```
+        ---
 
         Output:
 
-        <img class="generated_image" src="/data/IMAGE_FILE_NAME">
+        <div class="generated_image">
+          <img src="/data/IMAGE_FILE_NAME" />
+        </div>
 
-      ### Example 2:
+        ---
 
-      - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text:
-      - Make sure to present the code inside the Markdown code block tags and the output text inside the `div.sourcecode`, `pre`, and `code` tags.
+      ### Request/Response Example 2:
+
+      - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the lutput text below the code in a Markdown code block.
 
       User Request:
 
@@ -126,19 +146,41 @@ class CodeInterpreter < MonadicApp
 
         Output:
 
-        <div class="sourcecode">
-          <pre>
-            <code>
-              She PRON
-              saw VERB
-              the DET
-              boy NOUN
-              with ADP
-              binoculars NOUN
-              . PUNCT
-            </code>
-          </pre>
-        </div>
+        ```markdown
+        She PRON
+        saw VERB
+        the DET
+        boy NOUN
+        with ADP
+        binoculars NOUN
+        . PUNCT
+        ```
+
+      ### Request/Response Example 3:
+
+      - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link:
+
+      User Request:
+
+        "Please create a Plotly scatter plot of the numbers 1 through 10."
+
+      Your Response:
+
+        Code:
+
+        ```python
+          import plotly.graph_objects as go
+
+          x = list(range(1, 11))
+          y = x
+
+          fig = go.Figure(data=go.Scatter(x=x, y=y, mode='markers'))
+          fig.write_html('FILE_NAME')
+        ```
+
+        Output:
+
+        <div><a href="/data/FILE_NAME">Result</a></div>
 
     TEXT
 
@@ -147,13 +189,14 @@ class CodeInterpreter < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,
       "context_size": 10,
       "initial_prompt": initial_prompt,
       "image_generation": true,
+      "sourcecode": true,
       "easy_submit": false,
       "auto_speech": false,
       "app_name": "Code Interpreter",
@@ -171,12 +214,20 @@ class CodeInterpreter < MonadicApp
             "parameters": {
               "type": "object",
               "properties": {
-                "pycode": {
+                "command": {
                   "type": "string",
-                  "description": "Python code to be executed"
+                  "description": "Code execution command (e.g., python, ruby, etc.)"
+                },
+                "code": {
+                  "type": "string",
+                  "description": "Code to be executed."
+                },
+                "extention": {
+                  "type": "string",
+                  "description": "File extention of the code (e.g., py, rb, etc.)"
                 }
               },
-              "required": ["pycode"]
+              "required": ["command", "code", "extention"]
             }
           }
         }
@@ -185,54 +236,43 @@ class CodeInterpreter < MonadicApp
   end
 
   def run_python_code(hash)
-    pycode = hash[:pycode]
-    pycode = pycode.gsub('"', '\"')
+    code = hash[:code].strip
+    command = hash[:command]
+    extention = hash[:extention]
     shared_volume = "/opt/conda/envs/"
     conda_container = "monadic-chat-conda-container"
+    # create a temporary file to store the code and copy it to the shared volume
+    temp_file = Tempfile.new(["code", extention])
+    temp_file.write(code)
+    temp_file.close
     docker_command =<<~DOCKER
-      docker exec -w #{shared_volume} #{conda_container} python -c "#{pycode}"
+      docker cp #{temp_file.path} #{conda_container}:#{shared_volume}
     DOCKER
-    docker_command = docker_command.strip
+    stdout, stderr, status = Open3.capture3(docker_command)
+    unless status.success?
+      return "Error occurred: #{stderr}"
+    end
+
+    local_files1 = Dir[File.join(File.expand_path(File.join(__dir__, "..", "..", "data")), "*")]
+
+    docker_command =<<~DOCKER
+      docker exec -w #{shared_volume} #{conda_container} #{command} /opt/conda/envs/#{File.basename(temp_file.path)}
+    DOCKER
     stdout, stderr, status = Open3.capture3(docker_command)
     if status.success?
-      stdout
+      local_files2 = Dir[File.join(File.expand_path(File.join(__dir__, "..", "..", "data")), "*")]
+      new_files = local_files2 - local_files1
+      if new_files.length > 0
+        new_files = new_files.map { |file| "/data/" + File.basename(file) }
+        output = "The code has been executed successfully; Files generated: #{new_files.join(', ')}"
+        output += "; Output: #{stdout}" if stdout.strip.length > 0
+      else
+        output = "The code has been executed successfully"
+        output += "; Output: #{stdout}" if stdout.strip.length > 0
+      end
+      output
     else
-      stderr
-    end
-  end
-
-  def check_file_generated(hash)
-    data_dir = File.expand_path(File.join(__dir__, "data"))
-    filename = hash[:filename]
-    File.exist?(File.join(data_dir, filename))
-  end
-
-  def get_available_libraries(hash)
-    stdout, stderr, status = Open3.capture3("docker exec #{conda_container} conda list")
-    if status.success?
-      stdout
-    else
-      stderr
-    end
-  end
-
-  def install_conda_package(hash)
-    package_name = hash[:package_name]
-    stdout, stderr, status = Open3.capture3("docker exec #{conda_container} conda install -y #{package_name}")
-    if status.success?
-      stdout
-    else
-      stderr
-    end
-  end
-
-  def install_pip_package(hash)
-    package_name = hash[:package_name]
-    stdout, stderr, status = Open3.capture3("docker exec #{conda_container} pip install #{package_name}")
-    if status.success?
-      stdout
-    else
-      stderr
+      "Error occurred: #{stderr}"
     end
   end
 end

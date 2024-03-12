@@ -19,6 +19,19 @@ end
 
 # Start the server
 def start_server(opts)
+  
+  start_script = File.join(__dir__, "..", "docker", "support_scripts", "mac-start-docker.sh")
+  mac_docker_start = File.read(start_script)
+
+  # run the start script
+  system(mac_docker_start)
+
+  cmd_pg = "docker container start monadic-chat-pgvector-container"
+  cmd_conda = "docker container start monadic-chat-conda-container"
+
+  system(cmd_pg)
+  system(cmd_conda)
+
   cmd = "thin start -R config.ru -p #{opts[:port] || DEFAULT_PORT}"
   cmd += " --daemonize" if opts[:daemonize]
   cmd += " --log thin.log" if opts[:log]

@@ -55,7 +55,7 @@ class SyntaxTreeGenerator < MonadicApp
   def settings
     {
       "app_name": "Syntax Tree Generator",
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-0125-preview",
       "image_generation": true,
       "temperature": 0.0,
       "top_p": 0.0,

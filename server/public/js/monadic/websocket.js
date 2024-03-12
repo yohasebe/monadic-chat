@@ -234,7 +234,7 @@ function formatSourceCode(element) {
   element.find(".sourcecode").each(function () {
     const sourceCodeElement = $(this);
     let sourceCode = sourceCodeElement.text().trim();
-    sourceCodeElement.find("pre").text(sourceCode);
+    sourceCodeElement.find("code").text(sourceCode);
   })
 }
 

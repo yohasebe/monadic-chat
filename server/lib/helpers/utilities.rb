@@ -9,6 +9,6 @@ module UtilitiesHelper
   # Convert markdown to HTML
   def markdown_to_html(text)
     text = text.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
-    Kramdown::Document.new(text, syntax_highlighter: :rouge, input: "GFM", syntax_highlighter_ops: {}).to_html
+    Kramdown::Document.new(text, syntax_highlighter: :rouge, input: "GFM", syntax_highlighter_ops: {guess_lang: true}).to_html
   end
 end

@@ -84,7 +84,6 @@ class DiagramDraft < MonadicApp
       "icon": icon,
       "initiate_from_assistant": false,
       "pdf": false,
-      "mathjax": true,
       "mermaid": true,
       "file": true,
       "tools": [

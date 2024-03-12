@@ -182,7 +182,7 @@ module WebSocketHelper
             pp queue
             pp e.message
             pp e.backtrace
-            @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
+            # @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
           end
         when "SAMPLE"
           text = obj["content"]

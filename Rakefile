@@ -15,6 +15,13 @@ task default: %i[spec rubocop]
 
 # task to build win/mac x64/mac arm64 packages
 task :build do
+
+  # remove all the files in the /server/data directory
+  FileUtils.rm_rf("server/data/*")
+
+  # remove all the files in the /server/dist directory
+  FileUtils.rm_rf("server/dist/*")
+
   # sh "npm run build:linux"
   sh "npm run build:win"
   sh "npm run build:mac-x64"

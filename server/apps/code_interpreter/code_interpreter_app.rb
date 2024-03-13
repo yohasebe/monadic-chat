@@ -5,7 +5,7 @@ require "open3"
 
 class CodeInterpreter < MonadicApp
   def icon
-    "<i class='fab fa-python'></i>"
+    "<i class='fas fa-terminal'></i>"
   end
 
   def description
@@ -33,60 +33,70 @@ class CodeInterpreter < MonadicApp
       The following is the dockerfile used to create the environment for running code:
 
       ```dockerfile
-        FROM continuumio/miniconda3
-        ENV WORKSPACE /monadic
-        WORKDIR $WORKSPACE
+      FROM continuumio/miniconda3
+      ENV WORKSPACE /monadic
+      WORKDIR $WORKSPACE
 
-        RUN apt-get update && \
-            apt-get install -y build-essential \
-            curl \
-            pandoc \
-            fonts-takao-gothic \
-            graphviz
+      RUN apt-get update && \
+          apt-get install -y build-essential \
+          curl \
+          git \
+          pandoc \
+          fonts-takao-gothic \
+          graphviz \
+          texlive-full
 
-        RUN apt-get install -y ruby-full \
-            libmagick++-dev \
-            librsvg2-dev \
-            libcairo2-dev \
-            libgdk-pixbuf2.0-dev \
-            libghc-gi-gobject-dev
+      RUN apt-get install -y ruby-full \
+          libmagick++-dev \
+          librsvg2-dev \
+          libcairo2-dev \
+          libgdk-pixbuf2.0-dev \
+          libghc-gi-gobject-dev
 
-        RUN conda install -y \
-            numpy \
-            scipy \
-            pandas \
-            seaborn \
-            plotly \
-            matplotlib \
-            scikit-learn \
-            opencv
+      RUN conda install -y \
+          numpy \
+          scipy \
+          pandas \
+          seaborn \
+          plotly \
+          matplotlib \
+          scikit-learn \
+          opencv
 
-        RUN conda install -y -c conda-forge \
-            statsmodels \
-            r-ggplot2 
+      RUN conda install -y -c conda-forge \
+          statsmodels \
+          r-ggplot2 
 
-        RUN pip install -U pip setuptools wheel && \
-            pip install japanize-matplotlib && \
-            pip install graphviz && \
-            pip install pymc3 && \
-            pip install folium && \
-            pip install pydotplus && \
-            pip install spacy && \
-            pip install openpyxl && \
-            pip install python-docx && \
-            pip install pypdf
+      RUN pip install -U pip setuptools wheel \
+          japanize-matplotlib \
+          graphviz \
+          pymc3 \
+          folium \
+          pydotplus \
+          spacy \
+          openpyxl \
+          python-docx \
+          wikipedia \
+          pypdf
 
-        RUN python -m spacy download en_core_web_sm
+      RUN python -m spacy download en_core_web_sm
 
-        RUN gem install bundler rsyntaxtree
+      RUN gem install bundler rsyntaxtree
 
-        RUN mkdir -p /root/.config/matplotlib
-        COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+      RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+          apt-get update && \
+          apt-get install -y nodejs && \
+
+      RUN rm -rf /var/lib/apt/lists/*
+
+      RUN mkdir -p /root/.config/matplotlib
+      COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
       ```
 
       ### Request/Response Example 1:
 
-      - The following is a simple example to illustrate how you might respond to a user's request to create a plot:
+      - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
+      - Do not include "sandbox:" in the file path.
 
       User Request:
 
@@ -118,6 +128,7 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 2:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the lutput text below the code in a Markdown code block.
+      - Do not include "sandbox:" in the file path.
 
       User Request:
 
@@ -158,7 +169,8 @@ class CodeInterpreter < MonadicApp
 
       ### Request/Response Example 3:
 
-      - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link:
+      - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link.
+      - Do not include "sandbox:" in the file path.
 
       User Request:
 
@@ -216,7 +228,7 @@ class CodeInterpreter < MonadicApp
               "properties": {
                 "command": {
                   "type": "string",
-                  "description": "Code execution command (e.g., python, ruby, etc.)"
+                  "description": "Code execution command (e.g., 'python', 'ruby', 'Rscript' etc.)"
                 },
                 "code": {
                   "type": "string",

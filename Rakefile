@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
+require 'fileutils'
 require "rspec/core/rake_task"
-
 require_relative "./server/lib/monadic/version"
 version = Monadic::VERSION
 
@@ -16,11 +16,9 @@ task default: %i[spec rubocop]
 # task to build win/mac x64/mac arm64 packages
 task :build do
 
-  # remove all the files in the /server/data directory
-  FileUtils.rm_rf("server/data/*")
-
-  # remove all the files in the /server/dist directory
-  FileUtils.rm_rf("server/dist/*")
+  home_directory_path = File.join(File.dirname(__FILE__), "server")
+  Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
+  Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
 
   # sh "npm run build:linux"
   sh "npm run build:win"

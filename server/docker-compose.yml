@@ -18,7 +18,7 @@ services:
     container_name: monadic-chat-web-container
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/monadic/data:delegated # Adjusted to use bind mount with :delegated
+      - data:/monadic/data
     build:
       context: .
       dockerfile: Dockerfile
@@ -42,13 +42,14 @@ services:
       dockerfile: Dockerfile
     container_name: monadic-chat-conda-container
     volumes:
-      - ./data:/opt/conda/envs:delegated # Adjusted to use bind mount with :delegated
+      - data:/opt/conda/envs
     command: ["/bin/bash", "-c", "tail -f /dev/null"]
     healthcheck:
       test: ["CMD", "conda", "list"]
       interval: 5s
       retries: 3
 volumes:
+  data:
   postgres-data-volume:
     name: monadic-chat-pgvector-data
     driver: local

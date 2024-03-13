@@ -8,7 +8,8 @@ RUN apt-get update && \
     git \
     pandoc \
     fonts-takao-gothic \
-    graphviz
+    graphviz \
+    gnupg
 
 RUN apt-get install -y ruby-full \
     libmagick++-dev \
@@ -46,6 +47,12 @@ RUN pip install -U pip setuptools wheel \
 RUN python -m spacy download en_core_web_sm
 
 RUN gem install bundler rsyntaxtree
+
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get update && \
+    apt-get install -y nodejs
+
+RUN rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc

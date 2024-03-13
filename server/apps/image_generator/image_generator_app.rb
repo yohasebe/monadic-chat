@@ -22,8 +22,8 @@ class ImageGeneration < MonadicApp
         <p class="revised_prompt"></p>
       </div>
 
-      <div>
-        <img class="generated_image" src="" />
+      <div class="generated_image">
+        <img src="">
       </div>
       ```
 

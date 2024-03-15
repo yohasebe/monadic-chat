@@ -187,43 +187,44 @@ function convertString(str) {
 // convert a paramter list to an HTML snippet
 //////////////////////////////
 
-function listParams(params) {
-  const exp = /((?<!href="|href='|src="|src=')(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
-  let table = `<table class="table table-sm text-secondary"><tbody>`;
+// function listParams(params) {
+//   const exp = /((?<!href="|href='|src="|src=')(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+//   let table = `<table class="table table-sm text-secondary"><tbody>`;
 
-  for (const [key, value] of Object.entries(params)) {
-    const excluded_keys = [
-      "app_name",
-      "auto_speech",
-      "desc",
-      "easy_submit",
-      "icon",
-      "initiate_from_assistant",
-      "message",
-      "pdf",
-      "show_notification",
-      "tts_voice",
-      "tts_speed",
-      "initial_prompt",
-      "description",
-      "functions",
-      "image_generation",
-      "file"
-    ];
-    if (excluded_keys.includes(key) || !value || value === "") {
-      continue;
-    }
-    const html = value.replace(exp, "<a href='$1' target='_blank' rel='noopener noreferrer'>$1</a>");
-    table += `\
-      <tr>\
-        <td style="font-weight: 500;">${convertString(key)}</td>\
-        <td>${html.replace(/\n/g, "<br />")}</td>\
-      </tr>\
-      `;
-  }
-  table += `</tbody></table>`;
-  return table;
-}
+//   for (const [key, value] of Object.entries(params)) {
+//     const excluded_keys = [
+//       "app_name",
+//       "auto_speech",
+//       "desc",
+//       "easy_submit",
+//       "icon",
+//       "initiate_from_assistant",
+//       "message",
+//       "pdf",
+//       "show_notification",
+//       "tts_voice",
+//       "tts_speed",
+//       "initial_prompt",
+//       "description",
+//       "functions",
+//       "image_generation",
+//       "file"
+//     ];
+//     if (excluded_keys.includes(key) || !value || value === "") {
+//       continue;
+//     }
+//     const html = value.replace(exp, "<a href='$1' target='_blank' rel='noopener noreferrer'>$1</a>");
+//     table += `\
+//       <tr>\
+//         <td style="font-weight: 500;">${convertString(key)}</td>\
+//         <td>${html.replace(/\n/g, "<br />")}</td>\
+//       </tr>\
+//       `;
+//   }
+//   table += `</tbody></table>`;
+//   console.log(table)
+//   return table;
+// }
 
 //////////////////////////////
 // Functions to load/reset/set parameters
@@ -359,7 +360,7 @@ function resetEvent(event) {
     $("#temp-card").hide();
     $("#config").show();
     $("#back-to-settings").hide();
-    $("#paramList").html("")
+    // $("#paramList").html("")
     $("#parameter-panel").hide();
     setAlert("Ready to start.", "success");
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);

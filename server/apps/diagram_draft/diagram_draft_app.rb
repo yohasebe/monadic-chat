@@ -71,7 +71,7 @@ class DiagramDraft < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,
@@ -98,6 +98,7 @@ class DiagramDraft < MonadicApp
               "properties": {
                 "diagram_type": {
                   "type": "string",
+                  "enum": ["graph", "C4Context", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2", "erDiagram", "journey", "gantt", "pie", "quadrantChart", "requirementDiagram", "gitGraph", "sankey-beta", "timeline", "xychart-beta", "mindmap"],
                   "description": "the type of the mermaid diagram"
                 }
               },
@@ -111,23 +112,17 @@ class DiagramDraft < MonadicApp
 
   def mermaid_examples(hash)
     diagram_type = hash[:diagram_type]
-    diagram_types = ["graph", "C4Context", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2", "erDiagram", "journey", "gantt", "pie", "quadrantChart",
-      "requirementDiagram", "gitGraph", "sankey-beta", "timeline", "xychart-beta", "mindmap"]
 
     begin
-      if diagram_types.include?(diagram_type)
-        file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
-        if File.exist?(file_path)
-          diagram_type_content = File.read(file_path)
+      file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
+      if File.exist?(file_path)
+        diagram_type_content = File.read(file_path)
 
-          <<~DOCS
+        <<~DOCS
             #{diagram_type_content}
-          DOCS
-        else
-          "Example file not found for the diagram type: #{diagram_type}."
-        end
+        DOCS
       else
-        "No example found for the diagram type: #{diagram_type}."
+        "Example file not found for the diagram type: #{diagram_type}."
       end
     rescue StandardError => e
       "An error occurred while reading examples for the diagram type: #{diagram_type}. Error: #{e.message}"

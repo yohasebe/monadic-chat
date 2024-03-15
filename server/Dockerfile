@@ -16,6 +16,7 @@ RUN bundle install -j4 --without development test && \
 COPY apps/ $WORKSPACE/apps/
 COPY assets/ $WORKSPACE/assets/
 COPY bin/ $WORKSPACE/bin/
+COPY docker/ $WORKSPACE/docker/
 COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/

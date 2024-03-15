@@ -26,9 +26,9 @@ def start_server(opts)
   # run the start script
   system(mac_docker_start)
 
+  data_dir = File.expand_path(File.join(__dir__, "..", "data"))
   cmd_pg = "docker container start monadic-chat-pgvector-container"
   cmd_conda = "docker container start monadic-chat-conda-container"
-
   system(cmd_pg)
   system(cmd_conda)
 

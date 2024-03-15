@@ -265,7 +265,8 @@ module WebSocketHelper
             end
 
             if response && response["type"] == "error"
-              @channel.push({ "type" => "error", "content" => response["content"] }.to_json)
+              content = response["content"].gsub(/\bsandbox:\//, "/")
+              @channel.push({ "type" => "error", "content" => content }.to_json)
             else
               queue.push(response)
             end

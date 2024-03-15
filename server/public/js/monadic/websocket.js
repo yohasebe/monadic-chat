@@ -597,7 +597,6 @@ function connect_websocket(callback) {
       case "html":
         messages.push(data["content"]);
         msgBuffer.length = 0;
-        let htmlElement;
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {

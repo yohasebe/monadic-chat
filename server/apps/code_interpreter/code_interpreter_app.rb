@@ -13,6 +13,8 @@ class CodeInterpreter < MonadicApp
   end
 
   def initial_prompt
+    docker_data = File.read(File.expand_path(File.join(__dir__, "..", "..", "docker", "conda", "Dockerfile")))
+
     text = <<~TEXT
       You are an assistant designed to help users write and run code and visualize data upon from their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
 
@@ -33,70 +35,12 @@ class CodeInterpreter < MonadicApp
       The following is the dockerfile used to create the environment for running code:
 
       ```dockerfile
-      FROM continuumio/miniconda3
-      ENV WORKSPACE /monadic
-      WORKDIR $WORKSPACE
-
-      RUN apt-get update && \
-          apt-get install -y build-essential \
-          curl \
-          git \
-          pandoc \
-          fonts-takao-gothic \
-          graphviz \
-          texlive-full
-
-      RUN apt-get install -y ruby-full \
-          libmagick++-dev \
-          librsvg2-dev \
-          libcairo2-dev \
-          libgdk-pixbuf2.0-dev \
-          libghc-gi-gobject-dev
-
-      RUN conda install -y \
-          numpy \
-          scipy \
-          pandas \
-          seaborn \
-          plotly \
-          matplotlib \
-          scikit-learn \
-          opencv
-
-      RUN conda install -y -c conda-forge \
-          statsmodels \
-          r-ggplot2 
-
-      RUN pip install -U pip setuptools wheel \
-          japanize-matplotlib \
-          graphviz \
-          pymc3 \
-          folium \
-          pydotplus \
-          spacy \
-          openpyxl \
-          python-docx \
-          wikipedia \
-          pypdf
-
-      RUN python -m spacy download en_core_web_sm
-
-      RUN gem install bundler rsyntaxtree
-
-      RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-          apt-get update && \
-          apt-get install -y nodejs && \
-
-      RUN rm -rf /var/lib/apt/lists/*
-
-      RUN mkdir -p /root/.config/matplotlib
-      COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+      ${docker_data}
       ```
 
       ### Request/Response Example 1:
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
-      - Do not include "sandbox:" in the file path.
 
       User Request:
 
@@ -128,7 +72,6 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 2:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the lutput text below the code in a Markdown code block.
-      - Do not include "sandbox:" in the file path.
 
       User Request:
 
@@ -170,7 +113,6 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 3:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link.
-      - Do not include "sandbox:" in the file path.
 
       User Request:
 
@@ -221,8 +163,8 @@ class CodeInterpreter < MonadicApp
           "type": "function",
           "function":
           {
-            "name": "run_python_code",
-            "description": "Run Python code and return the output.",
+            "name": "run_code",
+            "description": "Run program code and return the output.",
             "parameters": {
               "type": "object",
               "properties": {
@@ -247,14 +189,21 @@ class CodeInterpreter < MonadicApp
     }
   end
 
-  def run_python_code(hash)
+  def run_code(hash)
     code = hash[:code].strip
     command = hash[:command]
     extention = hash[:extention]
-    shared_volume = "/opt/conda/envs/"
+    shared_volume = "/monadic/data/"
+    if IN_CONTAINER
+      data_dir = "/monadic/data/"
+    else
+      data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+    end
+      
     conda_container = "monadic-chat-conda-container"
-    # create a temporary file to store the code and copy it to the shared volume
-    temp_file = Tempfile.new(["code", extention])
+
+    # create a temporary file inside the data directory
+    temp_file = Tempfile.new(["code", ".#{extention}"], data_dir)
     temp_file.write(code)
     temp_file.close
     docker_command =<<~DOCKER
@@ -265,14 +214,14 @@ class CodeInterpreter < MonadicApp
       return "Error occurred: #{stderr}"
     end
 
-    local_files1 = Dir[File.join(File.expand_path(File.join(__dir__, "..", "..", "data")), "*")]
+    local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
 
     docker_command =<<~DOCKER
-      docker exec -w #{shared_volume} #{conda_container} #{command} /opt/conda/envs/#{File.basename(temp_file.path)}
+      docker exec -w #{shared_volume} #{conda_container} #{command} /monadic/data/#{File.basename(temp_file.path)}
     DOCKER
     stdout, stderr, status = Open3.capture3(docker_command)
     if status.success?
-      local_files2 = Dir[File.join(File.expand_path(File.join(__dir__, "..", "..", "data")), "*")]
+      local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
       new_files = local_files2 - local_files1
       if new_files.length > 0
         new_files = new_files.map { |file| "/data/" + File.basename(file) }

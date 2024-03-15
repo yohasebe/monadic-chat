@@ -165,25 +165,180 @@ module OpenAIHelper
     end
   end
 
+  def process_json_data(app, obj, body, call_depth, &block)
+    buffer = ""
+    tool_calls = false
+    texts = {}
+    tools = {}
+
+    body.each do |chunk|
+      break if /\Rdata: [DONE]\R/ =~ chunk
+
+      buffer << chunk
+      scanner = StringScanner.new(buffer)
+      pattern = /data: (\{.*?\})(?=\n|\z)/m
+      until scanner.eos?
+        matched = scanner.scan_until(pattern)
+        if matched
+          json_data = matched.match(pattern)[1]
+          begin
+            json = JSON.parse(json_data)
+
+            # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
+            if json.dig('choices', 0, 'delta', 'content')
+              # Merge text fragments based on 'id'
+              id = json['id']
+              texts[id] ||= json
+              choice = texts[id]['choices'][0]
+              choice['message'] ||= choice['delta'].dup
+              choice["message"]["content"] ||= ""
+              fragment = json.dig('choices', 0, 'delta', 'content').to_s
+              choice["message"]["content"] << fragment
+              next if !fragment || fragment == ""
+
+              res = { "type" => "fragment",
+                      "content" => fragment,
+                      "finish_reason" => choice["finish_reason"]
+              }
+              block&.call res
+
+              texts[id]['choices'][0].delete('delta')
+
+              if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+                finish = { "type" => "message", "content" => "DONE" }
+                block&.call finish
+                break
+              end
+            end
+
+            if json.dig('choices', 0, 'delta', 'tool_calls')
+              # Merge tool calls based on 'id'
+              id = json['id']
+              tools[id] ||= json
+              choice = tools[id]['choices'][0]
+              choice['message'] ||= choice['delta'].dup
+
+              json.dig('choices', 0, 'delta', 'tool_calls').each do |new_tool_call|
+                existing_tool_call = choice['message']['tool_calls'].find { |tc| tc['index'] == new_tool_call['index'] }
+                if existing_tool_call
+                  existing_tool_call['function']['arguments'] += new_tool_call.dig('function', 'arguments').to_s
+                else
+                  choice['message']['tool_calls'] << new_tool_call
+                end
+              end
+              tools[id]['choices'][0].delete('delta')
+
+              if choice["finish_reason"] == "function_call"
+                break
+              end
+
+            end
+          rescue JSON::ParserError
+            res = { "type" => "error", "content" => "Error: JSON Parsing" }
+            pp res
+            block&.call res
+            res
+          end
+
+        else
+          buffer = scanner.rest
+          break
+        end
+      end
+    end
+
+    results = texts.empty? ? nil : texts.first[1]
+
+    if results
+      if obj["monadic"]
+        message = results["choices"][0]["message"]["content"]
+        results["choices"][0]["text"] = APPS[app].monadic_map(message)
+      end
+    end
+
+    if tools.any?
+      context = []
+      if results
+        merged = results["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
+        context << merged
+      else
+        context << tools.first[1].dig("choices", 0, "message")
+      end
+
+      tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+      new_results = process_functions(app, obj, tools, context, call_depth, &block)
+
+      if results && new_results
+        results_content = results.dig("choices", 0, "message", "content").strip || ""
+        new_results_content = new_results.dig("choices", 0, "message", "content").strip || ""
+        new_results.dig("choices", 0, "message")["content"] = results_content + "\n\n" + new_results_content
+        new_results
+      elsif new_results
+        new_results
+      elsif results
+        results
+      end
+    elsif results
+      res = { "type" => "message", "content" => "DONE" }
+      block&.call res
+      results
+    else
+      res = { "type" => "message", "content" => "DONE" }
+      block&.call res
+      res
+    end
+  end
+
+  def process_functions(app, obj, tools, context, call_depth, &block)
+    results = []
+    tools.each do |tool_call|
+      function_call = tool_call["function"]
+      function_name = function_call["name"]
+
+      begin
+        argument_hash = JSON.parse(function_call["arguments"])
+      rescue
+        argument_hash = {}
+      end
+      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+        memo[k.to_sym] = v
+        memo
+      end
+
+      function_return = APPS[app].send(function_name.to_sym, argument_hash)
+
+      context << {
+        tool_call_id: tool_call["id"],
+        role: "tool",
+        name: function_name,
+        content: function_return.to_s
+      }
+
+      obj["function_returns"] = context
+
+      call_depth += 1
+      if call_depth > MAX_FUNC_CALLS
+        return { "type" => "error", "content" => "ERROR: Call depth exceeded" } 
+      end
+
+      # res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
+      # block&.call res
+      
+      results << completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
+    end
+    results.last
+  end
+
   # Connect to OpenAI API and get a response
-  def completion_api_request(role, &block)
+  def completion_api_request(role, obj: nil, call_depth: 0, &block)
 
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
     # Get the parameters from the session
-    obj = session[:parameters]
+    obj ||= session[:parameters]
     app = obj["app_name"]
     api_key = settings.api_key
-    message = obj["message"].to_s
-
-    # If the app is monadic, the message is passed through the monadic_map function
-    if obj["monadic"].to_s == "true" && message != ""
-      message = APPS[app].monadic_unit(message) if message != ""
-      html = markdown_to_html(obj["message"]) if message != ""
-    elsif message != ""
-      html = markdown_to_html(message)
-    end
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
@@ -198,35 +353,75 @@ module OpenAIHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
-    # If the message is not empty and the role is "user", the message is displaed
-    # in the chat window at this point and it will be sent to the API
-    if message != "" && role == "user"
-      res = { "type" => "user",
-              "content" => {
-                "mid" => request_id,
-                "text" => obj["message"],
-                "html" => html,
-                "lang" => detect_language(obj["message"])
-              }
-      }
-      res["image"] = obj["image"] if obj["image"]
-      block&.call res
+    if role != "tool"
+      message = obj["message"].to_s
+
+      # If the app is monadic, the message is passed through the monadic_map function
+      if obj["monadic"].to_s == "true" && message != ""
+        message = APPS[app].monadic_unit(message) if message != ""
+        html = markdown_to_html(obj["message"]) if message != ""
+      elsif message != ""
+        html = markdown_to_html(message)
+      end
+
+      if message != "" && role == "user"
+        res = { "type" => "user",
+                "content" => {
+                  "mid" => request_id,
+                  "text" => obj["message"],
+                  "html" => html,
+                  "lang" => detect_language(obj["message"])
+                }
+        }
+        res["image"] = obj["image"] if obj["image"]
+        block&.call res
+      end
+
+      # if the app uses the PDF tool, the message is passed through
+      # the find_closest_text function and the snippet is added to the message
+      if obj["pdf"]
+        snippet = EMBEDDINGS_DB.find_closest_text(obj["message"])
+        message_with_snippet = <<~TEXT
+          #{obj["message"]}
+
+          SNIPPET:
+
+          ```
+            #{snippet.to_json}
+          ```
+        TEXT
+      end
+
+      # If the role is "user", the message is added to the session
+      if message != "" && role == "user"
+        res = { "mid" => request_id,
+                "role" => role,
+                "text" => message,
+                "html" => markdown_to_html(message),
+                "lang" => detect_language(message),
+                "active" => true,
+        }
+        if obj["image"]
+          res["image"] = obj["image"]
+        end
+        session[:messages] << res
+      end
     end
 
-    # if the app uses the PDF tool, the message is passed through
-    # the find_closest_text function and the snippet is added to the message
-    if obj["pdf"]
-      snippet = EMBEDDINGS_DB.find_closest_text(obj["message"])
-      message_with_snippet = <<~TEXT
-        #{obj["message"]}
+    # the initial prompt is set to the first message in the session
+    # if the initial prompt is not empty
+    initial = { "role" => "system",
+                "text" => initial_prompt,
+                "html" => initial_prompt,
+                "lang" => detect_language(initial_prompt)
+    } if initial_prompt != ""
 
-        SNIPPET:
 
-        ```
-          #{snippet.to_json}
-        ```
-      TEXT
-    end
+    # Old messages in the session are set to inactive
+    # and set active messages are added to the context
+    session[:messages].each { |msg| msg["active"] = false }
+    latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
+    context = [initial] + latest_messages
 
     # Set the headers for the API request
     headers = {
@@ -250,49 +445,16 @@ module OpenAIHelper
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings[:tools]
       body["tool_choice"] = "auto"
-      body["stream"] = false
     end
 
-
-    # the initial prompt is set to the first message in the session
-    # if the initial prompt is not empty
-    initial = { "role" => "system",
-                "text" => initial_prompt,
-                "html" => initial_prompt,
-                "lang" => detect_language(initial_prompt)
-    } if initial_prompt != ""
-
-    # If the role is "user", the message is added to the session
-    if message != "" && role == "user"
-      res = { "mid" => request_id,
-              "role" => role,
-              "text" => message,
-              "html" => markdown_to_html(message),
-              "lang" => detect_language(message),
-              "active" => true,
-      }
-      if obj["image"]
-        res["image"] = obj["image"]
-      end
-      session[:messages] << res
+    if role != "tool"
+      # Decorate the last message in the context with the message with the snippet
+      # and the prompt suffix
+      last_text = context.last["text"]
+      last_text = message_with_snippet if message_with_snippet.to_s != ""
+      last_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
+      context.last["text"] = last_text
     end
-
-    # Old messages in the session are set to inactive
-    # and set active messages are added to the context
-    session[:messages].each { |msg| msg["active"] = false }
-    latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
-    context = [initial] + latest_messages
-
-    # If the role is "system", the message is added to the context
-    # This is the case when the function is called from the assistant
-    context << { "role" => role, "text" => message } if message != "" && role == "system"
-
-    # Decorate the last message in the context with the message with the snippet
-    # and the prompt suffix
-    last_text = context.last["text"]
-    last_text = message_with_snippet if message_with_snippet.to_s != ""
-    last_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
-    context.last["text"] = last_text
 
     # The context is added to the body
     messages_containing_img = false
@@ -303,6 +465,10 @@ module OpenAIHelper
         messages_containing_img = true
       end
       message
+    end
+
+    if role == "tool"
+      body["messages"] += obj["function_returns"]
     end
 
     # If the message contains an image, the model is set to "gpt-4-vision-preview"
@@ -321,144 +487,14 @@ module OpenAIHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
       res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
-      pp res
+      # pp res
       block&.call res
       return res
     end
 
-    # results contains the response from the API
-    results = nil
+    ####
+    return process_json_data(app, obj, res.body, call_depth, &block)
 
-    # If the stream is true, the fragments are processed one by one
-    # and the accumulated response is returned
-    if body["stream"]
-      # buffer is used to accumulate the response
-      buffer = ""
-
-      res.body.each do |chunk|
-        break if /\Rdata: [DONE]\R/ =~ chunk
-
-        buffer << chunk
-        scanner = StringScanner.new(buffer)
-        pattern = /data: (\{.*?\})(?=\n|\z)/m
-        until scanner.eos?
-          matched = scanner.scan_until(pattern)
-          if matched
-            json_data = matched.match(pattern)[1]
-
-            begin
-              json = JSON.parse(json_data)
-              choice = json.dig("choices", 0)
-
-              fragment = choice.dig("delta", "content").to_s
-              next if !fragment || fragment == ""
-
-              res = { "type" => "fragment",
-                      "content" => fragment,
-                      "finish_reason" => choice["finish_reason"]
-              }
-              block&.call res
-
-              results ||= json
-              results["choices"][0]["text"] ||= +""
-              results["choices"][0]["text"] << fragment
-
-              if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-                finish = { "type" => "message", "content" => "DONE" }
-                block&.call finish
-                break
-              end
-            rescue JSON::ParserError
-              res = { "type" => "error", "content" => "Error: JSON Parsing" }
-              pp res
-              block&.call res
-              res
-            end
-          else
-            buffer = scanner.rest
-            break
-          end
-        end
-      end
-    else # If the stream is false, the response is processed as a whole
-      begin
-        results = JSON.parse(res.body)
-      rescue JSON::ParserError
-        results = { "type" => "error", "content" => "Error: JSON Parsing" }
-        pp res
-        block&.call res
-        return results
-      end
-    end
-
-    # results contains the response from the API
-
-    # Check if tools are callable
-    if obj["tools"] && obj["tools_choice"] != "none"
-      functions_callable = true
-    else
-      functions_callable = false
-    end
-
-    # Check if a function is being called
-    function_being_called = false
-    if results && results.dig("choices", 0, "finish_reason") == "tool_calls"
-      function_being_called = true
-    end
-
-    # pp body
-    # pp results
-    # pp functions_callable
-    # pp function_being_called
-
-    # If the app uses the tools, the tools are called
-    if functions_callable && function_being_called
-
-      # function names are extracted from the response
-      custom_function_keys = APPS[app].settings[:tools]
-
-      if obj["monadic"]
-        message = results["choices"][0]["text"]
-        results["choices"][0]["text"] = APPS[app].monadic_map(message)
-      else
-        # assistant's response is processed
-        json_message = results["choices"][0]["message"]
-
-        # function call (currently only one function call is supported)
-        function_call = json_message["tool_calls"].first["function"]
-        function_name = function_call["name"]
-
-        # get the arguments of the function call
-        begin
-          argument_hash = JSON.parse(function_call["arguments"])
-        rescue
-          argument_hash = {}
-        end
-
-        argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-          memo[k.to_sym] = v
-          memo
-        end
-
-
-        pp function_name
-        pp argument_hash
-        # function_return is the return value of the function call
-        pp function_return = APPS[app].send(function_name.to_sym, argument_hash)
-
-        obj["message"] = function_return.to_s
-        obj["tools"] = nil
-        obj["stream"] = true
-
-        return completion_api_request("system", &block)
-      end
-    end
-
-    res = { "type" => "message", "content" => "DONE" }
-    block&.call res
-
-    # The response is returned
-    results
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

@@ -9,7 +9,8 @@ RUN apt-get update && \
     pandoc \
     fonts-takao-gothic \
     graphviz \
-    gnupg
+    gnupg \
+    ffmpeg
 
 RUN apt-get install -y ruby-full \
     libmagick++-dev \
@@ -30,7 +31,8 @@ RUN conda install -y \
 
 RUN conda install -y -c conda-forge \
     statsmodels \
-    r-ggplot2 
+    r-ggplot2 \
+    geopandas
 
 RUN pip install -U pip setuptools wheel \
     japanize-matplotlib \
@@ -42,7 +44,10 @@ RUN pip install -U pip setuptools wheel \
     openpyxl \
     python-docx \
     wikipedia \
-    pypdf
+    pypdf \
+    librosa
+
+RUN pip install librosa==0.10.1
 
 RUN python -m spacy download en_core_web_sm
 

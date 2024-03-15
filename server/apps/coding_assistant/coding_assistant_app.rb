@@ -1,6 +1,6 @@
 # frozen_string_literal: false
 
-class Code < MonadicApp
+class CodingAssistant < MonadicApp
   def icon
     "<i class='fas fa-laptop-code'></i></i>"
   end
@@ -26,7 +26,7 @@ class Code < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
-      "app_name": "Code",
+      "app_name": "Coding Assistant",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,

@@ -154,8 +154,12 @@ get "/" do
 end
 
 get "/data/:file_name" do
-  homedir = File.expand_path(File.join(__dir__, ".."))
-  send_file File.join(homedir, "data", params[:file_name])
+  datadir = if IN_CONTAINER
+              File.expand_path(File.join(__dir__, "..", "data"))
+            else
+              File.expand_path(File.join(Dir.home, "monadic", "data"))
+            end
+  send_file File.join(datadir, params[:file_name])
 end
 
 # Accept requests from the client to provide language codes and country names

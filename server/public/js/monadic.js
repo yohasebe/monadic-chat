@@ -102,7 +102,7 @@ $(function () {
     } else {
       return;
     }
-    $("#paramList").html("").append(listParams(setParams()));
+    // $("#paramList").html("").append(listParams(setParams()));
     if (messages.length > 0) {
       $("#config").hide();
       $("#back-to-settings").show();

@@ -99,7 +99,7 @@ class SyntaxTreeGenerator < MonadicApp
     text = hash[:text]
     text = text.gsub('"', '\"')
     image_file_name = hash[:image_file_name]
-    shared_volume = "/opt/conda/envs/"
+    shared_volume = "/monadic/data/"
     conda_container = "monadic-chat-conda-container"
 
     docker_command1 =<<~DOCKER

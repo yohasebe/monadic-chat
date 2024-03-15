@@ -19,6 +19,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - data:/monadic/data
+      - ~/monadic/data:/monadic/data
     build:
       context: .
       dockerfile: Dockerfile
@@ -42,7 +43,8 @@ services:
       dockerfile: Dockerfile
     container_name: monadic-chat-conda-container
     volumes:
-      - data:/opt/conda/envs
+      - data:/monadic/data
+      - ~/monadic/data:/monadic/data
     command: ["/bin/bash", "-c", "tail -f /dev/null"]
     healthcheck:
       test: ["CMD", "conda", "list"]

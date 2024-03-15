@@ -174,7 +174,7 @@ Also, please make sure that when you present a Wikipedia article link to the use
     segments = []
     while tokenized.size > MAX_TOKENS_WIKI.to_i
       segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
-      segments << TOKENIZER.decode(segment)
+      segments << TOKENIZER.decode(segment, skip_special_tokens: true)
       tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
     end
     segments << TOKENIZER.decode(tokenized)

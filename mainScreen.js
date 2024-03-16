@@ -28,6 +28,10 @@ document.getElementById('browser').addEventListener('click', () => {
   window.electron.sendCommand('browser');
 });
 
+document.getElementById('folder').addEventListener('click', () => {
+  window.electron.sendCommand('folder');
+});
+
 document.getElementById('exit').addEventListener('click', () => {
   window.electron.sendCommand('exit');
 });

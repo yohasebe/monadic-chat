@@ -1,4 +1,4 @@
-const { app, dialog, Menu, Tray, BrowserWindow, ipcMain } = require('electron')
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron')
 app.commandLine.appendSwitch('no-sandbox');
 const { exec, execSync, spawn} = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
@@ -242,6 +242,14 @@ const menuItems = [
     enabled: true
   },
   {
+    label: 'Open Shared Folder',
+    click: () => {
+      openMainWindow();
+      openFolder();
+    },
+    enabled: true
+  },
+  {
     label: 'Open Console',
     click: () => {
       openMainWindow();
@@ -311,6 +319,9 @@ function initializeApp() {
           break;
         case 'browser':
           openBrowser('http://localhost:4567');
+          break;
+        case 'folder':
+          openFolder();
           break;
         case 'exit':
           quitApp();
@@ -570,8 +581,8 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 600,
-    minWidth: 600,
+    width: 680,
+    minWidth: 680,
     height: 420,
     minHeight: 260,
     webPreferences: {
@@ -625,6 +636,11 @@ function createMainWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('updateStatusIndicator', currentStatus);
   });
+}
+
+function openFolder() {
+  const folderPath = path.join(os.homedir(), 'monadic', 'data');
+  shell.openPath(folderPath);
 }
 
 function openBrowser(url) {

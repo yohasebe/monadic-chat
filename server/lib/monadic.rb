@@ -20,6 +20,8 @@ require "strscan"
 require "tempfile"
 require "tiktoken_ruby"
 require "uri"
+require "oj"
+Oj.mimic_JSON()
 
 require_relative "embeddings/pdf_text_extractor"
 require_relative "embeddings/text_embeddings"
@@ -159,7 +161,16 @@ get "/data/:file_name" do
             else
               File.expand_path(File.join(Dir.home, "monadic", "data"))
             end
-  send_file File.join(datadir, params[:file_name])
+  file_path = File.join(datadir, params[:file_name])
+  if File.exist?(file_path)
+    send_file file_path
+  else
+    "Sorry, the file you are looking for is unavailable."
+  end
+end
+
+get '/:filename' do |filename|
+  redirect to("/data/#{filename}")
 end
 
 # Accept requests from the client to provide language codes and country names

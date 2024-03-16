@@ -49,6 +49,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "kramdown-parser-gfm"
   spec.add_dependency "method_source"
   spec.add_dependency "nokogiri"
+  spec.add_dependency "oj"
   spec.add_dependency "optimist"
   spec.add_dependency "pandoc-ruby"
   spec.add_dependency "parallel"

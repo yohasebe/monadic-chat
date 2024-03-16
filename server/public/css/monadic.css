@@ -359,15 +359,15 @@ blockquote {
   color: #333;
 }
 
-#alert-message.message-success p {
+#alert-message.message-success {
   color: #2268cf;
 }
 
-#alert-message.message-info p {
+#alert-message.message-info {
   color: #568D59;
 }
 
-#alert-message.message-warning p {
+#alert-message.message-warning {
   color: #FF7F07;
 }
 

@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 require "tempfile"
 require "open3"
@@ -24,7 +24,11 @@ class CodeInterpreter < MonadicApp
 
       To execute the code, use the `run_code` function with the command name such as `python` and your code as the parameters. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths for this purpose.
 
-      If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose.
+      If you need to check bash command to check the availability of a certain file or command, use the `run_bash_command` function. You are allowed to access the internet to download the required files or libraries.
+
+      If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be conda, pip, apt, gem, or npm.
+
+      If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose. When there are multiple image file types available, SVG is preferred.
       
       ### Error Handling:
 
@@ -136,6 +140,18 @@ class CodeInterpreter < MonadicApp
 
         <div><a href="/data/FILE_NAME">Result</a></div>
 
+      ### Request/Response Example 4:
+
+      - The following is a simple example to illustrate how you might respond to a user's request to show a audio/video clip.
+
+      Audio Clip:
+
+        <audio controls src="/data/FILE_NAME"></audio>
+
+      Video Clip:
+
+        <video controls src="/data/FILE_NAME"></video>
+
     TEXT
 
     text.strip
@@ -182,6 +198,41 @@ class CodeInterpreter < MonadicApp
                 }
               },
               "required": ["command", "code", "extention"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "lib_installer",
+            "description": "Install a library using the package manager. The package manager can be conda, pip, apt, gem, or npm. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `conda install -y`, `pip install`, `apt-get install -y`, `gem install`, `npm install -g`.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Library name to be installed."
+                },
+                "packager": {
+                  "type": "string",
+                  "enum": ["conda", "pip", "apt", "gem", "npm"],
+                  "description": "Package manager to be used for installation."
+                }
+              },
+              "required": ["command", "packager"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "run_bash_command",
+            "description": "Run a bash command and return the output. The argument to `command` is provided as part of `docker exec -w shared_volume container COMMAND`.",
+            "command": {
+              "type": "string",
+              "description": "Bash command to be executed."
             }
           }
         }
@@ -236,4 +287,51 @@ class CodeInterpreter < MonadicApp
       "Error occurred: #{stderr}"
     end
   end
+
+  def lib_installer(hash)
+    command = hash[:command]
+    packager = hash[:packager]
+    install_command = case packager
+                      when "conda"
+                        "conda install -y #{command}"
+                      when "pip"
+                        "pip install #{command}"
+                      when "apt"
+                        "apt-get install -y #{command}"
+                      when "gem"
+                        "gem install #{command}"
+                      when "npm"
+                        "npm install -g #{command}"
+                      else
+                        "echo 'Invalid packager'"
+                      end
+
+    shared_volume = "/monadic/data/"
+    conda_container = "monadic-chat-conda-container"
+    docker_command =<<~DOCKER
+      docker exec -w #{shared_volume} #{conda_container} #{install_command}
+    DOCKER
+    stdout, stderr, status = Open3.capture3(docker_command)
+    if status.success?
+      "The library #{command} has been installed successfully.\n\nLOG: #{stdout}"
+    else
+      "Error occurred: #{stderr}"
+    end
+  end
+
+  def run_bash_command(hash)
+    command = hash[:command]
+    shared_volume = "/monadic/data/"
+    conda_container = "monadic-chat-conda-container"
+    docker_command =<<~DOCKER
+      docker exec -w #{shared_volume} #{conda_container} #{command}
+    DOCKER
+    stdout, stderr, status = Open3.capture3(docker_command)
+    if status.success?
+      stdout
+    else
+      "Error occurred: #{stderr}"
+    end
+  end
 end
+

@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 class Wikipedia < MonadicApp
-  MAX_TOKENS_WIKI = ENV["MAX_TOKENS_WIKI"] || 1500
+  MAX_TOKENS_WIKI = ENV["MAX_TOKENS_WIKI"] || 1000
 
   def icon
     "<i class='fab fa-wikipedia-w'></i>"
@@ -13,7 +13,15 @@ class Wikipedia < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. To answer questions that possibly require knowledge about events after the data cutoff time, run `search_wikipedia(search_query, language_code)` function and read "SNIPPETS" in the result. In your response to the user based on the Wikipedia search, make sure to refer to the source article in the following HTML format:
+You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}.
+
+To answer questions that possibly require knowledge about events after the data cutoff time, run `search_wikipedia(search_query, language_code)` function and read "SNIPPETS" in the result.
+
+If the user requests more details about the Wikipedia article, you can retrieve the part of the Wikipedia article relevant to the topic by running `analyze_wikipedia_article(topic, url)`, and then refer to the information therein to respond to the user's questions.
+
+Please make sure that when you present a Wikipedia article link to the user, you use the `target="_blank"` attribute in the HTML link tag so that the user can open the link in a new tab.
+
+Use the following HTML format in your response:
 
 ```
 <p>YOUR RESPONSE</p>
@@ -23,9 +31,6 @@ You are a consultant who responds to any questions asked by the user. The curren
 </blockquote>
 ```
 
-If the user requests more details about your response, retrieve the part of the Wikipedia article relevant to the topic by running `analyze_wikipedia_article(topic, url)`, and then refer to the information therein to respond to the user.
-
-Also, please make sure that when you present a Wikipedia article link to the user, you use the `target="_blank"` attribute in the HTML link tag so that the user can open the link in a new tab.
     TEXT
     text.strip
   end
@@ -48,13 +53,13 @@ Also, please make sure that when you present a Wikipedia article link to the use
         { "type": "function",
           "function": {
             "name": "search_wikipedia",
-            "description": "A function to search Wikipedia articles, requiring one argument representing the query to be searched.",
+            "description": "A function to search Wikipedia articles, requiring one argument representing the query for the search.",
             "parameters": {
               "type": "object",
               "properties": {
                 "search_query": {
                   "type": "string",
-                  "description": "query to be searched"
+                  "description": "query for the search"
                 },
                 "language_code": {
                   "type": "string",
@@ -170,28 +175,35 @@ Also, please make sure that when you present a Wikipedia article link to the use
   end
 
   def split_text(text)
-    tokenized = TOKENIZER.encode(text)
-    segments = []
-    while tokenized.size > MAX_TOKENS_WIKI.to_i
-      segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
-      segments << TOKENIZER.decode(segment, skip_special_tokens: true)
-      tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
+    begin
+      tokenized = TOKENIZER.encode(text)
+      segments = []
+      while tokenized.size > MAX_TOKENS_WIKI.to_i
+        segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
+        segments << TOKENIZER.decode(segment)
+        tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
+      end
+      segments << TOKENIZER.decode(tokenized)
+      segments
+    rescue StandardError => e
+      text.split(/(\s+)/).each_slice(MAX_TOKENS_WIKI).map(&:join)
     end
-    segments << TOKENIZER.decode(tokenized)
-    segments
   end
 
   def get_embeddings(text, retries: 3)
     raise ArgumentError, "text cannot be empty" if text.empty?
 
-    uri = URI("https://api.openai.com/v1/engines/text-embedding-ada-002/embeddings")
+    uri = URI("https://api.openai.com/v1/embeddings")
     request = Net::HTTP::Post.new(uri)
     request["Content-Type"] = "application/json"
 
     api_key = ENV["OPENAI_API_KEY"]
 
     request["Authorization"] = "Bearer #{api_key}"
-    request.body = { input: text }.to_json
+    request.body = {
+      model: "text-embedding-3-small",
+      input: text
+    }.to_json
 
     response = nil
     retries.times do |i|

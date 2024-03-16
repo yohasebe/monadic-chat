@@ -176,7 +176,8 @@ module OpenAIHelper
 
       buffer << chunk
       scanner = StringScanner.new(buffer)
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
+      # pattern = /data: (\{.*?\})(?=\n|\z)/m
+      pattern = /data: (\{.*?\})(?=\n|\z)/
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched
@@ -204,11 +205,11 @@ module OpenAIHelper
 
               texts[id]['choices'][0].delete('delta')
 
-              if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-                finish = { "type" => "message", "content" => "DONE" }
-                block&.call finish
-                break
-              end
+              # if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+              #   finish = { "type" => "message", "content" => "DONE" }
+              #   block&.call finish
+              #   break
+              # end
             end
 
             if json.dig('choices', 0, 'delta', 'tool_calls')
@@ -228,16 +229,16 @@ module OpenAIHelper
               end
               tools[id]['choices'][0].delete('delta')
 
-              if choice["finish_reason"] == "function_call"
-                break
-              end
+              # if choice["finish_reason"] == "function_call"
+              #   break
+              # end
 
             end
           rescue JSON::ParserError
             res = { "type" => "error", "content" => "Error: JSON Parsing" }
             pp res
             block&.call res
-            res
+            return [res]
           end
 
         else
@@ -266,26 +267,32 @@ module OpenAIHelper
       end
 
       tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+
+      call_depth += 1
+      if call_depth > MAX_FUNC_CALLS
+        return { "type" => "error", "content" => "ERROR: Call depth exceeded" } 
+      end
+
+      res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
+      block&.call res
+
       new_results = process_functions(app, obj, tools, context, call_depth, &block)
 
       if results && new_results
-        results_content = results.dig("choices", 0, "message", "content").strip || ""
-        new_results_content = new_results.dig("choices", 0, "message", "content").strip || ""
-        new_results.dig("choices", 0, "message")["content"] = results_content + "\n\n" + new_results_content
-        new_results
+        [results].concat new_results
       elsif new_results
         new_results
       elsif results
-        results
+        [results]
       end
     elsif results
       res = { "type" => "message", "content" => "DONE" }
       block&.call res
-      results
+      [results]
     else
       res = { "type" => "message", "content" => "DONE" }
       block&.call res
-      res
+      [res]
     end
   end
 
@@ -313,20 +320,12 @@ module OpenAIHelper
         name: function_name,
         content: function_return.to_s
       }
-
-      obj["function_returns"] = context
-
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
-        return { "type" => "error", "content" => "ERROR: Call depth exceeded" } 
-      end
-
-      # res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
-      # block&.call res
-      
-      results << completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
     end
-    results.last
+
+    obj["function_returns"] = context
+
+    result = completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
+    [result]
   end
 
   # Connect to OpenAI API and get a response
@@ -486,13 +485,14 @@ module OpenAIHelper
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
-      res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+      res = { "type" => "error", "content" => "ERROR!: #{error_report["message"]}" }
+      # "***********"
       # pp res
+      # "-----------"
       block&.call res
-      return res
+      return [res]
     end
 
-    ####
     return process_json_data(app, obj, res.body, call_depth, &block)
 
   rescue HTTP::Error, HTTP::TimeoutError

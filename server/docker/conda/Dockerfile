@@ -10,7 +10,8 @@ RUN apt-get update && \
     fonts-takao-gothic \
     graphviz \
     gnupg \
-    ffmpeg
+    ffmpeg\
+    fonts-noto-cjk
 
 RUN apt-get install -y ruby-full \
     libmagick++-dev \
@@ -26,8 +27,7 @@ RUN conda install -y \
     seaborn \
     plotly \
     matplotlib \
-    scikit-learn \
-    opencv
+    scikit-learn
 
 RUN conda install -y -c conda-forge \
     statsmodels \
@@ -43,9 +43,17 @@ RUN pip install -U pip setuptools wheel \
     spacy \
     openpyxl \
     python-docx \
+    python-pptx \
     wikipedia \
     pypdf \
-    librosa
+    pdfminer.six \
+    geopandas \
+    ffmpeg-python\
+    dlib \
+    pydub \
+    Pillow \
+    wordcloud \
+    opencv-contrib-python
 
 RUN pip install librosa==0.10.1
 
@@ -61,4 +69,3 @@ RUN rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
-

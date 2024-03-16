@@ -157,32 +157,34 @@ module WebSocketHelper
           @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
         when "HTML"
           thread&.join
-          begin
-            last_one = queue.pop
-            content = last_one["choices"][0]
-            text = content["text"] || content["message"]["content"]
-            # if the current app has a monadic_html method, use it to generate html
-            html = if session["parameters"]["monadic"]
-                     APPS[session["parameters"]["app_name"]].monadic_html(text)
-                   else
-                     markdown_to_html(text)
-                   end
-            if session["parameters"]["response_suffix"]
-              html += "\n\n" + session["parameters"]["response_suffix"]
-            end
+          while !queue.empty?
+            last_one = queue.shift
+            begin
+              content = last_one["choices"][0]
+              text = content["text"] || content["message"]["content"]
+              # if the current app has a monadic_html method, use it to generate html
+              html = if session["parameters"]["monadic"]
+                       APPS[session["parameters"]["app_name"]].monadic_html(text)
+                     else
+                       markdown_to_html(text)
+                     end
+              if session["parameters"]["response_suffix"]
+                html += "\n\n" + session["parameters"]["response_suffix"]
+              end
 
-            new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
-            @channel.push({ "type" => "html", "content" => new_data }.to_json)
-            session[:messages] << new_data
-            messages = session[:messages].filter { |m| m["type"] != "search" }
-            past_messages_data = check_past_messages(session[:parameters])
-            @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
-            @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
-          rescue StandardError => e
-            pp queue
-            pp e.message
-            pp e.backtrace
-            # @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
+              new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
+              @channel.push({ "type" => "html", "content" => new_data }.to_json)
+              session[:messages] << new_data
+              messages = session[:messages].filter { |m| m["type"] != "search" }
+              past_messages_data = check_past_messages(session[:parameters])
+              @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
+              @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+            rescue StandardError => e
+              pp queue
+              pp e.message
+              pp e.backtrace
+              # @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
+            end
           end
         when "SAMPLE"
           text = obj["content"]
@@ -225,7 +227,7 @@ module WebSocketHelper
             buffer = []
             cutoff = false
 
-            response = completion_api_request("user") do |fragment|
+            responses = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
                 # in case error occurs, give it another try
                 completion_api_request("user") do |fragment2|
@@ -264,11 +266,15 @@ module WebSocketHelper
               @channel.push(res_hash.to_json)
             end
 
-            if response && response["type"] == "error"
-              content = response["content"].gsub(/\bsandbox:\//, "/")
-              @channel.push({ "type" => "error", "content" => content }.to_json)
-            else
-              queue.push(response)
+            responses.flatten.each do |response|
+              if response.key?("type") && response["type"] == "error"
+                content = response.dig("choices", 0, "message", "content")
+                @channel.push({ "type" => "error", "content" => content.to_s }.to_json)
+              else
+                content = response.dig("choices", 0, "message", "content").gsub(/\bsandbox:\//, "/")
+                response.dig("choices", 0, "message")["content"] = content
+                queue.push(response)
+              end
             end
           end
         end

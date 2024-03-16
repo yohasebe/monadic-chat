@@ -320,6 +320,9 @@ function processAudioDataQueue() {
   }
 }
 
+let responseStarted = false;
+let callingFunction = false;
+
 function connect_websocket(callback) {
   const ws = new WebSocket('ws://localhost:4567');
 
@@ -366,6 +369,10 @@ function connect_websocket(callback) {
   ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data["type"]) {
+      case "wait":
+        callingFunction = true;
+        setAlert(data["content"], "warning");
+        break;
       case "audio":
         const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
         audioDataQueue.push(audioData);
@@ -595,6 +602,8 @@ function connect_websocket(callback) {
         }
         break;
       case "html":
+        responseStarted = false;
+        callingFunction = false;
         messages.push(data["content"]);
         msgBuffer.length = 0;
         if (data["content"]["role"] === "assistant") {
@@ -658,6 +667,11 @@ function connect_websocket(callback) {
         $("#user-panel").hide();
         break;
       default:
+        if(!responseStarted || callingFunction) {
+          setAlert("RESPONDING", "info");
+          callingFunction = false;
+          responseStarted = true;
+        }
         $("#indicator").show();
         msgBuffer.push(data["content"]);
         if (data["content"] !== undefined) {

@@ -134,6 +134,11 @@ $(function () {
   });
 
   $("#cancel-query").on("click", function () {
+    setAlert("Ready to start.", "success");
+
+    responseStarted = false;
+    callingFunction = false;
+
     // send cancel message to server
     ws.send(JSON.stringify({message: "CANCEL"}));
     // reset UI
@@ -152,6 +157,7 @@ $(function () {
   })
 
   $("#send").on("click", function(event) {
+    setAlert("THINKING . . .", "info");
     elemError.hide();
     event.preventDefault();
     if (message.value === "") {

@@ -332,7 +332,7 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log('WebSocket connected');
-    setAlert("<p>Verifying token . . .</p>", "info");
+    setAlert("<p>Verifying token . . .</p>", "warning");
     ws.send(JSON.stringify({message: "CHECK_TOKEN", initial: true, contents: $("#token").val()}));
 
     if (!mediaSource) {
@@ -419,7 +419,7 @@ function connect_websocket(callback) {
                 ${data['models'].join('<br>')}\
               </div>\
             `
-        setAlert(token_verified, "success");
+        setAlert(token_verified, "secondary");
         verified = true;
 
         $("#start").prop("disabled", false);

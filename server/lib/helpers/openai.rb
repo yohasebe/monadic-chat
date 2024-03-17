@@ -324,8 +324,6 @@ module OpenAIHelper
     obj["function_returns"] = context
 
     # return Array
-トランスフォーマーの仕組みを簡単なコードとイラストを作成しながら学んでいきたいです。
-
     completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
   end
 

@@ -266,7 +266,7 @@ module WebSocketHelper
               @channel.push(res_hash.to_json)
             end
 
-            responses.flatten.each do |response|
+            responses.each do |response|
               if response.key?("type") && response["type"] == "error"
                 content = response.dig("choices", 0, "message", "content")
                 @channel.push({ "type" => "error", "content" => content.to_s }.to_json)

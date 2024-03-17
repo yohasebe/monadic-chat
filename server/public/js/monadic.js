@@ -134,7 +134,7 @@ $(function () {
   });
 
   $("#cancel-query").on("click", function () {
-    setAlert("Ready to start.", "success");
+    setAlert("Ready to start.", "secondary");
 
     responseStarted = false;
     callingFunction = false;
@@ -151,7 +151,7 @@ $(function () {
   $("#check-token").on("click", function (event) {
     event.preventDefault();
     reconnect_websocket(ws, function (ws) {
-      setAlert("<p>Verifying token . . .</p>", "info");
+      setAlert("<p>Verifying token . . .</p>", "warning");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: false, contents: $("#api-token").val() }));
     });
   })

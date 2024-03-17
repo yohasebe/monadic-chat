@@ -205,11 +205,11 @@ module OpenAIHelper
 
               texts[id]['choices'][0].delete('delta')
 
-              # if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-              #   finish = { "type" => "message", "content" => "DONE" }
-              #   block&.call finish
-              #   break
-              # end
+              if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+                finish = { "type" => "message", "content" => "DONE" }
+                block&.call finish
+                break
+              end
             end
 
             if json.dig('choices', 0, 'delta', 'tool_calls')
@@ -229,16 +229,14 @@ module OpenAIHelper
               end
               tools[id]['choices'][0].delete('delta')
 
-              # if choice["finish_reason"] == "function_call"
-              #   break
-              # end
+              if choice["finish_reason"] == "function_call"
+                break
+              end
 
             end
           rescue JSON::ParserError
-            res = { "type" => "error", "content" => "Error: JSON Parsing" }
-            pp res
-            block&.call res
-            return [res]
+            # if the JSON parsing fails, the next chunk should be appended to the buffer
+            # and the loop should continue to the next iteration
           end
 
         else
@@ -248,19 +246,19 @@ module OpenAIHelper
       end
     end
 
-    results = texts.empty? ? nil : texts.first[1]
+    result = texts.empty? ? nil : texts.first[1]
 
-    if results
+    if result
       if obj["monadic"]
-        message = results["choices"][0]["message"]["content"]
-        results["choices"][0]["text"] = APPS[app].monadic_map(message)
+        message = result["choices"][0]["message"]["content"]
+        result["choices"][0]["text"] = APPS[app].monadic_map(message)
       end
     end
 
     if tools.any?
       context = []
-      if results
-        merged = results["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
+      if result
+        merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
         context << merged
       else
         context << tools.first[1].dig("choices", 0, "message")
@@ -270,7 +268,7 @@ module OpenAIHelper
 
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
-        return { "type" => "error", "content" => "ERROR: Call depth exceeded" } 
+        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
       res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
@@ -278,17 +276,18 @@ module OpenAIHelper
 
       new_results = process_functions(app, obj, tools, context, call_depth, &block)
 
-      if results && new_results
-        [results].concat new_results
+      # return Array
+      if result && new_results
+        [result].concat new_results
       elsif new_results
         new_results
       elsif results
-        [results]
+        [result]
       end
-    elsif results
+    elsif result
       res = { "type" => "message", "content" => "DONE" }
       block&.call res
-      [results]
+      [result]
     else
       res = { "type" => "message", "content" => "DONE" }
       block&.call res
@@ -324,8 +323,8 @@ module OpenAIHelper
 
     obj["function_returns"] = context
 
-    result = completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
-    [result]
+    # return Array
+    completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
   end
 
   # Connect to OpenAI API and get a response
@@ -415,7 +414,6 @@ module OpenAIHelper
                 "lang" => detect_language(initial_prompt)
     } if initial_prompt != ""
 
-
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     session[:messages].each { |msg| msg["active"] = false }
@@ -485,14 +483,12 @@ module OpenAIHelper
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
-      res = { "type" => "error", "content" => "ERROR!: #{error_report["message"]}" }
-      # "***********"
-      # pp res
-      # "-----------"
+      res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
       block&.call res
       return [res]
     end
 
+    # return Array
     return process_json_data(app, obj, res.body, call_depth, &block)
 
   rescue HTTP::Error, HTTP::TimeoutError
@@ -504,11 +500,14 @@ module OpenAIHelper
       pp error_message = "The request has timed out."
       res = { "type" => "error", "content" => "ERROR: #{error_message}" }
       block&.call res
-      false
+      [res]
     end
   rescue StandardError => e
     pp e.message
     pp e.backtrace
     pp e.inspect
+    res = { "type" => "error", "content" => "ERROR: #{e.message}" }
+    block&.call res
+    [res]
   end
 end

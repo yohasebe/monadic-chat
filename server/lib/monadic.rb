@@ -6,6 +6,7 @@ require "eventmachine"
 require "faye/websocket"
 require "http"
 require "http/form_data"
+require 'httparty'
 require "i18n_data"
 require "json"
 require "kramdown"
@@ -167,6 +168,22 @@ get "/data/:file_name" do
   else
     "Sorry, the file you are looking for is unavailable."
   end
+end
+
+get '/lab/?' do
+  # url = "http://conda:8888/"
+  url = "http://127.0.0.1:8888/lab/"
+  result = HTTParty.get(url)
+  status result.code
+  result.body
+end
+
+get '/lab/*' do
+  # url = "http://conda:8888/#{params['splat'].first}"
+  url = "http://127.0.0.1:8888/lab/#{params['splat'].first}"
+  result = HTTParty.get(url)
+  status result.code
+  result.body
 end
 
 get '/:filename' do |filename|

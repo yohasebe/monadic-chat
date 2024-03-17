@@ -3,7 +3,8 @@ ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 
 RUN apt-get update && \
-    apt-get install -y build-essential \
+    apt-get install -y --no-install-recommends \
+    build-essential \
     curl \
     git \
     pandoc \
@@ -11,14 +12,16 @@ RUN apt-get update && \
     graphviz \
     gnupg \
     ffmpeg\
-    fonts-noto-cjk
-
-RUN apt-get install -y ruby-full \
+    fonts-noto-cjk \
     libmagick++-dev \
     librsvg2-dev \
     libcairo2-dev \
     libgdk-pixbuf2.0-dev \
-    libghc-gi-gobject-dev
+    libghc-gi-gobject-dev \
+    ruby-full \
+    mecab libmecab-dev mecab-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN conda install -y \
     numpy \
@@ -27,17 +30,21 @@ RUN conda install -y \
     seaborn \
     plotly \
     matplotlib \
-    scikit-learn
+    scikit-learn \
+    jupyterlab
 
 RUN conda install -y -c conda-forge \
     statsmodels \
-    r-ggplot2 \
-    geopandas
+    geopandas \
+    r r-irkernel r-ggplot2 r-dplyr
 
-RUN pip install -U pip setuptools wheel \
+RUN conda clean -i -t -y
+
+RUN pip install -U pip && pip install --no-cache-dir \
+    setuptools \
+    wheel \
     japanize-matplotlib \
     graphviz \
-    pymc3 \
     folium \
     pydotplus \
     spacy \
@@ -46,19 +53,19 @@ RUN pip install -U pip setuptools wheel \
     python-pptx \
     wikipedia \
     pypdf \
-    pdfminer.six \
-    geopandas \
-    ffmpeg-python\
-    dlib \
-    pydub \
-    Pillow \
     wordcloud \
-    opencv-contrib-python
+    mecab-python3 \
+    librosa==0.10.1
 
-RUN pip install librosa==0.10.1
+    # dlib \
+    # pymc3 \
+    # pdfminer.six \
+    # opencv-contrib-python \
+    # pydub \
+    # Pillow \
+    # ffmpeg-python\
 
 RUN python -m spacy download en_core_web_sm
-
 RUN gem install bundler rsyntaxtree
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
@@ -66,6 +73,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get install -y nodejs
 
 RUN rm -rf /var/lib/apt/lists/*
+RUN ln -s /monadic/data /data
+
+RUN mkdir -p /root/.jupyter/lab/user-settings
+COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
+COPY run_jupyter.sh /monadic/run_jupyter.sh
+RUN chmod +x /monadic/run_jupyter.sh
 
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc

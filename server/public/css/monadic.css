@@ -53,6 +53,11 @@ div.card-body.role-system {
   background-color: #f1fcf7
 }
 
+pre {
+  background-color: #fff;
+  padding: 0.8em;
+}
+
 div.sourcecode, div.sourcecode pre,
 div.highlight, div.highlight pre {
   background-color: #fff;
@@ -304,7 +309,6 @@ h5 i, .like-h5 i {
 /* Reset default styles for pre and code elements */
 pre, code {
   margin: 0;
-  padding: 0;
   border: none;
   white-space: pre; /* Change this property from 'pre-wrap' to 'pre' */
   overflow: auto;

@@ -13,6 +13,9 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       retries: 3
+    networks:
+      - monadic-chat-network
+
   web:
     image: yohasebe/monadic-chat
     container_name: monadic-chat-web-container
@@ -32,24 +35,36 @@ services:
     stdin_open: true
     tty: true
     command: ["thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]
+    networks:
+      - monadic-chat-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4567/"]
       interval: 5s
       retries: 3
+
   conda_service:
     image: yohasebe/conda
     build:
       context: ./docker/conda
       dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
     container_name: monadic-chat-conda-container
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     command: ["/bin/bash", "-c", "tail -f /dev/null"]
+    networks:
+      - monadic-chat-network
     healthcheck:
       test: ["CMD", "conda", "list"]
       interval: 5s
       retries: 3
+
+networks:
+  monadic-chat-network:
+    driver: bridge
+
 volumes:
   data:
   postgres-data-volume:

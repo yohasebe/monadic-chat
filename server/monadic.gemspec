@@ -43,6 +43,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "dotenv"
   spec.add_dependency "faye-websocket"
   spec.add_dependency "http"
+  spec.add_dependency "httparty"
   spec.add_dependency "http-form_data"
   spec.add_dependency "i18n_data"
   spec.add_dependency "kramdown"

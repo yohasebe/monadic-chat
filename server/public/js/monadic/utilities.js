@@ -362,7 +362,7 @@ function resetEvent(event) {
     $("#back-to-settings").hide();
     // $("#paramList").html("")
     $("#parameter-panel").hide();
-    setAlert("Ready to start.", "success");
+    setAlert("Ready to start.", "secondary");
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
     $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
     $("#base-app-desc").html(apps[$("#apps").val()]["description"]);

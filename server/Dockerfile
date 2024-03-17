@@ -1,4 +1,4 @@
-FROM ruby:3.2.2-alpine3.17
+FROM ruby:3.3.0-alpine3.18
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 
@@ -15,7 +15,6 @@ RUN bundle install -j4 --without development test && \
 
 COPY apps/ $WORKSPACE/apps/
 COPY assets/ $WORKSPACE/assets/
-COPY bin/ $WORKSPACE/bin/
 COPY docker/ $WORKSPACE/docker/
 COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/

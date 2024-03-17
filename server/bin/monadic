@@ -63,6 +63,7 @@ subcommand = ARGV.shift
 # Execute subcommand
 case subcommand
 when "start"
+  system("docker compose -f docker-compose.yml build web")
   start_server(opts)
 when "stop"
   stop_server

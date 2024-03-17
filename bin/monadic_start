@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Navigate to the ./server directory
+cd ./server
+
+# Execute the monadic script with 'start' argument
+./bin/monadic start
+
+echo "Monadic script executed with 'start' argument 🚀"

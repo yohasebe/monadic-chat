@@ -6,24 +6,14 @@ class DocumentReader < MonadicApp
   end
 
   def description
-    "This application provides an AI chatbot that explains and describes the contents of imported documents. The explanations are presented in a way that is easy for beginners to understand. You can upload files containing text data, including Markdown texts, HTML files, and program code in various languages. Imported data will be added at the end of the system prompt with the title specified at the time of the import."
+    "This application features an AI chatbot designed to simplify and elucidate the contents of any imported document or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users have the flexibility to upload files or URLs encompassing a wide array of text data, including programming code. The data from the imported file is appended to the end of the system prompt, incorporating the title specified during import. When URLs are mentioned in your prompt messages, the app automatically retrieves the content, seamlessly integrating it into the conversation with GPT."
   end
 
   def initial_prompt
     text = <<~TEXT
       You are a professional tutor who explains various concepts in a fashion that is very easy for even beginners to understand in whatever language the user is comfortable with.
 
-      First of all, ask the reader what language (e.g. English, Spanish, Japanese, Chinese, etc.) the reader wants you to use in your explanation. Once the language has been specified, use that language in your explanation. Also, comments to program code, for example, should be translated in the language in which the user speaks or writes.
-
-      After the user responds to your question about the language, start explaining the content appended at the end of this system prompt in the following format: 
-
-      Please explain the content appended at the end of this system prompt in the following format:
-
-      TARGET DOCUMENT: TITLE
-
-      ```
-      CONTENTS
-      ```
+      The user may provide a specific web URL. In that case, you fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns itscontents. Alternatively, the user can uploaded a document, the contents  of the user uploaded document, if any, will be appended at the end of the system prompt.
 
       Your explanation is made in a step-by-step fashion, where you first show a snippet of it, then give a very easy-to-understand description of what it says or does. Then, you list all the relevant concepts, terms, functions, etc. and give a brief description to each of them. In your explanation, please use visual illustrations using Mermaid and mathematical expressions using MathJax where possible. Please make your explanation as easy-to-understand as possible using appropriate and creative analogies that help the user understand the code well. Here is the basic structure of one of your responses:
 
@@ -35,7 +25,7 @@ class DocumentReader < MonadicApp
 
       When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$. Remember to use these formats to write mathematical notations in your response. Do not use a simple `\\` as the delimiter for the mathematical notation.
 
-      The target documents follow below as `TARGET DOCUMENT: TITLE`. If there is no data, please tell the user and ask the user to provide documents. If the explanation has been completed, please tell the user that the explanation has been completed and ask the user if there is anything else that the user would like to know.
+      If there is no data to explain, please tell the user and ask the user to provide a document or a URL.
     TEXT
 
     text.strip
@@ -58,6 +48,48 @@ class DocumentReader < MonadicApp
       "pdf": false,
       "mathjax": true,
       "file": true,
+      "tools": [
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "fetch_web_content",
+            "description": "Fetch the content of a web page and return its content.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "URL of the web page."
+                }
+              },
+              "required": ["url"]
+            }
+          }
+        }
+      ]
     }
+  end
+
+  def fetch_web_content(hash)
+    begin
+      url = hash[:url].to_s.strip rescue ""
+      shared_volume = "/monadic/data/"
+      conda_container = "monadic-chat-conda-container"
+      command = "bash -c '/monadic/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
+      docker_command =<<~DOCKER
+        docker exec -w #{shared_volume} #{conda_container} #{command}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success?
+        filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
+        contents = File.read(filename)
+        contents
+      else
+        "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: #{stderr}"
+    end
   end
 end

@@ -20,6 +20,8 @@ class CodeInterpreter < MonadicApp
 
       If the user's messages are in a language other than English, please respond in the same language. If automatic language detection is not possible, kindly ask the user to specify their language at the beginning of their request.
 
+      If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents.
+
       If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
       ### Basic Procedure:
@@ -268,6 +270,24 @@ class CodeInterpreter < MonadicApp
               "required": ["command"]
             }
           }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "fetch_web_content",
+            "description": "Fetch the content of a web page and save it in the current directory.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "URL of the web page."
+                }
+              },
+              "required": ["url"]
+            }
+          }
         }
       ]
     }
@@ -400,6 +420,29 @@ class CodeInterpreter < MonadicApp
       end
     rescue StandardError => e
       "Error occurred: The bash command could not be executed."
+    end
+  end
+
+  def fetch_web_content(hash)
+    begin
+      url = hash[:url].to_s.strip rescue ""
+      shared_volume = "/monadic/data/"
+      conda_container = "monadic-chat-conda-container"
+      command = "bash -c '/monadic/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
+      docker_command =<<~DOCKER
+        docker exec -w #{shared_volume} #{conda_container} #{command}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success?
+        # get a filename (/saved to: (.+\.md)/) embedded in the stdout
+        filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
+        contents = File.read(filename)
+        contents
+      else
+        "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: #{stderr}"
     end
   end
 end

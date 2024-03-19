@@ -184,6 +184,7 @@ module WebSocketHelper
               pp e.message
               pp e.backtrace
               # @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
+              @channel.push({ "type" => "error", "content" => e.message }.to_json)
             end
           end
         when "SAMPLE"
@@ -230,9 +231,10 @@ module WebSocketHelper
             responses = completion_api_request("user") do |fragment|
               if fragment["type"] == "error"
                 # in case error occurs, give it another try
-                completion_api_request("user") do |fragment2|
-                  @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
-                end
+                # completion_api_request("user") do |fragment2|
+                #   @channel.push({ "type" => "error", "content" => fragment["content"] }.to_json) if fragment2["type"] == "error"
+                # end
+                @channel.push({ "type" => "error", "content" => content.to_s }.to_json)
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"

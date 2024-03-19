@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
+
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
 
@@ -9,6 +11,9 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 # Define the full path to docker-compose
 if [[ "$(uname -s)" == "Darwin"* ]]; then
   DOCKER=/usr/local/bin/docker
+  if [[ $(uname -m) == "arm64" ]]; then
+    export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
+  fi
 else
   DOCKER=docker
 fi
@@ -61,9 +66,10 @@ function start_docker_compose {
       echo "[HTML]: <p>Monadic Chat image and container found.</p>"
       sleep 1
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
-      $DOCKER container start monadic-chat-web-container >/dev/null
       $DOCKER container start monadic-chat-pgvector-container >/dev/null
+      $DOCKER container start monadic-chat-selenium-container >/dev/null
       $DOCKER container start monadic-chat-conda-container >/dev/null
+      $DOCKER container start monadic-chat-web-container >/dev/null
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
       $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
@@ -97,6 +103,7 @@ function stop_docker_compose {
   $DOCKER container stop monadic-chat-web-container >/dev/null
   $DOCKER container stop monadic-chat-pgvector-container >/dev/null
   $DOCKER container stop monadic-chat-conda-container >/dev/null
+  $DOCKER container stop monadic-chat-selenium-container >/dev/null
 }
 
 # Define a function to import the database contents from an external file
@@ -138,10 +145,19 @@ function remove_containers {
     $DOCKER rmi -f ankane/pgvector >/dev/null
   fi
 
+  if $DOCKER images | grep -q "selenium"; then
+    $DOCKER rmi -f selenium/standalone-chromium >/dev/null
+  fi
+
+  if $DOCKER images | grep -q "seleniarm"; then
+    $DOCKER rmi -f seleniarm/standalone-chromium >/dev/null
+  fi
+
   if $DOCKER container ls --all | grep -q "monadic-chat"; then
     $DOCKER container rm -f monadic-chat-web-container >/dev/null
     $DOCKER container rm -f monadic-chat-pgvector-container >/dev/null
     $DOCKER container rm -f monadic-chat-conda-container >/dev/null
+    $DOCKER container rm -f monadic-chat-selenium-container >/dev/null
   fi
 
   if $DOCKER volume ls | grep -q "monadic-chat-pgvector-data"; then

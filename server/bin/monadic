@@ -8,6 +8,14 @@ require_relative "../lib/monadic/version"
 
 DEFAULT_PORT = 4567
 
+selenium_image = "selenium/standalone-chrome:latest"
+if `uname -s`.chomp.include? "Darwin"
+  if `uname -m`.chomp == "arm64"
+    selenium_image = "seleniarm/standalone-chromium:latest"
+  end
+end
+ENV['SELENIUM_IMAGE'] = selenium_image
+
 # Parse command line options
 opts = Optimist.options do
   version Monadic::VERSION.to_s
@@ -19,7 +27,6 @@ end
 
 # Start the server
 def start_server(opts)
-  
   start_script = File.join(__dir__, "..", "docker", "support_scripts", "mac-start-docker.sh")
   mac_docker_start = File.read(start_script)
 
@@ -27,8 +34,10 @@ def start_server(opts)
   system(mac_docker_start)
 
   data_dir = File.expand_path(File.join(__dir__, "..", "data"))
+  cmd_selenium = "docker container start monadic-chat-selenium-container"
   cmd_pg = "docker container start monadic-chat-pgvector-container"
   cmd_conda = "docker container start monadic-chat-conda-container"
+  system(cmd_selenium)
   system(cmd_pg)
   system(cmd_conda)
 

@@ -74,9 +74,6 @@ def init_apps
 
         - Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block.
         - Use single dollar signs `$` for expressions that should appear inline with the text.
-        - To prevent the backslash `\\` from being interpreted as an escape character, please double each backslash. For example, use `\\\\` instead of `\`.
-
-        For instance, to present the square root of 2 as a standalone equation, format it as `$$\\\\sqrt{2}$$`. To include it within a sentence, use `$\\\\sqrt{2}$`.
       INITIAL
 
       prompt_suffix << <<~SUFFIX
@@ -156,18 +153,26 @@ get "/" do
   end
 end
 
-get "/data/:file_name" do
+def fetch_file(file_name)
   datadir = if IN_CONTAINER
               File.expand_path(File.join(__dir__, "..", "data"))
             else
               File.expand_path(File.join(Dir.home, "monadic", "data"))
             end
-  file_path = File.join(datadir, params[:file_name])
+  file_path = File.join(datadir, file_name)
   if File.exist?(file_path)
     send_file file_path
   else
     "Sorry, the file you are looking for is unavailable."
   end
+end
+
+get "/monadic/data/:file_name" do
+  fetch_file(params[:file_name])
+end
+
+get "/data/:file_name" do
+  fetch_file(params[:file_name])
 end
 
 get '/lab/?' do

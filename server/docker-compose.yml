@@ -1,5 +1,18 @@
 version: '3.9'
+
 services:
+
+  selenium:
+    image: ${SELENIUM_IMAGE}
+    container_name: monadic-chat-selenium-container
+    shm_size: 2gb
+    ports:
+      - 4444:4444
+      - 5900:5900
+      - 7900:7900
+    networks:
+      - monadic-chat-network
+
   db:
     image: ankane/pgvector
     container_name: monadic-chat-pgvector-container
@@ -15,7 +28,6 @@ services:
       retries: 3
     networks:
       - monadic-chat-network
-
   web:
     image: yohasebe/monadic-chat
     container_name: monadic-chat-web-container
@@ -60,6 +72,8 @@ services:
       test: ["CMD", "conda", "list"]
       interval: 5s
       retries: 3
+    depends_on:
+      - selenium
 
 networks:
   monadic-chat-network:

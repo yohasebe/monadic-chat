@@ -20,6 +20,7 @@ RUN apt-get update && \
     libghc-gi-gobject-dev \
     ruby-full \
     mecab libmecab-dev mecab-utils \
+    wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -43,6 +44,7 @@ RUN conda clean -i -t -y
 RUN pip install -U pip && pip install --no-cache-dir \
     setuptools \
     wheel \
+    selenium \
     japanize-matplotlib \
     graphviz \
     folium \
@@ -56,6 +58,8 @@ RUN pip install -U pip && pip install --no-cache-dir \
     wordcloud \
     mecab-python3 \
     librosa==0.10.1
+
+RUN pip install html2text
 
     # dlib \
     # pymc3 \
@@ -77,8 +81,12 @@ RUN ln -s /monadic/data /data
 
 RUN mkdir -p /root/.jupyter/lab/user-settings
 COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
+
 COPY run_jupyter.sh /monadic/run_jupyter.sh
 RUN chmod +x /monadic/run_jupyter.sh
 
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+
+COPY web_content_fetcher.py /monadic/web_content_fetcher.py
+RUN chmod +x /monadic/web_content_fetcher.py

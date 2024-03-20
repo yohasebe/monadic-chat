@@ -27,7 +27,11 @@ class DocumentReader < MonadicApp
 
       When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$. Remember to use these formats to write mathematical notations in your response. Do not use a simple `\\` as the delimiter for the mathematical notation.
 
-      If the user requests an explanation of a specific image, you can use the `analyze_image` function to analyze the image and return the result. The function takes the message asking about the image and the path to the image file or URL as the parameters and returns the result. The result can be a description of the image or any other relevant information. In your response, present the text description and the <img> tag to display the image.
+      If the user requests an explanation of a specific image, you can use the `analyze_image` function to analyze the image and return the result. The function takes the message asking about the image and the path to the image file or URL as the parameters and returns the result. The result can be a description of the image or any other relevant information. In your response, present the text description and the <img> tag to display the image (e.g. `<img src="FILE_NAME" />`).
+
+      If the user provides an audio file, you can use the `analyze_speech` function to analyze the speech and return the result. The function takes the file path of the audio file as the parameter and returns the result. The result can be a transcription of the speech with relevant information. In your response, present the text transcription and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
+
+      If the user wants you to analyze text data (regular text, html, program code, etc.) from a file, you can use the `fetch_text_from_file` function to fetch the text from a file and return its content. The function takes the file path of the file as the parameter and returns its content.
 
       If there is no data to explain, please tell the user and ask the user to provide a document or a URL.
     TEXT
@@ -92,6 +96,42 @@ class DocumentReader < MonadicApp
               "required": ["message", "image_path"]
             }
           }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "analyze_speech",
+            "description": "Analyze the speech and return the result.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "audio": {
+                  "type": "string",
+                  "description": "File path of the audio file"
+                }
+              },
+              "required": ["audio"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "fetch_text_from_file",
+            "description": "Fetch the text from a file and return its content.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "File path of the file"
+                }
+              },
+              "required": ["file"]
+            }
+          }
         }
       ]
     }
@@ -128,6 +168,52 @@ class DocumentReader < MonadicApp
       conda_container = "monadic-chat-conda-container"
       command = <<~CMD
         bash -c '/monadic/scripts/simple_image_query.rb "#{message}" "#{image_path}"'
+      CMD
+      docker_command =<<~DOCKER
+        docker exec -w #{shared_volume} #{conda_container} #{command.strip}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success?
+        stdout
+      else
+        "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: #{e.message}"
+    end
+  end
+
+  def analyze_speech(hash)
+    begin
+      shared_volume = "/monadic/data/"
+      audio = hash[:audio].to_s.strip rescue ""
+      audio = File.join(shared_volume, File.basename(audio))
+      conda_container = "monadic-chat-conda-container"
+      command = <<~CMD
+        bash -c '/monadic/scripts/simple_whisper_query.rb "#{audio}" "#{shared_volume}"'
+      CMD
+      docker_command =<<~DOCKER
+        docker exec -w #{shared_volume} #{conda_container} #{command.strip}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success?
+        stdout
+      else
+        "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: #{e.message}"
+    end
+  end
+
+  def fetch_text_from_file(hash)
+    begin
+      shared_volume = "/monadic/data/"
+      file = hash[:file].to_s.strip rescue ""
+      file = File.join(shared_volume, File.basename(file))
+      conda_container = "monadic-chat-conda-container"
+      command = <<~CMD
+        bash -c '/monadic/scripts/simple_content_fetcher.rb "#{file}"'
       CMD
       docker_command =<<~DOCKER
         docker exec -w #{shared_volume} #{conda_container} #{command.strip}

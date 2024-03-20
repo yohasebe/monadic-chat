@@ -1,4 +1,6 @@
 FROM continuumio/miniconda3
+# based on debian:bullseye-slim
+
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 

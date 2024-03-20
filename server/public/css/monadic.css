@@ -436,3 +436,26 @@ div.sourcecode-toggle {
   margin-bottom: 16px;
 }
 
+.card-body table {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  margin:0;
+  padding:0;
+  width: 100%;
+  background-color: #fff;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+.card-body table tr {
+  border: 1px solid #ddd;
+  padding: 5px;
+}
+.card-body table th, .card-body table td {
+  padding: 10px;
+  text-align: center;
+}
+.card-body table th {
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}

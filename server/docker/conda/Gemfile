@@ -1,0 +1,12 @@
+# frozen_string_literal: true
+
+Encoding.default_external = Encoding::UTF_8
+source "https://rubygems.org"
+
+gem "http"
+gem "optimist"
+gem "parslet"
+gem "rake"
+gem "redcarpet"
+gem "rmagick"
+gem "rsyntaxtree"

@@ -17,10 +17,11 @@ RUN apt-get update && \
     librsvg2-dev \
     libcairo2-dev \
     libgdk-pixbuf2.0-dev \
-    libghc-gi-gobject-dev \
     ruby-full \
+    libghc-gi-gobject-dev \
     mecab libmecab-dev mecab-utils \
     wget \
+    imagemagick \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -57,9 +58,10 @@ RUN pip install -U pip && pip install --no-cache-dir \
     pypdf \
     wordcloud \
     mecab-python3 \
-    librosa==0.10.1
-
-RUN pip install html2text
+    gensim \
+    html2text \
+    librosa==0.10.1 && \
+    python -m spacy download en_core_web_sm
 
     # dlib \
     # pymc3 \
@@ -69,12 +71,12 @@ RUN pip install html2text
     # Pillow \
     # ffmpeg-python\
 
-RUN python -m spacy download en_core_web_sm
-RUN gem install bundler rsyntaxtree
-
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get update && \
     apt-get install -y nodejs
+
+COPY Gemfile /monadic/Gemfile
+RUN gem install bundler && bundle install -j4
 
 RUN rm -rf /var/lib/apt/lists/*
 RUN ln -s /monadic/data /data
@@ -82,11 +84,8 @@ RUN ln -s /monadic/data /data
 RUN mkdir -p /root/.jupyter/lab/user-settings
 COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
 
-COPY run_jupyter.sh /monadic/run_jupyter.sh
-RUN chmod +x /monadic/run_jupyter.sh
-
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
-COPY web_content_fetcher.py /monadic/web_content_fetcher.py
-RUN chmod +x /monadic/web_content_fetcher.py
+COPY scripts /monadic/scripts
+RUN chmod +x /monadic/scripts/*

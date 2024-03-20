@@ -213,6 +213,10 @@ module OpenAIHelper
             end
 
             if json.dig('choices', 0, 'delta', 'tool_calls')
+
+              res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
+              block&.call res
+
               # Merge tool calls based on 'id'
               id = json['id']
               tools[id] ||= json
@@ -270,9 +274,6 @@ module OpenAIHelper
       if call_depth > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
-
-      res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
-      block&.call res
 
       new_results = process_functions(app, obj, tools, context, call_depth, &block)
 
@@ -480,6 +481,7 @@ module OpenAIHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
+    
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]

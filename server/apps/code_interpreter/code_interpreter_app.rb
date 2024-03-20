@@ -169,7 +169,8 @@ class CodeInterpreter < MonadicApp
   def settings
     {
       "model": "gpt-4-0125-preview",
-      "temperature": 0.0,
+      "temperature": 0.2,
+      "presence_penalty": 0.2,
       "top_p": 0.0,
       "max_tokens": 2000,
       "context_size": 10,
@@ -385,7 +386,7 @@ class CodeInterpreter < MonadicApp
       command = hash[:command].to_s.strip rescue ""
       shared_volume = "/monadic/data/"
       conda_container = "monadic-chat-conda-container"
-      command = "bash -c '/monadic/run_jupyter.sh #{command}'"
+      command = "bash -c '/monadic/scripts/run_jupyter.sh #{command}'"
       docker_command =<<~DOCKER
         docker exec -w #{shared_volume} #{conda_container} #{command}
       DOCKER
@@ -442,7 +443,7 @@ class CodeInterpreter < MonadicApp
         "Error occurred: #{stderr}"
       end
     rescue StandardError => e
-      "Error occurred: #{stderr}"
+      "Error occurred: #{e.message}"
     end
   end
 end

@@ -1,5 +1,7 @@
 # frozen_string_literal: false
 
+require "uri"
+
 class DocumentReader < MonadicApp
   def icon
     "<i class='fab fa-leanpub'></i>"
@@ -15,7 +17,7 @@ class DocumentReader < MonadicApp
 
       The user may provide a specific web URL. In that case, you fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns itscontents. Alternatively, the user can uploaded a document, the contents  of the user uploaded document, if any, will be appended at the end of the system prompt.
 
-      Your explanation is made in a step-by-step fashion, where you first show a snippet of it, then give a very easy-to-understand description of what it says or does. Then, you list all the relevant concepts, terms, functions, etc. and give a brief description to each of them. In your explanation, please use visual illustrations using Mermaid and mathematical expressions using MathJax where possible. Please make your explanation as easy-to-understand as possible using appropriate and creative analogies that help the user understand the code well. Here is the basic structure of one of your responses:
+      Your explanation is made in a step-by-step fashion, where you first show a snippet of it, then give a very easy-to-understand description of what it says or does. Then, you list all the relevant concepts, terms, functions, etc. and give a brief description to each of them. Please make your explanation as easy-to-understand as possible using appropriate and creative analogies that help the user understand the code well. Here is the basic structure of one of your responses:
 
       - SNIPPET_OF_DOCUMENT
       - EXPLANATION
@@ -24,6 +26,8 @@ class DocumentReader < MonadicApp
       Stop your text after presenting an explanation about one paragrah, text block, or code block. If the user questions something relevant to the code, answer it. Remember to explain as kindly and friendly as possible.
 
       When your response includes a mathematical notation, please use the MathJax notation with `$$` as the display delimiter and with `$` as the inline delimiter. For example, if you want to write the square root of 2 in a separate block, you can write it as $$\\sqrt{2}$$. If you want to write it inline, write it as $\\sqrt{2}$. Remember to use these formats to write mathematical notations in your response. Do not use a simple `\\` as the delimiter for the mathematical notation.
+
+      If the user requests an explanation of a specific image, you can use the `analyze_image` function to analyze the image and return the result. The function takes the message asking about the image and the path to the image file or URL as the parameters and returns the result. The result can be a description of the image or any other relevant information. In your response, present the text description and the <img> tag to display the image.
 
       If there is no data to explain, please tell the user and ask the user to provide a document or a URL.
     TEXT
@@ -37,7 +41,7 @@ class DocumentReader < MonadicApp
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,
-      "context_size": 12,
+      "context_size": 20,
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
@@ -66,6 +70,28 @@ class DocumentReader < MonadicApp
               "required": ["url"]
             }
           }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "analyze_image",
+            "description": "Analyze the image and return the result.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "Text prompt asking about the image (e.g. 'What is in the image?')."
+                },
+                "image_path": {
+                  "type": "string",
+                  "description": "Path to the image file. It can be either a local file path or a URL."
+                }
+              },
+              "required": ["message", "image_path"]
+            }
+          }
         }
       ]
     }
@@ -76,7 +102,7 @@ class DocumentReader < MonadicApp
       url = hash[:url].to_s.strip rescue ""
       shared_volume = "/monadic/data/"
       conda_container = "monadic-chat-conda-container"
-      command = "bash -c '/monadic/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
+      command = "bash -c '/monadic/scripts/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
       docker_command =<<~DOCKER
         docker exec -w #{shared_volume} #{conda_container} #{command}
       DOCKER
@@ -89,7 +115,31 @@ class DocumentReader < MonadicApp
         "Error occurred: #{stderr}"
       end
     rescue StandardError => e
-      "Error occurred: #{stderr}"
+      "Error occurred: #{e.message}"
+    end
+  end
+
+  def analyze_image(hash)
+    begin
+      message = hash[:message].to_s.strip rescue ""
+      messsage = message.gsub(/"/, '\"')
+      image_path = hash[:image_path].to_s.strip rescue ""
+      shared_volume = "/monadic/data/"
+      conda_container = "monadic-chat-conda-container"
+      command = <<~CMD
+        bash -c '/monadic/scripts/simple_image_query.rb "#{message}" "#{image_path}"'
+      CMD
+      docker_command =<<~DOCKER
+        docker exec -w #{shared_volume} #{conda_container} #{command.strip}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success?
+        stdout
+      else
+        "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: #{e.message}"
     end
   end
 end

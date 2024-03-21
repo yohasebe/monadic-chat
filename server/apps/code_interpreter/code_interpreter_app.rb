@@ -9,11 +9,11 @@ class CodeInterpreter < MonadicApp
   end
 
   def description
-    "This is an application that allows you to run code of Python, Ruby, etc."
+    "This is an application that allows you to run Python code"
   end
 
   def initial_prompt
-    docker_data = File.read(File.expand_path(File.join(__dir__, "..", "..", "docker", "conda", "Dockerfile")))
+    docker_data = File.read(File.expand_path(File.join(__dir__, "..", "..", "docker", "python", "Dockerfile")))
 
     text = <<~TEXT
       You are an assistant designed to help users write and run code and visualize data upon from their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
@@ -30,7 +30,7 @@ class CodeInterpreter < MonadicApp
 
       If you need to check bash command to check the availability of a certain file or command, use the `run_bash_command` function. You are allowed to access the internet to download the required files or libraries.
 
-      If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be conda, pip, apt, gem, or npm.
+      If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it.
 
       If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose. When there are multiple image file types available, SVG is preferred.
 
@@ -197,7 +197,7 @@ class CodeInterpreter < MonadicApp
               "properties": {
                 "command": {
                   "type": "string",
-                  "description": "Code execution command (e.g., 'python', 'ruby', 'Rscript' etc.)"
+                  "description": "Code execution command (e.g., 'python')"
                 },
                 "code": {
                   "type": "string",
@@ -205,7 +205,7 @@ class CodeInterpreter < MonadicApp
                 },
                 "extention": {
                   "type": "string",
-                  "description": "File extention of the code (e.g., py, rb, etc.)"
+                  "description": "File extention of the code (e.g., 'py')"
                 }
               },
               "required": ["command", "code", "extention"]
@@ -217,7 +217,7 @@ class CodeInterpreter < MonadicApp
           "function":
           {
             "name": "lib_installer",
-            "description": "Install a library using the package manager. The package manager can be conda, pip, apt, gem, or npm. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `conda install -y`, `pip install`, `apt-get install -y`, `gem install`, `npm install -g`.",
+            "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: ``pip install`, `apt-get install -y`.",
             "parameters": {
               "type": "object",
               "properties": {
@@ -227,7 +227,7 @@ class CodeInterpreter < MonadicApp
                 },
                 "packager": {
                   "type": "string",
-                  "enum": ["conda", "pip", "apt", "gem", "npm"],
+                  "enum": ["pip", "apt"],
                   "description": "Package manager to be used for installation."
                 }
               },
@@ -306,14 +306,14 @@ class CodeInterpreter < MonadicApp
         data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
       end
         
-      conda_container = "monadic-chat-conda-container"
+      container = "monadic-chat-python-container"
 
       # create a temporary file inside the data directory
       temp_file = Tempfile.new(["code", ".#{extention}"], data_dir)
       temp_file.write(code)
       temp_file.close
       docker_command =<<~DOCKER
-        docker cp #{temp_file.path} #{conda_container}:#{shared_volume}
+        docker cp #{temp_file.path} #{container}:#{shared_volume}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       unless status.success?
@@ -323,7 +323,7 @@ class CodeInterpreter < MonadicApp
       local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
 
       docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{conda_container} #{command} /monadic/data/#{File.basename(temp_file.path)}
+        docker exec -w #{shared_volume} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       if status.success?
@@ -351,24 +351,18 @@ class CodeInterpreter < MonadicApp
       command = hash[:command].to_s.strip rescue ""
       packager = hash[:packager].to_s.strip rescue ""
       install_command = case packager
-                        when "conda"
-                          "conda install -y #{command}"
                         when "pip"
                           "pip install #{command}"
                         when "apt"
                           "apt-get install -y #{command}"
-                        when "gem"
-                          "gem install #{command}"
-                        when "npm"
-                          "npm install -g #{command}"
                         else
                           "echo 'Invalid packager'"
                         end
 
       shared_volume = "/monadic/data/"
-      conda_container = "monadic-chat-conda-container"
+      container = "monadic-chat-python-container"
       docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{conda_container} #{install_command}
+        docker exec -w #{shared_volume} #{container} #{install_command}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       if status.success?
@@ -385,10 +379,10 @@ class CodeInterpreter < MonadicApp
     begin
       command = hash[:command].to_s.strip rescue ""
       shared_volume = "/monadic/data/"
-      conda_container = "monadic-chat-conda-container"
+      container = "monadic-chat-python-container"
       command = "bash -c '/monadic/scripts/run_jupyter.sh #{command}'"
       docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{conda_container} #{command}
+        docker exec -w #{shared_volume} #{container} #{command}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       if status.success?
@@ -409,9 +403,9 @@ class CodeInterpreter < MonadicApp
     begin
       command = hash[:command].to_s.strip rescue ""
       shared_volume = "/monadic/data/"
-      conda_container = "monadic-chat-conda-container"
+      container = "monadic-chat-python-container"
       docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{conda_container} #{command}
+        docker exec -w #{shared_volume} #{container} #{command}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       if status.success?
@@ -428,16 +422,22 @@ class CodeInterpreter < MonadicApp
     begin
       url = hash[:url].to_s.strip rescue ""
       shared_volume = "/monadic/data/"
-      conda_container = "monadic-chat-conda-container"
-      command = "bash -c '/monadic/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
+      container = "monadic-chat-python-container"
+      command = "bash -c '/monadic/scripts/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
       docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{conda_container} #{command}
+        docker exec -w #{shared_volume} #{container} #{command}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       if status.success?
         # get a filename (/saved to: (.+\.md)/) embedded in the stdout
         filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
-        contents = File.read(filename)
+        sleep(1)
+        begin
+          contents = File.read(filename)
+        rescue StandardError => e
+          filepath = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
+          contents = File.read(filepath)
+        end
         contents
       else
         "Error occurred: #{stderr}"

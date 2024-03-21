@@ -1,4 +1,4 @@
-FROM ruby:3.3.0-alpine3.18
+FROM ruby:3.3.0-alpine3.19
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 
@@ -21,7 +21,6 @@ COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/
 COPY config.ru $WORKSPACE/
 
-RUN echo 'alias conda="docker exec monadic-chat-conda-container conda"' >> ~/.bashrc && \
-    echo 'alias python="docker exec monadic-chat-conda-container python"' >> ~/.bashrc && \
-    echo 'alias pip="docker exec monadic-chat-conda-container pip"' >> ~/.bashrc
+RUN echo 'alias python="docker exec monadic-chat-python-container python"' >> ~/.bashrc && \
+    echo 'alias pip="docker exec monadic-chat-python-container pip"' >> ~/.bashrc
 

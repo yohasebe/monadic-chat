@@ -176,7 +176,6 @@ get "/data/:file_name" do
 end
 
 get '/lab/?' do
-  # url = "http://conda:8888/"
   url = "http://127.0.0.1:8888/lab/"
   result = HTTParty.get(url)
   status result.code
@@ -184,7 +183,6 @@ get '/lab/?' do
 end
 
 get '/lab/*' do
-  # url = "http://conda:8888/#{params['splat'].first}"
   url = "http://127.0.0.1:8888/lab/#{params['splat'].first}"
   result = HTTParty.get(url)
   status result.code

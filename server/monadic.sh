@@ -68,7 +68,7 @@ function start_docker_compose {
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
       $DOCKER container start monadic-chat-pgvector-container >/dev/null
       $DOCKER container start monadic-chat-selenium-container >/dev/null
-      $DOCKER container start monadic-chat-conda-container >/dev/null
+      $DOCKER container start monadic-chat-python-container >/dev/null
       $DOCKER container start monadic-chat-web-container >/dev/null
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
@@ -102,7 +102,7 @@ function down_docker_compose {
 function stop_docker_compose {
   $DOCKER container stop monadic-chat-web-container >/dev/null
   $DOCKER container stop monadic-chat-pgvector-container >/dev/null
-  $DOCKER container stop monadic-chat-conda-container >/dev/null
+  $DOCKER container stop monadic-chat-python-container >/dev/null
   $DOCKER container stop monadic-chat-selenium-container >/dev/null
 }
 
@@ -133,30 +133,26 @@ function remove_containers {
   # Stop the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
 
-  if $DOCKER images | grep -q "monadic-chat"; then
+  if $DOCKER images | grep -q "yohasebe/monadic-chat"; then
     $DOCKER rmi -f yohasebe/monadic-chat >/dev/null
   fi
 
-  if $DOCKER images | grep -q "yohasebe/conda"; then
-    $DOCKER rmi -f yohasebe/conda >/dev/null
+  if $DOCKER images | grep -q "yohasebe/python"; then
+    $DOCKER rmi -f yohasebe/python >/dev/null
   fi
 
-  if $DOCKER images | grep -q "pgvector"; then
-    $DOCKER rmi -f ankane/pgvector >/dev/null
+  if $DOCKER images | grep -q "yohasebe/pgvector"; then
+    $DOCKER rmi -f yohasebe/pgvector >/dev/null
   fi
 
-  if $DOCKER images | grep -q "selenium"; then
-    $DOCKER rmi -f selenium/standalone-chromium >/dev/null
-  fi
-
-  if $DOCKER images | grep -q "seleniarm"; then
-    $DOCKER rmi -f seleniarm/standalone-chromium >/dev/null
+  if $DOCKER images | grep -q "yohasebe/selenium"; then
+    $DOCKER rmi -f yohasebe/selenium >/dev/null
   fi
 
   if $DOCKER container ls --all | grep -q "monadic-chat"; then
     $DOCKER container rm -f monadic-chat-web-container >/dev/null
     $DOCKER container rm -f monadic-chat-pgvector-container >/dev/null
-    $DOCKER container rm -f monadic-chat-conda-container >/dev/null
+    $DOCKER container rm -f monadic-chat-python-container >/dev/null
     $DOCKER container rm -f monadic-chat-selenium-container >/dev/null
   fi
 

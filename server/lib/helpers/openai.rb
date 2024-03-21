@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 module OpenAIHelper
-  MAX_FUNC_CALLS = 5
+  MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.openai.com/v1"
 
   TEMP_AUDIO_FILE = "temp_audio_file"
@@ -442,7 +442,11 @@ module OpenAIHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings[:tools]
-      body["tool_choice"] = "auto"
+
+      unless body["tools"] and body["tools"].any?
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
     end
 
     if role != "tool"
@@ -481,11 +485,20 @@ module OpenAIHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
-    
+
+    body["messages"].each do |message|
+      if message["tool_calls"] || message[:tool_call]
+        if !message["role"] && !message[:role]
+          message["role"] = "assistant"
+        end
+      end
+    end
+
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
-      res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
       block&.call res
       return [res]
     end
@@ -500,7 +513,7 @@ module OpenAIHelper
       retry
     else
       pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "ERROR: #{error_message}" }
+      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
       block&.call res
       [res]
     end
@@ -508,7 +521,7 @@ module OpenAIHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    res = { "type" => "error", "content" => "ERROR: #{e.message}" }
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
     block&.call res
     [res]
   end

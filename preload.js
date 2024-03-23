@@ -34,6 +34,7 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
   } else if (status === 'Running') {
     statusElement.classList.remove('inactive');
     statusElement.classList.add('active');
+    document.getElementById('folder').disabled = false;
     document.getElementById('start').disabled = true;
     document.getElementById('stop').disabled = false;
     document.getElementById('restart').disabled = false;

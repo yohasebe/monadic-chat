@@ -368,12 +368,6 @@ $(function () {
     setCookie("userVoice", params["tts_voice"], 30);
   });
 
-  // $("#speech-rate").on("input", function() {
-  //   $("#speech-rate-value").text(parseFloat($(this).val()).toFixed(1));
-  //   params["speech_rate"] = parseFloat($(this).val());
-  //   setCookie("userRate", params["speech_rate"], 30);
-  // });
-
   $("#tts-speed").on("input", function() {
     $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
     params["tts_speed_rate"] = parseFloat($(this).val());
@@ -439,18 +433,6 @@ $(function () {
       fileButton.prop('disabled', true);
     }
   });
-
-  // if $("#auto-lang") is checked, then disable the language selector
-  // $("#auto-lang").on("change", function () {
-  //   if ($(this).is(":checked")) {
-  //     $("#speech-lang").prop("disabled", true);
-  //     $("#speech-voice").prop("disabled", true);
-  //   } else {
-  //     $("#speech-lang").prop("disabled", false);
-  //     $("#speech-voice").prop("disabled", false);
-  //   }
-  // });
-  
 
   $("#discourse").tooltip({
     selector: '.card-header [title]',

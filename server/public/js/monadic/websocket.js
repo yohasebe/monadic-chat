@@ -643,10 +643,17 @@ function connect_websocket(callback) {
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
+
         if (!isElementInViewport(mainPanel)){
           mainPanel.scrollIntoView(false);
         }
+
+        // Scroll to the top of the last card
+        // let targetCard = $("#discourse div.card:last").get(0);
+        // targetCard.scrollIntoView({behavior: "smooth", block: "start"});
+
         setInputFocus()
+
         break;
       case "user":
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }

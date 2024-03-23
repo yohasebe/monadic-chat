@@ -239,7 +239,7 @@ const menuItems = [
       openMainWindow();
       openBrowser('http://localhost:4567');
     },
-    enabled: true
+    enabled: false
   },
   {
     label: 'Open Shared Folder',
@@ -247,7 +247,7 @@ const menuItems = [
       openMainWindow();
       openFolder();
     },
-    enabled: true
+    enabled: false
   },
   {
     label: 'Open Console',
@@ -532,39 +532,44 @@ function updateContextMenu(disableControls = false) {
     menuItems[5].enabled = false;
     menuItems[6].enabled = false;
     menuItems[8].enabled = false;
-    menuItems[9].enabled = false;
-    menuItems[11].enabled = false;
-    menuItems[13].enabled = false;
-    menuItems[15].enabled = false;
+    menuItems[10].enabled = false;
+    menuItems[12].enabled = false;
+    menuItems[14].enabled = false;
+    menuItems[16].enabled = false;
   } else {
     menuItems[2].enabled = true;
     menuItems[4].enabled = true;
     menuItems[5].enabled = true;
     menuItems[6].enabled = true;
-    menuItems[8].enabled = true;
-    menuItems[9].enabled = true;
-    menuItems[11].enabled = true;
-    menuItems[13].enabled = true;
-    menuItems[15].enabled = true;
+    menuItems[10].enabled = true;
+    menuItems[12].enabled = true;
+    menuItems[14].enabled = true;
+    menuItems[16].enabled = true;
   }
   
   if(currentStatus !== 'Stopped' && currentStatus !== 'Uninstalled'){
     menuItems[2].enabled = false;
     menuItems[5].enabled = false;
   }
+
   if(currentStatus === 'Uninstalled'){
-    menuItems[15].enabled = false;
+    menuItems[16].enabled = false;
   }
+
   if(currentStatus === 'Running'){
     menuItems[4].enabled = false;
     menuItems[5].enabled = true;
     menuItems[6].enabled = true;
+    menuItems[8].enabled = true;
+    menuItems[9].enabled = true;
   } else {
     menuItems[6].enabled = false;
   }
+
   if(currentStatus === 'Stopped'){
     menuItems[4].enabled = true;
     menuItems[5].enabled = false;
+    menuItems[8].enabled = false;
   }
 
   contextMenu = Menu.buildFromTemplate(menuItems);

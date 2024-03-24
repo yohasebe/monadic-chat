@@ -21,10 +21,6 @@ layout: default
 
 バージョン3.1以上を推奨
 
-### Rust
-
-tiktoken gemを使ったトークン数の計算にRustが必要
-
 ### PostgreSQL + pgvector
 
 PostgreSQLとその上でVector DBを使うためのモジュールpgvectorが必要

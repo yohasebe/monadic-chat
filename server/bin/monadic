@@ -32,8 +32,10 @@ def start_server(opts)
 
   # run the start script
   system(mac_docker_start)
+  system("docker compose -f docker-compose.yml build web")
 
-  data_dir = File.expand_path(File.join(__dir__, "..", "data"))
+  # wait until docker daemon is running
+
   cmd_web = "docker container stop monadic-chat-web-container"
   cmd_selenium = "docker container start monadic-chat-selenium-container"
   cmd_pg = "docker container start monadic-chat-pgvector-container"
@@ -74,7 +76,6 @@ subcommand = ARGV.shift
 # Execute subcommand
 case subcommand
 when "start"
-  system("docker compose -f docker-compose.yml build web")
   start_server(opts)
 when "stop"
   stop_server

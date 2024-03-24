@@ -1,8 +1,8 @@
 # frozen_string_literal: false
 
-class Wikipedia < MonadicApp
-  MAX_TOKENS_WIKI = ENV["MAX_TOKENS_WIKI"] || 1000
+require_relative "./../../lib/helpers/flask_app_client"
 
+class Wikipedia < MonadicApp
   def icon
     "<i class='fab fa-wikipedia-w'></i>"
   end
@@ -15,11 +15,11 @@ class Wikipedia < MonadicApp
     text = <<~TEXT
 You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}.
 
-To answer questions that possibly require knowledge about events after the data cutoff time, run `search_wikipedia(search_query, language_code)` function and read "SNIPPETS" in the result.
+To answer questions  run `search_wikipedia(search_query, language_code)` function and read the relavant wikipedia aritcle text in the result. Even if you already have the answer, you should still run the function to make sure the answer is based on the most up-to-date information.
 
-If the user requests more details about the Wikipedia article, you can retrieve the part of the Wikipedia article relevant to the topic by running `analyze_wikipedia_article(topic, url)`, and then refer to the information therein to respond to the user's questions.
+Respond to the user in the same language as the user's input. However, do the wikipedia search in English and provide the user with the infrmation translated to the user's language. Only when you are not able to find the information in English, you can make a wikipedia search in the user's language.
 
-Please make sure that when you present a Wikipedia article link to the user, you use the `target="_blank"` attribute in the HTML link tag so that the user can open the link in a new tab.
+Please make sure that when you present a Wikipedia article link to the user, you use the `target="_blank"` attribute in the HTML link tag so that the user can open the link in a new tab. It is okay to provide the user with a link to the English Wikipedia article.
 
 Use the following HTML format in your response:
 
@@ -38,7 +38,7 @@ Use the following HTML format in your response:
   def settings
     {
       "app_name": "Wikipedia",
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-0125-preview",
       "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 2000,
@@ -69,26 +69,6 @@ Use the following HTML format in your response:
               "required": ["search_query", "language_code"]
             }
           }
-        },
-        { "type": "function",
-          "function": {
-            "name": "analyze_wikipedia_article",
-            "description": "A function to get a topic and a Wikipedia article url. It analyzes the contents of the url, splits it into chunks, picks up one of the chunks that is most similar to the topic in terms of their text embeddings, and returns it",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "topic": {
-                  "type": "string",
-                  "description": "text to be compared with the contents of the Wikipedia article"
-                },
-                "url": {
-                  "type": "string",
-                  "description": "url of the Wikipedia article to be analyzed"
-                }
-              },
-              "required": ["topic", "url"]
-            }
-          }
         }
       ]
     }
@@ -111,32 +91,8 @@ Use the following HTML format in your response:
     search_data = JSON.parse(search_response)
 
     <<~TEXT
-      "SNIPPETS:
       ```json
       #{search_data.to_json}
-      ```
-    TEXT
-  end
-
-  def analyze_wikipedia_article(hash)
-    topic = hash[:topic]
-    url = hash[:url]
-    article_uri = URI(url)
-
-    article_response = perform_request_with_retries(article_uri)
-
-    article_data = Nokogiri::HTML(article_response)
-    article_data_text = article_data.css("p", "table").map(&:text).join("\n\n")
-
-    # picks up one of the chunks that is most similar to the text in terms of their text embeddings
-    article_data_text_segments = split_text(article_data_text)
-    most_similar_text_index = most_similar_text_index(topic, article_data_text_segments)
-    most_similar_text = article_data_text_segments[most_similar_text_index]
-
-    <<~TEXT
-      "SNIPPETS:
-      ```json
-      #{most_similar_text}
       ```
     TEXT
   end
@@ -176,17 +132,17 @@ Use the following HTML format in your response:
 
   def split_text(text)
     begin
-      tokenized = TOKENIZER.encode(text)
+      tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
       segments = []
-      while tokenized.size > MAX_TOKENS_WIKI.to_i
+      while tokenized.size < MAX_TOKENS_WIKI.to_i
         segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
-        segments << TOKENIZER.decode(segment)
+        segments << MonadicApp::TOKENIZER.decode_tokens(segment)
         tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
       end
-      segments << TOKENIZER.decode(tokenized)
+      segments << self.flask_app_client.decode_tokens(tokenized)
       segments
     rescue StandardError => e
-      text.split(/(\s+)/).each_slice(MAX_TOKENS_WIKI).map(&:join)
+      return [text]
     end
   end
 

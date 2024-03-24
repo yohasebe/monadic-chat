@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "./text_splitter"
-
 module WebSocketHelper
   # Handle websocket connection
 
@@ -18,7 +16,7 @@ module WebSocketHelper
 
     # calculate token count for each message and mark as active
     messages.each do |m|
-      tokens << MonadicApp::TOKENIZER.encode(m["text"]).size
+      tokens << MonadicApp::TOKENIZER.count_tokens(m["text"])
       m["active"] = true
     end
 

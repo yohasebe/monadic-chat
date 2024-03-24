@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 class MonadicApp
-  TOKENIZER = Tiktoken.get_encoding("cl100k_base")
 
+  TOKENIZER = FlaskAppClient.new
   attr_accessor :api_key
   attr_reader :context
 

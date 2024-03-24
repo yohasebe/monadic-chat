@@ -23,10 +23,6 @@ layout: default
 
 Recommended version is 3.1 or above
 
-#### Rust
-
-Rust is required for token caluculation using tiktoken gem for Ruby
-
 #### PostgreSQL + pgvector
 
 PostgreSQL and pgvector module are required for storing and searching vectors

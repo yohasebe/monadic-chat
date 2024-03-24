@@ -6,7 +6,7 @@ import argparse
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-import html2text
+# import html2text
 import os
 from datetime import datetime
 from urllib.parse import urlparse
@@ -117,12 +117,15 @@ try:
     elif args.mode == 'md':
         # Ensure element is not None, as it's used in 'md' mode
         if element is not None:
-            html = element.get_attribute('outerHTML')
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            markdown = h.handle(html)
+            extracted = element.text
             with open(output_path, 'w') as f:
-                f.write(markdown)
+                f.write(extracted)
+            # html = element.get_attribute('outerHTML')
+            # h = html2text.HTML2Text()
+            # h.ignore_links = False
+            # markdown = h.handle(html)
+            # with open(output_path, 'w') as f:
+            #     f.write(markdown)
             # Check if the markdown file is empty or contains only whitespace
             with open(output_path, 'r') as f:
                 content = f.read().strip()

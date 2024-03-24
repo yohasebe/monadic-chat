@@ -46,6 +46,8 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=100 \
     mecab-python3 \
     html2text \
     librosa \
+    flask \
+    tiktoken \
     spacy && python -m spacy download en_core_web_sm
 
 COPY Gemfile /monadic/Gemfile
@@ -61,3 +63,5 @@ COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
 COPY scripts /monadic/scripts
 RUN chmod +x /monadic/scripts/*
+
+COPY flask /monadic/flask

@@ -2,7 +2,6 @@
 
 require "poppler"
 require "parallel"
-require "tiktoken_ruby"
 
 RAG_TOKENS = 4000
 RAG_OVERLAP_LINES = 5
@@ -39,7 +38,6 @@ class PDF2Text
   # if overwrap_lines is set, it will add the specified number of lines
   # to the next chunk
   def split_text
-    encoder = Tiktoken.get_encoding("cl100k_base")
     lines = @text_data.split(@separator)
     split_texts = []
     current_text = []
@@ -48,13 +46,13 @@ class PDF2Text
     last_n_lines = []
 
     lines.each do |line|
-      line_tokens = encoder.encode(line)
+      line_tokens = MonadicApp::TOKENIZER.get_tokens_sequence(line)
       line_token_count = line_tokens.size
 
       if current_tokens + line_token_count > @max_tokens
         split_texts << { "text" => current_text.join(@separator).strip, "tokens" => current_tokens }
         current_text = current_text.last(@overwrap_lines)
-        current_tokens = encoder.encode(current_text.join(@separator)).size
+        current_tokens = MonadicApp::TOKENIZER.get_tokens_sequence(current_text.join(@separator)).size
       end
 
       current_text << line.strip

@@ -155,14 +155,16 @@ rescue HTTP::Error, HTTP::TimeoutError
     sleep RETRY_DELAY
     retry
   else
-    pp error_message = "The request has timed out."
-    "ERROR: #{error_message}"
+    error_message = "The request has timed out."
+    puts "ERROR: #{error_message}"
+    exit
   end
 rescue StandardError => e
   pp e.message
   pp e.backtrace
   pp e.inspect
-  "ERROR: #{e.message}"
+  puts "ERROR: #{e.message}"
+  exit
 end
 
 # Assuming the first argument is the message and the second is the image path/url
@@ -171,14 +173,14 @@ image_path_or_url = ARGV[1]
 
 if message.nil? || image_path_or_url.nil?
   puts "Usage: #{$PROGRAM_NAME} 'message' 'image_path_or_url'"
-  exit 1
+  exit
 end
 
-# Call your main function with the command-line arguments
 begin
   response = image_query(message, image_path_or_url)
   puts response
 rescue => e
   puts "An error occurred: #{e.message}"
+  exit
 end
 

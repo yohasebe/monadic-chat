@@ -41,8 +41,6 @@ def whisper_api_request(audiofile, outpath = ".", response_format = "text", lang
       sleep RETRY_DELAY
       retry
     else
-      pp e.message
-      pp e.backtrace
       return { "type" => "error", "content" => "ERROR: #{e.message}" }
     end
   end

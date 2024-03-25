@@ -93,7 +93,7 @@ def generate_image(prompt, size, num_retrials: 10)
 
     {"original_prompt" => prompt, "revised_prompt" => revised_prompt, "filename" => filename }
   else
-    "Error: #{res.status} - #{res.body}"
+    JSON.parse(res.body)
   end
 
 rescue StandardError => e
@@ -104,9 +104,11 @@ rescue StandardError => e
     sleep 1
     generate_image(prompt, num_retrials: num_retrials)
   else
-    "Error: Image generation failed."
+    puts "Error: Image generation failed."
+    exit
   end
 end
 
 res = generate_image(options[:prompt], options[:size])
 puts JSON.pretty_generate(res)
+

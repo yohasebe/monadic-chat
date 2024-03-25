@@ -12,7 +12,14 @@ module OpenAIHelper
   MAX_RETRIES = 1
   RETRY_DELAY = 1
 
-  ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
+  # ENV_PATH = File.join(__dir__, "..", "..", "data", ".env")
+
+  if IN_CONTAINER
+    ENV_PATH = "/monadic/data/.env"
+  else
+    ENV_PATH = File.join(Dir.home, "monadic", "data", ".env")
+  end
+
   FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 

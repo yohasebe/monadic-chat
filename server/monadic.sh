@@ -23,9 +23,16 @@ MAC_SCRIPT="${ROOT_DIR}/docker/support_scripts/mac-start-docker.sh"
 WSL2_SCRIPT="${ROOT_DIR}/docker/support_scripts/wsl2-start-docker.sh"
 LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 
-# check if ${ROOT_DIR}/data/.env exists and create it if not
-if [ ! -f "${ROOT_DIR}/data/.env" ]; then
-  touch "${ROOT_DIR}/data/.env"
+# in case this script is run inside a docker container
+if [ -f "/.dockerenv" ]; then
+  if [ ! -f "/monadic/data/.env" ]; then
+    touch "/monadic/data/.env"
+  fi
+# in case this script is run outside a docker container
+else
+  if [ ! -f "~/monadic/data/.env" ]; then
+    touch "~/monadic/data/.env"
+  fi
 fi
 
 function start_docker {

@@ -122,13 +122,6 @@ try:
             extracted = element.text
             with open(output_path, 'w') as f:
                 f.write(extracted)
-            # html = element.get_attribute('outerHTML')
-            # h = html2text.HTML2Text()
-            # h.ignore_links = False
-            # markdown = h.handle(html)
-            # with open(output_path, 'w') as f:
-            #     f.write(markdown)
-            # Check if the markdown file is empty or contains only whitespace
             with open(output_path, 'r') as f:
                 content = f.read().strip()
             if not content:

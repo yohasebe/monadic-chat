@@ -70,10 +70,12 @@ driver = None
 try:
     # Chrome Options settings
     options = Options()
+
     options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+
     options.add_argument('--proxy-server="direct://"')
     options.add_argument('--proxy-bypass-list=*')
-    options.add_argument('--disable-gpu')
     options.add_argument('--hide-scrollbars')
 
     driver = webdriver.Remote(

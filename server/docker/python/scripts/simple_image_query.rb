@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-require 'securerandom'
-require 'base64'
-require 'http'
+require "securerandom"
+require "base64"
+require "http"
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 5

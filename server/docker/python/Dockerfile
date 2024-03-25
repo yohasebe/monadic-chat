@@ -9,7 +9,6 @@ RUN apt-get update && \
     curl \
     git \
     pandoc \
-    fonts-takao-gothic \
     graphviz \
     gnupg \
     ffmpeg\

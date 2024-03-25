@@ -19,7 +19,7 @@ class ImageGeneration < MonadicApp
 
       <div>
         <p class="revised_prompt">
-        **Revised Prompt**: REVISED_PROMPT
+          <b>Revised Prompt</b>: REVISED_PROMPT
         </p>
       </div>
       <div class="generated_image">
@@ -27,6 +27,8 @@ class ImageGeneration < MonadicApp
       </div>
 
       If the user asks you to add something to generated images or to modify it, re-generate another image, calling the `generate_image` function with an extended or modified prompt, discarding the old ones. Do not modify an existing image itself directly--just ignore image URLs included in the previous message.
+
+      In case `generate_image` fails, return a detailed error message to the user, not retrying the process. If the user asks you to retry, you can do so by calling the `generate_image` function again.
     TEXT
     text.strip
   end

@@ -2,7 +2,7 @@
 
 require 'fileutils'
 require "rspec/core/rake_task"
-require_relative "./server/lib/monadic/version"
+require_relative "./server/docker/ruby/lib/monadic/version"
 version = Monadic::VERSION
 
 RSpec::Core::RakeTask.new(:spec)

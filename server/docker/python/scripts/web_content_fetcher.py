@@ -79,7 +79,7 @@ try:
     options.add_argument('--hide-scrollbars')
 
     driver = webdriver.Remote(
-        command_executor='http://selenium:4444/wd/hub',
+        command_executor='http://selenium_service:4444/wd/hub',
         options=options
     )
 

@@ -1,6 +1,6 @@
 <p>&nbsp;</p>
 
-<div align="center"> <img src="./server/assets/images/monadic-chat-logo.png" width="600px"/></div>
+<div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
 
 <div align="center" style="color: #777777 "><b>A highly configurable Ruby framework for creating intelligent chatbots </b></div>
 
@@ -19,11 +19,11 @@
   - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
 <p>&nbsp;</p>
-<div align="center"><img src="./server/assets/images/screenshot-01.png" width="700px"/></div>
+<div align="center"><img src="./assets/images/screenshot-01.png" width="700px"/></div>
 
-<div align="center"><img src="./server/assets/images/screenshot-02.png" width="500px"/></div>
+<div align="center"><img src="./assets/images/screenshot-02.png" width="500px"/></div>
 
-<div align="center"><img src="./server/assets/images/monadic-chat-architecture.png" width="800px"/></div>
+<div align="center"><img src="./assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
 <p>&nbsp;</p>
 
@@ -45,7 +45,7 @@
 - 💬 Specify the number of recent messages (**active messages**) to send to the API, while storing and exporting older messages (**inactive messages**)
 - 🔢 Generate **text embeddings** from data in multiple **PDF files** and query their content using OpenAI's text embedding API
 
-<div align="center"><img src="./server/assets/images/rag.png" width="600px"/></div>
+<div align="center"><img src="./assets/images/rag.png" width="600px"/></div>
 
 ### Voice Interaction
 

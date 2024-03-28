@@ -4,7 +4,7 @@
 
 require "optimist"
 
-require_relative "../lib/monadic/version"
+require_relative "./docker/ruby/lib/monadic/version"
 
 DEFAULT_PORT = 4567
 
@@ -27,20 +27,20 @@ end
 
 # Start the server
 def start_server(opts)
-  start_script = File.join(__dir__, "..", "docker", "support_scripts", "mac-start-docker.sh")
+  start_script = File.join(__dir__, "docker", "support_scripts", "mac-start-docker.sh")
   mac_docker_start = File.read(start_script)
 
   # run the start script
   system(mac_docker_start)
-  system("docker compose -f docker-compose.yml build web")
+  system("docker compose -f ./server/docker/docker-compose.yml build ruby_service")
 
   # wait until docker daemon is running
 
-  cmd_web = "docker container stop monadic-chat-web-container"
+  cmd_ruby = "docker container stop monadic-chat-ruby-container"
   cmd_selenium = "docker container start monadic-chat-selenium-container"
   cmd_pg = "docker container start monadic-chat-pgvector-container"
   cmd_python = "docker container start monadic-chat-python-container"
-  system(cmd_web)
+  system(cmd_ruby)
   system(cmd_selenium)
   system(cmd_pg)
   system(cmd_python)

@@ -26,12 +26,14 @@ LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
 # in case this script is run inside a docker container
 if [ -f "/.dockerenv" ]; then
   if [ ! -f "/monadic/data/.env" ]; then
+    mkdir -p "/monadic/data"
     touch "/monadic/data/.env"
   fi
 # in case this script is run outside a docker container
 else
-  if [ ! -f "~/monadic/data/.env" ]; then
-    touch "~/monadic/data/.env"
+  if [ ! -f "$HOME_DIR/monadic/data/.env" ]; then
+    mkdir -p "$HOME_DIR/monadic/data"
+    touch "$HOME_DIR/monadic/data/.env"
   fi
 fi
 
@@ -61,7 +63,7 @@ function start_docker {
 
 function build_docker_compose {
   start_docker
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
+  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" build --no-cache
 }
 
 function start_docker_compose {
@@ -76,10 +78,10 @@ function start_docker_compose {
       $DOCKER container start monadic-chat-pgvector-container >/dev/null
       $DOCKER container start monadic-chat-selenium-container >/dev/null
       $DOCKER container start monadic-chat-python-container >/dev/null
-      $DOCKER container start monadic-chat-web-container >/dev/null
+      $DOCKER container start monadic-chat-ruby-container >/dev/null
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
-      $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
+      $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" -p "monadic-chat-container" up -d
     fi
   else
     echo "[IMAGE NOT FOUND]"
@@ -87,7 +89,7 @@ function start_docker_compose {
     echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
     build_docker_compose
     echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
-    $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" -p "monadic-chat-container" up -d
+    $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" -p "monadic-chat-container" up -d
 
     # periodically check if the image is ready
     while true; do
@@ -100,14 +102,14 @@ function start_docker_compose {
 }
 
 function down_docker_compose {
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
+  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" down
   # remove unused docker volumes created by docker-compose
   $DOCKER volume prune -f
 }
 
 # Define a function to stop Docker Compose
 function stop_docker_compose {
-  $DOCKER container stop monadic-chat-web-container >/dev/null
+  $DOCKER container stop monadic-chat-ruby-container >/dev/null
   $DOCKER container stop monadic-chat-pgvector-container >/dev/null
   $DOCKER container stop monadic-chat-python-container >/dev/null
   $DOCKER container stop monadic-chat-selenium-container >/dev/null
@@ -126,19 +128,19 @@ function export_database {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 function update_monadic {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
+  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" down
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
   cd "$ROOT_DIR" && git pull origin main
 
   # Build and start the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache
+  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" build --no-cache
 }
 
 # Remove the Docker image and container
 function remove_containers {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker-compose.yml" down
+  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" down
 
   if $DOCKER images | grep -q "yohasebe/monadic-chat"; then
     $DOCKER rmi -f yohasebe/monadic-chat >/dev/null
@@ -157,7 +159,7 @@ function remove_containers {
   fi
 
   if $DOCKER container ls --all | grep -q "monadic-chat"; then
-    $DOCKER container rm -f monadic-chat-web-container >/dev/null
+    $DOCKER container rm -f monadic-chat-ruby-container >/dev/null
     $DOCKER container rm -f monadic-chat-pgvector-container >/dev/null
     $DOCKER container rm -f monadic-chat-python-container >/dev/null
     $DOCKER container rm -f monadic-chat-selenium-container >/dev/null

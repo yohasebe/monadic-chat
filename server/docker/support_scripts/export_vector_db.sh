@@ -6,7 +6,7 @@ error_output=$(mktemp)
 
 (
   set -e
-  docker-compose exec -T db pg_dump -U postgres monadic 2>"$error_output" | gzip > ./data/monadic.gz
+  docker-compose exec -T pgvector_service pg_dump -U postgres monadic 2>"$error_output" | gzip > ./data/monadic.gz
 ) > /dev/null
 
 if [ $? -eq 0 ]; then

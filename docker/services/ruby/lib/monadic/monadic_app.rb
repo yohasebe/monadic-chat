@@ -24,9 +24,12 @@ class MonadicApp
 
   # Unwrap the monad and return the message
   def monadic_unwrap(monad)
-    /(?:```json\s*)?{(.+)\s*}(?:\s*```)?/m =~ monad
-    json = "{#{Regexp.last_match(1)}}"
-    JSON.parse(json)
+    if /(?:```json\s*)?{(.+)\s*}(?:\s*```)?/m =~ monad
+      json = "{#{Regexp.last_match(1)}}"
+      JSON.parse(json)
+    else
+      {"message" => monad.to_s, "context" => @context}
+    end
   end
 
   # sanitize the data to remove invalid characters

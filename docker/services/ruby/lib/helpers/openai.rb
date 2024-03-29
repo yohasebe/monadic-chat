@@ -43,6 +43,7 @@ module OpenAIHelper
         item["id"]
       end.filter do |item|
         item.include?("gpt") &&
+          !item.include?("vision") &&
           !item.include?("instruct") &&
           !item.include?("0301") &&
           !item.include?("0613")
@@ -260,7 +261,8 @@ module OpenAIHelper
     if result
       if obj["monadic"]
         message = result["choices"][0]["message"]["content"]
-        result["choices"][0]["text"] = APPS[app].monadic_map(message)
+        modified = APPS[app].monadic_map(message)
+        result["choices"][0]["text"] = modified
       end
     end
 

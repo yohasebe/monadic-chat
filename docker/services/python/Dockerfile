@@ -14,13 +14,6 @@ RUN apt-get update && \
     gnupg \
     ffmpeg\
     fonts-noto-cjk \
-    # libmagick++-dev \
-    # librsvg2-dev \
-    # libcairo2-dev \
-    # libgdk-pixbuf2.0-dev \
-    # libghc-gi-gobject-dev \
-    # imagemagick \
-    # ruby-full \
     mecab libmecab-dev mecab-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -40,13 +33,13 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=100 \
     openpyxl \
     python-docx \
     python-pptx \
-    pypdf \
     wordcloud \
     mecab-python3 \
     html2text \
     librosa \
     flask \
     tiktoken \
+    'pdfminer.six[image]' \
     spacy && python -m spacy download en_core_web_sm
 
 RUN ln -s /monadic/data /data

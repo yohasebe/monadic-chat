@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Navigate to the ./server directory
-cd ./server
+# Navigate to the ruby directory
+cd ./docker/services/ruby
 
 # Execute the monadic script with 'start' argument
 ./bin/monadic start

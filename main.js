@@ -44,7 +44,7 @@ function compareVersions(version1, version2) {
 }
 
 function checkForUpdates() {
-  const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/server/lib/monadic/version.rb';
+  const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
   https.get(url, (res) => {
     let data = '';
@@ -348,7 +348,7 @@ function toUnixPath(p) {
 function shutdownDocker() {
   const command = "shutdown"
 
-  const monadicScriptPath = path.join(__dirname, 'server', 'monadic.sh').replace('app.asar', 'app');
+  const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app');
 
   let cmd;
   if (os.platform() === 'darwin') {
@@ -406,7 +406,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
   
-  const monadicScriptPath = path.join(__dirname, 'server', 'monadic.sh').replace('app.asar', 'app');
+  const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app');
 
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
 

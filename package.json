@@ -24,8 +24,8 @@
     "appId": "com.yohasebe.monadic",
     "extraResources": [
       {
-        "from": "./server",
-        "to": "app/server",
+        "from": "./docker",
+        "to": "app/docker",
         "filter": [
           "**/*"
         ]

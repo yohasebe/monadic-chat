@@ -9,6 +9,7 @@
 SCRIPT_DIR=$(dirname "$0")
 
 if [ "$1" == "run" ]; then
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
     # Starts Jupyter Lab in the background and logs the PID in the script's directory
     jupyter lab --ip='*' --port=8888 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --NotebookApp.terminado_settings='{"shell_command": ["/bin/bash"]}' > "$SCRIPT_DIR/jupyter_lab.log" 2>&1 &
     echo $! > "$SCRIPT_DIR/jupyter_lab.pid"

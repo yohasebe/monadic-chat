@@ -19,9 +19,9 @@ else
 fi
 
 # Define the paths to the support scripts
-MAC_SCRIPT="${ROOT_DIR}/docker/support_scripts/mac-start-docker.sh"
-WSL2_SCRIPT="${ROOT_DIR}/docker/support_scripts/wsl2-start-docker.sh"
-LINUX_SCRIPT="${ROOT_DIR}/docker/support_scripts/linux-start-docker.sh"
+MAC_SCRIPT="${ROOT_DIR}/services/support_scripts/mac-start-docker.sh"
+WSL2_SCRIPT="${ROOT_DIR}/services/support_scripts/wsl2-start-docker.sh"
+LINUX_SCRIPT="${ROOT_DIR}/services/support_scripts/linux-start-docker.sh"
 
 # in case this script is run inside a docker container
 if [ -f "/.dockerenv" ]; then
@@ -63,7 +63,7 @@ function start_docker {
 
 function build_docker_compose {
   start_docker
-  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" build --no-cache
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
 }
 
 function start_docker_compose {
@@ -81,7 +81,7 @@ function start_docker_compose {
       $DOCKER container start monadic-chat-ruby-container >/dev/null
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
-      $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" -p "monadic-chat-container" up -d
+      $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" -p "monadic-chat-container" up -d
     fi
   else
     echo "[IMAGE NOT FOUND]"
@@ -89,7 +89,7 @@ function start_docker_compose {
     echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
     build_docker_compose
     echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
-    $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" -p "monadic-chat-container" up -d
+    $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" -p "monadic-chat-container" up -d
 
     # periodically check if the image is ready
     while true; do
@@ -102,7 +102,7 @@ function start_docker_compose {
 }
 
 function down_docker_compose {
-  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" down
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
   # remove unused docker volumes created by docker-compose
   $DOCKER volume prune -f
 }
@@ -117,30 +117,30 @@ function stop_docker_compose {
 
 # Define a function to import the database contents from an external file
 function import_database {
-  sh "${ROOT_DIR}/docker/support_scripts/import_vector_db.sh"
+  sh "${ROOT_DIR}/services/support_scripts/import_vector_db.sh"
 }
 
 # Define a function to export the database contents to an external file
 function export_database {
-  sh "${ROOT_DIR}/docker/support_scripts/export_vector_db.sh"
+  sh "${ROOT_DIR}/services/support_scripts/export_vector_db.sh"
 }
 
 # Download the latest version of Monadic Chat and rebuild the Docker image
 function update_monadic {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" down
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
   cd "$ROOT_DIR" && git pull origin main
 
   # Build and start the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" build --no-cache
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
 }
 
 # Remove the Docker image and container
 function remove_containers {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/docker/docker-compose.yml" down
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
   if $DOCKER images | grep -q "yohasebe/monadic-chat"; then
     $DOCKER rmi -f yohasebe/monadic-chat >/dev/null

@@ -2,7 +2,7 @@
 
 require 'fileutils'
 require "rspec/core/rake_task"
-require_relative "./server/docker/ruby/lib/monadic/version"
+require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
 
 RSpec::Core::RakeTask.new(:spec)
@@ -16,7 +16,7 @@ task default: %i[spec rubocop]
 # task to build win/mac x64/mac arm64 packages
 task :build do
 
-  home_directory_path = File.join(File.dirname(__FILE__), "server")
+  home_directory_path = File.join(File.dirname(__FILE__), "docker")
   Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
   Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
 

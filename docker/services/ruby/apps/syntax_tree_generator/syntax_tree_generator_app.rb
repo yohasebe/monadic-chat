@@ -1,8 +1,6 @@
 # frozen_string_literal: false
 
 class SyntaxTreeGenerator < MonadicApp
-  attr_accessor :context
-
   def icon
     "<i class='fas fa-tree'></i>"
   end
@@ -13,7 +11,7 @@ class SyntaxTreeGenerator < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      Analyze the user's message and create the syntactic parsing in the labeled bracketing format. Then run `draw_syntree` function with the labeled bracketing as the parameter to visualize the syntactic tree. The `draw_syntree` function will generate an image file and returns the file name.
+      Analyze the user's message and create the syntactic parsing in the labeled bracketing format. Then run `draw_syntree` function with the labeled bracketing as the parameter to visualize the syntactic tree. The `draw_syntree` function will generate an image file and returns the file name if the RSyntaxTree tool is installed in the environment.
 
       The labeled bracketing format is a way to represent the syntactic structure of a sentence. It is a nested structure of labeled brackets, where the label is the part of speech or phrase type, and the content is the word or phrase itself. Below is the sentence "John loves Mary" represented in the labeled bracketing format.
 

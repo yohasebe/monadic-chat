@@ -4,7 +4,10 @@
 
 require "optimist"
 
-require_relative "./docker/ruby/lib/monadic/version"
+require_relative "../lib/monadic/version"
+
+# change current directory to the parent directory of the directory containing this file
+Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 
 DEFAULT_PORT = 4567
 
@@ -25,14 +28,16 @@ opts = Optimist.options do
   opt :port, "Specify the port number", type: :integer, default: DEFAULT_PORT
 end
 
+DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
+
 # Start the server
 def start_server(opts)
-  start_script = File.join(__dir__, "docker", "support_scripts", "mac-start-docker.sh")
+  start_script = File.join(DOCKER_HOME, "support_scripts", "mac-start-docker.sh")
   mac_docker_start = File.read(start_script)
 
   # run the start script
   system(mac_docker_start)
-  system("docker compose -f ./server/docker/docker-compose.yml build ruby_service")
+  system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service")
 
   # wait until docker daemon is running
 
@@ -45,7 +50,7 @@ def start_server(opts)
   system(cmd_pg)
   system(cmd_python)
 
-  cmd = "thin start -R config.ru -p #{opts[:port] || DEFAULT_PORT}"
+  cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT}"
   cmd += " --daemonize" if opts[:daemonize]
   cmd += " --log thin.log" if opts[:log]
   if system(cmd)

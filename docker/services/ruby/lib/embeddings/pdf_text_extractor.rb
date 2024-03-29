@@ -1,10 +1,9 @@
 # frozen_string_literal: false
 
-require "poppler"
 require "parallel"
 
-RAG_TOKENS = 4000
-RAG_OVERLAP_LINES = 5
+RAG_TOKENS = 2000
+RAG_OVERLAP_LINES = 2
 
 class PDF2Text
   THREADS = 4
@@ -21,14 +20,48 @@ class PDF2Text
     @overwrap_lines = overwrap_lines
   end
 
+  def pdf2text(file_path)
+    unless File.exist?(file_path)
+      raise "PDF file not found"
+    end
+
+    data_path = if IN_CONTAINER 
+                  "/monadic/data/"
+                else
+                  "~/monadic/data/"
+                end
+
+    file_name = File.basename(file_path)
+    new_file_name = "#{Time.now.to_i}.pdf"
+    new_file_path = File.expand_path(File.join(data_path, new_file_name))
+
+    FileUtils.cp(file_path, new_file_path)
+    
+    shared_volume = "/monadic/data/"
+    container = "monadic-chat-python-container"
+    command = <<~CMD
+      bash -c '/monadic/scripts/pdf2txt.py "#{new_file_name}" --format text'
+    CMD
+    docker_command =<<~DOCKER
+      docker exec -w #{shared_volume} #{container} #{command.strip}
+    DOCKER
+    stdout, stderr, status = Open3.capture3(docker_command)
+    if status.success?
+      JSON.parse(stdout)
+    else
+      raise "Error extracting text: #{stderr}"
+    end
+  end
+
   # Extracts the text from the PDF file
   def extract
-    doc = Poppler::Document.new(@file_path)
+    doc_json = pdf2text(@file_path)
     @text_data = ""
 
-    Parallel.each(0...doc.n_pages, in_threads: THREADS) do |page_num|
-      page = doc.get_page(page_num)
-      @text_data += "#{page.get_text}\n"
+    Parallel.each(doc_json["pages"], in_threads: THREADS) do |page|
+      text = page["text"].gsub(/[^[:print:]]/,'')
+      text = text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+      @text_data += "#{text}\n"
     end
 
     @text_data

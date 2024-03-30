@@ -319,7 +319,7 @@ module OpenAIHelper
         memo
       end
 
-      function_return = APPS[app].send(function_name.to_sym, argument_hash)
+      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
 
       context << {
         tool_call_id: tool_call["id"],
@@ -528,7 +528,7 @@ module OpenAIHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
     block&.call res
     [res]
   end

@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 class ImageGeneration < MonadicApp
   def icon
@@ -75,27 +75,10 @@ class ImageGeneration < MonadicApp
     }
   end
 
-  def generate_image(hash, num_retrials: 10)
-    begin
-      prompt = hash[:prompt].gsub(/"/, '\"') rescue ""
-      size = hash[:size] || "1024x1024"
-
-      shared_volume = "/monadic/data/"
-      container = "monadic-chat-ruby-container"
-      command = <<~CMD
-        bash -c '/monadic/scripts/simple_image_generation.rb -p "#{prompt}" -s "#{size}"'
-      CMD
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{command.strip}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        stdout
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: #{e.message}"
-    end
+  def generate_image(prompt: "", size: "1024x1024", num_retrials: 10)
+    command = <<~CMD
+      bash -c '/monadic/scripts/simple_image_generation.rb -p "#{prompt}" -s "#{size}"'
+    CMD
+    send_command(command: command, container: "ruby")
   end
 end

@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 class SyntaxTreeGenerator < MonadicApp
   def icon
@@ -89,44 +89,29 @@ class SyntaxTreeGenerator < MonadicApp
     }
   end
 
-  def draw_syntree(hash)
-    text = hash[:text]
+  def draw_syntree(text: "")
     text = text.gsub('"', '\"')
+    if IN_CONTAINER
+      shared_volume = "/monadic/data/"
+    else
+      shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
+    end
+
     image_file_name = Time.now.strftime("%Y%m%d%H%M%S") + ".svg"
 
-    shared_volume = "/monadic/data/"
-    container = "monadic-chat-ruby-container"
+    command1 = "rsyntaxtree -f svg -o #{shared_volume} \"#{text}\""
+    send_command(command: command1, container: "ruby")
 
-    docker_command1 =<<~DOCKER
-      docker exec -w #{shared_volume} #{container} \
-      rsyntaxtree -f svg -o #{shared_volume} "#{text}"
-    DOCKER
-    docker_command1 = docker_command1.strip
-    stdout1, stderr1, status1 = Open3.capture3(docker_command1)
-    if !status1.success?
-      return "Error occurred " + stderr1
-    end
+    command2 = "mv #{shared_volume}syntree.svg #{shared_volume}#{image_file_name}"
+    send_command(command: command2, container: "ruby")
 
-    docker_command2 =<<~DOCKER
-      docker exec -w #{shared_volume} #{container} \
-      mv #{shared_volume}syntree.svg #{shared_volume}#{image_file_name}
-    DOCKER
-    docker_command2 = docker_command2.strip
-    stdout2, stderr2, status2 = Open3.capture3(docker_command2)
-    if !status2.success?
-      return "Error occurred " + stderr2
-    end
-
-    docker_command3 =<<~DOCKER
-      docker exec -w #{shared_volume} #{container} \
-      ls #{shared_volume}#{image_file_name}
-    DOCKER
-    docker_command3 = docker_command3.strip
-    stdout3, stderr3, status3 = Open3.capture3(docker_command3)
-    if status3.success? && /#{image_file_name}/ =~ stdout3
-      "The syntaxtree image file #{image_file_name} has been generated."
-    else
-      "Error occurred: the bracketing is not valid."
+    command3 = "ls #{shared_volume}#{image_file_name}"
+    send_command(command: command3, container: "ruby") do |stdout, stderr, status|
+      if status.success? && /#{image_file_name}/ =~ stdout
+        "The syntaxtree image file #{image_file_name} has been generated."
+      else
+        "Error occurred: the bracketing is not valid."
+      end
     end
   end
 end

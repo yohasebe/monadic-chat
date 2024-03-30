@@ -60,7 +60,7 @@ def load_app_files
   apps_to_load = {}
   base_app_dir = File.join(__dir__, "..", "apps")
   user_app_dir = if IN_CONTAINER
-                   "/monadic/apps"
+                   "/monadic/data/apps"
                  else
                    Dir.home + "/monadic/data/apps"
                  end

@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require "tempfile"
-require "open3"
-
 class CodeInterpreter < MonadicApp
   def icon
     "<i class='fas fa-terminal'></i>"
@@ -267,7 +264,7 @@ class CodeInterpreter < MonadicApp
           "function":
           {
             "name": "fetch_web_content",
-            "description": "Fetch the content of a web page and save it in the current directory.",
+            "description": "Fetch the content of the web page of the given URL and return it.",
             "parameters": {
               "type": "object",
               "properties": {
@@ -284,156 +281,39 @@ class CodeInterpreter < MonadicApp
     }
   end
 
-  def run_code(hash)
-    begin
-      code = hash[:code].to_s.strip rescue ""
-      command = hash[:command].to_s.strip rescue ""
-      extention = hash[:extention].to_s.strip rescue ""
-      shared_volume = "/monadic/data/"
-      if IN_CONTAINER
-        data_dir = "/monadic/data/"
-      else
-        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
-      end
-        
-      container = "monadic-chat-python-container"
-
-      # create a temporary file inside the data directory
-      temp_file = Tempfile.new(["code", ".#{extention}"], data_dir)
-      temp_file.write(code)
-      temp_file.close
-      docker_command =<<~DOCKER
-        docker cp #{temp_file.path} #{container}:#{shared_volume}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      unless status.success?
-        return "Error occurred: #{stderr}"
-      end
-
-      local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
-
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
-        new_files = local_files2 - local_files1
-        if new_files.length > 0
-          new_files = new_files.map { |file| "/data/" + File.basename(file) }
-          output = "The code has been executed successfully; Files generated: #{new_files.join(', ')}"
-          output += "; Output: #{stdout}" if stdout.strip.length > 0
-        else
-          output = "The code has been executed successfully"
-          output += "; Output: #{stdout}" if stdout.strip.length > 0
-        end
-        output
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: The code could not be executed."
-    end
+  def run_code(code: "", command: "", extention: "")
+    send_code(code: code, command: command, extention: extention)
   end
 
-  def lib_installer(hash)
-    begin
-      command = hash[:command].to_s.strip rescue ""
-      packager = hash[:packager].to_s.strip rescue ""
-      install_command = case packager
-                        when "pip"
-                          "pip install #{command}"
-                        when "apt"
-                          "apt-get install -y #{command}"
-                        else
-                          "echo 'Invalid packager'"
-                        end
+  def lib_installer(command: "", packager: "")
+    install_command = case packager
+                      when "pip"
+                        "pip install #{command}"
+                      when "apt"
+                        "apt-get install -y #{command}"
+                      else
+                        "echo 'Invalid packager'"
+                      end
 
-      shared_volume = "/monadic/data/"
-      container = "monadic-chat-python-container"
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{install_command}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        "The library #{command} has been installed successfully.\n\nLOG: #{stdout}"
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: The library could not be installed."
-    end
+    send_command(command: install_command,
+                 container: "python",
+                 success: "The library #{command} has been installed successfully.\n")
   end
 
-  def run_jupyter(hash)
-    begin
-      command = hash[:command].to_s.strip rescue ""
-      shared_volume = "/monadic/data/"
-      container = "monadic-chat-python-container"
-      command = "bash -c '/monadic/scripts/run_jupyter.sh #{command}'"
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{command}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        <<~MESSAGE
-        Success: Access Jupter Lab at 127.0.0.1:8888/lab
-
-        #{stdout}
-        MESSAGE
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: The Jupyter Lab server could not be started."
-    end
+  def run_jupyter(command: "")
+    command = "bash -c 'run_jupyter.sh #{command}'"
+    send_command(command: command,
+                 container: "python",
+                 success: "Success: Access Jupter Lab at 127.0.0.1:8888/lab\n")
   end
 
-  def run_bash_command(hash)
-    begin
-      command = hash[:command].to_s.strip rescue ""
-      shared_volume = "/monadic/data/"
-      container = "monadic-chat-python-container"
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{command}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        stdout
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: The bash command could not be executed."
-    end
+  def run_bash_command(command: "")
+    send_command(command: command,
+                 container: "python",
+                 success: "Command executed successfully.\n")
   end
 
-  def fetch_web_content(hash)
-    begin
-      url = hash[:url].to_s.strip rescue ""
-      shared_volume = "/monadic/data/"
-      container = "monadic-chat-python-container"
-      command = "bash -c '/monadic/scripts/web_content_fetcher.py --url \"#{url}\" --filepath \"#{shared_volume}\" --mode \"md\" '"
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{command}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        # get a filename (/saved to: (.+\.md)/) embedded in the stdout
-        filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
-        sleep(1)
-        begin
-          contents = File.read(filename)
-        rescue StandardError => e
-          filepath = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
-          contents = File.read(filepath)
-        end
-        contents
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: #{e.message}"
-    end
+  def fetch_web_content(url: "")
+    selenium_job(url: url)
   end
 end

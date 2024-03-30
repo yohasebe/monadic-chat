@@ -23,7 +23,4 @@ COPY views/ $WORKSPACE/views/
 
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*
-
-RUN echo 'alias python="docker exec monadic-chat-python-container python"' >> ~/.bashrc && \
-    echo 'alias pip="docker exec monadic-chat-python-container pip"' >> ~/.bashrc
-
+ENV PATH="/monadic/scripts:${PATH}"

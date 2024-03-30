@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 require "tempfile"
 require "open3"
@@ -110,9 +110,7 @@ class FlowchartGrapher < MonadicApp
     }
   end
 
-  def mermaid_examples(hash)
-    diagram_type = hash[:diagram_type]
-
+  def mermaid_examples(diagram_type)
     begin
       file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
       if File.exist?(file_path)

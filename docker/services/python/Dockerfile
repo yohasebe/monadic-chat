@@ -52,5 +52,7 @@ COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
 COPY scripts /monadic/scripts
 RUN chmod +x /monadic/scripts/*
+RUN mkdir -p /monadic/data/scripts
+ENV PATH="/monadic/data/scripts:/monadic/scripts:${PATH}"
 
 COPY flask /monadic/flask

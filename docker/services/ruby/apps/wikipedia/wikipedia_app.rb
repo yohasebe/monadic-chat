@@ -1,6 +1,4 @@
-# frozen_string_literal: false
-
-require_relative "./../../lib/helpers/flask_app_client"
+# frozen_string_literal: true
 
 class Wikipedia < MonadicApp
   def icon
@@ -74,9 +72,7 @@ Use the following HTML format in your response:
     }
   end
 
-  def search_wikipedia(hash)
-    search_query = hash[:search_query]
-    language_code = hash[:language_code] || "en"
+  def search_wikipedia(search_query: "", language_code: "en")
     number_of_results = 10
 
     base_url = 'https://api.wikimedia.org/core/v1/wikipedia/'

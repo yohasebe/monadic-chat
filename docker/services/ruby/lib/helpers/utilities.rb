@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module UtilitiesHelper
+  module_function
+
   # language detection using CLD gem
   def detect_language(text)
     CLD.detect_language(text)[:code]

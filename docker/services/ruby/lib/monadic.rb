@@ -33,7 +33,6 @@ require_relative "embeddings/text_embeddings"
 require_relative "monadic/monadic_app"
 require_relative "monadic/version"
 
-
 require_relative "helpers/openai"
 helpers OpenAIHelper
 
@@ -42,7 +41,6 @@ helpers WebSocketHelper
 
 require_relative "helpers/utilities"
 helpers UtilitiesHelper
-
 
 envpath = File.expand_path OpenAIHelper::ENV_PATH
 Dotenv.load(envpath)

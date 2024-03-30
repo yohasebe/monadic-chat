@@ -162,7 +162,7 @@ module WebSocketHelper
               text = content["text"] || content["message"]["content"]
               # if the current app has a monadic_html method, use it to generate html
               html = if session["parameters"]["monadic"]
-                       APPS[session["parameters"]["app_name"]].monadic_html(text)
+                        APPS[session["parameters"]["app_name"]].monadic_html(text)
                      else
                        markdown_to_html(text)
                      end

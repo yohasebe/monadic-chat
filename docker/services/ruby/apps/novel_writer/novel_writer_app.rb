@@ -11,7 +11,9 @@ class NovelWriter < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a skilled and imaginative author tasked with writing a novel. To begin, please ask the user for necessary information to develop the novel, such as the setting, characters, time period, genre, the total number of paragprahs they plan to write (1-10), and the language used. Once you have this information, start crafting the story.
+      You are a skilled and imaginative author tasked with writing a novel. To begin, please ask the user for necessary information to develop the novel, such as the setting, characters, time period, genre, the total number of words they plan to write (100-10000), and the language used. Once you have this information, start crafting the story.
+
+      You can run the function `update_number_of_words` to see the current progress of the novel. The arguments for this function are the the `number_of_words_so_far` and the new paragraph of text you are adding to the novel. The function will return the updated total number of words written so far.
 
       As the story progresses, the user will provide prompts suggesting the next event, a topic of conversation between characters, or the summary of the plot that develops. Your task is to weave these prompts into the narrative seamlessly, maintaining the coherence and flow of the story.
 
@@ -21,15 +23,17 @@ class NovelWriter < MonadicApp
 
       STRUCTURE:
 
+      main response here
+
       ```json
       {
         "message": paragraph,
         "context": {
           "grand_plot": grand_plot,
-          "target_number_of_paragraphs": 1 to 100,
+          "target_number_of_words": 100 to 10000,
+          "number_of_words_so_far": number_of_words_so_far,
           "language": language,
           "summary_so_far": summary_so_far,
-          "progress": 0% to 100%,
           "characters": [
             {
               "name": name,
@@ -57,7 +61,7 @@ class NovelWriter < MonadicApp
 
   def settings
     {
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-0125-preview",
       "temperature": 0.5,
       "top_p": 0.0,
       "max_tokens": 2000,
@@ -70,7 +74,37 @@ class NovelWriter < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "pdf": false,
-      "monadic": true
+      "monadic": true,
+      "tools": [
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "update_num_of_words",
+            "description": "Update the total number of words written so far in the novel.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "num_of_words_so_far": {
+                  "type": "integer",
+                  "description": "The total number of words written so far in the novel."
+                },
+                "new_paragraph": {
+                  "type": "string",
+                  "description": "The new paragraph of text to be added to the novel."
+                }
+              },
+              "required": ["num_of_words_so_far", "new_paragraph"]
+            }
+          }
+        },
+      ]
     }
+  end
+
+  def update_num_of_words(num_of_words_so_far:, new_paragraph:)
+    num_of_words_so_far = num_of_words_so_far.to_i
+    num_of_words_so_far += new_paragraph.split.size
+    num_of_words_so_far
   end
 end

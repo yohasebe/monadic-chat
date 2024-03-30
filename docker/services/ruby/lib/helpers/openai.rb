@@ -260,9 +260,12 @@ module OpenAIHelper
 
     if result
       if obj["monadic"]
-        message = result["choices"][0]["message"]["content"]
-        modified = APPS[app].monadic_map(message)
-        result["choices"][0]["text"] = modified
+        choice = result["choices"][0]
+        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+          message = choice["message"]["content"]
+          modified = APPS[app].monadic_map(message)
+          choice["text"] = modified
+        end
       end
     end
 

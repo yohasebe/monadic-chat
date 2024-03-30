@@ -6,20 +6,22 @@ require "eventmachine"
 require "faye/websocket"
 require "http"
 require "http/form_data"
-require 'httparty'
 require "i18n_data"
 require "json"
 require "kramdown"
 require "kramdown-parser-gfm"
 require "method_source"
-require "nokogiri"
 require "net/http"
+require "nokogiri"
+require "open3"
 require "pragmatic_segmenter"
 require "rouge"
 require "securerandom"
 require "strscan"
 require "tempfile"
 require "uri"
+require 'httparty'
+
 require "oj"
 Oj.mimic_JSON()
 
@@ -55,7 +57,25 @@ end
 
 # Load app files
 def load_app_files
-  Dir["#{File.join(__dir__, "..", "apps", "**") + File::SEPARATOR}*.rb"].sort.each do |file|
+  apps_to_load = {}
+  base_app_dir = File.join(__dir__, "..", "apps")
+  user_app_dir = if IN_CONTAINER
+                   "/monadic/apps"
+                 else
+                   Dir.home + "/monadic/data/apps"
+                 end
+
+  Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
+    apps_to_load[File.basename(file)] = file
+  end
+
+  if Dir.exist?(user_app_dir)
+    Dir["#{File.join(user_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
+      apps_to_load[File.basename(file)] = file
+    end
+  end
+
+  apps_to_load.each do |_app_name, file|
     require file
   end
 end

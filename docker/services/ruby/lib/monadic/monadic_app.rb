@@ -4,7 +4,7 @@ class MonadicApp
 
   TOKENIZER = FlaskAppClient.new
   attr_accessor :api_key
-  attr_reader :context
+  attr_accessor :context
 
   def initialize
     @context = {}
@@ -120,5 +120,121 @@ class MonadicApp
     end
 
     "<div class='mb-3'>#{output}</div>"
+  end
+
+  def send_command(command:,
+                   container:,
+                   success: "")
+    begin
+      case container.to_s
+      when "ruby"
+        if IN_CONTAINER
+          script_dir = "/monadic/scripts"
+          script_dir_local = "/monadic/data/scripts"
+          shared_volume = "/monadic/data"
+        else
+          script_dir = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
+          script_dir_local = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts")) 
+          shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
+        end
+        system_command =<<~SYS
+          chmod +x #{script_dir}/* && \
+          chmod +x #{script_dir_local}/* && \
+          export PATH="#{script_dir}:${PATH}" && \
+          export PATH="#{script_dir_local}:${PATH}" && \
+          cd #{shared_volume} && \
+          #{command}
+        SYS
+      when "python"
+        shared_volume = "/monadic/data"
+        container = "monadic-chat-python-container"
+        script_dir_local = "/monadic/data/scripts"
+        system_command =<<~DOCKER
+          docker exec #{container} bash -c 'chmod +x #{script_dir_local}/*'
+          docker exec -w #{shared_volume} #{container} #{command}
+        DOCKER
+      end
+
+      stdout, stderr, status = Open3.capture3(system_command)
+      if block_given?
+        yield(stdout, stderr, status)
+      else
+        if status.success?
+          "#{success}#{stdout}"
+        else
+          "Error occurred: #{stderr}"
+        end
+      end
+    rescue StandardError => e
+      "Error occurred: #{e.message}"
+    end
+  end
+
+  def send_code(code:, command:, extention:)
+    begin
+      shared_volume = "/monadic/data/"
+      if IN_CONTAINER
+        data_dir = "/monadic/data/"
+      else
+        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+      end
+
+      container = "monadic-chat-python-container"
+
+      # create a temporary file inside the data directory
+      temp_file = Tempfile.new(["code", ".#{extention}"], data_dir)
+      temp_file.write(code)
+      temp_file.close
+      docker_command =<<~DOCKER
+        docker cp #{temp_file.path} #{container}:#{shared_volume}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      unless status.success?
+        return "Error occurred: #{stderr}"
+      end
+
+      local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+
+      docker_command =<<~DOCKER
+        docker exec -w #{shared_volume} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success?
+        local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+        new_files = local_files2 - local_files1
+        if new_files.length > 0
+          new_files = new_files.map { |file| "/data/" + File.basename(file) }
+          output = "The code has been executed successfully; Files generated: #{new_files.join(', ')}"
+          output += "; Output: #{stdout}" if stdout.strip.length > 0
+        else
+          output = "The code has been executed successfully"
+          output += "; Output: #{stdout}" if stdout.strip.length > 0
+        end
+        output
+      else
+        "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: The code could not be executed."
+    end
+  end
+
+  def selenium_job(url: "")
+    command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
+    send_command(command: command, container: "python") do |stdout, stderr, status|
+      if status.success?
+        filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
+        sleep(1)
+        begin
+          contents = File.read(filename)
+        rescue StandardError => e
+          filepath = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
+          contents = File.read(filepath)
+        end
+        contents
+      else
+        "Error occurred: #{stderr}"
+      end
+    end
   end
 end

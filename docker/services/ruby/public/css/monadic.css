@@ -15,6 +15,10 @@ body, html {
   margin: 0;
 }
 
+img {
+  max-width: 100%;
+}
+
 .navbar-brand, .func-copy, .func-play, .func-stop, .func-delete, .func-edit {
   cursor: pointer;
 }

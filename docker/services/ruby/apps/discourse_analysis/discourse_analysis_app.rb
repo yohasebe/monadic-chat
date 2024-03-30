@@ -1,8 +1,6 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 class DiscourseAnalysis < MonadicApp
-  attr_accessor :context
-
   def icon
     "<i class='fas fa-scroll'></i>"
   end

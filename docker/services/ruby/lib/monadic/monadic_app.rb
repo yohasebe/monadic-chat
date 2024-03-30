@@ -73,7 +73,11 @@ class MonadicApp
 
   # Convert snake_case to space ceparated capitalized words
   def snake2cap(snake)
-    snake.split("_").map(&:capitalize).join(" ")
+    begin
+      snake.split("_").map(&:capitalize).join(" ")
+    rescue
+      snake
+    end
   end
 
   # Convert a JSON object to HTML
@@ -81,6 +85,8 @@ class MonadicApp
     iteration += 1
     output = +""
     hash.each do |key, value|
+      value = UtilitiesHelper:: markdown_to_html(value) if key == "message"
+
       key = snake2cap(key)
       margin = iteration - 2
       case value

@@ -90,7 +90,7 @@ class SyntaxTreeGenerator < MonadicApp
   end
 
   def draw_syntree(text: "")
-    text = text.gsub('"', '\"')
+    text_escaped = text.gsub('"', '\"')
     if IN_CONTAINER
       shared_volume = "/monadic/data/"
     else
@@ -99,7 +99,7 @@ class SyntaxTreeGenerator < MonadicApp
 
     image_file_name = Time.now.strftime("%Y%m%d%H%M%S") + ".svg"
 
-    command1 = "rsyntaxtree -f svg -o #{shared_volume} \"#{text}\""
+    command1 = "rsyntaxtree -f svg -o #{shared_volume} \"#{text_escaped}\""
     send_command(command: command1, container: "ruby")
 
     command2 = "mv #{shared_volume}syntree.svg #{shared_volume}#{image_file_name}"

@@ -110,7 +110,7 @@ class FlowchartGrapher < MonadicApp
     }
   end
 
-  def mermaid_examples(diagram_type)
+  def mermaid_examples(diagram_type: "graph")
     begin
       file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
       if File.exist?(file_path)

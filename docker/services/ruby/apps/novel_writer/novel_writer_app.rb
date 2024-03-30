@@ -102,7 +102,7 @@ class NovelWriter < MonadicApp
     }
   end
 
-  def update_num_of_words(num_of_words_so_far:, new_paragraph:)
+  def update_num_of_words(num_of_words_so_far: 0, new_paragraph: "")
     num_of_words_so_far = num_of_words_so_far.to_i
     num_of_words_so_far += new_paragraph.split.size
     num_of_words_so_far

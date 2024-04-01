@@ -99,7 +99,7 @@ def init_apps
       INITIAL
 
       prompt_suffix << <<~SUFFIX
-        Remember to use the correct delimiter for inline mathematical expressions `$`.
+        [INTERNAL] Remember to use the correct delimiter for inline mathematical expressions `$`.
       SUFFIX
     end
 
@@ -120,7 +120,7 @@ def init_apps
 
     if app.settings[:mermaid]
       prompt_suffix << <<~INITIAL
-        Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
+        [INTERNAL] Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
       INITIAL
     end
 

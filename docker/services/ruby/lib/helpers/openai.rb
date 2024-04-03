@@ -340,7 +340,6 @@ module OpenAIHelper
 
   # Connect to OpenAI API and get a response
   def completion_api_request(role, obj: nil, call_depth: 0, &block)
-
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -504,6 +503,11 @@ module OpenAIHelper
       end
     end
 
+    # puts "***************************"
+    # puts body["messages"].first
+    # puts "***************************"
+
+    puts body["messages"].first
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
     unless res.status.success?

@@ -152,7 +152,7 @@ APPS = init_apps
 
 # Configure the Sinatra application
 configure do
-  use Rack::Session::Pool, expire_after: 86_400
+  use Rack::Session::Pool
   set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
   set :public_folder, "public"
   set :views, "views"

@@ -50,11 +50,26 @@ module OpenAIHelper
       end
 
       if api_key
-        File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=#{settings.api_key}" }
+        env_vars = File.read(ENV_PATH).split("\n")
+        env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
+        env_vars_hash["OPENAI_API_KEY"] = api_key
+        File.open(ENV_PATH, "w") do |f|
+          env_vars_hash.each do |key, value|
+            f.puts "#{key}=#{value}"
+          end
+        end
+        ENV["OPENAI_API_KEY"] = api_key
       end
       { "type" => "models", "content" => "API token verified and stored in <code>.env</code> file.", "models" => models }
     else
-      File.open(ENV_PATH, "w") { |f| f.puts "OPENAI_API_KEY=" }
+      env_vars = File.read(ENV_PATH).split("\n")
+      env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
+      env_vars_hash["OPENAI_API_KEY"] = ""
+      File.open(ENV_PATH, "w") do |f|
+        env_vars_hash.each do |key, value|
+          f.puts "#{key}=#{value}"
+        end
+      end
       ENV["OPENAI_API_KEY"] = ""
       settings.api_key = ""
       if num_retrial >= MAX_RETRIES
@@ -503,11 +518,6 @@ module OpenAIHelper
       end
     end
 
-    # puts "***************************"
-    # puts body["messages"].first
-    # puts "***************************"
-
-    puts body["messages"].first
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
     unless res.status.success?

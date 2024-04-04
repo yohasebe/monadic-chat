@@ -31,7 +31,7 @@ class DocumentReader < MonadicApp
 
       If the user provides an audio file, you can use the `analyze_speech` function to analyze the speech and return the result. The function takes the file path of the audio file as the parameter and returns the result. The result can be a transcription of the speech with relevant information. In your response, present the text transcription and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
 
-      If there is no data to explain, please tell the user and ask the user to provide a document or a URL.
+      Throughout the conversation, the user can provide a new document or URL to analyze. Ask the user to provide a document or a URL if there is no data available because they have not provided any document or URL yet or the past data has been cleared.
     TEXT
 
     text.strip

@@ -142,6 +142,8 @@ function remove_containers {
   # Stop the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
+  # Remove the Docker images and containers
+  
   if $DOCKER images | grep -q "yohasebe/monadic-chat"; then
     $DOCKER rmi -f yohasebe/monadic-chat >/dev/null
   fi
@@ -163,6 +165,10 @@ function remove_containers {
     $DOCKER container rm -f monadic-chat-pgvector-container >/dev/null
     $DOCKER container rm -f monadic-chat-python-container >/dev/null
     $DOCKER container rm -f monadic-chat-selenium-container >/dev/null
+
+    # remove legacy containers
+    $DOCKER container rm -f monadic-chat-web-container >/dev/null
+    $DOCKER container rm -f monadic-chat-container >/dev/null
   fi
 
   if $DOCKER volume ls | grep -q "monadic-chat-pgvector-data"; then

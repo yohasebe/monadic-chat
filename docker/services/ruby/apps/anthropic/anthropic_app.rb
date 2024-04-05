@@ -35,13 +35,13 @@ class Anthropic < MonadicApp
 
       Please show the response to the user in the following format:
 
-      ```
-      RESPONSE
+      """
+      RESPONSE_FROM_API
 
       ---
 
       Above is the response from **Anthropic** API (model: `MODEL_NAME`).
-      ```
+      """
 
       If errors occur during the process, handle them gracefully and inform the user of the issue showing the exact error message.
 
@@ -53,7 +53,7 @@ class Anthropic < MonadicApp
   def settings
     {
       "app_name": "Anthropic Connector",
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,

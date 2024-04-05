@@ -145,7 +145,7 @@ class MonadicApp
         end
         system_command =<<~SYS
           chmod +x #{script_dir}/* && \
-          chmod +x #{script_dir_local}/* && \
+          chmod -f +x #{script_dir_local}/* | : && \
           export PATH="#{script_dir}:${PATH}" && \
           export PATH="#{script_dir_local}:${PATH}" && \
           cd #{shared_volume} && \

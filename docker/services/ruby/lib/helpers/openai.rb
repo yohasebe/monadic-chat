@@ -505,7 +505,7 @@ module OpenAIHelper
     end
 
     # If the message contains an image, the model is set to "gpt-4-vision-preview"
-    if messages_containing_img
+    if messages_containing_img && role != "tool"
       body["model"] = "gpt-4-vision-preview"
       body.delete("stop") if /\-vision/ =~ body["model"]
       body.delete("tools")

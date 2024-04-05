@@ -36,25 +36,25 @@ class Anthropic < MonadicApp
       Please show the response to the user in the following format:
 
       ```
-      Here is the response from the **Anthropic** API (model: `MODEL_NAME`):
+      RESPONSE
 
       ---
 
-      RESPONSE
+      Above is the response from **Anthropic** API (model: `MODEL_NAME`).
       ```
 
       If errors occur during the process, handle them gracefully and inform the user of the issue showing the exact error message.
 
-      Only if the user ask you for a response from a GPT model, you can directly answer the question without using the Anthropic API. Otherwise, use the Anthropic API to answer the user's questions.
+      Only if the user ask you for a response from a GPT model, you can directly answer the question without using the Anthropic API. Otherwise, use the Anthropic API to answer the user's questions. If you respond to the user without using the Anthropic API, make sure to mention that in your response.
     TEXT
     text.strip
   end
 
   def settings
     {
-      "app_name": "Anthropic API",
-      "model": "gpt-4-0125-preview",
-      "temperature": 0.3,
+      "app_name": "Anthropic Connector",
+      "model": "gpt-3.5-turbo-0125",
+      "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,
       "context_size": 20,

@@ -178,7 +178,7 @@ module OpenAIHelper
     end
 
     if response.status.success?
-      puts "Audio file uploaded successfully"
+      # puts "Audio file uploaded successfully"
       JSON.parse(response.body)
     else
       pp "Error: #{response.status} - #{response.body}"

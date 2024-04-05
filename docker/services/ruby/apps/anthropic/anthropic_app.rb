@@ -23,7 +23,9 @@ class Anthropic < MonadicApp
       - Claude 3 Sonnet: `claude-3-sonnet-20240229`
       - Claude 3 Haiku: `claude-3-haiku-20240307`
 
-      If the API is set and the model is specified, ask the user to provide the question they would like to ask. The subsequent questions and requests from the user should be answered using the Anthropic API.
+      Of course, if `check_settings` returns a model name, use that model to answer the user's questions. If the model is not set, use the default model `claude-3-haiku-20240307`.
+
+      If the API is set and the model is decided, ask the user to provide the question they would like to ask. The subsequent questions and requests from the user should be answered using the Anthropic API.
 
       If the user provides you with a question or request, run the function `anthropic_query(message, model)` to ask the user's question to the Anthropic API. The function requires two arguments: the message to be sent to the API and the model to be used. The model name should start with `claude-3-`.
 

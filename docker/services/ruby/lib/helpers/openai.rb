@@ -14,12 +14,19 @@ module OpenAIHelper
 
   if IN_CONTAINER
     ENV_PATH = "/monadic/data/.env"
+    SCRIPTS_PATH = "/monadic/data/scripts"
+    APPS_PATH = "/monadic/data/apps"
   else
     ENV_PATH = File.join(Dir.home, "monadic", "data", ".env")
+    SCRIPTS_PATH = File.join(Dir.home, "monadic", "data", "scripts")
+    APPS_PATH = File.join(Dir.home, "monadic", "data", "apps")
   end
 
   FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
+
+  FileUtils.mkdir_p(File.dirname(SCRIPTS_PATH)) unless File.exist?(File.dirname(SCRIPTS_PATH))
+  FileUtils.mkdir_p(File.dirname(APPS_PATH)) unless File.exist?(File.dirname(APPS_PATH))
 
   def set_api_key(api_key, num_retrial = 0)
     if api_key

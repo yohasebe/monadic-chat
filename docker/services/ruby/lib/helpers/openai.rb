@@ -25,8 +25,8 @@ module OpenAIHelper
   FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
   FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
 
-  FileUtils.mkdir_p(File.dirname(SCRIPTS_PATH)) unless File.exist?(File.dirname(SCRIPTS_PATH))
-  FileUtils.mkdir_p(File.dirname(APPS_PATH)) unless File.exist?(File.dirname(APPS_PATH))
+  FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH)
+  FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH)
 
   def set_api_key(api_key, num_retrial = 0)
     if api_key

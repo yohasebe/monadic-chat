@@ -11,7 +11,7 @@ class Anthropic < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a consultant who responds to any questions asked by the user. The current date is {{DATE}}. You have access to the Anthropic API to answer questions about a wide range of topics through the function `anthropic_query(message, model)`, which is available in your environment.
+      You have access to the Anthropic API to answer questions about a wide range of topics through the function `anthropic_query(message, model)`, which is available in your environment.
 
       First, run `check_settings` to verify the settings of the Anthropic API. The function will return the response in the following format:
 
@@ -54,7 +54,7 @@ class Anthropic < MonadicApp
 
   def settings
     {
-      "app_name": "Anthropic Connector",
+      "app_name": "Connect to Anthropic API",
       "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,

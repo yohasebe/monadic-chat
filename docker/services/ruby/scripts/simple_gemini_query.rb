@@ -3,7 +3,7 @@ require "http"
 require "json"
 require "optparse"
 
-API_ENDPOINT = "https://api.anthropic.com"
+API_ENDPOINT = "https://generativelanguage.googleapis.com"
 OPEN_TIMEOUT = 5
 READ_TIMEOUT = 60
 WRITE_TIMEOUT = 60
@@ -37,22 +37,22 @@ def get_env_var(var_name)
 end
 
 if options[:check]
-  api_key_status = get_env_var("ANTHROPIC_API_KEY") != false
-  model_name = get_env_var("ANTHROPIC_MODEL") || "false"
+  api_key_status = get_env_var("GEMINI_API_KEY") != false
+  model_name = get_env_var("GEMINI_MODEL") || "false"
   puts({"API_KEY" => api_key_status, "MODEL" => model_name}.to_json)
   exit
 end
 
-def query(message: "", model: "claude-3-opus-20240229")
+def query(message: "", model: "models/gemini-pro")
   num_retrial = 0
   begin
     if File.file?("/.dockerenv")
       api_key = File.read("/monadic/data/.env").split("\n").find do |line|
-        line.start_with?("ANTHROPIC_API_KEY")
+        line.start_with?("GEMINI_API_KEY")
       end.split("=").last
     else
       api_key ||= File.read("#{Dir.home}/monadic/data/.env").split("\n").find do |line|
-        line.start_with?("ANTHROPIC_API_KEY")
+        line.start_with?("GEMINI_API_KEY")
       end.split("=").last
     end
   rescue StandardError
@@ -61,32 +61,32 @@ def query(message: "", model: "claude-3-opus-20240229")
   end
 
   headers = {
-    "content-type" => "application/json",
-    "anthropic-version" => "2023-06-01",
-    "x-api-key" => api_key.strip
+    "Content-Type" => "application/json"
   }
 
   body = {
-    "model" => model,
-    "max_tokens" => 1000,
-    "temperature" => 0.0,
-    "top_p" => 0.0
+    "contents" => [
+      {
+        "parts" => [
+          {
+            "text" => message
+          }
+        ]
+      }
+    ]
   }
 
-  body["messages"] = [
-    { "role" => "user", "content" => message }
-  ]
-
-  target_uri = "#{API_ENDPOINT}/v1/messages"
-  http = HTTP.headers(headers)
-  res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+  pp target_uri = "#{API_ENDPOINT}/v1beta/#{model}:generateContent?key=#{api_key}"
+  pp http = HTTP.headers(headers)
+  pp body
+  pp res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
   unless res.status.success?
     JSON.parse(res.body)["error"]
     "ERROR: #{JSON.parse(res.body)["error"]}"
   end
 
-  results = JSON.parse(res.body).dig("content")
+  results = JSON.parse(res.body).dig("candidates", 0, "content", "parts", 0, "text")
   results
 rescue HTTP::Error, HTTP::TimeoutError
   if num_retrial < MAX_RETRIES
@@ -113,7 +113,7 @@ if message.nil?
 end
 
 begin
-  model = ARGV[1] || "claude-3-opus-20240229"
+  model = ARGV[1] || "models/gemini-pro"
   response = query(message: message, model: model)
   puts response
 rescue => e

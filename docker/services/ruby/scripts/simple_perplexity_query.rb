@@ -22,13 +22,11 @@ end.parse!
 def get_env_var(var_name)
   begin
     if File.file?("/.dockerenv")
-      value = File.read("/monadic/data/.env").split("
-").find do |line|
+      value = File.read("/monadic/data/.env").split("\n").find do |line|
         line.start_with?(var_name)
       end.split("=").last
     else
-      value = File.read("#{Dir.home}/monadic/data/.env").split("
-").find do |line|
+      value = File.read("#{Dir.home}/monadic/data/.env").split("\n").find do |line|
         line.start_with?(var_name)
       end.split("=").last
     end

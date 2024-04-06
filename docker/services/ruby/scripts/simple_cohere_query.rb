@@ -3,7 +3,7 @@ require "http"
 require "json"
 require "optparse"
 
-API_ENDPOINT = "https://api.anthropic.com"
+API_ENDPOINT = "https://api.cohere.ai"
 OPEN_TIMEOUT = 5
 READ_TIMEOUT = 60
 WRITE_TIMEOUT = 60
@@ -37,22 +37,22 @@ def get_env_var(var_name)
 end
 
 if options[:check]
-  api_key_status = get_env_var("ANTHROPIC_API_KEY") != false
-  model_name = get_env_var("ANTHROPIC_MODEL") || "false"
+  api_key_status = get_env_var("COHERE_API_KEY") != false
+  model_name = get_env_var("COHERE_MODEL") || "false"
   puts({"API_KEY" => api_key_status, "MODEL" => model_name}.to_json)
   exit
 end
 
-def query(message: "", model: "claude-3-opus-20240229")
+def query(message: "", model: "command-r")
   num_retrial = 0
   begin
     if File.file?("/.dockerenv")
       api_key = File.read("/monadic/data/.env").split("\n").find do |line|
-        line.start_with?("ANTHROPIC_API_KEY")
+        line.start_with?("COHERE_API_KEY")
       end.split("=").last
     else
       api_key ||= File.read("#{Dir.home}/monadic/data/.env").split("\n").find do |line|
-        line.start_with?("ANTHROPIC_API_KEY")
+        line.start_with?("COHERE_API_KEY")
       end.split("=").last
     end
   rescue StandardError
@@ -61,23 +61,21 @@ def query(message: "", model: "claude-3-opus-20240229")
   end
 
   headers = {
+
+    "accept" => "application/json",
     "content-type" => "application/json",
-    "anthropic-version" => "2023-06-01",
-    "x-api-key" => api_key.strip
+    "Authorization" => "bearer #{api_key.strip}",
   }
 
   body = {
     "model" => model,
     "max_tokens" => 1000,
-    "temperature" => 0.0,
-    "top_p" => 0.0
+    "temperature" => 0.0
   }
 
-  body["messages"] = [
-    { "role" => "user", "content" => message }
-  ]
+  body["message"] = message
 
-  target_uri = "#{API_ENDPOINT}/v1/messages"
+  target_uri = "#{API_ENDPOINT}/v1/chat"
   http = HTTP.headers(headers)
   res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
@@ -86,7 +84,7 @@ def query(message: "", model: "claude-3-opus-20240229")
     "ERROR: #{JSON.parse(res.body)["error"]}"
   end
 
-  results = JSON.parse(res.body).dig("content")
+  results = JSON.parse(res.body).dig("text")
   results
 rescue HTTP::Error, HTTP::TimeoutError
   if num_retrial < MAX_RETRIES
@@ -113,7 +111,7 @@ if message.nil?
 end
 
 begin
-  model = ARGV[1] || "claude-3-opus-20240229"
+  model = ARGV[1] || "command-r"
   response = query(message: message, model: model)
   puts response
 rescue => e

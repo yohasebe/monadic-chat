@@ -76,10 +76,9 @@ def query(message: "", model: "models/gemini-pro")
     ]
   }
 
-  pp target_uri = "#{API_ENDPOINT}/v1beta/#{model}:generateContent?key=#{api_key}"
-  pp http = HTTP.headers(headers)
-  pp body
-  pp res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+  target_uri = "#{API_ENDPOINT}/v1beta/#{model}:generateContent?key=#{api_key}"
+  http = HTTP.headers(headers)
+  res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
   unless res.status.success?
     JSON.parse(res.body)["error"]

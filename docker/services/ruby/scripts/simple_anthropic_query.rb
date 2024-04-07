@@ -86,7 +86,7 @@ def query(message: "", model: "claude-3-opus-20240229")
     "ERROR: #{JSON.parse(res.body)["error"]}"
   end
 
-  results = JSON.parse(res.body).dig("content")
+  results = JSON.parse(res.body).dig("content", 0, "text")
   results
 rescue HTTP::Error, HTTP::TimeoutError
   if num_retrial < MAX_RETRIES

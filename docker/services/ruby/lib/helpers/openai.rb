@@ -357,11 +357,11 @@ module OpenAIHelper
     obj["function_returns"] = context
 
     # return Array
-    completion_api_request("tool", obj: obj, call_depth: call_depth, &block)
+    openai_api_request("tool", obj: obj, call_depth: call_depth, &block)
   end
 
   # Connect to OpenAI API and get a response
-  def completion_api_request(role, obj: nil, call_depth: 0, &block)
+  def openai_api_request(role, obj: nil, call_depth: 0, &block)
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 

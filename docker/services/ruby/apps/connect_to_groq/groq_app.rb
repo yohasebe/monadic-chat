@@ -41,15 +41,15 @@ class Groq < MonadicApp
 
       """
 
-      RESPONSE FROM API HERE
+      response from `groq_query` here
 
       ---
 
-      Above is the response from **Anthropic** API (model: `MODEL_NAME`).
+      This is the response from **Anthropic** API (model: `MODEL_NAME`).
 
       """
 
-      Do not add the delimiter """ or ``` in the response from the API. The delimiter is only used to show the format of the response.
+      Do not enclose your response with """, ```, or <pre> tags.
     TEXT
     text.strip
   end

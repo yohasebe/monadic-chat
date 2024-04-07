@@ -27,7 +27,7 @@ class Groq < MonadicApp
 
       If the API is set and the model is decided, ask the user to provide the question they would like to ask. The subsequent questions and requests from the user should be answered using the Groq API.
 
-      If the user provides you with a question or request, run the function `groq_query(message, model)` to ask the user's question to the Groq API. The function requires two arguments: the message to be sent to the API and the model to be used. The model name should start with `claude-3-`.
+      If the user provides you with a question or request, run the function `groq_query(message, model)` to ask the user's question to the Groq API. The function requires two arguments: the message to be sent to the API and the model to be used.
 
       The `groq_query` function will return the response from the API in the following format:
 

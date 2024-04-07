@@ -54,7 +54,7 @@ class Anthropic < MonadicApp
 
   def settings
     {
-      "app_name": "Connect to Anthropic API",
+      "app_name": "Connect to Anthropic",
       "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,

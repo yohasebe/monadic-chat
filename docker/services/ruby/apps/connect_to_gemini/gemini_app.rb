@@ -53,7 +53,7 @@ class Gemini < MonadicApp
 
   def settings
     {
-      "app_name": "Connect to Google Gemini API",
+      "app_name": "Connect to Google Gemini",
       "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,

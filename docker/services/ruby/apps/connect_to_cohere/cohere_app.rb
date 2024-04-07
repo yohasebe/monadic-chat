@@ -55,7 +55,7 @@ class Cohere < MonadicApp
 
   def settings
     {
-      "app_name": "Connect to Cohere API",
+      "app_name": "Connect to Cohere",
       "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,

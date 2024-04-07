@@ -57,7 +57,7 @@ class Perplexity < MonadicApp
 
   def settings
     {
-      "app_name": "Connect to Perplexity API",
+      "app_name": "Connect to Perplexity",
       "model": "gpt-4-0125-preview",
       "temperature": 0.0,
       "top_p": 0.0,
@@ -99,6 +99,9 @@ class Perplexity < MonadicApp
       ]
     }
   end
+
+  # def api_request(role, obj: nil, call_depth: 0, &block)
+  # end
 
   def check_settings
     command = <<~CMD

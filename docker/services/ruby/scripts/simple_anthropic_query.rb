@@ -82,8 +82,8 @@ def query(message: "", model: "claude-3-opus-20240229")
   res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
   unless res.status.success?
-    JSON.parse(res.body)["error"]
-    "ERROR: #{JSON.parse(res.body)["error"]}"
+    puts "ERROR: #{JSON.parse(res.body)["error"]}"
+    exit
   end
 
   results = JSON.parse(res.body).dig("content", 0, "text")

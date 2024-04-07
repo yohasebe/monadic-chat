@@ -40,15 +40,15 @@ class Cohere < MonadicApp
 
       Use the following format to present the response from the API:
 
-      ```
+      """
       RESPONSE FROM API HERE
 
       ---
 
       Above is the response from **Anthropic** API (model: `MODEL_NAME`).
-      ```
+      """
 
-      Do not include the delimiter \`\`\` in the response from the API. The delimiter is only used to show the format of the response.
+      Do not add the delimiter """ or ``` in the response from the API. The delimiter is only used to show the format of the response.
     TEXT
     text.strip
   end

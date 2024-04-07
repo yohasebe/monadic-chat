@@ -29,25 +29,27 @@ class Anthropic < MonadicApp
 
       If the user provides you with a question or request, run the function `anthropic_query(message, model)` to ask the user's question to the Anthropic API. The function requires two arguments: the message to be sent to the API and the model to be used. The model name should start with `claude-3-`.
 
-      You can modify the user's message so that it is optimized for the API. You can also add additional context to the message if you think it will help the API provide a better response. Use the language that the user used in their question in modiying the prompt you send to the API.
-
       The `anthropic_query` function will return the response from the API in the following format:
 
       {"type"=>"text", "text"=>"The response from the API"}
 
-      Please show the response to the user in the following format:
+      If errors occur during the process, handle them gracefully and inform the user of the issue showing the exact error message.
 
-      """
-      RESPONSE_FROM_API
+      Only if the user ask you for a response from a GPT model, you can directly answer the question without using the Anthropic API. Otherwise, use the Anthropic API to answer the user's questions. If you respond to the user without using the Anthropic API, make sure to mention that in your response.
+
+      Use the following format to present the response from the API:
+
+      ```
+
+      RESPONSE FROM API HERE
 
       ---
 
       Above is the response from **Anthropic** API (model: `MODEL_NAME`).
-      """
 
-      If errors occur during the process, handle them gracefully and inform the user of the issue showing the exact error message.
+      ```
 
-      Only if the user ask you for a response from a GPT model, you can directly answer the question without using the Anthropic API. Otherwise, use the Anthropic API to answer the user's questions. If you respond to the user without using the Anthropic API, make sure to mention that in your response.
+      Do not include the delimiter \`\`\` in the response from the API. The delimiter is only used to show the format of the response.
     TEXT
     text.strip
   end
@@ -55,7 +57,7 @@ class Anthropic < MonadicApp
   def settings
     {
       "app_name": "Connect to Anthropic",
-      "model": "gpt-4-0125-preview",
+      "model": "gpt-3.5-turbo-0125",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,

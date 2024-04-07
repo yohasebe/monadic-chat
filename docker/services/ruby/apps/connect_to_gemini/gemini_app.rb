@@ -26,7 +26,7 @@ class Gemini < MonadicApp
 
       If the API is set and the model is decided, ask the user to provide the question they would like to ask. The subsequent questions and requests from the user should be answered using the Google Gemini API.
 
-      If the user provides you with a question or request, run the function `gemini_query(message, model)` to ask the user's question to the Google Gemini API. The function requires two arguments: the message to be sent to the API and the model to be used. The model name should start with `claude-3-`.
+      If the user provides you with a question or request, run the function `gemini_query(message, model)` to ask the user's question to the Google Gemini API. The function requires two arguments: the message to be sent to the API and the model to be used.
 
       The `gemini_query` function will return the response from the API in the following format:
 
@@ -38,7 +38,7 @@ class Gemini < MonadicApp
 
       Use the following format to present the response from the API:
 
-      ```
+      """
 
       RESPONSE FROM API HERE
 
@@ -46,9 +46,9 @@ class Gemini < MonadicApp
 
       Above is the response from **Anthropic** API (model: `MODEL_NAME`).
 
-      ```
+      """
 
-      Do not include the delimiter \`\`\` in the response from the API. The delimiter is only used to show the format of the response.
+      Do not add the delimiter """ or ``` in the response from the API. The delimiter is only used to show the format of the response.
     TEXT
     text.strip
   end

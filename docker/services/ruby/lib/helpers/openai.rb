@@ -9,7 +9,7 @@ module OpenAIHelper
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
-  MAX_RETRIES = 1
+  MAX_RETRIES = 5
   RETRY_DELAY = 1
 
   if IN_CONTAINER
@@ -22,8 +22,22 @@ module OpenAIHelper
     APPS_PATH = File.join(Dir.home, "monadic", "data", "apps")
   end
 
-  FileUtils.mkdir_p(File.dirname(ENV_PATH)) unless File.exist?(File.dirname(ENV_PATH))
-  FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
+  unless File.exist?(File.dirname(ENV_PATH))
+    FileUtils.mkdir_p(File.dirname(ENV_PATH))
+
+    while true do
+      if !File.exist?(File.dirname(ENV_PATH)) && MAX_RETRIES <= 0
+        raise "ERROR: Could not create directory #{File.dirname(ENV_PATH)}"
+      end
+
+      if File.exist?(File.dirname(ENV_PATH))
+        FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
+        break
+      end
+      sleep RETRY_DELAY
+      max_retries -= 1
+    end
+  end
 
   FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH)
   FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH)

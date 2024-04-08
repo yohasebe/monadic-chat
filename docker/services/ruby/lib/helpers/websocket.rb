@@ -233,7 +233,7 @@ module WebSocketHelper
               api_request = method(:openai_api_request)
             end
 
-            responses = api_request.call("user") do |fragment|
+            responses = api_request.call("user", session) do |fragment|
               if fragment["type"] == "error"
                 @channel.push({ "type" => "error", "content" => "E1:#{fragment.to_s}" }.to_json)
               elsif fragment["type"] == "fragment"

@@ -10,8 +10,17 @@ $(function () {
   //////////////////////////////
   // UI event handlers
   //////////////////////////////
+  
+  function listModels(models) {
+    let modelList = "";
+    for (let model of models) {
+      modelList += `<option value="${model}">${model}</option>`;
+    }
+    return modelList;
+  }
 
   let lastApp = defaultApp;
+
   $("#apps").on("change", function(event) {
     event.preventDefault();
     if (messages.length > 0) {
@@ -46,6 +55,13 @@ $(function () {
       $("#file-div").hide();
       $("#pdf-panel").hide();
     }
+
+    if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
+      $("#model").prop("disabled", true);
+    } else {
+      $("#model").prop("disabled", false);
+    }
+
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
     $("#base-app-icon").html(apps[$(this).val()]["icon"]);
     $("#base-app-desc").html(apps[$(this).val()]["description"]);

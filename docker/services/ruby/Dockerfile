@@ -5,7 +5,6 @@ WORKDIR $WORKSPACE
 RUN apk update && apk add --no-cache \
     linux-headers libxml2-dev make gcc libc-dev bash git \
     build-base pkgconfig poppler-dev cairo-dev pango-dev gdk-pixbuf-dev \
-    librsvg librsvg-dev imagemagick imagemagick-dev xz-dev libbz2 \
     postgresql-dev postgresql-client postgresql-contrib tzdata glib-dev \
     gobject-introspection-dev curl-dev curl wget gcompat docker-cli && \
     rm -rf /var/cache/apk/*

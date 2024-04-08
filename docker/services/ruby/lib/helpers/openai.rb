@@ -71,15 +71,19 @@ module OpenAIHelper
       end
 
       if api_key
-        env_vars = File.read(ENV_PATH).split("\n")
-        env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
-        env_vars_hash["OPENAI_API_KEY"] = api_key
-        File.open(ENV_PATH, "w") do |f|
-          env_vars_hash.each do |key, value|
-            f.puts "#{key}=#{value}"
+        begin
+          env_vars = File.read(ENV_PATH).split("\n")
+          env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
+          env_vars_hash["OPENAI_API_KEY"] = api_key
+          File.open(ENV_PATH, "w") do |f|
+            env_vars_hash.each do |key, value|
+              f.puts "#{key}=#{value}"
+            end
           end
+          ENV["OPENAI_API_KEY"] = api_key
+        rescue StandardError => e
+          { "type" => "error", "content" => "Config file contains a problem; Check <code>~/monadic/data/.env</code>."}
         end
-        ENV["OPENAI_API_KEY"] = api_key
       end
       { "type" => "models", "content" => "API token verified and stored in <code>~/monadic/data/.env</code>", "models" => models }
     else

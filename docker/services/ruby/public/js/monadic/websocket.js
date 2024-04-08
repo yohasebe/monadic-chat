@@ -462,7 +462,6 @@ function connect_websocket(callback) {
           if ($("#apps").val() === "PDF") {
             ws.send(JSON.stringify({message: "PDF_TITLES"}));
           }
-
         }
         originalParams = apps["Chat"];
         resetParams();

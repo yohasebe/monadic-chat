@@ -207,7 +207,9 @@ module OpenAIHelper
     end
   end
 
-  def process_json_data(app, obj, body, call_depth, &block)
+  def process_json_data(app, session, body, call_depth, &block)
+    obj = session[:parameters]
+
     buffer = ""
     tool_calls = false
     texts = {}
@@ -218,7 +220,6 @@ module OpenAIHelper
 
       buffer << chunk
       scanner = StringScanner.new(buffer)
-      # pattern = /data: (\{.*?\})(?=\n|\z)/m
       pattern = /data: (\{.*?\})(?=\n|\z)/
       until scanner.eos?
         matched = scanner.scan_until(pattern)
@@ -321,7 +322,7 @@ module OpenAIHelper
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
-      new_results = process_functions(app, obj, tools, context, call_depth, &block)
+      new_results = process_functions(app, session, tools, context, call_depth, &block)
 
       # return Array
       if result && new_results
@@ -342,7 +343,8 @@ module OpenAIHelper
     end
   end
 
-  def process_functions(app, obj, tools, context, call_depth, &block)
+  def process_functions(app, session, tools, context, call_depth, &block)
+    obj = session[:parameters]
     results = []
     tools.each do |tool_call|
       function_call = tool_call["function"]
@@ -371,16 +373,17 @@ module OpenAIHelper
     obj["function_returns"] = context
 
     # return Array
-    openai_api_request("tool", obj: obj, call_depth: call_depth, &block)
+    openai_api_request("tool", session, call_depth: call_depth, &block)
   end
 
   # Connect to OpenAI API and get a response
-  def openai_api_request(role, obj: nil, call_depth: 0, &block)
+  def openai_api_request(role, session, call_depth: 0, &block)
+
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
     # Get the parameters from the session
-    obj ||= session[:parameters]
+    obj = session[:parameters]
     app = obj["app_name"]
     api_key = settings.api_key
 
@@ -549,7 +552,7 @@ module OpenAIHelper
     end
 
     # return Array
-    return process_json_data(app, obj, res.body, call_depth, &block)
+    return process_json_data(app, session, res.body, call_depth, &block)
 
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES

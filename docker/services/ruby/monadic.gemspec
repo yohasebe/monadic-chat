@@ -60,9 +60,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pragmatic_segmenter"
   spec.add_dependency "rake"
   spec.add_dependency "redcarpet"
-  spec.add_dependency "rmagick"
   spec.add_dependency "rouge"
-  spec.add_dependency "rsyntaxtree"
   spec.add_dependency "sinatra"
   spec.add_dependency "thin"
 end

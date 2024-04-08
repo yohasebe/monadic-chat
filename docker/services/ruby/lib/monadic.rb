@@ -6,6 +6,7 @@ require "eventmachine"
 require "faye/websocket"
 require "http"
 require "http/form_data"
+require "httparty"
 require "i18n_data"
 require "json"
 require "kramdown"
@@ -20,7 +21,6 @@ require "securerandom"
 require "strscan"
 require "tempfile"
 require "uri"
-require 'httparty'
 
 require "oj"
 Oj.mimic_JSON()

@@ -67,7 +67,7 @@ module OpenAIHelper
         end
         ENV["OPENAI_API_KEY"] = api_key
       end
-      { "type" => "models", "content" => "API token verified and stored in <code>~/monadic/data/.env</code> file.", "models" => models }
+      { "type" => "models", "content" => "API token verified and stored in <code>~/monadic/data/.env</code>", "models" => models }
     else
       env_vars = File.read(ENV_PATH).split("\n")
       env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
@@ -242,7 +242,7 @@ module OpenAIHelper
 
             if json.dig('choices', 0, 'delta', 'tool_calls')
 
-              res = { "type" => "wait", "content" => "CALLING FUNCTIONS" }
+              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
               block&.call res
 
               # Merge tool calls based on 'id'

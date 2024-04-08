@@ -157,7 +157,7 @@ $(function () {
   })
 
   $("#send").on("click", function(event) {
-    setAlert("THINKING . . .", "info");
+    setAlert("<i class='fas fa-robot'></i> THINKING", "info");
     elemError.hide();
     event.preventDefault();
     if (message.value === "") {

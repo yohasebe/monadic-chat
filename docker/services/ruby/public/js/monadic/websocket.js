@@ -675,7 +675,7 @@ function connect_websocket(callback) {
         break;
       default:
         if(!responseStarted || callingFunction) {
-          setAlert("RESPONDING", "info");
+          setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "info");
           callingFunction = false;
           responseStarted = true;
         }

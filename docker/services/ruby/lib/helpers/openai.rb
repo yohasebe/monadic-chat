@@ -332,7 +332,7 @@ module OpenAIHelper
         [result].concat new_results
       elsif new_results
         new_results
-      elsif results
+      elsif result
         [result]
       end
     elsif result
@@ -348,7 +348,6 @@ module OpenAIHelper
 
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
-    results = []
     tools.each do |tool_call|
       function_call = tool_call["function"]
       function_name = function_call["name"]

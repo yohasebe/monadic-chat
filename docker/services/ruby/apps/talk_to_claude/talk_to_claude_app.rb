@@ -27,7 +27,7 @@ class Claude < MonadicApp
 
   def settings
     {
-      "app_name": "Talk to Claude",
+      "app_name": "Talk to Anthropic Claude",
       "max_tokens": 2000,
       "context_size": 20,
       "temperature": 1.0,
@@ -112,7 +112,7 @@ class Claude < MonadicApp
     else
       res = { "type" => "message", "content" => "DONE" }
       block&.call res
-      [res]
+      [{"choices" => [{"message" => {"content" => ""}}]}]
     end
   end
 

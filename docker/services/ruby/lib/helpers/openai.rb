@@ -136,17 +136,17 @@ module OpenAIHelper
       return res
     end
 
-    index = 0
+    t_index = 0
 
     if block_given?
       res.body.each do |chunk|
-        index += 1
+        t_index += 1
         content = Base64.strict_encode64(chunk)
-        hash_res = { "type" => "audio", "content" => content, "index" => index, "finished" => false }
+        hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
         block&.call hash_res
       end
-      index += 1
-      finish = { "type" => "audio", "content" => "", "index" => index, "finished" => true }
+      t_index += 1
+      finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
       block&.call finish
     else
       results = { "type" => "audio", "content" => Base64.strict_encode64(res) }
@@ -270,7 +270,7 @@ module OpenAIHelper
               choice['message'] ||= choice['delta'].dup
 
               json.dig('choices', 0, 'delta', 'tool_calls').each do |new_tool_call|
-                existing_tool_call = choice['message']['tool_calls'].find { |tc| tc['index'] == new_tool_call['index'] }
+                existing_tool_call = choice['message']['tool_calls'].find { |tc| tc['t_index'] == new_tool_call['t_index'] }
                 if existing_tool_call
                   existing_tool_call['function']['arguments'] += new_tool_call.dig('function', 'arguments').to_s
                 else
@@ -357,6 +357,7 @@ module OpenAIHelper
       rescue
         argument_hash = {}
       end
+
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
         memo[k.to_sym] = v
         memo
@@ -539,6 +540,10 @@ module OpenAIHelper
       if message["tool_calls"] || message[:tool_call]
         if !message["role"] && !message[:role]
           message["role"] = "assistant"
+        end
+        tool_calls = message["tool_calls"] || message[:tool_call]
+        tool_calls.each do |tool_call|
+          tool_call.delete("index")
         end
       end
     end

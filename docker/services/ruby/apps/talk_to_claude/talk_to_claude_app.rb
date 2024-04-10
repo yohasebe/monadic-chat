@@ -20,7 +20,7 @@ class Claude < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You have access to the Anthropic Claude API to answer questions about a wide range of topics.
+      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
     TEXT
     text.strip
   end
@@ -30,6 +30,7 @@ class Claude < MonadicApp
       "app_name": "Talk to Claude",
       "max_tokens": 2000,
       "context_size": 20,
+      "temperature": 1.0,
       "initial_prompt": initial_prompt,
       "description": description,
       "icon": icon,
@@ -38,58 +39,66 @@ class Claude < MonadicApp
       "initiate_from_assistant": false,
       "tools": [
         {
-          "type": "function",
-          "function": {
-            "name": "check_settings",
-            "description": "A function to check the settings of the Anthropic API."
+          "name": "fetch_web_content",
+          "description": "Fetch the content of the web page of the given URL and return it.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL of the web page."
+              }
+            },
+            "required": ["url"]
           }
         }
       ]
     }
   end
 
-  def check_settings
-    command = <<~CMD
-      bash -c 'simple_anthropic_query.rb --check'
-    CMD
-    send_command(command: command, container: "ruby")
+  def fetch_web_content(url: "")
+    selenium_job(url: url)
   end
 
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
+
     buffer = ""
     texts = []
 
-    body.each do |chunk|
-      break if /\Rdata: [DONE]\R/ =~ chunk
+    if body.respond_to?(:each)
+      body.each do |chunk|
+        break if /\Rdata: [DONE]\R/ =~ chunk
 
-      buffer << chunk
-      scanner = StringScanner.new(buffer)
-      pattern = /data: (\{.*?\})(?=\n|\z)/
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = matched.match(pattern)[1]
-          begin
-            json = JSON.parse(json_data)
+        buffer << chunk
+        scanner = StringScanner.new(buffer)
+        pattern = /data: (\{.*?\})(?=\n|\z)/
+        until scanner.eos?
+          matched = scanner.scan_until(pattern)
+          if matched
+            json_data = matched.match(pattern)[1]
+            begin
+              json = JSON.parse(json_data)
 
-            if json.dig('delta', 'text')
-              # Merge text fragments based on 'id'
-              fragment = json.dig('delta', 'text').to_s
-              texts << fragment
-              next if !fragment || fragment == ""
+              if json.dig('delta', 'text')
+                # Merge text fragments based on 'id'
+                fragment = json.dig('delta', 'text').to_s
+                texts << fragment
+                next if !fragment || fragment == ""
 
-              res = { "type" => "fragment", "content" => fragment }
-              block&.call res
+                res = { "type" => "fragment", "content" => fragment }
+                block&.call res
+              end
+
+            rescue JSON::ParserError
+              # if the JSON parsing fails, the next chunk should be appended to the buffer
+              # and the loop should continue to the next iteration
             end
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
-          end
 
-        else
-          buffer = scanner.rest
-          break
+          else
+            buffer = scanner.rest
+            break
+          end
         end
       end
     end
@@ -136,6 +145,8 @@ class Claude < MonadicApp
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    temperature = obj["temperature"].to_f
+
     max_tokens = obj["max_tokens"].to_i
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -144,7 +155,7 @@ class Claude < MonadicApp
 
     # If the app is monadic, the message is passed through the monadic_map function
     if obj["monadic"].to_s == "true" && message != ""
-      message = APPS[app].monadic_unit(message) if message != ""
+      message = monadic_unit(message) if message != ""
       html = markdown_to_html(obj["message"]) if message != ""
     elsif message != ""
       html = markdown_to_html(message)
@@ -197,6 +208,7 @@ class Claude < MonadicApp
     # Set the body for the API request
     body = {
       "system" => initial_prompt,
+      "temperature" => temperature,
       "model" => model,
       "stream" => true,
       "max_tokens" => max_tokens

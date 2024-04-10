@@ -58,8 +58,14 @@ $(function () {
 
     if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model").prop("disabled", true);
+      $("#top-p").prop("disabled", true);
+      $("#presence-penalty").prop("disabled", true);
+      $("#frequency-penalty").prop("disabled", true);
     } else {
       $("#model").prop("disabled", false);
+      $("#top-p").prop("disabled", false);
+      $("#presence-penalty").prop("disabled", false);
+      $("#frequency-penalty").prop("disabled", false);
     }
 
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);

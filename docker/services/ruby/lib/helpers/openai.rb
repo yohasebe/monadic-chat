@@ -215,7 +215,6 @@ module OpenAIHelper
     obj = session[:parameters]
 
     buffer = ""
-    tool_calls = false
     texts = {}
     tools = {}
 
@@ -525,9 +524,8 @@ module OpenAIHelper
       body["messages"] += obj["function_returns"]
     end
 
-    # If the message contains an image, the model is set to "gpt-4-vision-preview"
     if messages_containing_img && role != "tool"
-      body["model"] = "gpt-4-vision-preview"
+      body["model"] = "gpt-4-turbo"
       body.delete("stop") if /\-vision/ =~ body["model"]
       body.delete("tools")
       body.delete("tool_choice")

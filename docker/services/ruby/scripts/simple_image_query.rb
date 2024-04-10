@@ -97,11 +97,7 @@ def image_query(message, image)
     image_url = nil
   end
 
-  if image_path || image_url
-    model = "gpt-4-vision-preview"
-  else
-    model = "gpt-4-0125-preview"
-  end
+  model = "gpt-4-turbo"
 
   headers = {
     "Content-Type" => "application/json",

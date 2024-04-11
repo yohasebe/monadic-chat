@@ -25,8 +25,6 @@ class Cohere < MonadicApp
 
       Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response. Use Japanese, for example, if the user's input is in Japanese.
 
-      If the user provides you with a URL, you can use the `fetch_web_content` tool, which fetches the content of the web page of the given URL to check its contents. Respond to the user message without using the tool if the user's does not provide a URL.
-
       Your response must be formatted as a valid Markdown document.
     TEXT
     text.strip
@@ -44,19 +42,19 @@ class Cohere < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      "tools": [
-        {
-          "name": "fetch_web_content",
-          "description": "Fetch the content of the web page of the given URL and return it.",
-          "parameter_definitions": {
-            "url": {
-              "description": "URL of the web page.",
-              "type": "str",
-              "required": true
-            }
-          }
-        }
-      ]
+      # "tools": [
+      #   {
+      #     "name": "fetch_web_content",
+      #     "description": "Fetch the content of the web page of the given URL and return it.",
+      #     "parameter_definitions": {
+      #       "url": {
+      #         "description": "URL of the web page.",
+      #         "type": "str",
+      #         "required": true
+      #       }
+      #     }
+      #   }
+      # ]
     }
   end
 
@@ -263,7 +261,7 @@ class Cohere < MonadicApp
       "max_tokens" => max_tokens,
       "message" => message,
       "prompt_truncation" => "AUTO",
-      # "connectors" => [{"id" => "web-search"}]
+      "connectors" => [{"id" => "web-search"}]
     }
 
     body["chat_history"] = context.compact.map do |msg|

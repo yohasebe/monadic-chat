@@ -240,10 +240,11 @@ class MonadicApp
 
   def selenium_job(url: "")
     command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
+    # we wait for the following command to finish before returning the output
     send_command(command: command, container: "python") do |stdout, stderr, status|
       if status.success?
         filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
-        sleep(1)
+        sleep(3)
         begin
           contents = File.read(filename)
         rescue StandardError => e

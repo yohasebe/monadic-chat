@@ -4,8 +4,10 @@ WORKDIR $WORKSPACE
 
 RUN apk update && apk add --no-cache \
     linux-headers libxml2-dev make gcc libc-dev bash git \
-    build-base pkgconfig curl-dev curl wget gcompat docker-cli \
-    postgresql-dev postgresql-client postgresql-contrib && \
+    build-base pkgconfig\
+    postgresql-dev postgresql-client postgresql-contrib \
+    curl-dev curl wget gcompat \
+    ca-certificates docker-cli && \
     rm -rf /var/cache/apk/*
 
 COPY Gemfile monadic.gemspec $WORKSPACE/

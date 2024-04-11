@@ -207,6 +207,7 @@ a:hover {
 
 pre {
   scrollbar-width: thin;
+  margin-bottom: 1em;
 }
 
 pre code {
@@ -363,8 +364,12 @@ textarea {
 
 blockquote {
   padding: 10px;
-  background-color: #fff;
+  background-color: #f8f8f8;
   color: #333;
+}
+
+blockquote p:last-child {
+  margin-bottom: 0;
 }
 
 #alert-message.message-success {

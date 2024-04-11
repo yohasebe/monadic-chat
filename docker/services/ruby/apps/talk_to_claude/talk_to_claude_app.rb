@@ -56,6 +56,7 @@ class Claude < MonadicApp
     }
   end
 
+  # this function cannot be called concurrently
   def fetch_web_content(url: "")
     selenium_job(url: url)
   end

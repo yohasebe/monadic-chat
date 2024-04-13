@@ -305,8 +305,6 @@ class Gemini < MonadicApp
 
     http = HTTP.headers(headers)
 
-    File.write("/Users/yohasebe/Desktop/test.json", body.to_json)
-
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
     unless res.status.success?

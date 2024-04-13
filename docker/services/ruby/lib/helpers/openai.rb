@@ -513,8 +513,13 @@ module OpenAIHelper
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
-      if msg["image"]
-        message["content"] << { "type" => "image_url", "image_url" => msg["image"]["data"] }
+      if msg["image"] && role == "user"
+        message["content"] << {
+          "type" => "image_url",
+          "image_url" => {
+            "url" => msg["image"]["data"]
+          }
+        }
         messages_containing_img = true
       end
       message
@@ -526,7 +531,7 @@ module OpenAIHelper
 
     if messages_containing_img && role != "tool"
       body["model"] = "gpt-4-turbo"
-      body.delete("stop") if /\-vision/ =~ body["model"]
+      body.delete("stop") if messages_containing_img
       body.delete("tools")
       body.delete("tool_choice")
     end

@@ -239,6 +239,7 @@ class Gemini < MonadicApp
                   "lang" => detect_language(obj["message"])
                 }
         }
+        res["image"] = obj["image"] if obj["image"]
         block&.call res
       end
 
@@ -251,6 +252,9 @@ class Gemini < MonadicApp
                 "lang" => detect_language(message),
                 "active" => true,
         }
+        if obj["image"]
+          res["image"] = obj["image"]
+        end
         session[:messages] << res
       end
     end
@@ -275,13 +279,25 @@ class Gemini < MonadicApp
       }
     }
 
+    messages_containing_img = false
     body["contents"] = context.compact.map do |msg|
-      {
+      message = {
         "role" => translate_role(msg["role"]),
         "parts" => [
           { "text" => msg["text"] }
         ]
       }
+
+      if msg["image"] && role == "user"
+        message["parts"] << {
+          "inlineData" => {
+            "mimeType" => msg["image"]["type"],
+            "data" => msg["image"]["data"].split(",")[1]
+          }
+        }
+        messages_containing_img = true
+      end
+      message
     end
 
     if settings[:tools]

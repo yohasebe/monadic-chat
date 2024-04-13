@@ -219,7 +219,7 @@ class Claude < MonadicApp
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
-      if msg["image"]
+      if msg["image"] && role == "user"
         message["content"] << {
           "type" => "image",
           "source" => {

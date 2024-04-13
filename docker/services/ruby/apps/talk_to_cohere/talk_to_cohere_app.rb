@@ -67,11 +67,18 @@ class Cohere < MonadicApp
     texts = []
     tool_calls = []
 
+    in_text_generation = false
+
     if body.respond_to?(:each)
       body.each do |chunk|
         begin
           json = JSON.parse(chunk)
-          if json["event_type"] == "tool-calls-generation"
+          case json["event_type"]
+          when "text-generation"
+            in_text_generation = true
+          when "citation-generation"
+            break if in_text_generation
+          when "tool-calls-generation"
             tool_calls = json["tool_calls"]
             res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
             block&.call res

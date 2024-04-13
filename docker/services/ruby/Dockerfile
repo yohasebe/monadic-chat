@@ -1,14 +1,30 @@
-FROM ruby:3.3.0-alpine3.19
+FROM ruby:3.3.0-slim-bullseye
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    build-essential wget curl git \
+    ca-certificates curl gnupg lsb-release \
+    postgresql postgresql-contrib libpq-dev \
+    pandoc graphviz ffmpeg fonts-noto-cjk \
+    mecab libmecab-dev mecab-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | \
+    gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+RUN echo "deb [arch=$(dpkg --print-architecture) \
+         signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
+         https://download.docker.com/linux/debian \
+         $(lsb_release -cs) stable" | \
+         tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
-
-RUN apk update && apk add --no-cache \
-    linux-headers libxml2-dev make gcc libc-dev bash git \
-    build-base pkgconfig\
-    postgresql-dev postgresql-client postgresql-contrib \
-    curl-dev curl wget gcompat \
-    ca-certificates docker-cli && \
-    rm -rf /var/cache/apk/*
 
 COPY Gemfile monadic.gemspec $WORKSPACE/
 COPY config.ru $WORKSPACE/

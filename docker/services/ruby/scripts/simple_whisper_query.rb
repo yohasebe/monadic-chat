@@ -5,10 +5,10 @@ require 'base64'
 require 'http'
 
 API_ENDPOINT = "https://api.openai.com/v1"
-OPEN_TIMEOUT = 5
+OPEN_TIMEOUT = 10
 READ_TIMEOUT = 60
 WRITE_TIMEOUT = 60
-MAX_RETRIES = 1
+MAX_RETRIES = 5
 RETRY_DELAY = 1
 
 def whisper_api_request(audiofile, outpath = ".", response_format = "text", lang_code = nil)

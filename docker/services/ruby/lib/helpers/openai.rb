@@ -553,10 +553,21 @@ module OpenAIHelper
       end
     end
 
-    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+    success = false
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      if res.status.success?
+        success = true
+        break
+      end
+      sleep RETRY_DELAY
+    end
 
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
+      pp error_report
       res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
       block&.call res
       return [res]

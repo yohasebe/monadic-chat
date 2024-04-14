@@ -122,8 +122,6 @@ class Gemini < MonadicApp
       res = { "type" => "message", "content" => "DONE" }
       block&.call res
       [{"choices" => [{"message" => {"content" => result.join("")}}]}]
-    # else
-    #   api_request("empty_tool_results", session, call_depth: call_depth, &block)
     end
   end
 
@@ -182,8 +180,6 @@ class Gemini < MonadicApp
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    # empty_tool_results = role == "empty_tool_results" ? true : false
-
     num_retrial = 0
 
     begin
@@ -315,15 +311,23 @@ class Gemini < MonadicApp
         "role" => "function",
         "parts" => obj["tool_results"]["function_parts"]
       }
-    # elsif empty_tool_results
-    #   body["tool_results"] = []
     end
 
     target_uri = "#{API_ENDPOINT}/#{model}:streamGenerateContent?key=#{api_key}"
 
     http = HTTP.headers(headers)
 
-    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+    success = false
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      if res.status.success?
+        success = true
+        break
+      end
+      sleep RETRY_DELAY
+    end
 
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
@@ -333,7 +337,6 @@ class Gemini < MonadicApp
       return [res]
     end
 
-    # return Array
     return process_json_data(app, session, res.body, call_depth, &block)
 
   rescue HTTP::Error, HTTP::TimeoutError

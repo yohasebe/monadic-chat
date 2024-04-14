@@ -284,7 +284,7 @@ module WebSocketHelper
       end
 
       ws.on :close do |event|
-        p [:close, event.code, event.reason]
+        pp [:close, event.code, event.reason]
         ws = nil
         @channel.unsubscribe(sid)
       end

@@ -54,7 +54,7 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 // WebSocket event handlers
 //////////////////////////////
 
-const msgBuffer = [];
+// const msgBuffer = [];
 const apps = {}
 let messages = [];
 let originalParams = {};
@@ -381,7 +381,7 @@ function connect_websocket(callback) {
         console.log("Received PONG");
         break;
       case "error":
-        msgBuffer.length = 0;
+        // msgBuffer.length = 0;
         $("#send, #clear, #voice").prop("disabled", false);
         $("#chat").html("");
         $("#temp-card").hide();
@@ -604,7 +604,7 @@ function connect_websocket(callback) {
         responseStarted = false;
         callingFunction = false;
         messages.push(data["content"]);
-        msgBuffer.length = 0;
+        // msgBuffer.length = 0;
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {
@@ -679,8 +679,9 @@ function connect_websocket(callback) {
           responseStarted = true;
         }
         $("#indicator").show();
-        msgBuffer.push(data["content"]);
+        // msgBuffer.push(data["content"]);
         if (data["content"] !== undefined) {
+          console.log(data);
           $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
         }
         if (!isElementInViewport(chatBottom)){

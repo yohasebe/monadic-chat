@@ -5,15 +5,8 @@ WORKDIR $WORKSPACE
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    wget \
-    curl \
-    git \
-    pandoc \
-    graphviz \
-    gnupg \
-    ffmpeg\
-    fonts-noto-cjk \
+    build-essential wget curl git gnupg \
+    pandoc graphviz ffmpeg fonts-noto-cjk \
     mecab libmecab-dev mecab-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

@@ -5,8 +5,7 @@ RUN apt update && \
     build-essential wget curl git \
     ca-certificates curl gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
-    pandoc graphviz ffmpeg fonts-noto-cjk \
-    mecab libmecab-dev mecab-utils \
+    pandoc
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

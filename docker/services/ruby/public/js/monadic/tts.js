@@ -3,9 +3,9 @@ let audioCtx = null;
 let playPromise = null;
 
 function audioInit() {
-  if (!audioCtx) {
+  // if (!audioCtx) {
     audioCtx = new AudioContext();
-  }
+  // }
 
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();

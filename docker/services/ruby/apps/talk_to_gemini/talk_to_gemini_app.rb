@@ -33,9 +33,7 @@ class Gemini < MonadicApp
   def settings
     {
       "app_name": "Talk to Google Gemini",
-      "max_tokens": 2000,
       "context_size": 20,
-      "temperature": 0.3,
       "initial_prompt": initial_prompt,
       "description": description,
       "icon": icon,
@@ -214,9 +212,11 @@ class Gemini < MonadicApp
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
-    temperature = obj["temperature"].to_f
 
-    max_tokens = obj["max_tokens"].to_i
+    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
+    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
+    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
@@ -272,12 +272,14 @@ class Gemini < MonadicApp
       "content-type" => "application/json"
     }
 
-    body = {
-      "generationConfig" => {
-        "temperature" => temperature,
-        "maxOutputTokens" => max_tokens
-      }
-    }
+    body = {}
+
+    if temperature || max_tokens || top_p
+      body["generationConfig"] = {}
+      body["generationConfig"]["temperature"] = temperature if temperature
+      body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
+      body["generationConfig"]["topP"] = top_p if top_p
+    end
 
     messages_containing_img = false
     body["contents"] = context.compact.map do |msg|

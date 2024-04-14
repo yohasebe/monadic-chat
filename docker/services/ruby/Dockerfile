@@ -2,10 +2,9 @@ FROM ruby:3.3.0-slim-bullseye
 
 RUN apt update && \
     apt install -y --no-install-recommends \
-    build-essential wget curl git \
+    build-essential wget curl git pandoc \
     ca-certificates curl gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
-    pandoc
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

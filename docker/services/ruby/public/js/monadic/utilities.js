@@ -299,6 +299,7 @@ function checkParams() {
 }
 
 function resetEvent(event) {
+  audioInit();
   event.preventDefault();
   $("#message").css("height", "96px").val("");
   $("#resetConfirmation").modal("show");

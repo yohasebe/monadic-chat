@@ -21,6 +21,14 @@ $(function () {
 
   let lastApp = defaultApp;
 
+  $("#max-tokens-toggle").on("change", function() {
+    if ($(this).is(":checked")) {
+      $("#max-tokens").prop("disabled", false);
+    } else {
+      $("#max-tokens").prop("disabled", true);
+    }
+  });
+
   $("#apps").on("change", function(event) {
     event.preventDefault();
     if (messages.length > 0) {
@@ -66,6 +74,14 @@ $(function () {
       // $("#top-p").prop("disabled", false);
       // $("#presence-penalty").prop("disabled", false);
       // $("#frequency-penalty").prop("disabled", false);
+    }
+
+    if (apps[$(this).val()]["max_tokens"]) {
+      $("#max-tokens-toggle").prop("checked", true);
+      $("#max-tokens").prop("disabled", false);
+    } else {
+      $("#max-tokens-toggle").prop("checked", false);
+      $("#max-tokens").prop("disabled", true);
     }
 
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
@@ -179,6 +195,7 @@ $(function () {
   })
 
   $("#send").on("click", function(event) {
+    audioInit();
     setAlert("<i class='fas fa-robot'></i> THINKING", "info");
     elemError.hide();
     event.preventDefault();
@@ -222,6 +239,7 @@ $(function () {
   });
 
   $("#settings").on("click", function () {
+    audioInit();
     elemError.hide();
     $("#config").show();
     $("#back-to-settings").hide();

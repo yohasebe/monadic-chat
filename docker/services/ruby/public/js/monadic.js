@@ -212,6 +212,7 @@ $(function () {
       $("#image-base64").html("");
     }
     $("#select-role").val("user");
+    $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
   });
 
   $("#clear").on("click", function (event) {

@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+#git push origin main frozen_string_literal: false
 
 class Gemini < MonadicApp
   include UtilitiesHelper
@@ -81,11 +81,16 @@ class Gemini < MonadicApp
           candidates = JSON.parse(json).dig("candidates")
           candidate = candidates.first
           content = candidate.dig("content")
+          next if content.nil?
+
           content.dig("parts")&.each do |part|
             if part["text"]
               texts << part["text"]
-              res = { "type" => "fragment", "content" => part["text"] }
-              block&.call res
+              part["text"].split(//).each do |char|
+                res = { "type" => "fragment", "content" => char }
+                block&.call res
+                sleep 0.01
+              end
             elsif part["functionCall"]
               tool_calls << part["functionCall"]
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
@@ -93,9 +98,12 @@ class Gemini < MonadicApp
             end
           end
           buffer = ""
-        rescue JSON::ParserError => e
+        rescue JSON::ParserError
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration
+        rescue StandardError
+          # if the JSON parsing still fails,
+          # the next chunk should be appended to the buffer
         end
       end
     end

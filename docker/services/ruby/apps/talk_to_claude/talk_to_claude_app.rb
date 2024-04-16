@@ -82,11 +82,14 @@ class Claude < MonadicApp
               if json.dig('delta', 'text')
                 # Merge text fragments based on 'id'
                 fragment = json.dig('delta', 'text').to_s
-                texts << fragment
                 next if !fragment || fragment == ""
+                texts << fragment
 
-                res = { "type" => "fragment", "content" => fragment }
-                block&.call res
+                fragment.split(//).each do |char|
+                  res = { "type" => "fragment", "content" => char }
+                  block&.call res
+                  sleep 0.01
+                end
               end
 
             rescue JSON::ParserError

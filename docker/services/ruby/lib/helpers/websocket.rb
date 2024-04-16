@@ -263,9 +263,8 @@ module WebSocketHelper
             end
 
             if obj["auto_speech"] && !cutoff
-              candidate = buffer.join
-              splitted = candidate.split("---")
-              res_hash = tts_api_request(splitted[0], voice, speed, response_format, model) if splitted[0] != ""
+              text = buffer.join
+              res_hash = tts_api_request(text, voice, speed, response_format, model)
               @channel.push(res_hash.to_json)
             end
 

@@ -15,6 +15,10 @@ body, html {
   margin: 0;
 }
 
+.card {
+  word-wrap: normal;
+}
+
 img {
   max-width: 100%;
 }

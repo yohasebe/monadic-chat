@@ -239,6 +239,7 @@ $(function () {
   });
 
   $("#settings").on("click", function () {
+    ttsStop();
     audioInit();
     elemError.hide();
     $("#config").show();
@@ -255,6 +256,8 @@ $(function () {
 
 
   $("#reset, .navbar-brand").on("click", function (event) {
+    ttsStop();
+    audioInit();
     elemError.hide();
     resetEvent(event);
     $("#select-role").val("user").trigger("change");

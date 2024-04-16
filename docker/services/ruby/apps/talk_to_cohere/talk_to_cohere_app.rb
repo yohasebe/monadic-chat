@@ -89,8 +89,12 @@ class Cohere < MonadicApp
           next unless fragment
 
           texts << fragment
-          res = { "type" => "fragment", "content" => fragment }
-          block&.call res
+
+          fragment.split(//).each do |char|
+            res = { "type" => "fragment", "content" => char }
+            block&.call res
+            sleep 0.01
+          end
         rescue JSON::ParserError
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration
@@ -229,6 +233,8 @@ class Cohere < MonadicApp
                 }
         }
         block&.call res
+      else
+        message = "Hi, there!"
       end
 
       # If the role is "user", the message is added to the session
@@ -292,6 +298,9 @@ class Cohere < MonadicApp
 
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
+
+    # pp headers
+    # pp body
 
     success = false
     MAX_RETRIES.times do

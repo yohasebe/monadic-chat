@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   selenium_service:
     image: yohasebe/selenium

@@ -160,12 +160,13 @@ module WebSocketHelper
             begin
               content = last_one["choices"][0]
               text = content["text"] || content["message"]["content"]
-              # if the current app has a monadic_html method, use it to generate html
-              html = if session["parameters"]["monadic"]
-                        APPS[session["parameters"]["app_name"]].monadic_html(text)
-                     else
-                       markdown_to_html(text)
-                     end
+
+              if session["parameters"]["monadic"]
+                html = APPS[session["parameters"]["app_name"]].monadic_html(text)
+              else
+                html = markdown_to_html(text)
+              end
+
               if session["parameters"]["response_suffix"]
                 html += "\n\n" + session["parameters"]["response_suffix"]
               end
@@ -248,7 +249,7 @@ module WebSocketHelper
                     cutoff = true
                   end
 
-                  if obj["auto_speech"]
+                  if obj["auto_speech"] && !obj["monadic"]
                     text = splitted[0]
                     if text != "" && candidate != ""
                       res_hash = tts_api_request(text, voice, speed, response_format, model) 
@@ -262,7 +263,7 @@ module WebSocketHelper
               @channel.push(fragment.to_json)
             end
 
-            if obj["auto_speech"] && !cutoff
+            if obj["auto_speech"] && !cutoff && !obj["monadic"]
               text = buffer.join
               res_hash = tts_api_request(text, voice, speed, response_format, model)
               @channel.push(res_hash.to_json)
@@ -275,6 +276,13 @@ module WebSocketHelper
               else
                 content = response.dig("choices", 0, "message", "content").gsub(/\bsandbox:\//, "/")
                 response.dig("choices", 0, "message")["content"] = content
+
+                if obj["auto_speech"] && obj["monadic"]
+                  message = JSON.parse(content)["message"]
+                  res_hash = tts_api_request(message, voice, speed, response_format, model) 
+                  @channel.push(res_hash.to_json)
+                end
+
                 queue.push(response)
               end
             end

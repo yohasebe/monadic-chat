@@ -165,11 +165,16 @@ function remove_containers {
     $DOCKER container rm -f monadic-chat-pgvector-container >/dev/null
     $DOCKER container rm -f monadic-chat-python-container >/dev/null
     $DOCKER container rm -f monadic-chat-selenium-container >/dev/null
+  fi
 
-    # remove legacy containers
+  # ↓ remove legacy containers
+  if $DOCKER container ls --all | grep -q "monadic-chat-web-container"; then
     $DOCKER container rm -f monadic-chat-web-container >/dev/null
+  fi
+  if $DOCKER container ls --all | grep -q "monadic-chat-container"; then
     $DOCKER container rm -f monadic-chat-container >/dev/null
   fi
+  # ↑ remove legacy containers
 
   if $DOCKER volume ls | grep -q "monadic-chat-pgvector-data"; then
     $DOCKER volume rm monadic-chat-pgvector-data >/dev/null

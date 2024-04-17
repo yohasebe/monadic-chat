@@ -398,7 +398,7 @@ module OpenAIHelper
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
-    max_tokens = obj["max_tokens"].to_i
+    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f
     presence_penalty = obj["presence_penalty"].to_f
@@ -490,10 +490,15 @@ module OpenAIHelper
       "n" => 1,
       "stream" => true,
       "stop" => nil,
-      "max_tokens" => max_tokens,
       "presence_penalty" => presence_penalty,
       "frequency_penalty" => frequency_penalty
     }
+
+    body["max_tokens"] = max_tokens if max_tokens
+
+    if (obj["monadic"] || obj["json"]) && /turbo/ =~ model
+      body["response_format"] = { "type" => "json_object" }
+    end
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings[:tools]

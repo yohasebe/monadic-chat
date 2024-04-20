@@ -124,9 +124,9 @@ def image_query(message, image)
     end
 
     base64_image_url = img2url(image_path)
-    content << { "type" => "image_url", "image_url" => base64_image_url }
+    content << { "type" => "image_url", "image_url" => {"url" => base64_image_url } }
   elsif image_url
-    content << { "type" => "image_url", "image_url" => image_url }
+    content << { "type" => "image_url", "image_url" => {"url" => image_url } }
   end
 
   body["messages"] = [

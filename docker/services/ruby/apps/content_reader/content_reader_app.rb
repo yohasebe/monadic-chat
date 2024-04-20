@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-class DocumentReader < MonadicApp
+class ContentReader < MonadicApp
 
   def icon
     "<i class='fab fa-leanpub'></i>"
   end
 
   def description
-    "This application features an AI chatbot designed to examine and elucidate the contents of any imported document or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users have the flexibility to upload files or URLs encompassing a wide array of text data, including programming code. When URLs are mentioned in your prompt messages, the app automatically retrieves the content, seamlessly integrating it into the conversation with GPT."
+    "This application features an AI chatbot designed to examine and elucidate the contents of any imported file or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users have the flexibility to upload files or URLs encompassing a wide array of text data, including programming code. When URLs are mentioned in your prompt messages, the app automatically retrieves the content, seamlessly integrating it into the conversation with GPT."
   end
 
   def initial_prompt
@@ -32,9 +32,9 @@ class DocumentReader < MonadicApp
 
       Stop your text after presenting an explanation about one paragrah, text block, or code block. If the user questions something relevant to the code, answer it. Remember to explain as kindly and friendly as possible.
 
-      Throughout the conversation, the user can provide a new file or URL to analyze. Ask the user to provide a document or a URL if there is no data available because they have not provided any document or URL yet or the past data has been cleared.
+      Throughout the conversation, the user can provide a new file or URL to analyze. Ask the user to provide a file or a URL if there is no data available because they have not provided any file or URL yet or the past data has been cleared.
 
-      If you are unable to retrieve the content from the file or URL, please inform the user that you are unable to fetch the content with the exact error message you have got and ask them to provide a different document or URL.
+      If you are unable to retrieve the content from the file or URL, please inform the user that you are unable to fetch the content with the exact error message you have got and ask them to provide a different file or URL.
     TEXT
 
     text.strip
@@ -50,7 +50,7 @@ class DocumentReader < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
-      "app_name": "Document Reader",
+      "app_name": "Content Reader",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": true,

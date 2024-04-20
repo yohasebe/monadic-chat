@@ -48,6 +48,19 @@ Dotenv.load(envpath)
 # Connect to the database
 EMBEDDINGS_DB = TextEmbeddings.new("monadic", recreate_db: false)
 
+CONFIG = {}
+if File.file?("/.dockerenv")
+  File.read("/monadic/data/.env").split("\n").each do |line|
+    key, value = line.split("=")
+    CONFIG[key] = value
+  end
+else
+  File.read("#{Dir.home}/monadic/data/.env").split("\n").each do |line|
+    key, value = line.split("=")
+    CONFIG[key] = value
+  end
+end
+
 # list PDF titles in the database
 def list_pdf_titles
   EMBEDDINGS_DB.list_titles

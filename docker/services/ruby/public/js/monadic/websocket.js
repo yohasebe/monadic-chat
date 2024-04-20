@@ -387,6 +387,7 @@ function connect_websocket(callback) {
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
+        $("#cancel_query").css("opacity", "0.0");
 
         // check if $("#discourse .card").last() is a user card
         const lastCard = $("#discourse .card").last();
@@ -643,6 +644,7 @@ function connect_websocket(callback) {
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
+        $("#cancel_query").css("opacity", "0.0");
 
         if (!isElementInViewport(mainPanel)){
           mainPanel.scrollIntoView(false);
@@ -673,6 +675,7 @@ function connect_websocket(callback) {
         $("#temp-card .status").hide();
         $("#indicator").show();
         $("#user-panel").hide();
+        $("#cancel_query").css("opacity", "1");
         break;
       default:
         if(!responseStarted || callingFunction) {

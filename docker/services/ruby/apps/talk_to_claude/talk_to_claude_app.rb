@@ -15,7 +15,9 @@ class Claude < MonadicApp
   end
 
   def description
-    "This app accesses the Anthropic API to answer questions about a wide range of topics."
+    text = "This app accesses the Anthropic API to answer questions about a wide range of topics."
+    text += " (Model: <code>#{CONFIG['ANTHROPIC_MODEL']}</code>)" if CONFIG["ANTHROPIC_MODEL"]
+    text
   end
 
   def initial_prompt
@@ -122,19 +124,8 @@ class Claude < MonadicApp
     num_retrial = 0
 
     begin
-      api_key = nil
-      model = nil
-      if File.file?("/.dockerenv")
-        File.read("/monadic/data/.env").split("\n").each do |line|
-          api_key = line.split("=").last if line.start_with?("ANTHROPIC_API_KEY")
-          model = line.split("=").last if line.start_with?("ANTHROPIC_MODEL")
-        end
-      else
-        File.read("#{Dir.home}/monadic/data/.env").split("\n").each do |line|
-          api_key = line.split("=").last if line.start_with?("ANTHROPIC_API_KEY")
-          model = line.split("=").last if line.start_with?("ANTHROPIC_MODEL")
-        end
-      end
+      api_key = CONFIG["ANTHROPIC_API_KEY"]
+      model = CONFIG["ANTHROPIC_MODEL"]
       raise if api_key.nil? || model.nil?
     rescue StandardError
       puts "ERROR: ANTHROPIC_API_KEY or ANTHROPIC_MODEL not found."

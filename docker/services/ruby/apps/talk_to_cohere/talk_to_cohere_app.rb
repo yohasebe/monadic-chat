@@ -16,7 +16,9 @@ class Cohere < MonadicApp
   end
 
   def description
-    "This app accesses the Cohere Command R API to answer questions about a wide range of topics."
+    text = "This app accesses the Cohere Command R API to answer questions about a wide range of topics."
+    text += " (Model: <code>#{CONFIG['COHERE_MODEL']}</code>)" if CONFIG["COHERE_MODEL"]
+    text
   end
 
   def initial_prompt
@@ -179,19 +181,8 @@ class Cohere < MonadicApp
     num_retrial = 0
 
     begin
-      api_key = nil
-      model = nil
-      if File.file?("/.dockerenv")
-        File.read("/monadic/data/.env").split("\n").each do |line|
-          api_key = line.split("=").last if line.start_with?("COHERE_API_KEY")
-          model = line.split("=").last if line.start_with?("COHERE_MODEL")
-        end
-      else
-        File.read("#{Dir.home}/monadic/data/.env").split("\n").each do |line|
-          api_key = line.split("=").last if line.start_with?("COHERE_API_KEY")
-          model = line.split("=").last if line.start_with?("COHERE_MODEL")
-        end
-      end
+      api_key = CONFIG["COHERE_API_KEY"]
+      model = CONFIG["COHERE_MODEL"]
       raise if api_key.nil? || model.nil?
     rescue StandardError
       puts "ERROR: COHERE_API_KEY or COHERE_MODEL not found."

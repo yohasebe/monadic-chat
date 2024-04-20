@@ -16,7 +16,8 @@ class Gemini < MonadicApp
   end
 
   def description
-    "This app accesses the Google Gemini API to answer questions about a wide range of topics."
+    text = "This app accesses the Google Gemini API to answer questions about a wide range of topics."
+    text += " (Model: <code>#{CONFIG['GEMINI_MODEL']}</code>)" if CONFIG["GEMINI_MODEL"]
   end
 
   def initial_prompt
@@ -98,10 +99,10 @@ class Gemini < MonadicApp
             end
           end
           buffer = ""
-        rescue JSON::ParserError
+        # rescue JSON::ParserError
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration
-        rescue StandardError
+        # rescue StandardError
           # if the JSON parsing still fails,
           # the next chunk should be appended to the buffer
         end
@@ -191,19 +192,8 @@ class Gemini < MonadicApp
     num_retrial = 0
 
     begin
-      api_key = nil
-      model = nil
-      if File.file?("/.dockerenv")
-        File.read("/monadic/data/.env").split("\n").each do |line|
-          api_key = line.split("=").last if line.start_with?("GEMINI_API_KEY")
-          model = line.split("=").last if line.start_with?("GEMINI_MODEL")
-        end
-      else
-        File.read("#{Dir.home}/monadic/data/.env").split("\n").each do |line|
-          api_key = line.split("=").last if line.start_with?("GEMINI_API_KEY")
-          model = line.split("=").last if line.start_with?("GEMINI_MODEL")
-        end
-      end
+      api_key = CONFIG["GEMINI_API_KEY"]
+      model = CONFIG["GEMINI_MODEL"]
       raise if api_key.nil? || model.nil?
     rescue StandardError
       puts "ERROR: GEMINI_API_KEY or GEMINI_MODEL not found."

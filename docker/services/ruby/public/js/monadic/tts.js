@@ -54,6 +54,8 @@ function ttsSpeak(text, stream, callback) {
     model: model,
     response_format: response_format
   }));
+
+  audio.play();
 }
 
 function ttsStop() {

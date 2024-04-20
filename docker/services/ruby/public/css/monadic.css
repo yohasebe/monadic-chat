@@ -73,10 +73,9 @@ div.highlight, div.highlight pre {
 
 #cancel_query {
   opacity: 0.0;
-  position: sticky;
-  top : 5px;
+  position: absolute;
+  top : 126px;
   z-index: 1050;
-  float: left;
 }
 
 #back_to_top {

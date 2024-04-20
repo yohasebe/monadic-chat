@@ -182,7 +182,7 @@ $(function () {
     }
   });
 
-  $("#cancel-query").on("click", function () {
+  $("#cancel_query").on("click", function () {
     setAlert("Ready to start.", "secondary");
 
     responseStarted = false;
@@ -194,6 +194,7 @@ $(function () {
     $("#chat").html("");
     $("#temp-card").hide();
     $("#user-panel").show();
+    $("#cancel_query").css("opacity", "0.0");
     setInputFocus();
   });
 
@@ -214,6 +215,7 @@ $(function () {
       return;
     }
     params["message"] = $("#message").val();
+    $("#cancel_query").css("opacity", "1");
     if ($("#select-role").val() !== "user") {
       reconnect_websocket(ws, function (ws) {
         const role = $("#select-role").val().split("-")[1];

@@ -71,6 +71,14 @@ div.highlight, div.highlight pre {
   background-color: #fff;
 }
 
+#cancel_query {
+  opacity: 0.0;
+  position: sticky;
+  top : 5px;
+  z-index: 1050;
+  float: left;
+}
+
 #back_to_top {
     opacity: 0.0;
     margin-right: 8px;
@@ -89,6 +97,12 @@ div.highlight, div.highlight pre {
     float: right;
 }
 
+#cancel_query a {
+  color: #fff;
+  background-color: #999;
+  text-align: center;
+  padding: 10px 10px;
+}
 
 #back_to_top a, #back_to_bottom a {
     border-radius: 4px;
@@ -98,7 +112,7 @@ div.highlight, div.highlight pre {
     padding: 10px 10px;
 }
 
-#back_to_top a:hover, #back_to_bottom a:hover {
+#back_to_top a:hover, #back_to_bottom a:hover, #cancel_query a:hover {
     background-color: #777;
 }
 

@@ -144,8 +144,8 @@ class MonadicApp
           shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
         end
         system_command =<<~SYS
-          chmod +x #{script_dir}/* && \
-          chmod -f +x #{script_dir_local}/* | : && \
+          find #{script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+          find #{script_dir_local} -type f -exec chmod +x {} + 2>/dev/null | : && \
           export PATH="#{script_dir}:${PATH}" && \
           export PATH="#{script_dir_local}:${PATH}" && \
           cd #{shared_volume} && \
@@ -164,14 +164,24 @@ class MonadicApp
       stdout, stderr, status = Open3.capture3(system_command)
 
       log =<<~LOG
+      ### original command
+
       #{system_command}
       ---
+      ### stdout
+
       #{stdout}
       ---
+      ### stderr
+
       #{stderr}
       ---
+      ### status
+
       #{status}
       LOG
+
+      pp log
 
       File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
 

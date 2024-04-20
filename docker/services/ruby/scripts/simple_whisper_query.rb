@@ -66,10 +66,13 @@ end
 begin
   response = whisper_api_request(audiofile, outpath, response_format, lang_code)
   outfile = "#{outpath}/whisper_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json" 
-  res = JSON.parse(response)["text"]
+  # res = JSON.parse(response)["text"]
   File.write(outfile, response)
-  puts res
+  puts response
 rescue => e
+  pp e.message
+  pp e.backtrace
+  pp e.inspect
   puts "An error occurred: #{e.message}"
 end
 

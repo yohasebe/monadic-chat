@@ -480,3 +480,16 @@ div.sourcecode-toggle {
   letter-spacing: 1px;
   text-transform: uppercase;
 }
+
+fieldset {
+    border: 1px solid silver;
+    padding: 8px;    
+    border-radius: 4px;
+}
+
+legend {
+    font-weight: 600;
+    font-size: 1em;
+    color: #777;
+    padding: 2px;    
+}

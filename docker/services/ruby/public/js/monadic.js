@@ -132,6 +132,18 @@ $(function () {
     }
   })
 
+  $("#interaction-check-all").on("click", function () {
+    $("#initiate-from-assistant").prop("checked", true);
+    $("#check-auto-speech").prop("checked", true);
+    $("#check-easy-submit").prop("checked", true);
+  });
+
+  $("#interaction-uncheck-all").on("click", function () {
+    $("#initiate-from-assistant").prop("checked", false);
+    $("#check-auto-speech").prop("checked", false);
+    $("#check-easy-submit").prop("checked", false);
+  });
+
   $("#start").on("click", function () {
     audioInit();
     elemError.hide();
@@ -140,7 +152,6 @@ $(function () {
     } else {
       return;
     }
-    // $("#paramList").html("").append(listParams(setParams()));
     if (messages.length > 0) {
       $("#config").hide();
       $("#back-to-settings").show();

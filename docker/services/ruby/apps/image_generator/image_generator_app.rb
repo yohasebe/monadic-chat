@@ -74,11 +74,4 @@ class ImageGeneration < MonadicApp
       }]
     }
   end
-
-  def generate_image(prompt: "", size: "1024x1024", num_retrials: 10)
-    command = <<~CMD
-      bash -c 'simple_image_generation.rb -p "#{prompt}" -s "#{size}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
 end

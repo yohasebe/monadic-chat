@@ -292,12 +292,13 @@ module OpenAIHelper
             # if the JSON parsing fails, the next chunk should be appended to the buffer
             # and the loop should continue to the next iteration
           end
-
         else
           buffer = scanner.rest
           break
         end
       end
+    rescue StandardError => e
+      chunk.scrub! unless chunk.valid_encoding?
     end
 
     result = texts.empty? ? nil : texts.first[1]

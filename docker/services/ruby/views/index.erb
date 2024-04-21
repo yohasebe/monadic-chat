@@ -25,7 +25,7 @@
 
     <nav class="navbar navbar-expand-md navbar-light fixed-top shaded-y" style="height: 108px; border-bottom: 3.5px solid #777; background-color: #eeeeee;">
       <div class="container-fluid pt-0">
-        <a class="navbar-brand">
+        <a class="navbar-brand" style="flex: auto;">
           <div style="margin-left: 6px; margin-top: -10px; font-weight: 500; font-family: 'Montserrat', sans-serif; letter-spacing: 0.2em;" >
             <img src="img/monadic-logo.svg" style="width: 2em; vertical-align:middle;"></img>
             <span style="color: #666; font-size: 1.7em; vertical-align:middle;">Monadic</span>
@@ -35,6 +35,8 @@
           <div id="tagline" style="margin-left: 6px; margin-bottom: 6px; font-size: 0.8em; color: #777; font-family: 'Montserrat';" class="d-none d-md-block">A highly configurable Ruby framework for creating intelligent chatbots</div>
         </a>
 
+
+        <div id="cancel_query" ><a href="#"><i class="far fa-window-close"></i> CANCEL</a></div>
         <button type="button" id="toggle-menu">
           <span class="navbar-toggler-icon"></span>
         </button>
@@ -353,7 +355,6 @@
               </div>
             </div>
           </div>
-          <div id="cancel_query" ><a href="#"><i class="far fa-window-close"></i> CANCEL</a></div>
           <div id="back_to_bottom" ><a href="#"><i class="fas fa-arrow-down"></i></a></div>
           <div id="back_to_top" ><a href="#"><i class="fas fa-arrow-up"></i></a></div>
         </div>

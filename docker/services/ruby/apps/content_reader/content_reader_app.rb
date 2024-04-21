@@ -170,44 +170,4 @@ class ContentReader < MonadicApp
       ]
     }
   end
-
-  def fetch_text_from_office(file: "")
-    command = <<~CMD
-      bash -c 'office2txt.py "#{file}"'
-    CMD
-    send_command(command: command, container: "python")
-  end
-
-  def fetch_text_from_pdf(pdf: "")
-    command = <<~CMD
-      bash -c 'pdf2txt.py "#{pdf}" --format text'
-    CMD
-    send_command(command: command, container: "python")
-  end
-
-  def fetch_web_content(url: "")
-    selenium_job(url: url)
-  end
-
-  def analyze_image(message: "", image_path: "")
-    messsage = message.gsub(/"/, '\"')
-    command = <<~CMD
-      bash -c 'simple_image_query.rb "#{message}" "#{image_path}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def analyze_speech(audio: "")
-    command = <<~CMD
-      bash -c 'simple_whisper_query.rb "#{audio}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def fetch_text_from_file(file: "")
-    command = <<~CMD
-      bash -c 'simple_content_fetcher.rb "#{file}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
 end

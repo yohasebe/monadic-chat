@@ -37,28 +37,23 @@ class Claude < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      "tools": [
-        {
-          "name": "fetch_web_content",
-          "description": "Fetch the content of the web page of the given URL and return it.",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "url": {
-                "type": "string",
-                "description": "URL of the web page."
-              }
-            },
-            "required": ["url"]
-          }
-        }
-      ]
+      # "tools": [
+      #   {
+      #     "name": "fetch_web_content",
+      #     "description": "Fetch the content of the web page of the given URL and return it.",
+      #     "input_schema": {
+      #       "type": "object",
+      #       "properties": {
+      #         "url": {
+      #           "type": "string",
+      #           "description": "URL of the web page."
+      #         }
+      #       },
+      #       "required": ["url"]
+      #     }
+      #   }
+      # ]
     }
-  end
-
-  # this function cannot be called concurrently
-  def fetch_web_content(url: "")
-    selenium_job(url: url)
   end
 
   def process_json_data(app, session, body, call_depth, &block)

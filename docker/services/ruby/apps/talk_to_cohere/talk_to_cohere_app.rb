@@ -58,10 +58,6 @@ class Cohere < MonadicApp
     }
   end
 
-  def fetch_web_content(url: "")
-    selenium_job(url: url)
-  end
-
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
     texts = []

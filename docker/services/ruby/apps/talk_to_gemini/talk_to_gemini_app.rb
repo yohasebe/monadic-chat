@@ -62,10 +62,6 @@ class Gemini < MonadicApp
     }
   end
 
-  def fetch_web_content(url: "")
-    selenium_job(url: url)
-  end
-
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
     buffer = ""
@@ -99,12 +95,9 @@ class Gemini < MonadicApp
             end
           end
           buffer = ""
-        # rescue JSON::ParserError
+        rescue JSON::ParserError
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration
-        # rescue StandardError
-          # if the JSON parsing still fails,
-          # the next chunk should be appended to the buffer
         end
       end
     end

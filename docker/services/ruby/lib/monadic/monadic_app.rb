@@ -267,4 +267,191 @@ class MonadicApp
       end
     end
   end
+
+  ### API functions
+
+  def run_code(code: "", command: "", extention: "")
+    send_code(code: code, command: command, extention: extention)
+  end
+
+  def lib_installer(command: "", packager: "")
+    install_command = case packager
+                      when "pip"
+                        "pip install #{command}"
+                      when "apt"
+                        "apt-get install -y #{command}"
+                      else
+                        "echo 'Invalid packager'"
+                      end
+
+    send_command(command: install_command,
+                 container: "python",
+                 success: "The library #{command} has been installed successfully.\n")
+  end
+
+  def run_jupyter(command: "")
+    command = "bash -c 'run_jupyter.sh #{command}'"
+    send_command(command: command,
+                 container: "python",
+                 success: "Success: Access Jupter Lab at 127.0.0.1:8888/lab\n")
+  end
+
+  def run_bash_command(command: "")
+    send_command(command: command,
+                 container: "python",
+                 success: "Command executed successfully.\n")
+  end
+
+  def fetch_web_content(url: "")
+    selenium_job(url: url)
+  end
+
+  def fetch_text_from_office(file: "")
+    command = <<~CMD
+      bash -c 'office2txt.py "#{file}"'
+    CMD
+    send_command(command: command, container: "python")
+  end
+
+  def fetch_text_from_pdf(pdf: "")
+    command = <<~CMD
+      bash -c 'pdf2txt.py "#{pdf}" --format text'
+    CMD
+    send_command(command: command, container: "python")
+  end
+
+  def fetch_text_from_file(file: "")
+    command = <<~CMD
+      bash -c 'simple_content_fetcher.rb "#{file}"'
+    CMD
+    send_command(command: command, container: "ruby")
+  end
+
+
+  def analyze_image(message: "", image_path: "")
+    messsage = message.gsub(/"/, '\"')
+    command = <<~CMD
+      bash -c 'simple_image_query.rb "#{message}" "#{image_path}"'
+    CMD
+    send_command(command: command, container: "ruby")
+  end
+
+  def analyze_speech(audio: "")
+    command = <<~CMD
+      bash -c 'simple_whisper_query.rb "#{audio}"'
+    CMD
+    send_command(command: command, container: "ruby")
+  end
+
+
+  def generate_image(prompt: "", size: "1024x1024", num_retrials: 10)
+    command = <<~CMD
+      bash -c 'simple_image_generation.rb -p "#{prompt}" -s "#{size}"'
+    CMD
+    send_command(command: command, container: "ruby")
+  end
+
+  def search_wikipedia(search_query: "", language_code: "en")
+    number_of_results = 10
+
+    base_url = 'https://api.wikimedia.org/core/v1/wikipedia/'
+    endpoint = '/search/page'
+    url = base_url + language_code + endpoint
+    parameters = {"q": search_query, "limit": number_of_results}
+
+    search_uri = URI(url)
+    search_uri.query = URI.encode_www_form(parameters)
+
+    search_response = perform_request_with_retries(search_uri)
+    search_data = JSON.parse(search_response)
+
+    <<~TEXT
+      ```json
+      #{search_data.to_json}
+      ```
+    TEXT
+  end
+
+  def perform_request_with_retries(uri)
+    retries = 2
+    begin
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 5) do |http|
+        request = Net::HTTP::Get.new(uri)
+        http.request(request)
+      end
+      response.body
+    rescue Net::OpenTimeout
+      if retries > 0
+        retries -= 1
+        retry
+      else
+        raise
+      end
+    end
+  end
+
+  def cosine_similarity(a, b)
+    raise ArgumentError, "a and b must be of the same size" if a.size != b.size
+    dot_product = a.zip(b).map { |x, y| x * y }.sum
+    magnitude_a = Math.sqrt(a.map { |x| x**2 }.sum)
+    magnitude_b = Math.sqrt(b.map { |x| x**2 }.sum)
+    dot_product / (magnitude_a * magnitude_b)
+  end
+
+  def most_similar_text_index(topic, texts)
+    embeddings = get_embeddings(topic)
+    texts_embeddings = texts.map { |t| get_embeddings(t) }.compact
+    cosine_similarities = texts_embeddings.map { |e| cosine_similarity(embeddings, e) }
+    cosine_similarities.each_with_index.max[1]
+  end
+
+  def split_text(text)
+    begin
+      tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
+      segments = []
+      while tokenized.size < MAX_TOKENS_WIKI.to_i
+        segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
+        segments << MonadicApp::TOKENIZER.decode_tokens(segment)
+        tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
+      end
+      segments << self.flask_app_client.decode_tokens(tokenized)
+      segments
+    rescue StandardError => e
+      return [text]
+    end
+  end
+
+  def get_embeddings(text, retries: 3)
+    raise ArgumentError, "text cannot be empty" if text.empty?
+
+    uri = URI("https://api.openai.com/v1/embeddings")
+    request = Net::HTTP::Post.new(uri)
+    request["Content-Type"] = "application/json"
+
+    api_key = ENV["OPENAI_API_KEY"]
+
+    request["Authorization"] = "Bearer #{api_key}"
+    request.body = {
+      model: "text-embedding-3-small",
+      input: text
+    }.to_json
+
+    response = nil
+    retries.times do |i|
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
+        http.request(request)
+      end
+      break if response.is_a?(Net::HTTPSuccess)
+    rescue StandardError => e
+      puts "Error: #{e.message}. Retrying in #{i + 1} seconds..."
+      sleep(i + 1)
+    end
+
+    begin
+      JSON.parse(response.body)["data"][0]["embedding"]
+    rescue StandardError => e
+      return nil
+    end
+  end
+
 end

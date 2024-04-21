@@ -280,40 +280,4 @@ class CodeInterpreter < MonadicApp
       ]
     }
   end
-
-  def run_code(code: "", command: "", extention: "")
-    send_code(code: code, command: command, extention: extention)
-  end
-
-  def lib_installer(command: "", packager: "")
-    install_command = case packager
-                      when "pip"
-                        "pip install #{command}"
-                      when "apt"
-                        "apt-get install -y #{command}"
-                      else
-                        "echo 'Invalid packager'"
-                      end
-
-    send_command(command: install_command,
-                 container: "python",
-                 success: "The library #{command} has been installed successfully.\n")
-  end
-
-  def run_jupyter(command: "")
-    command = "bash -c 'run_jupyter.sh #{command}'"
-    send_command(command: command,
-                 container: "python",
-                 success: "Success: Access Jupter Lab at 127.0.0.1:8888/lab\n")
-  end
-
-  def run_bash_command(command: "")
-    send_command(command: command,
-                 container: "python",
-                 success: "Command executed successfully.\n")
-  end
-
-  def fetch_web_content(url: "")
-    selenium_job(url: url)
-  end
 end

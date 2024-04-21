@@ -73,9 +73,7 @@ div.highlight, div.highlight pre {
 
 #cancel_query {
   opacity: 0.0;
-  position: absolute;
-  top : 126px;
-  z-index: 1050;
+  margin-right: 10px;
 }
 
 #back_to_top {
@@ -101,6 +99,7 @@ div.highlight, div.highlight pre {
   background-color: #999;
   text-align: center;
   padding: 10px 10px;
+  border-radius: 4px;
 }
 
 #back_to_top a, #back_to_bottom a {

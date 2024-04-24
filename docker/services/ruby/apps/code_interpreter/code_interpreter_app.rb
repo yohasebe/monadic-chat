@@ -17,6 +17,8 @@ class CodeInterpreter < MonadicApp
 
       If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents. Throughout the conversation, the user can provide a new URL to analyze.
 
+      A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment. Use the `fetch_text_from_file` function to fetch the text from the file and return its content. Give the base file name as the parameter to the function.
+
       If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
       ### Basic Procedure:
@@ -274,6 +276,24 @@ class CodeInterpreter < MonadicApp
                 }
               },
               "required": ["url"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "fetch_text_from_file",
+            "description": "Fetch the text from a file and return its content.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "File name or file path"
+                }
+              },
+              "required": ["file"]
             }
           }
         }

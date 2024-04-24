@@ -99,6 +99,10 @@ class Claude < MonadicApp
             break
           end
         end
+      rescue StandardError => e
+        pp e.message
+        pp e.backtrace
+        pp e.inspect
       end
     end
 

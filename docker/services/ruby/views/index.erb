@@ -186,28 +186,13 @@
             <h5 class="pb-2" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> GPT Settings</span></h5>
 
             <form class="row my-2">
-              <div class="col-5">
+              <div class="col-4">
                 <label class="form-label" for="apps">Base App</label>
                 <select class="form-select me-3" id="apps" ></select>
               </div>
               <div class="col-2 ms-2">
                 <label class="form-label text-nowrap" for="context-size">Context Size</label>
                 <input type="number" id="context-size" min="1" max="100" stop="1" value="10" class="form-control" />
-              </div>
-              <div class="col-4" id="file-div" style="display: none;">
-                <div class="row">
-                  <div class="col-auto">
-                    <label class="form-label" for="file" style="color: transparent;">□</label>
-                    <div><button class="btn btn-warning text-nowrap" id="file"><i class="fas fa-file"></i> Upload File</button></div>
-                  </div>
-                </div>
-              </div>
-            </form>
-
-            <form class="row my-3">
-              <div class="col-5 pe-0">
-                <label for="model" class="form-label text-nowrap">Select Model</label>
-                <select class="form-select me-3" id="model" ></select>
               </div>
 
               <div class="col-3 ms-3">
@@ -217,7 +202,23 @@
               </div>
             </form>
 
-            <form class="row my-3">
+            <form class="row my-3" id="model_and_file">
+              <div class="col-4 pe-0">
+                <label for="model" class="form-label text-nowrap">Model</label>
+                <select class="form-select me-3" id="model" ></select>
+              </div>
+
+              <div class="col-3 ms-3" id="file-div" style="display: none;">
+                <div class="row">
+                  <div class="col-auto">
+                    <label class="form-label" for="file" style="color: transparent;">□</label>
+                    <div><button class="btn btn-warning text-nowrap" id="file"><i class="fas fa-file"></i> Upload File</button></div>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <form class="row my-3" id="model_parameters">
               <div class="col-3">
                 <label for="temperature" class="div-labe my-2">Temperature<br />(<span id="temperature-value">0.3</span>)</label><br />
                 <input type="range" class="div-range" min="0.0" max="1.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">

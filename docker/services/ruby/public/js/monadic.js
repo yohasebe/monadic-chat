@@ -4,7 +4,7 @@ $(function () {
   const backToTop = $("#back_to_top");
   const backToBottom = $("#back_to_bottom");
 
-  // button#broser is disabled when the system has started
+  // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
 
   //////////////////////////////
@@ -65,15 +65,11 @@ $(function () {
     }
 
     if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
-      $("#model").prop("disabled", true);
-      // $("#top-p").prop("disabled", true);
-      // $("#presence-penalty").prop("disabled", true);
-      // $("#frequency-penalty").prop("disabled", true);
+      $("#model_and_file").hide();
+      $("#model_parameters").hide();
     } else {
-      $("#model").prop("disabled", false);
-      // $("#top-p").prop("disabled", false);
-      // $("#presence-penalty").prop("disabled", false);
-      // $("#frequency-penalty").prop("disabled", false);
+      $("#model_and_file").show();
+      $("#model_parameters").show();
     }
 
     if (apps[$(this).val()]["max_tokens"]) {

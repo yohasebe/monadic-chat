@@ -415,7 +415,7 @@ function connect_websocket(callback) {
 
         const token_verified = `\
               <p>${data['content']}</p>\
-              <div class='like-h5'><i class='fa-solid fa-robot'></i> Available Models</div>\
+              <div class='like-h5'><i class='fa-solid fa-robot'></i> OpenAI Models</div>\
               <div>\
                 ${data['models'].join('<br>')}\
               </div>\

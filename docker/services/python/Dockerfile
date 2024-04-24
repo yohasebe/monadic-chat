@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye
+FROM python:3.10.14-slim-bookworm
 
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE

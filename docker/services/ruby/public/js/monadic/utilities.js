@@ -324,6 +324,10 @@ function resetEvent(event) {
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
     $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
     $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
+
+    $("#model_and_file").show();
+    $("#model_parameters").show();
+
     if (ws) {
       reconnect_websocket(ws);
     }

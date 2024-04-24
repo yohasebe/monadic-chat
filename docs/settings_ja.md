@@ -43,7 +43,7 @@ Monadic Chat Consoleを終了します。Monadic Chatが起動している場合
 **Base App** <br />
 Monadic Chatであらかじめ用意された基本アプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各アプリの特徴については [Base Apps](#base-apps)を参照してください。
 
-**Select Model** <br />
+**Model** <br />
 OpenAIが提供するモデルの中から1つを選びます。各アプリでデフォルトのモデルが指定されていますが、目的に応じて変更することができます。
 
 **Max Tokens** <br />

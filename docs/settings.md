@@ -44,7 +44,7 @@ Enter your OpenAI API key here. Once a valid API key is confirmed, a file named 
 **Base App** <br />
 Choose one of the pre-built apps provided in Monadic Chat. Each app has different default parameter values and comes with its own initial prompt. For more information about each Base App's features, refer to [Base Apps](#base-apps).
 
-**Select Model** <br />
+**Model** <br />
 Choose one of the models provided by OpenAI. Each Base App has a default model specified, but you can change it according to your needs.
 
 **Max Tokens** <br />

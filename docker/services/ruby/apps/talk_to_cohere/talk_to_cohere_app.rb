@@ -97,6 +97,10 @@ class Cohere < MonadicApp
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration
         end
+      rescue StandardError => e
+        pp e.message
+        pp e.backtrace
+        pp e.inspect
       end
     end
 

@@ -1,4 +1,4 @@
-FROM ruby:3.3.0-slim-bullseye
+FROM ruby:3.3.1-slim-bookworm
 
 RUN apt update && \
     apt install -y --no-install-recommends \

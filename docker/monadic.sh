@@ -1,6 +1,7 @@
 #!/bin/bash
 
-export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
+# export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
+export SELENIUM_IMAGE="selenium/standalone-chromium:123.0"
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
@@ -12,7 +13,7 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 if [[ "$(uname -s)" == "Darwin"* ]]; then
   DOCKER=/usr/local/bin/docker
   if [[ $(uname -m) == "arm64" ]]; then
-    export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
+    export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
   fi
 else
   DOCKER=docker

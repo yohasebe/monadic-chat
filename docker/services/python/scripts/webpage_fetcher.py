@@ -24,6 +24,12 @@ def ensure_scheme(url):
         url = "https://" + url
     return url
 
+def get_relative_path(basepath, output_path):
+    if os.path.commonprefix([basepath, output_path]) == basepath:
+        return output_path[len(basepath):].lstrip('/')
+    else:
+        return output_path
+
 # Initialize the parser
 parser = argparse.ArgumentParser(description='Capture webpage as PNG or convert to Markdown within a specified element.')
 

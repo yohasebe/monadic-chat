@@ -298,7 +298,9 @@ module OpenAIHelper
         end
       end
     rescue StandardError => e
-      chunk.scrub! unless chunk.valid_encoding?
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
     end
 
     result = texts.empty? ? nil : texts.first[1]

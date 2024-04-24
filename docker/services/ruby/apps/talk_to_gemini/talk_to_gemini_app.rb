@@ -56,6 +56,19 @@ class Gemini < MonadicApp
       #         },
       #         "required": ["url"]
       #       }
+      #     }, {
+      #       "name": "fetch_text_from_file",
+      #       "description": "Fetch the text from a file and return its content.",
+      #       "parameters": {
+      #         "type": "object",
+      #         "properties": {
+      #           "file": {
+      #             "type": "string",
+      #             "description": "File name or file path"
+      #           }
+      #         },
+      #         "required": ["file"]
+      #       }
       #     }
       #   ]
       # }
@@ -100,6 +113,10 @@ class Gemini < MonadicApp
           # and the loop should continue to the next iteration
         end
       end
+    rescue StandardError => e
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
     end
 
     result = texts.empty? ? nil : texts

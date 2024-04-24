@@ -154,9 +154,9 @@ class MonadicApp
       when "python"
         shared_volume = "/monadic/data"
         container = "monadic-chat-python-container"
-        script_dir_local = "/monadic/data/scripts"
+        script_dir = "/monadic/data/scripts"
         system_command =<<~DOCKER
-          docker exec #{container} bash -c 'chmod +x #{script_dir_local}/*'
+          docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'
           docker exec -w #{shared_volume} #{container} #{command}
         DOCKER
       end
@@ -181,7 +181,7 @@ class MonadicApp
       #{status}
       LOG
 
-      pp log
+      # pp log
 
       File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
 
@@ -254,12 +254,25 @@ class MonadicApp
     send_command(command: command, container: "python") do |stdout, stderr, status|
       if status.success?
         filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
-        sleep(3)
+        if IN_CONTAINER
+          begin
+            filename = File.join("/monadic/data/", File.basename(filename))
+          rescue
+            filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
+          end
+        end
+        retrials = 3
+        sleep(5)
         begin
           contents = File.read(filename)
         rescue StandardError => e
-          filepath = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
-          contents = File.read(filepath)
+          if retrials > 0
+            retrials -= 1
+            sleep(5)
+            retry
+          else
+            "Error occurred: The #{filename} could not be read."
+          end
         end
         contents
       else

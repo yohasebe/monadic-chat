@@ -143,6 +143,7 @@ $(function () {
   $("#start").on("click", function () {
     audioInit();
     elemError.hide();
+    $("#asr-p-value").text("").hide();
     if (checkParams()) {
       params = setParams();
     } else {

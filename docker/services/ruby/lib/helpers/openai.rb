@@ -179,7 +179,8 @@ module OpenAIHelper
 
       options = {
         "file" => HTTP::FormData::File.new(temp_file.path),
-        "model" => "whisper-1"
+        "model" => "whisper-1",
+        "response_format" => "verbose_json"
       }
       options["language"] = lang_code if lang_code
       form_data = HTTP::FormData.create(options)

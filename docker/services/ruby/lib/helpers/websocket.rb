@@ -209,7 +209,14 @@ module WebSocketHelper
             elsif res["type"] && res["type"] == "error"
               @channel.push({ "type" => "error", "content" => res["content"] }.to_json)
             else
-              @channel.push({ "type" => "whisper", "content" => res["text"] }.to_json)
+              # get mean score of "avg_logprob" of res["content"]["segments"]
+              avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
+              logprob = Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+              @channel.push({
+                "type" => "whisper",
+                "content" => res["text"],
+                "logprob" => logprob
+              }.to_json)
             end
           end
         else
@@ -245,12 +252,12 @@ module WebSocketHelper
                 if !cutoff && segments.size > 1
                   candidate = segments.first
                   splitted = candidate.split("---")
-                  if splitted.size > 1
+                  if splitted.empty?
                     cutoff = true
                   end
 
-                  if obj["auto_speech"] && !obj["monadic"]
-                    text = splitted[0]
+                  if obj["auto_speech"] && !cutoff && !obj["monadic"]
+                    text = splitted[0] || ""
                     if text != "" && candidate != ""
                       res_hash = tts_api_request(text, voice, speed, response_format, model) 
                       @channel.push(res_hash.to_json)

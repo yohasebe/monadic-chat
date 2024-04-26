@@ -478,16 +478,18 @@ function connect_websocket(callback) {
         $("#start").focus();
         break;
       case "whisper":
-        infoHtml = formatInfo(data["content"]);
-        if (data["content"] !== infoHtml) {
-          setAlert(infoHtml, "info");
-        }
+        // infoHtml = formatInfo(data["content"]);
+        // if (data["content"] !== infoHtml) {
+        //   setAlert(infoHtml, "info");
+        // }
         $("#message").val($("#message").val() + " " + data["content"]);
-
+        let logprob = "Last ASR p-value: " + data["logprob"];
+        $("#asr-p-value").text(logprob);
         $("#send, #clear, #voice").prop("disabled", false);
         if ($("#check-easy-submit").is(":checked")) {
           $("#send").click();
         }
+        setAlert("<i class='fa-solid fa-check'></i> VOICE RECOGNITION FINISHED", "info");
         setInputFocus()
         break;
       case "info":

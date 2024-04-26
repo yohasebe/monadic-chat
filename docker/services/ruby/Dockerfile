@@ -28,7 +28,8 @@ WORKDIR $WORKSPACE
 COPY Gemfile monadic.gemspec $WORKSPACE/
 COPY config.ru $WORKSPACE/
 
-RUN bundle install -j4 --without development test && \
+ENV BUNDLER_WITHOUT development test
+RUN bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
 
 COPY apps/ $WORKSPACE/apps/

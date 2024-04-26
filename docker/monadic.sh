@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
-export SELENIUM_IMAGE="selenium/standalone-chromium:123.0"
+export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
+# export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")

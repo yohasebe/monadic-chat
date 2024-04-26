@@ -90,11 +90,12 @@ voiceButton.on("click", function () {
 
   // "Start" button is pressed
   if (!isListening) {
+    $("#asr-p-value").text("").hide();
     $("#amplitude").show();
     silenceDetected = false;
     voiceButton.toggleClass("btn-warning btn-danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Stop');
-    setAlert("Listening...", "info");
+    setAlert("<i class='fas fa-microphone'></i> LISTENING ...", "info");
     $("#send, #clear").prop("disabled", true);
     isListening = true;
 
@@ -126,7 +127,7 @@ voiceButton.on("click", function () {
   } else if (!silenceDetected) {
     voiceButton.toggleClass("btn-warning btn-danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Voice Input');
-    setAlert("Processing...", "warning");
+    setAlert("<i class='fas fa-cogs'></i> PROCESSING ...", "warning");
     $("#send, #clear, #voice").prop("disabled", true);
     isListening = false;
 
@@ -150,6 +151,7 @@ voiceButton.on("click", function () {
 
         // Add this line to close the audio context
         localStream.closeAudioContext();
+        $("#asr-p-value").show();
         $("#amplitude").hide();
       } catch (e) {
         console.log(e);
@@ -159,7 +161,7 @@ voiceButton.on("click", function () {
 
   } else {
     voiceButton.toggleClass("btn-warning btn-danger");
-    setAlert("Silence detected. Please check your microphone settings and try again.", "danger");
+    setAlert("<i class='fas fa-exclamation-triangle'></i> SILENCE DETECTED. Please check your microphone settings and try again.", "danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Voice Input');
     $("#send, #clear").prop("disabled", false);
     isListening = false;

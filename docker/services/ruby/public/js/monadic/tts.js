@@ -3,6 +3,7 @@ let audioCtx = null;
 let playPromise = null;
 
 function audioInit() {
+  ttsStop();
   audioCtx = new AudioContext();
 
   if (audioCtx.state === 'suspended') {
@@ -16,7 +17,7 @@ function audioInit() {
 }
 
 function ttsSpeak(text, stream, callback) {
-  
+
   const voice = $("#tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
@@ -59,15 +60,27 @@ function ttsSpeak(text, stream, callback) {
 }
 
 function ttsStop() {
-
   if (audio) {
     audio.pause();
     audio.src = "";
-  } else {
-    audio = new Audio();
   }
+  audio = new Audio();
 
   audioDataQueue = [];
+
+  if (sourceBuffer) {
+    sourceBuffer.removeEventListener('updateend', processAudioDataQueue);
+    sourceBuffer = null;
+  }
+
+  if (audioCtx) {
+    audioCtx.close();
+    audioCtx = null;
+  }
+
+  if (mediaSource) {
+    mediaSource = null;
+  }
 
   mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', () => {
@@ -83,3 +96,4 @@ function ttsStop() {
   audio.src = URL.createObjectURL(mediaSource);
   audio.load();
 }
+

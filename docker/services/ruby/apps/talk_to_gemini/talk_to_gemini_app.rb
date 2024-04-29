@@ -80,6 +80,7 @@ class Gemini < MonadicApp
     buffer = ""
     texts = []
     tool_calls = []
+    finish_reason = nil
 
     in_text_generation = false
 
@@ -90,6 +91,13 @@ class Gemini < MonadicApp
         begin
           candidates = JSON.parse(json).dig("candidates")
           candidate = candidates.first
+
+          finish_reason = candidate["finishReason"]
+          case finish_reason
+          when "MAX_TOKENS"
+            finish_reason = "length"
+          end
+
           content = candidate.dig("content")
           next if content.nil?
 
@@ -138,9 +146,18 @@ class Gemini < MonadicApp
         {"choices" => [{"message" => {"content" => result.join("")}}]}
       end
     elsif result
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
-      [{"choices" => [{"message" => {"content" => result.join("")}}]}]
+      [
+        {
+          "choices" => [
+            {
+              "finish_reason" => finish_reason,
+              "message" => {"content" => result.join("")}
+            }
+          ]
+        }
+      ]
     end
   end
 

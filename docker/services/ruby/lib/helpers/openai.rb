@@ -218,6 +218,7 @@ module OpenAIHelper
     buffer = ""
     texts = {}
     tools = {}
+    finish_reason = nil
 
     body.each do |chunk|
       break if /\Rdata: [DONE]\R/ =~ chunk
@@ -231,6 +232,16 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             json = JSON.parse(json_data)
+
+            finish_reason = json.dig('choices', 0, 'finish_reason')
+            case finish_reason
+            when "length"
+              finish_reason = "length"
+            when "stop"
+              finish_reason = "stop"
+            else
+              finish_reason = nil
+            end
 
             # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
             if json.dig('choices', 0, 'delta', 'content')
@@ -247,30 +258,13 @@ module OpenAIHelper
               fragment.split(//).each do |char|
                 res = {
                   "type" => "fragment",
-                  "content" => char,
-                  "finish_reason" => choice["finish_reason"]
+                  "content" => char
                 }
                 block&.call res
                 sleep 0.01
               end
 
               texts[id]['choices'][0].delete('delta')
-            end
-
-            finish_reason = json.dig('choices', 0, 'finish_reason')
-            if finish_reason == "length" || finish_reason == "stop"
-              id = json['id']
-              if texts[id]
-                choice = texts[id]['choices'][0]
-                choice['finish_reason'] = finish_reason
-              end
-              finish = {
-                "type" => "message",
-                "content" => "DONE",
-                "finish_reason" => finish_reason
-              }
-              block&.call finish
-              break
             end
 
             if json.dig('choices', 0, 'delta', 'tool_calls')
@@ -354,8 +348,9 @@ module OpenAIHelper
         [result]
       end
     elsif result
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
+      result["choices"][0]["finish_reason"] = finish_reason
       [result]
     else
       res = { "type" => "message", "content" => "DONE" }

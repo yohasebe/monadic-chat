@@ -255,12 +255,22 @@ module OpenAIHelper
               end
 
               texts[id]['choices'][0].delete('delta')
+            end
 
-              if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-                finish = { "type" => "message", "content" => "DONE" }
-                block&.call finish
-                break
+            finish_reason = json.dig('choices', 0, 'finish_reason')
+            if finish_reason == "length" || finish_reason == "stop"
+              id = json['id']
+              if texts[id]
+                choice = texts[id]['choices'][0]
+                choice['finish_reason'] = finish_reason
               end
+              finish = {
+                "type" => "message",
+                "content" => "DONE",
+                "finish_reason" => finish_reason
+              }
+              block&.call finish
+              break
             end
 
             if json.dig('choices', 0, 'delta', 'tool_calls')

@@ -62,6 +62,7 @@ class Cohere < MonadicApp
     obj = session[:parameters]
     texts = []
     tool_calls = []
+    finish_reason = nil
 
     in_text_generation = false
 
@@ -69,6 +70,13 @@ class Cohere < MonadicApp
       body.each do |chunk|
         begin
           json = JSON.parse(chunk)
+
+          finish_reason = json["finish_reason"]
+          case finish_reason
+          when "MAX_TOKENS"
+            finish_reason = "length"
+          end
+
           case json["event_type"]
           when "text-generation"
             in_text_generation = true
@@ -123,9 +131,18 @@ class Cohere < MonadicApp
       end
 
     elsif result
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
-      [{"choices" => [{"message" => {"content" => result.join("")}}]}]
+      [
+        {
+          "choices" => [
+            {
+              "finish_reason" => finish_reason,
+              "message" => {"content" => result.join("")}
+            }
+          ]
+        }
+      ]
     else
       api_request("empty_tool_results", session, call_depth: call_depth, &block)
     end

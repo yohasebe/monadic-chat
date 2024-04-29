@@ -169,9 +169,9 @@ module WebSocketHelper
               if content["finish_reason"] == "length"
                 # check if text contains one and only one code block starting sequence ```
                 if text.scan(/(?:\A|\n)```/m).size == 1
-                  text += "\n```\n#{type_continue}\n#{code_truncated}"
+                  text += "\n```\n\n> #{type_continue}\n#{code_truncated}"
                 else
-                  text += "\n#{type_continue}"
+                  text += "\n\n> #{type_continue}"
                 end
               end
 

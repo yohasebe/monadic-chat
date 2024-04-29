@@ -61,6 +61,7 @@ class Claude < MonadicApp
 
     buffer = ""
     texts = []
+    finish_reason = nil
 
     if body.respond_to?(:each)
       body.each do |chunk|
@@ -69,6 +70,7 @@ class Claude < MonadicApp
         buffer << chunk
         scanner = StringScanner.new(buffer)
         pattern = /data: (\{.*?\})(?=\n|\z)/
+
         until scanner.eos?
           matched = scanner.scan_until(pattern)
           if matched
@@ -86,6 +88,16 @@ class Claude < MonadicApp
                   res = { "type" => "fragment", "content" => char }
                   block&.call res
                   sleep 0.01
+                end
+              end
+
+              if json.dig('delta', 'stop_reason')
+                stop_reason = json.dig('delta', 'stop_reason')
+                case stop_reason
+                when "max_tokens"
+                  finish_reason = "length"
+                when "end_turn"
+                  finish_reason = "stop"
                 end
               end
 
@@ -109,9 +121,18 @@ class Claude < MonadicApp
     result = texts.empty? ? nil : texts
 
     if result
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
-      [{"choices" => [{"message" => {"content" => result.join("")}}]}]
+      [
+        {
+          "choices" => [
+            {
+              "finish_reason" => finish_reason,
+              "message" => {"content" => result.join("")}
+            }
+          ]
+        }
+      ]
     else
       res = { "type" => "message", "content" => "DONE" }
       block&.call res

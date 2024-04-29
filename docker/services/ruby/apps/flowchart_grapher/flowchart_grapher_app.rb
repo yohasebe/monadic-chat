@@ -74,7 +74,7 @@ class FlowchartGrapher < MonadicApp
       "model": "gpt-4-turbo",
       "temperature": 0.0,
       "top_p": 0.0,
-      "max_tokens": 2000,
+      "max_tokens": 4000,
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "easy_submit": false,

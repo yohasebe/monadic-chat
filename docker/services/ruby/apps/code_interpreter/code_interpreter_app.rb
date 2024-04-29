@@ -161,7 +161,6 @@ class CodeInterpreter < MonadicApp
       "temperature": 0.2,
       "presence_penalty": 0.2,
       "top_p": 0.0,
-      "max_tokens": 2000,
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "image_generation": true,

@@ -181,6 +181,7 @@ $(function () {
 
   $("#cancel_query").on("click", function () {
     setAlert("Ready to start.", "secondary");
+    ttsStop();
 
     responseStarted = false;
     callingFunction = false;

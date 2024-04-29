@@ -158,8 +158,22 @@ module WebSocketHelper
           while !queue.empty?
             last_one = queue.shift
             begin
+              # pp last_one
               content = last_one["choices"][0]
+
               text = content["text"] || content["message"]["content"]
+
+              type_continue = "Type **continue** to get more results\n"
+              code_truncated = "[CODE BLOCK TRUNCATED]"
+
+              if content["finish_reason"] == "length"
+                # check if text contains one and only one code block starting sequence ```
+                if text.scan(/(?:\A|\n)```/m).size == 1
+                  text += "\n```\n#{type_continue}\n#{code_truncated}"
+                else
+                  text += "\n#{type_continue}"
+                end
+              end
 
               if session["parameters"]["monadic"]
                 html = APPS[session["parameters"]["app_name"]].monadic_html(text)
@@ -172,7 +186,10 @@ module WebSocketHelper
               end
 
               new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
-              @channel.push({ "type" => "html", "content" => new_data }.to_json)
+              @channel.push({
+                "type" => "html",
+                "content" => new_data
+              }.to_json)
               session[:messages] << new_data
               messages = session[:messages].filter { |m| m["type"] != "search" }
               past_messages_data = check_past_messages(session[:parameters])

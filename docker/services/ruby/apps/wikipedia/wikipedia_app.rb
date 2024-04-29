@@ -39,7 +39,7 @@ Use the following HTML format in your response:
       "model": "gpt-4-turbo",
       "temperature": 0.3,
       "top_p": 0.0,
-      "max_tokens": 2000,
+      "max_tokens": 4000,
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "description": description,

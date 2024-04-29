@@ -290,9 +290,6 @@ class Cohere < MonadicApp
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
 
-    # pp headers
-    # pp body
-
     success = false
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,

@@ -21,7 +21,6 @@ class MailComposer < MonadicApp
       "model": "gpt-3.5-turbo-0125",
       "temperature": 0.3,
       "top_p": 0.0,
-      "max_tokens": 1000,
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "easy_submit": false,

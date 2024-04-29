@@ -429,7 +429,9 @@ function connect_websocket(callback) {
         // filter out the models that are not available from the dropdown
         const available_models = data['models']
         $("#apps option").each(function () {
-          if (!available_models.includes(apps[$(this).val()]["model"])) {
+          // next if this app does not specify "model"
+          let  model = apps[$(this).val()]["model"]
+          if (model && !available_models.includes(model)) {
             $(this).remove();
           }
         });
@@ -489,7 +491,7 @@ function connect_websocket(callback) {
         if ($("#check-easy-submit").is(":checked")) {
           $("#send").click();
         }
-        setAlert("<i class='fa-solid fa-check'></i> VOICE RECOGNITION FINISHED", "info");
+        setAlert("<i class='fa-solid fa-check'></i> Voice recognition finished", "secondary");
         setInputFocus()
         break;
       case "info":

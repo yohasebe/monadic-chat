@@ -104,9 +104,13 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
       $("#select-role").val(role).trigger("change");
       // remove this message and all the messages after this message
       const index = messages.findIndex((m) => m.mid === mid);
-      messages.splice(index, messages.length - index);
+      const following = messages.splice(index, messages.length - index);
+      // remove the cards of the messages after this message
+      following.forEach((m) => {
+        $(`#${m.mid}`).remove();
+        ws.send(JSON.stringify({"message": "DELETE", "mid": m.mid}));
+      });
       // remove this card
-      $(`#${mid}`).nextAll().remove();
       $(`#${mid}`).remove();
       ws.send(JSON.stringify({"message": "DELETE", "mid": mid}));
     }

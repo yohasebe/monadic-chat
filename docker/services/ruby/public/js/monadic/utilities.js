@@ -259,6 +259,7 @@ function setParams() {
   params["context_size"] = $("#context-size").val();
   params["tts_speed"] = $("#tts-speed").val();
   params["tts_voice"] = $("#tts-voice").val();
+  params["asr_lang"] = $("#asr-lang").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');

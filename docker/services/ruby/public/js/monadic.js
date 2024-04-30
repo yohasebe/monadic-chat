@@ -424,6 +424,11 @@ $(function () {
     setCookie("userVoice", params["tts_voice"], 30);
   });
 
+  $("#asr-lang").on("change", function(){
+    params["asr_lang"] = $("#asr-lang option:selected").val();
+    setCookie("asrLang", params["asr-lang"], 30);
+  });
+
   $("#tts-speed").on("input", function() {
     $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
     params["tts_speed_rate"] = parseFloat($(this).val());

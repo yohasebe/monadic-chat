@@ -166,7 +166,7 @@ button.fixed-width {
 
 #error-box {
     position: relative;
-    width: 360px;
+    width: 480px;
     z-index: 1041;
     margin: 0 auto;
     display: inline-block;

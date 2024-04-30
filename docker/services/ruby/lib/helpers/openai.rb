@@ -166,9 +166,6 @@ module OpenAIHelper
   end
 
   def whisper_api_request(blob, format, lang_code)
-    pp format
-    pp lang_code
-
     lang_code = nil if lang_code == "auto"
 
     num_retrial = 0

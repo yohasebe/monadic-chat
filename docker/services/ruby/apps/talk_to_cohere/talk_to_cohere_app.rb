@@ -75,6 +75,8 @@ class Cohere < MonadicApp
           case finish_reason
           when "MAX_TOKENS"
             finish_reason = "length"
+          when "COMPLETE"
+            finish_reason = "stop"
           end
 
           case json["event_type"]

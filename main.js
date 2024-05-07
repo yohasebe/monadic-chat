@@ -462,6 +462,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
               writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
             })
             .catch(error => {
+              writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');
               console.error('Fetch operation failed after retries:', error);
             });
         } else {

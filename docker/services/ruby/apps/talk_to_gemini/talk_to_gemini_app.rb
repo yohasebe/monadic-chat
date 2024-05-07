@@ -96,6 +96,8 @@ class Gemini < MonadicApp
           case finish_reason
           when "MAX_TOKENS"
             finish_reason = "length"
+          when "STOP"
+            finish_reason = "stop"
           end
 
           content = candidate.dig("content")

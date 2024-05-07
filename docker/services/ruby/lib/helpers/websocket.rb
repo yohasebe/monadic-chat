@@ -96,22 +96,26 @@ module WebSocketHelper
             ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting <b>#{title}</b>" }.to_json)
           end
         when "CHECK_TOKEN"
-          if obj["initial"].to_s == "true"
-            token = settings.api_key
+          if CONFIG["ERROR"].to_s == "true"
+            ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/data/.env</code>" }.to_json)
           else
-            token = obj["contents"]
-          end
-
-          res = set_api_key(token) if token
-
-          if token && res.is_a?(Hash) && res.key?("type")
-            if res["type"] == "error"
-              ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
+            if obj["initial"].to_s == "true"
+              token = settings.api_key
             else
-              ws.send({ "type" => "token_verified", "token" => token, "content" => res["content"], "models" => res["models"] }.to_json)
+              token = obj["contents"]
             end
-          else
-            ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
+
+            res = set_api_key(token) if token
+
+            if token && res.is_a?(Hash) && res.key?("type")
+              if res["type"] == "error"
+                ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
+              else
+                ws.send({ "type" => "token_verified", "token" => token, "content" => res["content"], "models" => res["models"] }.to_json)
+              end
+            else
+              ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
+            end
           end
         when "NUM_TOKENS"
           half_max = obj["max_tokens"].to_i / 2
@@ -166,9 +170,8 @@ module WebSocketHelper
               type_continue = "Type **continue** to get more results\n"
               code_truncated = "[CODE BLOCK TRUNCATED]"
 
-              if content["finish_reason"] == "length"
-                # check if text contains one and only one code block starting sequence ```
-                if text.scan(/(?:\A|\n)```/m).size == 1
+              if content["finish_reason"] == "length" || !content["finish_reason"]
+                if text.scan(/(?:\A|\n)```/m).size.odd?
                   text += "\n```\n\n> #{type_continue}\n#{code_truncated}"
                 else
                   text += "\n\n> #{type_continue}"

@@ -407,7 +407,7 @@ module OpenAIHelper
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
-    # prompt_suffix = obj["prompt_suffix"]
+    prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
     max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
     temperature = obj["temperature"].to_f
@@ -520,15 +520,6 @@ module OpenAIHelper
       end
     end
 
-    if role != "tool"
-      # Decorate the last message in the context with the message with the snippet
-      # and the prompt suffix
-      last_text = context.last["text"]
-      last_text = message_with_snippet if message_with_snippet.to_s != ""
-      # last_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
-      context.last["text"] = last_text
-    end
-
     # The context is added to the body
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
@@ -547,6 +538,13 @@ module OpenAIHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
+    else
+      # Decorate the last message in the context with the message with the snippet
+      # and the prompt suffix
+      last_text = context.last["text"]
+      last_text = message_with_snippet if message_with_snippet.to_s != ""
+      last_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
+      body["messages"].last["content"] = [{ "type" => "text", "text" => last_text }]
     end
 
     if messages_containing_img && role != "tool"

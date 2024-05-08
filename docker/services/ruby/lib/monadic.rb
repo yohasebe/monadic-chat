@@ -104,7 +104,7 @@ def init_apps
     app_name = app.settings[:app_name]
 
     initial_prompt_suffix = ""
-    # prompt_suffix = ""
+    prompt_suffix = ""
     response_suffix = ""
     if app.settings[:mathjax]
       initial_prompt_suffix << <<~INITIAL
@@ -112,9 +112,9 @@ def init_apps
         - Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block.
         - Use single dollar signs `$` for expressions that should appear inline with the text.
       INITIAL
-      # prompt_suffix << <<~SUFFIX
-      #   [INTERNAL] Remember to use the correct delimiter for inline mathematical expressions `$`.
-      # SUFFIX
+      prompt_suffix << <<~SUFFIX
+        [INTERNAL] Remember to use the correct delimiter for inline mathematical expressions `$`.
+      SUFFIX
     end
 
     if app.settings[:image_generation]
@@ -132,15 +132,15 @@ def init_apps
       INITIAL
     end
 
-    # if app.settings[:mermaid]
-    #   prompt_suffix << <<~INITIAL
-    #     [INTERNAL] Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
-    #   INITIAL
-    # end
+    if app.settings[:mermaid]
+      prompt_suffix << <<~INITIAL
+        [INTERNAL] Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
+      INITIAL
+    end
 
-    if !initial_prompt_suffix.empty? || !response_suffix.empty?
+    if !initial_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?
       initial_prompt_suffix = "\n\n" + initial_prompt_suffix.strip unless initial_prompt_suffix.empty?
-      # prompt_suffix = "\n\n" + prompt_suffix.strip unless prompt_suffix.empty?
+      prompt_suffix = "\n\n" + prompt_suffix.strip unless prompt_suffix.empty?
       response_suffix = "\n\n" + response_suffix.strip unless response_suffix.empty?
 
       original_settings = app.settings.dup
@@ -148,7 +148,7 @@ def init_apps
         original_settings.merge(
           {
             initial_prompt: "#{original_settings[:initial_prompt]}#{initial_prompt_suffix}".strip,
-            # prompt_suffix: "#{original_settings[:prompt_suffix]}#{prompt_suffix}".strip,
+            prompt_suffix: "#{original_settings[:prompt_suffix]}#{prompt_suffix}".strip,
             response_suffix: "#{original_settings[:response_suffix]}#{response_suffix}".strip
           }
         )

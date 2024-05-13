@@ -97,7 +97,7 @@ def image_query(message, image)
     image_url = nil
   end
 
-  model = "gpt-4-turbo"
+  model = "gpt-4o"
 
   headers = {
     "Content-Type" => "application/json",

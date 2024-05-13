@@ -157,7 +157,7 @@ class CodeInterpreter < MonadicApp
 
   def settings
     {
-      "model": "gpt-4-turbo",
+      "model": "gpt-4o",
       "temperature": 0.2,
       "presence_penalty": 0.2,
       "top_p": 0.0,

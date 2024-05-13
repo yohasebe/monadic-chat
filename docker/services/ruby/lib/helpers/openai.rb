@@ -554,7 +554,7 @@ module OpenAIHelper
     end
 
     if messages_containing_img && role != "tool"
-      body["model"] = "gpt-4-turbo"
+      body["model"] = "gpt-4o"
       body.delete("stop") if messages_containing_img
       body.delete("tools")
       body.delete("tool_choice")

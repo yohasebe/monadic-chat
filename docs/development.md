@@ -135,7 +135,7 @@ class AppName < MonadicApp
       # The default system prompt (defined above as initial_prompt)
       "initial_prompt": initial_prompt,
       # The default OpenAI GPT model
-      "model": "gpt-3.5-turbo-0125",
+      "model": "gpt-4-turbo",
       # The default temperature
       "temperature": 0.5,
       # The default top_p

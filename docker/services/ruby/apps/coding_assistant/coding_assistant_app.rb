@@ -18,7 +18,7 @@ class CodingAssistant < MonadicApp
 
   def settings
     {
-      "model": "gpt-4-turbo",
+      "model": "gpt-4o",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 2000,

@@ -23,8 +23,7 @@ layout: default
 > 
 > なお、Monadic Chatでは下記のAPIを使用します
 > 
-> - [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5) （大規模言語モデル・標準）
-> - [GPT-4](https://platform.openai.com/docs/models/gpt-4)（高性能大規模言語モデル・推奨）
+> - [GPT-4](https://platform.openai.com/docs/models/gpt-4)（高性能大規模言語モデル）
 > - [Whisper](https://platform.openai.com/docs/models/whisper) （音声認識モデル）
 > - [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (画像生成モデル)
 > - [Vision](https://platform.openai.com/docs/guides/vision) （画像認識モデル）

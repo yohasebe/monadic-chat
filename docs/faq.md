@@ -23,8 +23,7 @@ layout: default
 > 
 > Monadic Chat uses the following APIs:
 > 
-> - [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5) (Standard large language model, default)
-> - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (High-performance large language model, recommended)
+> - [GPT-4](https://platform.openai.com/docs/models/gpt-4) (High-performance large language model)
 > - [Whisper](https://platform.openai.com/docs/models/whisper) (Speech recognition model)
 > - [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (Image generation model)
 > - [Vision](https://platform.openai.com/docs/guides/vision) (Image recognition model)

@@ -32,7 +32,7 @@ def get_encoding_name(model_name):
 def count_tokens():
     data = request.json
     text = data.get('text', '')
-    model_name = data.get('model_name', 'gpt-3.5-turbo')  # Default is 'gpt-3.5-turbo'
+    model_name = data.get('model_name', 'gpt-3.5-turbo')
     encoding_name = get_encoding_name(model_name)
     encoding = get_encoding(encoding_name)
     tokens = encoding.encode_ordinary(text)

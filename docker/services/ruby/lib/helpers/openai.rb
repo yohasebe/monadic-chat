@@ -543,8 +543,14 @@ module OpenAIHelper
       # and the prompt suffix
       last_text = context.last["text"]
       last_text = message_with_snippet if message_with_snippet.to_s != ""
-      last_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
-      body["messages"].last["content"] = [{ "type" => "text", "text" => last_text }]
+      new_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
+      if new_text != last_text
+        body["messages"].last["content"].each do |content_item|
+          if content_item["type"] == "text"
+            content_item["text"] = last_text
+          end
+        end
+      end
     end
 
     if messages_containing_img && role != "tool"

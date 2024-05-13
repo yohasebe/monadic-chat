@@ -13,35 +13,48 @@ module WebSocketHelper
     max_tokens = obj["max_tokens"].to_i
     context_size = obj["context_size"].to_i
     tokens = []
+    tokenizer_available = true
 
     # calculate token count for each message and mark as active
-    messages.each do |m|
-      tokens << MonadicApp::TOKENIZER.count_tokens(m["text"])
-      m["active"] = true
+    begin
+      # filter out inactive messages
+      active_messages = messages.filter { |m| m["active"] }
+
+      messages.each do |m|
+        tokens << MonadicApp::TOKENIZER.count_tokens(m["text"])
+        m["active"] = true
+      end
+
+      # remove oldest messages until total token count and message count are within limits
+      loop do
+        break if active_messages.empty? || (tokens.sum <= max_tokens && active_messages.size <= context_size)
+        res = true
+        tokens.shift
+        active_messages[0]["active"] = false
+        active_messages.shift
+      end
+      
+      # calculate total token count of all messages
+      count_tokens = tokens.sum
+    rescue StandardError => e
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
+      count_tokens = 0
+      tokenizer_available = false
     end
 
-    # calculate total token count of all messages
-    count_tokens = tokens.sum
-
-    # filter out inactive messages
-    active_messages = messages.filter { |m| m["active"] }
-
-    # remove oldest messages until total token count and message count are within limits
-    loop do
-      break if active_messages.empty? || (tokens.sum <= max_tokens && active_messages.size <= context_size)
-
-      res = true
-      tokens.shift
-      active_messages[0]["active"] = false
-      active_messages.shift
-    end
+    sum_tokens = tokenizer_available ? tokens.sum : 0
 
     # return information about state of messages array
-    { changed: res,
+    res = { changed: res,
       count_tokens: count_tokens,
-      count_active_tokens: tokens.sum,
+      count_active_tokens: sum_tokens,
       count_messages: messages.size,
-      count_active_messages: active_messages.size }
+      count_active_messages: active_messages.size
+    }
+    res[:error] = "Error: Token count not available" unless tokenizer_available
+    res
   end
 
   def websocket_handler(env)
@@ -170,12 +183,16 @@ module WebSocketHelper
               type_continue = "Type **continue** to get more results\n"
               code_truncated = "[CODE BLOCK TRUNCATED]"
 
-              if content["finish_reason"] == "length" || !content["finish_reason"]
+              if content["finish_reason"] && content["finish_reason"] == "length"
                 if text.scan(/(?:\A|\n)```/m).size.odd?
                   text += "\n```\n\n> #{type_continue}\n#{code_truncated}"
                 else
                   text += "\n\n> #{type_continue}"
                 end
+              end
+
+              if content["finish_reason"] && content["finish_reason"] == "safety"
+                @channel.push({ "type" => "error", "content" => "The API stopped responding because of safety reasons" }.to_json)
               end
 
               if session["parameters"]["monadic"]

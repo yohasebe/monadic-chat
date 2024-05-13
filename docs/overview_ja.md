@@ -28,7 +28,7 @@ layout: default
 
 ### 基本構造
 
-- 🤖 OpenAIのChat API（**GPT-3.5**または**GPT-4**）を使用し、ターン数制限のないチャットを実現
+- 🤖 OpenAIのChat API（**GPT-4**）を使用し、ターン数制限のないチャットを実現
 - 👩‍💻 **Docker Desktop**を使用して、Mac、Windows、Linuxにインストール可能
 
 ### データ管理

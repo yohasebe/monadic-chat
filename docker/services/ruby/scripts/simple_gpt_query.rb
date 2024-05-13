@@ -9,7 +9,7 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 1
 RETRY_DELAY = 1
 
-def query(message: "", model: "gpt-3.5-turbo")
+def query(message: "", model: "gpt-4-turbo")
   num_retrial = 0
 
   begin
@@ -82,7 +82,7 @@ if message.nil? || image_path_or_url.nil?
 end
 
 begin
-  model = ARGV[1] || "gpt-3.5-turbo"
+  model = ARGV[1] || "gpt-4-turbo"
   response = query(message: message, model: model)
   puts response
 rescue => e

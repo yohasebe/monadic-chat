@@ -98,6 +98,8 @@ class Gemini < MonadicApp
             finish_reason = "length"
           when "STOP"
             finish_reason = "stop"
+          when "SAFETY"
+            finish_reason = "safety"
           end
 
           content = candidate.dig("content")

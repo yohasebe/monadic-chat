@@ -59,7 +59,6 @@ module WebSocketHelper
       count_active_messages: active_messages.size,
       encoding_name: encoding_name
     }
-
     res[:error] = "Error: Token count not available" unless tokenizer_available
     res
   end

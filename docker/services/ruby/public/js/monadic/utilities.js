@@ -36,7 +36,7 @@ function formatInfo(info) {
   let tableRows = "";
 
   for (const [key, value] of Object.entries(info)) {
-    if (value && value !== 0 && !isNaN(value)) {
+    if (value && value !== 0) {
       noValue = false;
       let label = "";
       switch (key) {
@@ -52,12 +52,23 @@ function formatInfo(info) {
         case "count_active_tokens":
           label = "Num of tokens in active messages";
           break;
+        case "encoding_name":
+          label = "Token Encoding";
+          break;
       }
-      if (label !== "") {
+
+      if (label.startsWith("Num")) {
         tableRows += `
             <tr>
               <td>${label}</td>
               <td align="right">${parseInt(value).toLocaleString('en')}</td>
+            </tr>
+          `;
+      } else {
+        tableRows += `
+            <tr>
+              <td>${label}</td>
+              <td align="right">${value}</td>
             </tr>
           `;
       }

@@ -5,6 +5,8 @@ from tiktoken.registry import get_encoding
 
 app = Flask(__name__)
 
+default_model = 'gpt-3.5-turbo'
+
 # Function to dynamically load model_to_encoding_map from tiktoken/model.py
 def load_model_to_encoding_map():
     # Find the path to the tiktoken package
@@ -21,19 +23,21 @@ def load_model_to_encoding_map():
 # Load model_to_encoding_map
 model_to_encoding_map = load_model_to_encoding_map()
 
-def get_encoding_name(model_name):
-    # Get the encoding name from the model name
+@app.route('/get_encoding_name', methods=['POST'])
+def get_encoding_name():
+    data = request.json
+    model_name = data.get('model_name', default_model)
     if model_name in model_to_encoding_map:
-        return model_to_encoding_map[model_name]
+        return jsonify({'encoding_name': model_to_encoding_map[model_name]})
     else:
-        raise ValueError(f"Model name '{model_name}' is not recognized.")
+        return jsonify({'error': 'Model not found'})
 
 @app.route('/count_tokens', methods=['POST'])
 def count_tokens():
     data = request.json
     text = data.get('text', '')
-    model_name = data.get('model_name', 'gpt-3.5-turbo')  # Default is 'gpt-3.5-turbo'
-    encoding_name = get_encoding_name(model_name)
+    model_name = data.get('model_name', default_model)
+    encoding_name = model_to_encoding_map[model_name]
     encoding = get_encoding(encoding_name)
     tokens = encoding.encode_ordinary(text)
     return jsonify({'number_of_tokens': len(tokens)})
@@ -42,8 +46,8 @@ def count_tokens():
 def get_tokens_sequence():
     data = request.json
     text = data.get('text', '')
-    model_name = data.get('model_name', 'gpt-3.5-turbo')
-    encoding_name = get_encoding_name(model_name)
+    model_name = data.get('model_name', default_model)
+    encoding_name = model_to_encoding_map[model_name]
     encoding = get_encoding(encoding_name)
     tokens = encoding.encode_ordinary(text)
     return jsonify({'tokens_sequence': ",".join(map(str, tokens))})
@@ -53,7 +57,7 @@ def decode_tokens():
     data = request.json
     tokens_str = data.get('tokens', '')
     model_name = data.get('model_name', 'gpt-3.5-turbo')
-    encoding_name = get_encoding_name(model_name)
+    encoding_name = model_to_encoding_map[model_name]
     tokens = list(map(int, tokens_str.replace(",", " ").split()))
     encoding = get_encoding(encoding_name)
     original_text = encoding.decode(tokens)

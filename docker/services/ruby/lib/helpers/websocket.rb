@@ -20,8 +20,10 @@ module WebSocketHelper
       # filter out inactive messages
       active_messages = messages.filter { |m| m["active"] }
 
-      # model_name is proviced only for gpt-4o (o200k_base)
-      model_name = /gpt\-4o/ =~ obj["model"] ? obj["model"] : nil
+      # gpt-4o => o200k_base;
+      model_name = /gpt\-4o/ =~ obj["model"] ? obj["model"] : "gpt-3.5-turbo"
+
+      encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
 
       messages.each do |m|
         tokens << MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
@@ -54,8 +56,10 @@ module WebSocketHelper
       count_tokens: count_tokens,
       count_active_tokens: sum_tokens,
       count_messages: messages.size,
-      count_active_messages: active_messages.size
+      count_active_messages: active_messages.size,
+      encoding_name: encoding_name
     }
+
     res[:error] = "Error: Token count not available" unless tokenizer_available
     res
   end

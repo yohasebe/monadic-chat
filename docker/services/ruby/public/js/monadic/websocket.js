@@ -121,7 +121,7 @@ function applyMathJax(element) {
   // Typeset the element using MathJax
   MathJax.typesetPromise([domElement])
     .then(() => {
-      console.log('MathJax element re-rendered successfully.');
+      // console.log('MathJax element re-rendered successfully.');
     })
     .catch((err) => {
       console.error('Error re-rendering MathJax element:', err);
@@ -331,14 +331,14 @@ function connect_websocket(callback) {
   let infoHtml = "";
 
   ws.onopen = function () {
-    console.log('WebSocket connected');
+    // console.log('WebSocket connected');
     setAlert("<p>Verifying token . . .</p>", "warning");
     ws.send(JSON.stringify({message: "CHECK_TOKEN", initial: true, contents: $("#token").val()}));
 
     if (!mediaSource) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
-        console.log('MediaSource opened');
+        // console.log('MediaSource opened');
         if (runningOnFirefox) {
           sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
         } else {
@@ -378,7 +378,7 @@ function connect_websocket(callback) {
         audioDataQueue.push(audioData);
         processAudioDataQueue();
       case "pong":
-        console.log("Received PONG");
+        // console.log("Received PONG");
         break;
       case "error":
         // msgBuffer.length = 0;
@@ -403,7 +403,8 @@ function connect_websocket(callback) {
 
         break;
       case "token_verified":
-        console.log("Token verified");
+        // console.log("Token verified");
+
         // insert data["token"] into the api-token input field
         $("#api-token").val(data["token"]);
 
@@ -438,7 +439,7 @@ function connect_websocket(callback) {
 
         break;
       case "token_not_verified":
-        console.log("Token not verified");
+        // console.log("Token not verified");
         $("#api-token").val("");
 
         const message = "<p>Please set a valid API token and press Verify Token.</p>"
@@ -690,7 +691,6 @@ function connect_websocket(callback) {
         $("#indicator").show();
         // msgBuffer.push(data["content"]);
         if (data["content"] !== undefined) {
-          console.log(data);
           $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
         }
         if (!isElementInViewport(chatBottom)){
@@ -700,7 +700,7 @@ function connect_websocket(callback) {
   }
 
   ws.onclose = function (e) {
-    console.log(`Socket is closed. Reconnect will be attempted in ${reconnectDelay} second.`, e.reason);
+    // console.log(`Socket is closed. Reconnect will be attempted in ${reconnectDelay} second.`, e.reason);
     reconnect_websocket(ws);
   }
 
@@ -716,11 +716,11 @@ function connect_websocket(callback) {
 function reconnect_websocket(ws, callback) {
   switch (ws.readyState) {
     case WebSocket.CLOSED:
-      console.log('WebSocket is closed.');
+      // console.log('WebSocket is closed.');
       ws = connect_websocket(callback);
       break;
     case WebSocket.CLOSING:
-      console.log('WebSocket is closing.');
+      // console.log('WebSocket is closing.');
       setTimeout(() => {
         reconnect_websocket(ws, callback);
       }, reconnectDelay);
@@ -731,7 +731,7 @@ function reconnect_websocket(ws, callback) {
       }, reconnectDelay);
       break;
     case WebSocket.OPEN:
-      console.log('WebSocket is open.');
+      // console.log('WebSocket is open.');
       if (callback) {
         callback(ws);
       }

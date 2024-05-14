@@ -84,7 +84,7 @@ function ttsStop() {
 
   mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', () => {
-    console.log('MediaSource opened');
+    // console.log('MediaSource opened');
     if (runningOnFirefox) {
       sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
     } else {

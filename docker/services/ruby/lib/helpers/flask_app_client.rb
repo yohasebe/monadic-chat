@@ -14,6 +14,17 @@ class FlaskAppClient
     @model_name = model_name
   end
 
+  def get_encoding_name(model = nil)
+    model_name = model || @model_name
+    body = {model_name: model_name}
+    response = post_request("get_encoding_name", body)
+    if response["error"]
+      nil
+    else
+      response["encoding_name"]
+    end
+  end
+
   def count_tokens(text, model = nil)
     model_name = model || @model_name
     body = {text: text, model_name: model_name}

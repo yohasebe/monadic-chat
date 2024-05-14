@@ -37,19 +37,22 @@ function formatInfo(info) {
 
   for (const [key, value] of Object.entries(info)) {
     if (value && value !== 0) {
-      noValue = false;
       let label = "";
       switch (key) {
         case "count_messages":
+          noValue = false;
           label = "Num of all messages";
           break;
         case "count_active_messages":
+          noValue = false;
           label = "Num of active messages";
           break;
         case "count_tokens":
+          noValue = false;
           label = "Num of tokens in all messages";
           break;
         case "count_active_tokens":
+          noValue = false;
           label = "Num of tokens in active messages";
           break;
         case "encoding_name":
@@ -64,7 +67,7 @@ function formatInfo(info) {
               <td align="right">${parseInt(value).toLocaleString('en')}</td>
             </tr>
           `;
-      } else {
+      } else if (!noValue && label) {
         tableRows += `
             <tr>
               <td>${label}</td>

@@ -20,8 +20,11 @@ module WebSocketHelper
       # filter out inactive messages
       active_messages = messages.filter { |m| m["active"] }
 
+      # model_name is proviced only for gpt-4o (o200k_base)
+      model_name = /gpt\-4o/ =~ obj["model"] ? obj["model"] : nil
+
       messages.each do |m|
-        tokens << MonadicApp::TOKENIZER.count_tokens(m["text"])
+        tokens << MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
         m["active"] = true
       end
 

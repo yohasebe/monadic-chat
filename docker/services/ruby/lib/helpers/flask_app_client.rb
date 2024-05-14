@@ -14,8 +14,9 @@ class FlaskAppClient
     @model_name = model_name
   end
 
-  def count_tokens(text)
-    body = {text: text, model_name: @model_name}
+  def count_tokens(text, model = nil)
+    model_name = model || @model_name
+    body = {text: text, model_name: model_name}
     response = post_request("count_tokens", body)
     response ? response["number_of_tokens"].to_i : nil
   end

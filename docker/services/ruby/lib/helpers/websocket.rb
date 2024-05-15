@@ -26,7 +26,9 @@ module WebSocketHelper
       encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
 
       messages.each do |m|
-        tokens << MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
+        if !m["tokens"]
+          m["tokens"] = MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
+        end
         m["active"] = true
       end
 
@@ -34,13 +36,14 @@ module WebSocketHelper
       loop do
         break if active_messages.empty? || (tokens.sum <= max_tokens && active_messages.size <= context_size)
         res = true
-        tokens.shift
         active_messages[0]["active"] = false
         active_messages.shift
       end
       
-      # calculate total token count of all messages
-      count_tokens = tokens.sum
+      # calculate total token count
+      count_total_input_tokens = messages.filter { |m| m["role"] == "user"}.map { |m| m["tokens"] }.sum
+      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant"}.map { |m| m["tokens"] }.sum
+      count_active_tokens = active_messages.map { |m| m["tokens"] }.sum
     rescue StandardError => e
       pp e.message
       pp e.backtrace
@@ -53,8 +56,9 @@ module WebSocketHelper
 
     # return information about state of messages array
     res = { changed: res,
-      count_tokens: count_tokens,
-      count_active_tokens: sum_tokens,
+      count_total_input_tokens: count_total_input_tokens,
+      count_total_output_tokens: count_total_output_tokens,
+      count_total_active_tokens: count_active_tokens,
       count_messages: messages.size,
       count_active_messages: active_messages.size,
       encoding_name: encoding_name

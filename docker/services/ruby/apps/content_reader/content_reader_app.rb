@@ -22,7 +22,7 @@ class ContentReader < MonadicApp
 
       If the user requests an explanation of a specific image, you can use the `analyze_image` function to analyze the image and return the result. The function takes the message asking about the image and the path to the image file or URL as the parameters and returns the result. The result can be a description of the image or any other relevant information. In your response, present the text description and the <img> tag to display the image (e.g. `<img src="FILE_NAME" />`).
 
-      If the user provides an audio file, you can use the `analyze_speech` function to analyze the speech and return the result. The function takes the file path of the audio file as the parameter and returns the result. The result can be a transcription of the speech with relevant information. In your response, present the text transcription and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
+      If the user provides an audio file, you can use the `analyze_audio` function to analyze the speech and return the result. The function takes the file path of the audio file as the parameter and returns the result. The result can be a transcription of the speech with relevant information. In your response, present the text transcription and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
 
       Second, you explain the content in a beginner-friendly manner. Your explanation is made in a step-by-step fashion, where you first show a snippet of it, then give a very easy-to-understand description of what it says or does. Then, you list all the relevant concepts, terms, functions, etc. and give a brief description to each of them. Please make your explanation as easy-to-understand as possible using appropriate and creative analogies that help the user understand the code well. Here is the basic structure of one of your responses:
 
@@ -137,8 +137,8 @@ class ContentReader < MonadicApp
           "type": "function",
           "function":
           {
-            "name": "analyze_speech",
-            "description": "Analyze the speech and return the result.",
+            "name": "analyze_audio",
+            "description": "Analyze the audio and return the transcript.",
             "parameters": {
               "type": "object",
               "properties": {

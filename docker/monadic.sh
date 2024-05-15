@@ -120,7 +120,7 @@ start_container() {
 
 # Function to stop a container
 stop_container() {
-  $DOCKER container stop "$1" >/dev/null
+  $DOCKER container stop -t 0 "$1" >/dev/null
 }
 
 # Define a function to import the database contents from an external file

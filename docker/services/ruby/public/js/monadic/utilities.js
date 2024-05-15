@@ -33,7 +33,8 @@ function getCookie(name) {
 
 function formatInfo(info) {
   let noValue = true;
-  let tableRows = "";
+  let textRows = "";
+  let numRows = "";
 
   for (const [key, value] of Object.entries(info)) {
     if (value && value !== 0) {
@@ -41,34 +42,42 @@ function formatInfo(info) {
       switch (key) {
         case "count_messages":
           noValue = false;
-          label = "Num of all messages";
+          label = "Number of all messages";
           break;
         case "count_active_messages":
           noValue = false;
-          label = "Num of active messages";
+          label = "Number of active messages";
           break;
         case "count_tokens":
           noValue = false;
-          label = "Num of tokens in all messages";
+          label = "Tokens in all messages";
           break;
-        case "count_active_tokens":
+        case "count_total_input_tokens":
           noValue = false;
-          label = "Num of tokens in active messages";
+          label = "Tokens in all user messages";
+          break;
+        case "count_total_output_tokens":
+          noValue = false;
+          label = "Tokens in all assistant messages";
+          break;
+        case "count_total_active_tokens":
+          noValue = false;
+          label = "Tokens in all active messages";
           break;
         case "encoding_name":
-          label = "Token Encoding";
+          label = "Token encoding";
           break;
       }
 
-      if (label.startsWith("Num")) {
-        tableRows += `
+      if (value && !isNaN(value) && label){
+        numRows += `
             <tr>
               <td>${label}</td>
               <td align="right">${parseInt(value).toLocaleString('en')}</td>
             </tr>
           `;
       } else if (!noValue && label) {
-        tableRows += `
+        textRows += `
             <tr>
               <td>${label}</td>
               <td align="right">${value}</td>
@@ -85,7 +94,8 @@ function formatInfo(info) {
   return `
     <table class="table table-sm mt-2 mb-0">
       <tbody>
-        ${tableRows}
+        ${textRows}
+        ${numRows}
       </tbody>
     </table>
   `;

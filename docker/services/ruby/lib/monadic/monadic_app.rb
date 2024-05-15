@@ -349,13 +349,12 @@ class MonadicApp
     send_command(command: command, container: "ruby")
   end
 
-  def analyze_speech(audio: "")
+  def analyze_audio(audio: "")
     command = <<~CMD
       bash -c 'simple_whisper_query.rb "#{audio}"'
     CMD
     send_command(command: command, container: "ruby")
   end
-
 
   def generate_image(prompt: "", size: "1024x1024", num_retrials: 10)
     command = <<~CMD
@@ -467,4 +466,29 @@ class MonadicApp
     end
   end
 
+  def extract_frames(file:, fps: 1)
+    command = <<~CMD
+      bash -c 'extract_frames.py "#{file}" ./ --fps #{fps} --format png --json --audio'
+    CMD
+    send_command(command: command, container: "python")
+  end
+
+  def analyze_video(json:, audio: nil, query: "What is happening in the video?")
+    video_command = <<~CMD
+      bash -c 'simple_video_query.rb "#{json}"'
+    CMD
+    description = send_command(command: video_command, container: "ruby")
+
+    if audio
+      audio_command = <<~CMD
+        bash -c 'simple_whisper_query.rb "#{audio}"'
+      CMD
+      audio_description = send_command(command: audio_command, container: "ruby")
+      description += "\n\n---\n\n"
+      description += "Audio Transcript:\n#{audio_description}"
+    end
+    
+    pp description
+    description
+  end
 end

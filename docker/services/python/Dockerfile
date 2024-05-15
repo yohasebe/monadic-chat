@@ -32,6 +32,8 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=100 \
     librosa \
     flask \
     tiktoken \
+    opencv-python \
+    moviepy \
     'pdfminer.six[image]' \
     spacy && python -m spacy download en_core_web_sm
 

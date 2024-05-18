@@ -40,6 +40,7 @@ class Claude < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
+      "toggle": true,
       "tools": [
         {
           "name": "fetch_web_content",
@@ -59,7 +60,40 @@ class Claude < MonadicApp
     }
   end
 
+  attr_accessor :thinking
+  def initialize
+    @thinking = []
+    super
+  end
+
+  def add_replacements(result)
+    replacements = {
+      "<thinking>" => "<div data-title='Thinking' class='toggle'>\n<div style='padding: 0.5em;'>",
+      "</thinking>" => "</div>\n</div>\n\n",
+
+      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'>\n<div style='padding: 0.5em;'>",
+      "</search_quality_reflection>" => "</div>\n</div>\n\n",
+
+      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'>\n<div style='padding: 0.5em;'>",
+      "</search_quality_score>" => "</div>\n</div>\n\n",
+
+      "<result>" => "",
+      "</result>" => ""
+    }
+
+    replacements.each do |old, new|
+      result = result.gsub(old, new)
+    end
+
+    result
+  end
+
+  def get_thinking_text(result)
+    @thinking += result.scan(/<thinking>.*?<\/thinking>/m)
+  end
+
   def process_json_data(app, session, body, call_depth, &block)
+
     obj = session[:parameters]
 
     buffer = ""
@@ -108,7 +142,6 @@ class Claude < MonadicApp
                 end
               else
                 if json.dig('delta', 'text')
-                  # Merge text fragments based on 'id'
                   fragment = json.dig('delta', 'text').to_s
                   next if !fragment || fragment == ""
                   texts << fragment
@@ -151,14 +184,13 @@ class Claude < MonadicApp
     result = if texts.empty?
                nil
              else
-               text = texts.join("")
-               text.gsub(/<thinking>.*?<\/thinking>/, "")
-               # if text contains <result> tag, extract the content of the tag
-               text = text.match(/<result>(.*?)<\/result>/m)[1] if text.match(/<result>(.*?)<\/result>/m)
-               text
+               texts.join("")
              end
 
+
     if tool_calls.any?
+      get_thinking_text(result)
+
       call_depth += 1
 
       if call_depth > MAX_FUNC_CALLS
@@ -170,6 +202,7 @@ class Claude < MonadicApp
         "role" => "assistant",
         "content" => []
       }
+
       context.last["content"] << {
         "type" => "text",
         "text" => result
@@ -188,6 +221,11 @@ class Claude < MonadicApp
       process_functions(app, session, tool_calls, context, call_depth, &block)
 
     elsif result
+      # get_thinking_text(result)
+      result = add_replacements(result)
+      result = add_replacements(@thinking.join("\n")) + result
+      result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
       [
@@ -219,58 +257,56 @@ class Claude < MonadicApp
     obj = session[:parameters]
     app = obj["app_name"]
 
-    # if role != "tool"
+    # Get the parameters from the session
+    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
-      # Get the parameters from the session
-      initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
+    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
+    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
 
-      temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-      max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-      top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+    tools = settings[:tools] ? settings[:tools] : []
 
-      tools = settings[:tools] ? settings[:tools] : []
+    context_size = obj["context_size"].to_i
+    request_id = SecureRandom.hex(4)
 
-      context_size = obj["context_size"].to_i
-      request_id = SecureRandom.hex(4)
+    message = obj["message"].to_s
 
-      message = obj["message"].to_s
+    # If the app is monadic, the message is passed through the monadic_map function
+    if obj["monadic"].to_s == "true" && message != ""
+      message = monadic_unit(message) if message != ""
+      html = markdown_to_html(obj["message"]) if message != ""
+    elsif message != ""
+      html = markdown_to_html(message)
+    end
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        message = monadic_unit(message) if message != ""
-        html = markdown_to_html(obj["message"]) if message != ""
-      elsif message != ""
-        html = markdown_to_html(message)
+    if message != "" && role == "user"
+      @thinking.clear
+      res = { "type" => "user",
+              "content" => {
+                "mid" => request_id,
+                "text" => obj["message"],
+                "html" => html,
+                "lang" => detect_language(obj["message"])
+              }
+      }
+      res["image"] = obj["image"] if obj["image"]
+      block&.call res
+    end
+
+    # If the role is "user", the message is added to the session
+    if message != "" && role == "user"
+      res = { "mid" => request_id,
+              "role" => role,
+              "text" => message,
+              "html" => markdown_to_html(message),
+              "lang" => detect_language(message),
+              "active" => true,
+      }
+      if obj["image"]
+        res["image"] = obj["image"]
       end
-
-      if message != "" && role == "user"
-        res = { "type" => "user",
-                "content" => {
-                  "mid" => request_id,
-                  "text" => obj["message"],
-                  "html" => html,
-                  "lang" => detect_language(obj["message"])
-                }
-        }
-        res["image"] = obj["image"] if obj["image"]
-        block&.call res
-      end
-
-      # If the role is "user", the message is added to the session
-      if message != "" && role == "user"
-        res = { "mid" => request_id,
-                "role" => role,
-                "text" => message,
-                "html" => markdown_to_html(message),
-                "lang" => detect_language(message),
-                "active" => true,
-        }
-        if obj["image"]
-          res["image"] = obj["image"]
-        end
-        session[:messages] << res
-      end
-    # end
+      session[:messages] << res
+    end
 
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
@@ -337,18 +373,6 @@ class Claude < MonadicApp
     target_uri = "#{API_ENDPOINT}/messages"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
-
-    # body["messages"].each do |message|
-    #   if message["tool_calls"] || message[:tool_call]
-    #     if !message["role"] && !message[:role]
-    #       message["role"] = "assistant"
-    #     end
-    #     tool_calls = message["tool_calls"] || message[:tool_call]
-    #     tool_calls.each do |tool_call|
-    #       tool_call.delete("index")
-    #     end
-    #   end
-    # end
 
     success = false
     MAX_RETRIES.times do

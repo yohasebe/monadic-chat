@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["yohasebe"]
   spec.email = ["yohasebe@gmail.com"]
 
-  spec.summary = "A highly configurable Ruby framework for creating intelligent chatbots"
+  spec.summary = "Grounding AI Chatbots with Full Linux Environment on Docker"
 
   spec.description = <<~DESC
     Monadic Chat is a web client application program that uses OpenAI's Chat API to enable chat-style conversations with OpenAI's artificial intelligence system in a ChatGPT-like style.

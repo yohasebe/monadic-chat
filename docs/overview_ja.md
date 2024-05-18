@@ -14,7 +14,7 @@ layout: default
 
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
-🌟 **Monadic Chat**はOpenAIのChat APIとWhisper API、そしてプログラミング言語のRubyを活用して高機能なチャットボットを作成・使用するためのフレームワークです。
+🌟 **Monadic Chat**は、インテリジェントなチャットボットを作成し、活用するために設計された汎用性の高いWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上の本格的なLinux環境を提供することで、検索、コーディング、テスト、視覚化などの外部ツールを必要とする高度なタスクをチャットボットに実行させることができます。
 
 ⚠️  **ご注意**
 

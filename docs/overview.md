@@ -14,7 +14,7 @@ layout: default
 
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
-🌟 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
+🌟 **Monadic Chat** is a versatile web application framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, visualization, and more.
 
 ⚠️  **Important Notice**
 

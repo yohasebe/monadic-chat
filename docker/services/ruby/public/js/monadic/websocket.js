@@ -212,9 +212,25 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
   ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
 }
 
+async function applyToggle(element) {
+  element.find(".toggle").each(function () {
+    const toggleElement = $(this);
+    toggleElement.addClass("sourcecode");
+    toggleElement.find("pre").addClass("sourcecode");
+    let toggleText = toggleElement.text().trim();
+    toggleElement.find("pre").text(toggleText);
+    addToggleSourceCode(toggleElement);
+  });
+}
+
 function addToggleSourceCode(element) {
-  const toggleHide = "<i class='fa-solid fa-toggle-on'></i> toggle sourcecode"
-  const toggleShow = "<i class='fa-solid fa-toggle-off'></i> toggle sourcecode"
+  let title = "Toggle Source Code";
+  // if element has data-title attribute, use that as the title
+  if (element.data("title")) {
+    title = element.data("title");
+  }
+  const toggleHide = `<i class='fa-solid fa-toggle-on'></i> ${title}`
+  const toggleShow = `<i class='fa-solid fa-toggle-off'></i> ${title}`
   const controlDiv = `<div class="sourcecode-toggle unselectable">${toggleShow}</div>`;
   element.before(controlDiv);
   element.prev().click(function () {
@@ -229,7 +245,6 @@ function addToggleSourceCode(element) {
   element.hide();
 }
 
-
 function formatSourceCode(element) {
   element.find(".sourcecode").each(function () {
     const sourceCodeElement = $(this);
@@ -237,6 +252,7 @@ function formatSourceCode(element) {
     sourceCodeElement.find("code").text(sourceCode);
   })
 }
+
 
 function applyAbc(element) {
   element.find(".abc-code").each(function () {
@@ -565,6 +581,10 @@ function connect_websocket(callback) {
               const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
 
+              if (apps[loadedApp]["toggle"] === "true") {
+                applyToggle(htmlContent);
+              }
+
               if (apps[loadedApp]["mermaid"] === "true") {
                 applyMermaid(htmlContent);
               }
@@ -628,6 +648,10 @@ function connect_websocket(callback) {
         $("#discourse").append(htmlElement);
 
         const htmlContent = $("#discourse div.card:last");
+
+        if (params["toggle"] === "true") {
+          applyToggle(htmlContent);
+        }
 
         if (params["mermaid"] === "true") {
           applyMermaid(htmlContent);

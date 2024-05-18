@@ -2,13 +2,13 @@
 
 <div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-<div align="center" style="color: #777777 "><b>A highly configurable Ruby framework for creating intelligent chatbots </b></div>
+<div align="center" style="color: #777777 "><b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
 
 <p>&nbsp;</p>
 
 ## Overview
 
-🌟 **Monadic Chat** is a highly configurable web application framework for creating and using intelligent chatbots, leveraging the power of OpenAI's Chat and Whisper APIs and the Ruby programming language.
+🌟 **Monadic Chat** is a versatile web application framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, visualization, and more.
 
 - Documentation
   - [English](https://yohasebe.github.io/monadic-chat/overview)

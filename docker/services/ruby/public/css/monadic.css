@@ -500,3 +500,11 @@ pre {
   scrollbar-width: thin;
   margin-bottom: 1em;
 }
+
+.card-text {
+  padding-bottom: 10px;
+}
+
+.toggle {
+  margin-bottom: 15px;
+}

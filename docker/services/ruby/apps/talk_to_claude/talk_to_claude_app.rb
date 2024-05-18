@@ -3,13 +3,14 @@
 class Claude < MonadicApp
   include UtilitiesHelper
 
+  MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.anthropic.com/v1"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
   MAX_RETRIES = 5
   RETRY_DELAY = 1
-  
+
   def icon
     "<i class='fa-solid fa-a'></i>"
   end
@@ -23,6 +24,8 @@ class Claude < MonadicApp
   def initial_prompt
     text = <<~TEXT
       You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+
+      Please use `fetch_web_content` tool to fetch the content of the web page of the given URL if the user's request is related to a specific web page.
     TEXT
     text.strip
   end
@@ -37,22 +40,22 @@ class Claude < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      # "tools": [
-      #   {
-      #     "name": "fetch_web_content",
-      #     "description": "Fetch the content of the web page of the given URL and return it.",
-      #     "input_schema": {
-      #       "type": "object",
-      #       "properties": {
-      #         "url": {
-      #           "type": "string",
-      #           "description": "URL of the web page."
-      #         }
-      #       },
-      #       "required": ["url"]
-      #     }
-      #   }
-      # ]
+      "tools": [
+        {
+          "name": "fetch_web_content",
+          "description": "Fetch the content of the web page of the given URL and return it.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL of the web page."
+              }
+            },
+            "required": ["url"]
+          }
+        }
+      ]
     }
   end
 
@@ -61,7 +64,9 @@ class Claude < MonadicApp
 
     buffer = ""
     texts = []
+    tool_calls = []
     finish_reason = nil
+    content_type = "text"
 
     if body.respond_to?(:each)
       body.each do |chunk|
@@ -78,26 +83,51 @@ class Claude < MonadicApp
             begin
               json = JSON.parse(json_data)
 
-              if json.dig('delta', 'text')
-                # Merge text fragments based on 'id'
-                fragment = json.dig('delta', 'text').to_s
-                next if !fragment || fragment == ""
-                texts << fragment
-
-                fragment.split(//).each do |char|
-                  res = { "type" => "fragment", "content" => char }
-                  block&.call res
-                  sleep 0.01
-                end
+              new_content_type = json.dig('content_block', 'type')
+              if new_content_type == "tool_use"
+                json["content_block"]["input"] = ""
+                tool_calls << json["content_block"]
               end
+              content_type = new_content_type if new_content_type
 
-              if json.dig('delta', 'stop_reason')
-                stop_reason = json.dig('delta', 'stop_reason')
-                case stop_reason
-                when "max_tokens"
-                  finish_reason = "length"
-                when "end_turn"
-                  finish_reason = "stop"
+              if content_type == "tool_use"
+                if json.dig('delta', 'partial_json')
+                  fragment = json.dig('delta', 'partial_json').to_s
+                  next if !fragment || fragment == ""
+                  tool_calls.last["input"] << fragment
+                end
+
+                if json.dig('delta', 'stop_reason')
+                  stop_reason = json.dig('delta', 'stop_reason')
+                  case stop_reason
+                  when "tool_use"
+                    finish_reason = "tool_use"
+                    res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                    block&.call res
+                  end
+                end
+              else
+                if json.dig('delta', 'text')
+                  # Merge text fragments based on 'id'
+                  fragment = json.dig('delta', 'text').to_s
+                  next if !fragment || fragment == ""
+                  texts << fragment
+
+                  fragment.split(//).each do |char|
+                    res = { "type" => "fragment", "content" => char }
+                    block&.call res
+                    sleep 0.01
+                  end
+                end
+
+                if json.dig('delta', 'stop_reason')
+                  stop_reason = json.dig('delta', 'stop_reason')
+                  case stop_reason
+                  when "max_tokens"
+                    finish_reason = "length"
+                  when "end_turn"
+                    finish_reason = "stop"
+                  end
                 end
               end
 
@@ -118,9 +148,46 @@ class Claude < MonadicApp
       end
     end
 
-    result = texts.empty? ? nil : texts
+    result = if texts.empty?
+               nil
+             else
+               text = texts.join("")
+               text.gsub(/<thinking>.*?<\/thinking>/, "")
+               # if text contains <result> tag, extract the content of the tag
+               text = text.match(/<result>(.*?)<\/result>/m)[1] if text.match(/<result>(.*?)<\/result>/m)
+               text
+             end
 
-    if result
+    if tool_calls.any?
+      call_depth += 1
+
+      if call_depth > MAX_FUNC_CALLS
+        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+      end
+
+      context = []
+      context << {
+        "role" => "assistant",
+        "content" => []
+      }
+      context.last["content"] << {
+        "type" => "text",
+        "text" => result
+      } if result
+
+      tool_calls.each do |tool_call|
+        tool_call["input"] = JSON.parse(tool_call["input"])
+        context.last["content"] << {
+          "type" => "tool_use",
+          "id" => tool_call["id"],
+          "name" => tool_call["name"],
+          "input" => tool_call["input"]
+        }
+      end
+
+      process_functions(app, session, tool_calls, context, call_depth, &block)
+
+    elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
       [
@@ -128,15 +195,11 @@ class Claude < MonadicApp
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => {"content" => result.join("")}
+              "message" => {"content" => result}
             }
           ]
         }
       ]
-    else
-      res = { "type" => "message", "content" => "DONE" }
-      block&.call res
-      [{"choices" => [{"message" => {"content" => ""}}]}]
     end
   end
 
@@ -156,66 +219,73 @@ class Claude < MonadicApp
     obj = session[:parameters]
     app = obj["app_name"]
 
-    # Get the parameters from the session
-    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    # if role != "tool"
 
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+      # Get the parameters from the session
+      initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
-    context_size = obj["context_size"].to_i
-    request_id = SecureRandom.hex(4)
+      temperature = obj["temperature"] ? obj["temperature"].to_f : nil
+      max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
+      top_p = obj["top_p"] ? obj["top_p"].to_f : nil
 
-    message = obj["message"].to_s
+      tools = settings[:tools] ? settings[:tools] : []
 
-    # If the app is monadic, the message is passed through the monadic_map function
-    if obj["monadic"].to_s == "true" && message != ""
-      message = monadic_unit(message) if message != ""
-      html = markdown_to_html(obj["message"]) if message != ""
-    elsif message != ""
-      html = markdown_to_html(message)
-    end
+      context_size = obj["context_size"].to_i
+      request_id = SecureRandom.hex(4)
 
-    if message != "" && role == "user"
-      res = { "type" => "user",
-              "content" => {
-                "mid" => request_id,
-                "text" => obj["message"],
-                "html" => html,
-                "lang" => detect_language(obj["message"])
-              }
-      }
-      res["image"] = obj["image"] if obj["image"]
-      block&.call res
-    end
+      message = obj["message"].to_s
 
-    # If the role is "user", the message is added to the session
-    if message != "" && role == "user"
-      res = { "mid" => request_id,
-              "role" => role,
-              "text" => message,
-              "html" => markdown_to_html(message),
-              "lang" => detect_language(message),
-              "active" => true,
-      }
-      if obj["image"]
-        res["image"] = obj["image"]
+      # If the app is monadic, the message is passed through the monadic_map function
+      if obj["monadic"].to_s == "true" && message != ""
+        message = monadic_unit(message) if message != ""
+        html = markdown_to_html(obj["message"]) if message != ""
+      elsif message != ""
+        html = markdown_to_html(message)
       end
-      session[:messages] << res
-    end
+
+      if message != "" && role == "user"
+        res = { "type" => "user",
+                "content" => {
+                  "mid" => request_id,
+                  "text" => obj["message"],
+                  "html" => html,
+                  "lang" => detect_language(obj["message"])
+                }
+        }
+        res["image"] = obj["image"] if obj["image"]
+        block&.call res
+      end
+
+      # If the role is "user", the message is added to the session
+      if message != "" && role == "user"
+        res = { "mid" => request_id,
+                "role" => role,
+                "text" => message,
+                "html" => markdown_to_html(message),
+                "lang" => detect_language(message),
+                "active" => true,
+        }
+        if obj["image"]
+          res["image"] = obj["image"]
+        end
+        session[:messages] << res
+      end
+    # end
 
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
-    if session[:messages].empty?
-      session[:messages] << { "role" => "user", "text" => "Hi, there!"}
+    begin
+      session[:messages].each { |msg| msg["active"] = false }
+      context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
+    rescue
+      context = []
     end
-    session[:messages].each { |msg| msg["active"] = false }
-    context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
 
     # Set the headers for the API request
     headers = {
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "messages-2023-12-15",
+      # "anthropic-beta" => "messages-2023-12-15",
+      "anthropic-beta" => "tools-2024-05-16",
       "content-type" => "application/json",
       "x-api-key" => api_key
     }
@@ -225,11 +295,21 @@ class Claude < MonadicApp
       "system" => initial_prompt,
       "model" => model,
       "stream" => true,
+      "tool_choice" => {"type": "auto"}
     }
 
     body["temperature"] = temperature if temperature
     body["max_tokens"] = max_tokens if max_tokens
     body["top_p"] = top_p if top_p
+
+    if obj["tools"] && !obj["tools"].empty?
+      body["tools"] = APPS[app].settings[:tools]
+
+      unless body["tools"] and body["tools"].any?
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    end
 
     # The context is added to the body
     messages_containing_img = false
@@ -249,12 +329,28 @@ class Claude < MonadicApp
       message
     end
 
+    if role == "tool"
+      body["messages"] += obj["function_returns"]
+    end
+
     # Call the API
     target_uri = "#{API_ENDPOINT}/messages"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-        success = false
+    # body["messages"].each do |message|
+    #   if message["tool_calls"] || message[:tool_call]
+    #     if !message["role"] && !message[:role]
+    #       message["role"] = "assistant"
+    #     end
+    #     tool_calls = message["tool_calls"] || message[:tool_call]
+    #     tool_calls.each do |tool_call|
+    #       tool_call.delete("index")
+    #     end
+    #   end
+    # end
+
+    success = false
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
@@ -294,5 +390,46 @@ class Claude < MonadicApp
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
     block&.call res
     [res]
+  end
+
+  def process_functions(app, session, tools, context, call_depth, &block)
+    content = []
+    obj = session[:parameters]
+    tools.each do |tool_call|
+      tool_name = tool_call["name"]
+
+      begin
+        argument_hash = tool_call["input"]
+      rescue
+        argument_hash = {}
+      end
+
+      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+        memo[k.to_sym] = v
+        memo
+      end
+
+      tool_return = APPS[app].send(tool_name.to_sym, **argument_hash) 
+
+      if !tool_return
+        return [{ "type" => "error", "content" => "ERROR: Tool '#{tool_name}' failed" }]
+      end
+
+      content << {
+        type: "tool_result",
+        tool_use_id: tool_call["id"],
+        content: tool_return.to_s 
+      }
+    end
+
+    context << {
+      role: "user",
+      content: content
+    }
+
+    obj["function_returns"] = context
+
+    # return Array
+    api_request("tool", session, call_depth: call_depth, &block)
   end
 end

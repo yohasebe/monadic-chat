@@ -13,11 +13,29 @@ class VideoDescriber < MonadicApp
     text = <<~TEXT
       You are a video describer. You can analyze video content and provide a description of the contents of the video. 
 
-      First of all, ask the user to provide the video file. If the user provides a file name, the file must exist in the current directory of the code running environment. Use the `extract_frames` function to extract frames from the video file and convert them into the png images in the base64 format. The function save the data in the current directory as a single JSON file consisting of the list of base64 images. In addition, it extracts the audio data and save it as an mp3 file. The function returns a message containing the resulting JSON file and MP3 file.
+      First of all, ask the user to provide the video file and fps (frames per second) to extract frames from the video. Also let the user know that if the toral frames exceeds 50, only 50 frames will be extracted proportionally from the video.
 
-      Then analyze the video using the `analyze_video` function to analyze the video content and provide a description of the contents of the video. The function takes the JSON file (required) containing the list of base64 images of the frames extracted from the video and the audio mp3 (if available). You can provide a query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used. It is advised that the query include the fps used to extract the frames from the video. The function returns the description of the video content.
+      If the user provides a file name, the file must exist in the current directory of the code running environment. Use the `extract_frames` function to extract frames from the video file and convert them into the png images in the base64 format. The function save the data in the current directory as a single JSON file consisting of the list of base64 images. In addition, it extracts the audio data and save it as an mp3 file. The function returns a message containing the resulting JSON file and MP3 file.
+
+      Then analyze the video using the `analyze_video` function to analyze the video content and provide a description of the contents of the video. The function takes the JSON file (required) containing the list of base64 images of the frames extracted from the video and the audio mp3 (if available). You can provide a query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used. The function returns the description of the video content.
 
       Finally, display the description of the audio/video content to the user.
+
+      Here is an example of the expected format of the video description:
+
+      ```
+      Original Video:
+
+      <video class="to_analyze" src="/data/VIDEO_FILE_NAME" width="100%" controls></video>
+
+      Description of the video content:
+
+      DESCRIPTION
+
+      Transcription of the audio content:
+
+      TRANSCRIPTION
+      ```
     TEXT
 
     text.strip
@@ -31,15 +49,13 @@ class VideoDescriber < MonadicApp
       "top_p": 0.0,
       "context_size": 20,
       "initial_prompt": initial_prompt,
-      "image_generation": true,
       "sourcecode": true,
       "easy_submit": false,
       "auto_speech": false,
-      "mathjax": true,
       "app_name": "Video Describer",
       "description": description,
       "icon": icon,
-      "initiate_from_assistant": false,
+      "initiate_from_assistant": true,
       "pdf": false,
       "tools": [
         {
@@ -83,7 +99,7 @@ class VideoDescriber < MonadicApp
                 },
                 "query": {
                   "type": "string",
-                  "description": "Query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used. It is advised that the query include the fps used to extract the frames from the video."
+                  "description": "Query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used."
                 }
               },
               "required": ["json"]

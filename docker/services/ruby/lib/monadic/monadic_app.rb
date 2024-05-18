@@ -260,6 +260,8 @@ class MonadicApp
           rescue
             filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
           end
+        else
+          filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
         end
         retrials = 3
         sleep(5)
@@ -474,6 +476,10 @@ class MonadicApp
   end
 
   def analyze_video(json:, audio: nil, query: "What is happening in the video?")
+    if json.nil? 
+      return "Error: JSON file is required for analyzing the video."
+    end
+
     video_command = <<~CMD
       bash -c 'simple_video_query.rb "#{json}"'
     CMD
@@ -488,7 +494,6 @@ class MonadicApp
       description += "Audio Transcript:\n#{audio_description}"
     end
     
-    pp description
     description
   end
 end

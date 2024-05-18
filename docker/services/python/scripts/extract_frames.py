@@ -100,7 +100,7 @@ def extract_audio(video_path, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Extract frames and audio from a video file.")
-    parser.add_argument("video_path", type=str, help="Path to the video file (mp4, mpeg, mpg).")
+    parser.add_argument("video_path", type=str, help="Path to the video file (mp4, mpeg, mpg, webm).")
     parser.add_argument("output_dir", type=str, help="Directory to save the extracted frames and audio.")
     parser.add_argument("--format", type=str, choices=["jpg", "png"], default="jpg", help="Output image format (jpg or png).")
     parser.add_argument("--frames", type=int, default=None, help="Number of frames to extract (default: all frames).")

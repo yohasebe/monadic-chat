@@ -9,6 +9,7 @@ READ_TIMEOUT = 60
 WRITE_TIMEOUT = 60
 MAX_RETRIES = 1
 RETRY_DELAY = 1
+MAX_FRAMES = 50
 
 DEFAULT_QUERY = "Describe what happens in the video by analyzing the image data extracted from the video."
 
@@ -27,6 +28,11 @@ def video_query(json_path, query)
   # Validate JSON data
   unless json_data.is_a?(Array) && json_data.all? { |item| item.is_a?(String) }
     return "ERROR: The JSON file is not valid."
+  end
+
+  # Limit the number of images to MAX_FRAMES
+  if json_data.size > MAX_FRAMES
+    json_data = balance_images(json_data, MAX_FRAMES)
   end
 
   model = "gpt-4o"
@@ -93,6 +99,19 @@ rescue HTTP::Error, HTTP::TimeoutError
 rescue StandardError => e
   puts "ERROR: #{e.message}"
   exit
+end
+
+def balance_images(images, max_frames)
+  total_images = images.size
+  step = (total_images - 1).to_f / (max_frames - 1)
+  balanced_images = []
+
+  (0...max_frames).each do |i|
+    index = (i * step).round
+    balanced_images << images[index]
+  end
+
+  balanced_images
 end
 
 # Assuming the first argument is the path to the JSON file and the second is the query

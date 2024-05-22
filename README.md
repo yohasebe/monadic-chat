@@ -19,9 +19,14 @@
   - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
 <p>&nbsp;</p>
+
 <div align="center"><img src="./assets/images/screenshot-01.png" width="700px"/></div>
 
+<p>&nbsp;</p>
+
 <div align="center"><img src="./assets/images/screenshot-02.png" width="500px"/></div>
+
+<p>&nbsp;</p>
 
 <div align="center"><img src="./assets/images/monadic-chat-architecture.png" width="800px"/></div>
 

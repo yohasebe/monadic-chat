@@ -1,5 +1,6 @@
 ### Change Log
 
+- [May, 2024] Monadic Chat 0.5.0 released with many new features
 - [February, 2024] Mermaid diagram support
 - [February, 2024] File reading feature
 - [February, 2024] Stability improvement with several apps modified

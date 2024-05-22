@@ -34,11 +34,20 @@ Monadic Chatを使用するためにデフォルト・ブラウザーを開い�
 **Quit**
 Monadic Chat Consoleを終了します。Monadic Chatが起動している場合は、Monadic Chatを先に停止するため、少し時間がかかります。
 
-## GPT Settings
-<img src="./assets/images/gpt-settings.png" width="600px"/>
+## Configuration Panel
+<img src="./assets/images/config-panel.png" width="400px"/>
 
 **API Token** <br />
 ここにはOpenAIのAPI keyを入れます。有効なAPI keyが確認されると、Monadic Chatのルート・ディレクトリに`.env`というファイルが作成され、その中に`OPENAI_API_KEY`という変数が定義され、その後はこの変数の値が用いられます。
+
+**Status** <br />
+Monadic Chatの起動状態が表示されます。
+
+**OpenAI Models** <br />
+現在Monadic Chartから利用可能なOpenAIのモデルの一覧が表示されます。モデルの選択はGPT Settingsパネルで行います。
+
+## GPT Settings
+<img src="./assets/images/gpt-settings.png" width="600px"/>
 
 **Base App** <br />
 Monadic Chatであらかじめ用意された基本アプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各アプリの特徴については [Base Apps](#base-apps)を参照してください。
@@ -59,16 +68,28 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 
 以上の要素はパラメターとしてAPIに送られます。各パラメターの詳細はChat APIの[Reference](https://platform.openai.com/docs/api-reference/chat)を参照してください。
 
-**Initial Prompt**<br />
-初期プロンプトとしてAPIに送られるテキストです。会話のキャラクター設定や、レスポンスの形式などを指定することができます。各アプリ の目的に応じたデフォルトのテキストが設定されていますが、自由に変更することが可能です。
+**Show Initial Prompt**<br />
+初期プロンプトとしてAPIに送られるテキスト（システムプロンプトと呼ばれることもあります）を表示または編集するにはオンにします。初期プロンプトによって、会話のキャラクター設定や、レスポンスの形式などを指定することができます。各アプリ の目的に応じたデフォルトのテキストが設定されていますが、自由に変更することが可能です。
+
+**Chat Interaction Controls**<br />
+Monadic Chatを音声入力による会話に適した形に設定するためのオプションです。音声入力による会話を行う場合には、以下のオプション（`Initiate from the assistant`, `Auto speech`, `Easy submit`）をすべてオンにするとよいでしょう。`check all` または `uncheck all` をクリックすることで、すべてのオプションを一括でオンまたはオフにすることができます。
+
 **Initiate from the assistant**<br />
 
-このオプションをオンにすると、会話を始める時にアシスタント側が最初の発話を行います。
+オンにすると、会話を始める時にアシスタント側が最初の発話を行います。
+
+**Auto speech**<br />
+
+オンにすると、アシスタントからのレスポンスが返ってくると自動的に合成音声での読み上げが行われます。
+
+**Easy submit**<br />
+
+オンにすると、`Send`ボタンをクリックしなくても、キーボードのEnterキーを押すと自動的にテキストエリア内のメッセージが送信されます。もし音声入力中であれば、Enterキーを押すか、`Stop`ボタンをクリックすることで、自動的にメッセージが送信されます。
 
 **Start Session** <br />
 このボタンをクリックすると、GPT Settiingsで指定したオプションやパラメターのもとにチャットが開始されます。
 
-## Monadic Chat Info Panel 
+##Info Panel 
 
 <img src="./assets/images/monadic-chat-info.png" width="400px"/>
 
@@ -98,19 +119,17 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 
 <img src="./assets/images/speech.png" width="400px"/>
 
-**NOTE**: 音声認識機能を使用するにはGoogle ChromeまたはMicrosoft Edgeブラウザを使用する必要があります。
+**NOTE**: 音声機能を使用するにはGoogle ChromeまたはMicrosoft Edgeブラウザを使用する必要があります。
 
-**Automatic Language Detect**<br />
-この設定をオンにすると、音声認識と音声合成の際に、使用言語を自動で検知します。このとき、合成音声のボイスはデフォルトのものが使用されます。この設定をオフにすると、音声認識と音声合成の言語を`Language`セレクターで指定できます。また、合成音声のボイスを`Voice`セレクターで指定できます。
+**Text-to-Speech (TTS) Voice**<br />
+音声合成に使用するボイスを指定できます。
 
-**Language**<br />
-`Automatic Language Detect`がオフのとき、ここで音声認識と音声合成に使用する言語を指定できます。指定できる言語はOSとブラウザーによって異なります。音声認識はWhisper APIを通じて行われるため、[Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)に記載されている言語のみが可能です。
-
-**Voice**<br />
-`Automatic Language Detect`がオフのとき、ここで音声合成に使用するボイスを指定できます。指定できるボイスはOSとブラウザーによって異なります。
-
-**Rate**<br />
+**TTS Speed**<br />
 音声合成の際の発話スピードを0.5から1.5の間で指定することができます（デフォルト：0.0）。
+
+**Automatic-Speech-Recognition (ASR) Language**<br />
+音声認識にはWhisper APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。
+参考：[Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 ## PDF Database Panel
 
@@ -142,32 +161,25 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 
 <img src="./assets/images/inactive.png" width="36px"/> Current status of the message (Inactive)
 
-**Use easy submit**<br />
-**Auto speech**<br />
-
-`Use easy submit`がオンの時には、`Send`ボタンをクリックしなくても、キーボードのEnterキーを押すと自動的にテキストエリア内のメッセージが送信されます。もし音声入力中であれば、Enterキーを押すか、`Stop`ボタンをクリックすることで、自動的にメッセージが送信されます。`Auto speech`がオンの時には、アシスタントからのレスポンスが返ってくると自動的に合成音声での読み上げが行われます。
-
-`Use easy submit`と`Auto speech`が両方ともオンの時には、キーボードのEnterキーだけで音声入力開始と音声入力停止を行うことができ、それに応じて動的にメッセージ送信とレスポンスの音声合成が行われるので、ユーザーとアシスタントとの間で音声による会話が実現します。
-
 **Role**<br />
 テキストエリア内のメッセージがどのRoleによるものかを指定します。デフォルトは`User`です。それ以外の選択肢はAPIに対して先行文脈として送信する会話データを調整するために用います。`User (to add to past messages)`を選ぶと、ユーザーからのメッセージが会話に追加されますが、APIには直ちに送信されず、後で通常の`User` Roleによるメッセージが送信されるときに、文脈の一部として一緒に送信されます。`Assistant (to add to past messages)`のRoleも基本的にこれと同様です。`System (to provide additional direction)`は会話自体の設定を追加したいときに用います。
 
 **Send**<br />
-
 このボタンをクリックするとテキストエリア内のメッセージがAPIに送信されます。
 
 **Clear**<br />
-
 このボタンをクリックするとテキストエリアをクリアします。
 
 **Voice Input**<br />
-
 このボタンをクリックすると、マイクを通じての音声入力が開始され、ボタン上の表示が`Stop`に変わります。`Stop`ボタンをクリックすると音声入力を停止します。音声入力中はボタンの右側に音量のインジケーター表示されます。
 
 <img src="./assets/images/voice-input-stop.png" width="400px"/>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
+
+**Last ASR p-value**<br />
+この値は、最後に行った音声認識の信頼度を示すもので、`0.0`から`1.0`の間の値を取ります。この値が`1.0`に近いほど、音声認識結果の信頼度が高いことを示します。この値は、Whisper APIからのレスポンスに含まれるもので、音声入力が完了した後に表示されます。
 
 ---
 

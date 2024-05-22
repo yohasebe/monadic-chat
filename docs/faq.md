@@ -10,7 +10,7 @@ layout: default
 
 **Q**: How can I obtain an API token for OpenAI?
 
-> **A**: You can create an account at the following URL. Please note that the OpenAI API account is separate from the ChatGPT account. Even if you subscribe to ChatGPT Plus, it does not give you access to the API token. Please also note that a credit card is required to create an API account (as of July 2023, you can try it for free for up to $5 worth during the first 3 months).
+> **A**: You can create an account at the following URL. Please note that the OpenAI API account is separate from the ChatGPT account. Even if you subscribe to ChatGPT Plus, it does not give you access to the API token.
 > 
 > - [OpenAI: Welcome to the OpenAI platform](https://platform.openai.com)
 > - [Sign Up](https://platform.openai.com/signup)

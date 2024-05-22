@@ -211,7 +211,7 @@ Once the build is complete, the following message will be displayed:
 
 Now you can access Monadic Chat from your browser at `http://localhost:4567`. 
 
-<img src="./assets/images/win-browser.png" width="800px"/>
+<img src="./assets/images/screenshot-01.png" width="800px"/>
 
 ### Start/Stop/Restart Monadic Chat
 

@@ -10,7 +10,7 @@ layout: default
 
 **Q**: OpenAIのAPIトークンはどのように取得できますか？
 
-> **A**: 下記のURLでアカウント作成を行うことができます。OpenAIのAPIアカウントはChatGPTのアカウントとは別であることに注意してください。ChatGPT Plusをサブスクライブしていても、それだけではAPI Tokenを得ることはできません。なお、APIアカウントを作成するにはクレジットカードが必要です（2023年7月時点ではアカウント開設後3ヶ月までの期間は5ドル分が無料で試用できます）。
+> **A**: 下記のURLでアカウント作成を行うことができます。OpenAIのAPIアカウントはChatGPTのアカウントとは別であることに注意してください。ChatGPT Plusをサブスクライブしていても、それだけではAPI Tokenを得ることはできません。
 > 
 > - [OpenAI: Welcome to the OpenAI platform](https://platform.openai.com)
 > - [Sign Up](https://platform.openai.com/signup)

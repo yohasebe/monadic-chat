@@ -29,7 +29,7 @@
 
 > There are two types of Monadic Chat: one is a web browser-based app provided in this repository, which is installed using Docker. The other is a command line application, which is provided as a RubyGem.
 
-- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repo) 
+- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repository)
 - [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
 
 ## Features

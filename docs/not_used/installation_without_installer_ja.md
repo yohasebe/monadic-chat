@@ -221,7 +221,7 @@ The first time you run the `start` command, it may take some time for the build 
 
 このメッセージが表示されたら、ブラウザで`http://localhost:4567`にアクセスしてMonadic Chatにアクセスできます。
 
-<img src="./assets/images/win-browser.png" width="800px"/>
+<img src="./assets/images/screenshot-01" width="800px"/>
 
 ### Monadic Chatの起動/停止/再起動
 

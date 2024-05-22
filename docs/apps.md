@@ -31,13 +31,46 @@ Currently, the following base apps are available for use. By selecting one of th
 
 ## Novel Writer
 
-<img src="./assets/icons/novel.png" width="40px"/> This is an application for collaboratively writing a novel with an assistant. The assistant writes a paragraph summarizing the theme, topic, or event presented in the prompt. Always use the same language as the assistant in your response.
+<img src="./assets/icons/novel.png" width="40px"/> This is an application for collaboratively writing a novel with an assistant. Craft a novel with engaging characters, vivid descriptions, and compelling plots. Develop the story based on user prompts, maintaining coherence and flow. 
 
 ## PDF Navigator
 
 <img src="./assets/icons/pdf-navigator.png" width="40px"/> This is an application that reads a PDF file, and the assistant answers the user's questions based on its content. First, click on the "Upload PDF" button and specify the file. The content of the file will be divided into segments of approximately max_tokens length, and the text embedding will be calculated for each segment. When input is received from the user, the text segment that is closest to the text embedding value of the input text is given to GPT along with the user's input value, and an answer is generated based on that content.
 
 <img src="./assets/images/rag.png" width="600px"/>
+
+## Talk to Cohere Command R
+
+<img src="./assets/icons/c.png" width="40px"/>This app accesses the Cohere Command R API to answer questions about a wide range of topics. Please set your API token and the model name in `~/monadic/data/.env`.
+
+Example:
+
+```
+COHERE_API_KEY=api_key
+COHERE_MODEL=command-r-plus
+```
+
+## Talk to Anthropic Claude
+
+<img src="./assets/icons/a.png" width="40px"/>This app accesses the Anthropic Claude API to answer questions about a wide range of topics. Please set your API token and the model name in `~/monadic/data/.env`.
+
+Example:
+
+```
+ANTHROPIC_API_KEY=api_key
+ANTHROPIC_MODEL=claude-3-opus-20240229
+```
+
+## Talk to Google Gemini
+
+<img src="./assets/icons/google.png" width="40px"/>This app accesses the Google Gemini API to answer questions about a wide range of topics. Please set your API token and the model name (with `models/` prefix) in `~/monadic/data/.env`.
+
+Example:
+
+```
+GEMINI_API_KEY=api_key
+GEMINI_MODEL=models/gemini-1.5-pro-latest
+```
 
 ## Translate
 
@@ -47,13 +80,13 @@ Currently, the following base apps are available for use. By selecting one of th
 
 <img src="./assets/icons/voice-chat.png" width="40px"/> This app enables users to chat using voice through OpenAI's Whisper API and the browser's text-to-speech API. The initial prompt is the same as the one for the Chat app. Please note that a web browser with the latter API, such as Google Chrome or Microsoft Edge, is required.
 
+## Voice Interpreter
+
+<img src="./assets/icons/voice-chat.png" width="40px"/>The assistant will translate the user's input text into another language and speak it using text-to-speech voice synthesis. First, the assistant will ask for the target language. Then, the input text will be translated into the target language.
+
 ## Wikipedia
 
 <img src="./assets/icons/wikipedia.png" width="40px"/> This is essentially the same as Chat, but for questions that GPT cannot answer, such as questions about events that occurred after the language model cutoff time, it searches Wikipedia to answer them. If the query is in a non-English language, the Wikipedia search is performed in English, and the results are translated into the original language.
-
-## Linguistic Analysis
-
-<img src="./assets/icons/linguistic-analysis.png" width="40px"/> This app utilizes Monadic Chat's feature that allows for updating a pre-specified JSON object with multiple properties while providing a regular response. As the main response to the user's query, it returns a syntactic structure of the input sentence. In the process, the app updates the values of the JSON object with the properties of `topic`, `sentence_type`, and `sentiment`.
 
 ## Math Tutor
 
@@ -61,19 +94,23 @@ Currently, the following base apps are available for use. By selecting one of th
 
 ## Image Generator
 
-<img src="./assets/icons/image-generator.png" width="40px"/> This is an application for image generation. When an initial prompt is entered, the image is generated using OpenAI's DALL-E API (`dall-e-3`). If you specify GPT 4.0 as the model for the conversation, you can gradually improve the prompt through interaction with the AI chatbot to get the desired image.
+<img src="./assets/icons/image-generator.png" width="40px"/> This is an app that generates images based on a description. If the prompt is not concrete enough or if it is written in a language other than English, the app will return an improved prompt and asks if the user wants to proceed with the improved prompt.
 
 ## Mail Composer
 
 <img src="./assets/icons/mail-composer.png" width="40px"/> This is an application for writing draft novels of email messages in collaboration with an assistant. The assistant writes the email draft according to the user's requests and specifications.
 
-## Document Reader
+## Flowchart Grapher
 
-<img src="./assets/icons/document-reader.png" width="40px"/> This is an application for reading a document. The assistant will read the document and explain its content from the beginning to the end splitting the content into segments of small size. The user can ask questions about the content of the document, and the assistant will answer them based on the content of the document.
+<img src="./assets/icons/diagram-draft.png" width="40px"/> This application hep you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram.
 
-## Diagram Draft
+## Music Composer
 
-<img src="./assets/icons/diagram-draft.png" width="40px"/> This is an application for drafting diagrams. The assistant will create a diagram using the Mermaid library based on the user's input. The user can ask the assistant to create a diagram by specifying the type of diagram and the content of the diagram.
+<img src="./assets/icons/music.png" width="40px"/>This is an app that writes sheet music and play it in Midi. Specify the instrument you want to use and the genre or style of music. 
+
+## Content Reader
+
+<img src="./assets/icons/document-reader.png" width="40px"/>This application features an AI chatbot designed to examine and elucidate the contents of any imported file or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users have the flexibility to upload files or URLs encompassing a wide array of text data, including programming code. When URLs are mentioned in your prompt messages, the app automatically retrieves the content, seamlessly integrating it into the conversation with GPT.
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

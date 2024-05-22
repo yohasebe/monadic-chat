@@ -9,70 +9,108 @@ layout: default
 [English](/monadic-chat/apps) |
 [日本語](/monadic-chat/apps_ja)
 
-## Table of Contents
+## 目次
 {:.no_toc}
 
 1. toc
 {:toc}
 
-以下は、使用可能な基本アプリ（base app）の一覧です。これらのいずれかを選択し、パラメータを変更したり初期プロンプトを書き換えたりすることで、AIエージェントの動作を調整することができます。調整した設定を外部のJSONファイルにエクスポート/インポートすることもできます。
+現在、以下の基本アプリが使用可能です。いずれかの基本アプリを選択し、パラメータを変更したり、初期プロンプトを書き換えたりすることで、AIエージェントの挙動を調整できます。調整した設定は、外部のJSONファイルにエクスポートしたり、逆にインポートしたりできます。
+
 ## Chat
 
-<img src="./assets/icons/chat.png" width="40px"/>Monadic Chatの標準アプリケーションです。ChatGPTと基本的に同じような方法で使用することができます。 
+<img src="./assets/icons/chat.png" width="40px"/> 標準的なチャットアプリケーションです。ChatGPTと基本的に同様の方法で利用できます。
 
 ## Language Practice
 
-<img src="./assets/icons/language-practice.png" width="40px"/>AIアシスタントの音声で会話が始まる言語学習アプリケーションです。アシスタントの音声は合成音声で再生されます。Enterキーを押すと音声入力が開始します。再度Enterキーを押すと音声入力が停止します。
+<img src="./assets/icons/language-practice.png" width="40px"/> アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。
 
 ## Language Practice Plus
 
-<img src="./assets/icons/language-practice-plus.png" width="40px"/>AIアシスタントの音声で会話が始まる言語学習アプリケーションです。アシスタントの音声は合成音声で再生されます。Enterキーを押すと音声入力が開始します。再度Enterキーを押すと音声入力が停止します。 通常のレスポンスに加えて、学習言語のアドバイスが示されます。アドバイスは読み上げられず、通常のテキストとして表示されます。
+<img src="./assets/icons/language-practice-plus.png" width="40px"/> アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。アシスタントは、通常の応答に加えて、言語的なアドバイスを含めます。言語的なアドバイスは、音声ではなくテキストとしてのみ提示されます。
 
 ## Novel Writer
 
-<img src="./assets/icons/novel.png" width="40px"/> アシスタントと共同で小説を執筆するためのアプリケーションです。プロンプトでテーマ、トピック、またはイベントを提示すると、それらを含んだパラグラフを書きます。
+<img src="./assets/icons/novel.png" width="40px"/> アシスタントと共同で小説を執筆するためのアプリケーションです。魅力的なキャラクター、鮮やかな描写、そして、説得力のあるプロットで小説を作り上げましょう。ユーザーのプロンプトに基づいてストーリーを展開し、一貫性と流れを維持します。
 
 ## PDF Navigator
 
-<img src="./assets/icons/pdf-navigator.png" width="40px"/>PDFファイルを読み込み、AIアシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。`PDF Upload`ボタンをクリックしてファイルを指定します。ファイルの内容は、`max_tokens`で指定した長さに収まるサイズのセグメントに分割され、各セグメントのテキスト埋め込みが生成されます。ユーザーからメッセージを受け取ると、そのメッセージのテキスト埋め込みに最も近いセグメントがGPTに与えられ、その内容に基づいた回答が行われます。
+<img src="./assets/icons/pdf-navigator.png" width="40px"/> PDFファイルを読み込み、アシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。「PDFアップロード」ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
 
 <img src="./assets/images/rag.png" width="600px"/>
 
+## Talk to Cohere Command R
+
+<img src="./assets/icons/c.png" width="40px"/> Cohere Command R (Plus) APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+
+Example:
+
+```
+COHERE_API_KEY=api_key
+COHERE_MODEL=command-r-plus
+```
+
+## Talk to Anthropic Claude
+
+<img src="./assets/icons/a.png" width="40px"/> Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+
+Example:
+
+```
+ANTHROPIC_API_KEY=api_key
+ANTHROPIC_MODEL=claude-3-opus-20240229
+```
+
+## Talk to Google Gemini
+
+<img src="./assets/icons/google.png" width="40px"/> Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名（`model/`付で）を `~/monadic/data/.env` に設定してください。
+
+Example:
+
+```
+GEMINI_API_KEY=api_key
+GEMINI_MODEL=models/gemini-1.5-pro-latest
+```
+
 ## Translate
 
-<img src="./assets/icons/translate.png" width="40px"/>AIアシスタントが、ユーザーの入力テキストを別の言語に翻訳します。アシスタントは最初に対象言語を尋ねます。AIアシスタントに特定の訳語を使わせたいときは、入力テキストの該当部分の後ろに括弧を付け、括弧内にその訳語をあらかじめ指定することができます
+<img src="./assets/icons/translate.png" width="40px"/> ユーザーの入力テキストを別の言語に翻訳します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。特定の翻訳結果を反映させたい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳を指定してください。
 
 ## Voice Chat
 
-<img src="./assets/icons/voice-chat.png" width="40px"/>OpenAIのWhisper APIとブラウザのテキスト読み上げAPIを使用して、音声を通じてチャットすることができます。初期プロンプトはChatアプリと同じです。音声認識機能を使用するためにはGoogle ChromeまたはMicrosoft Edgeを使用する必要があります。
+<img src="./assets/icons/voice-chat.png" width="40px"/> OpenAIのWhisper APIとブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトはChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+
+## Voice Interpreter
+
+<img src="./assets/icons/voice-chat.png" width="40px"/> ユーザーの入力テキストを別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
 
 ## Wikipedia
 
-<img src="./assets/icons/wikipedia.png" width="40px"/> 基本的にChatと同じですが、言語モデルのカットオフ時点以降に発生したイベントなど、GPTが答えられない質問については、Wikipediaを検索して回答します。クエリが非英語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
-
-## Linguistic Analysis
-
-<img src="./assets/icons/linguistic-analysis.png" width="40px"/>指定された構造のJSONオブジェクトを「状態」とみなして、これを更新するタイプのアプリです。ユーザーへのレスポンスとして、入力文の統語構造を返します。その背後でtopic、sentence_type、sentimentの状態値を更新します。
+<img src="./assets/icons/wikipedia.png" width="40px"/> 基本的にChatと同じですが、言語モデルのカットオフ日時以降に発生したイベントに関する質問など、GPTが回答できない質問に対しては、Wikipediaを検索して回答します。問い合わせが英語以外の言語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
 
 ## Math Tutor
 
-<img src="./assets/icons/math.png" width="40px"/> AIチャットボットがMathJaxの数学表記を使用して応答するためのアプリケーションです。このアプリは数学的表記を表示することができますが、数学の計算能力はOpenAIのGPTモデルに基づいており、単純な計算においても誤りが生じ得ることが知られています。計算の正確性が必要な場合には注意して使用してください。
+<img src="./assets/icons/math.png" width="40px"/> AIチャットボットがMathJaxの数式表記を用いて応答するアプリケーションです。このアプリは数式を表示できますが、数学的計算能力はOpenAIのGPTモデルに基づいており、時折、誤った計算結果が出力されることが知られています。そのため、計算の正確性が求められる場合は、このアプリの使用には注意が必要です。
 
 ## Image Generator
 
-<img src="./assets/icons/image-generator.png" width="40px"/> 画像生成のためのアプリです。初期プロンプトを入力するとOpenAIのDALL·E APIを用いて画像を生成します。会話のモデルとしてGPT 4.0を指定すると、AI chatbotとのインタラクションを通じてプロンプトを少しずつ改善して、望む画像を得ることができます。
+<img src="./assets/icons/image-generator.png" width="40px"/> 説明に基づいて画像を生成するアプリケーションです。プロンプトが具体的でない場合や、英語以外の言語で書かれている場合は、改善されたプロンプトを返し、改善されたプロンプトで続行するかどうかを尋ねます。
 
 ## Mail Composer
 
-<img src="./assets/icons/mail-composer.png" width="40px"/> AIアシスタントと共同でメールの文章を書くためのアプリケーションです。ユーザーの要望や仕様に合わせてアシスタントが文面や改善案を提案します。 
+<img src="./assets/icons/mail-composer.png" width="40px"/> アシスタントと共同でメールの草稿を作成するためのアプリケーションです。ユーザーの要望や指定に応じて、アシスタントがメールの草稿を作成します。
 
-## Document Reader
+## Flowchart Grapher
 
-<img src="./assets/icons/document-reader.png" width="40px"/> 効率的に文書を読むためのアプリケーションです。アシスタントが文書を読み上げ、その内容を最初から最後まで小さなまとまりに分割して説明します。ユーザーは文書の内容について質問することができ、アシスタントは文書の内容に基づいてそれに答えます。
+<img src="./assets/icons/diagram-draft.png" width="40px"/> mermaid.jsを活用してデータを視覚化するアプリケーションです。任意のデータを入力すると、エージェントが最適なダイアグラムの種類を選択し、mermaidコードを提供します。このコードからダイアグラムを作成できます。
 
-## Diagram Draft
+## Music Composer
 
-<img src="./assets/icons/diagram-draft.png" width="40px"/> ダイアグラムの雛形を作成するためのアプリケーションです。ユーザーの入力をもとに、アシスタントがMermaidライブラリを使って図を作成します。ユーザーはダイアグラムの種類と内容を指定することで、アシスタントにダイアグラムの作成を依頼することができます。
+<img src="./assets/icons/music.png" width="40px"/> 楽譜を作成し、Midiで演奏するアプリケーションです。使用する楽器と音楽のジャンルやスタイルを指定します。
+
+## Content Reader
+
+<img src="./assets/icons/document-reader.png" width="40px"/> インポートされたファイルやWeb URLの内容を調べて説明するAIチャットボットを特徴とするアプリケーションです。説明は、わかりやすく、初心者にも理解しやすいように提示されます。ユーザーは、プログラミングコードを含む、さまざまなテキストデータを含むファイルやURLをアップロードすることができます。プロンプトメッセージにURLが記載されている場合、アプリは自動的にコンテンツを取得し、GPTとの会話にシームレスに統合します。
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

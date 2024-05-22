@@ -1,4 +1,5 @@
-FROM python:3.10.14-slim-bookworm
+# Stage 1: Build environment
+FROM python:3.10.14-slim-bookworm AS build
 
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
@@ -36,6 +37,23 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=100 \
     moviepy \
     'pdfminer.six[image]' \
     spacy && python -m spacy download en_core_web_sm
+
+# Stage 2: Runtime environment
+FROM python:3.10.14-slim-bookworm
+
+ENV WORKSPACE /monadic
+WORKDIR $WORKSPACE
+
+# Copy only the necessary files from the build stage
+COPY --from=build /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=build /usr/local/bin /usr/local/bin
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    pandoc graphviz ffmpeg fonts-noto-cjk \
+    mecab libmecab-dev mecab-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /monadic/data /data
 

@@ -31,7 +31,7 @@ Monadic Chatを再起動します。
 **Open Browser** <br />
 Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
 
-** Shared Folder** <br />
+**Shared Folder** <br />
 ホストとDockerコンテナー間で共有されるフォルダーを開きます。ファイルのインポートやエクスポートに使用できます。
 
 **Quit**
@@ -42,6 +42,10 @@ Monadic Chat Consoleを終了します。Monadic Chatが起動している場合
 
 **API Token** <br />
 ここにはOpenAIのAPI keyを入れます。有効なAPI keyが確認されると、Monadic Chatのルート・ディレクトリに`.env`というファイルが作成され、その中に`OPENAI_API_KEY`という変数が定義され、その後はこの変数の値が用いられます。
+
+```
+OPENAI_API_KEY=api_key
+```
 
 **Status** <br />
 Monadic Chatの起動状態が表示されます。
@@ -59,15 +63,19 @@ Monadic Chatであらかじめ用意された基本アプリの中から1つを�
 OpenAIが提供するモデルの中から1つを選びます。各アプリでデフォルトのモデルが指定されていますが、目的に応じて変更することができます。
 
 **Max Tokens** <br />
+チェックマークをオンにすると、APIに送信されるテキスト（過去のやりとりと新たなメッセージ）を指定されたトークン数に限定します。OpenAIのAPIにおけるトークンのカウント方法については[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
+
 Chat APIにパラメターとして送られる「トークンの最大値」を指定します。これにはプロンプトとして送られるテキストのトークン数と、レスポンスとして返ってくるテキストのトークン数が含まれます。OpenAIのAPIにおけるトークンのカウント方法については[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
 
 **Context Size** <br />
 現在進行中のチャットに含まれるやりとりの中で、アクティブなものとして保つ発話の最大数です。アクティブな発話のみがOpenAIのchat APIに文脈情報として送信されます。インアクティブな発話も画面上では参照可能であり、エクスポートの際にも保存対象となります。
 
-**Temperature**<br />
-**Top P** <br />
-**Presence Penalty** <br />
-**Frequency Penalty**
+**Parameters**<br />
+
+- Temperature
+- Top P
+- Presence Penalty
+- Frequency Penalty
 
 以上の要素はパラメターとしてAPIに送られます。各パラメターの詳細はChat APIの[Reference](https://platform.openai.com/docs/api-reference/chat)を参照してください。
 

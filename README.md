@@ -98,7 +98,7 @@
 
 ### Managing Conversations as Monads
 
-- ♻️  Manage conversation **state** by obtaining additional responses and storing values in a predefined JSON object
+- ♻️  Manage (invisible) **conversation state** by obtaining additional responses from LLM and updating values in a predefined JSON object
 
 ## Author
 

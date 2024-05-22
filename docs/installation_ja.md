@@ -93,13 +93,9 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 
 これらが完了すると、画面右下のタスクトレイにDocker Desktopのアイコンが表示されます。Docker Desktopが起動したら、Docker Desktop Dashboardウィンドウを閉じて構いません。
 
-```shell
-$ cd ~/monadic-chat
-$ ./monadic.sh update
-```
+## アップデートの方法
 
-これにより、Githubから最新のソースコードがダウンロードされ、Monadic Chatが再ビルドされます。
-
+Monadic Chatをアップデートするには、[Install Monadic Chat](#install-monadic-chat)で最新版のインストーラーをダウンロードして、再度インストールしてください。その後、Monadic Chatのメニューバーアイコンをクリックして、**`Build` を実行してください**（単にインストーラーをダブルクリックして再インストールするだけでは、Dockerコンテナのアップデートが行われません）。
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

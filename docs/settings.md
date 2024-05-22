@@ -31,6 +31,9 @@ Restarts Monadic Chat.
 **Open Browser** <br />
 Opens the default browser to access `http://localhost:4567` for using Monadic Chat.
 
+** Shared Folder** <br />
+Opens the folder shared between host computer and Docker containers. You can use this folder to import and export files.
+
 **Quit**
 Quits the Monadic Chat Console. If Monadic Chat is running, it will be stopped first, which may take some time.
 

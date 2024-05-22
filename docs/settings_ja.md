@@ -31,6 +31,9 @@ Monadic Chatを再起動します。
 **Open Browser** <br />
 Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
 
+** Shared Folder** <br />
+ホストとDockerコンテナー間で共有されるフォルダーを開きます。ファイルのインポートやエクスポートに使用できます。
+
 **Quit**
 Monadic Chat Consoleを終了します。Monadic Chatが起動している場合は、Monadic Chatを先に停止するため、少し時間がかかります。
 

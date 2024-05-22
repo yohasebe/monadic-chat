@@ -3,6 +3,10 @@
 class MonadicApp
 
   TOKENIZER = FlaskAppClient.new
+
+  # access the flask app client so that it gets ready before the first request
+  TOKENIZER.count_tokens("Hello, World!")
+
   attr_accessor :api_key
   attr_accessor :context
 

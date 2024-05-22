@@ -44,6 +44,10 @@ Quits the Monadic Chat Console. If Monadic Chat is running, it will be stopped f
 **API Token** <br />
 Enter your OpenAI API key here. Once a valid API key is confirmed, a file named `.env` will be created in the root directory of Monadic Chat, and a variable named `OPENAI_API_KEY` will be defined inside it. The value of this variable will be used thereafter.
 
+```
+OPENAI_API_KEY=api_key
+```
+
 **Base App** <br />
 Choose one of the pre-built apps provided in Monadic Chat. Each app has different default parameter values and comes with its own initial prompt. For more information about each Base App's features, refer to [Base Apps](#base-apps).
 
@@ -51,15 +55,17 @@ Choose one of the pre-built apps provided in Monadic Chat. Each app has differen
 Choose one of the models provided by OpenAI. Each Base App has a default model specified, but you can change it according to your needs.
 
 **Max Tokens** <br />
-Specify the "maximum token value" to be sent as a parameter to the Chat API. This includes the token count of the text sent as a prompt and the token count of the text returned as a response. For information on how tokens are counted in the OpenAI API, refer to [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them). (min: 100, max: 16000, default: 1000)
+When this option is turned on, the text (past conversations and new messages) sent to the API will be limited to the specified number of tokens. For more information on how tokens are counted in the OpenAI API, refer to [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 
 **Context Size** <br />
 This is the maximum number of active utterances to keep in the ongoing chat. Only active utterances are sent as context information to the OpenAI chat API. Inactive utterances are still visible on the screen and will be saved when exporting. (min: 1, max: 100, default: 10)
 
-**Temperature**<br />
-**Top P** <br />
-**Presence Penalty** <br />
-**Frequency Penalty**
+**Parameters** <br />
+
+- Temperature
+- Top P
+- Presence Penalty
+- Frequency Penalty
 
 These elements are sent as parameters to the API. For more details on each parameter, refer to the [Reference](https://platform.openai.com/docs/api-reference/chat) of the Chat API.
 

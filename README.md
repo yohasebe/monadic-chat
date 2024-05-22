@@ -93,7 +93,7 @@
 
 ### Managing Conversations as Monads
 
-- ♻️  **State Management**: Manage conversation state by obtaining additional responses and storing values in a predefined JSON object
+- ♻️  Manage conversation **state** by obtaining additional responses and storing values in a predefined JSON object
 
 ## Author
 

@@ -93,9 +93,30 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 
 これらが完了すると、画面右下のタスクトレイにDocker Desktopのアイコンが表示されます。Docker Desktopが起動したら、Docker Desktop Dashboardウィンドウを閉じて構いません。
 
-## アップデートの方法
+## アップデート
 
-Monadic Chatをアップデートするには、[Install Monadic Chat](#install-monadic-chat)で最新版のインストーラーをダウンロードして、再度インストールしてください。その後、Monadic Chatのメニューバーアイコンをクリックして、**`Build` を実行してください**（単にインストーラーをダブルクリックして再インストールするだけでは、Dockerコンテナのアップデートが行われません）。
+Monadic Chatをアップデートするには、[Install Monadic Chat](#install-monadic-chat)のセクションで最新版のインストーラーをダウンロードして、再度インストールしてください。その後、Monadic Chatのメニューバーアイコンをクリックして、**`Build` を実行してください**（単にインストーラーをダブルクリックして再インストールするだけでは、Dockerコンテナのアップデートが行われません）。
+
+## アンインストール
+
+1. Monadic Chatを終了します。
+
+2. **macOS**の場合、Finderで`Applications`フォルダーを開き、Monadic Chatをゴミ箱にドラッグします。**Windows**の場合、`プログラムの追加と削除`からMonadic Chatをアンインストールします。
+
+3. Docker Desktopのダッシュボードを開き、下記のコンテナおよびイメージを削除します。
+
+**コンテナ**
+
+- `monadic-chat-container`
+
+**イメージ**
+
+- `yohasebe/monadic-chat`
+- `yohasebe/python`
+- `yohasebe/selenium`
+- `yohasebe/pgvector`
+
+または、Docker Desktopのトラブルシュートから`Clean / Purge Data`を実行してください（その場合、Monadic Chatに関連するコンテナとイメージだけでなく、他のコンテナやイメージも削除されます）。
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

@@ -88,7 +88,7 @@ We welcome contributions that can help refine this software, such as code improv
 
 ### Managing Conversations as Monads
 
-- ♻️  **State Management**: Manage (invisible) conversation state by obtaining additional responses from LLM and updating values in a predefined JSON object
+- ♻️  Manage (invisible) conversation **state** by obtaining additional responses from LLM and updating values in a predefined JSON object
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

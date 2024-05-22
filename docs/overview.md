@@ -14,6 +14,10 @@ layout: default
 
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
+## Monadic Chat
+
+**Grounding AI Chatbots with Full Linux Environment on Docker**
+
 🌟 **Monadic Chat** is a versatile web application framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, visualization, and more.
 
 ⚠️  **Important Notice**
@@ -22,51 +26,69 @@ This software is currently under active development and is subject to frequent c
 
 📢 **Call for Contributions**
 
-I welcome contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly appreciated.
+We welcome contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly appreciated.
 
-## Features
+## Key Features
 
 ### Basic Structure
 
-- 🤖 Powered by **GPT-4** via OpenAI's Chat API, with unlimited conversation turns
-- 👩‍💻 Multi-OS support using **Docker** for Mac, Windows, or Linux
+- 🤖 Chat functionality powered by **GPT-4** via OpenAI's Chat API
+- 👩‍💻 Installable as a GUI application on Mac and Windows using **Electron**
+- 🌐 Usable as a **web application** in browsers
+
+### AI + Linux Environment
+
+- 🐧 Provides a Linux environment (Ubuntu) freely accessible by AI
+- 🐳 Standard **Docker containers** available for LLMs
+  - Python + pip
+  - Ruby + gem
+  - PGVector + PostgreSQL
+  - Selenium + Chrome/Chromium
 
 ### Data Management
 
-- 💾 **Export/import** messages and settings
-- 💬 Specify the number of recent messages (**active messages**) to send to the API, while storing and exporting older messages (**inactive messages**)
-- 🔢 Generate **text embeddings** from data in multiple **PDF files** and query their content using OpenAI's text embedding API
+- 💾 **Export/import** conversation data
+- 💬 Specify the number of recent messages (**active messages**) to send to the API
+- 🔢 Generate **text embeddings** from data in **PDF files**
+- 📂 Local data folders are synchronized with Docker containers for seamless interaction
 
 ### Voice Interaction
 
 - 🎙️ Automatic transcription of **microphone input** using OpenAI's Whisper API
 - 🔈 **Text-to-speech** functionality for AI assistant responses
-- 🗣️ Choose the **language and voice** for text-to-speech (available on Google Chrome or Microsoft Edge)
 - 🗺️ **Automatic language detection** for appropriate text-to-speech playback
-- 😊 Enable **voice conversations** with the AI agent using speech recognition and text-to-speech
+- 🗣️ Choose the **language and voice** for text-to-speech
+- 😊 Enable **interactive conversations** with the AI agent using speech recognition and text-to-speech
 
-### Image Generation
+### Image and Video Recognition and Generation
 
-- 🖼️ **Generate images** from text prompt using OpenAI's DALL·E 3 API
-
-### Image Understanding
-
-- 👀 **Local images** can be uploaded and let AI assistant analyze what are in them
+- 🖼️ **Generate images** from text prompts using OpenAI's DALL·E 3 API
+- 👀 Analyze and describe the content of **uploaded images**
+- 🎥 Recognize and describe the content and audio of **uploaded videos**
 
 ### Configuration and Extension
 
 - 💡 Customize the AI agent's behavior by specifying **API parameters** and the **system prompt**
 - 💎 Extend functionality using the **Ruby** programming language
+- 🐍 Extend functionality using the **Python** programming language
+- 🌎 Perform **web scraping** using Selenium
 
 ### Message Editing
 
-- 📝 **Edit** previous messages and retry when the desired AI agent response is not obtained
-- 🗑️ **Delete** specific messages from previous conversations
-- 📜 **Add** preceding messages with user, assistant, or system roles
+- 📝 **Edit** previous messages
+- 🗑️ **Delete** specific messages
+- 📜 **Set roles** (user, assistant, system) for new messages
 
-### Advanced
+### Support for Multiple LLM APIs
 
-- 🪄 Obtain additional information alongside the primary AI assistant response and store it as the **conversation state** in a predefined JSON object
+- 👥 In addition to OpenAI GPT-4 (default), basic functionality is also available for:
+  - Google Gemini
+  - Anthropic Claude
+  - Cohere Command R
+
+### Managing Conversations as Monads
+
+- ♻️  **State Management**: Manage conversation state by obtaining additional responses and storing values in a predefined JSON object
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

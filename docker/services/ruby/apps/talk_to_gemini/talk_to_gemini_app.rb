@@ -41,37 +41,37 @@ class Gemini < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      # "tools": {
-      #   "function_declarations": [
-      #     {
-      #       "name": "fetch_web_content",
-      #       "description": "Fetch the content of the web page of the given URL and return it.",
-      #       "parameters": {
-      #         "type": "object",
-      #         "properties": {
-      #           "url": {
-      #             "description": "URL of the web page.",
-      #             "type": "string"
-      #           }
-      #         },
-      #         "required": ["url"]
-      #       }
-      #     }, {
-      #       "name": "fetch_text_from_file",
-      #       "description": "Fetch the text from a file and return its content.",
-      #       "parameters": {
-      #         "type": "object",
-      #         "properties": {
-      #           "file": {
-      #             "type": "string",
-      #             "description": "File name or file path"
-      #           }
-      #         },
-      #         "required": ["file"]
-      #       }
-      #     }
-      #   ]
-      # }
+      "tools": {
+        "function_declarations": [
+          {
+            "name": "fetch_web_content",
+            "description": "Fetch the content of the web page of the given URL and return it.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "description": "URL of the web page.",
+                  "type": "string"
+                }
+              },
+              "required": ["url"]
+            }
+          }, {
+            "name": "fetch_text_from_file",
+            "description": "Fetch the text from a file and return its content.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "File name or file path"
+                }
+              },
+              "required": ["file"]
+            }
+          }
+        ]
+      }
     }
   end
 

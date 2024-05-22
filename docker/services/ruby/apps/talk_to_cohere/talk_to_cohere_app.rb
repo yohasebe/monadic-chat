@@ -42,19 +42,19 @@ class Cohere < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      # "tools": [
-      #   {
-      #     "name": "fetch_web_content",
-      #     "description": "Fetch the content of the web page of the given URL and return it.",
-      #     "parameter_definitions": {
-      #       "url": {
-      #         "description": "URL of the web page.",
-      #         "type": "str",
-      #         "required": true
-      #       }
-      #     }
-      #   }
-      # ]
+      "tools": [
+        {
+          "name": "fetch_web_content",
+          "description": "Fetch the content of the web page of the given URL and return it.",
+          "parameter_definitions": {
+            "url": {
+              "description": "URL of the web page.",
+              "type": "string",
+              "required": true
+            }
+          }
+        }
+      ]
     }
   end
 
@@ -282,7 +282,7 @@ class Cohere < MonadicApp
       "stream" => true,
       "message" => message,
       "prompt_truncation" => "AUTO",
-      "connectors" => [{"id" => "web-search"}]
+      # "connectors" => [{"id" => "web-search"}]
     }
 
     body["temperature"] = temperature if temperature

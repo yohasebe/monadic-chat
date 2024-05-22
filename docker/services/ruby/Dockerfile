@@ -1,11 +1,37 @@
-FROM ruby:3.3.1-slim-bookworm
+# Stage 1: Build environment
+FROM ruby:3.3.1-slim-bookworm AS build
 
 RUN apt update && \
     apt install -y --no-install-recommends \
     build-essential wget curl git pandoc \
-    ca-certificates curl gnupg lsb-release \
+    ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
     imagemagick libmagickwand-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /monadic
+
+COPY Gemfile monadic.gemspec ./
+COPY config.ru ./
+
+ENV BUNDLER_WITHOUT development test
+RUN bundle install -j4 && \
+    rm -rf /usr/local/bundle/cache/*
+
+COPY apps/ ./apps/
+COPY lib/ ./lib/
+COPY public/ ./public/
+COPY views/ ./views/
+
+# Stage 2: Runtime environment
+FROM ruby:3.3.1-slim-bookworm
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    ca-certificates curl gnupg lsb-release \
+    postgresql-client \
+    imagemagick \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,17 +51,8 @@ RUN apt update && \
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 
-COPY Gemfile monadic.gemspec $WORKSPACE/
-COPY config.ru $WORKSPACE/
-
-ENV BUNDLER_WITHOUT development test
-RUN bundle install -j4 && \
-    rm -rf /usr/local/bundle/cache/*
-
-COPY apps/ $WORKSPACE/apps/
-COPY lib/ $WORKSPACE/lib/
-COPY public/ $WORKSPACE/public/
-COPY views/ $WORKSPACE/views/
+COPY --from=build /usr/local/bundle /usr/local/bundle
+COPY --from=build /monadic /monadic
 
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*

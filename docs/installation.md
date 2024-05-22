@@ -93,6 +93,10 @@ Double-click the downloaded exe file. Once the installation is complete, start D
 
 Once everything has been set up, the Docker Desktop icon will appear in the task tray at the bottom right of the screen. After Docker Desktop has started, you may close the Docker Desktop Dashboard window if it is open.
 
+## How to Update
+
+To update Monadic Chat, download the latest installer by following the [Installer Download](#installer-download) section. Then, install it again. After that, click the Monadic Chat menu bar icon and **`Build`** (simply double-clicking the installer to reinstall will not update the Docker container).
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

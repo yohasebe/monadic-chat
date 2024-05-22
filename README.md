@@ -8,7 +8,7 @@
 
 ## Overview
 
-🌟 **Monadic Chat** is a versatile web application framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, visualization, and more.
+🤖 + 🐳 + 🐧 **Monadic Chat** is a framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, analysis, visualization, and more.
 
 - Documentation
   - [English](https://yohasebe.github.io/monadic-chat/overview)

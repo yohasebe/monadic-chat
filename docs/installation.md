@@ -102,22 +102,20 @@ To update Monadic Chat, download the latest installer by following the [Installe
 
 ## How to Uninstall
 
-1. Quit Monadic Chat.
-2. **For MacOS**: Open the `Applications` folder in Finder and drag Monadic Chat to the trash. **For Windows**: Uninstall Monadic Chat from `Add or Remove Programs`.
-3. Open the Docker Desktop dashboard and delete the following containers and images.
+1. Click the Monadic Chat icon in the menu bar and select `Uninstall`. This will remove the Docker containers and images shown below.
+2. Quit Monadic Chat.
+3. For **macOS**, open the `Applications` folder in Finder and drag Monadic Chat to the trash. For **Windows**, uninstall Monadic Chat from `Add or Remove Programs`.
 
-**Containers**:
+**Containers**
 
 - `monadic-chat-container`
 
-**Images**:
+**Images**
 
 - `yohasebe/monadic-chat`
 - `yohasebe/python`
 - `yohasebe/selenium`
 - `yohasebe/pgvector`
-
-Alternatively, you can run `Clean / Purge Data` from the Docker Desktop Troubleshoot menu (this will delete not only containers and images related to Monadic Chat but also other containers and images).
 
 ---
 

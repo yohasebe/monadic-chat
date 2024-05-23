@@ -36,13 +36,13 @@ We welcome contributions that can help refine this software, such as code improv
 
 ### AI + Linux Environment
 
-- 🐧 Provides a Linux environment (Ubuntu) freely accessible by AI
+- 🐧 Provides a **Linux** environment (Ubuntu) freely accessible by AI
 - 🐳 Tools for LLMs via **Docker containers**
   - Python (+ pip) for tool/function calls
   - Ruby (+ gem) for tool/function calls
   - PGVector (+ PostgreSQL) for DAG using vector representation
   - Selenium (+ Chrome/Chromium) for web scraping
-- 📦 Each container can be managed via SSH
+- 📦 Each container can be managed via **SSH**
 - 📓 Python container can launch **Jupyter Notebook**
 
 ### Data Management

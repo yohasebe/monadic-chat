@@ -4,6 +4,8 @@
 
 <div align="center" style="color: #777777 ">🤖 + 🐳 + 🐧 <b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
 
+<p>&nbsp;</p>
+
 <div align="center" style="color: #777777 ">⚠️ This application is currently under active development</div>
 
 <p>&nbsp;</p>

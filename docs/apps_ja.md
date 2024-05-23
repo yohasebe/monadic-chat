@@ -51,9 +51,7 @@ Recipe file: [novel_writer_app.rb](https://github.com/yohasebe/monadic-chat/blob
 
 <img src="./assets/icons/pdf-navigator.png" width="40px"/> 
 
-PDFファイルを読み込み、アシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。「PDFアップロード」ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
-
-読み込むPDFファイルは`Settings`パネルのFile Uploadで指定してください。
+PDFファイルを読み込み、アシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
 
 Recipe file: [pdf_navigator_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb)
 
@@ -72,7 +70,7 @@ COHERE_API_KEY=api_key
 COHERE_MODEL=command-r-plus
 ```
 
-Recipe file: [cohere_command_r_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/cohere_command_r/cohere_command_r_app.rb)
+Recipe file: [cohere_command_r_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_cohere/talk_to_cohere_app.rb)
 
 ## Talk to Anthropic Claude
 
@@ -87,7 +85,7 @@ ANTHROPIC_API_KEY=api_key
 ANTHROPIC_MODEL=claude-3-opus-20240229
 ```
 
-Recipe file: [anthropic_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/anthropic_claude/anthropic_claude_app.rb)
+Recipe file: [anthropic_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_claude/talk_to_claude_app.rb)
 
 ## Talk to Google Gemini
 
@@ -102,7 +100,7 @@ GEMINI_API_KEY=api_key
 GEMINI_MODEL=models/gemini-1.5-pro-latest
 ```
 
-Recipe file: [google_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/google_gemini/google_gemini_app.rb)
+Recipe file: [google_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)
 
 ## Translate
 
@@ -184,7 +182,18 @@ Recipe file: [music_composer_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 提供されたファイルやWeb URLの内容を調べて説明するAIチャットボットを特徴とするアプリケーションです。説明は、わかりやすく、初心者にも理解しやすいように提示されます。ユーザーは、プログラミングコードを含む、さまざまなテキストデータを含むファイルやURLをアップロードすることができます。プロンプトメッセージにURLが記載されている場合、アプリは自動的にコンテンツを取得し、GPTとの会話にシームレスに統合します。
 
-AIに読み込ませたいファイルを指定するには、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
+AIに読み込ませたいファイルを指定するには、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることをメッセージ中で伝えてください。
+
+`Shared Folder`から、下記のフォーマットのファイルを読み込むことができます。
+
+- PDF
+- Microsoft Word (docx)
+- Microsoft PowerPoint (pptx)
+- Microsoft Excel (xlsx)
+- CSV
+- Text (txt)
+
+PNGやJPEGなどの画像ファイルを読み込んで、その内容を認識・説明させることもできます。また、MP3などの音声ファイルを読み込んで、内容をテキストに書き出すことも可能です。
 
 Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/content_reader/content_reader_app.rb)
 
@@ -192,9 +201,9 @@ Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 <img src="./assets/icons/code.png" width="40px"/>
 
-AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
+AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。`Start Jupyter Notebook` のように依頼すると、現在のコード実行環境でJupyter Notebookが起動します。（Jupyter NotebookはPython実行環境の確認やライブラリのインストールなどに使用できます。）
 
-AIに読み込ませたいファイルがある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
+AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
 
 Recipe file: [code_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb)
 

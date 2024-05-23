@@ -14,7 +14,7 @@ layout: default
 
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
-🤖 + 🐳 + 🐧 **Monadic Chat**は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、検索、コーディング、テスト、分析、視覚化など外部ツールを必要とする高度なタスクを実行させることができます。
+**Monadic Chat**は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、検索、コーディング、テスト、分析、視覚化など外部ツールを必要とする高度なタスクを実行させることができます。
 
 ⚠️  **ご注意**
 

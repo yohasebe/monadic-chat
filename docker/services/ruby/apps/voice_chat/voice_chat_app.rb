@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class VoiceChat < MonadicApp
   def icon
     "<i class='fas fa-microphone'></i>"

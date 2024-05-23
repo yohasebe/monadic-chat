@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class PDFNavigator < MonadicApp
   def icon
     "<i class='fas fa-file-pdf'></i>"

@@ -115,6 +115,7 @@ Recipe file: [translate_app.rb](https://github.com/yohasebe/monadic-chat/blob/ma
 <img src="./assets/icons/voice-chat.png" width="40px"/>
 
 This app enables users to chat using voice through OpenAI's Whisper API and the browser's text-to-speech API. The initial prompt is the same as the one for the Chat app. Please note that a web browser with the latter API, such as Google Chrome or Microsoft Edge, is required.
+
 Recipe file: [voice_chat_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb)
 
 ## Voice Interpreter

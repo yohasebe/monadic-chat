@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class NovelWriter < MonadicApp
   def icon
     "<i class='fas fa-book'></i>"

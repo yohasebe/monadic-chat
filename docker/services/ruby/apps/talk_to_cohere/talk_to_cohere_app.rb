@@ -1,5 +1,3 @@
-# frozen_string_literal: false
-
 class Cohere < MonadicApp
   include UtilitiesHelper
 

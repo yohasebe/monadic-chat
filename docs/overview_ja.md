@@ -35,11 +35,13 @@ layout: default
 ### AI + Linux環境
 
 - 🐧 AIに自由に利用できるLinux環境（Ubuntu）を提供
-- 🐳 LLMから標準で利用できる**Dockerコンテナ**
-  - Python + pip
-  - Ruby + gem
-  - PGVector + PostgreSQL
-  - Selenium + Chrome/Chromium
+- 🐳 **Dockerコンテナ**を通じてLLMから利用できるツール群
+  - Python (+ pip) for tool/function calls
+  - Ruby (+ gem) for tool/function calls
+  - PGVector (+ PostgreSQL) for DAG using vector representation
+  - Selenium (+ Chrome/Chromium) for web scraping
+- 📦 各コンテナはSSH接続による管理が可能
+- 📓 Pythonコンテナ上では**Jupyter Notebook**を起動可能
 
 ### データ管理
 
@@ -76,7 +78,7 @@ layout: default
 
 ### 複数のLLM APIに対応
 
-- 👥 OpenAI GPT-4（標準）の他に、基本的な機能は下記のLLMも利用可能
+- 👥 OpenAI GPT-4（標準）の他に、基本的な機能（chat + tool/function call）については下記のLLMも利用可能
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R

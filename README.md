@@ -2,11 +2,12 @@
 
 <div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-<div align="center" style="color: #777777 ">🤖 + 🐳 + 🐧 <b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
+<div align="center">🤖 + 🐳 + 🐧</div>
+<div align="center"><b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
 
 <p>&nbsp;</p>
 
-<div align="center" style="color: #777777 ">⚠️ This application is currently under active development</div>
+<div align="center">⚠️ This application is currently under active development</div>
 
 <p>&nbsp;</p>
 

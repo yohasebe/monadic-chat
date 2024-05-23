@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class Wikipedia < MonadicApp
   def icon
     "<i class='fab fa-wikipedia-w'></i>"

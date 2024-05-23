@@ -34,13 +34,13 @@ layout: default
 
 ### AI + Linux環境
 
-- 🐧 AIに自由に利用できるLinux環境（Ubuntu）を提供
+- 🐧 AIに自由に利用できる**Linux環境**（Ubuntu）を提供
 - 🐳 **Dockerコンテナ**を通じてLLMから利用できるツール群
   - Python (+ pip) for tool/function calls
   - Ruby (+ gem) for tool/function calls
   - PGVector (+ PostgreSQL) for DAG using vector representation
   - Selenium (+ Chrome/Chromium) for web scraping
-- 📦 各コンテナはSSH接続による管理が可能
+- 📦 各コンテナは**SSH**接続による管理が可能
 - 📓 Pythonコンテナ上では**Jupyter Notebook**を起動可能
 
 ### データ管理

@@ -50,11 +50,13 @@
 ### AI + Linux Environment
 
 - 🐧 Provides a Linux environment (Ubuntu) freely accessible by AI
-- 🐳 Standard **Docker containers** available for LLMs
-  - Python + pip
-  - Ruby + gem
-  - PGVector + PostgreSQL
-  - Selenium + Chrome/Chromium
+- 🐳 Tools for LLMs via **Docker containers**
+  - Python (+ pip) for tool/function calls
+  - Ruby (+ gem) for tool/function calls
+  - PGVector (+ PostgreSQL) for DAG using vector representation
+  - Selenium (+ Chrome/Chromium) for web scraping
+- 📦 Each container can be managed via SSH
+- 📓 Python container can launch **Jupyter Notebook**
 
 ### Data Management
 
@@ -92,11 +94,10 @@
 
 ### Support for Multiple LLM APIs
 
-- 👥 In addition to OpenAI GPT-4 (default), basic functionality is also available for:
+- 👥 In addition to OpenAI GPT-4 (default), basic functionality (chat + tool/function call) is also available for:
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-
 
 ### Managing Conversations as Monads
 

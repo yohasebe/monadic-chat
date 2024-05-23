@@ -4,6 +4,8 @@
 
 <div align="center" style="color: #777777 "><b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
 
+<div align="center" style="color: #777777 ">⚠️ This application is currently under active development</div>
+
 <p>&nbsp;</p>
 
 ## Overview
@@ -32,7 +34,7 @@
 
 <p>&nbsp;</p>
 
-> There are two types of Monadic Chat: one is a web browser-based app provided in this repository, which is installed using Docker. The other is a command line application, which is provided as a RubyGem.
+> There are two versions of Monadic Chat. One is a web browser-based app framework developed in this repository. The other is a command line app provided as a RubyGem. 
 
 - [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repository)
 - [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)

@@ -2,7 +2,6 @@
 
 <div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-<div align="center">🤖 + 🐳 + 🐧</div>
 <div align="center"><b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
 
 <p>&nbsp;</p>

@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class VideoDescriber < MonadicApp
   def icon
     "<i class='fas fa-video'></i>"

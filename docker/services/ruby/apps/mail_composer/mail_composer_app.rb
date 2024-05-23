@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class MailComposer < MonadicApp
   def icon
     "<i class='fa-solid fa-at'></i>"

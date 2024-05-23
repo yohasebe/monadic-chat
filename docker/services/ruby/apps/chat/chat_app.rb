@@ -1,5 +1,3 @@
-# frozen_string_literal: false
-
 class Chat < MonadicApp
   def icon
     "<i class='fas fa-comments'></i>"

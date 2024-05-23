@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 # We can't use the name Math because it is a reserved word in Ruby
 class MathTutor < MonadicApp
   def icon

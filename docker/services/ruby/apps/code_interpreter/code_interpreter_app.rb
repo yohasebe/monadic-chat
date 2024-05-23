@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class CodeInterpreter < MonadicApp
   def icon
     "<i class='fas fa-terminal'></i>"

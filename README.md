@@ -2,13 +2,17 @@
 
 <div align="center"> <img src="./assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-<div align="center" style="color: #777777 "><b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
+<div align="center"><b>Grounding AI Chatbots with Full Linux Environment on Docker </b></div>
+
+<p>&nbsp;</p>
+
+<div align="center">⚠️ This application is currently under active development</div>
 
 <p>&nbsp;</p>
 
 ## Overview
 
-🌟 **Monadic Chat** is a versatile web application framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, visualization, and more.
+**Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, analysis, visualization, and more.
 
 - Documentation
   - [English](https://yohasebe.github.io/monadic-chat/overview)
@@ -32,7 +36,7 @@
 
 <p>&nbsp;</p>
 
-> There are two types of Monadic Chat: one is a web browser-based app provided in this repository, which is installed using Docker. The other is a command line application, which is provided as a RubyGem.
+> There are two versions of Monadic Chat. One is a web browser-based app framework developed in this repository. The other is a command line app provided as a RubyGem. 
 
 - [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repository)
 - [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
@@ -47,12 +51,14 @@
 
 ### AI + Linux Environment
 
-- 🐧 Provides a Linux environment (Ubuntu) freely accessible by AI
-- 🐳 Standard **Docker containers** available for LLMs
-  - Python + pip
-  - Ruby + gem
-  - PGVector + PostgreSQL
-  - Selenium + Chrome/Chromium
+- 🐧 Provides a **Linux** environment (Ubuntu) freely accessible by AI
+- 🐳 Tools for LLMs via **Docker containers**
+  - Python (+ pip) for tool/function calls
+  - Ruby (+ gem) for tool/function calls
+  - PGVector (+ PostgreSQL) for DAG using vector representation
+  - Selenium (+ Chrome/Chromium) for web scraping
+- 📦 Each container can be managed via **SSH**
+- 📓 Python container can launch **Jupyter Notebook**
 
 ### Data Management
 
@@ -90,15 +96,14 @@
 
 ### Support for Multiple LLM APIs
 
-- 👥 In addition to OpenAI GPT-4 (default), basic functionality is also available for:
+- 👥 In addition to OpenAI GPT-4 (default), basic functionality (chat + tool/function call) is also available for:
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
 
-
 ### Managing Conversations as Monads
 
-- ♻️  Manage conversation **state** by obtaining additional responses and storing values in a predefined JSON object
+- ♻️  Manage (invisible) **conversation state** by obtaining additional responses from LLM and updating values in a predefined JSON object
 
 ## Author
 

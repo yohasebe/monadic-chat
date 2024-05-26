@@ -14,7 +14,7 @@ layout: default
 
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
-🌟 **Monadic Chat**は、インテリジェントなチャットボットを作成・活用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上の本格的なLinux環境を与え、検索、コーディング、テスト、視覚化など外部ツールを必要とする高度なタスクを実行させることができます。
+**Monadic Chat**は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、検索、コーディング、テスト、分析、視覚化など外部ツールを必要とする高度なタスクを実行させることができます。
 
 ⚠️  **ご注意**
 
@@ -34,12 +34,14 @@ layout: default
 
 ### AI + Linux環境
 
-- 🐧 AIに自由に利用できるLinux環境（Ubuntu）を提供
-- 🐳 LLMから標準で利用できる**Dockerコンテナ**
-  - Python + pip
-  - Ruby + gem
-  - PGVector + PostgreSQL
-  - Selenium + Chrome/Chromium
+- 🐧 AIに自由に利用できる**Linux環境**（Ubuntu）を提供
+- 🐳 **Dockerコンテナ**を通じてLLMから利用できるツール群
+  - Python (+ pip) for tool/function calls
+  - Ruby (+ gem) for tool/function calls
+  - PGVector (+ PostgreSQL) for DAG using vector representation
+  - Selenium (+ Chrome/Chromium) for web scraping
+- 📦 各コンテナは**SSH**接続による管理が可能
+- 📓 Pythonコンテナ上では**Jupyter Notebook**を起動可能
 
 ### データ管理
 
@@ -76,7 +78,7 @@ layout: default
 
 ### 複数のLLM APIに対応
 
-- 👥 OpenAI GPT-4（標準）の他に、基本的な機能は下記のLLMも利用可能
+- 👥 OpenAI GPT-4（標準）の他に、基本的な機能（chat + tool/function call）については下記のLLMも利用可能
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R

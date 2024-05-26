@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class CodingAssistant < MonadicApp
   def icon
     "<i class='fas fa-laptop-code'></i></i>"

@@ -57,6 +57,7 @@ class ContentReader < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "mathjax": true,
+      "audio_video": true,
       "tools": [
         {
           "type": "function",

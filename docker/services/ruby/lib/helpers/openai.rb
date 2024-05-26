@@ -378,7 +378,11 @@ module OpenAIHelper
         memo
       end
 
-      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      # begin
+        function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      # rescue StandardError => e
+      #   function_return = "ERROR: #{e.message}"
+      # end
 
       context << {
         tool_call_id: tool_call["id"],
@@ -538,27 +542,33 @@ module OpenAIHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-    else
-      # Decorate the last message in the context with the message with the snippet
-      # and the prompt suffix
-      last_text = context.last["text"]
-      last_text = message_with_snippet if message_with_snippet.to_s != ""
+    end
+
+    # Decorate the last message in the context with the message with the snippet
+    # and the prompt suffix
+
+    last_text = context.last["text"]
+    last_text = message_with_snippet if message_with_snippet.to_s != ""
+    if last_text != "" && prompt_suffix.to_s != ""
       new_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
-      if new_text != last_text
+      if new_text != last_text && body.dig("messages", -1, "content")
         body["messages"].last["content"].each do |content_item|
           if content_item["type"] == "text"
-            content_item["text"] = last_text
+            content_item["text"] = new_text
           end
         end
       end
     end
 
-    if messages_containing_img && role != "tool"
+    if messages_containing_img
       body["model"] = "gpt-4o"
-      body.delete("stop") if messages_containing_img
-      body.delete("tools")
-      body.delete("tool_choice")
+      body.delete("stop")
     end
+
+    # if role != "tool"
+    #   body.delete("tools")
+    #   body.delete("tool_choice")
+    # end
 
     # Call the API
     target_uri = "#{API_ENDPOINT}/chat/completions"

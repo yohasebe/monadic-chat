@@ -16,9 +16,7 @@ layout: default
 
 ## Monadic Chat
 
-**Grounding AI Chatbots with Full Linux Environment on Docker**
-
-🌟 **Monadic Chat** is a versatile web application framework designed to create and utilize intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, visualization, and more.
+**Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, analysis, visualization, and more. 
 
 ⚠️  **Important Notice**
 
@@ -38,12 +36,14 @@ We welcome contributions that can help refine this software, such as code improv
 
 ### AI + Linux Environment
 
-- 🐧 Provides a Linux environment (Ubuntu) freely accessible by AI
-- 🐳 Standard **Docker containers** available for LLMs
-  - Python + pip
-  - Ruby + gem
-  - PGVector + PostgreSQL
-  - Selenium + Chrome/Chromium
+- 🐧 Provides a **Linux** environment (Ubuntu) freely accessible by AI
+- 🐳 Tools for LLMs via **Docker containers**
+  - Python (+ pip) for tool/function calls
+  - Ruby (+ gem) for tool/function calls
+  - PGVector (+ PostgreSQL) for DAG using vector representation
+  - Selenium (+ Chrome/Chromium) for web scraping
+- 📦 Each container can be managed via **SSH**
+- 📓 Python container can launch **Jupyter Notebook**
 
 ### Data Management
 
@@ -81,14 +81,14 @@ We welcome contributions that can help refine this software, such as code improv
 
 ### Support for Multiple LLM APIs
 
-- 👥 In addition to OpenAI GPT-4 (default), basic functionality is also available for:
+- 👥 In addition to OpenAI GPT-4 (default), basic functionality (chat + tool/function call) is also available for:
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
 
 ### Managing Conversations as Monads
 
-- ♻️  Manage (invisible) conversation **state** by obtaining additional responses from LLM and updating values in a predefined JSON object
+- ♻️  Manage (invisible) **conversation state** by obtaining additional responses from LLM and updating values in a predefined JSON object
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

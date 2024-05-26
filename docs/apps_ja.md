@@ -21,27 +21,47 @@ layout: default
 
 <img src="./assets/icons/chat.png" width="40px"/> 標準的なチャットアプリケーションです。ChatGPTと基本的に同様の方法で利用できます。
 
+Recipe file: [chat_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/chat/chat_app.rb)
+
 ## Language Practice
 
-<img src="./assets/icons/language-practice.png" width="40px"/> アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。
+<img src="./assets/icons/language-practice.png" width="40px"/>
+
+アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。
+
+Recipe file: [language_practice_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/language_practice/language_practice_app.rb)
 
 ## Language Practice Plus
 
-<img src="./assets/icons/language-practice-plus.png" width="40px"/> アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。アシスタントは、通常の応答に加えて、言語的なアドバイスを含めます。言語的なアドバイスは、音声ではなくテキストとしてのみ提示されます。
+<img src="./assets/icons/language-practice-plus.png" width="40px"/> 
+
+アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。アシスタントは、通常の応答に加えて、言語的なアドバイスを含めます。言語的なアドバイスは、音声ではなくテキストとしてのみ提示されます。
+
+Recipe file: [language_practice_plus_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb)
 
 ## Novel Writer
 
-<img src="./assets/icons/novel.png" width="40px"/> アシスタントと共同で小説を執筆するためのアプリケーションです。魅力的なキャラクター、鮮やかな描写、そして、説得力のあるプロットで小説を作り上げましょう。ユーザーのプロンプトに基づいてストーリーを展開し、一貫性と流れを維持します。
+<img src="./assets/icons/novel.png" width="40px"/> 
+
+アシスタントと共同で小説を執筆するためのアプリケーションです。魅力的なキャラクター、鮮やかな描写、そして、説得力のあるプロットで小説を作り上げましょう。ユーザーのプロンプトに基づいてストーリーを展開し、一貫性と流れを維持します。
+
+Recipe file: [novel_writer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb)
 
 ## PDF Navigator
 
-<img src="./assets/icons/pdf-navigator.png" width="40px"/> PDFファイルを読み込み、アシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。「PDFアップロード」ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
+<img src="./assets/icons/pdf-navigator.png" width="40px"/> 
+
+PDFファイルを読み込み、アシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
+
+Recipe file: [pdf_navigator_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb)
 
 <img src="./assets/images/rag.png" width="600px"/>
 
 ## Talk to Cohere Command R
 
-<img src="./assets/icons/c.png" width="40px"/> Cohere Command R (Plus) APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+<img src="./assets/icons/c.png" width="40px"/>
+
+Cohere Command R (Plus) APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
 
 Example:
 
@@ -50,9 +70,13 @@ COHERE_API_KEY=api_key
 COHERE_MODEL=command-r-plus
 ```
 
+Recipe file: [cohere_command_r_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_cohere/talk_to_cohere_app.rb)
+
 ## Talk to Anthropic Claude
 
-<img src="./assets/icons/a.png" width="40px"/> Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+<img src="./assets/icons/a.png" width="40px"/>
+
+Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
 
 Example:
 
@@ -61,9 +85,13 @@ ANTHROPIC_API_KEY=api_key
 ANTHROPIC_MODEL=claude-3-opus-20240229
 ```
 
+Recipe file: [anthropic_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_claude/talk_to_claude_app.rb)
+
 ## Talk to Google Gemini
 
-<img src="./assets/icons/google.png" width="40px"/> Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名（`model/`付で）を `~/monadic/data/.env` に設定してください。
+<img src="./assets/icons/google.png" width="40px"/>
+
+Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名（`model/`付で）を `~/monadic/data/.env` に設定してください。
 
 Example:
 
@@ -72,51 +100,117 @@ GEMINI_API_KEY=api_key
 GEMINI_MODEL=models/gemini-1.5-pro-latest
 ```
 
+Recipe file: [google_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)
+
 ## Translate
 
-<img src="./assets/icons/translate.png" width="40px"/> ユーザーの入力テキストを別の言語に翻訳します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。特定の翻訳結果を反映させたい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳を指定してください。
+<img src="./assets/icons/translate.png" width="40px"/> 
+
+ユーザーの入力テキストを別の言語に翻訳します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。特定の翻訳結果を反映させたい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳を指定してください。
+
+Recipe file: [translate_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/translate/translate_app.rb)
 
 ## Voice Chat
 
-<img src="./assets/icons/voice-chat.png" width="40px"/> OpenAIのWhisper APIとブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトはChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+<img src="./assets/icons/voice-chat.png" width="40px"/>
+
+OpenAIのWhisper APIとブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトはChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+
+Recipe file: [voice_chat_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb)
 
 ## Voice Interpreter
 
-<img src="./assets/icons/voice-chat.png" width="40px"/> ユーザーの入力テキストを別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
+<img src="./assets/icons/voice-chat.png" width="40px"/> 
+
+ユーザーの入力テキストを別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
+
+Recipe file: [voice_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb)
 
 ## Wikipedia
 
-<img src="./assets/icons/wikipedia.png" width="40px"/> 基本的にChatと同じですが、言語モデルのカットオフ日時以降に発生したイベントに関する質問など、GPTが回答できない質問に対しては、Wikipediaを検索して回答します。問い合わせが英語以外の言語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
+<img src="./assets/icons/wikipedia.png" width="40px"/>
+
+基本的にChatと同じですが、言語モデルのカットオフ日時以降に発生したイベントに関する質問など、GPTが回答できない質問に対しては、Wikipediaを検索して回答します。問い合わせが英語以外の言語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
+
+Recipe file: [wikipedia_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/wikipedia/wikipedia_app.rb)
 
 ## Math Tutor
 
-<img src="./assets/icons/math.png" width="40px"/> AIチャットボットがMathJaxの数式表記を用いて応答するアプリケーションです。このアプリは数式を表示できますが、数学的計算能力はOpenAIのGPTモデルに基づいており、時折、誤った計算結果が出力されることが知られています。そのため、計算の正確性が求められる場合は、このアプリの使用には注意が必要です。
+<img src="./assets/icons/math.png" width="40px"/>
+
+AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。このアプリは数式を表示できますが、数学的計算能力はOpenAIのGPTモデルに基づいており、時折、誤った計算結果が出力されることが知られています。そのため、計算の正確性が求められる場合は、このアプリの使用には注意が必要です。
+
+Recipe file: [math_tutor_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/math_tutor/math_tutor_app.rb)
 
 ## Image Generator
 
-<img src="./assets/icons/image-generator.png" width="40px"/> 説明に基づいて画像を生成するアプリケーションです。プロンプトが具体的でない場合や、英語以外の言語で書かれている場合は、改善されたプロンプトを返し、改善されたプロンプトで続行するかどうかを尋ねます。
+<img src="./assets/icons/image-generator.png" width="40px"/>
+
+説明に基づいて画像を生成するアプリケーションです。プロンプトが具体的でない場合や、英語以外の言語で書かれている場合は、改善されたプロンプトを返し、改善されたプロンプトで続行するかどうかを尋ねます。内部でDall-E 3 APIを使用しています。
+
+画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
+
+Recipe file: [image_generator_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/image_generator/image_generator_app.rb)
 
 ## Mail Composer
 
-<img src="./assets/icons/mail-composer.png" width="40px"/> アシスタントと共同でメールの草稿を作成するためのアプリケーションです。ユーザーの要望や指定に応じて、アシスタントがメールの草稿を作成します。
+<img src="./assets/icons/mail-composer.png" width="40px"/>
+
+アシスタントと共同でメールの草稿を作成するためのアプリケーションです。ユーザーの要望や指定に応じて、アシスタントがメールの草稿を作成します。
+
+Recipe file: [mail_composer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/mail_composer/mail_composer_app.rb)
 
 ## Flowchart Grapher
 
-<img src="./assets/icons/diagram-draft.png" width="40px"/> mermaid.jsを活用してデータを視覚化するアプリケーションです。任意のデータを入力すると、エージェントが最適なダイアグラムの種類を選択し、mermaidコードを提供します。このコードからダイアグラムを作成できます。
+<img src="./assets/icons/diagram-draft.png" width="40px"/>
+
+[mermaid.js](https://mermaid.js.org/) を活用してデータを視覚化するアプリケーションです。任意のデータや指示文を入力すると、エージェントがフローチャートのMermaid コードを生成して画像を描画します。
+
+Recipe file: [flowchart_grapher_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/flowchart_grapher/flowchart_grapher_app.rb)
 
 ## Music Composer
 
-<img src="./assets/icons/music.png" width="40px"/> 楽譜を作成し、Midiで演奏するアプリケーションです。使用する楽器と音楽のジャンルやスタイルを指定します。
+<img src="./assets/icons/music.png" width="40px"/>
+
+[ABC](https://en.wikipedia.org/wiki/ABC_notation)記法で簡単な楽譜を作成し、Midiで演奏するアプリケーションです。使用する楽器と音楽のジャンルやスタイルを指定します。
+
+Recipe file: [music_composer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/music_composer/music_composer_app.rb)
 
 ## Content Reader
 
-<img src="./assets/icons/document-reader.png" width="40px"/> インポートされたファイルやWeb URLの内容を調べて説明するAIチャットボットを特徴とするアプリケーションです。説明は、わかりやすく、初心者にも理解しやすいように提示されます。ユーザーは、プログラミングコードを含む、さまざまなテキストデータを含むファイルやURLをアップロードすることができます。プロンプトメッセージにURLが記載されている場合、アプリは自動的にコンテンツを取得し、GPTとの会話にシームレスに統合します。
+<img src="./assets/icons/document-reader.png" width="40px"/>
 
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
+提供されたファイルやWeb URLの内容を調べて説明するAIチャットボットを特徴とするアプリケーションです。説明は、わかりやすく、初心者にも理解しやすいように提示されます。ユーザーは、プログラミングコードを含む、さまざまなテキストデータを含むファイルやURLをアップロードすることができます。プロンプトメッセージにURLが記載されている場合、アプリは自動的にコンテンツを取得し、GPTとの会話にシームレスに統合します。
+
+AIに読み込ませたいファイルを指定するには、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることをメッセージ中で伝えてください。
+
+`Shared Folder`から、下記のフォーマットのファイルを読み込むことができます。
+
+- PDF
+- Microsoft Word (docx)
+- Microsoft PowerPoint (pptx)
+- Microsoft Excel (xlsx)
+- CSV
+- Text (txt)
+
+PNGやJPEGなどの画像ファイルを読み込んで、その内容を認識・説明させることもできます。また、MP3などの音声ファイルを読み込んで、内容をテキストに書き出すことも可能です。
+
+Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/content_reader/content_reader_app.rb)
+
+## Code Interpreter
+
+<img src="./assets/icons/code.png" width="40px"/>
+
+AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。`Start Jupyter Notebook` のように依頼すると、現在のコード実行環境でJupyter Notebookが起動します。（Jupyter NotebookはPython実行環境の確認やライブラリのインストールなどに使用できます。）
+
+AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
+
+Recipe file: [code_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb)
 
 ---
 
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 <script>
   function copyToClipBoard(id){
     var copyText =  document.getElementById(id).innerText;

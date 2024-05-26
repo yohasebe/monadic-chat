@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class VoiceInterpreter < MonadicApp
   def icon
     "<i class='far fa-comments'></i>"

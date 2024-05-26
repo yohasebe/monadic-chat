@@ -1,5 +1,3 @@
-#git push origin main frozen_string_literal: false
-
 class Gemini < MonadicApp
   include UtilitiesHelper
 

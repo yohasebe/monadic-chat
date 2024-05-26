@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class LanguagePractice < MonadicApp
   def icon
     "<i class='fas fa-chalkboard-user'></i>"

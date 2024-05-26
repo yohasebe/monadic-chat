@@ -95,7 +95,10 @@ Once everything has been set up, the Docker Desktop icon will appear in the task
 
 ## How to Update
 
-To update Monadic Chat, download the latest installer by following the [Installer Download](#installer-download) section. Then, install it again. After that, click the Monadic Chat menu bar icon and **`Build`** (simply double-clicking the installer to reinstall will not update the Docker container).
+1. Click the Monadic Chat icon in the menu bar and select `Check for Updates`. If an update is available, click `Download` to download the latest version.
+2. Quit Monadic Chat.
+3. Run the installer for the latest version.
+4. **Important**: After reinstalling, click `Build` in the Monadic Chat menu bar icon to update the Docker containers. (Simply double-clicking the installer to reinstall will not update the Docker containers.)
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

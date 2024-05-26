@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class ImageGeneration < MonadicApp
   def icon
     "<i class='fa-regular fa-image'></i>"

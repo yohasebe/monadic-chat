@@ -108,13 +108,20 @@ def init_apps
     response_suffix = ""
     if app.settings[:mathjax]
       initial_prompt_suffix << <<~INITIAL
-        When incorporating mathematical expressions into your response, please adhere to the following notation guidelines:
-        - Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block.
-        - Use single dollar signs `$` for expressions that should appear inline with the text.
+        When incorporating MathJax expressions or LaTeX expressions into your response, adhere to the following notation guidelines: **Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block**; **Use single dollar signs `$` before and after the expressions that should appear inline with the text**.
+
       INITIAL
       prompt_suffix << <<~SUFFIX
-        [INTERNAL] Remember to use the correct delimiter for inline mathematical expressions `$`.
+        **Remember to use single dollar signs `$` before and after the expressions that should appear inline with the text outside independent code blocks**
+
       SUFFIX
+    end
+
+    if app.settings[:tools]
+      initial_prompt_suffix << <<~INITIAL
+        **You should NEVER invent or use functions NOT defined or NOT listed HERE, especially the multi_tool_use.parallel function. If you need to call multiple functions, you will call them one at a time **.
+
+      INITIAL
     end
 
     if app.settings[:image_generation]
@@ -134,7 +141,7 @@ def init_apps
 
     if app.settings[:mermaid]
       prompt_suffix << <<~INITIAL
-        [INTERNAL] Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
+        Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
       INITIAL
     end
 

@@ -329,6 +329,8 @@ module WebSocketHelper
                 @channel.push({ "type" => "error", "content" => response.to_s }.to_json)
               else
                 content = response.dig("choices", 0, "message", "content").gsub(/\bsandbox:\//, "/")
+                content = content.gsub(/^\/mnt\//, "/")
+
                 response.dig("choices", 0, "message")["content"] = content
 
                 if obj["auto_speech"] && obj["monadic"]

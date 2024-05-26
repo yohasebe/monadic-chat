@@ -21,6 +21,8 @@ class CodeInterpreter < MonadicApp
 
       If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
+      If you need to run a Python code, follow the instructions below:
+
       ### Basic Procedure:
 
       To execute the code, use the `run_code` function with the command name such as `python` and your code as the parameters. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths for this purpose.
@@ -158,7 +160,7 @@ class CodeInterpreter < MonadicApp
   def settings
     {
       "model": "gpt-4o",
-      "temperature": 0.2,
+      "temperature": 0.0,
       "presence_penalty": 0.2,
       "top_p": 0.0,
       "context_size": 20,

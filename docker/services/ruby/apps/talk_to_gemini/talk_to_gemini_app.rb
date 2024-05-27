@@ -16,6 +16,7 @@ class Gemini < MonadicApp
   def description
     text = "This app accesses the Google Gemini API to answer questions about a wide range of topics."
     text += " (Model: <code>#{CONFIG['GEMINI_MODEL']}</code>)" if CONFIG["GEMINI_MODEL"]
+    text
   end
 
   def initial_prompt
@@ -295,7 +296,26 @@ class Gemini < MonadicApp
       "content-type" => "application/json"
     }
 
-    body = {}
+    body = {
+      safety_settings: [
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_ONLY_HIGH"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_ONLY_HIGH"
+        },
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_ONLY_HIGH"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_ONLY_HIGH"
+        }
+      ]
+    }
 
     if temperature || max_tokens || top_p
       body["generationConfig"] = {}

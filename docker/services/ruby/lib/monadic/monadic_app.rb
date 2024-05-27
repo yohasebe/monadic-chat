@@ -203,7 +203,7 @@ class MonadicApp
     end
   end
 
-  def send_code(code:, command:, extention:)
+  def send_code(code:, command:, extension:)
     begin
       shared_volume = "/monadic/data/"
       if IN_CONTAINER
@@ -215,7 +215,7 @@ class MonadicApp
       container = "monadic-chat-python-container"
 
       # create a temporary file inside the data directory
-      temp_file = Tempfile.new(["code", ".#{extention}"], data_dir)
+      temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
       temp_file.write(code)
       temp_file.close
       docker_command =<<~DOCKER
@@ -289,10 +289,12 @@ class MonadicApp
 
   ### API functions
 
-  def run_code(code: "", command: "", extention: "")
-    # # remove escape characters from the code
-    # code = code.gsub(/\\n/, "\n")
-    send_code(code: code, command: command, extention: extention)
+  def run_code(code: "", command: "", extension: "")
+    # remove escape characters from the code
+    # code = code.gsub(/\\n/) { "\n" }
+    # code = code.gsub(/\\\\/) { "" }
+
+    send_code(code: code, command: command, extension: extension)
   end
 
   def lib_installer(command: "", packager: "")

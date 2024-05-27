@@ -41,6 +41,7 @@ class CodeInterpreter < MonadicApp
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
       - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to add `/data/` before the file name to display the image.
 
       User Request:
 
@@ -141,6 +142,7 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 4:
 
       - The following is a simple example to illustrate how you might respond to a user's request to show a audio/video clip.
+      - Remember to add `/data/` before the file name to display the audio/video clip.
 
       Audio Clip:
 
@@ -191,12 +193,12 @@ class CodeInterpreter < MonadicApp
                   "type": "string",
                   "description": "Code to be executed."
                 },
-                "extention": {
+                "extension": {
                   "type": "string",
-                  "description": "File extention of the code (e.g., 'py')"
+                  "description": "File extension of the code (e.g., 'py')"
                 }
               },
-              "required": ["command", "code", "extention"]
+              "required": ["command", "code", "extension"]
             }
           }
         },

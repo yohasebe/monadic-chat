@@ -14,7 +14,9 @@ class CodeWithClaude < MonadicApp
   end
 
   def description
-    "This is an application that allows you to run Python code with Anthropic Claude"
+    text = "This is an application that allows you to run Python code with Anthropic Claude"
+    text += " (Model: <code>#{CONFIG['ANTHROPIC_MODEL']}</code>)" if CONFIG["ANTHROPIC_MODEL"]
+    text
   end
 
   def initial_prompt
@@ -51,6 +53,7 @@ class CodeWithClaude < MonadicApp
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
       - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to add `/data/` before the file name to display the image.
 
       User Request:
 
@@ -151,6 +154,7 @@ class CodeWithClaude < MonadicApp
       ### Request/Response Example 4:
 
       - The following is a simple example to illustrate how you might respond to a user's request to show a audio/video clip.
+      - Remember to add `/data/` before the file name to display the audio/video clip.
 
       Audio Clip:
 
@@ -200,12 +204,12 @@ class CodeWithClaude < MonadicApp
                 "type": "string",
                 "description": "Code to be executed."
               },
-              "extention": {
+              "extension": {
                 "type": "string",
-                "description": "File extention of the code (e.g., 'py')"
+                "description": "File extension of the code (e.g., 'py')"
               }
             },
-            "required": ["command", "code", "extention"]
+            "required": ["command", "code", "extension"]
           }
         },
         {

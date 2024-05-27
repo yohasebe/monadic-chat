@@ -49,7 +49,6 @@ function handleVisibilityChange() {
 // Add event listener for visibility change
 document.addEventListener('visibilitychange', handleVisibilityChange);
 
-
 //////////////////////////////
 // WebSocket event handlers
 //////////////////////////////
@@ -82,9 +81,10 @@ function stopPing() {
 }
 
 const chatBottom = $("#chat-bottom").get(0);
+let autoScroll = true;
+
 const mainPanel = $("#main-panel").get(0);
 const defaultApp = "Chat";
-
 
 function isElementInViewport(element) {
   // Convert the jQuery element to a native DOM element
@@ -253,7 +253,6 @@ function formatSourceCode(element) {
   })
 }
 
-
 function applyAbc(element) {
   element.find(".abc-code").each(function () {
     $(this).addClass("sourcecode");
@@ -341,7 +340,6 @@ let callingFunction = false;
 
 function connect_websocket(callback) {
   const ws = new WebSocket('ws://localhost:4567');
-
 
   let loadedApp = "Chat";
   let infoHtml = "";
@@ -631,6 +629,7 @@ function connect_websocket(callback) {
         callingFunction = false;
         messages.push(data["content"]);
         // msgBuffer.length = 0;
+
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         } else if (data["content"]["role"] === "user") {
@@ -679,11 +678,7 @@ function connect_websocket(callback) {
           mainPanel.scrollIntoView(false);
         }
 
-        // Scroll to the top of the last card
-        // let targetCard = $("#discourse div.card:last").get(0);
-        // targetCard.scrollIntoView({behavior: "smooth", block: "start"});
-
-        setInputFocus()
+        setInputFocus();
 
         break;
       case "user":
@@ -692,7 +687,6 @@ function connect_websocket(callback) {
           message_obj.image = data["image"];
         }
         messages.push(message_obj);
-        // let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
         let image_data;
         if(data["image"] !== undefined){
@@ -713,11 +707,10 @@ function connect_websocket(callback) {
           responseStarted = true;
         }
         $("#indicator").show();
-        // msgBuffer.push(data["content"]);
         if (data["content"] !== undefined) {
           $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
         }
-        if (!isElementInViewport(chatBottom)){
+        if (autoScroll && !isElementInViewport(chatBottom)){
           chatBottom.scrollIntoView(false);
         }
     }

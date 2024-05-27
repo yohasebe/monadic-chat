@@ -212,7 +212,7 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
   ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
 }
 
-async function applyToggle(element) {
+function applyToggle(element) {
   element.find(".toggle").each(function () {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");

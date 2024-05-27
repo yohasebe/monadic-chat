@@ -290,6 +290,8 @@ class MonadicApp
   ### API functions
 
   def run_code(code: "", command: "", extention: "")
+    # # remove escape characters from the code
+    # code = code.gsub(/\\n/, "\n")
     send_code(code: code, command: command, extention: extention)
   end
 

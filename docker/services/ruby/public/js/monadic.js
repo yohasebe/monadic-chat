@@ -21,6 +21,15 @@ $(function () {
 
   let lastApp = defaultApp;
 
+
+  $("#auto-scroll-toggle").on("change", function() {
+    if ($(this).is(":checked")) {
+      autoScroll = true;
+    } else {
+      autoScroll = false;
+    }
+  });
+
   $("#max-tokens-toggle").on("change", function() {
     if ($(this).is(":checked")) {
       $("#max-tokens").prop("disabled", false);

@@ -185,8 +185,6 @@ class MonadicApp
       #{status}
       LOG
 
-      # pp log
-
       File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
 
       if block_given?
@@ -216,6 +214,7 @@ class MonadicApp
 
       # create a temporary file inside the data directory
       temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
+
       temp_file.write(code)
       temp_file.close
       docker_command =<<~DOCKER
@@ -293,6 +292,9 @@ class MonadicApp
     # remove escape characters from the code
     # code = code.gsub(/\\n/) { "\n" }
     # code = code.gsub(/\\\\/) { "" }
+
+    # return the error message unless all the arguments are provided
+    return "Error: code, command, and extension are required." if !code || !command|| !extension
 
     send_code(code: code, command: command, extension: extension)
   end

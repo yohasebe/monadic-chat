@@ -505,6 +505,13 @@ pre {
   padding-bottom: 10px;
 }
 
-.toggle {
+.toggle-open {
+  padding: 0.5em;
   margin-bottom: 15px;
+  white-space: pre-wrap;
 }
+
+.toggle-open ul, .toggle-open ol {
+  white-space: normal;
+}
+

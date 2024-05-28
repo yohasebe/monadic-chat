@@ -217,7 +217,7 @@ function applyToggle(element) {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");
     toggleElement.find("pre").addClass("sourcecode");
-    let toggleText = toggleElement.text().trim();
+    let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
     toggleElement.find("pre").text(toggleText);
     addToggleSourceCode(toggleElement);
   });

@@ -549,13 +549,12 @@ module OpenAIHelper
 
     last_text = context.last["text"]
     last_text = message_with_snippet if message_with_snippet.to_s != ""
-    if last_text != "" && prompt_suffix.to_s != ""
-      new_text = last_text + "\n\n" + prompt_suffix if prompt_suffix.to_s != ""
-      if new_text != last_text && body.dig("messages", -1, "content")
-        body["messages"].last["content"].each do |content_item|
-          if content_item["type"] == "text"
-            content_item["text"] = new_text
-          end
+
+    new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""
+    if new_text != last_text && body.dig("messages", -1, "content")
+      body["messages"].last["content"].each do |content_item|
+        if content_item["type"] == "text"
+          content_item["text"] = new_text
         end
       end
     end

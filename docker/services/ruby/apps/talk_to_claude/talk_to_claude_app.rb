@@ -31,7 +31,7 @@ class Claude < MonadicApp
   def settings
     {
       "app_name": "Talk to Anthropic Claude",
-      "context_size": 20,
+      "context_size": 100,
       "initial_prompt": initial_prompt,
       "description": description,
       "icon": icon,
@@ -65,14 +65,15 @@ class Claude < MonadicApp
   end
 
   def add_replacements(result)
+    result.strip!
     replacements = {
-      "<thinking>" => "<div data-title='Thinking' class='toggle'>\n<div style='padding: 0.5em;'>",
+      "<thinking>" => "<div data-title='Thinking' class='toggle'>\n<div class='toggle-open'>",
       "</thinking>" => "</div>\n</div>\n\n",
 
-      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'>\n<div style='padding: 0.5em;'>",
+      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'>\n<div class='toggle-open'>",
       "</search_quality_reflection>" => "</div>\n</div>\n\n",
 
-      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'>\n<div style='padding: 0.5em;'>",
+      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'>\n<div class='toggle-open'>",
       "</search_quality_score>" => "</div>\n</div>\n\n",
 
       "<result>" => "",
@@ -187,7 +188,7 @@ class Claude < MonadicApp
 
 
     if tool_calls.any?
-      get_thinking_text(result) if result
+      get_thinking_text(result)
 
       call_depth += 1
 
@@ -207,7 +208,13 @@ class Claude < MonadicApp
       } if result
 
       tool_calls.each do |tool_call|
-        tool_call["input"] = JSON.parse(tool_call["input"])
+        begin
+          input_hash = JSON.parse(tool_call["input"])
+        rescue JSON::ParserError
+          input_hash = {}
+        end
+
+        tool_call["input"] = input_hash
         context.last["content"] << {
           "type" => "tool_use",
           "id" => tool_call["id"],
@@ -345,7 +352,6 @@ class Claude < MonadicApp
     end
 
     # The context is added to the body
-    messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
       if msg["image"] && role == "user"
@@ -357,7 +363,6 @@ class Claude < MonadicApp
             "data" => msg["image"]["data"].split(",")[1]
           }
         }
-        messages_containing_img = true
       end
       message
     end
@@ -454,3 +459,4 @@ class Claude < MonadicApp
     api_request("tool", session, call_depth: call_depth, &block)
   end
 end
+

@@ -67,21 +67,21 @@ class Claude < MonadicApp
   def add_replacements(result)
     result.strip!
     replacements = {
-      "<thinking>" => "<div data-title='Thinking' class='toggle'>\n<div class='toggle-open'>",
-      "</thinking>" => "</div>\n</div>\n\n",
+      "<thinking>" => "<div data-title='Thinking' class='toggle'><div class='toggle-open'>",
+      "</thinking>" => "</div></div>",
 
-      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'>\n<div class='toggle-open'>",
-      "</search_quality_reflection>" => "</div>\n</div>\n\n",
+      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'><div class='toggle-open'>",
+      "</search_quality_reflection>" => "</div></div>",
 
-      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'>\n<div class='toggle-open'>",
-      "</search_quality_score>" => "</div>\n</div>\n\n",
+      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'><div class='toggle-open'>",
+      "</search_quality_score>" => "</div></div>",
 
       "<result>" => "",
       "</result>" => ""
     }
 
     replacements.each do |old, new|
-      result = result.gsub(old, new)
+      result = result.gsub(/#{old}\n?/m){ new }
     end
 
     result

@@ -35,7 +35,7 @@ class CodeWithClaude < MonadicApp
 
       ### Basic Procedure:
 
-      To execute the code, use the `run_code` function with the command name such as `python` and your code as the parameters. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths for this purpose.
+      To execute the code, use the `run_code` function with the `command` name such as `python` or `ruby`, your program `code` to be executed with the command, and the file `extension` with which the code is stored in a temporary local file. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
       If you need to check bash command to check the availability of a certain file or command, use the `run_bash_command` function. You are allowed to access the internet to download the required files or libraries.
 
@@ -198,15 +198,15 @@ class CodeWithClaude < MonadicApp
             "properties": {
               "command": {
                 "type": "string",
-                "description": "Code execution command (e.g., 'python')"
+                "description": "Program that execute the code (e.g., 'python')"
               },
               "code": {
                 "type": "string",
-                "description": "Code to be executed."
+                "description": "Program code to be executed."
               },
               "extension": {
                 "type": "string",
-                "description": "File extension of the code (e.g., 'py')"
+                "description": "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
               }
             },
             "required": ["command", "code", "extension"]
@@ -299,22 +299,23 @@ class CodeWithClaude < MonadicApp
   end
 
   def add_replacements(result)
+    result.strip!
     replacements = {
-      "<thinking>" => "<div data-title='Thinking' class='toggle'>\n<div style='padding: 0.5em;'>",
-      "</thinking>" => "</div>\n</div>\n\n",
+      "<thinking>" => "<div data-title='Thinking' class='toggle'><div class='toggle-open'>",
+      "</thinking>" => "</div></div>",
 
-      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'>\n<div style='padding: 0.5em;'>",
-      "</search_quality_reflection>" => "</div>\n</div>\n\n",
+      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'><div class='toggle-open'>",
+      "</search_quality_reflection>" => "</div></div>",
 
-      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'>\n<div style='padding: 0.5em;'>",
-      "</search_quality_score>" => "</div>\n</div>\n\n",
+      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'><div class='toggle-open'>",
+      "</search_quality_score>" => "</div></div>",
 
       "<result>" => "",
       "</result>" => ""
     }
 
     replacements.each do |old, new|
-      result = result.gsub(old, new)
+      result = result.gsub(/#{old}\n?/m){ new }
     end
 
     result
@@ -441,7 +442,13 @@ class CodeWithClaude < MonadicApp
       } if result
 
       tool_calls.each do |tool_call|
-        tool_call["input"] = JSON.parse(tool_call["input"])
+        begin
+          input_hash = JSON.parse(tool_call["input"])
+        rescue JSON::ParserError
+          input_hash = {}
+        end
+
+        tool_call["input"] = input_hash
         context.last["content"] << {
           "type" => "tool_use",
           "id" => tool_call["id"],
@@ -579,7 +586,6 @@ class CodeWithClaude < MonadicApp
     end
 
     # The context is added to the body
-    messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
       if msg["image"] && role == "user"
@@ -591,7 +597,6 @@ class CodeWithClaude < MonadicApp
             "data" => msg["image"]["data"].split(",")[1]
           }
         }
-        messages_containing_img = true
       end
       message
     end

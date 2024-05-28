@@ -23,7 +23,7 @@ class CodeInterpreter < MonadicApp
 
       ### Basic Procedure:
 
-      To execute the code, use the `run_code` function with the command name such as `python` and your code as the parameters. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths for this purpose.
+      To execute the code, use the `run_code` function with the `command` name such as `python` or `ruby`, your program `code` to be executed with the command, and the file `extension` with which the code is stored in a temporary local file. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
       If you need to check bash command to check the availability of a certain file or command, use the `run_bash_command` function. You are allowed to access the internet to download the required files or libraries.
 
@@ -163,7 +163,7 @@ class CodeInterpreter < MonadicApp
       "temperature": 0.0,
       "presence_penalty": 0.2,
       "top_p": 0.0,
-      "context_size": 20,
+      "context_size": 100,
       "initial_prompt": initial_prompt,
       "image_generation": true,
       "sourcecode": true,
@@ -187,15 +187,16 @@ class CodeInterpreter < MonadicApp
               "properties": {
                 "command": {
                   "type": "string",
-                  "description": "Code execution command (e.g., 'python')"
+                  "description": "Program that execute the code (e.g., 'python')"
                 },
                 "code": {
                   "type": "string",
-                  "description": "Code to be executed."
+                  "description": "Program code to be executed."
+
                 },
                 "extension": {
                   "type": "string",
-                  "description": "File extension of the code (e.g., 'py')"
+                  "description": "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
                 }
               },
               "required": ["command", "code", "extension"]

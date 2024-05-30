@@ -199,13 +199,31 @@ Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 ## Code Interpreter
 
-<img src="./assets/icons/code.png" width="40px"/>
+<img src="./assets/icons/code-interpreter.png" width="40px"/>
 
 AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。`Start Jupyter Notebook` のように依頼すると、現在のコード実行環境でJupyter Notebookが起動します。（Jupyter NotebookはPython実行環境の確認やライブラリのインストールなどに使用できます。）
 
 AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
 
 Recipe file: [code_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb)
+
+## Coding Assistant
+
+<img src="./assets/icons/coding-assistant.png" width="40px"/>
+
+これはコンピュータプログラムコードを書くためのアプリケーションです。プロフェッショナルなソフトウェアエンジニアとして設定が与えられたAIと対話することができます。ユーザーからのプロンプトを通じて様々なな質問に答え、コードを書き、適切な提案を行い、役立つアドバイスを提供します。
+
+Recipe file: [coding_assistant_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb)
+
+## Video Describer
+
+<img src="./assets/icons/video.png" width="40px"/>
+
+これは、動画コンテンツを分析し、その内容を説明するアプリケーションです。AIが動画コンテンツを分析し中で何が起こっているのかを詳細に説明します。アプリ内部で動画からフレームを抽出し、それらをbase64形式のPNG画像に変換します。さらに、ビデオから音声データを抽出し、MP3ファイルとして保存します。これらに基づいてAIが動画ファイルに含まれる視覚および音声情報の全体的な説明を行います。
+
+このアプリを使用するには、ユーザーは動画ファイルを`Shared Folder`に格納して、ファイル名を伝える必要があります。また、フレーム抽出のための秒間フレーム数（fps）を指定する必要があります。総フレーム数が50を超える場合はビデオから比例的に50フレームのみが抽出されます。
+
+レシピファイル: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/video_describer/video_describer_app.rb)
 
 ---
 

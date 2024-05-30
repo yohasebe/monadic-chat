@@ -195,6 +195,34 @@ It is also possible to read the contents of an image file (PNG, JPEG, etc.) and 
 
 Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/content_reader/content_reader_app.rb)
 
+## Code Interpreter
+
+<img src="./assets/icons/code-interpreter.png" width="40px"/>
+
+This is an application that allows AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. The text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat. If you request something like `Start Jupyter Notebook`, a Jupyter Notebook will be launched in the current code execution environment. (Jupyter Notebook can be used to check the Python execution environment and install libraries.)
+
+If you have files (such as Python code or CSV data) that you want the AI to read, save the files in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, please check the file name and ensure that it is available from the current code execution environment.
+
+Recipe file: [code_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb)
+
+## Coding Assistant
+
+<img src="./assets/icons/coding-assistant.png" width="40px"/>
+
+This is an application for writing computer programming code. possible. You can interact with a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to your prompts.
+
+Recipe file: [coding_assistant_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb)
+
+## Video Describer
+
+<img src="./assets/icons/video.png" width="40px"/>
+
+This is an application that analyzes video content and provides a description of the video. The AI analyzes the video content and provides a detailed explanation of what is happening. Internally, the app extracts frames from the video and converts them into PNG images in base64 format. Additionally, it extracts audio data from the video and saves it as an MP3 file. Based on these, the AI provides a comprehensive description of the visual and audio information contained in the video file.
+
+To use this application, the user needs to place the video file in the `Shared Folder` and provide the file name. Additionally, the user must specify the frames per second (fps) for frame extraction. If the total frames exceed 50, only 50 frames will be extracted proportionally from the video.
+
+Recipe file: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/video_describer/video_describer_app.rb)
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

@@ -335,6 +335,11 @@ function initializeApp() {
       }
     });
 
+    app.on('before-quit', function (event) {
+      openMainWindow();
+      app.quit();
+    });
+
     if (mainWindow) {
       mainWindow.show();
     }

@@ -115,6 +115,7 @@ function applyMathJax(element) {
     return;
   }
 
+
   // Get the DOM element from the jQuery object
   const domElement = element.get(0);
 
@@ -126,13 +127,63 @@ function applyMathJax(element) {
     .catch((err) => {
       console.error('Error re-rendering MathJax element:', err);
     });
+
+  element.find("div.card-text pre > code").each(function () {
+    const codeElement = $(this);
+    const copyButton = `<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`;
+    codeElement.after(copyButton);
+    codeElement.next().click(function () {
+      const text = codeElement.text();
+      navigator.clipboard.writeText(text).then(function () {
+        codeElement.next().find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+        setTimeout(function () {
+          codeElement.next().find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+        }, 1000);
+      });
+    });
+  });
 }
+
+// click on .copy-button will copy the message
+$(document).on("click", ".copy-button", function () {
+  const codeElement = $(this).prev().find("code");
+  const text = codeElement.text();
+  navigator.clipboard.writeText(text).then(function () {
+    $(this).find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+    setTimeout(function () {
+      $(this).find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+    }, 1000);
+  }, function () {
+    $(this).find("i").removeClass("fa-copy").addClass("fa-times").css("color", "#DC4C64");
+    setTimeout(function () {
+      $(this).find("i").removeClass("fa-times").addClass("fa-copy").css("color", "");
+    }, 1000);
+  });
+});
 
 const mermaid_config = {
   startOnLoad: true,
   securityLevel: 'strict',
   theme: 'default'
 };
+
+  
+$(document).on("click", ".copy-button", function () {
+  const codeElement = $(this).prev().find("code");
+  const text = codeElement.text();
+  navigator.clipboard.writeText(text).then(function () {
+    $(this).find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+    setTimeout(function () {
+      $(this).find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+    }, 1000);
+  }, function () {
+    $(this).find("i").removeClass("fa-copy").addClass("fa-times").css("color", "#DC4C64");
+    setTimeout(function () {
+      $(this).find("i").removeClass("fa-times").addClass("fa-copy").css("color", "");
+    }, 1000);
+  });
+});
+ 
 
 async function applyMermaid(element) {
   element.find(".mermaid-code").each(function () {

@@ -515,3 +515,15 @@ pre {
   white-space: normal;
 }
 
+.code-container {
+  position: relative;
+}
+
+.copy-code-button {
+  color: #888;
+  text-align:right;
+  margin: 0;
+  margin-right: 10px;
+  padding: 0;
+  cursor: pointer;
+}

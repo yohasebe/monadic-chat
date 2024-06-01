@@ -3,6 +3,8 @@
 export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
+export MONADIC_VERSION=0.5.5
+
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
 
@@ -59,11 +61,36 @@ start_docker() {
 build_docker_compose() {
   start_docker
   $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
+  echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 }
 
 # Function to start Docker Compose
 start_docker_compose() {
-  start_docker
+
+  # get yohasebe/monadic-chat image tag
+  MONADIC_CHAT_IMAGE_TAG=$($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $2}')
+  MONADIC_CHAT_IMAGE_TAG=$(echo $MONADIC_CHAT_IMAGE_TAG | tr -d '\r')
+  if [ -z "$MONADIC_CHAT_IMAGE_TAG" ]; then
+    MONADIC_CHAT_IMAGE_TAG="None"
+  fi
+  echo "[HTML]: <p>Monadic Chat version: $MONADIC_VERSION</p>"
+  echo "[HTML]: <p>Current Monadic Chat Image: $MONADIC_CHAT_IMAGE_TAG</p>"
+
+  # check if MONADIC_CHAT_IMAGE_TAG is the same as MONADIC_VERSION
+  if [ "$MONADIC_CHAT_IMAGE_TAG" != "$MONADIC_VERSION" ]; then
+    // if image tag is "None", build the image
+    if [ "$MONADIC_CHAT_IMAGE_TAG" == "None" ]; then
+      echo "[HTML]: <p>Monadic Chat image does not exist. Building Monadic Chat image . . .</p>"
+    else
+      echo "[HTML]: <p>Monadic Chat image is outdated. Building Monadic Chat image . . .</p>"
+    fi
+    $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
+    $DOCKER rmi -f $($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $3}')
+    build_docker_compose
+  else
+    echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
+    start_docker
+  fi
 
   # Check if the Docker image and container exist
   if $DOCKER images | grep -q "monadic-chat"; then

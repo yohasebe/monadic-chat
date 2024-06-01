@@ -1,6 +1,10 @@
 ### Change Log
 
-- [May, 2024] Monadic Chat 0.5.0 released with many new features
+- [June, 2024] Automatic image rebuild feature
+- [June, 2024] Source code block copy button added
+- [June, 2024] Video Describer app added
+- [May, 2024] Talk to Claude/Command R/Gemini apps added
+- [May, 2024] Ruby/Python/PGVector/Selenium containers structure introduced
 - [February, 2024] Mermaid diagram support
 - [February, 2024] File reading feature
 - [February, 2024] Stability improvement with several apps modified

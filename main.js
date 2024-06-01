@@ -335,9 +335,15 @@ function initializeApp() {
       }
     });
 
+    let isQuitting = false;
+
     app.on('before-quit', function (event) {
-      openMainWindow();
-      app.quit();
+      if (!isQuitting) {
+        event.preventDefault();
+        openMainWindow();
+        isQuitting = true;
+        app.quit();
+      }
     });
 
     if (mainWindow) {
@@ -380,7 +386,7 @@ function shutdownDocker() {
   });
 }
 
-function fetchWithRetry(url, options = {}, retries = 20, delay = 1000) {
+function fetchWithRetry(url, options = {}, retries = 25, delay = 1500) {
   const attemptFetch = (attempt) => {
     return fetch(url, options)
       .then(response => {
@@ -606,14 +612,14 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
-    openingText = `[HTML]: <p>Monadic Chat Docker image and container found.</p><hr /><p><b>IMPORTANT</b></p><p>If you have upgraded Monadic Chat from a previous version, click <b>Build</b> in the taskbar menu to rebuild the image.</p><p>Otherwise, press <b>Start</b> button to initialize the server.</p><hr />`;
+    openingText = `[HTML]: <p>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</p><hr /><p><p>Press <b>Start</b> button to initialize the server.</p><p>Note: If you have upgraded Monadic Chat from a previous version, it will take some time for the image rebuild to complete.</p><hr />`;
     portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText = `[HTML]: <p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b></p><p>If other applications is using port 4567, shut them down first. Otherwise, Press <b>Start</b> button to initialize the server.</p>`
+        openingText += `<p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b></p><p>If other applications is using port 4567, shut them down first.</p>`
         portInUse = true;
         currentStatus = 'Port in use';
       } 

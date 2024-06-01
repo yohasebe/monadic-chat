@@ -22,8 +22,8 @@ layout: default
 1. Docker Desktop for Macをインストールします（[詳細](#install-docker-macos)）。
 2. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.4-arm64.dmg) (0.5.4)
-- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.4.dmg) (0.5.4)
+- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.5-arm64.dmg) (0.5.5)
+- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.5.dmg) (0.5.5)
 
 ### Windows
 
@@ -31,7 +31,7 @@ layout: default
 2. Docker Desktop for Windowsをインストールします（[詳細](#install-docker-win)）。
 3. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.4.exe) (0.5.4)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.5.exe) (0.5.5)
 
 ## 依存ソフトウェアのインストール
 
@@ -96,8 +96,6 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 ## アップデート
 
 Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューバーのMonadic Chatアイコンをクリックして、`Check for Updates`を実行してください。もし新しいバージョンがある場合、ダウンロードリンクが表示されます。ダウンロードリンクをクリックして、新しいバージョンのインストーラーをダウンロードしてください。
-
-**重要**：最新版のインストーラーをダウンロードして、再度インストールした後、Monadic Chatのメニューバーアイコンをクリックして、`Build` を実行してください（単にインストーラーをダブルクリックして再インストールするだけでは、Dockerコンテナのアップデートが行われません）。
 
 ## アンインストール
 

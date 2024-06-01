@@ -22,8 +22,8 @@ layout: default
 1. Install Docker Desktop for Mac (see [below](#install-docker-macos)).
 2. Install Monadic Chat.
 
-- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.4-arm64.dmg) (0.5.4)
-- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.4.dmg) (0.5.4)
+- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.5-arm64.dmg) (0.5.5)
+- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.5.dmg) (0.5.5)
 
 ### Windows
 
@@ -31,7 +31,7 @@ layout: default
 2. Install Docker Desktop for Windows (see [below](#install-docker-win)).
 2. Install Monadic Chat.
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.4.exe) (0.5.4)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.5.exe) (0.5.5)
 
 ## How to Install Dependencies
 
@@ -98,7 +98,6 @@ Once everything has been set up, the Docker Desktop icon will appear in the task
 1. Click the Monadic Chat icon in the menu bar and select `Check for Updates`. If an update is available, click `Download` to download the latest version.
 2. Quit Monadic Chat.
 3. Run the installer for the latest version.
-4. **Important**: After reinstalling, click `Build` in the Monadic Chat menu bar icon to update the Docker containers. (Simply double-clicking the installer to reinstall will not update the Docker containers.)
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>

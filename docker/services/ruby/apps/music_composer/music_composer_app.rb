@@ -51,6 +51,7 @@ class MusicComposer < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": true,
+      "image": true,
       "abc": true
     }
   end

@@ -43,6 +43,7 @@ class DiscourseAnalysis < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
+      "image": true,
       "monadic": true
     }
   end

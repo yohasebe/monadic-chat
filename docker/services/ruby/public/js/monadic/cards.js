@@ -59,8 +59,9 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     const content = html.split(/<hr\s*\/?>/, 1)[0];
     const $this = $(this); // Store the reference to the clicked element
     let text = removeCode(content.trim());
-    // extract only the text content of the data in `text`
-    text = $(`<div>${text}</div>`).text();
+
+    // remove markdown symbols (e.g., **, *, __, _) from the text
+    text = removeMarkdown(text);
     text = removeEmojis(text);
     ttsSpeak(text, true, false, function (){} );
   });

@@ -352,7 +352,6 @@ class MonadicApp
     send_command(command: command, container: "ruby")
   end
 
-
   def analyze_image(message: "", image_path: "")
     messsage = message.gsub(/"/, '\"')
     command = <<~CMD

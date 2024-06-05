@@ -86,7 +86,7 @@ We welcome contributions that can help refine this software, such as code improv
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-- 🤖💬🤖 AI/AI Chat is available for:
+- 🤖💬🤖 AI/AI Chat is available:
 
    | AI Assistant     | AI User      |
    |:-----------------|:-------------| 

@@ -223,7 +223,15 @@ Recipe file: [coding_assistant_app.rb](https://github.com/yohasebe/monadic-chat/
 
 このアプリを使用するには、ユーザーは動画ファイルを`Shared Folder`に格納して、ファイル名を伝える必要があります。また、フレーム抽出のための秒間フレーム数（fps）を指定する必要があります。総フレーム数が50を超える場合はビデオから比例的に50フレームのみが抽出されます。
 
-レシピファイル: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/video_describer/video_describer_app.rb)
+Recipe file: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/video_describer/video_describer_app.rb)
+
+## Discourse Analysis
+
+<img src="./assets/icons/discourse-analysis.png" width="40px"/>
+
+ユーザーの発話を分析し要約するアプリケーションです。AIはユーザーのメッセージを要約し、主要なトピックを特定し、文の種類を分類し、メッセージの感情を判断します。このアプリはMonadic Chatのモナド機能を使用しています。過去の発話内容を蓄積し要約して、次の会話ターンに引き継ぎます。
+
+Recipe file: [discourse_analysis_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/discourse_analysis/discourse_analysis_app.rb)
 
 ---
 

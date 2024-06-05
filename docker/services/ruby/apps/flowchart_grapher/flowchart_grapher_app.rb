@@ -84,6 +84,7 @@ class FlowchartGrapher < MonadicApp
       "pdf": false,
       "mermaid": true,
       "file": true,
+      "image": true,
       "tools": [
         {
           "type": "function",

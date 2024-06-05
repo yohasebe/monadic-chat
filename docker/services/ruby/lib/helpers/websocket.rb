@@ -94,20 +94,20 @@ module WebSocketHelper
           res_hash = tts_api_request(text, voice, speed, response_format, model)
           @channel.push(res_hash.to_json)
         when "TTS_STREAM"
-          thread = Thread.new do
-            text = obj["text"]
-            voice = obj["voice"]
-            speed = obj["speed"]
-            response_format = obj["response_format"]
-            model = obj["model"]
-            tts_api_request(text, voice, speed, response_format, model) do |fragment|
-              @channel.push(fragment.to_json)
-            end
+          tts_thread&.join
+          text = obj["text"]
+          voice = obj["voice"]
+          speed = obj["speed"]
+          response_format = obj["response_format"]
+          model = obj["model"]
+          tts_api_request(text, voice, speed, response_format, model) do |fragment|
+            @channel.push(fragment.to_json)
           end
         when "CANCEL"
           thread&.kill
           thread = nil
           queue.clear
+          @channel.push({ "type" => "cancel" }.to_json)
         when "PDF_TITLES"
           ws.send({ "type" => "pdf_titles", "content" => list_pdf_titles }.to_json)
         when "DELETE_PDF"
@@ -180,12 +180,55 @@ module WebSocketHelper
           messages = session[:messages].filter { |m| m["type"] != "search" }
           @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
           @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+        when "AI_USER_QUERY"
+          thread&.join
+
+          aiu_buffer = []
+
+          app_name = obj["app_name"]
+          app_obj = APPS[app_name]
+          if app_obj.respond_to?(:api_request)
+            api_request = app_obj.method(:api_request)
+          else
+            api_request = method(:openai_api_request)
+          end
+
+          reversed_messages = session[:messages].map do |m|
+            m["role"] = m["role"] == "assistant" ? "user" : "assistant"
+            m
+          end
+
+          # copy obj["contents"]["params"] to parameters_modified
+          parameters_modified = obj["contents"]["params"].dup
+          parameters_modified.delete("tools")
+          parameters_modified["message"] = reversed_messages.pop["text"]
+
+          mini_session = {
+            :parameters => parameters_modified,
+            :messages => reversed_messages, 
+          }
+
+          mini_session[:parameters]["initial_prompt"] = mini_session[:parameters]["ai_user_initial_prompt"]
+
+          responses = api_request.call("user", mini_session) do |fragment|
+            if fragment["type"] == "error"
+              @channel.push({ "type" => "error", "content" => "E1:#{fragment.to_s}" }.to_json)
+            elsif fragment["type"] == "fragment"
+              text = fragment["content"]
+              @channel.push({ "type" => "ai_user", "content" => text }.to_json)
+              aiu_buffer << text unless text.empty? || text == "DONE"
+            end
+          end
+
+          ai_user_response = aiu_buffer.join
+          @channel.push({ "type" => "ai_user_finished",
+                          "content" => ai_user_response
+          }.to_json)
         when "HTML"
           thread&.join
           while !queue.empty?
             last_one = queue.shift
             begin
-              # pp last_one
               content = last_one["choices"][0]
 
               text = content["text"] || content["message"]["content"]

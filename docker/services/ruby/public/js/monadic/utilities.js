@@ -159,6 +159,12 @@ function removeEmojis(text){
   }
 }
 
+function removeMarkdown(text) {
+  let replaced = text.replace(/\*\*|__|\*|_/g, "");
+  replaced = replaced.replace(/`/g, "");
+  return replaced;
+}
+
 function setAlertClass(alertType = "danger") {
   if(alertType === "danger"){
     elemAlert.removeClass(function(_index, className) {
@@ -213,6 +219,15 @@ function convertString(str) {
 
 function loadParams(params, calledFor = "loadParams") {
   $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
+  if (params["ai_user_initial_prompt"]) {
+    $("#ai-user-initial-prompt-toggle").prop("checked", true).trigger("change");
+    $("#ai-user-initial-prompt").val(params["ai_user_initial_prompt"]).trigger("input");
+    $("#ai-user-toggle").prop("checked", true)
+  } else {
+    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+    $("#ai-user-toggle").prop("checked", false)
+  }
+
   $("#model").val(params["model"]);
   $("#temperature").val(params["temperature"] || "0.3");
   $("#temperature-value").text(params["temperature"] || "0.3");
@@ -273,6 +288,15 @@ function setParams() {
   const app_name = $("#apps").val();
   params = Object.assign({}, apps[app_name]);
   params["app_name"] = app_name;
+
+  if ($("#ai-user-toggle").is(":checked")) {
+    if ($("#ai-user-initial-prompt").val().trim() !== "") {
+      params["ai_user_initial_prompt"] = $("#ai-user-initial-prompt").val();
+    }
+  } else {
+    params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
+  }
+
   params["initial_prompt"] = $("#initial-prompt").val();
   params["model"] = $("#model").val();
   params["temperature"] = $("#temperature").val();
@@ -286,7 +310,6 @@ function setParams() {
   params["asr_lang"] = $("#asr-lang").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
-  params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
   // params["speech_rate"] = $("#speech-rate").val();
   // params["speech_lang"] = $("#speech-lang").val();
@@ -352,6 +375,11 @@ function resetEvent(event) {
 
     $("#model_and_file").show();
     $("#model_parameters").show();
+
+    $("#image-file").show();
+
+    $("#initial-prompt-toggle").prop("checked", false).trigger("change");
+    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     if (ws) {
       reconnect_websocket(ws);

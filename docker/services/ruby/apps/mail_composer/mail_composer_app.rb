@@ -27,6 +27,7 @@ class MailComposer < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": true,
+      "image": true,
       "pdf": false
     }
   end

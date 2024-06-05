@@ -1,6 +1,9 @@
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron')
+
 app.commandLine.appendSwitch('no-sandbox');
-const { exec, execSync, spawn} = require('child_process');
+app.name = 'Monadic Chat';
+
+const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
 const path = require('path')
 const os = require('os');
@@ -103,7 +106,6 @@ function uninstall() {
         runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled', false);
       } else {
         return false;
-        ;
       }
     }, 1000);
   })
@@ -153,7 +155,8 @@ function quitApp() {
     buttons: ['Cancel', 'Quit'],
     defaultId: 1,
     title: 'Confirm Quit',
-    message: 'Do you want to quit Monadic Chat?',
+    message: 'Quit Monadic Chat Console?',
+    detail: 'This app will automatically quit in 30 seconds if there is no response from the user',
     icon: path.join(iconDir, 'monadic-chat.png')
   };
 
@@ -162,22 +165,44 @@ function quitApp() {
     options.checkboxChecked = false;
   }
 
-  dialog.showMessageBox(null, options).then((result) => {
-    setTimeout(() => {
-      if (result.response === 1) {
-        runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped', true);
-        if (result.checkboxChecked) {
-          shutdownDocker();
-        }
-        isQuitting = true;
-        app.quit();
-      } else {
-        return false;
-        ;
-      }
-    }, 1000);
-  })
+  let userResponse = null;
+  let checkboxChecked = options.checkboxChecked;
 
+  // Create an AbortController
+  const controller = new AbortController();
+  const signal = controller.signal;
+
+  // Set a timeout to abort the dialog and quit the app after 5 seconds
+  setTimeout(() => {
+    controller.abort();
+    // Quit the app
+    isQuitting = true;
+    app.quit();
+  }, 20000);
+
+  // Add the signal to the options
+  options.signal = signal;
+
+  dialog.showMessageBox(mainWindow, options).then((result) => {
+    userResponse = result.response;
+    checkboxChecked = result.checkboxChecked;
+    if (userResponse === 1) { // 'Quit' button
+      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped', true);
+      if (checkboxChecked) {
+        shutdownDocker();
+      }
+      isQuitting = true;
+      app.quit();
+    } else {
+      return false;
+    }
+  }).catch((err) => {
+    if (err.name === 'AbortError') {
+      console.log('Dialog was closed automatically after 5 seconds');
+    } else {
+      console.error('An error occurred:', err);
+    }
+  });
 }
 
 let mainWindow = null;
@@ -286,7 +311,7 @@ const menuItems = [
     label: 'Exit',
     click: () => {
       openMainWindow();
-      quitApp();
+      quitApp(mainWindow);
     },
     enabled: true
   }
@@ -294,9 +319,11 @@ const menuItems = [
 
 function initializeApp() {
   app.whenReady().then(() => {
-    tray = new Tray(path.join(iconDir, 'Stopped.png'))
-    tray.setToolTip('Monadic Chat')
-    tray.setContextMenu(contextMenu)
+    app.name = 'Monadic Chat'; // Set the application name early
+
+    tray = new Tray(path.join(iconDir, 'Stopped.png'));
+    tray.setToolTip('Monadic Chat');
+    tray.setContextMenu(contextMenu);
 
     extendedContextMenu({});
 
@@ -324,7 +351,7 @@ function initializeApp() {
           openFolder();
           break;
         case 'exit':
-          quitApp();
+          quitApp(mainWindow);
           break;
       }
     });
@@ -349,7 +376,25 @@ function initializeApp() {
     if (mainWindow) {
       mainWindow.show();
     }
-  })
+
+    // Create the application menu
+    const menu = Menu.buildFromTemplate([
+      {
+        label: 'File',
+        submenu: [
+          {
+            label: 'Quit Monadic Chat',
+            accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+            click: () => {
+              quitApp(mainWindow);
+            }
+          }
+        ]
+      }
+    ]);
+
+    Menu.setApplicationMenu(menu);
+  });
 }
 
 function toUnixPath(p) {
@@ -603,10 +648,11 @@ function createMainWindow() {
     height: 420,
     minHeight: 260,
     webPreferences: {
-      nodeIntegration: false,
+      nodeIntegration: true,
       contentIsolation: false,
       preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
-    }
+    },
+    title: "Monadic Chat"
   });
 
   let openingText;
@@ -698,3 +744,5 @@ function openBrowser(url) {
     });
   }, interval);
 }
+
+

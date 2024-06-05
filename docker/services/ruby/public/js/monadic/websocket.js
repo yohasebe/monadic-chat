@@ -1,4 +1,4 @@
-//////////////////////////////
+/////////////////////////////
 // set up the websocket
 //////////////////////////////
 
@@ -46,6 +46,24 @@ function handleVisibilityChange() {
   }
 }
 
+// Set the copy code button for each code block
+function setCopyCodeButton(element) {
+  element.find("div.card-text pre > code").each(function () {
+    const codeElement = $(this);
+    const copyButton = `<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`;
+    codeElement.after(copyButton);
+    codeElement.next().click(function () {
+      const text = codeElement.text();
+      navigator.clipboard.writeText(text).then(function () {
+        codeElement.next().find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+        setTimeout(function () {
+          codeElement.next().find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+        }, 1000);
+      });
+    });
+  });
+}
+
 // Add event listener for visibility change
 document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -53,7 +71,6 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 // WebSocket event handlers
 //////////////////////////////
 
-// const msgBuffer = [];
 const apps = {}
 let messages = [];
 let originalParams = {};
@@ -127,21 +144,6 @@ function applyMathJax(element) {
     .catch((err) => {
       console.error('Error re-rendering MathJax element:', err);
     });
-
-  element.find("div.card-text pre > code").each(function () {
-    const codeElement = $(this);
-    const copyButton = `<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`;
-    codeElement.after(copyButton);
-    codeElement.next().click(function () {
-      const text = codeElement.text();
-      navigator.clipboard.writeText(text).then(function () {
-        codeElement.next().find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-        setTimeout(function () {
-          codeElement.next().find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
-        }, 1000);
-      });
-    });
-  });
 }
 
 // click on .copy-button will copy the message
@@ -446,7 +448,6 @@ function connect_websocket(callback) {
         // console.log("Received PONG");
         break;
       case "error":
-        // msgBuffer.length = 0;
         $("#send, #clear, #voice").prop("disabled", false);
         $("#chat").html("");
         $("#temp-card").hide();
@@ -537,7 +538,7 @@ function connect_websocket(callback) {
         break;
       case "parameters":
         loadedApp = data["content"]["app_name"];
-        setAlert("Please wait...", "secondary");
+        setAlert("Please wait . . .", "secondary");
         loadParams(data["content"], "loadParams");
         const currentApp = apps[$("#apps").val()] || apps[defaultApp];
         $("#base-app-title").text(currentApp["app_name"]);
@@ -546,10 +547,6 @@ function connect_websocket(callback) {
         $("#start").focus();
         break;
       case "whisper":
-        // infoHtml = formatInfo(data["content"]);
-        // if (data["content"] !== infoHtml) {
-        //   setAlert(infoHtml, "info");
-        // }
         $("#message").val($("#message").val() + " " + data["content"]);
         let logprob = "Last ASR p-value: " + data["logprob"];
         $("#asr-p-value").text(logprob);
@@ -650,6 +647,8 @@ function connect_websocket(callback) {
                 formatSourceCode(gptElement);
               }
 
+              setCopyCodeButton(gptElement);
+
               break;
             case "system":
               const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
@@ -675,14 +674,53 @@ function connect_websocket(callback) {
           $("#indicator").show();
         }
         break;
+      case "ai_user":
+        $("#message").val($("#message").val() + data["content"]);
+        autoResize($("#message"));
+        if (autoScroll && !isElementInViewport(mainPanel)) {
+          mainPanel.scrollIntoView(false);
+        }
+        break
+      case "ai_user_finished":
+        $("#message").attr("placeholder", "Type your message . . .");
+        $("#message").prop("disabled", false);
+        autoResize($("#message"));
+        $("#cancel_query").css("opacity", "0.0");
+        $("#send, #clear, #image-file, #voice").prop("disabled", false);
+
+        if (!isElementInViewport(mainPanel)){
+          mainPanel.scrollIntoView(false);
+        }
+
+        setInputFocus();
+        break;
       case "html":
         responseStarted = false;
         callingFunction = false;
         messages.push(data["content"]);
-        // msgBuffer.length = 0;
 
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+          
+          if(params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
+            $("#message").attr("placeholder", "Waiting for AI user input . . .");
+            $("#message").prop("disabled", true);
+            let simple_messages = messages.map(msg => {
+              return { "role": msg["role"], "text": msg["text"] }
+            });
+            let ai_user_query = {
+              message: "AI_USER_QUERY",
+              contents: {
+                params: params,
+                messages: simple_messages
+              }
+            };
+            $("#send, #clear, #image-file, #voice").prop("disabled", true);
+            ws.send(JSON.stringify(ai_user_query));
+          } else {
+            $("#cancel_query").css("opacity", "0.0");
+          }
+
         } else if (data["content"]["role"] === "user") {
           // let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
           let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
@@ -719,11 +757,12 @@ function connect_websocket(callback) {
           formatSourceCode(htmlContent);
         }
 
+        setCopyCodeButton(htmlContent);
+
         $("#chat").html("");
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
-        $("#cancel_query").css("opacity", "0.0");
 
         if (!isElementInViewport(mainPanel)){
           mainPanel.scrollIntoView(false);
@@ -751,6 +790,13 @@ function connect_websocket(callback) {
         $("#user-panel").hide();
         $("#cancel_query").css("opacity", "1");
         break;
+      case "cancel":
+        $("#message").val("");
+        $("#message").attr("placeholder", "Type your message...");
+        $("#message").prop("disabled", false);
+        $("#cancel_query").css("opacity", "0.0");
+        setInputFocus();
+        break;
       default:
         if(!responseStarted || callingFunction) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "info");
@@ -761,7 +807,7 @@ function connect_websocket(callback) {
         if (data["content"] !== undefined) {
           $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
         }
-        if (autoScroll && !isElementInViewport(chatBottom)){
+        if (autoScroll && !isElementInViewport(chatBottom)) {
           chatBottom.scrollIntoView(false);
         }
     }

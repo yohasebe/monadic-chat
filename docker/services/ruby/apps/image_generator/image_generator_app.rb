@@ -47,6 +47,7 @@ class ImageGeneration < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
+      "image": true,
       "image_generation": true,
       "tools": [{
         "type": "function",

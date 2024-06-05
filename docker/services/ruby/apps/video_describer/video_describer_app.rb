@@ -55,6 +55,7 @@ class VideoDescriber < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "pdf": false,
+      "image": true,
       "tools": [
         {
           "type": "function",

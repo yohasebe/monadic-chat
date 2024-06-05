@@ -188,6 +188,7 @@ class CodeWithClaude < MonadicApp
       "icon": icon,
       "initiate_from_assistant": false,
       "pdf": false,
+      "image": true,
       "toggle": true,
       "tools": [
         {
@@ -586,7 +587,8 @@ class CodeWithClaude < MonadicApp
     end
 
     # The context is added to the body
-    body["messages"] = context.compact.map do |msg|
+
+    messages = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
       if msg["image"] && role == "user"
         message["content"] << {
@@ -600,6 +602,18 @@ class CodeWithClaude < MonadicApp
       end
       message
     end
+
+    messages.unshift({
+      "role" => "user",
+      "content" => [
+        {
+          "type" => "text",
+          "text" => ""
+        }
+      ]
+    }) if messages.first["role"] != "user"
+
+    body["messages"] = messages
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

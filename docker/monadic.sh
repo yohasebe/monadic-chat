@@ -3,7 +3,7 @@
 export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.5.5
+export MONADIC_VERSION=0.5.6
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
@@ -85,7 +85,9 @@ start_docker_compose() {
       echo "[HTML]: <p>Monadic Chat image is outdated. Building Monadic Chat image . . .</p>"
     fi
     $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
-    $DOCKER rmi -f $($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $3}')
+
+    # remove images of all versions of monadic-chat
+    $DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $3}' | xargs -I {} $DOCKER rmi -f {}
     build_docker_compose
   else
     echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"

@@ -14,6 +14,17 @@ class Chat < MonadicApp
     text.strip
   end
 
+  def ai_user_initial_prompt
+    text = <<~TEXT
+      The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice upon your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
+
+Keep on pretending as if you were the "user" and as if the user where the "assistant" throughout the conversation.
+
+Do you best to make the flow of the conversation as natural as possible. Do not change subjects abruptly, and keep the conversation going by asking questions or making comments that are relevant to the preceding and current topics.
+    TEXT
+    text.strip
+  end
+
   def settings
     {
       "model": "gpt-4o",
@@ -28,6 +39,7 @@ class Chat < MonadicApp
       "icon": icon,
       "description": description,
       "initiate_from_assistant": false,
+      "image": true,
       "pdf": false
     }
   end

@@ -31,15 +31,15 @@ Restarts Monadic Chat.
 **Open Browser** <br />
 Opens the default browser to access `http://localhost:4567` for using Monadic Chat.
 
-** Shared Folder** <br />
+**Shared Folder** <br />
 Opens the folder shared between host computer and Docker containers. You can use this folder to import and export files.
 
 **Quit**
 Quits the Monadic Chat Console. If Monadic Chat is running, it will be stopped first, which may take some time.
 
-## GPT Settings Panel
+## API Token Panel
 
-<img src="./assets/images/gpt-settings.png" width="700px"/>
+<img src="./assets/images/config-panel.png" width="400px"/>
 
 **API Token** <br />
 Enter your OpenAI API key here. Once a valid API key is confirmed, a file named `.env` will be created in the root directory of Monadic Chat, and a variable named `OPENAI_API_KEY` will be defined inside it. The value of this variable will be used thereafter.
@@ -47,6 +47,16 @@ Enter your OpenAI API key here. Once a valid API key is confirmed, a file named 
 ```
 OPENAI_API_KEY=api_key
 ```
+
+**Status** <br />
+The startup status of Monadic Chat will be displayed.
+
+**OpenAI Models** <br />
+A list of OpenAI models available for use from Monadic Chat will be displayed. Model selection is done in the GPT Settings panel.
+
+## GPT Settings Panel
+
+<img src="./assets/images/gpt-settings.png" width="700px"/>
 
 **Base App** <br />
 Choose one of the pre-built apps provided in Monadic Chat. Each app has different default parameter values and comes with its own initial prompt. For more information about each Base App's features, refer to [Base Apps](#base-apps).
@@ -69,10 +79,16 @@ This is the maximum number of active utterances to keep in the ongoing chat. Onl
 
 These elements are sent as parameters to the API. For more details on each parameter, refer to the [Reference](https://platform.openai.com/docs/api-reference/chat) of the Chat API.
 
-**Initial Prompt**<br />
+**Initial Prompt for Assistant**<br />
 This is the text sent to the API as the initial prompt. You can specify the character settings for the conversation and the format of the response. Each Base App has a default text set according to its purpose, but you can freely change it.
 
-**Initiate from the assistant**<br />
+**Show Initial Prompt for AI User**<br />
+Displays the initial prompt given to the AI user when the AI user feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user themselves, but thereafter, the AI will "impersonate" the user and create messages on their behalf based on the content of the messages from the AI assistant. The user can edit or add to the messages created by the AI user in the text box.
+
+**Enable AI User**<br />
+Specifies whether to enable the AI user feature.
+
+**Start from assistant**<br />
 
 When this option is turned on, the assistant will make the first utterance when starting the conversation.
 

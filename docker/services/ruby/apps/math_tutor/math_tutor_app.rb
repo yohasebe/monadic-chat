@@ -29,6 +29,7 @@ class MathTutor < MonadicApp
       "icon": icon,
       "initiate_from_assistant": false,
       "pdf": false,
+      "image": true,
       "mathjax": true
     }
   end

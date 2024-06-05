@@ -39,6 +39,7 @@ class Claude < MonadicApp
       "auto_speech": false,
       "initiate_from_assistant": false,
       "toggle": true,
+      "image": true,
       "tools": [
         {
           "name": "fetch_web_content",
@@ -352,7 +353,8 @@ class Claude < MonadicApp
     end
 
     # The context is added to the body
-    body["messages"] = context.compact.map do |msg|
+
+    messages = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
       if msg["image"] && role == "user"
         message["content"] << {
@@ -366,6 +368,27 @@ class Claude < MonadicApp
       end
       message
     end
+
+    messages.unshift({
+      "role" => "user",
+      "content" => [
+        {
+          "type" => "text",
+          "text" => "OK"
+        }
+      ]
+    }) if messages.first["role"] != "user"
+
+    messages = messages.each_with_index.flat_map do |msg, i|
+      if i > 0 && msg["role"] == messages[i - 1]["role"]
+        the_other = msg["role"] == "user" ? "assistant" : "user"
+        [ { "role" => the_other, "content" => [ { "type" => "text", "text" => "OK" } ] }, msg]
+      else
+        msg
+      end
+    end
+
+    body["messages"] = messages
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

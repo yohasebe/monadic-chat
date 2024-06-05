@@ -31,6 +31,7 @@ class PDFNavigator < MonadicApp
       "icon": icon,
       "initiate_from_assistant": false,
       "pdf": true,
+      "image": true,
       "mathjax": true
     }
   end

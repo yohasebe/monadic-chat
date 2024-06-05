@@ -411,7 +411,7 @@ img.base64-image {
   color: #777;
 }
 
-#message, #initial-prompt {
+#message, #initial-prompt, #ai-user-initial-prompt {
   overflow: hidden;
 }
 

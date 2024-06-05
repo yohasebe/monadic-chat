@@ -174,6 +174,7 @@ class CodeInterpreter < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
+      "image": true,
       "pdf": false,
       "tools": [
         {

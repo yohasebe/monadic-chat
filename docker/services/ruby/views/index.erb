@@ -286,22 +286,22 @@
 
             <form class="row my-3" id="model_parameters">
               <div class="col-3">
-                <label for="temperature" class="div-labe my-2">Temperature<br />(<span id="temperature-value">0.3</span>)</label><br />
+                <label for="temperature" class="div-label my-2">Temperature (<span id="temperature-value">0.3</span>)</label><br />
                 <input type="range" class="div-range" min="0.0" max="1.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="top-p" class="div-label my-2">Top P<br />(<span id="top-p-value">0.0</span>)</label><br />
+                <label for="top-p" class="div-label my-2">Top P (<span id="top-p-value">0.0</span>)</label><br />
                 <input type="range" class="div-range" min="0.0" max="1.0" step="0.1" value="0.0" id="top-p" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="presence-penalty" class="div-label my-2">Presence<br />Penalty (<span id="presence-penalty-value">0.0</span>)</label><br />
+                <label for="presence-penalty" class="div-label my-2">Presence Penalty (<span id="presence-penalty-value">0.0</span>)</label><br />
                 <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="presence-penalty" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="frequency-penalty" class="div-label my-2">Frequency<br />Penalty (<span id="frequency-penalty-value">0.0</span>)</label><br />
+                <label for="frequency-penalty" class="div-label my-2">Frequency Penalty (<span id="frequency-penalty-value">0.0</span>)</label><br />
                 <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="frequency-penalty" style="max-width: 100%;">
               </div>
             </form>
@@ -309,10 +309,24 @@
             <div class="row my-3">
               <div id="config-initial-prompt" class="">
                 <div class="form-check form-switch me-3">
-                  <label class="form-check-label" for="initial-prompt-toggle">Show Initial Prompt</label>
+                  <label class="form-check-label" for="initial-prompt-toggle">Show Initial Prompt for Assistant</label>
                   <input class="form-check-input" type="checkbox" id="initial-prompt-toggle">
                 </div>
                 <textarea class="form-control" style="resize: vertical;" id="initial-prompt"></textarea>
+              </div>
+            </div>
+
+            <div class="row my-3">
+              <div id="config-ai-user-initial-prompt" class="">
+                <div style="display:inline-block;" class="form-check form-switch me-3">
+                  <label class="form-check-label" for="ai-user-initial-prompt-toggle">Show Initial Prompt for AI User</label>
+                  <input class="form-check-input" type="checkbox" id="ai-user-initial-prompt-toggle">&nbsp;
+                </div>
+                <div style="display:inline-block;" class="form-check form-switch me-3">
+                  <label class="form-check-label" for="ai-user-toggle">Enable AI User</label>
+                  <input class="form-check-input" type="checkbox" value="" id="ai-user-toggle">
+                </div>
+                <textarea class="form-control" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
               </div>
             </div>
 
@@ -331,7 +345,7 @@
                     </span>
                   </legend>
                   <div class="form-check form-switch float-start me-3">
-                    <label class="form-check-label" for="initiate-from-assistant">Initiate from the assistant</label>
+                    <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
                     <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                   </div>
                   <div class="form-check form-switch float-start me-3" id="auto-speech-form">
@@ -340,16 +354,19 @@
                   </div>
                   <div class="form-check form-switch float-start me-3">
                     <input class="form-check-input" type="checkbox" id="check-easy-submit">
-                    <label class="form-check-label" for="check-easy-submit">Easy submit (with Enter key or Stop button)</label>
+                    <label class="form-check-label" for="check-easy-submit">Easy submit <small>(with Enter key or Stop button)</small></label>
                   </div>
                 </fieldset>
+                  <div class="textbox-caption mt-2">
+                    <code>Start from assistant</code> is respected only when <code>Initial Prompt for AI User</code> is toggled off
+                  </div>
               </div>
             </div>
 
             <div class="row my-3">
               <div id="config-initial-prompt" class="">
                 <div class="form-check form-switch">
-                  <label class="form-check-label" for="auto-scroll-toggle">Auto Scroll</label>
+                  <label class="form-check-label" for="auto-scroll-toggle">Auto scroll while streaming</label>
                   <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
                 </div>
               </div>
@@ -458,7 +475,7 @@
           <span class="like-h5"><i class="fas fa-gauge"></i> Status</span>
           <button id="alert-close" type="button" class="btn-sm btn-close" style="box-shadow:none;"></button>
         </div>
-        <div class="pt-2">Please wait...</div>
+        <div class="pt-2">Please wait . . .</div>
       </div>
     </div>
     -->

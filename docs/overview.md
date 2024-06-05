@@ -33,6 +33,7 @@ We welcome contributions that can help refine this software, such as code improv
 - 🤖 Chat functionality powered by **GPT-4** via OpenAI's Chat API
 - 👩‍💻 Installable as a GUI application on Mac and Windows using **Electron**
 - 🌐 Usable as a **web application** in browsers
+- 👩💬 🤖💬 Both **human/AI chat** and **AI/AI chat** are supported
 
 ### AI + Linux Environment
 

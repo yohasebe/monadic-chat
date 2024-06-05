@@ -82,11 +82,12 @@ We welcome contributions that can help refine this software, such as code improv
 
 ### Support for Multiple LLM APIs
 
-- 👥 In addition to OpenAI GPT-4 (default), basic functionality (chat + tool/function call) is also available for:
+- 👥 **Multiple LLM APIs** are supported:
+  - OpenAI GPT-4
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-- 🤖💬🤖 AI/AI Chat is available:
+- 🤖💬🤖 **AI/AI Chat** is available:
 
    | AI Assistant     | AI User      |
    |:-----------------|:-------------| 

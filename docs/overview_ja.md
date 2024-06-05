@@ -79,11 +79,12 @@ layout: default
 
 ### 複数のLLM APIに対応
 
-- 👥 OpenAI GPT-4（標準）の他に、基本的な機能（chat + tool/function call）については下記のLLMも利用可能
+- 👥 下記のLLMのAPIに対応
+  - OpenAI GPT-4
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-- 🤖💬🤖 AI/AI Chat が以下の組み合わせで利用可能
+- 🤖💬🤖 AI/AI Chatは以下の組み合わせで利用可能
 
    | AI Assistant     | AI User      |
    |:-----------------|:-------------| 

@@ -27,6 +27,7 @@ class CodingAssistant < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
+      "image": true,
       "pdf": false,
       "mathjax": true
     }

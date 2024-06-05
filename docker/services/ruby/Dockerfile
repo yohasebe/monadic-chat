@@ -10,19 +10,15 @@ RUN apt update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /monadic
+ENV WORKSPACE /monadic
+WORKDIR $WORKSPACE
 
-COPY Gemfile monadic.gemspec ./
-COPY config.ru ./
+COPY Gemfile monadic.gemspec $WORKSPACE/
+COPY config.ru $WORKSPACE/
 
 ENV BUNDLER_WITHOUT development test
 RUN bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
-
-COPY apps/ ./apps/
-COPY lib/ ./lib/
-COPY public/ ./public/
-COPY views/ ./views/
 
 # Stage 2: Runtime environment
 FROM ruby:3.3.1-slim-bookworm
@@ -52,8 +48,13 @@ ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE
 
 COPY --from=build /usr/local/bundle /usr/local/bundle
-COPY --from=build /monadic /monadic
+COPY --from=build $WORKSPACE $WORKSPACE
+
+COPY apps/ $WORKSPACE/apps/
+COPY lib/ $WORKSPACE/lib/
+COPY public/ $WORKSPACE/public/
+COPY views/ $WORKSPACE/views/
 
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*
-ENV PATH="/monadic/scripts:${PATH}"
+ENV PATH="$WORKSPACE/scripts:${PATH}"

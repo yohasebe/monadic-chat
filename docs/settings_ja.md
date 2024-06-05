@@ -37,11 +37,13 @@ Monadic Chatを使用するためにデフォルト・ブラウザーを開い�
 **Quit**
 Monadic Chat Consoleを終了します。Monadic Chatが起動している場合は、Monadic Chatを先に停止するため、少し時間がかかります。
 
-## Configuration Panel
+## API Token Panel
+
 <img src="./assets/images/config-panel.png" width="400px"/>
 
 **API Token** <br />
 ここにはOpenAIのAPI keyを入れます。有効なAPI keyが確認されると、Monadic Chatのルート・ディレクトリに`.env`というファイルが作成され、その中に`OPENAI_API_KEY`という変数が定義され、その後はこの変数の値が用いられます。
+
 
 ```
 OPENAI_API_KEY=api_key
@@ -53,8 +55,13 @@ Monadic Chatの起動状態が表示されます。
 **OpenAI Models** <br />
 現在Monadic Chartから利用可能なOpenAIのモデルの一覧が表示されます。モデルの選択はGPT Settingsパネルで行います。
 
-## GPT Settings
-<img src="./assets/images/gpt-settings.png" width="600px"/>
+```
+OPENAI_API_KEY=api_key
+```
+
+## GPT Settings Panel
+
+<img src="./assets/images/gpt-settings.png" width="700px"/>
 
 **Base App** <br />
 Monadic Chatであらかじめ用意された基本アプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各アプリの特徴については [Base Apps](#base-apps)を参照してください。
@@ -82,10 +89,16 @@ Chat APIにパラメターとして送られる「トークンの最大値」を
 **Show Initial Prompt**<br />
 初期プロンプトとしてAPIに送られるテキスト（システムプロンプトと呼ばれることもあります）を表示または編集するにはオンにします。初期プロンプトによって、会話のキャラクター設定や、レスポンスの形式などを指定することができます。各アプリ の目的に応じたデフォルトのテキストが設定されていますが、自由に変更することが可能です。
 
-**Chat Interaction Controls**<br />
-Monadic Chatを音声入力による会話に適した形に設定するためのオプションです。音声入力による会話を行う場合には、以下のオプション（`Initiate from the assistant`, `Auto speech`, `Easy submit`）をすべてオンにするとよいでしょう。`check all` または `uncheck all` をクリックすることで、すべてのオプションを一括でオンまたはオフにすることができます。
+**Show Initial Prompt for AI User**<br />
+AIユーザー機能を有効にしたときAIユーザーに与えられる初期プロンプトを表示します。AIユーザーが有効なとき、最初のメッセージは（AIでない）ユーザー自身が作成する必要がありますが、それ以降はAIアシスタントからのメッセージの内容に応じて、AIが「ユーザーになりきって」メッセージを代わりに作成してくれます。テキストボックスに入力されたAIユーザーによるメッセージをユーザー自身が編集したり、追記したりすることができます。
 
-**Initiate from the assistant**<br />
+**Enable AI User**<br />
+AIユーザー機能を有効にするかどうかを指定します。
+
+**Chat Interaction Controls**<br />
+Monadic Chatを音声入力による会話に適した形に設定するためのオプションです。音声入力による会話を行う場合には、以下のオプション（`Start from assistant`, `Auto speech`, `Easy submit`）をすべてオンにするとよいでしょう。`check all` または `uncheck all` をクリックすることで、すべてのオプションを一括でオンまたはオフにすることができます。
+
+**Start from assistant**<br />
 
 オンにすると、会話を始める時にアシスタント側が最初の発話を行います。
 

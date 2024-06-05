@@ -1,4 +1,10 @@
 $(function () {
+  const aiUserInitialPrompt = `The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice upon your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
+
+Keep on pretending as if you were the "user" and as if the user where the "assistant" throughout the conversation.
+
+Do you best to make the flow of the conversation as natural as possible. Do not change subjects abruptly, and keep the conversation going by asking questions or making comments that are relevant to the preceding and current topics.`;
+
   elemAlert.draggable({ cursor: "move" });
 
   const backToTop = $("#back_to_top");
@@ -61,6 +67,7 @@ $(function () {
     lastApp = this.value;
     Object.assign(params, apps[$(this).val()]);
     loadParams(params, "changeApp");
+
     if (apps[$(this).val()]["pdf"]){
       $("#file-div").show();
       $("#pdf-panel").show();
@@ -71,6 +78,12 @@ $(function () {
     } else {
       $("#file-div").hide();
       $("#pdf-panel").hide();
+    }
+
+    if (apps[$(this).val()]["image"]){
+      $("#image-file").show();
+    } else {
+      $("#image-file").hide();
     }
 
     if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
@@ -92,6 +105,9 @@ $(function () {
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
     $("#base-app-icon").html(apps[$(this).val()]["icon"]);
     $("#base-app-desc").html(apps[$(this).val()]["description"]);
+
+    $("#initial-prompt-toggle").prop("checked", false).trigger("change");
+    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     $("#start").focus();
   })
@@ -175,7 +191,7 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      if($("#initiate-from-assistant").is(":checked")) {
+      if(!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
         reconnect_websocket(ws, function (ws) {
@@ -350,32 +366,6 @@ $(function () {
         }).always(function() {
           console.log('complete');
         });
-      } else {
-        // if it is not pdf, it is a plain text file 
-        // read the contents and store it in a variable
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          $("#fileModal button").prop("disabled", true);
-          $("#file-spinner").show();
-          const contents = e.target.result;
-          fileTitle = $("#file-title").val();
-          // if fileTitle is empty, use the file name
-          if (fileTitle === "") {
-            fileTitle = file.name;
-          }
-          fileContents = e.target.result;
-          fileContents = "\n\nTARGET DOCUMENT: " + fileTitle + "\n\n```\n" + fileContents + "\n```";
-          $("#initial-prompt").val($("#initial-prompt").val() + fileContents);
-          autoResize($("#initial-prompt"));
-        }
-        // once the file is read, send the contents to the server
-        reader.readAsText(file);
-        reader.onloadend = function() {
-          $("#fileModal button").prop("disabled", false);
-          $("#file-spinner").hide();
-          $("#fileModal").modal("hide");
-          setAlert(`File contents have been successfully appended to the initial prompt.<br /><b>${fileTitle}</b>`, "success");
-        }
       }
     } else {
       alert("Please select a PDF file to upload");
@@ -454,9 +444,27 @@ $(function () {
     elemAlert.hide();
   })
 
-  $("#message, #initial-prompt").on("input", function() {
+  $("#message, #initial-prompt, #ai-user-initial-prompt").on("input", function() {
+    console.log("input event");
     if (message.dataset.ime !== "true") {
       autoResize($(this));
+    }
+  });
+
+  $("#initial-prompt-toggle").on("change", function() {
+    if (this.checked) {
+      $("#initial-prompt").css("display", "");
+      autoResize($("#initial-prompt"));
+    } else {
+      $("#initial-prompt").css("display", "none");
+    }
+  });
+
+  $("#ai-user-initial-prompt-toggle").on("change", function() {
+    if (this.checked) {
+      $("#ai-user-initial-prompt").css("display", "");
+    } else {
+      $("#ai-user-initial-prompt").css("display", "none");
     }
   });
 
@@ -521,16 +529,13 @@ $(function () {
   $(document).click(adjustScrollButtons);
 
   $(document).ready(function() {
-    document.getElementById("initial-prompt-toggle").addEventListener("change", function() {
-      if (this.checked) {
-        $("#initial-prompt").css("display", "");
-        autoResize($("#initial-prompt"));
-      } else {
-        $("#initial-prompt").css("display", "none");
-      }
-    });
+    $("#ai-user-initial-prompt").val(aiUserInitialPrompt);
+    autoResize($("#ai-user-initial-prompt"));
     $("#initial-prompt").css("display", "none");
     $("#initial-prompt-toggle").prop("checked", false);
+    $("#ai-user-initial-prompt").css("display", "none");
+    $("#ai-user-initial-prompt-toggle").prop("checked", false);
+    $("#ai-user-toggle").prop("checked", false);
     adjustScrollButtons();
   });
 });

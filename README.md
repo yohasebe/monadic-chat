@@ -97,15 +97,19 @@
 
 ### Support for Multiple LLM APIs
 
-- 👥 In addition to OpenAI GPT-4 (default), basic functionality (chat + tool/function call) is also available for:
+- 👥 **Multiple LLM APIs** are supported:
+  - OpenAI GPT-4
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-- 🤖💬🤖 AI/AI Chat is available for:
-  - OpenAI GPT-4 (assistant) v OpenAI GPT-4 (user)
-  - Google Gemini (assistant) v OpenAI GPT-4 (user) 
-  - Anthropic Claude (assistant) v OpenAI GPT-4 (user) 
-  - Cohere Command R (assistant) v OpenAI GPT-4 (user) 
+- 🤖💬🤖 **AI/AI Chat** is available:
+
+   | AI Assistant     | AI User      |
+   |:-----------------|:-------------| 
+   | OpenAI GPT-4     | OpenAI GPT-4 |
+   | Google Gemini    | OpenAI GPT-4 |
+   | Anthropic Claude | OpenAI GPT-4 |
+   | Cohere Command R | OpenAI GPT-4 |
 
 ### Managing Conversations as Monads
 

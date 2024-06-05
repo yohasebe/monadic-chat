@@ -101,6 +101,11 @@
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
+- 🤖💬🤖 AI/AI Chat is available for:
+  - OpenAI GPT-4 (assistant) v OpenAI GPT-4 (user)
+  - Google Gemini (assistant) v OpenAI GPT-4 (user) 
+  - Anthropic Claude (assistant) v OpenAI GPT-4 (user) 
+  - Cohere Command R (assistant) v OpenAI GPT-4 (user) 
 
 ### Managing Conversations as Monads
 

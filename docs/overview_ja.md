@@ -84,10 +84,13 @@ layout: default
   - Anthropic Claude
   - Cohere Command R
 - 🤖💬🤖 AI/AI Chat が以下の組み合わせで利用可能
-  - OpenAI GPT-4 (assistant) v OpenAI GPT-4 (user)
-  - Google Gemini (assistant) v OpenAI GPT-4 (user) 
-  - Anthropic Claude (assistant) v OpenAI GPT-4 (user) 
-  - Cohere Command R (assistant) v OpenAI GPT-4 (user) 
+
+   | AI Assistant     | AI User      |
+   |:-----------------|:-------------| 
+   | OpenAI GPT-4     | OpenAI GPT-4 |
+   | Google Gemini    | OpenAI GPT-4 |
+   | Anthropic Claude | OpenAI GPT-4 |
+   | Cohere Command R | OpenAI GPT-4 |
 
 ### モナドとしての会話の管理
 

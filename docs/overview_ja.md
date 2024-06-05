@@ -31,6 +31,7 @@ layout: default
 - 🤖 OpenAIのChat API（**GPT-4**）を使用したチャット機能
 - 👩‍💻 **Electron**を用いたGUIアプリとしてMacおよびWindowsにインストール可能
 - 🌐 **Webアプリ**としてブラウザ上で利用可能
+- 👩💬 🤖💬 **human/AI chat**と**AI/AI chat**の両方をサポート
 
 ### AI + Linux環境
 

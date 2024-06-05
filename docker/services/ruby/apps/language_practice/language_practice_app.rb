@@ -31,6 +31,7 @@ class LanguagePractice < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "speech_rate": 1.0,
+      "image": true,
       "pdf": false
     }
   end

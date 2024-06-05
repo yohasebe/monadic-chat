@@ -45,6 +45,7 @@ Use the following HTML format in your response:
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
+      "image": true,
       "tools": [
         { "type": "function",
           "function": {

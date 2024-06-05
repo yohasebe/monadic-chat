@@ -71,6 +71,7 @@ class NovelWriter < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "pdf": false,
+      "image": true,
       "monadic": true,
       "tools": [
         {

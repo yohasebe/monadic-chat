@@ -103,6 +103,10 @@ Monadic Chatのより新しいバージョンがあるかどうかを確認す�
 2. Monadic Chatを終了します。
 3. **macOS**の場合、Finderで`Applications`フォルダーを開き、Monadic Chatをゴミ箱にドラッグします。**Windows**の場合、`プログラムの追加と削除`からMonadic Chatをアンインストールします。
 
+## トラブルシューティング
+
+アップデート時またはアンインストール時に問題が生じた場合は、以下のDockerコンテナとイメージを手動で削除して、再度Monadic Chatをインストールしてください。
+
 **コンテナ**
 
 - `monadic-chat-container`

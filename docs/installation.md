@@ -108,6 +108,10 @@ Once everything has been set up, the Docker Desktop icon will appear in the task
 2. Quit Monadic Chat.
 3. For **macOS**, open the `Applications` folder in Finder and drag Monadic Chat to the trash. For **Windows**, uninstall Monadic Chat from `Add or Remove Programs`.
 
+## Trouble Shooting
+
+In case of any trouble, updating or uninstalling Monadic Chat, remove the following Docker containers and images manually and try again.
+
 **Containers**
 
 - `monadic-chat-container`

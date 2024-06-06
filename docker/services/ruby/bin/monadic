@@ -38,7 +38,7 @@ def start_server(opts)
 
   # run the start script
   system(mac_docker_start)
-  system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service")
+  system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service --build-arg HOST_OS='$(uname -s)'") 
 
   # wait until docker daemon is running
 

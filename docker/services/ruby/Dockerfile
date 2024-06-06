@@ -23,6 +23,9 @@ RUN bundle install -j4 && \
 # Stage 2: Runtime environment
 FROM ruby:3.3.1-slim-bookworm
 
+ARG HOST_OS
+ENV HOST_OS=$HOST_OS
+
 RUN apt update && \
     apt install -y --no-install-recommends \
     ca-certificates curl gnupg lsb-release \

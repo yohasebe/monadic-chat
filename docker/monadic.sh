@@ -66,7 +66,7 @@ build_docker_compose() {
 
 # Function to start Docker Compose
 start_docker_compose() {
-
+  start_docker
   # get yohasebe/monadic-chat image tag
   MONADIC_CHAT_IMAGE_TAG=$($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $2}')
   MONADIC_CHAT_IMAGE_TAG=$(echo $MONADIC_CHAT_IMAGE_TAG | tr -d '\r')
@@ -91,7 +91,6 @@ start_docker_compose() {
     build_docker_compose
   else
     echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
-    start_docker
   fi
 
   # Check if the Docker image and container exist
@@ -278,4 +277,3 @@ case "$1" in
 esac
 
 exit 0
-

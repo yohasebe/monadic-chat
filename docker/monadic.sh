@@ -80,7 +80,7 @@ start_docker_compose() {
 
   # check if MONADIC_CHAT_IMAGE_TAG is the same as MONADIC_VERSION
   if [ "$MONADIC_CHAT_IMAGE_TAG" != "$MONADIC_VERSION" ]; then
-    // if image tag is "None", build the image
+    # if image tag is "None", build the image
     if [ "$MONADIC_CHAT_IMAGE_TAG" == "None" ]; then
       echo "[HTML]: <p>Monadic Chat image does not exist. Building Monadic Chat image . . .</p>"
     else
@@ -129,7 +129,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml"
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
   # remove unused docker volumes created by docker-compose
   $DOCKER volume prune -f
@@ -220,11 +220,22 @@ remove_volume() {
   fi
 }
 
+# Function to remove dangling images with yohasebe prefix
+remove_dangling_images() {
+  dangling_images=$($DOCKER images -f "dangling=true" -q)
+  for image in $dangling_images; do
+    if $DOCKER inspect --format='{{.RepoTags}}' $image | grep -q "yohasebe/"; then
+      $DOCKER rmi -f $image >/dev/null
+    fi
+  done
+}
+
 # Parse the user command
 case "$1" in
   build)
     start_docker
     remove_containers
+    remove_dangling_images  # 追加
     build_docker_compose
     # check if the above command succeeds
     if $DOCKER images | grep -q "monadic-chat"; then
@@ -270,7 +281,8 @@ case "$1" in
   remove)
     start_docker
     remove_containers
-    echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and unstall the app safely.</p>"
+    remove_dangling_images  # 追加
+    echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
     ;;
   *)
     echo "Usage: $0 {build|start|stop|restart|update|remove}}" >&2  # Redirect usage message to stderr

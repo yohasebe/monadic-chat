@@ -201,9 +201,11 @@ remove_containers() {
 
 # Function to remove an image
 remove_image() {
-  if $DOCKER images | grep -q "$1"; then
-    $DOCKER rmi -f "$1" >/dev/null
-  fi
+  images=$($DOCKER images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$1")
+  for image in $images; do
+    image_id=$(echo $image | awk '{print $1}')
+    $DOCKER rmi -f $image_id >/dev/null
+  done
 }
 
 # Function to remove a container
@@ -222,10 +224,12 @@ remove_volume() {
 
 # Function to remove dangling images with yohasebe prefix
 remove_dangling_images() {
-  dangling_images=$($DOCKER images -f "dangling=true" -q)
+  dangling_images=$($DOCKER images -f "dangling=true" --format "{{.ID}} {{.Repository}}")
   for image in $dangling_images; do
-    if $DOCKER inspect --format='{{.RepoTags}}' $image | grep -q "yohasebe/"; then
-      $DOCKER rmi -f $image >/dev/null
+    image_id=$(echo $image | awk '{print $1}')
+    image_repo=$(echo $image | awk '{print $2}')
+    if [[ $image_repo == yohasebe/* ]]; then
+      $DOCKER rmi -f $image_id >/dev/null
     fi
   done
 }
@@ -235,7 +239,7 @@ case "$1" in
   build)
     start_docker
     remove_containers
-    remove_dangling_images  # 追加
+    remove_dangling_images
     build_docker_compose
     # check if the above command succeeds
     if $DOCKER images | grep -q "monadic-chat"; then
@@ -281,7 +285,7 @@ case "$1" in
   remove)
     start_docker
     remove_containers
-    remove_dangling_images  # 追加
+    remove_dangling_images
     echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
     ;;
   *)

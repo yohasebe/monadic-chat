@@ -318,13 +318,6 @@ Do you best to make the flow of the conversation as natural as possible. Do not 
     $("#loadModal").modal("show");
   });
 
-  $("#shared_folder").on("click", function (event) {
-    event.preventDefault();
-    // open `~/monadic/data` folder using the default file manager
-    // macOS: Finder, Windows: File Explorer, Linux: Nautilus
-    ws.send(JSON.stringify({message: "OPEN_SHARED_FOLDER"}));
-  });
-
   $("#file").on("click", function (event) {
     event.preventDefault();
     $("#file-title").val("");

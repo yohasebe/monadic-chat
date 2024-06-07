@@ -5,6 +5,8 @@ export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 
 export MONADIC_VERSION=0.5.7
 
+export HOST_OS=$(uname -s)
+
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
 
@@ -60,7 +62,7 @@ start_docker() {
 # Function to build Docker Compose
 build_docker_compose() {
   start_docker
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache --build-arg HOST_OS='$(uname -s)'
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
   echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 }
 

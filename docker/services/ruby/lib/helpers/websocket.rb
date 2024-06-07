@@ -224,17 +224,6 @@ module WebSocketHelper
           @channel.push({ "type" => "ai_user_finished",
                           "content" => ai_user_response
           }.to_json)
-        when "OPEN_SHARED_FOLDER"
-          host_os = ENV['HOST_OS']
-          host_os ||= RbConfig::CONFIG['host_os']
-          case host_os
-          when /linux/
-            system("xdg-open ~/monadic/data")
-          when /darwin/
-            system("open ~/monadic/data")
-          when /mswin|mingw|cygwin/
-            system("start %USERPROFILE%\\monadic\\data")
-          end
         when "HTML"
           thread&.join
           while !queue.empty?

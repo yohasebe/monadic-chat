@@ -19,6 +19,7 @@ if `uname -s`.chomp.include? "Darwin"
 end
 ENV['SELENIUM_IMAGE'] = selenium_image
 ENV['MONADIC_VERSION'] = Monadic::VERSION.to_s
+ENV['HOST_OS'] = `uname -s`.chomp
 
 # Parse command line options
 opts = Optimist.options do
@@ -38,7 +39,7 @@ def start_server(opts)
 
   # run the start script
   system(mac_docker_start)
-  system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service --build-arg HOST_OS='$(uname -s)'") 
+  system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service") 
 
   # wait until docker daemon is running
 

@@ -5,7 +5,12 @@ class MonadicApp
   TOKENIZER = FlaskAppClient.new
 
   # access the flask app client so that it gets ready before the first request
-  TOKENIZER.count_tokens("Hello, World!")
+  tokenizer_test = TOKENIZER.count_tokens("Hello, World!")
+  if tokenizer_test == 4
+    puts "Flask app client is ready."
+  else
+    puts "Flask app client is not ready."
+  end
 
   attr_accessor :api_key
   attr_accessor :context

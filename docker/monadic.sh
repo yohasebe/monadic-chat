@@ -61,14 +61,12 @@ start_docker() {
 
 # Function to build Docker Compose
 build_docker_compose() {
-  start_docker
   $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
   echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 }
 
 # Function to start Docker Compose
 start_docker_compose() {
-  start_docker
   # get yohasebe/monadic-chat image tag
   MONADIC_CHAT_IMAGE_TAG=$($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $2}')
   MONADIC_CHAT_IMAGE_TAG=$(echo $MONADIC_CHAT_IMAGE_TAG | tr -d '\r')
@@ -80,7 +78,7 @@ start_docker_compose() {
 
   # check if MONADIC_CHAT_IMAGE_TAG is the same as MONADIC_VERSION
   if [ "$MONADIC_CHAT_IMAGE_TAG" != "$MONADIC_VERSION" ]; then
-    // if image tag is "None", build the image
+    # if image tag is "None", build the image
     if [ "$MONADIC_CHAT_IMAGE_TAG" == "None" ]; then
       echo "[HTML]: <p>Monadic Chat image does not exist. Building Monadic Chat image . . .</p>"
     else
@@ -88,8 +86,6 @@ start_docker_compose() {
     fi
     $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
-    # remove images of all versions of monadic-chat
-    $DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $3}' | xargs -I {} $DOCKER rmi -f {}
     build_docker_compose
   else
     echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
@@ -129,10 +125,10 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml"
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
-  # remove unused docker volumes created by docker-compose
-  $DOCKER volume prune -f
+  # Remove specific volumes used by the monadic-chat project
+  $DOCKER volume rm monadic-chat-pgvector-data
 }
 
 # Define a function to stop Docker Compose
@@ -180,7 +176,7 @@ remove_containers() {
   # Stop the Docker Compose services
   $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
 
-  # Remove the Docker images and containers
+  # Remove the Docker images and containers of older versions
   remove_image yohasebe/monadic-chat
   remove_image yohasebe/python
   remove_image yohasebe/pgvector
@@ -220,21 +216,43 @@ remove_volume() {
   fi
 }
 
+# Function to remove project-specific dangling images
+remove_project_dangling_images() {
+  local project_tag="monadic-chat"
+  $DOCKER images -f "dangling=true" --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$project_tag" | awk '{print $1}' | xargs -r $DOCKER rmi -f
+}
+
+# Function to remove older images
+remove_older_images() {
+  local image_name="$1"
+  local latest_image_id=$($DOCKER images --format "{{.ID}}" "$image_name:$MONADIC_VERSION")
+  $DOCKER images --format "{{.ID}} {{.Repository}}:{{.Tag}}" "$image_name" | grep -v "$latest_image_id" | awk '{print $1}' | xargs -r $DOCKER rmi -f
+}
+
 # Parse the user command
 case "$1" in
   build)
+    ensure_data_dir
     start_docker
     remove_containers
+    remove_project_dangling_images
+
     build_docker_compose
     # check if the above command succeeds
     if $DOCKER images | grep -q "monadic-chat"; then
       echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p>"
+      # Remove project-specific dangling images
+      remove_project_dangling_images
     else
       echo "[HTML]: <p>Monadic Chat has failed to build.</p>"
     fi
     ;;
   start)
     ensure_data_dir
+    start_docker
+    remove_older_images yohasebe/monadic-chat
+    remove_project_dangling_images
+
     start_docker_compose
     echo "[SERVER STARTED]"
     ;;
@@ -270,7 +288,7 @@ case "$1" in
   remove)
     start_docker
     remove_containers
-    echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and unstall the app safely.</p>"
+    echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
     ;;
   *)
     echo "Usage: $0 {build|start|stop|restart|update|remove}}" >&2  # Redirect usage message to stderr

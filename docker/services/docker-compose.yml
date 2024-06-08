@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
       args:
         SELENIUM_IMAGE: ${SELENIUM_IMAGE}
+        PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-selenium-container
     shm_size: 2gb
     ports:
@@ -20,6 +21,8 @@ services:
     build:
       context: ./pgvector
       dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-pgvector-container
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
@@ -39,6 +42,8 @@ services:
     build:
       context: ./python
       dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
     ports:
       - "8888:8888"
       - "5070:5070"
@@ -57,6 +62,8 @@ services:
     build:
       context: ./ruby
       dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-ruby-container
     environment:
       HOST_OS: ${HOST_OS}
@@ -89,3 +96,4 @@ volumes:
   postgres-data-volume:
     name: monadic-chat-pgvector-data
     driver: local
+

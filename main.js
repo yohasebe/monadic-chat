@@ -225,7 +225,7 @@ const menuItems = [
   statusMenuItem,
   { type: 'separator' },
   {
-    label: 'Build',
+    label: 'Rebuild',
     click: () => {
       openMainWindow();
       runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
@@ -431,7 +431,7 @@ function shutdownDocker() {
   });
 }
 
-function fetchWithRetry(url, options = {}, retries = 25, delay = 1500) {
+function fetchWithRetry(url, options = {}, retries = 30, delay = 2000) {
   const attemptFetch = (attempt) => {
     return fetch(url, options)
       .then(response => {
@@ -515,6 +515,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
           fetchWithRetry('http://localhost:4567')
             .then(data => {
+              updateStatusIndicator("BrowserReady");
               writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
             })
             .catch(error => {

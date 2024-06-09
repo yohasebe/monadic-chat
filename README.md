@@ -6,40 +6,40 @@
 
 <p>&nbsp;</p>
 
-<div align="center">⚠️ This application is currently under active development</div>
+<div align="center"><img src="./assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
-<p>&nbsp;</p>
+## tl;dr
 
-## Overview
+**Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
-**Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, analysis, visualization, and more.
+- Recent Updates
+  - [June, 2024] Better uninstallation of containers
+  - [June, 2024] Monadic Chat Console UI improved
+  - [June, 2024] AI-User feature introduced
+  - [June, 2024] Automatic Docker image rebuild feature
+  - [June, 2024] Source code block copy button added
+  - [June, 2024] Video Describer app added
+  - [May, 2024] Talk to Claude/Command R/Gemini apps added
+  - [May, 2024] Ruby/Python/PGVector/Selenium containers structure introduced
+  - [February, 2024] Mermaid diagram support
+  - [February, 2024] File reading feature
+  - [Full Change Log](CHANGELOG.md)
 
-- Documentation
-  - [English](https://yohasebe.github.io/monadic-chat/overview)
-  - [日本語](https://yohasebe.github.io/monadic-chat/overview_ja)
+## Documentation
 
-- Download Installer
+  - [English Docummentation](https://yohasebe.github.io/monadic-chat/overview)
+  - [日本語ドキュメント](https://yohasebe.github.io/monadic-chat/overview_ja)
+
+## Installation
+
   - [MacOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
   - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
-<p>&nbsp;</p>
-
-<div align="center"><img src="./assets/images/screenshot-01.png" width="700px"/></div>
-
-<p>&nbsp;</p>
-
-<div align="center"><img src="./assets/images/screenshot-02.png" width="500px"/></div>
-
-<p>&nbsp;</p>
-
-<div align="center"><img src="./assets/images/monadic-chat-architecture.png" width="800px"/></div>
-
-<p>&nbsp;</p>
 
 > There are two versions of Monadic Chat. One is a web browser-based app framework developed in this repository. The other is a command line app provided as a RubyGem. 
 
-- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (this repository)
-- [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
+- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (active; this repository)
+- [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) (less active)
 
 ## Features
 
@@ -104,7 +104,7 @@
   - Cohere Command R
 - 🤖💬🤖 **AI/AI Chat** is available:
 
-   | AI Assistant     | AI User      |
+   | AI-Assistant     | AI-User      |
    |:-----------------|:-------------| 
    | OpenAI GPT-4     | OpenAI GPT-4 |
    | Google Gemini    | OpenAI GPT-4 |

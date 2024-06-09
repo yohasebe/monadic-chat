@@ -703,7 +703,7 @@ function connect_websocket(callback) {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
           
           if(params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
-            $("#message").attr("placeholder", "Waiting for AI user input . . .");
+            $("#message").attr("placeholder", "Waiting for AI-user input . . .");
             $("#message").prop("disabled", true);
             let simple_messages = messages.map(msg => {
               return { "role": msg["role"], "text": msg["text"] }

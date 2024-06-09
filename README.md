@@ -12,7 +12,7 @@
 
 **Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
-- Recent Updates
+- Recene Updates
   - [Jun, 2024] Better uninstallation of containers
   - [Jun, 2024] Monadic Chat Console UI improved
   - [Jun, 2024] AI-User feature introduced
@@ -36,7 +36,7 @@
   - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
 
-> There are two versions of Monadic Chat. One is a web browser-based app framework developed in this repository. The other is a command line app provided as a RubyGem. 
+There are two versions of Monadic Chat. One is a web browser-based app framework developed in this repository. The other is a command line app provided as a RubyGem. 
 
 - [Monadic Chat](https://github.com/yohasebe/monadic-chat) (active; this repository)
 - [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) (less active)

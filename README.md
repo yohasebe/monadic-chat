@@ -32,14 +32,13 @@
 
 ## Installation
 
-  - [MacOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
-  - [Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
+  - [Download installer for MacOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
+  - [Download installer Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
 
 
-There are two versions of Monadic Chat. One is a web browser-based app framework developed in this repository. The other is a command line app provided as a RubyGem. 
+There is another version of Monadic Chat, which is a command line app provided as a RubyGem. 
 
-- [Monadic Chat](https://github.com/yohasebe/monadic-chat) (active; this repository)
-- [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) (less active)
+- [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli)
 
 ## Features
 

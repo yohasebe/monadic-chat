@@ -58,7 +58,7 @@ services:
       - selenium_service
 
   ruby_service:
-    image: yohasebe/monadic-chat:${MONADIC_VERSION}
+    image: yohasebe/monadic-chat:${MONADIC_VERSION:-latest}
     build:
       context: ./ruby
       dockerfile: Dockerfile

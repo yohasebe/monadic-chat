@@ -41,9 +41,7 @@ def start_server(opts)
   system(mac_docker_start)
   system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service") 
 
-  # wait until docker daemon is running
-
-  cmd_ruby = "docker container stop monadic-chat-ruby-container"
+  cmd_ruby = "docker container start monadic-chat-ruby-container"
   cmd_selenium = "docker container start monadic-chat-selenium-container"
   cmd_pg = "docker container start monadic-chat-pgvector-container"
   cmd_python = "docker container start monadic-chat-python-container"

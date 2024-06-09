@@ -1,11 +1,11 @@
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron')
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 
 app.commandLine.appendSwitch('no-sandbox');
 app.name = 'Monadic Chat';
 
 const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
-const path = require('path')
+const path = require('path');
 const os = require('os');
 const https = require('https');
 const net = require('net');
@@ -108,7 +108,7 @@ function uninstall() {
         return false;
       }
     }, 1000);
-  })
+  });
 }
 
 function checkDockerInstallation() {
@@ -194,6 +194,7 @@ function quitApp() {
       isQuitting = true;
       app.quit();
     } else {
+      isQuitting = false;
       return false;
     }
   }).catch((err) => {
@@ -315,7 +316,7 @@ const menuItems = [
     },
     enabled: true
   }
-]
+];
 
 function initializeApp() {
   app.whenReady().then(() => {
@@ -362,14 +363,10 @@ function initializeApp() {
       }
     });
 
-    let isQuitting = false;
-
     app.on('before-quit', function (event) {
       if (!isQuitting) {
         event.preventDefault();
-        openMainWindow();
-        isQuitting = true;
-        app.quit();
+        quitApp();
       }
     });
 
@@ -402,19 +399,16 @@ function toUnixPath(p) {
 }
 
 function shutdownDocker() {
-  const command = "shutdown"
+  const command = "shutdown";
 
   const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app');
 
   let cmd;
   if (os.platform() === 'darwin') {
     cmd = `osascript -e 'quit app "Docker Desktop"'`;
-
-  }
-  else if (os.platform() === 'linux') {
+  } else if (os.platform() === 'linux') {
     cmd = `sudo systemctl stop docker`;
-  }
-  else {
+  } else {
     console.error('Unsupported platform');
     return;
   }
@@ -439,7 +433,7 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         console.log(`Connecting to server: success`);
-        return true
+        return true;
       })
       .catch(error => {
         console.log(`Connecting to server: attempt ${attempt} failed`);
@@ -456,7 +450,7 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000) {
       });
   };
   return attemptFetch(1);
-};
+}
 
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
@@ -485,7 +479,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       updateStatusIndicator(currentStatus);
     });
   } else {
-    let subprocess = spawn(cmd, [], { shell: true })
+    let subprocess = spawn(cmd, [], { shell: true });
 
     subprocess.stdout.on('data', function (data) {
       const lines = data.toString().split(require('os').EOL);
@@ -505,7 +499,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
               icon: path.join(iconDir, 'monadic-chat.png')
             });
           }
-        } else if (lines[i].trim() === "[IMAGE NOT FOUND]"){
+        } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
           writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
           currentStatus = "Building";
           tray.setImage(path.join(iconDir, `${currentStatus}.png`));
@@ -515,6 +509,9 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
           fetchWithRetry('http://localhost:4567')
             .then(data => {
+              menuItems[8].enabled = true;
+              contextMenu = Menu.buildFromTemplate(menuItems);
+              tray.setContextMenu(contextMenu);
               updateStatusIndicator("BrowserReady");
               writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
             })
@@ -618,7 +615,7 @@ function updateContextMenu(disableControls = false) {
     menuItems[4].enabled = false;
     menuItems[5].enabled = true;
     menuItems[6].enabled = true;
-    menuItems[8].enabled = true;
+    menuItems[8].enabled = false;
     menuItems[9].enabled = true;
   } else {
     menuItems[6].enabled = false;
@@ -745,5 +742,3 @@ function openBrowser(url) {
     });
   }, interval);
 }
-
-

@@ -1,5 +1,7 @@
 # Stage 1: Build environment
 FROM ruby:3.3.1-slim-bookworm AS build
+ARG PROJECT_TAG
+LABEL project=$PROJECT_TAG
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -22,6 +24,8 @@ RUN bundle install -j4 && \
 
 # Stage 2: Runtime environment
 FROM ruby:3.3.1-slim-bookworm
+ARG PROJECT_TAG
+LABEL project=$PROJECT_TAG
 
 RUN apt update && \
     apt install -y --no-install-recommends \

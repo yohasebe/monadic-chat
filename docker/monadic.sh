@@ -3,7 +3,7 @@
 export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.5.7
+export MONADIC_VERSION=0.5.8
 
 export HOST_OS=$(uname -s)
 
@@ -61,8 +61,15 @@ start_docker() {
 
 # Function to build Docker Compose
 build_docker_compose() {
+  remove_containers
+
   $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
   echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
+
+  $DOCKER  tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest
+  echo [HTML]: "<p>Monadic Chat $MONADIC_VERSION is tagged 'latest'</p>"
+
+  remove_project_dangling_images
 }
 
 # Function to start Docker Compose
@@ -70,14 +77,19 @@ start_docker_compose() {
   # get yohasebe/monadic-chat image tag
   MONADIC_CHAT_IMAGE_TAG=$($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $2}')
   MONADIC_CHAT_IMAGE_TAG=$(echo $MONADIC_CHAT_IMAGE_TAG | tr -d '\r')
+  MONADIC_CHAT_IMAGE_TAG=$(echo $MONADIC_CHAT_IMAGE_TAG | sed 's/latest//g')
+
   if [ -z "$MONADIC_CHAT_IMAGE_TAG" ]; then
     MONADIC_CHAT_IMAGE_TAG="None"
   fi
   echo "[HTML]: <p>Monadic Chat version: $MONADIC_VERSION</p>"
   echo "[HTML]: <p>Current Monadic Chat Image: $MONADIC_CHAT_IMAGE_TAG</p>"
 
-  # check if MONADIC_CHAT_IMAGE_TAG is the same as MONADIC_VERSION
-  if [ "$MONADIC_CHAT_IMAGE_TAG" != "$MONADIC_VERSION" ]; then
+  # check if MONADIC_CHAT_IMAGE_TAG includes the same as MONADIC_VERSION
+  if [[ "$MONADIC_CHAT_IMAGE_TAG" != *"$MONADIC_VERSION"* ]]; then
+
+    remove_containers
+
     # if image tag is "None", build the image
     if [ "$MONADIC_CHAT_IMAGE_TAG" == "None" ]; then
       echo "[HTML]: <p>Monadic Chat image does not exist. Building Monadic Chat image . . .</p>"
@@ -91,9 +103,31 @@ start_docker_compose() {
     echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
   fi
 
-  # Check if the Docker image and container exist
-  if $DOCKER images | grep -q "monadic-chat"; then
-    if $DOCKER container ls --all | grep -q "monadic-chat"; then
+  remove_older_images yohasebe/monadic-chat
+  remove_project_dangling_images
+
+  images=("yohasebe/monadic-chat")
+  containers=("monadic-chat-container" "python-container" "selenium-container" "pgvector-container")
+
+  all_images_exist=true
+  all_containers_exist=true
+
+  for image in "${images[@]}"; do
+    if ! $DOCKER images | grep -q "$image"; then
+      all_images_exist=false
+      break
+    fi
+  done
+
+  for container in "${containers[@]}"; do
+    if ! $DOCKER container ls --all | grep -q "$container"; then
+      all_containers_exist=false
+      break
+    fi
+  done
+
+  if $all_images_exist; then
+    if $all_containers_exist; then
       echo "[HTML]: <p>Monadic Chat image and container found.</p>"
       sleep 1
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
@@ -192,14 +226,16 @@ remove_containers() {
   remove_container monadic-chat-container
   # ↑ remove legacy containers
 
+  remove_project_dangling_images
   remove_volume monadic-chat-pgvector-data
 }
 
-# Function to remove an image
+# Function to remove images containing the string in $1
 remove_image() {
-  if $DOCKER images | grep -q "$1"; then
-    $DOCKER rmi -f "$1" >/dev/null
-  fi
+  images=$($DOCKER images --format "{{.Repository}}:{{.Tag}}" | grep "$1")
+  for image in $images; do
+    $DOCKER rmi -f "$image" >/dev/null
+  done
 }
 
 # Function to remove a container
@@ -218,8 +254,7 @@ remove_volume() {
 
 # Function to remove project-specific dangling images
 remove_project_dangling_images() {
-  local project_tag="monadic-chat"
-  $DOCKER images -f "dangling=true" --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$project_tag" | awk '{print $1}' | xargs -r $DOCKER rmi -f
+  $DOCKER images -f "dangling=true" -f "label=project=$project_label" --format "{{.ID}}" | xargs -r docker rmi -f
 }
 
 # Function to remove older images
@@ -234,15 +269,10 @@ case "$1" in
   build)
     ensure_data_dir
     start_docker
-    remove_containers
-    remove_project_dangling_images
-
     build_docker_compose
     # check if the above command succeeds
     if $DOCKER images | grep -q "monadic-chat"; then
       echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p>"
-      # Remove project-specific dangling images
-      remove_project_dangling_images
     else
       echo "[HTML]: <p>Monadic Chat has failed to build.</p>"
     fi
@@ -250,9 +280,6 @@ case "$1" in
   start)
     ensure_data_dir
     start_docker
-    remove_older_images yohasebe/monadic-chat
-    remove_project_dangling_images
-
     start_docker_compose
     echo "[SERVER STARTED]"
     ;;

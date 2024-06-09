@@ -1,7 +1,8 @@
 ### Change Log
 
+- [June, 2024] Better uninstallation of containers
 - [June, 2024] Monadic Chat Console UI improved
-- [June, 2024] AI User feature introduced
+- [June, 2024] AI-User feature introduced
 - [June, 2024] Automatic Docker image rebuild feature
 - [June, 2024] Source code block copy button added
 - [June, 2024] Video Describer app added

@@ -8,21 +8,14 @@ layout: default
 [English](/monadic-chat/overview) |
 [日本語](/monadic-chat/overview_ja)
 
-<img src="./assets/images/screenshot-01.png" width="700px"/>
-
-<img src="./assets/images/monadic-chat-console.png" width="500px"/>
-
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
-**Monadic Chat**は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、検索、コーディング、テスト、分析、視覚化など外部ツールを必要とする高度なタスクを実行させることができます。
 
-⚠️  **ご注意**
+## これは何？
 
-本ソフトウェアは現在開発中であり、頻繁に変更される可能性があります。一部の機能はまだ不安定な場合があります。
+**Monadic Chat** は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、外部ツールを必要とする高度なタスクを実行させることができます。また、音声インタラクション、画像・動画の認識と生成、AI同士のチャットをサポートしており、AIを使うだけでなく、活用した様々なアプリケーションの開発や研究にも役立ちます。
 
-📢 **協力の呼びかけ**
-
-本ソフトウェアの改善に役立つ貢献（コードの改善、テストの追加、ドキュメントの追加など）を歓迎します。
+[更新情報](https://github.com/yohasebe/monadic-chat/blob/main/CHANGELOG.md)
 
 ## 主な特徴
 
@@ -86,7 +79,7 @@ layout: default
   - Cohere Command R
 - 🤖💬🤖 AI/AI Chatは以下の組み合わせで利用可能
 
-   | AI Assistant     | AI User      |
+   | AI-Assistant     | AI-User      |
    |:-----------------|:-------------| 
    | OpenAI GPT-4     | OpenAI GPT-4 |
    | Google Gemini    | OpenAI GPT-4 |

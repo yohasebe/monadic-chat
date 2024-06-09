@@ -82,11 +82,11 @@ These elements are sent as parameters to the API. For more details on each param
 **Initial Prompt for Assistant**<br />
 This is the text sent to the API as the initial prompt. You can specify the character settings for the conversation and the format of the response. Each Base App has a default text set according to its purpose, but you can freely change it.
 
-**Show Initial Prompt for AI User**<br />
-Displays the initial prompt given to the AI user when the AI user feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user themselves, but thereafter, the AI will "impersonate" the user and create messages on their behalf based on the content of the messages from the AI assistant. The user can edit or add to the messages created by the AI user in the text box.
+**Show Initial Prompt for AI-User**<br />
+Displays the initial prompt given to the AI-user when the AI-user feature is enabled. When the AI-user is enabled, the first message must be created by the (non-AI) user themselves, but thereafter, the AI will "impersonate" the user and create messages on their behalf based on the content of the messages from the AI-assistant. The user can edit or add to the messages created by the AI-user in the text box.
 
-**Enable AI User**<br />
-Specifies whether to enable the AI user feature.
+**Enable AI-User**<br />
+Specifies whether to enable the AI-user feature.
 
 **Start from assistant**<br />
 

@@ -8,23 +8,13 @@ layout: default
 [English](/monadic-chat/overview) |
 [日本語](/monadic-chat/overview_ja)
 
-<img src="./assets/images/screenshot-01.png" width="700px"/>
-
-<img src="./assets/images/monadic-chat-console.png" width="500px"/>
-
 <img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
 
-## Monadic Chat
+## tl;dr
 
-**Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools for searching, coding, testing, analysis, visualization, and more. 
+**Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
-⚠️  **Important Notice**
-
-This software is currently under active development and is subject to frequent changes. Some features may still be unstable at this moment. Please exercise caution when using it.
-
-📢 **Call for Contributions**
-
-We welcome contributions that can help refine this software, such as code improvements, adding tests, and documentation. Your support would be greatly appreciated.
+[Full Change Log](https://github.com/yohasebe/monadic-chat/blob/main/CHANGELOG.md)
 
 ## Key Features
 
@@ -89,7 +79,7 @@ We welcome contributions that can help refine this software, such as code improv
   - Cohere Command R
 - 🤖💬🤖 **AI/AI Chat** is available:
 
-   | AI Assistant     | AI User      |
+   | AI-Assistant     | AI-User      |
    |:-----------------|:-------------| 
    | OpenAI GPT-4     | OpenAI GPT-4 |
    | Google Gemini    | OpenAI GPT-4 |

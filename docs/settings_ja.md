@@ -15,6 +15,8 @@ layout: default
 1. toc
 {:toc}
 
+<img src="./assets/images/screenshot-01.png" width="700px"/>
+
 ## Monadic Chat Console
 
 <img src="./assets/images/monadic-chat-console.png" width="500px"/>

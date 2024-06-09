@@ -13,16 +13,16 @@
 **Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
 - Recent Updates
-  - [June, 2024] Better uninstallation of containers
-  - [June, 2024] Monadic Chat Console UI improved
-  - [June, 2024] AI-User feature introduced
-  - [June, 2024] Automatic Docker image rebuild feature
-  - [June, 2024] Source code block copy button added
-  - [June, 2024] Video Describer app added
+  - [Jun, 2024] Better uninstallation of containers
+  - [Jun, 2024] Monadic Chat Console UI improved
+  - [Jun, 2024] AI-User feature introduced
+  - [Jun, 2024] Automatic Docker image rebuild feature
+  - [Jun, 2024] Source code block copy button added
+  - [Jun, 2024] Video Describer app added
   - [May, 2024] Talk to Claude/Command R/Gemini apps added
   - [May, 2024] Ruby/Python/PGVector/Selenium containers structure introduced
-  - [February, 2024] Mermaid diagram support
-  - [February, 2024] File reading feature
+  - [Feb, 2024] Mermaid diagram support
+  - [Feb, 2024] File reading feature
   - [Full Change Log](CHANGELOG.md)
 
 ## Documentation

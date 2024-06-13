@@ -5,7 +5,7 @@ class MathTutor < MonadicApp
   end
 
   def description
-    "This is an application that allows AI chatbot to give response with the MathJax mathematical notation"
+    "This is an application that allows AI chatbot to give a response with the MathJax mathematical notation"
   end
 
   def initial_prompt

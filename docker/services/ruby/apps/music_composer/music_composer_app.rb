@@ -4,7 +4,7 @@ class MusicComposer < MonadicApp
   end
 
   def description
-    "This is an app that writes sheet music and play it in Midi. Specify the instrument you want to use and the genre or style of music." 
+    "This is an app that writes sheet music and plays it in Midi. Specify the instrument you want to use and the genre or style of music." 
   end
 
   def initial_prompt
@@ -24,11 +24,11 @@ class MusicComposer < MonadicApp
         </pre>
       </div>
 
-      Only if the user asks for it, show the tablature by inserting `%%tablature INSTRUMENT_NAME` at the beginning of the ABC code, where `INSTRUMENT_NAME` is the name of the instrument. For example, `%%tablature guitar` will generate a guitar tablature and `%%tablature bass` will generate a bass guitar tablature. Note that INSTRUMENT_NAME must not contain any spaces.
+      Only if the user asks for it, show the tablature by inserting `%%tablature INSTRUMENT_NAME` at the beginning of the ABC code, where `INSTRUMENT_NAME` is the name of the instrument. For example, `%%tablature guitar` will generate a guitar tablature, and `%%tablature bass` will generate a bass guitar tablature. Note that INSTRUMENT_NAME must not contain any spaces.
 
-      It is desirable that the music is as complex as the genre or style requires. Include as many notes, chords, and rests as necessary to achieve the desired complexity. Use multiple voices if necessary to represent different parts of the music.
+      It is desirable that the music is as complex as the genre or style requires. Include as many notes, chords, and rests as necessary to achieve the desired complexity. Use multiple voices, if necessary, to represent different parts of the music.
 
-      Make sure to specify the BPM (beats per minute) with the `Q` field of the ABC code.
+      Plase make sure to specify the BPM (beats per minute) with the `Q` field of the ABC code.
 
       Note that the ABC code must be placed inside these two pairs of div tags. Do not put this inside Markdown code block tags. Just show the ABC code inside the div tags.
 

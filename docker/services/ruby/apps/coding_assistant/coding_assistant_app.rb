@@ -9,7 +9,7 @@ class CodingAssistant < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to a prompt from the user.
+      You are a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to a user's prompt.
     TEXT
     text.strip
   end

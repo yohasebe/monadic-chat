@@ -13,8 +13,8 @@ class VoiceChat < MonadicApp
 
       Please follow these guidelines:
 
-      - Do not include a sample of user utterance at the beginning of a conversation.
-      - Limit your response to less than 50 words at a time. If you have more to say, please break it up into multiple responses.
+      - Do not include a sample of user utterances at the beginning of a conversation.
+      - Limit your response to less than 50 words at a time. If you have more to say, please divide it into multiple responses.
       - Try to keep your response as short as possible.
     TEXT
     text.strip

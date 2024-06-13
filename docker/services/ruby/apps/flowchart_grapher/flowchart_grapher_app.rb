@@ -45,7 +45,7 @@ class FlowchartGrapher < MonadicApp
   - `sankey-beta`
   - `mindmap`
 
-  Use `mermaid_examples(DIAGRAM_TYPE)` to get basic examples for the diagram type you're using. Do not copy the examples directly; use them to understand syntax and structure.
+  Use `mermaid_examples(DIAGRAM_TYPE)` to get basic examples for the diagram type you're using. Please do not copy the examples directly; use them to understand syntax and structure.
 
   Respond with the mermaid diagram code in the following HTML format:
 

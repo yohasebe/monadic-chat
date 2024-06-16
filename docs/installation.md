@@ -22,8 +22,8 @@ layout: default
 1. Install Docker Desktop for Mac (see [below](#install-docker-macos)).
 2. Install Monadic Chat.
 
-- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.9-arm64.dmg) (0.5.9)
-- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.9.dmg) (0.5.9)
+- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.91-arm64.dmg) (0.5.91)
+- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.91.dmg) (0.5.91)
 
 ### Windows
 
@@ -31,7 +31,7 @@ layout: default
 2. Install Docker Desktop for Windows (see [below](#install-docker-win)).
 2. Install Monadic Chat.
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.9.exe) (0.5.9)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.91.exe) (0.5.91)
 
 ## How to Install Dependencies
 
@@ -53,7 +53,7 @@ Download Docker Desktop from [Install Docker Desktop on Mac](https://hub.docker.
 
 Double-click the downloaded dmg file. Then drag and drop the docker icon to the Applications folder to install it. Once the installation is complete, start Docker Desktop. When you start Docker Desktop first time, you will be asked to accept the service agreement (→ press accept), choose settings (→ use recommended settings), and allow privileged access to apply configuration (→ enter your Mac username and password).
 
-Once everything has been set up, the Docker Desktop icon will appear in the menu bar at the top right of the screen. After Docker Desktop has started, you may close the Docker Desktop Dashboard window if it is open.
+Once everything has been set up, the Docker Desktop icon will appear in the task bar. After Docker Desktop has started, you may close the Docker Desktop Dashboard window if it is open.
 
 ### Windows
 
@@ -95,7 +95,7 @@ Once everything has been set up, the Docker Desktop icon will appear in the task
 
 ## How to Update
 
-1. Click the Monadic Chat icon in the menu bar and select `Check for Updates`. If an update is available, click `Download` to download the latest version.
+1. Click `Check for Updates` in the menu. If an update is available, click `Download` to download the latest version.
 2. Quit Monadic Chat.
 3. Run the installer for the latest version.
 
@@ -104,7 +104,7 @@ Once everything has been set up, the Docker Desktop icon will appear in the task
 
 ## How to Uninstall
 
-1. Click the Monadic Chat icon in the menu bar and select `Uninstall`. This will remove the Docker containers and images shown below.
+1. Click  `Uninstall Images and Containers` in the menu. This will remove the Docker containers and images shown below.
 2. Quit Monadic Chat.
 3. For **macOS**, open the `Applications` folder in Finder and drag Monadic Chat to the trash. For **Windows**, uninstall Monadic Chat from `Add or Remove Programs`.
 

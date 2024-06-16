@@ -309,7 +309,7 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Exit',
+    label: 'Quit',
     click: () => {
       openMainWindow();
       quitApp(mainWindow);
@@ -804,8 +804,29 @@ function createMainWindow() {
 }
 
 function openFolder() {
-  const folderPath = path.join(os.homedir(), 'monadic', 'data');
-  shell.openPath(folderPath);
+  let folderPath;
+  if (os.platform() === 'darwin' || os.platform() === 'linux') {
+    folderPath = path.join(os.homedir(), 'monadic', 'data');
+  } else if (os.platform() === 'win32') {
+    try {
+      // Get the WSL home directory using the `wslpath` command
+      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
+      // Get the WSL distribution name
+      const distroName = execSync('wsl.exe -l -q').toString().split('\n')[0].trim();
+      // Construct the WSL path
+      const wslPath = `/home/${path.basename(wslHome)}/monadic/data`;
+      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+    } catch (error) {
+      console.error('Error retrieving WSL path:', error);
+      return;
+    }
+  }
+
+  shell.openPath(folderPath).then((result) => {
+    if (result) {
+      console.error('Error opening path:', result);
+    }
+  });
 }
 
 function openBrowser(url, outside = false) {

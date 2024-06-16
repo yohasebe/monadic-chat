@@ -22,8 +22,8 @@ layout: default
 1. Docker Desktop for Macをインストールします（[詳細](#install-docker-macos)）。
 2. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.9-arm64.dmg) (0.5.9)
-- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.9.dmg) (0.5.9)
+- [📦 Installer package for MacOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/monadic-chat-0.5.91-arm64.dmg) (0.5.91)
+- [📦 Installer package for MacOS x64 (Intel)](https://yohasebe.com/assets/apps/monadic-chat-0.5.91.dmg) (0.5.91)
 
 ### Windows
 
@@ -31,7 +31,7 @@ layout: default
 2. Docker Desktop for Windowsをインストールします（[詳細](#install-docker-win)）。
 3. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.9.exe) (0.5.9)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/monadic-chat%20Setup%200.5.91.exe) (0.5.91)
 
 ## 依存ソフトウェアのインストール
 
@@ -53,7 +53,7 @@ $ sysctl -n machdep.cpu.brand_string
 
 ダウンロードしたdmgファイルをダブルクリックするとウィンドウが表示されるので、DockerのアイコンをApplicationsフォルダーにドラッグしてください。インストールが完了したら、Docker Desktopを起動しましょう。その際、service agreementへの同意が求められます（acceptしてください）。また、推奨設定を使用するかどうかを確認されます（特にこだわりがなければ推奨設定を用いてください）。また、内部でosascriptを使用するため、Macのユーザ名とパスワードの入力が求められます。
 
-Docker Desktopの起動が完了すると、メニューバーにDockerのアイコンが表示されます。ここでDocker Desktopのダッシュボード・ウィンドウは閉じてしまって構いません。
+Docker Desktopの起動が完了すると、タスクバーにDockerのアイコンが表示されます。ここでDocker Desktopのダッシュボード・ウィンドウは閉じてしまって構いません。
 
 ### Windows
 
@@ -95,11 +95,11 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 
 ## アップデート
 
-Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューバーのMonadic Chatアイコンをクリックして、`Check for Updates`を実行してください。もし新しいバージョンがある場合、ダウンロードリンクが表示されます。ダウンロードリンクをクリックして、新しいバージョンのインストーラーをダウンロードしてください。
+Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューの`Check for Updates`を実行してください。もし新しいバージョンがある場合、ダウンロードリンクが表示されます。ダウンロードリンクをクリックして、新しいバージョンのインストーラーをダウンロードしてください。
 
 ## アンインストール
 
-1. メニューバーのMonadic Chatアイコンをクリックして、`Uninstall`を実行します。これにより、下に示すDockerコンテナとイメージが削除されます。
+1. メニューの`Uninstall Images and Containers`を実行します。これにより、下に示すDockerコンテナとイメージが削除されます。
 2. Monadic Chatを終了します。
 3. **macOS**の場合、Finderで`Applications`フォルダーを開き、Monadic Chatをゴミ箱にドラッグします。**Windows**の場合、`プログラムの追加と削除`からMonadic Chatをアンインストールします。
 

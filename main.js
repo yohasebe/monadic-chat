@@ -286,7 +286,7 @@ const menuItems = [
   {
     label: 'Documentation',
     click: () => {
-      openBrowser('https://yohasebe.github.io/monadic-chat/');
+      openBrowser('https://yohasebe.github.io/monadic-chat/', true);
     },
     enabled: true
   },
@@ -380,10 +380,114 @@ function initializeApp() {
         label: 'File',
         submenu: [
           {
+            label: 'About Monadic Chat',
+            click: () => {
+              dialog.showMessageBox({
+                type: 'info',
+                title: 'About Monadic Chat',
+                message: `Monadic Chat\nVersion: ${app.getVersion()}`,
+                detail: 'Grounding AI Chatbots with Full Linux Environment on Docker\n\n© 2024 Yoichiro Hasebe',
+                buttons: ['OK'],
+                icon: path.join(iconDir, 'monadic-chat.png')
+              });
+            }
+          },
+          {
+            type: 'separator'
+          },
+          {
+            label: 'Check for Updates',
+            click: () => {
+              openMainWindow();
+              checkForUpdates();
+            }
+          },
+          {
+            label: 'Uninstall Images and Containers',
+            click: () => {
+              uninstall();
+            }
+          },
+          {
+            type: 'separator'
+          },
+          {
             label: 'Quit Monadic Chat',
             accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
             click: () => {
               quitApp(mainWindow);
+            }
+          }
+        ]
+      },
+      {
+        label: 'Actions',
+        submenu: [
+          {
+            label: 'Start',
+            click: () => {
+              openMainWindow();
+              runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+            }
+          },
+          {
+            label: 'Stop',
+            click: () => {
+              openMainWindow();
+              runCommand('stop', '[HTML]: <p>Monadic Chat is stopping. Please wait . . .</p>', 'Stopping', 'Stopped');
+            }
+          },
+          {
+            label: 'Restart',
+            click: () => {
+              openMainWindow();
+              runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
+            }
+          },
+          {
+            type: 'separator'
+          },
+          {
+            label: 'Rebuild',
+            click: () => {
+              openMainWindow();
+              runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+            }
+          },
+        ]
+      },
+      {
+        label: 'Open',
+        submenu: [
+          {
+            label: 'Open Browser',
+            click: () => {
+              openMainWindow();
+              openBrowser('http://localhost:4567');
+            }
+          },
+          {
+            label: 'Open Shared Folder',
+            click: () => {
+              openMainWindow();
+              openFolder();
+            }
+          },
+          {
+            label: 'Open Console',
+            click: () => {
+              openMainWindow();
+            }
+          }
+        ]
+      },
+      {
+        label: 'Help',
+        submenu: [
+          {
+            label: 'Documentation',
+            click: () => {
+              openBrowser('https://yohasebe.github.io/monadic-chat/', true);
             }
           }
         ]
@@ -704,7 +808,7 @@ function openFolder() {
   shell.openPath(folderPath);
 }
 
-function openBrowser(url) {
+function openBrowser(url, outside = false) {
   const openCommands = {
     win32: ['cmd', ['/c', 'start', url]],
     darwin: ['open', [url]],
@@ -717,6 +821,11 @@ function openBrowser(url) {
     console.error('Unsupported platform');
     return;
   }
+  
+  if(outside){
+    spawn(...openCommands[platform]);
+    return;
+  } 
 
   // wait until the system is ready on the port 4567
   // before opening the browser with the timeout of 20 seconds

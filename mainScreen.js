@@ -1,5 +1,7 @@
 window.electron.receiveCommandOutput((output) => {
-  output = output.trim();
+  // Remove carriage return characters
+  output = output.replace(/\r/g, '').trim();
+
   let outputElement;
   if (output.startsWith("[HTML]:")) {
     const message = output.replace("[HTML]:", "");
@@ -35,5 +37,4 @@ document.getElementById('folder').addEventListener('click', () => {
 document.getElementById('exit').addEventListener('click', () => {
   window.electron.sendCommand('exit');
 });
-
 

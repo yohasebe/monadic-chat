@@ -571,6 +571,8 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000) {
   return attemptFetch(1);
 }
 
+let fetchWithRetryCalled = false;
+
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
@@ -625,20 +627,23 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           statusMenuItem.label = `Status: ${currentStatus}`;
           updateStatusIndicator(currentStatus);
         } else if (lines[i].trim() === "[SERVER STARTED]") {
-          writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
-          fetchWithRetry('http://localhost:4567')
-            .then(data => {
-              menuItems[8].enabled = true;
-              contextMenu = Menu.buildFromTemplate(menuItems);
-              tray.setContextMenu(contextMenu);
-              updateStatusIndicator("BrowserReady");
-              writeToScreen('[HTML]: <p>Monadic Chat server is ready.</p>');
-              openBrowser('http://localhost:4567');
-            })
-            .catch(error => {
-              writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');
-              console.error('Fetch operation failed after retries:', error);
-            });
+          if (!fetchWithRetryCalled) {
+            writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
+            fetchWithRetryCalled = true;
+            fetchWithRetry('http://localhost:4567')
+              .then(data => {
+                menuItems[8].enabled = true;
+                contextMenu = Menu.buildFromTemplate(menuItems);
+                tray.setContextMenu(contextMenu);
+                updateStatusIndicator("BrowserReady");
+                writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
+                // openBrowser('http://localhost:4567');
+              })
+              .catch(error => {
+                writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');
+                console.error('Fetch operation failed after retries:', error);
+              });
+          }
         } else {
           writeToScreen(lines[i]);
         }
@@ -783,7 +788,7 @@ function createMainWindow() {
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText += `<p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b></p><p>If other applications is using port 4567, shut them down first.</p>`
+        openingText += `<p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b>: If other applications is using port 4567, shut them down first.</p>`
         portInUse = true;
         currentStatus = 'Port in use';
       } 
@@ -872,8 +877,8 @@ function openBrowser(url, outside = false) {
   const timer = setInterval(() => {
     isPortTaken(4567, (taken) => {
       if (taken) {
-        writeToScreen("[HTML]: <p>The server is running on port 4567. Opening the browser.</p>");
         clearInterval(timer);
+        writeToScreen("[HTML]: <p>The server is running on port 4567. Opening the browser.</p>");
         spawn(...openCommands[platform]);
       } else {
         if (time == 0) {

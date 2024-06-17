@@ -158,6 +158,8 @@ start_docker_compose() {
       sleep 1
     done
   fi
+
+  echo "[SERVER STARTED]"
 }
 
 # Function to stop Docker Compose

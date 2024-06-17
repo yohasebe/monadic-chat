@@ -17,7 +17,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
-RUN pip install -U pip && pip install --no-cache-dir --default-timeout=100 \
+RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     setuptools \
     wheel \
     numpy \
@@ -40,8 +40,8 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=100 \
     tiktoken \
     opencv-python \
     moviepy \
-    'pdfminer.six[image]' \
-    spacy && python -m spacy download en_core_web_sm
+    'pdfminer.six[image]'
+    # spacy && python -m spacy download en_core_web_sm
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

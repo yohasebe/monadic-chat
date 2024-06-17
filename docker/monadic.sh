@@ -66,7 +66,8 @@ start_docker() {
 build_docker_compose() {
   remove_containers
 
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
+  # $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build
   echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 
   $DOCKER  tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest

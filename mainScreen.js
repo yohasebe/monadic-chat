@@ -1,17 +1,24 @@
+const htmlOutputElement = document.getElementById('messages');
+const logOutputElement = document.getElementById('output');
+const logMaxLines = 256;
+let logLines = 0;
+
 window.electron.receiveCommandOutput((output) => {
   // Remove carriage return characters
   output = output.replace(/\r/g, '').trim();
 
-  let outputElement;
   if (output.startsWith("[HTML]:")) {
     const message = output.replace("[HTML]:", "");
-    outputElement = document.getElementById('messages');
-    outputElement.innerHTML += message + '\n';
+    htmlOutputElement.innerHTML += message + '\n';
+    htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
   } else {
-    outputElement = document.getElementById('output');
-    outputElement.textContent += output + '\n';
+    logOutputElement.textContent += output + '\n';
+    logLines++;
+    if (logLines > logMaxLines) {
+      logOutputElement.textContent = logOutputElement.textContent.split('\n').slice(1).join('\n');
+    }
+    logOutputElement.scrollTop = logOutputElement.scrollHeight;
   }
-  outputElement.scrollTop = outputElement.scrollHeight;
 });
 
 document.getElementById('start').addEventListener('click', () => {

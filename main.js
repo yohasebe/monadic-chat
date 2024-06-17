@@ -1,5 +1,20 @@
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 
+// Single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 app.commandLine.appendSwitch('no-sandbox');
 app.name = 'Monadic Chat';
 
@@ -617,7 +632,8 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
               contextMenu = Menu.buildFromTemplate(menuItems);
               tray.setContextMenu(contextMenu);
               updateStatusIndicator("BrowserReady");
-              writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
+              writeToScreen('[HTML]: <p>Monadic Chat server is ready.</p>');
+              openBrowser('http://localhost:4567');
             })
             .catch(error => {
               writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');

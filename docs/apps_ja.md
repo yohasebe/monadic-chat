@@ -233,6 +233,14 @@ Recipe file: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/b
 
 Recipe file: [discourse_analysis_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/discourse_analysis/discourse_analysis_app.rb)
 
+## Speech Draft Helper
+
+<img src="./assets/icons/speech-draft-helper.png" width="40px"/>
+
+このアプリでは、ユーザーがスピーチ原稿をテキスト文字列、Wordファイル、PDFファイルの形で提出することができます。アプリはそれを分析し、修正版を返します。また、ユーザーが必要であれば、スピーチをより魅力的で効果的なものにするための改善案やヒントを提供します。 また、スピーチのmp3ファイルを提供することもできます。
+
+Recipe file: [speech_draft_helper_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb)
+
 ---
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>

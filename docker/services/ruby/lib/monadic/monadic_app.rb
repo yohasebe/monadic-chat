@@ -372,6 +372,26 @@ class MonadicApp
     send_command(command: command, container: "ruby")
   end
 
+  def text_to_speech(text: "", speed:1.0, voice: "alloy", language: "auto")
+    text = text.gsub(/"/, '\"')
+
+    primary_save_path = "/monadic/data/"
+    secondary_save_path = File.expand_path("~/monadic/data/")
+
+    save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
+    textfile = "#{Time.now.to_i}.md"
+    textpath = File.join(save_path, textfile)
+
+    File.open(textpath, "w") do |f|
+      f.write(text)
+    end
+
+    command = <<~CMD
+      bash -c 'simple_tts_query.rb "#{textpath}" --speed=#{speed} --voice=#{voice} --language=#{language}'
+    CMD
+    send_command(command: command, container: "ruby")
+  end
+
   def generate_image(prompt: "", size: "1024x1024", num_retrials: 10)
     command = <<~CMD
       bash -c 'simple_image_generation.rb -p "#{prompt}" -s "#{size}"'

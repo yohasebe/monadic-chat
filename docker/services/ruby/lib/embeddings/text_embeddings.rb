@@ -6,12 +6,6 @@ require "net/http"
 require "json"
 require "dotenv/load"
 
-# return true if we are inside a docker container
-def in_container?
-  File.file?("/.dockerenv")
-end
-
-IN_CONTAINER = in_container?
 EMBEDDINGS_MODEL = "text-embedding-3-small"
 
 class TextEmbeddings

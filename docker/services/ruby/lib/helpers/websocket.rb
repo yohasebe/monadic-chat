@@ -94,7 +94,7 @@ module WebSocketHelper
           res_hash = tts_api_request(text, voice, speed, response_format, model)
           @channel.push(res_hash.to_json)
         when "TTS_STREAM"
-          tts_thread&.join
+          thread&.join
           text = obj["text"]
           voice = obj["voice"]
           speed = obj["speed"]

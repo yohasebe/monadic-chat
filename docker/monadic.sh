@@ -6,7 +6,7 @@ export PATH=$PATH:/usr/local/bin
 export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.5.92
+export MONADIC_VERSION=0.6.0
 
 export HOST_OS=$(uname -s)
 
@@ -66,8 +66,8 @@ start_docker() {
 build_docker_compose() {
   remove_containers
 
-  # $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build
+  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
+  # $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build
   echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 
   $DOCKER  tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest

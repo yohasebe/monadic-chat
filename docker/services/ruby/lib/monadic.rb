@@ -25,6 +25,14 @@ require "uri"
 require "oj"
 Oj.mimic_JSON()
 
+
+# return true if we are inside a docker container
+def in_container?
+  File.file?("/.dockerenv")
+end
+
+IN_CONTAINER = in_container?
+
 require_relative "helpers/text_splitter"
 require_relative "helpers/flask_app_client"
 
@@ -49,6 +57,7 @@ Dotenv.load(envpath)
 EMBEDDINGS_DB = TextEmbeddings.new("monadic", recreate_db: false)
 
 CONFIG = {}
+
 begin
   if File.file?("/.dockerenv")
     File.read("/monadic/data/.env").split("\n").each do |line|

@@ -231,6 +231,14 @@ This is an application for analyzing and summarizing the user's discourse. The A
 
 Recipe file: [discourse_analysis_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/discourse_analysis/discourse_analysis_app.rb)
 
+## Speech Draft Helper
+
+<img src="./assets/icons/speech-draft-helper.png" width="40px"/>
+
+This app allows the user to submit a speech draft in the form of just a text string, a Word file, or a PDF file. The app will then analyze it and return a revised version. The app will also provide suggestions for improvement and tips on how to make the speech more engaging and effective if the user needs them. if the user needs them Besides, it can also provide an mp3 file of the speech.
+
+Recipe file: [speech_draft_helper_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb)
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
 

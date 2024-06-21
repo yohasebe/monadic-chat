@@ -1,5 +1,6 @@
 ### Change Log
 
+- [Jun, 2024] Speech Draft Helper app added (with TTS audio file generation)
 - [Jun, 2024] Menu bar items added; Shared Folder asccessible on Windows
 - [Jun, 2024] Better uninstallation of containers
 - [Jun, 2024] Monadic Chat Console UI improved

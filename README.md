@@ -74,6 +74,7 @@ There is another version of Monadic Chat, which is a command line app provided a
 - 🗺️ **Automatic language detection** for appropriate text-to-speech playback
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 Enable **interactive conversations** with the AI agent using speech recognition and text-to-speech
+- 🎧 Text data can be spoken by the AI agent and saved as an **MP3 audio** file
 
 ### Image and Video Recognition and Generation
 

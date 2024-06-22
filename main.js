@@ -427,6 +427,27 @@ function initializeApp() {
             type: 'separator'
           },
           {
+            label: 'Minimize',
+            accelerator: 'Cmd+M',
+            click: () => {
+              if (mainWindow) {
+                mainWindow.minimize();
+              }
+            }
+          },
+          {
+            label: 'Close Window',
+            accelerator: 'Cmd+W',
+            click: () => {
+              if (mainWindow) {
+                mainWindow.close();
+              }
+            }
+          },
+          {
+            type: 'separator'
+          },
+          {
             label: 'Quit Monadic Chat',
             accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
             click: () => {

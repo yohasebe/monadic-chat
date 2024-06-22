@@ -6,7 +6,7 @@ export PATH=$PATH:/usr/local/bin
 export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.6.0
+export MONADIC_VERSION=0.6.1
 
 export HOST_OS=$(uname -s)
 

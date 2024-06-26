@@ -40,7 +40,15 @@ class Cohere < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      "image": false
+      "image": false,
+      "models": [
+        "command-r-plus",
+        "command-r",
+        "command",
+        "command-nightly",
+        "command-light",
+        "command-light-nightly",
+      ]
     }
   end
 
@@ -187,10 +195,9 @@ class Cohere < MonadicApp
 
     begin
       api_key = CONFIG["COHERE_API_KEY"]
-      model = CONFIG["COHERE_MODEL"]
-      raise if api_key.nil? || model.nil?
+      raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: COHERE_API_KEY or COHERE_MODEL not found."
+      puts "ERROR: COHERE_API_KEY not found."
       exit
     end
 
@@ -264,7 +271,7 @@ class Cohere < MonadicApp
     # Set the body for the API request
     body = {
       "preamble" => initial_prompt,
-      "model" => model,
+      "model" => obj["model"],
       "stream" => true,
       "message" => message,
       "prompt_truncation" => "AUTO",

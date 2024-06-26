@@ -346,9 +346,11 @@ function checkParams() {
   return true;
 }
 
+let model_options = [];
+
 function resetEvent(event) {
   audioInit();
-  event.preventDefault();
+  $("#model").html(model_options);
   $("#message").css("height", "96px").val("");
   $("#resetConfirmation").modal("show");
   $("#resetConfirmation").on("shown.bs.modal", function () {

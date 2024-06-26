@@ -40,6 +40,12 @@ class Claude < MonadicApp
       "initiate_from_assistant": false,
       "toggle": true,
       "image": true,
+      "models": [
+        "claude-3-5-sonnet-20240620",
+        "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229",
+        "claude-3-haiku-20240307"
+      ],
       "tools": [
         {
           "name": "fetch_web_content",
@@ -251,10 +257,9 @@ class Claude < MonadicApp
 
     begin
       api_key = CONFIG["ANTHROPIC_API_KEY"]
-      model = CONFIG["ANTHROPIC_MODEL"]
-      raise if api_key.nil? || model.nil?
+      raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: ANTHROPIC_API_KEY or ANTHROPIC_MODEL not found."
+      puts "ERROR: ANTHROPIC_API_KEY not found."
       exit
     end
 
@@ -326,7 +331,7 @@ class Claude < MonadicApp
     headers = {
       "anthropic-version" => "2023-06-01",
       # "anthropic-beta" => "messages-2023-12-15",
-      "anthropic-beta" => "tools-2024-05-16",
+      # "anthropic-beta" => "tools-2024-05-16",
       "content-type" => "application/json",
       "x-api-key" => api_key
     }
@@ -334,7 +339,7 @@ class Claude < MonadicApp
     # Set the body for the API request
     body = {
       "system" => initial_prompt,
-      "model" => model,
+      "model" => obj["model"],
       "stream" => true,
       "tool_choice" => {"type": "auto"}
     }

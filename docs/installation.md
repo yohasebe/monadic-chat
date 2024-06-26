@@ -35,7 +35,7 @@ layout: default
 
 ### Linux (Ubuntu/Debian)
 
-1. Install Docker Desktop for Linux
+1. Install Docker Desktop for Linux (See [Docker Desktop for Linux](https://docs.docker.com/desktop/install/linux-install/)).
 2. Install Monadic Chat.
 
 - [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.7.0_amd64.deb) (0.7.0)

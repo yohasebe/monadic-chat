@@ -86,10 +86,21 @@ Do your best to make the conversation as natural as possible. Do not change subj
       $("#image-file").hide();
     }
 
-    if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
+    // initialize the (OpenAI) model options
+    if(model_options.length === 0){
+      model_options = $("#model").html();
+    }
+
+    if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
+      let models_text = apps[$(this).val()]["models"]
+      let models = JSON.parse(models_text);
+      let modelList = listModels(models);
+      $("#model").html(modelList);
+    } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
     } else {
+      $("#model").html(model_options);
       $("#model_and_file").show();
       $("#model_parameters").show();
     }

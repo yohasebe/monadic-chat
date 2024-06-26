@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electron', {
   },
   sendCommand: (command) => {
     ipcRenderer.send('command', command);
+  },
+  updateControls: (func) => {
+    ipcRenderer.on('updateControls', (_event, ...args) => func(...args));
   }
 });
 

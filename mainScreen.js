@@ -7,7 +7,7 @@ window.electron.receiveCommandOutput((output) => {
   // Remove carriage return characters
   output = output.replace(/\r/g, '').trim();
 
-  if (output.startsWith("[HTML]:")) {
+  if (output.includes("[HTML]:")) {
     const message = output.replace("[HTML]:", "");
     htmlOutputElement.innerHTML += message + '\n';
     htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
@@ -45,3 +45,24 @@ document.getElementById('exit').addEventListener('click', () => {
   window.electron.sendCommand('exit');
 });
 
+window.electron.updateControls(({ status, disableControls }) => {
+  const startButton = document.getElementById('start');
+  const stopButton = document.getElementById('stop');
+  const restartButton = document.getElementById('restart');
+  const browserButton = document.getElementById('browser');
+  const folderButton = document.getElementById('folder');
+
+  if (disableControls) {
+    startButton.disabled = true;
+    stopButton.disabled = true;
+    restartButton.disabled = true;
+    browserButton.disabled = true;
+    folderButton.disabled = true;
+  } else {
+    startButton.disabled = status !== 'Stopped';
+    stopButton.disabled = status !== 'Running';
+    restartButton.disabled = status !== 'Running';
+    browserButton.disabled = status !== 'Running' && status !== 'BrowserReady';
+    folderButton.disabled = status !== 'Running';
+  }
+});

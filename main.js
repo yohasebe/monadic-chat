@@ -427,6 +427,13 @@ function initializeApp() {
             type: 'separator'
           },
           {
+            label: 'Open Console',
+            accelerator: 'Cmd+N',
+            click: () => {
+              openMainWindow();
+            }
+          },
+          {
             label: 'Minimize',
             accelerator: 'Cmd+M',
             click: () => {
@@ -541,8 +548,6 @@ function toUnixPath(p) {
 function shutdownDocker() {
   const command = "shutdown";
 
-  const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app');
-
   let cmd;
   if (os.platform() === 'darwin') {
     cmd = `osascript -e 'quit app "Docker Desktop"'`;
@@ -598,7 +603,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
   
-  const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app');
+  const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app').replace(' ', '\\ ');
 
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
 
@@ -775,6 +780,174 @@ function updateContextMenu(disableControls = false) {
 
   contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
+
+  // Update main window buttons and menu items
+  updateMainWindowControls(disableControls);
+  updateApplicationMenu();
+}
+
+function updateMainWindowControls(disableControls) {
+  if (!mainWindow) return;
+
+  const status = currentStatus;
+  mainWindow.webContents.send('updateControls', { status, disableControls });
+}
+
+function updateApplicationMenu() {
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'About Monadic Chat',
+          click: () => {
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'About Monadic Chat',
+              message: `Monadic Chat\nVersion: ${app.getVersion()}`,
+              detail: 'Grounding AI Chatbots with Full Linux Environment on Docker\n\n© 2024 Yoichiro Hasebe',
+              buttons: ['OK'],
+              icon: path.join(iconDir, 'monadic-chat.png')
+            });
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Check for Updates',
+          click: () => {
+            openMainWindow();
+            checkForUpdates();
+          }
+        },
+        {
+          label: 'Uninstall Images and Containers',
+          click: () => {
+            uninstall();
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Open Console',
+          accelerator: 'Cmd+N',
+          click: () => {
+            openMainWindow();
+          }
+        },
+        {
+          label: 'Minimize',
+          accelerator: 'Cmd+M',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.minimize();
+            }
+          }
+        },
+        {
+          label: 'Close Window',
+          accelerator: 'Cmd+W',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.close();
+            }
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Quit Monadic Chat',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+          click: () => {
+            quitApp(mainWindow);
+          }
+        }
+      ]
+    },
+    {
+      label: 'Actions',
+      submenu: [
+        {
+          label: 'Start',
+          click: () => {
+            openMainWindow();
+            runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+          },
+          enabled: currentStatus === 'Stopped'
+        },
+        {
+          label: 'Stop',
+          click: () => {
+            openMainWindow();
+            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping. Please wait . . .</p>', 'Stopping', 'Stopped');
+          },
+          enabled: currentStatus === 'Running'
+        },
+        {
+          label: 'Restart',
+          click: () => {
+            openMainWindow();
+            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
+          },
+          enabled: currentStatus === 'Running'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Rebuild',
+          click: () => {
+            openMainWindow();
+            runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+          },
+          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+        },
+      ]
+    },
+    {
+      label: 'Open',
+      submenu: [
+        {
+          label: 'Open Browser',
+          click: () => {
+            openMainWindow();
+            openBrowser('http://localhost:4567');
+          },
+          enabled: currentStatus === 'Running' || currentStatus === 'BrowserReady'
+        },
+        {
+          label: 'Open Shared Folder',
+          click: () => {
+            openMainWindow();
+            openFolder();
+          },
+          enabled: currentStatus === 'Running'
+        },
+        {
+          label: 'Open Console',
+          click: () => {
+            openMainWindow();
+          }
+        }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Documentation',
+          click: () => {
+            openBrowser('https://yohasebe.github.io/monadic-chat/', true);
+          }
+        }
+      ]
+    }
+  ]);
+
+  Menu.setApplicationMenu(menu);
 }
 
 function writeToScreen(text) {

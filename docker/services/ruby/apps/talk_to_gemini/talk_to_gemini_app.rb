@@ -14,9 +14,7 @@ class Gemini < MonadicApp
   end
 
   def description
-    text = "This app accesses the Google Gemini API to answer questions about a wide range of topics."
-    text += " (Model: <code>#{CONFIG['GEMINI_MODEL']}</code>)" if CONFIG["GEMINI_MODEL"]
-    text
+    "This app accesses the Google Gemini API to answer questions about a wide range of topics."
   end
 
   def initial_prompt
@@ -42,6 +40,7 @@ class Gemini < MonadicApp
       "initiate_from_assistant": false,
       "image": true,
       "models": [
+        "gemini-1.5-pro-latest",
         "gemini-1.5-pro-001"
       ]
     }
@@ -332,7 +331,7 @@ class Gemini < MonadicApp
       }
     end
 
-    target_uri = "#{API_ENDPOINT}/model/#{obj['model']}:streamGenerateContent?key=#{api_key}"
+    target_uri = "#{API_ENDPOINT}/models/#{obj['model']}:streamGenerateContent?key=#{api_key}"
 
     http = HTTP.headers(headers)
 

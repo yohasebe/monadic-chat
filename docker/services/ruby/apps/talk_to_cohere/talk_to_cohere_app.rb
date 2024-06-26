@@ -14,9 +14,7 @@ class Cohere < MonadicApp
   end
 
   def description
-    text = "This app accesses the Cohere Command R API to answer questions about a wide range of topics."
-    text += " (Model: <code>#{CONFIG['COHERE_MODEL']}</code>)" if CONFIG["COHERE_MODEL"]
-    text
+    "This app accesses the Cohere Command R API to answer questions about a wide range of topics."
   end
 
   def initial_prompt

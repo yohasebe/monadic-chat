@@ -14,9 +14,7 @@ class CodeWithClaude < MonadicApp
   end
 
   def description
-    text = "This is an application that allows you to run Python code with Anthropic Claude"
-    text += " (Model: <code>#{CONFIG['ANTHROPIC_MODEL']}</code>)" if CONFIG["ANTHROPIC_MODEL"]
-    text
+    "This is an application that allows you to run Python code with Anthropic Claude"
   end
 
   def initial_prompt

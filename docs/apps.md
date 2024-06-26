@@ -91,13 +91,13 @@ Recipe file: [talk_to_claude_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 <img src="./assets/icons/google.png" width="40px"/>
 
-This app accesses the Google Gemini API to answer questions about a wide range of topics. Please set your API token and the model name (with `models/` prefix) in `~/monadic/data/.env`.
+This app accesses the Google Gemini API to answer questions about a wide range of topics. Please set your API token and the model name in `~/monadic/data/.env`.
 
 Example:
 
 ```
 GEMINI_API_KEY=api_key
-GEMINI_MODEL=models/gemini-1.5-pro-latest
+GEMINI_MODEL=gemini-1.5-pro-latest
 ```
 
 Recipe file: [talk_to_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)

@@ -14,9 +14,7 @@ class Claude < MonadicApp
   end
 
   def description
-    text = "This app accesses the Anthropic API to answer questions about a wide range of topics."
-    text += " (Model: <code>#{CONFIG['ANTHROPIC_MODEL']}</code>)" if CONFIG["ANTHROPIC_MODEL"]
-    text
+    "This app accesses the Anthropic API to answer questions about a wide range of topics."
   end
 
   def initial_prompt

@@ -350,7 +350,6 @@ let model_options = [];
 
 function resetEvent(event) {
   audioInit();
-  $("#model").html(model_options);
   $("#message").css("height", "96px").val("");
   $("#resetConfirmation").modal("show");
   $("#resetConfirmation").on("shown.bs.modal", function () {
@@ -361,6 +360,7 @@ function resetEvent(event) {
     ws.send(JSON.stringify({"message": "RESET"}));
     ws.send(JSON.stringify({"message": "LOAD"}));
     resetParams();
+    $("#model").html(model_options);
     $("#resetConfirmation").modal("hide");
     $("#main-panel").hide();
     $("#discourse").html("").hide();

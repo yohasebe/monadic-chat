@@ -326,6 +326,10 @@
                   <label class="form-check-label" for="ai-user-toggle">Enable AI-User</label>
                   <input class="form-check-input" type="checkbox" value="" id="ai-user-toggle">
                 </div>
+                <div style="display:inline-block;" class="form-check form-switch me-3">
+                  <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
+                  <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
+                </div>
                 <textarea class="form-control" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
               </div>
             </div>
@@ -344,10 +348,6 @@
                       uncheck all
                     </span>
                   </legend>
-                  <div class="form-check form-switch float-start me-3">
-                    <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
-                    <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
-                  </div>
                   <div class="form-check form-switch float-start me-3" id="auto-speech-form">
                     <input class="form-check-input" type="checkbox" id="check-auto-speech">
                     <label class="form-check-label" for="check-auto-speech">Auto speech</label>
@@ -357,9 +357,9 @@
                     <label class="form-check-label" for="check-easy-submit">Easy submit <small>(with Enter key or Stop button)</small></label>
                   </div>
                 </fieldset>
-                  <div class="textbox-caption mt-2">
-                    <code>Start from assistant</code> is respected only when <code>Initial Prompt for AI-User</code> is toggled off
-                  </div>
+                <div class="textbox-caption mt-2">
+                  <code>Enable AI-User</code> and <code>Start from assistant</code> cannot be enabled at the same time
+                </div>
               </div>
             </div>
 

@@ -6,7 +6,7 @@ export PATH=$PATH:/usr/local/bin
 export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.6.1
+export MONADIC_VERSION=0.7.0
 
 export HOST_OS=$(uname -s)
 
@@ -140,7 +140,7 @@ start_docker_compose() {
       start_container monadic-chat-python-container
       start_container monadic-chat-ruby-container
     else
-      echo "[HTML]: <p>Monadic Chat Docker image exists. Building Monadic Chat container. Please wait . . .</p>"
+      echo "[HTML]: <p>Monadic Chat Docker image exists. Setting up Monadic Chat container. Please wait . . .</p>"
       $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" -p "monadic-chat-container" up -d
     fi
   else

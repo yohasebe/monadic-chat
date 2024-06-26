@@ -61,13 +61,12 @@ Recipe file: [pdf_navigator_app.rb](https://github.com/yohasebe/monadic-chat/blo
 
 <img src="./assets/icons/c.png" width="40px"/>
 
-This app accesses the Cohere Command R API to answer questions about a wide range of topics. Please set your API token and the model name in `~/monadic/data/.env`.
+This app accesses the Cohere Command R API to answer questions about a wide range of topics. Please set your API token in `~/monadic/data/.env`.
 
 Example:
 
 ```
 COHERE_API_KEY=api_key
-COHERE_MODEL=command-r-plus
 ```
 
 Recipe file: [talk_to_cohere_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_cohere/talk_to_cohere_app.rb)
@@ -76,13 +75,12 @@ Recipe file: [talk_to_cohere_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 <img src="./assets/icons/a.png" width="40px"/>
 
-This app accesses the Anthropic Claude API to answer questions about a wide range of topics. Please set your API token and the model name in `~/monadic/data/.env`.
+This app accesses the Anthropic Claude API to answer questions about a wide range of topics. Please set your API token in `~/monadic/data/.env`.
 
 Example:
 
 ```
 ANTHROPIC_API_KEY=api_key
-ANTHROPIC_MODEL=claude-3-opus-20240229
 ```
 
 Recipe file: [talk_to_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_claude/talk_to_claude_app.rb)
@@ -91,13 +89,12 @@ Recipe file: [talk_to_claude_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 <img src="./assets/icons/google.png" width="40px"/>
 
-This app accesses the Google Gemini API to answer questions about a wide range of topics. Please set your API token and the model name in `~/monadic/data/.env`.
+This app accesses the Google Gemini API to answer questions about a wide range of topics. Please set your API token in `~/monadic/data/.env`.
 
 Example:
 
 ```
 GEMINI_API_KEY=api_key
-GEMINI_MODEL=gemini-1.5-pro-latest
 ```
 
 Recipe file: [talk_to_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)

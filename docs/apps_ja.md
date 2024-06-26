@@ -61,13 +61,12 @@ Recipe file: [pdf_navigator_app.rb](https://github.com/yohasebe/monadic-chat/blo
 
 <img src="./assets/icons/c.png" width="40px"/>
 
-Cohere Command R (Plus) APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+Cohere Command R (Plus) APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンを `~/monadic/data/.env` に設定してください。
 
 Example:
 
 ```
 COHERE_API_KEY=api_key
-COHERE_MODEL=command-r-plus
 ```
 
 Recipe file: [cohere_command_r_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_cohere/talk_to_cohere_app.rb)
@@ -76,13 +75,12 @@ Recipe file: [cohere_command_r_app.rb](https://github.com/yohasebe/monadic-chat/
 
 <img src="./assets/icons/a.png" width="40px"/>
 
-Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンを `~/monadic/data/.env` に設定してください。
 
 Example:
 
 ```
 ANTHROPIC_API_KEY=api_key
-ANTHROPIC_MODEL=claude-3-opus-20240229
 ```
 
 Recipe file: [anthropic_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_claude/talk_to_claude_app.rb)
@@ -91,13 +89,12 @@ Recipe file: [anthropic_claude_app.rb](https://github.com/yohasebe/monadic-chat/
 
 <img src="./assets/icons/google.png" width="40px"/>
 
-Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンとモデル名を `~/monadic/data/.env` に設定してください。
+Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンを `~/monadic/data/.env` に設定してください。
 
 Example:
 
 ```
 GEMINI_API_KEY=api_key
-GEMINI_MODEL=gemini-1.5-pro-latest
 ```
 
 Recipe file: [google_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)

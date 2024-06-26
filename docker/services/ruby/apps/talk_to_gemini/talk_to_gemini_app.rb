@@ -40,7 +40,10 @@ class Gemini < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "initiate_from_assistant": false,
-      "image": true
+      "image": true,
+      "models": [
+        "gemini-1.5-pro-001"
+      ]
     }
   end
 
@@ -193,10 +196,9 @@ class Gemini < MonadicApp
 
     begin
       api_key = CONFIG["GEMINI_API_KEY"]
-      model = CONFIG["GEMINI_MODEL"]
-      raise if api_key.nil? || model.nil?
+      raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: GEMINI_API_KEY or GEMINI_MODEL not found."
+      puts "ERROR: GEMINI_API_KEY not found."
       exit
     end
 
@@ -330,7 +332,7 @@ class Gemini < MonadicApp
       }
     end
 
-    target_uri = "#{API_ENDPOINT}/#{model}:streamGenerateContent?key=#{api_key}"
+    target_uri = "#{API_ENDPOINT}/model/#{obj['model']}:streamGenerateContent?key=#{api_key}"
 
     http = HTTP.headers(headers)
 

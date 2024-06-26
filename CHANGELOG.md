@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Jun, 2024] 0.7.0
+  - [Jun, 2024] 0.7.1
       - Linux (Ubuntu/Debian) installer released
       - App file name changed from monadic-chat to Monadic Chat
 - [Jun, 2024] Speech Draft Helper app added (with TTS audio file generation)

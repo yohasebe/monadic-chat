@@ -35,8 +35,8 @@ layout: default
 
 ### Linux (Ubuntu/Debian)
 
-1. Docker Desktop for Linuxをインストールします。
-2.Monadic Chat のインストーラーをダウンロードしてインストールします。 
+1. Docker Desktop for Linuxをインストールします。（参考：[LinuxにDocker Desktopをインストール](https://docs.docker.jp/desktop/install/linux-install.html)）
+2. Monadic Chat のインストーラーをダウンロードしてインストールします。 
 
 - [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.7.0_amd64.deb) (0.7.0)
 - [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.7.0_arm64.deb) (0.7.0)

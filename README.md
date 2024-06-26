@@ -24,8 +24,6 @@
   - [Jun, 2024] Automatic Docker image rebuild feature
   - [Jun, 2024] Source code block copy button added
   - [Jun, 2024] Video Describer app added
-  - [May, 2024] Talk to Claude/Command R/Gemini apps added
-  - [May, 2024] Ruby/Python/PGVector/Selenium containers structure introduced
   - [Full Change Log](CHANGELOG.md)
 
 ## Documentation
@@ -36,7 +34,8 @@
 ## Installation
 
   - [Download installer for MacOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
-  - [Download installer Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
+  - [Download installer for Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
+  - [Download installer for Linux (Ubuntu/Debian)](https://yohasebe.github.io/monadic-chat/installation#linux)
 
 
 There is another version of Monadic Chat, which is a command line app provided as a RubyGem. 

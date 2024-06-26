@@ -154,13 +154,11 @@ Do your best to make the conversation as natural as possible. Do not change subj
   })
 
   $("#interaction-check-all").on("click", function () {
-    $("#initiate-from-assistant").prop("checked", true);
     $("#check-auto-speech").prop("checked", true);
     $("#check-easy-submit").prop("checked", true);
   });
 
   $("#interaction-uncheck-all").on("click", function () {
-    $("#initiate-from-assistant").prop("checked", false);
     $("#check-auto-speech").prop("checked", false);
     $("#check-easy-submit").prop("checked", false);
   });
@@ -201,6 +199,19 @@ Do your best to make the conversation as natural as possible. Do not change subj
         $("#user-panel").show();
         setInputFocus()
       }
+    }
+  });
+
+  // if $ai-user-toggle is enabled, $ai-user-initial-prompt will be automatically disabled
+  $("#ai-user-toggle").on("change", function() {
+    if ($(this).is(":checked")) {
+      $("#initiate-from-assistant").prop("checked", false).trigger("change");
+    }
+  });
+  // if $ai-user-initial-prompt is enabled, $ai-user-toggle will be automatically disabled
+  $("#initiate-from-assistant").on("change", function() {
+    if ($(this).is(":checked")) {
+      $("#ai-user-toggle").prop("checked", false);
     }
   });
 

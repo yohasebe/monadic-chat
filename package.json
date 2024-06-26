@@ -1,6 +1,7 @@
 {
   "name": "monadic-chat",
-  "version": "0.6.1",
+  "productName": "Monadic Chat",
+  "version": "0.7.0",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -8,7 +9,8 @@
     "build:mac-arm64": "electron-builder --mac --arm64",
     "build:mac-x64": "electron-builder --mac --x64",
     "build:win": "electron-builder --win --x64",
-    "build:linux": "electron-builder --linux --x64"
+    "build:linux-arm64": "electron-builder --linux --arm64",
+    "build:linux-x64": "electron-builder --linux --x64"
   },
   "keywords": [],
   "author": "Yoichiro Hasebe <yohasebe@gmail.com>",
@@ -59,11 +61,11 @@
       "certificateSha1": "4F833B9F1030A709A2014DBC64FE12F7E0EAEBCE"
     },
     "linux": {
+      "icon": "menu_icons/icon.icns",
       "target": [
         "deb"
       ],
-      "defaultArch": "x64",
-      "icon": "menu_icons/icon.png"
+      "defaultArch": "x64"
     }
   },
   "dependencies": {

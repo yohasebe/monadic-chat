@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start Docker
-sudo systemctl start docker
+systemctl --user start docker-desktop
 
 # Wait for Docker Desktop to start
 timeout=30 # 30 seconds timeout

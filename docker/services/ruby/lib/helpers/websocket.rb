@@ -185,14 +185,6 @@ module WebSocketHelper
 
           aiu_buffer = []
 
-          app_name = obj["app_name"]
-          app_obj = APPS[app_name]
-          if app_obj.respond_to?(:api_request)
-            api_request = app_obj.method(:api_request)
-          else
-            api_request = method(:openai_api_request)
-          end
-
           reversed_messages = session[:messages].map do |m|
             m["role"] = m["role"] == "assistant" ? "user" : "assistant"
             m
@@ -202,6 +194,19 @@ module WebSocketHelper
           parameters_modified = obj["contents"]["params"].dup
           parameters_modified.delete("tools")
           parameters_modified["message"] = reversed_messages.pop["text"]
+
+          ### code to use the current LLM model for AI User
+          # app_name = obj.dig("contents", "params", "app_name")
+          # app_obj = APPS[app_name]
+          # if app_obj.respond_to?(:api_request)
+          #   api_request = app_obj.method(:api_request)
+          # else
+          #   api_request = method(:openai_api_request)
+          # end
+
+          ### code to use the OpenAI mode for AI User
+          api_request = method(:openai_api_request)
+          parameters_modified["model"] = "gpt-4o"
 
           mini_session = {
             :parameters => parameters_modified,

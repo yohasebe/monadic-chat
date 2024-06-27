@@ -480,14 +480,16 @@ function connect_websocket(callback) {
         $("#model").html(model_options);
         $("#model").val("gpt-4o");
 
-        const token_verified = `\
-              <p>${data['content']}</p>\
-              <div class='like-h5'><i class='fa-solid fa-robot'></i> OpenAI Models</div>\
-              <div>\
-                ${data['models'].join('<br>')}\
-              </div>\
-            `
-        setAlert(token_verified, "secondary");
+        // const token_verified = `\
+        //       <p>${data['content']}</p>\
+        //       <div class='like-h5'><i class='fa-solid fa-robot'></i> OpenAI Models</div>\
+        //       <div>\
+        //         ${data['models'].join('<br>')}\
+        //       </div>\
+        //     `
+        // setAlert(token_verified, "secondary");
+
+        setAlert("Ready to start.", "secondary");
         verified = true;
 
         $("#start").prop("disabled", false);

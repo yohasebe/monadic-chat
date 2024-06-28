@@ -140,8 +140,8 @@ class Claude < MonadicApp
                   case stop_reason
                   when "tool_use"
                     finish_reason = "tool_use"
-                    res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                    block&.call res
+                    res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                    block&.call res1
                   end
                 end
               else
@@ -231,9 +231,19 @@ class Claude < MonadicApp
       process_functions(app, session, tool_calls, context, call_depth, &block)
 
     elsif result
-      result = add_replacements(result)
-      result = add_replacements(@thinking.join("\n")) + result
-      result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+
+      case session[:parameters]["model"]
+      when /opus/
+        result = add_replacements(result)
+        result = add_replacements(@thinking.join("\n")) + result
+        result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+      when /sonnet/
+        if !@leftover.empty?
+          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
+          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
+        end
+      end
+      @leftover.clear
 
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
@@ -291,29 +301,17 @@ class Claude < MonadicApp
       @thinking.clear
       res = { "type" => "user",
               "content" => {
+                "role" => role,
                 "mid" => request_id,
                 "text" => obj["message"],
-                "html" => html,
-                "lang" => detect_language(obj["message"])
+                "html" => markdown_to_html(message),
+                "lang" => detect_language(obj["message"]),
+                "active" => true,
               }
       }
       res["image"] = obj["image"] if obj["image"]
       block&.call res
-    end
-
-    # If the role is "user", the message is added to the session
-    if message != "" && role == "user"
-      res = { "mid" => request_id,
-              "role" => role,
-              "text" => message,
-              "html" => markdown_to_html(message),
-              "lang" => detect_language(message),
-              "active" => true,
-      }
-      if obj["image"]
-        res["image"] = obj["image"]
-      end
-      session[:messages] << res
+      session[:messages] << res["content"]
     end
 
     # Old messages in the session are set to inactive
@@ -377,24 +375,16 @@ class Claude < MonadicApp
       "content" => [
         {
           "type" => "text",
-          "text" => "OK"
+          "text" => ""
         }
       ]
     }) if messages.first["role"] != "user"
-
-    messages = messages.each_with_index.flat_map do |msg, i|
-      if i > 0 && msg["role"] == messages[i - 1]["role"]
-        the_other = msg["role"] == "user" ? "assistant" : "user"
-        [ { "role" => the_other, "content" => [ { "type" => "text", "text" => "OK" } ] }, msg]
-      else
-        msg
-      end
-    end
 
     body["messages"] = messages
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
+      @leftover += obj["function_returns"]
     end
 
     # Call the API

@@ -23,7 +23,7 @@ layout: default
 - 🤖 Chat functionality powered by **GPT-4** via OpenAI's Chat API
 - 👩‍💻 Installable as a GUI application on Mac and Windows using **Electron**
 - 🌐 Usable as a **web application** in browsers
-- 👩💬 🤖💬 Both **human/AI chat** and **AI/AI chat** are supported
+- 👩💬 🤖💬 Both **human↔️AI chat** and **AI↔️AI chat** are supported
 
 ### AI + Linux Environment
 
@@ -78,14 +78,14 @@ layout: default
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-- 🤖💬🤖 **AI/AI Chat** is available:
+- 🤖💬🤖 **AI↔️AI Chat** is available:
 
-   | AI-Assistant     | AI-User      |
-   |:-----------------|:-------------| 
-   | OpenAI GPT-4     | OpenAI GPT-4 |
-   | Google Gemini    | OpenAI GPT-4 |
-   | Anthropic Claude | OpenAI GPT-4 |
-   | Cohere Command R | OpenAI GPT-4 |
+   | AI-Assistant     | | AI-User      |
+   |:-----------------|-|:-------------| 
+   | OpenAI GPT-4     |↔️| OpenAI GPT-4 |
+   | Google Gemini    |↔️| OpenAI GPT-4 |
+   | Anthropic Claude |↔️| OpenAI GPT-4 |
+   | Cohere Command R |↔️| OpenAI GPT-4 |
 
 ### Managing Conversations as Monads
 

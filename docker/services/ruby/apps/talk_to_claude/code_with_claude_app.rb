@@ -42,7 +42,9 @@ class CodeWithClaude < MonadicApp
       If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose. When there are multiple image file types available, SVG is preferred.
 
       If the user asks for it, you can also start a Jupyter Lab server using the `run_jupyter(command)` function. If successful, you should provide the user with the URL to access the Jupyter Lab server in a way that the user can easily click on it and the new tab opens in the browser using `<a href="URL" target="_blank">Jupyter Lab</a>`.
-      
+     
+      The code contained your function calling command is not directly shown to the user, so please make sure you include the same code to the regular text response inside a markdown code block.
+
       ### Error Handling:
 
       - In case of errors or exceptions during code execution, display the error message to the user. This will help in troubleshooting and improving the code.
@@ -192,7 +194,6 @@ class CodeWithClaude < MonadicApp
         "claude-3-5-sonnet-20240620",
         "claude-3-opus-20240229",
         "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307"
       ],
       "tools": [
         {
@@ -374,8 +375,8 @@ class CodeWithClaude < MonadicApp
                   case stop_reason
                   when "tool_use"
                     finish_reason = "tool_use"
-                    res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                    block&.call res
+                    res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                    block&.call res1
                   end
                 end
               else
@@ -465,9 +466,19 @@ class CodeWithClaude < MonadicApp
       process_functions(app, session, tool_calls, context, call_depth, &block)
 
     elsif result
-      result = add_replacements(result)
-      result = add_replacements(@thinking.join("\n")) + result
-      result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+
+      case session[:parameters]["model"]
+      when /opus/
+        result = add_replacements(result)
+        result = add_replacements(@thinking.join("\n")) + result
+        result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+      when /sonnet/
+        if !@leftover.empty?
+          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
+          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
+        end
+      end
+      @leftover.clear
 
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
@@ -525,29 +536,17 @@ class CodeWithClaude < MonadicApp
       @thinking.clear
       res = { "type" => "user",
               "content" => {
+                "role" => role,
                 "mid" => request_id,
                 "text" => obj["message"],
-                "html" => html,
-                "lang" => detect_language(obj["message"])
+                "html" => markdown_to_html(message),
+                "lang" => detect_language(obj["message"]),
+                "active" => true,
               }
       }
       res["image"] = obj["image"] if obj["image"]
       block&.call res
-    end
-
-    # If the role is "user", the message is added to the session
-    if message != "" && role == "user"
-      res = { "mid" => request_id,
-              "role" => role,
-              "text" => message,
-              "html" => markdown_to_html(message),
-              "lang" => detect_language(message),
-              "active" => true,
-      }
-      if obj["image"]
-        res["image"] = obj["image"]
-      end
-      session[:messages] << res
+      session[:messages] << res["content"]
     end
 
     # Old messages in the session are set to inactive
@@ -620,6 +619,7 @@ class CodeWithClaude < MonadicApp
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
+      @leftover += obj["function_returns"]
     end
 
     # Call the API

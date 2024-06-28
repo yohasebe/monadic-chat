@@ -316,14 +316,6 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Uninstall',
-    click: () => {
-      uninstall();
-    },
-    enabled: true
-  },
-  { type: 'separator' },
-  {
     label: 'Quit',
     click: () => {
       openMainWindow();
@@ -611,6 +603,8 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
   updateContextMenu(true);
   updateStatusIndicator(statusWhileCommand);
 
+  fetchWithRetryCalled = false; // Reset the flag before running the command
+
   if (sync) {
     execSync(cmd, (err, stdout, _stderr) => {
       if (err) {
@@ -654,8 +648,8 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
           updateStatusIndicator(currentStatus);
         } else if (lines[i].trim() === "[SERVER STARTED]") {
           if (!fetchWithRetryCalled) {
-            writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
             fetchWithRetryCalled = true;
+            writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
             fetchWithRetry('http://localhost:4567')
               .then(data => {
                 menuItems[8].enabled = true;
@@ -663,7 +657,8 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
                 tray.setContextMenu(contextMenu);
                 updateStatusIndicator("BrowserReady");
                 writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
-                // openBrowser('http://localhost:4567');
+                // Send the message to the renderer process immediately
+                mainWindow.webContents.send('serverReady');
               })
               .catch(error => {
                 writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');

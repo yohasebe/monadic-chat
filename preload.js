@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('electron', {
   },
   updateControls: (func) => {
     ipcRenderer.on('updateControls', (_event, ...args) => func(...args));
+  },
+  onServerReady: (func) => {
+    ipcRenderer.on('serverReady', func);
   }
 });
 
@@ -68,4 +71,3 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
     document.getElementById('browser').disabled = true;
   }
 });
-

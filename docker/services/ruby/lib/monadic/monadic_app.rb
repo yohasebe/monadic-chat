@@ -18,6 +18,10 @@ class MonadicApp
   def initialize
     @context = {}
     @api_key = ""
+
+    # this is currently used only for function calling of claude app
+    # it is an array to store assistant messages generated before function calling
+    @leftover = []
   end
 
   # Wrap the user's message in a monad

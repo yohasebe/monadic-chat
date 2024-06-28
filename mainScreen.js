@@ -66,3 +66,9 @@ window.electron.updateControls(({ status, disableControls }) => {
     folderButton.disabled = status !== 'Running';
   }
 });
+
+// Listen for the serverReady event to enable the browser button immediately
+window.electron.onServerReady(() => {
+  document.getElementById('browser').disabled = false;
+});
+

@@ -24,7 +24,7 @@ layout: default
 - 🤖 OpenAIのChat API（**GPT-4**）を使用したチャット機能
 - 👩‍💻 **Electron**を用いたGUIアプリとしてMacおよびWindowsにインストール可能
 - 🌐 **Webアプリ**としてブラウザ上で利用可能
-- 👩💬 🤖💬 **human/AI chat**と**AI/AI chat**の両方をサポート
+- 👩💬 🤖💬 **human↔️AI chat**と**AI↔️AI chat**の両方をサポート
 
 ### AI + Linux環境
 
@@ -78,14 +78,14 @@ layout: default
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
-- 🤖💬🤖 AI/AI Chatは以下の組み合わせで利用可能
+- 🤖💬🤖 AI↔️AI Chatは以下の組み合わせで利用可能
 
-   | AI-Assistant     | AI-User      |
-   |:-----------------|:-------------| 
-   | OpenAI GPT-4     | OpenAI GPT-4 |
-   | Google Gemini    | OpenAI GPT-4 |
-   | Anthropic Claude | OpenAI GPT-4 |
-   | Cohere Command R | OpenAI GPT-4 |
+   | AI-Assistant     | | AI-User      |
+   |:-----------------|-|:-------------| 
+   | OpenAI GPT-4     |↔️| OpenAI GPT-4 |
+   | Google Gemini    |↔️| OpenAI GPT-4 |
+   | Anthropic Claude |↔️| OpenAI GPT-4 |
+   | Cohere Command R |↔️| OpenAI GPT-4 |
 
 ### モナドとしての会話の管理
 

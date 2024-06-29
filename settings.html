@@ -6,21 +6,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
   <style>
-body {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 15px;
-  color: #333;
-  background-color: #eeeeee;
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
-  font-size: 13px;
-}
+    body {
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      padding: 10px;
+      color: #333;
+      background-color: #eeeeee;
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
+      font-size: 13px;
+    }
     h1 {
       margin-top: 0;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       font-size: 16px;
     }
     form {
@@ -51,7 +52,7 @@ body {
     .button-group {
       display: flex;
       justify-content: flex-end;
-      margin-top: 15px;
+      margin-top: 10px;
     }
     button {
       padding: 6px 12px;
@@ -68,10 +69,25 @@ body {
       background-color: #e0ac07;
     }
     button#cancel {
-      background-color: #ccc;
+      background-color: #ffc107;
     }
     button#cancel:hover {
-      background-color: #bbb;
+      background-color: #e0ac07;
+    }
+    .button-group {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    button#toggle-visibility {
+      width: 150px;
+      background-color: #ffc107;
+      margin-left: 0;
+    }
+
+    button#toggle-visibility:hover {
+      background-color: #e0ac07;
     }
   </style>
   <body>
@@ -90,8 +106,9 @@ body {
       <input type="text" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
 
       <div class="button-group">
-        <button type="button" id="cancel">Cancel</button>
-        <button type="submit">Save</button>
+        <button type="button" id="toggle-visibility"><i class="fas fa-eye"></i> Show API Keys</button>
+        <button type="button" id="cancel"><i class="fas fa-times"></i> Cancel</button>
+        <button type="submit"><i class="fas fa-save"></i> Save and Close</button>
       </div>
     </form>
     <script>
@@ -143,6 +160,26 @@ body {
           }
         });
       });
+
+      let isVisible = false;
+      const toggleButton = document.getElementById('toggle-visibility');
+      const apiInputs = document.querySelectorAll('input[type="text"]');
+
+      toggleButton.addEventListener('click', () => {
+        isVisible = !isVisible;
+        apiInputs.forEach(input => {
+          input.type = isVisible ? 'text' : 'password';
+        });
+        toggleButton.innerHTML = isVisible ? 
+          '<i class="fas fa-eye-slash"></i> Hide API Keys' : 
+          '<i class="fas fa-eye"></i> Show API Keys';
+      });
+
+      // Set initial state to hidden
+      apiInputs.forEach(input => {
+        input.type = 'password';
+      });
+
     </script>
   </body>
 </html>

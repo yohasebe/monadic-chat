@@ -41,6 +41,10 @@ document.getElementById('folder').addEventListener('click', () => {
   window.electron.sendCommand('folder');
 });
 
+document.getElementById('settings').addEventListener('click', () => {
+  window.electron.sendCommand('settings');
+});
+
 document.getElementById('exit').addEventListener('click', () => {
   window.electron.sendCommand('exit');
 });

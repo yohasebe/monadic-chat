@@ -367,6 +367,9 @@ function initializeApp() {
         case 'folder':
           openFolder();
           break;
+        case 'settings':
+          openSettingsWindow();
+          break;
         case 'exit':
           quitApp(mainWindow);
           break;
@@ -821,8 +824,8 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 680,
-    minWidth: 680,
+    width: 740,
+    minWidth: 740,
     height: 420,
     minHeight: 260,
     webPreferences: {

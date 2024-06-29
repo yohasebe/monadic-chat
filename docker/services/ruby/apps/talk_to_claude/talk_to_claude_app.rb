@@ -28,7 +28,7 @@ class Claude < MonadicApp
 
   def settings
     {
-      "app_name": "Talk to Anthropic Claude",
+      "app_name": "Anthropic Claude (Chat)",
       "context_size": 100,
       "initial_prompt": initial_prompt,
       "description": description,
@@ -267,8 +267,10 @@ class Claude < MonadicApp
       api_key = CONFIG["ANTHROPIC_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: ANTHROPIC_API_KEY not found."
-      exit
+      pp error_message = "ERROR: ANTHROPIC_API_KEY not found. Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/data/.env file."
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     # Get the parameters from the session

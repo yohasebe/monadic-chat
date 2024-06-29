@@ -41,9 +41,9 @@ module WebSocketHelper
       end
       
       # calculate total token count
-      count_total_input_tokens = messages.filter { |m| m["role"] == "user"}.map { |m| m["tokens"] }.sum
-      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant"}.map { |m| m["tokens"] }.sum
-      count_active_tokens = active_messages.map { |m| m["tokens"] }.sum
+      count_total_input_tokens = messages.filter { |m| m["role"] == "user"}.map { |m| m["tokens"] || 0 }.sum
+      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant"}.map { |m| m["tokens"] || 0}.sum
+      count_active_tokens = active_messages.map { |m| m["tokens"] || 0 }.sum
     rescue StandardError => e
       pp e.message
       pp e.backtrace
@@ -194,15 +194,6 @@ module WebSocketHelper
           parameters_modified = obj["contents"]["params"].dup
           parameters_modified.delete("tools")
           parameters_modified["message"] = reversed_messages.pop["text"]
-
-          ### code to use the current LLM model for AI User
-          # app_name = obj.dig("contents", "params", "app_name")
-          # app_obj = APPS[app_name]
-          # if app_obj.respond_to?(:api_request)
-          #   api_request = app_obj.method(:api_request)
-          # else
-          #   api_request = method(:openai_api_request)
-          # end
 
           ### code to use the OpenAI mode for AI User
           api_request = method(:openai_api_request)
@@ -365,6 +356,8 @@ module WebSocketHelper
               @channel.push(fragment.to_json)
             end
 
+            Thread.exit if responses.empty?
+
             if obj["auto_speech"] && !cutoff && !obj["monadic"]
               text = buffer.join
               res_hash = tts_api_request(text, voice, speed, response_format, model)
@@ -372,6 +365,12 @@ module WebSocketHelper
             end
 
             responses.each do |response|
+              # if response is not a hash, skip with error message
+              unless response.is_a?(Hash)
+                pp response
+                next
+              end
+
               if response.key?("type") && response["type"] == "error"
                 content = response.dig("choices", 0, "message", "content")
                 @channel.push({ "type" => "error", "content" => response.to_s }.to_json)

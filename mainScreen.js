@@ -5,7 +5,7 @@ let logLines = 0;
 
 window.electron.receiveCommandOutput((output) => {
   // Remove carriage return characters
-  output = output.replace(/\r/g, '').trim();
+  output = output.replace(/\r\n|\r|\n/g, '\n').trim();
 
   if (output.includes("[HTML]:")) {
     const message = output.replace("[HTML]:", "");

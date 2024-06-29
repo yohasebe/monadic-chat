@@ -4,6 +4,8 @@
 
 let ws = connect_websocket();
 let verified = false;
+let htmlContent;
+let model_options;
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -469,26 +471,13 @@ function connect_websocket(callback) {
 
         break;
       case "token_verified":
-        // console.log("Token verified");
-
-        // insert data["token"] into the api-token input field
         $("#api-token").val(data["token"]);
 
-        const model_options = data['models'].map(
+        model_options = data['models'].map(
           model => `<option value="${model}">${model}</option>`
         );
         $("#model").html(model_options);
         $("#model").val("gpt-4o");
-
-        // const token_verified = `\
-        //       <p>${data['content']}</p>\
-        //       <div class='like-h5'><i class='fa-solid fa-robot'></i> OpenAI Models</div>\
-        //       <div>\
-        //         ${data['models'].join('<br>')}\
-        //       </div>\
-        //     `
-        // setAlert(token_verified, "secondary");
-
         setAlert("Ready to start.", "secondary");
         verified = true;
 
@@ -498,7 +487,6 @@ function connect_websocket(callback) {
         // filter out the models that are not available from the dropdown
         const available_models = data['models']
         $("#apps option").each(function () {
-          // next if this app does not specify "model"
           let  model = apps[$(this).val()]["model"]
           if (model && !available_models.includes(model)) {
             $(this).remove();
@@ -543,6 +531,14 @@ function connect_websocket(callback) {
         setAlert("Please wait . . .", "secondary");
         loadParams(data["content"], "loadParams");
         const currentApp = apps[$("#apps").val()] || apps[defaultApp];
+
+        if (currentApp["models"] && currentApp["models"].length > 0) {
+          let models_text = currentApp["models"]
+          let models = JSON.parse(models_text);
+          let modelList = listModels(models);
+          $("#model").html(modelList);
+        }
+
         $("#base-app-title").text(currentApp["app_name"]);
         $("#base-app-icon").html(currentApp["icon"]);
         $("#base-app-desc").html(currentApp["description"]);
@@ -628,6 +624,8 @@ function connect_websocket(callback) {
             case "assistant":
               const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
+
+              htmlContent = $("#discourse div.card:last");
 
               if (apps[loadedApp]["toggle"] === "true") {
                 applyToggle(htmlContent);
@@ -737,7 +735,7 @@ function connect_websocket(callback) {
 
         $("#discourse").append(htmlElement);
 
-        const htmlContent = $("#discourse div.card:last");
+        htmlContent = $("#discourse div.card:last");
 
         if (params["toggle"] === "true") {
           applyToggle(htmlContent);

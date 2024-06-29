@@ -485,7 +485,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
     let subprocess = spawn(cmd, [], { shell: true });
 
     subprocess.stdout.on('data', function (data) {
-      const lines = data.toString().split(require('os').EOL);
+      const lines = data.toString().split(/\r\n|\r|\n/);
       if (lines[lines.length - 1] === '') {
         lines.pop();
       }
@@ -824,8 +824,8 @@ function createMainWindow() {
   if (mainWindow) return;
 
   mainWindow = new BrowserWindow({
-    width: 740,
-    minWidth: 740,
+    width: 780,
+    minWidth: 780,
     height: 420,
     minHeight: 260,
     webPreferences: {
@@ -890,8 +890,6 @@ function openFolder() {
     try {
       // Get the WSL home directory using the `wslpath` command
       const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      // Get the WSL distribution name
-      const distroName = execSync('wsl.exe -l -q').toString().split('\n')[0].trim();
       // Construct the WSL path
       const wslPath = `/home/${path.basename(wslHome)}/monadic/data`;
       folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
@@ -988,7 +986,17 @@ ipcMain.on('close-settings', () => {
 });
 
 function loadSettings() {
-  const envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
+  let envPath;
+  if (os.platform() === 'darwin' || os.platform() === 'linux') {
+    envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
+  } else if (os.platform() === 'win32') {
+    // Get the WSL home directory using the `wslpath` command
+    const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
+    // Construct the WSL path
+    wslPath = `/home/${path.basename(wslHome)}/monadic/data/.env`;
+    envPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+  }
+
   try {
     const envContent = fs.readFileSync(envPath, 'utf8');
     const envConfig = dotenv.parse(envContent);

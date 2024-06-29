@@ -27,7 +27,6 @@ Do your best to make the conversation as natural as possible. Do not change subj
 
   let lastApp = defaultApp;
 
-
   $("#auto-scroll-toggle").on("change", function() {
     if ($(this).is(":checked")) {
       autoScroll = true;
@@ -84,11 +83,6 @@ Do your best to make the conversation as natural as possible. Do not change subj
       $("#image-file").show();
     } else {
       $("#image-file").hide();
-    }
-
-    // initialize the (OpenAI) model options
-    if(model_options.length === 0){
-      model_options = $("#model").html();
     }
 
     if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
@@ -467,7 +461,6 @@ Do your best to make the conversation as natural as possible. Do not change subj
   })
 
   $("#message, #initial-prompt, #ai-user-initial-prompt").on("input", function() {
-    console.log("input event");
     if (message.dataset.ime !== "true") {
       autoResize($(this));
     }

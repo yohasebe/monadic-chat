@@ -57,11 +57,11 @@ Recipe file: [pdf_navigator_app.rb](https://github.com/yohasebe/monadic-chat/blo
 
 <img src="./assets/images/rag.png" width="600px"/>
 
-## Talk to Cohere Command R
+## Cohere Command R (Chat/Code Interpreter)
 
 <img src="./assets/icons/c.png" width="40px"/>
 
-This app accesses the Cohere Command R API to answer questions about a wide range of topics. Please set your API token in `~/monadic/data/.env`.
+This app accesses the Cohere Command R API, instead of the OpenAI's API. Please set your API token in `~/monadic/data/.env`.
 
 Example:
 
@@ -71,11 +71,11 @@ COHERE_API_KEY=api_key
 
 Recipe file: [talk_to_cohere_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_cohere/talk_to_cohere_app.rb)
 
-## Talk to Anthropic Claude
+## Anthropic Claude (Chat/Code Interpreter)
 
 <img src="./assets/icons/a.png" width="40px"/>
 
-This app accesses the Anthropic Claude API to answer questions about a wide range of topics. Please set your API token in `~/monadic/data/.env`.
+This app accesses the Anthropic Claude API, instead of the OpenAI's API. Please set your API token in `~/monadic/data/.env`.
 
 Example:
 
@@ -85,11 +85,11 @@ ANTHROPIC_API_KEY=api_key
 
 Recipe file: [talk_to_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_claude/talk_to_claude_app.rb)
 
-## Talk to Google Gemini
+## Google Gemini (Chat/Code Interpreter)
 
 <img src="./assets/icons/google.png" width="40px"/>
 
-This app accesses the Google Gemini API to answer questions about a wide range of topics. Please set your API token in `~/monadic/data/.env`.
+This app accesses the Google Gemini API, instead of the OpenAI's API. Please set your API token in `~/monadic/data/.env`.
 
 Example:
 

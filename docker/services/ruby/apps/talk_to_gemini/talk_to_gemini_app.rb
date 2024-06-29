@@ -30,7 +30,7 @@ class Gemini < MonadicApp
 
   def settings
     {
-      "app_name": "Talk to Google Gemini",
+      "app_name": "Google Gemini (Chat)",
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "description": description,
@@ -41,7 +41,10 @@ class Gemini < MonadicApp
       "image": true,
       "models": [
         "gemini-1.5-pro-latest",
-        "gemini-1.5-pro-001"
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-1.0-pro"
       ]
     }
   end
@@ -197,8 +200,10 @@ class Gemini < MonadicApp
       api_key = CONFIG["GEMINI_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: GEMINI_API_KEY not found."
-      exit
+      pp error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file."
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     # Get the parameters from the session

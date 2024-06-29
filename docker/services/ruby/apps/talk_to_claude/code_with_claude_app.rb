@@ -164,8 +164,7 @@ class CodeWithClaude < MonadicApp
 
         <video controls src="/data/FILE_NAME"></video>
 
-
-      [IMPORTANT]: Remember that you can show images and other data files you generate in your current directory using `/data/FILE_NAME` in the `src` attribute of the HTML tag.
+      [IMPORTANT]: Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag.
     TEXT
 
     text.strip
@@ -183,7 +182,7 @@ class CodeWithClaude < MonadicApp
       "easy_submit": false,
       "auto_speech": false,
       "mathjax": true,
-      "app_name": "Talk to Anthropic Claude (Code Interpreter)",
+      "app_name": "Anthropic Claude (Code Interpreter)",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
@@ -192,8 +191,7 @@ class CodeWithClaude < MonadicApp
       "toggle": true,
       "models": [
         "claude-3-5-sonnet-20240620",
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
+        "claude-3-opus-20240229"
       ],
       "tools": [
         {
@@ -502,8 +500,10 @@ class CodeWithClaude < MonadicApp
       api_key = CONFIG["ANTHROPIC_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: ANTHROPIC_API_KEY not found."
-      exit
+      pp error_message = "ERROR: ANTHROPIC_API_KEY not found.  Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/data/.env file."
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     # Get the parameters from the session

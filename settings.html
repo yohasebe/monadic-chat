@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Settings</title>
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+      padding: 20px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input {
+      width: 100%;
+      padding: 5px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #ffc107;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #e0ac07;
+    }
+  </style>
+</head>
+<body>
+  <h1>Settings</h1>
+  <form id="settings-form">
+    <label for="openai-api-key">OPENAI_API_KEY</label>
+    <input type="text" id="openai-api-key" name="openai-api-key">
+    
+    <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
+    <input type="text" id="anthropic-api-key" name="anthropic-api-key">
+    
+    <label for="cohere-api-key">COHERE_API_KEY</label>
+    <input type="text" id="cohere-api-key" name="cohere-api-key">
+    
+    <label for="gemini-api-key">GEMINI_API_KEY</label>
+    <input type="text" id="gemini-api-key" name="gemini-api-key">
+    
+    <button type="submit">Save</button>
+  </form>
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    document.getElementById('settings-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const data = {
+        openaiApiKey: document.getElementById('openai-api-key').value,
+        anthropicApiKey: document.getElementById('anthropic-api-key').value,
+        cohereApiKey: document.getElementById('cohere-api-key').value,
+        geminiApiKey: document.getElementById('gemini-api-key').value
+      };
+      ipcRenderer.send('save-settings', data);
+    });
+
+    ipcRenderer.on('load-settings', (_event, data) => {
+      document.getElementById('openai-api-key').value = data.openaiApiKey || '';
+      document.getElementById('anthropic-api-key').value = data.anthropicApiKey || '';
+      document.getElementById('cohere-api-key').value = data.cohereApiKey || '';
+      document.getElementById('gemini-api-key').value = data.geminiApiKey || '';
+    });
+
+    ipcRenderer.send('request-settings');
+  </script>
+</body>
+</html>

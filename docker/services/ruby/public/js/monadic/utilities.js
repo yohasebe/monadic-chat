@@ -27,7 +27,15 @@ function getCookie(name) {
   return null;
 }
 
-//////////////////////////////
+
+function listModels(models) {
+  let modelList = "";
+  for (let model of models) {
+    modelList += `<option value="${model}">${model}</option>`;
+  }
+  return modelList;
+}
+
 // convert an object to HTML changing snake_case to space case in the keys
 //////////////////////////////
 
@@ -227,8 +235,6 @@ function loadParams(params, calledFor = "loadParams") {
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-toggle").prop("checked", false)
   }
-
-  $("#model").val(params["model"]);
   $("#temperature").val(params["temperature"] || "0.3");
   $("#temperature-value").text(params["temperature"] || "0.3");
   $("#top-p").val(params["top_p"] || "0.0");
@@ -245,7 +251,8 @@ function loadParams(params, calledFor = "loadParams") {
     $("#apps").val(defaultApp);
     $(`#apps option[value="${defaultApp}"]`).attr('selected','selected');
   } else if (calledFor === "loadParams" || calledFor === "changeApp") {
-    $("#apps").val(params["app_name"]);
+    let app_name = params["app_name"];
+    $("#apps").val(app_name);
     $(`#apps option[value="${params['app_name']}"]`).attr('selected','selected');
   }
   if (params["easy_submit"]) {
@@ -263,6 +270,7 @@ function loadParams(params, calledFor = "loadParams") {
   } else{
     $("#initiate-from-assistant").prop('checked', false);
   }
+  $("#model").val(params["model"]);
 }
 
 function resetParams() {
@@ -346,8 +354,6 @@ function checkParams() {
   return true;
 }
 
-let model_options = [];
-
 function resetEvent(event) {
   audioInit();
   $("#message").css("height", "96px").val("");
@@ -360,6 +366,7 @@ function resetEvent(event) {
     ws.send(JSON.stringify({"message": "RESET"}));
     ws.send(JSON.stringify({"message": "LOAD"}));
     resetParams();
+    console.log(model_options);
     $("#model").html(model_options);
     $("#resetConfirmation").modal("hide");
     $("#main-panel").hide();

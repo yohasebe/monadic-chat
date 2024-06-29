@@ -28,7 +28,7 @@ class Claude < MonadicApp
 
   def settings
     {
-      "app_name": "Anthropic Claude (Chat)",
+      "app_name": "▷ Anthropic Claude (Chat)",
       "context_size": 100,
       "initial_prompt": initial_prompt,
       "description": description,

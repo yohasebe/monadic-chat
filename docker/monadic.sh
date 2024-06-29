@@ -280,7 +280,7 @@ case "$1" in
     if $DOCKER images | grep -q "monadic-chat"; then
       echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p>"
     else
-      echo "[HTML]: <p>Monadic Chat has failed to build.</p>"
+      echo "[HTML]: <p>Monadic Chat has failed to build. Please try <b>Rebuild</b>.</p>"
     fi
     ;;
   start)

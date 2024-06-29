@@ -1,7 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -46,6 +46,7 @@
       "preload.js",
       "mainScreen.js",
       "index.html",
+      "settings.html",
       "menu_icons/**/*"
     ],
     "mac": {
@@ -69,6 +70,7 @@
     }
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "electron-context-menu": "^3.6.1"
   },
   "overrides": {

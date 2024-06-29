@@ -21,6 +21,15 @@ app.name = 'Monadic Chat';
 const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
 const path = require('path');
+const fs = require('fs');
+let dotenv;
+
+if (app.isPackaged) {
+  dotenv = require('./node_modules/dotenv');
+} else {
+  dotenv = require('dotenv');
+}
+
 const os = require('os');
 const https = require('https');
 const net = require('net');
@@ -495,6 +504,15 @@ function initializeApp() {
         label: 'Open',
         submenu: [
           {
+            label: 'Settings',
+            click: () => {
+              openSettingsWindow();
+            }
+          },
+          {
+            type: 'separator'
+          },
+          {
             label: 'Open Browser',
             click: () => {
               openMainWindow();
@@ -526,7 +544,7 @@ function initializeApp() {
             }
           }
         ]
-      }
+      },
     ]);
 
     Menu.setApplicationMenu(menu);
@@ -1082,3 +1100,49 @@ function openBrowser(url, outside = false) {
     });
   }, interval);
 }
+
+let settingsWindow = null;
+
+function openSettingsWindow() {
+  if (settingsWindow) {
+    settingsWindow.show();
+    settingsWindow.focus();
+  } else {
+    settingsWindow = new BrowserWindow({
+      width: 400,
+      height: 300,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+        preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
+      },
+      title: "Settings"
+    });
+
+    settingsWindow.loadFile('settings.html');
+
+    settingsWindow.on('closed', () => {
+      settingsWindow = null;
+    });
+  }
+}
+
+ipcMain.on('request-settings', (event) => {
+  const envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
+  const envConfig = dotenv.parse(fs.readFileSync(envPath));
+  event.sender.send('load-settings', envConfig);
+});
+
+ipcMain.on('save-settings', (_event, data) => {
+  const envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
+  const envConfig = `
+OPENAI_API_KEY=${data.openaiApiKey}
+ANTHROPIC_API_KEY=${data.anthropicApiKey}
+COHERE_API_KEY=${data.cohereApiKey}
+GEMINI_API_KEY=${data.geminiApiKey}
+  `;
+  fs.writeFileSync(envPath, envConfig);
+  if (settingsWindow) {
+    settingsWindow.close();
+  }
+});

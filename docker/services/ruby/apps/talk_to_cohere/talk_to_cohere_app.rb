@@ -30,7 +30,7 @@ class Cohere < MonadicApp
 
   def settings
     {
-      "app_name": "Cohere Command R (Chat)",
+      "app_name": "▷ Cohere Command R (Chat)",
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "description": description,

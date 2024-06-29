@@ -30,7 +30,7 @@ class Gemini < MonadicApp
 
   def settings
     {
-      "app_name": "Google Gemini (Chat)",
+      "app_name": "▷ Google Gemini (Chat)",
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "description": description,

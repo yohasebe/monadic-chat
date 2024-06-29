@@ -17,7 +17,6 @@
   "license": "MIT",
   "devDependencies": {
     "@electron/notarize": "",
-    "dotenv": "^16.4.5",
     "electron": "^27.3.3",
     "electron-builder": "^24.13.3"
   },

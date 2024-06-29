@@ -30,7 +30,7 @@ class Cohere < MonadicApp
 
   def settings
     {
-      "app_name": "Talk to Cohere Command R",
+      "app_name": "Cohere Command R (Chat)",
       "context_size": 20,
       "initial_prompt": initial_prompt,
       "description": description,
@@ -49,7 +49,6 @@ class Cohere < MonadicApp
       ]
     }
   end
-
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
     texts = []
@@ -115,14 +114,20 @@ class Cohere < MonadicApp
       end
 
       new_results = process_functions(app, session, tool_calls, call_depth, &block)
-      if result && new_results
-        result = result.join("") + "\n" + new_results.dig(0, "choices", 0, "message", "content")
-        {"choices" => [{"message" => {"content" => result}}]}
+      # check if result is a hash and has "error" key
+      if result.is_a?(Hash) && result["error"]
+        res = { "type" => "error", "content" => result["error"] }
+      elsif result && new_results
+        result = result.join("") + "\n\n" + new_results.dig(0, "choices", 0, "message", "content")
+        res = {"choices" => [{"message" => {"content" => result}}]}
       elsif new_results
-        new_results
+        res = new_results
       elsif result
-        {"choices" => [{"message" => {"content" => result.join("")}}]}
+        res = {"choices" => [{"message" => {"content" => result.join("")}}]}
       end
+      block&.call res
+      block&.call res
+      return [res]
 
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
@@ -195,8 +200,10 @@ class Cohere < MonadicApp
       api_key = CONFIG["COHERE_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      puts "ERROR: COHERE_API_KEY not found."
-      exit
+      pp error_message = "ERROR: COHERE_API_KEY not found. Please set the COHERE_API_KEY environment variable in the ~/monadic/data/.env file."
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     # Get the parameters from the session
@@ -271,11 +278,11 @@ class Cohere < MonadicApp
       "preamble" => initial_prompt,
       "model" => obj["model"],
       "stream" => true,
-      "message" => message,
       "prompt_truncation" => "AUTO",
-      "connectors" => [{"id" => "web-search"}]
+      # "connectors" => [{"id" => "web-search"}]
     }
 
+    body["message"] = message if role != "tool"
     body["temperature"] = temperature if temperature
     body["max_tokens"] = max_tokens if max_tokens
     body["p"] = top_p if top_p
@@ -313,9 +320,9 @@ class Cohere < MonadicApp
     end
 
     unless res.status.success?
-      error_report = JSON.parse(res.body)["error"]
+      error_report = JSON.parse(res.body)
       pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
+      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
       block&.call res
       return [res]
     end

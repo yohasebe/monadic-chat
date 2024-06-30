@@ -1,5 +1,4 @@
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
-
+const { app, dialog, shell, Menu, Tray, BrowserWindow, BrowserView, ipcMain } = require('electron');
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -24,7 +23,7 @@ const path = require('path');
 const fs = require('fs');
 let dotenv;
 
-if (app.isPackaged) {
+if (app.ispackaged) {
   dotenv = require('./node_modules/dotenv');
 } else {
   dotenv = require('dotenv');
@@ -827,7 +826,7 @@ function createMainWindow() {
     width: 780,
     minWidth: 780,
     height: 420,
-    minHeight: 260,
+    minHeight: 380,
     webPreferences: {
       nodeIntegration: true,
       contentIsolation: false,
@@ -950,38 +949,36 @@ function openBrowser(url, outside = false) {
   }, interval);
 }
 
-let settingsWindow = null;
+let settingsView = null;
 
 function openSettingsWindow() {
-  if (settingsWindow) {
-    settingsWindow.show();
-    settingsWindow.focus();
+  if (settingsView) {
+    mainWindow.setBrowserView(settingsView);
+    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
   } else {
-    const mainWindowSize = mainWindow.getSize();
-    settingsWindow = new BrowserWindow({
-      width: mainWindowSize[0],
-      height: 420, // Increased height to accommodate buttons nicely
-      minWidth: 400,
-      minHeight: 420,
+    settingsView = new BrowserView({
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
         preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
-      },
-      title: "Monadic Chat Settings"
+      }
     });
-
-    settingsWindow.loadFile('settings.html');
-
-    settingsWindow.on('closed', () => {
-      settingsWindow = null;
-    });
+    mainWindow.setBrowserView(settingsView);
+    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+    settingsView.webContents.loadFile('settings.html');
   }
+
+  // Ensure the settings view resizes with the main window
+  mainWindow.on('resize', () => {
+    if (settingsView) {
+      settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+    }
+  });
 }
 
 ipcMain.on('close-settings', () => {
-  if (settingsWindow) {
-    settingsWindow.close();
+  if (settingsView) {
+    mainWindow.removeBrowserView(settingsView);
   }
 });
 
@@ -1028,8 +1025,8 @@ ipcMain.on('request-settings', (event) => {
 
 ipcMain.on('save-settings', (_event, data) => {
   saveSettings(data);
-  if (settingsWindow) {
-    settingsWindow.close();
+  if (settingsView) {
+    mainWindow.removeBrowserView(settingsView);
   }
 });
 

@@ -53,7 +53,7 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
     document.getElementById('browser').disabled = false;
   } else if (status === 'BrowserReady') {
     document.getElementById('browser').disabled = false;
-    statusElement.textContent = "Running - Browser Ready";
+    statusElement.textContent = "Browser Ready";
   } else if (status === 'Stopping') {
     statusElement.classList.remove('active');
     statusElement.classList.add('inactive');

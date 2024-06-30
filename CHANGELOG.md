@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Jun, 2024] 0.7.3
+  - [Jun, 2024] 0.7.4
       - Linux (Ubuntu/Debian) installer released
       - App file name changed from monadic-chat to Monadic Chat
       - Settings menu added

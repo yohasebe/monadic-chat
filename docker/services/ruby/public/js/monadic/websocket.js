@@ -611,7 +611,8 @@ function connect_websocket(callback) {
           messages.push(msg);
           switch (msg["role"]) {
             case "user":
-              let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
+              // let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
+              let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")
               let image_data;
               if(msg["image"] !== undefined){
                 image_data = msg["image"]["data"];

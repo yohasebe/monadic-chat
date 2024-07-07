@@ -520,6 +520,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
                 writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
                 // Send the message to the renderer process immediately
                 mainWindow.webContents.send('serverReady');
+                openBrowser('http://localhost:4567');
               })
               .catch(error => {
                 writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');
@@ -825,8 +826,8 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 780,
     minWidth: 780,
-    height: 420,
-    minHeight: 380,
+    height: 450,
+    minHeight: 450,
     webPreferences: {
       nodeIntegration: true,
       contentIsolation: false,

@@ -1,16 +1,17 @@
 # frozen_string_literal: true
 
-class MonadicApp
+$SINGLETON_TOKENIZER = FlaskAppClient.new
+tokenizer_test = $SINGLETON_TOKENIZER.count_tokens("Hello, World!")
+if tokenizer_test == 4
+  puts "Flask tokenizing client is ready."
+else
+  puts "Flask tokenizing client is not ready."
+end
 
-  TOKENIZER = FlaskAppClient.new
+class MonadicApp
+  TOKENIZER = $SINGLETON_TOKENIZER
 
   # access the flask app client so that it gets ready before the first request
-  tokenizer_test = TOKENIZER.count_tokens("Hello, World!")
-  if tokenizer_test == 4
-    puts "Flask app client is ready."
-  else
-    puts "Flask app client is not ready."
-  end
 
   attr_accessor :api_key
   attr_accessor :context
@@ -18,10 +19,6 @@ class MonadicApp
   def initialize
     @context = {}
     @api_key = ""
-
-    # this is currently used only for function calling of claude app
-    # it is an array to store assistant messages generated before function calling
-    @leftover = []
   end
 
   # Wrap the user's message in a monad
@@ -301,6 +298,19 @@ class MonadicApp
     # remove escape characters from the code
     # code = code.gsub(/\\n/) { "\n" }
     # code = code.gsub(/\\\\/) { "" }
+
+    # return the error message unless all the arguments are provided
+    return "Error: code, command, and extension are required." if !code || !command|| !extension
+
+    send_code(code: code, command: command, extension: extension)
+  end
+
+  def run_script(code: "", command: "", extension: "")
+    # remove escape characters from the code
+    code = code.gsub(/\\n/) { "\n" }
+    code = code.gsub(/\\'/) { "'" }
+    code = code.gsub(/\\"/) { '"' }
+    code = code.gsub(/\\\\/) { "\\" }
 
     # return the error message unless all the arguments are provided
     return "Error: code, command, and extension are required." if !code || !command|| !extension

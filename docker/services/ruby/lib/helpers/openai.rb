@@ -257,14 +257,20 @@ module OpenAIHelper
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
 
-              fragment.split(//).each do |char|
+              # fragment.split(//).each do |char|
+              #   res = {
+              #     "type" => "fragment",
+              #     "content" => char
+              #   }
+              #   block&.call res
+              #   sleep 0.01
+              # end
+              
                 res = {
                   "type" => "fragment",
-                  "content" => char
+                  "content" => fragment
                 }
                 block&.call res
-                sleep 0.01
-              end
 
               texts[id]['choices'][0].delete('delta')
             end

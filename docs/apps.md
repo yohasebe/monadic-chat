@@ -85,7 +85,7 @@ ANTHROPIC_API_KEY=api_key
 
 Recipe file: [talk_to_claude_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_claude/talk_to_claude_app.rb)
 
-## Google Gemini (Chat/Code Interpreter)
+## Google Gemini (Chat)
 
 <img src="./assets/icons/google.png" width="40px"/>
 
@@ -98,6 +98,20 @@ GEMINI_API_KEY=api_key
 ```
 
 Recipe file: [talk_to_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)
+
+## Mistral AI (Chat)
+
+<img src="./assets/icons/m.png" width="40px"/>
+
+This app accesses the Mistral AI API, instead of the OpenAI's API. Please set your API token in `~/monadic/data/.env`.
+
+Example:
+
+```
+MISTRAL_API_KEY=api_key
+```
+
+Recipe file: [talk_to_mistral_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_mistral/talk_to_mistral_app.rb)
 
 ## Translate
 

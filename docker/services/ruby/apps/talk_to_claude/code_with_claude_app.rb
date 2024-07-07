@@ -172,6 +172,7 @@ class CodeWithClaude < MonadicApp
 
   def settings
     {
+      "disabled": !CONFIG["ANTHROPIC_API_KEY"],
       "temperature": 0.0,
       "presence_penalty": 0.2,
       "top_p": 0.0,
@@ -232,7 +233,7 @@ class CodeWithClaude < MonadicApp
         },
         {
           "name": "lib_installer",
-          "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: ``pip install`, `apt-get install -y`.",
+          "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -298,6 +299,7 @@ class CodeWithClaude < MonadicApp
 
   attr_accessor :thinking
   def initialize
+    @leftover = []
     @thinking = []
     super
   end
@@ -383,11 +385,17 @@ class CodeWithClaude < MonadicApp
                   next if !fragment || fragment == ""
                   texts << fragment
 
-                  fragment.split(//).each do |char|
-                    res = { "type" => "fragment", "content" => char }
-                    block&.call res
-                    sleep 0.01
-                  end
+                  # fragment.split(//).each do |char|
+                  #   res = { "type" => "fragment", "content" => char }
+                  #   block&.call res
+                  #   sleep 0.01
+                  # end
+
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment
+                  }
+                  block&.call res
                 end
 
                 if json.dig('delta', 'stop_reason')

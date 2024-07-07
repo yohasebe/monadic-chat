@@ -29,7 +29,7 @@
       flex-grow: 1;
       display: flex;
       flex-direction: column;
-      margin-right: 10px;
+      margin-right: 16px;
     }
     label {
       display: block;
@@ -108,6 +108,9 @@
     <label for="gemini-api-key">GEMINI_API_KEY</label>
     <input type="text" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
 
+    <label for="mistral-api-key">MISTRAL_API_KEY</label>
+    <input type="text" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
+
     <div class="button-group">
       <button type="button" id="toggle-visibility"><i class="fas fa-eye"></i> Show API Keys</button>
       <button type="submit"><i class="fas fa-save"></i> Save and Close</button>
@@ -123,7 +126,8 @@
         OPENAI_API_KEY: document.getElementById('openai-api-key').value,
         ANTHROPIC_API_KEY: document.getElementById('anthropic-api-key').value,
         COHERE_API_KEY: document.getElementById('cohere-api-key').value,
-        GEMINI_API_KEY: document.getElementById('gemini-api-key').value
+        GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
+        MISTRAL_API_KEY: document.getElementById('mistral-api-key').value
       };
       ipcRenderer.send('save-settings', data);
     });
@@ -137,6 +141,7 @@
       document.getElementById('anthropic-api-key').value = data.ANTHROPIC_API_KEY || '';
       document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
       document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
+      document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
     });
 
     ipcRenderer.send('request-settings');

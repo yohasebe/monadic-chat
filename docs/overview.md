@@ -78,6 +78,7 @@ layout: default
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
+  - Mistral AI
 - 🤖💬🤖 **AI↔️AI Chat** is available:
 
    | AI-Assistant     | | AI-User      |
@@ -86,6 +87,7 @@ layout: default
    | Google Gemini    |↔️| OpenAI GPT-4 |
    | Anthropic Claude |↔️| OpenAI GPT-4 |
    | Cohere Command R |↔️| OpenAI GPT-4 |
+   | Mistral AI         |↔️| OpenAI GPT-4 |
 
 ### Managing Conversations as Monads
 

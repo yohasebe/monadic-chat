@@ -28,6 +28,7 @@ class Claude < MonadicApp
 
   def settings
     {
+      "disabled": !CONFIG["ANTHROPIC_API_KEY"],
       "app_name": "▷ Anthropic Claude (Chat)",
       "context_size": 100,
       "initial_prompt": initial_prompt,
@@ -65,6 +66,7 @@ class Claude < MonadicApp
 
   attr_accessor :thinking
   def initialize
+    @leftover = []
     @thinking = []
     super
   end
@@ -150,11 +152,17 @@ class Claude < MonadicApp
                   next if !fragment || fragment == ""
                   texts << fragment
 
-                  fragment.split(//).each do |char|
-                    res = { "type" => "fragment", "content" => char }
-                    block&.call res
-                    sleep 0.01
-                  end
+                  # fragment.split(//).each do |char|
+                  #   res = { "type" => "fragment", "content" => char }
+                  #   block&.call res
+                  #   sleep 0.01
+                  # end
+
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment
+                  }
+                  block&.call res
                 end
 
                 if json.dig('delta', 'stop_reason')

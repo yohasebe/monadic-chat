@@ -110,26 +110,30 @@ def init_apps
   klass = Object.const_get("MonadicApp")
   klass.subclasses.each do |app|
     app = app.new
+    next if app.settings[:disabled]
+
     app_name = app.settings[:app_name]
 
     initial_prompt_suffix = ""
     prompt_suffix = ""
     response_suffix = ""
+
     if app.settings[:mathjax]
       initial_prompt_suffix << <<~INITIAL
-        When incorporating MathJax expressions or LaTeX expressions into your response, adhere to the following notation guidelines: **Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block**; **Use single dollar signs `$` before and after the expressions that should appear inline with the text**.
 
+        When incorporating MathJax expressions or LaTeX expressions into your response, adhere to the following notation guidelines: Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text.
       INITIAL
-      prompt_suffix << <<~SUFFIX
-        **Remember to use single dollar signs `$` before and after the expressions that should appear inline with the text outside independent code blocks**
 
+      prompt_suffix << <<~SUFFIX
+
+        Remember to use single dollar signs `$` before and after the expressions that should appear inline with the text outside independent code blocks
       SUFFIX
     end
 
     if app.settings[:tools]
       initial_prompt_suffix << <<~INITIAL
-        **You should NEVER invent or use functions NOT defined or NOT listed HERE, especially the multi_tool_use.parallel function. If you need to call multiple functions, you will call them one at a time **.
 
+        You should NEVER invent or use functions not defined or not listed HERE. If you need to call multiple functions, you will call them one at a time.
       INITIAL
     end
 
@@ -150,6 +154,7 @@ def init_apps
 
     if app.settings[:mermaid]
       prompt_suffix << <<~INITIAL
+
         Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
       INITIAL
     end

@@ -210,7 +210,7 @@ class CodeInterpreter < MonadicApp
           "function":
           {
             "name": "lib_installer",
-            "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: ``pip install`, `apt-get install -y`.",
+            "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
             "parameters": {
               "type": "object",
               "properties": {

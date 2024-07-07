@@ -99,6 +99,20 @@ GEMINI_API_KEY=api_key
 
 Recipe file: [google_gemini_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_gemini/talk_to_gemini_app.rb)
 
+## Mistral AI (Chat)
+
+<img src="./assets/icons/m.png" width="40px"/>
+
+Mistral AI APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。APIトークンを `~/monadic/data/.env` に設定してください。
+
+Example:
+
+```
+MISTRAL_API_KEY=api_key
+```
+
+Recipe file: [talk_to_mistral_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/talk_to_mistral/talk_to_mistral_app.rb)
+
 ## Translate
 
 <img src="./assets/icons/translate.png" width="40px"/> 

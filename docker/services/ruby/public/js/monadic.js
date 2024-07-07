@@ -255,11 +255,12 @@ Do your best to make the conversation as natural as possible. Do not change subj
     }
     params["message"] = $("#message").val();
     $("#cancel_query").css("opacity", "1");
+
     if ($("#select-role").val() !== "user") {
       reconnect_websocket(ws, function (ws) {
         const role = $("#select-role").val().split("-")[1];
         const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role}
-        console.log(msg_object);
+        // console.log(msg_object);
         ws.send(JSON.stringify(msg_object));
       });
       $("#message").css("height", "96px").val("");
@@ -271,7 +272,7 @@ Do your best to make the conversation as natural as possible. Do not change subj
         } else {
           params.image = null;
         }
-        ws.send(JSON.stringify(params));
+        ws.send(JSON.stringify(params))
         imageData = null;
         imageTitle = null;
         imageType = null;

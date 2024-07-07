@@ -30,6 +30,7 @@ class Gemini < MonadicApp
 
   def settings
     {
+      "disabled": !CONFIG["GEMINI_API_KEY"],
       "app_name": "▷ Google Gemini (Chat)",
       "context_size": 20,
       "initial_prompt": initial_prompt,
@@ -81,12 +82,20 @@ class Gemini < MonadicApp
 
           content.dig("parts")&.each do |part|
             if part["text"]
-              texts << part["text"]
-              part["text"].split(//).each do |char|
-                res = { "type" => "fragment", "content" => char }
-                block&.call res
-                sleep 0.01
-              end
+              fragment = part["text"]
+              texts << fragment
+              # fragment.split(//).each do |char|
+              #   res = { "type" => "fragment", "content" => char }
+              #   block&.call res
+              #   sleep 0.01
+              # end
+
+              res = {
+                "type" => "fragment",
+                "content" => fragment
+              }
+              block&.call res
+
             elsif part["functionCall"]
               tool_calls << part["functionCall"]
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
@@ -116,12 +125,16 @@ class Gemini < MonadicApp
       new_results = process_functions(app, session, tool_calls, call_depth, &block)
 
       if result && new_results
-        result = result.join("") + "\n" + new_results.dig(0, "choices", 0, "message", "content")
-        {"choices" => [{"message" => {"content" => result}}]}
+        begin
+          result = result.join("").strip + "\n\n" + new_results.dig(0, "choices", 0, "message", "content").strip
+        rescue
+          result = result.join("").strip + "\n\n"+ new_results.to_s.strip
+        end
+        [{"choices" => [{"message" => {"content" => result}}]}]
       elsif new_results
         new_results
       elsif result
-        {"choices" => [{"message" => {"content" => result.join("")}}]}
+        [{"choices" => [{"message" => {"content" => result.join("")}}]}]
       end
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
@@ -163,6 +176,7 @@ class Gemini < MonadicApp
           "args" => argument_hash
         }
       }
+
       tool_results["function_parts"] << {
         "functionResponse" => {
           "name" => function_name,
@@ -200,7 +214,7 @@ class Gemini < MonadicApp
       api_key = CONFIG["GEMINI_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file."
+      pp error_message = "ERROR: GEMINI_API_KEY not found.  Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file."
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -353,9 +367,9 @@ class Gemini < MonadicApp
     end
 
     unless res.status.success?
-      error_report = JSON.parse(res.body)["error"]
+      error_report = JSON.parse(res.body)
       pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
+      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
       block&.call res
       return [res]
     end
@@ -382,3 +396,4 @@ class Gemini < MonadicApp
     [res]
   end
 end
+

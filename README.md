@@ -13,10 +13,12 @@
 **Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
 - Recent Updates
-  - [Jun, 2024] 0.7.4
+  - [Jun, 2024] 0.7.5
       - Linux (Ubuntu/Debian) installer released
       - App file name changed from monadic-chat to Monadic Chat
       - Settings menu added
+      - Browser auto open
+      - Talk to Mistral app added
   - [Jun, 2024] Speech Draft Helper app added (with TTS audio file generation)
   - [Jun, 2024] Menu bar items added; Shared Folder asccessible on Windows
   - [Jun, 2024] Better uninstallation of containers
@@ -105,6 +107,7 @@ There is another version of Monadic Chat, which is a command line app provided a
   - Google Gemini
   - Anthropic Claude
   - Cohere Command R
+  - Mistral AI
 - 🤖💬🤖 **AI↔️AI Chat** is available:
 
    | AI-Assistant     | | AI-User      |
@@ -113,6 +116,7 @@ There is another version of Monadic Chat, which is a command line app provided a
    | Google Gemini    |↔️| OpenAI GPT-4 |
    | Anthropic Claude |↔️| OpenAI GPT-4 |
    | Cohere Command R |↔️| OpenAI GPT-4 |
+   | Mistral AI       |↔️| OpenAI GPT-4 |
 
 ### Managing Conversations as Monads
 

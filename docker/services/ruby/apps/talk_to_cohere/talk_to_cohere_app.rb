@@ -30,6 +30,7 @@ class Cohere < MonadicApp
 
   def settings
     {
+      "disabled": !CONFIG["COHERE_API_KEY"],
       "app_name": "▷ Cohere Command R (Chat)",
       "context_size": 20,
       "initial_prompt": initial_prompt,
@@ -89,11 +90,17 @@ class Cohere < MonadicApp
 
           texts << fragment
 
-          fragment.split(//).each do |char|
-            res = { "type" => "fragment", "content" => char }
-            block&.call res
-            sleep 0.01
-          end
+          # fragment.split(//).each do |char|
+          #   res = { "type" => "fragment", "content" => char }
+          #   block&.call res
+          #   sleep 0.01
+          # end
+
+          res = {
+            "type" => "fragment",
+            "content" => fragment
+          }
+          block&.call res
         rescue JSON::ParserError
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration

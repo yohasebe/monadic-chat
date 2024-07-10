@@ -1,61 +1,59 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>Monadic Chat Settings</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
+  <head>
+    <meta charset="UTF-8">
+    <title>Monadic Chat Settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
     body {
       display: flex;
       flex-direction: column;
-      margin: 0;
-      padding: 10px;
+      height: 100vh;
+      margin: 10px;
       color: #333;
       background-color: #eeeeee;
-      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
-      font-size: 13px;
-      overflow: hidden; /* Prevent overflow */
-      box-sizing: border-box; /* Ensure padding is included in the element's total width and height */
+      overflow: hidden; /* Prevents the content from overflowing */
     }
+    body, input, textarea, button, pre {
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
+    }
+
+    button {
+      color: #888;
+    }
+
     h1 {
       margin-top: 0;
       margin-bottom: 10px;
       font-size: 16px;
     }
-    form {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      margin-right: 16px;
-    }
+
     label {
       display: block;
       margin-top: 10px;
       font-weight: 500;
       font-size: 12px;
     }
+
     input {
       width: 100%;
-      padding: 6px;
-      margin-top: 3px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-family: inherit;
+      padding: 6px 12px;
+      margin-top: 5px;
+      margin-bottom: 5px;
       font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
       box-sizing: border-box;
     }
+
     input:focus {
       outline: none;
       border-color: #ffc107;
     }
-    .button-group {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 20px;
-    }
+
     button {
       padding: 6px 12px;
       margin-left: 10px;
@@ -67,15 +65,19 @@
       font-size: 13px;
       font-family: inherit;
     }
+
     button:hover {
       background-color: #e0ac07;
     }
+
     button#cancel {
       background-color: #ffc107;
     }
+
     button#cancel:hover {
       background-color: #e0ac07;
     }
+
     .button-group {
       display: flex;
       justify-content: flex-end;
@@ -91,104 +93,106 @@
     button#toggle-visibility:hover {
       background-color: #e0ac07;
     }
-  </style>
-</head>
-<body>
-  <h1>Monadic Chat Settings</h1>
-  <form id="settings-form">
-    <label for="openai-api-key">OPENAI_API_KEY (Required)</label>
-    <input type="text" id="openai-api-key" name="openai-api-key" spellcheck="false">
+    </style>
+  </head>
+  <body>
+    <div id="settings-container">
+      <h1>Monadic Chat Settings</h1>
+      <form id="settings-form">
+        <label for="openai-api-key">OPENAI_API_KEY (Required)</label>
+        <input type="text" id="openai-api-key" name="openai-api-key" spellcheck="false">
 
-    <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
-    <input type="text" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
+        <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
+        <input type="text" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
 
-    <label for="cohere-api-key">COHERE_API_KEY</label>
-    <input type="text" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
+        <label for="cohere-api-key">COHERE_API_KEY</label>
+        <input type="text" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
 
-    <label for="gemini-api-key">GEMINI_API_KEY</label>
-    <input type="text" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
+        <label for="gemini-api-key">GEMINI_API_KEY</label>
+        <input type="text" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
 
-    <label for="mistral-api-key">MISTRAL_API_KEY</label>
-    <input type="text" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
+        <label for="mistral-api-key">MISTRAL_API_KEY</label>
+        <input type="text" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
 
-    <div class="button-group">
-      <button type="button" id="toggle-visibility"><i class="fas fa-eye"></i> Show API Keys</button>
-      <button type="submit"><i class="fas fa-save"></i> Save and Close</button>
-      <button type="button" id="cancel"><i class="fas fa-times"></i> Cancel</button>
+        <div class="button-group">
+          <button type="button" id="toggle-visibility"><i class="fas fa-eye"></i> Show API Keys</button>
+          <button type="submit"><i class="fas fa-save"></i> Save and Close</button>
+          <button type="button" id="cancel"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+      </form>
     </div>
-  </form>
-  <script>
-    const { ipcRenderer } = require('electron');
+    <script>
+      const { ipcRenderer } = require('electron');
 
-    document.getElementById('settings-form').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const data = {
-        OPENAI_API_KEY: document.getElementById('openai-api-key').value,
-        ANTHROPIC_API_KEY: document.getElementById('anthropic-api-key').value,
-        COHERE_API_KEY: document.getElementById('cohere-api-key').value,
-        GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
-        MISTRAL_API_KEY: document.getElementById('mistral-api-key').value
-      };
-      ipcRenderer.send('save-settings', data);
-    });
+      document.getElementById('settings-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const data = {
+          OPENAI_API_KEY: document.getElementById('openai-api-key').value,
+          ANTHROPIC_API_KEY: document.getElementById('anthropic-api-key').value,
+          COHERE_API_KEY: document.getElementById('cohere-api-key').value,
+          GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
+          MISTRAL_API_KEY: document.getElementById('mistral-api-key').value
+        };
+        ipcRenderer.send('save-settings', data);
+      });
 
-    document.getElementById('cancel').addEventListener('click', () => {
-      ipcRenderer.send('close-settings');
-    });
+      document.getElementById('cancel').addEventListener('click', () => {
+        ipcRenderer.send('close-settings');
+      });
 
-    ipcRenderer.on('load-settings', (_event, data) => {
-      document.getElementById('openai-api-key').value = data.OPENAI_API_KEY || '';
-      document.getElementById('anthropic-api-key').value = data.ANTHROPIC_API_KEY || '';
-      document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
-      document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
-      document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
-    });
+      ipcRenderer.on('load-settings', (_event, data) => {
+        document.getElementById('openai-api-key').value = data.OPENAI_API_KEY || '';
+        document.getElementById('anthropic-api-key').value = data.ANTHROPIC_API_KEY || '';
+        document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
+        document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
+        document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
+      });
 
-    ipcRenderer.send('request-settings');
+      ipcRenderer.send('request-settings');
 
-    // Enable cut/copy/paste/select all shortcuts
-    const inputs = document.querySelectorAll('input[type="text"]');
-    inputs.forEach(input => {
-      input.addEventListener('keydown', (e) => {
-        if (e.ctrlKey || e.metaKey) {
-          switch (e.key) {
-            case 'a':
-              e.target.select();
-              break;
-            case 'c':
-              document.execCommand('copy');
-              break;
-            case 'x':
-              document.execCommand('cut');
-              break;
-            case 'v':
-              document.execCommand('paste');
-              break;
+      // Enable cut/copy/paste/select all shortcuts
+      const inputs = document.querySelectorAll('input[type="text"]');
+      inputs.forEach(input => {
+        input.addEventListener('keydown', (e) => {
+          if (e.ctrlKey || e.metaKey) {
+            switch (e.key) {
+              case 'a':
+                e.target.select();
+                break;
+              case 'c':
+                document.execCommand('copy');
+                break;
+              case 'x':
+                document.execCommand('cut');
+                break;
+              case 'v':
+                document.execCommand('paste');
+                break;
+            }
           }
-        }
+        });
       });
-    });
 
-    let isVisible = false;
-    const toggleButton = document.getElementById('toggle-visibility');
-    const apiInputs = document.querySelectorAll('input[type="text"]');
+      let isVisible = false;
+      const toggleButton = document.getElementById('toggle-visibility');
+      const apiInputs = document.querySelectorAll('input[type="text"]');
 
-    toggleButton.addEventListener('click', () => {
-      isVisible = !isVisible;
+      toggleButton.addEventListener('click', () => {
+        isVisible = !isVisible;
+        apiInputs.forEach(input => {
+          input.type = isVisible ? 'text' : 'password';
+        });
+        toggleButton.innerHTML = isVisible ? 
+          '<i class="fas fa-eye-slash"></i> Hide API Keys' :
+          '<i class="fas fa-eye"></i> Show API Keys';
+      });
+
+      // Set initial state to hidden
       apiInputs.forEach(input => {
-        input.type = isVisible ? 'text' : 'password';
+        input.type = 'password';
       });
-      toggleButton.innerHTML = isVisible ? 
-        '<i class="fas fa-eye-slash"></i> Hide API Keys' :
-        '<i class="fas fa-eye"></i> Show API Keys';
-    });
 
-    // Set initial state to hidden
-    apiInputs.forEach(input => {
-      input.type = 'password';
-    });
-
-  </script>
-</body>
+    </script>
+  </body>
 </html>
 

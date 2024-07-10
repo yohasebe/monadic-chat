@@ -384,11 +384,11 @@ module OpenAIHelper
         memo
       end
 
-      # begin
+      begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
-      # rescue StandardError => e
-      #   function_return = "ERROR: #{e.message}"
-      # end
+      rescue StandardError => e
+        function_return = "ERROR: #{e.message}"
+      end
 
       context << {
         tool_call_id: tool_call["id"],

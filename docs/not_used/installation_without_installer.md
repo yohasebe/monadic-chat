@@ -15,11 +15,11 @@ layout: default
 1. toc
 {:toc}
 
-## MacOS
+## macOS
 
 ### Install Homebrew and Git
 
-First, install [Homebrew](https://brew.sh), which is a package management system for MacOS.
+First, install [Homebrew](https://brew.sh), which is a package management system for macOS.
 
 Open the terminal. The location of the terminal on Mac is `Application -> Utilities -> Terminal.app`.
 

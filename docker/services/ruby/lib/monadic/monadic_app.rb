@@ -207,6 +207,39 @@ class MonadicApp
     end
   end
 
+  def write_to_file(filename:, extension:, text:)
+    begin
+      shared_volume = "/monadic/data/"
+      if IN_CONTAINER
+        data_dir = "/monadic/data/"
+      else
+        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+      end
+
+      container = "monadic-chat-python-container"
+
+      filepath = File.join(data_dir, "#{filename}.#{extension}")
+
+      # create a temporary file inside the data directory
+      File.open(filepath, "w") do |f|
+        f.write(text)
+      end
+
+      docker_command =<<~DOCKER
+        docker cp #{filepath} #{container}:#{shared_volume}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      if status.success
+        return "The file has been written successfully."
+      else
+        return "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      "Error occurred: The code could not be executed."
+    end
+  end
+
+
   def send_code(code:, command:, extension:)
     begin
       shared_volume = "/monadic/data/"
@@ -295,11 +328,6 @@ class MonadicApp
   ### API functions
 
   def run_code(code: "", command: "", extension: "")
-    # remove escape characters from the code
-    # code = code.gsub(/\\n/) { "\n" }
-    # code = code.gsub(/\\\\/) { "" }
-
-    # return the error message unless all the arguments are provided
     return "Error: code, command, and extension are required." if !code || !command|| !extension
 
     send_code(code: code, command: command, extension: extension)
@@ -331,6 +359,45 @@ class MonadicApp
     send_command(command: install_command,
                  container: "python",
                  success: "The library #{command} has been installed successfully.\n")
+  end
+
+  def add_jupyter_cells(filename:, cells:)
+    return "Error: filename is required." if filename.empty? || filename == ""
+    return "Error: cells is required." if cells.empty? || cells == ""
+
+    tempfile = Time.now.to_i.to_s
+    write_to_file(filename: tempfile, extension: "json", text: cells.to_json)
+
+    if IN_CONTAINER
+      begin
+        filepath = File.join("/monadic/data/", tempfile + ".json")
+      rescue
+        filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
+      end
+    else
+      filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
+    end
+
+    success = false
+    max_retrial = 5
+    max_retrial.times do
+      sleep 1.0
+      if File.exist?(filepath)
+        success = true
+        break
+      end
+    end
+    if success
+      command = "bash -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
+      send_command(command: command, container: "python")
+    else
+      "Error: The temp file could not be written."
+    end
+  end
+
+  def create_jupyter_notebook()
+    command = "bash -c 'jupyter_controller.py create'"
+    send_command(command: command, container: "python")
   end
 
   def run_jupyter(command: "")

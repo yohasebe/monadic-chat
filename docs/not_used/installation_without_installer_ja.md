@@ -15,11 +15,11 @@ layout: default
 1. toc
 {:toc}
 
-## MacOS
+## macOS
 
 ### HomebrewとGitのインストール
 
-まずは[Homebrew](https://brew.sh/index_ja)をインストールします。HomebrewはMacOSのパッケージ管理システムです。
+まずは[Homebrew](https://brew.sh/index_ja)をインストールします。HomebrewはmacOSのパッケージ管理システムです。
 
 ターミナルを開いてください。Macのターミナルの場所は、`Application -> ユーティリティー -> ターミナル.app`です。
 

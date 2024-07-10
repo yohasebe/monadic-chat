@@ -1,6 +1,6 @@
 class CodeInterpreter < MonadicApp
   def icon
-    "<i class='fas fa-terminal'></i>"
+    "<i class='fab fa-python'></i>"
   end
 
   def description
@@ -31,7 +31,7 @@ class CodeInterpreter < MonadicApp
 
       If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
-      If the user asks for it, you can also start a Jupyter Lab server using the `run_jupyter(command)` function. If successful, you should provide the user with the URL to access the Jupyter Lab server in a way that the user can easily click on it and the new tab opens in the browser using `<a href="URL" target="_blank">Jupyter Lab</a>`.
+      If the user asks for it, you can also start a Jupyter Lab server using the `run_jupyter` function. If successful, you should provide the user with the URL to access the Jupyter Lab server in a way that the user can easily click on it and the new tab opens in the browser using `<a href="URL" target="_blank">Jupyter Lab</a>`.
       
       ### Error Handling:
 

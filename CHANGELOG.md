@@ -1,11 +1,13 @@
 ### Change Log
 
-  - [Jun, 2024] 0.7.5
+  - [Jul, 2024] 0.7.6
+      - Jupyter Notebook app added
+      - Browser auto open
+      - Talk to Mistral app added
+  - [Jun, 2024]
       - Linux (Ubuntu/Debian) installer released
       - App file name changed from monadic-chat to Monadic Chat
       - Settings menu added
-      - Browser auto open
-      - Talk to Mistral app added
 - [Jun, 2024] Speech Draft Helper app added (with TTS audio file generation)
 - [Jun, 2024] Menu bar items added; Shared Folder asccessible on Windows
 - [Jun, 2024] Better uninstallation of containers

@@ -13,12 +13,14 @@
 **Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
 - Recent Updates
-  - [Jun, 2024] 0.7.5
+  - [Jul, 2024] 0.7.6
+      - Jupyter Notebook app added
+      - Browser auto open
+      - Talk to Mistral app added
+  - [Jun, 2024]
       - Linux (Ubuntu/Debian) installer released
       - App file name changed from monadic-chat to Monadic Chat
       - Settings menu added
-      - Browser auto open
-      - Talk to Mistral app added
   - [Jun, 2024] Speech Draft Helper app added (with TTS audio file generation)
   - [Jun, 2024] Menu bar items added; Shared Folder asccessible on Windows
   - [Jun, 2024] Better uninstallation of containers
@@ -36,7 +38,7 @@
 
 ## Installation
 
-  - [Download installer for MacOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
+  - [Download installer for macOS (Apple Silicon/Intel)](https://yohasebe.github.io/monadic-chat/installation#macos)
   - [Download installer for Windows](https://yohasebe.github.io/monadic-chat/installation#windows)
   - [Download installer for Linux (Ubuntu/Debian)](https://yohasebe.github.io/monadic-chat/installation#linux)
 

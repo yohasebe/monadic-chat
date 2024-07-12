@@ -7,93 +7,95 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      margin: 10px;
-      color: #333;
-      background-color: #eeeeee;
-      overflow: hidden; /* Prevents the content from overflowing */
-    }
-    body, input, textarea, button, pre {
-      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
-    }
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        margin: 10px;
+        color: #333;
+        background-color: #eeeeee;
+        overflow: hidden; /* Prevents the content from overflowing */
+      }
+      body, input, textarea, button, pre {
+        font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
+      }
 
-    button {
-      color: #888;
-    }
+      button {
+        color: #888;
+      }
 
-    h1 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
+      h1 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 16px;
+      }
 
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: 500;
-      font-size: 12px;
-    }
+      label {
+        display: block;
+        margin-top: 10px;
+        font-weight: 500;
+        font-size: 12px;
+      }
 
-    input {
-      width: 100%;
-      padding: 6px 12px;
-      margin-top: 5px;
-      margin-bottom: 5px;
-      font-size: 13px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      box-sizing: border-box;
-    }
+      input {
+        width: 100%;
+        padding: 6px 12px;
+        margin-top: 5px;
+        margin-bottom: 5px;
+        font-size: 13px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+      }
 
-    input:focus {
-      outline: none;
-      border-color: #ffc107;
-    }
+      input:focus {
+        outline: none;
+        border-color: #ffc107;
+      }
 
-    button {
-      padding: 6px 12px;
-      margin-left: 10px;
-      background-color: #ffc107;
-      color: #000;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 13px;
-      font-family: inherit;
-    }
+      button {
+        padding: 6px 12px;
+        margin-left: 10px;
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+      }
 
-    button:hover {
-      background-color: #e0ac07;
-    }
+      button:hover {
+        background-color: #e0ac07;
+      }
 
-    button#cancel {
-      background-color: #ffc107;
-    }
+      button#cancel {
+        background-color: #ffc107;
+      }
 
-    button#cancel:hover {
-      background-color: #e0ac07;
-    }
+      button#cancel:hover {
+        background-color: #e0ac07;
+      }
 
-    .button-group {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 20px;
-    }
+      .button-group {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
 
-    button#toggle-visibility {
-      width: 150px;
-      background-color: #ffc107;
-      margin-left: 0;
-    }
+      button#toggle-visibility {
+        width: 150px;
+        background-color: #ffc107;
+        margin-left: 0;
+      }
 
-    button#toggle-visibility:hover {
-      background-color: #e0ac07;
-    }
+      button#toggle-visibility:hover {
+        background-color: #e0ac07;
+      }
     </style>
+
   </head>
   <body>
     <div id="settings-container">

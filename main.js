@@ -977,9 +977,11 @@ function openSettingsWindow() {
   });
 }
 
+
 ipcMain.on('close-settings', () => {
   if (settingsView) {
     mainWindow.removeBrowserView(settingsView);
+    settingsView = null; // Reset the settingsView to null
   }
 });
 

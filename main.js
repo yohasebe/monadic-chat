@@ -953,9 +953,14 @@ function openBrowser(url, outside = false) {
 let settingsView = null;
 
 function openSettingsWindow() {
+  let winGap = 0;
+  if(os.platform() === 'win32'){
+    winGap = 16;
+  }
+
   if (settingsView) {
     mainWindow.setBrowserView(settingsView);
-    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGap, height: mainWindow.getBounds().height });
   } else {
     settingsView = new BrowserView({
       webPreferences: {
@@ -965,23 +970,21 @@ function openSettingsWindow() {
       }
     });
     mainWindow.setBrowserView(settingsView);
-    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGap, height: mainWindow.getBounds().height });
     settingsView.webContents.loadFile('settings.html');
   }
 
   // Ensure the settings view resizes with the main window
   mainWindow.on('resize', () => {
     if (settingsView) {
-      settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+      settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGap, height: mainWindow.getBounds().height });
     }
   });
 }
 
-
 ipcMain.on('close-settings', () => {
   if (settingsView) {
     mainWindow.removeBrowserView(settingsView);
-    settingsView = null; // Reset the settingsView to null
   }
 });
 

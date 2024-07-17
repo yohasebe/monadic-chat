@@ -19,16 +19,6 @@ class MonadicApp
   def initialize
     @context = {}
     @api_key = ""
-    @docker_volume = "/monadic/data"
-    if IN_CONTAINER
-      @script_dir = "/monadic/scripts"
-      @script_dir_local = "#{@docker_volume}/scripts"
-      @shared_volume = @docker_volume
-    else
-      @script_dir = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
-      @script_dir_local = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts")) 
-      @shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
-    end
   end
 
   # Wrap the user's message in a monad
@@ -154,12 +144,21 @@ class MonadicApp
     begin
       case container.to_s
       when "ruby"
+        if IN_CONTAINER
+          script_dir = "/monadic/scripts"
+          script_dir_local = "/monadic/data/scripts"
+          shared_volume = "/monadic/data"
+        else
+          script_dir = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
+          script_dir_local = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts")) 
+          shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
+        end
         system_command =<<~SYS
-          find #{@script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-          find #{@script_dir_local} -type f -exec chmod +x {} + 2>/dev/null | : && \
-          export PATH="#{@script_dir}:${PATH}" && \
-          export PATH="#{@script_dir_local}:${PATH}" && \
-          cd #{@shared_volume} && \
+          find #{script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+          find #{script_dir_local} -type f -exec chmod +x {} + 2>/dev/null | : && \
+          export PATH="#{script_dir}:${PATH}" && \
+          export PATH="#{script_dir_local}:${PATH}" && \
+          cd #{shared_volume} && \
           #{command}
         SYS
       when "python"
@@ -208,19 +207,26 @@ class MonadicApp
     end
   end
 
-  def write_to_file(filename:, extension:, content:)
+  def write_to_file(filename:, extension:, text:)
     begin
+      shared_volume = "/monadic/data/"
+      if IN_CONTAINER
+        data_dir = "/monadic/data/"
+      else
+        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+      end
+
       container = "monadic-chat-python-container"
 
-      filepath = File.join(@shared_volume, "#{filename}.#{extension}")
+      filepath = File.join(data_dir, "#{filename}.#{extension}")
 
       # create a temporary file inside the data directory
       File.open(filepath, "w") do |f|
-        f.write(content)
+        f.write(text)
       end
 
       docker_command =<<~DOCKER
-        docker cp #{filepath} #{container}:#{@docker_volume}
+        docker cp #{filepath} #{container}:#{shared_volume}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       if status.success
@@ -236,15 +242,22 @@ class MonadicApp
 
   def send_code(code:, command:, extension:)
     begin
+      shared_volume = "/monadic/data/"
+      if IN_CONTAINER
+        data_dir = "/monadic/data/"
+      else
+        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+      end
+
       container = "monadic-chat-python-container"
 
       # create a temporary file inside the data directory
-      temp_file = Tempfile.new(["code", ".#{extension}"], @shared_volume)
+      temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
 
       temp_file.write(code)
       temp_file.close
       docker_command =<<~DOCKER
-        docker cp #{temp_file.path} #{container}:#{@docker_volume}
+        docker cp #{temp_file.path} #{container}:#{shared_volume}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       unless status.success?
@@ -283,7 +296,15 @@ class MonadicApp
     send_command(command: command, container: "python") do |stdout, stderr, status|
       if status.success?
         filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
-        filename = File.join(@shared_volume, File.basename(filename))
+        if IN_CONTAINER
+          begin
+            filename = File.join("/monadic/data/", File.basename(filename))
+          rescue
+            filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
+          end
+        else
+          filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
+        end
         retrials = 3
         sleep(5)
         begin
@@ -345,8 +366,17 @@ class MonadicApp
     return "Error: cells is required." if cells.empty? || cells == ""
 
     tempfile = Time.now.to_i.to_s
-    write_to_file(filename: tempfile, extension: "json", content: cells.to_json)
-    filepath = File.join(@shared_volume, tempfile + ".json")
+    write_to_file(filename: tempfile, extension: "json", text: cells.to_json)
+
+    if IN_CONTAINER
+      begin
+        filepath = File.join("/monadic/data/", tempfile + ".json")
+      rescue
+        filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
+      end
+    else
+      filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
+    end
 
     success = false
     max_retrial = 5

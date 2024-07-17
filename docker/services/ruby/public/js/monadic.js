@@ -534,6 +534,11 @@ Do your best to make the conversation as natural as possible. Do not change subj
     show: 100
   });
 
+  $(document).on("click", ".contBtn", function() {
+    $("#message").val("continue");
+    $("#send").click();
+  });
+
   $(document).on("click", ".base64-image", function () {
     // open a new window to show the image
     const w = window.open();

@@ -223,9 +223,15 @@ module OpenAIHelper
     finish_reason = nil
 
     body.each do |chunk|
-      break if /\Rdata: [DONE]\R/ =~ chunk
 
       buffer << chunk
+
+      # if chunk contains an invvalid byte sequence, go to the next iteration
+      next if chunk.valid_encoding? == false
+
+
+      break if /\Rdata: [DONE]\R/ =~ chunk
+
       scanner = StringScanner.new(buffer)
       pattern = /data: (\{.*?\})(?=\n|\z)/
       until scanner.eos?

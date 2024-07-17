@@ -20,8 +20,6 @@ class Claude < MonadicApp
   def initial_prompt
     text = <<~TEXT
       You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is unclear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
-
-      Please use `fetch_web_content` tool to fetch the content of the web page of the given URL if the user's request is related to a specific web page.
     TEXT
     text.strip
   end
@@ -44,22 +42,6 @@ class Claude < MonadicApp
         "claude-3-opus-20240229",
         "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307"
-      ],
-      "tools": [
-        {
-          "name": "fetch_web_content",
-          "description": "Fetch the content of the web page of the given URL and return it.",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "url": {
-                "type": "string",
-                "description": "URL of the web page."
-              }
-            },
-            "required": ["url"]
-          }
-        }
       ]
     }
   end

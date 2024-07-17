@@ -271,7 +271,28 @@ class CodeWithCohere < MonadicApp
               "required": true
             }
           }
-        }
+        },
+        # {
+        #   "name": "write_to_file",
+        #   "description": "Write the content to a file.",
+        #   "parameter_definitions": {
+        #     "filename": {
+        #       "type": "string",
+        #       "description": "File name without extension.",
+        #       "required": true
+        #     },
+        #     "extension": {
+        #       "type": "string",
+        #       "description": "File extension such as 'txt', 'csv', 'py', etc.",
+        #       "required": true
+        #     },
+        #     "content": {
+        #       "type": "string",
+        #       "description": "Content to be written to the file.",
+        #       "required": true
+        #     }
+        #   }
+        # }
       ]
     }
   end

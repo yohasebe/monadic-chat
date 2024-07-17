@@ -318,8 +318,6 @@ class Claude < MonadicApp
     # Set the headers for the API request
     headers = {
       "anthropic-version" => "2023-06-01",
-      # "anthropic-beta" => "messages-2023-12-15",
-      # "anthropic-beta" => "tools-2024-05-16",
       "content-type" => "application/json",
       "x-api-key" => api_key
     }
@@ -329,7 +327,6 @@ class Claude < MonadicApp
       "system" => initial_prompt,
       "model" => obj["model"],
       "stream" => true,
-      "tool_choice" => {"type": "auto"}
     }
 
     body["temperature"] = temperature if temperature
@@ -338,11 +335,9 @@ class Claude < MonadicApp
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings[:tools]
-
-      unless body["tools"] and body["tools"].any?
-        body.delete("tools")
-        body.delete("tool_choice")
-      end
+    else 
+      body.delete("tools")
+      body.delete("tool_choice")
     end
 
     # The context is added to the body
@@ -362,15 +357,15 @@ class Claude < MonadicApp
       message
     end
 
-    messages.unshift({
-      "role" => "user",
-      "content" => [
-        {
-          "type" => "text",
-          "text" => ""
-        }
-      ]
-    }) if messages.first["role"] != "user"
+    # messages.unshift({
+    #   "role" => "user",
+    #   "content" => [
+    #     {
+    #       "type" => "text",
+    #       "text" => ""
+    #     }
+    #   ]
+    # }) if messages.first["role"] != "user"
 
     body["messages"] = messages
 

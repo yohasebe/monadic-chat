@@ -1,6 +1,7 @@
 ### Change Log
 
-  - [Jul, 2024] 0.7.6
+  - [Jul, 2024] 0.7.7
+      - Continue button introduced
       - Jupyter Notebook app added
       - Browser auto open
       - Talk to Mistral app added

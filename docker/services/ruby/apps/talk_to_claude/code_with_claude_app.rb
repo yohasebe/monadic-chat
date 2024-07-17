@@ -292,7 +292,29 @@ class CodeWithClaude < MonadicApp
             },
             "required": ["url"]
           }
-        }
+        },
+        # {
+        #   "name": "write_to_file",
+        #   "description": "Write the content to a file.",
+        #   "input_schema": {
+        #     "type": "object",
+        #     "properties": {
+        #       "filename": {
+        #         "type": "string",
+        #         "description": "File name without extension."
+        #       },
+        #       "extension": {
+        #         "type": "string",
+        #         "description": "File extension such as 'txt', 'csv', 'py', etc."
+        #       },
+        #       "content": {
+        #         "type": "string",
+        #         "description": "Content to be written to the file."
+        #       },
+        #     },
+        #     "required": ["filename", "extension", "content"]
+        #   }
+        # }
       ]
     }
   end

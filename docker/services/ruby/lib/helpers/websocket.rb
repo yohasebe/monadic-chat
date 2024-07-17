@@ -229,7 +229,7 @@ module WebSocketHelper
 
               text = content["text"] || content["message"]["content"]
 
-              type_continue = "Type **continue** to get more results\n"
+              type_continue = "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results\n"
               code_truncated = "[CODE BLOCK TRUNCATED]"
 
               if content["finish_reason"] && content["finish_reason"] == "length"

@@ -70,7 +70,7 @@ def img2url(image_path, max_dimension = 512)
   "data:#{mime_type};base64,#{base64_data}"
 end
 
-def image_query(message, image)
+def image_query(message, image, model = "gpt-4o-mini")
   num_retrial = 0
 
   begin
@@ -96,8 +96,6 @@ def image_query(message, image)
     image_path = nil
     image_url = nil
   end
-
-  model = "gpt-4o"
 
   headers = {
     "Content-Type" => "application/json",
@@ -166,6 +164,7 @@ end
 # Assuming the first argument is the message and the second is the image path/url
 message = ARGV[0]
 image_path_or_url = ARGV[1]
+model = ARGV[2] || "gpt-4o-mini"
 
 if message.nil? || image_path_or_url.nil?
   puts "Usage: #{$PROGRAM_NAME} 'message' 'image_path_or_url'"
@@ -173,7 +172,7 @@ if message.nil? || image_path_or_url.nil?
 end
 
 begin
-  response = image_query(message, image_path_or_url)
+  response = image_query(message, image_path_or_url, model)
   puts response
 rescue => e
   puts "An error occurred: #{e.message}"

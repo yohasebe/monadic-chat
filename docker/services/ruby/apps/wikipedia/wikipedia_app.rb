@@ -33,7 +33,7 @@ Use the following HTML format in your response:
   def settings
     {
       "app_name": "Wikipedia",
-      "model": "gpt-4o",
+      "model": "gpt-4o-mini",
       "temperature": 0.3,
       "top_p": 0.0,
       "max_tokens": 4000,

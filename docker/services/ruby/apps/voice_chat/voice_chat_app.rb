@@ -22,7 +22,7 @@ class VoiceChat < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o",
+      "model": "gpt-4o-mini",
       "temperature": 0.7,
       "top_p": 0.0,
       "context_size": 20,

@@ -477,7 +477,7 @@ function connect_websocket(callback) {
           model => `<option value="${model}">${model}</option>`
         );
         $("#model").html(model_options);
-        $("#model").val("gpt-4o");
+        $("#model").val("gpt-4o-mini");
         setAlert("Ready to start.", "secondary");
         verified = true;
 

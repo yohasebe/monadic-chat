@@ -18,6 +18,43 @@ class CodeWithCohere < MonadicApp
     text
   end
 
+  attr_reader :models
+
+  def initialize
+    @models = list_models
+    super
+  end
+
+  def list_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["COHERE_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        return model_data.dig("models").map do
+          |model| model["name"]
+        end.filter do |model|
+          !model.include?("embed") && !model.include?("rerank")
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
+  end
+
   def initial_prompt
     text = <<~TEXT
       You are an assistant designed to help users write and run code and visualize data upon their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
@@ -271,28 +308,7 @@ class CodeWithCohere < MonadicApp
               "required": true
             }
           }
-        },
-        # {
-        #   "name": "write_to_file",
-        #   "description": "Write the content to a file.",
-        #   "parameter_definitions": {
-        #     "filename": {
-        #       "type": "string",
-        #       "description": "File name without extension.",
-        #       "required": true
-        #     },
-        #     "extension": {
-        #       "type": "string",
-        #       "description": "File extension such as 'txt', 'csv', 'py', etc.",
-        #       "required": true
-        #     },
-        #     "content": {
-        #       "type": "string",
-        #       "description": "Content to be written to the file.",
-        #       "required": true
-        #     }
-        #   }
-        # }
+        }
       ]
     }
   end

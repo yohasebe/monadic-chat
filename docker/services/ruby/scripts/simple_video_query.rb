@@ -13,7 +13,7 @@ MAX_FRAMES = 50
 
 DEFAULT_QUERY = "Describe what happens in the video by analyzing the image data extracted from the video."
 
-def video_query(json_path, query)
+def video_query(json_path, query, model = "gpt-4o-mini")
   num_retrial = 0
 
   begin
@@ -34,8 +34,6 @@ def video_query(json_path, query)
   if json_data.size > MAX_FRAMES
     json_data = balance_images(json_data, MAX_FRAMES)
   end
-
-  model = "gpt-4o"
 
   headers = {
     "Content-Type" => "application/json",
@@ -117,6 +115,7 @@ end
 # Assuming the first argument is the path to the JSON file and the second is the query
 json_path = ARGV[0]
 query = ARGV[1] || DEFAULT_QUERY
+model = ARGV[2] || "gpt-4o-mini"
 
 if json_path.nil?
   puts "Usage: #{$PROGRAM_NAME} 'json_path' ['query']"
@@ -124,7 +123,7 @@ if json_path.nil?
 end
 
 begin
-  response = video_query(json_path, query)
+  response = video_query(json_path, query, model)
   puts response
 rescue => e
   puts "An error occurred: #{e.message}"

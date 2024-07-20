@@ -66,8 +66,7 @@ module OpenAIHelper
         item.include?("gpt") &&
           !item.include?("vision") &&
           !item.include?("instruct") &&
-          !item.include?("0301") &&
-          !item.include?("0613")
+          !item.include?("gpt-3.5")
       end
 
       if api_key
@@ -224,10 +223,13 @@ module OpenAIHelper
 
     body.each do |chunk|
 
-      buffer << chunk
+     if chunk.valid_encoding? == false
+       buffer << chunk
+       next 
+     end
 
-      # if chunk contains an invvalid byte sequence, go to the next iteration
-      next if chunk.valid_encoding? == false
+      break if /\Rdata: [DONE]\R/ =~ buffer
+      buffer << chunk
 
 
       break if /\Rdata: [DONE]\R/ =~ chunk
@@ -574,26 +576,25 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      body["model"] = "gpt-4o"
+      body["model"] = if /gpt-4o/ =~ model
+                        model
+                      else
+                        "gpt-4o-mini"
+                      end
       body.delete("stop")
     end
-
-    # if role != "tool"
-    #   body.delete("tools")
-    #   body.delete("tool_choice")
-    # end
 
     # Call the API
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    body["messages"].each do |message|
-      if message["tool_calls"] || message[:tool_call]
-        if !message["role"] && !message[:role]
-          message["role"] = "assistant"
+    body["messages"].each do |msg|
+      if msg["tool_calls"] || msg[:tool_call]
+        if !msg["role"] && !msg[:role]
+          msg["role"] = "assistant"
         end
-        tool_calls = message["tool_calls"] || message[:tool_call]
+        tool_calls = msg["tool_calls"] || msg[:tool_call]
         tool_calls.each do |tool_call|
           tool_call.delete("index")
         end

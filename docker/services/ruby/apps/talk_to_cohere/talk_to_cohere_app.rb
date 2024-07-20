@@ -8,13 +8,50 @@ class Cohere < MonadicApp
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
-  
+
   def icon
     "<i class='fa-solid fa-c'></i>"
   end
 
   def description
     "This app accesses the Cohere Command R API to answer questions about a wide range of topics."
+  end
+
+  attr_reader :models
+
+  def initialize
+    @models = list_models
+    super
+  end
+
+  def list_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["COHERE_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        return model_data.dig("models").map do
+          |model| model["name"]
+        end.filter do |model|
+          !model.include?("embed") && !model.include?("rerank")
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
   end
 
   def initial_prompt
@@ -40,14 +77,7 @@ class Cohere < MonadicApp
       "auto_speech": false,
       "initiate_from_assistant": false,
       "image": false,
-      "models": [
-        "command-r-plus",
-        "command-r",
-        "command",
-        "command-nightly",
-        "command-light",
-        "command-light-nightly",
-      ]
+      "models": @models
     }
   end
 

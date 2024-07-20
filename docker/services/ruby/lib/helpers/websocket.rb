@@ -21,7 +21,7 @@ module WebSocketHelper
       active_messages = messages.filter { |m| m["active"] }
 
       # gpt-4o => o200k_base;
-      model_name = /gpt\-4o/ =~ obj["model"] ? obj["model"] : "gpt-3.5-turbo"
+      model_name = /gpt\-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
 
       encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
 
@@ -197,7 +197,7 @@ module WebSocketHelper
 
           ### code to use the OpenAI mode for AI User
           api_request = method(:openai_api_request)
-          parameters_modified["model"] = "gpt-4o"
+          parameters_modified["model"] = "gpt-4o-mini"
 
           mini_session = {
             :parameters => parameters_modified,

@@ -8,13 +8,54 @@ class Gemini < MonadicApp
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
-  
+
   def icon
     "<i class='fab fa-google'></i>"
   end
 
   def description
     "This app accesses the Google Gemini API to answer questions about a wide range of topics."
+  end
+
+  attr_reader :models
+
+  def initialize
+    @models = list_models
+    super
+  end
+
+  def list_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["GEMINI_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json",
+    }
+
+    target_uri = "#{API_ENDPOINT}/models?key=#{api_key}"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        models = []
+        model_data.dig("models").each do |model|
+          name = model["name"].split("/").last
+          display_name = model["displayName"]
+          models << name if name && /Legacy/ !~ display_name
+        end
+      end
+
+      models.filter do |model|
+        /(?:embedding|aqa|vision)/ !~ model && model != "gemini-pro"
+      end.reverse
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
   end
 
   def initial_prompt
@@ -40,13 +81,7 @@ class Gemini < MonadicApp
       "auto_speech": false,
       "initiate_from_assistant": false,
       "image": true,
-      "models": [
-        "gemini-1.5-pro-latest",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-        "gemini-1.0-pro"
-      ]
+      "models": @models
     }
   end
 

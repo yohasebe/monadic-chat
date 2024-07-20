@@ -17,6 +17,45 @@ class TalkToMistral < MonadicApp
     "This app accesses the Mistral AI API to answer questions about a wide range of topics."
   end
 
+  attr_reader :models
+
+  def initialize
+    @models = list_models
+    super
+  end
+
+  def list_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["MISTRAL_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        return model_data.dig("data").sort_by do
+          |model| model["created"]
+        end.reverse.map do
+          |model| model["id"]
+        end.filter do |model|
+          !model.include?("embed")
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      return []
+    end
+  end
+
   def initial_prompt
     text = <<~TEXT
       You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it.
@@ -49,15 +88,7 @@ class TalkToMistral < MonadicApp
       "pdf": false,
       "image": false,
       "toggle": false,
-      "models": [
-        "mistral-large-latest",
-        "mistral-medium-latest",
-        "mistral-small-latest",
-        "open-mixtral-8x22b",
-        "open-mixtral-8x7b",
-        "open-mistral-7b",
-        "codestral-latest"
-      ],
+      "models": @models
     }
   end
 
@@ -344,7 +375,7 @@ class TalkToMistral < MonadicApp
     last_text = context.last["text"]
 
     if messages_containing_img
-      body["model"] = "gpt-4o"
+      body["model"] = "gpt-4o-mini"
       body.delete("stop")
     end
 

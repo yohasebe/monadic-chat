@@ -357,15 +357,21 @@ class Claude < MonadicApp
       message
     end
 
-    # messages.unshift({
-    #   "role" => "user",
-    #   "content" => [
-    #     {
-    #       "type" => "text",
-    #       "text" => ""
-    #     }
-    #   ]
-    # }) if messages.first["role"] != "user"
+    # Remove assistant messages until the first user message
+    messages.shift while messages.first["role"] != "user"
+
+    # if there is no user message, add a placeholder
+    if messages.empty?
+      messages << {
+        "role" => "user",
+        "content" => [
+          {
+            "type" => "text",
+            "text" => "OK"
+          }
+        ]
+      }
+    end
 
     body["messages"] = messages
 

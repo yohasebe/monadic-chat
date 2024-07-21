@@ -17,6 +17,44 @@ class Claude < MonadicApp
     "This app accesses the Anthropic API to answer questions about a wide range of topics."
   end
 
+  attr_reader :models
+
+  def initialize
+    @models = get_models
+    pp @models
+    super
+  end
+
+  def get_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["COHERE_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        return model_data.dig("models").map do
+          |model| model["name"]
+        end.filter do |model|
+          !model.include?("embed") && !model.include?("rerank")
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
+  end
+
   def initial_prompt
     text = <<~TEXT
       You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is unclear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
@@ -301,7 +339,7 @@ class Claude < MonadicApp
                 "active" => true,
               }
       }
-      res["image"] = obj["image"] if obj["image"]
+      res["images"] = obj["images"] if obj["images"]
       block&.call res
       session[:messages] << res["content"]
     end
@@ -341,20 +379,21 @@ class Claude < MonadicApp
     end
 
     # The context is added to the body
-
     messages = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
-      if msg["image"] && role == "user"
-        message["content"] << {
+      { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
+    end
+
+    if messages.last["role"] == "user" && obj["images"]
+      obj["images"].each do |img|
+        messages.last["content"] << {
           "type" => "image",
           "source" => {
             "type" => "base64",
-            "media_type" => msg["image"]["type"],
-            "data" => msg["image"]["data"].split(",")[1]
+            "media_type" => img["type"],
+            "data" => img["data"].split(",")[1]
           }
         }
       end
-      message
     end
 
     # Remove assistant messages until the first user message

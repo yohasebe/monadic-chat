@@ -223,6 +223,7 @@ class CodeWithCohere < MonadicApp
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
+      "image": false,
       "pdf": false,
       "models": [
         "command-r-plus",

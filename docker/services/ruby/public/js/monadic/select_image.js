@@ -4,19 +4,13 @@
 
 const selectFileButton = $("#image-file");
 
-let imageTitle;
-let imageData;
-let imageType;
-let imageSize;
+let images = []; // Store multiple images
 
 selectFileButton.on("click", function () {
   $("#imageModal").modal("show");
 
   const fileImage = $('#imageFile');
   const imageButton = $('#uploadImage');
-
-  let fileInput;
-  let file;
 
   $("#imageModal").on("hidden.bs.modal", function () {
     fileImage.val('');
@@ -29,22 +23,26 @@ selectFileButton.on("click", function () {
     }
   });
 
-  $("#uploadImage").on("click", function () {
-    fileInput = fileImage[0];
-    file = fileInput.files[0];
+  $("#uploadImage").off("click").on("click", function () {
+    const fileInput = fileImage[0];
+    const file = fileInput.files[0];
 
     if (file) {
       $("#imageModal button").prop("disabled", true);
 
       try {
         imageToBase64(file, function (base64) {
-          imageTitle = file.name;
-          imageType = file.type;
-          imageData = "data:" + imageType + ";base64," + base64;
-          $("#imageModal button").prop("disabled", false);
+          const imageTitle = file.name;
+          const imageType = file.type;
+          const imageData = "data:" + imageType + ";base64," + base64;
+
+          // Store the image data
+         images.push({ title: imageTitle, data: imageData, type: imageType });
+
+          // Update the UI to show the uploaded images
+          updateImageDisplay();
           $("#imageModal").modal("hide");
-          $("#image-used").html("Image: " + imageTitle);
-          $("#image-base64").html("<img class='base64-image' src='data:" + imageType + ";base64," + base64 + "' />");
+          $("#imageModal button").prop("disabled", false);
         });
       } catch (error) {
         $("#imageModal button").prop("disabled", false);
@@ -97,4 +95,24 @@ function imageToBase64(blob, callback) {
     image.src = dataUrl;
   };
   reader.readAsDataURL(blob);
+}
+
+// Function to update the image display
+function updateImageDisplay() {
+  $("#image-used").html(""); // Clear previous images
+  images.forEach((image, index) => {
+    $("#image-used").append(`
+      <div class="image-container">
+        <img class='base64-image' src='${image.data}' />
+        <button class='btn btn-secondary btn-sm remove-image' data-index='${index}' tabindex="99"><i class="fas fa-times"></i></button>
+      </div>
+    `);
+  });
+
+  // Add event listener for removing images
+  $(".remove-image").on("click", function() {
+    const index = $(this).data("index");
+    images.splice(index, 1); // Remove the image from the array
+    updateImageDisplay(); // Update the display
+  });
 }

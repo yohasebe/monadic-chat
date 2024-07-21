@@ -1,6 +1,6 @@
 const mids = [];
 
-function createCard(role, badge, html, lang = "en", mid = "", status = true, image_data = "") {
+function createCard(role, badge, html, lang = "en", mid = "", status = true, images = []) {
   const status_class = status === true ? "active" : "";
 
   let className
@@ -12,7 +12,13 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     className = "role-system";
   }
 
-  image_data = image_data === "" ? "" : `<img class='base64-image' src='${image_data}' />`;
+  let image_data = "";
+  if (images.length > 0) {
+    image_data = images.map((image) => {
+      return `<img class='base64-image' src='${image.data}' style='margin-right: 10px;' />`;
+    }).join("");
+  }
+
   const card = $(`
     <div class="card mt-3">
       <div class="card-header p-2 ps-3 d-flex justify-content-between">

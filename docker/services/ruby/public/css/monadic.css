@@ -527,3 +527,24 @@ pre {
   padding: 0;
   cursor: pointer;
 }
+
+.image-container {
+  position: relative;
+  display: inline-block;
+  margin: 5px;
+}
+
+.image-container img {
+  max-width: 100px; /* Adjust size as needed */
+  max-height: 100px; /* Adjust size as needed */
+}
+
+.image-container .remove-image {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(255, 0, 0, 0.7);
+  border: none;
+  color: white;
+  cursor: pointer;
+}

@@ -27,7 +27,6 @@ function getCookie(name) {
   return null;
 }
 
-
 function listModels(models) {
   let modelList = "";
   for (let model of models) {
@@ -319,9 +318,6 @@ function setParams() {
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
-  // params["speech_rate"] = $("#speech-rate").val();
-  // params["speech_lang"] = $("#speech-lang").val();
-  // params["speech_voice"] = $("#speech-voice").val();
   return params;
 }
 

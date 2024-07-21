@@ -552,7 +552,7 @@ class CodeWithClaude < MonadicApp
                 "active" => true,
               }
       }
-      res["image"] = obj["image"] if obj["image"]
+      res["images"] = obj["images"] if obj["images"]
       block&.call res
       session[:messages] << res["content"]
     end
@@ -593,20 +593,21 @@ class CodeWithClaude < MonadicApp
     end
 
     # The context is added to the body
-
     messages = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
-      if msg["image"] && role == "user"
-        message["content"] << {
+      { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
+    end
+
+    if messages.last["role"] == "user" && obj["images"]
+      obj["images"].each do |img|
+        messages.last["content"] << {
           "type" => "image",
           "source" => {
             "type" => "base64",
-            "media_type" => msg["image"]["type"],
-            "data" => msg["image"]["data"].split(",")[1]
+            "media_type" => img["type"],
+            "data" => img["data"].split(",")[1]
           }
         }
       end
-      message
     end
 
     # Remove assistant messages until the first user message

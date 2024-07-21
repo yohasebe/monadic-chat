@@ -273,14 +273,14 @@ module WebSocketHelper
           end
         when "SAMPLE"
           text = obj["content"]
-          image = obj["image"]
+          images = obj["images"]
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => obj["role"],
                        "text" => text,
                        "html" => markdown_to_html(text),
                        "lang" => detect_language(text),
                        "active" => true }
-          new_data["image"] = image if image
+          new_data["images"] = images if images
           @channel.push({ "type" => "html", "content" => new_data }.to_json)
           session[:messages] << new_data
         when "AUDIO"

@@ -276,7 +276,7 @@ post "/load" do
           html = markdown_to_html(text)
         end
         message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
-        message_obj["image"] = msg["image"] if msg["image"]
+        message_obj["images"] = msg["images"] if msg["images"]
         message_obj
       end
     rescue JSON::ParserError

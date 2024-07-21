@@ -611,15 +611,14 @@ function connect_websocket(callback) {
           messages.push(msg);
           switch (msg["role"]) {
             case "user":
-              // let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
               let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")
-              let image_data;
-              if(msg["image"] !== undefined){
-                image_data = msg["image"]["data"];
+              let images
+              if(msg["images"] !== undefined){
+                images = msg["images"]
               } else {
-                image_data = ""
+                images = []
               }
-              const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], image_data);
+              const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], images);
               $("#discourse").append(userElement);
               break;
             case "assistant":
@@ -723,13 +722,12 @@ function connect_websocket(callback) {
           }
 
         } else if (data["content"]["role"] === "user") {
-          // let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
           let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-          let image_data;
-          if(data["image"] !== undefined){
-            image_data = data["image"]["data"];
+          let images;
+          if(data["images"] !== undefined){
+            images = data["images"]
           }
-          htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, image_data);
+          htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         } else if (data["content"]["role"] === "system") {
           htmlElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         }
@@ -774,16 +772,16 @@ function connect_websocket(callback) {
         break;
       case "user":
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
-        if(data["image"] !== undefined) {
-          message_obj.image = data["image"];
+        if(data["images"] !== undefined) {
+          message_obj.images = data["images"];
         }
         messages.push(message_obj);
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-        let image_data;
-        if(data["image"] !== undefined){
-          image_data = data["image"]["data"];
+        let images;
+        if(data["images"] !== undefined){
+          images = data["images"];
         }
-        const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, image_data);
+        const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         $("#discourse").append(userElement);
         $("#temp-card").show();
         $("#temp-card .status").hide();

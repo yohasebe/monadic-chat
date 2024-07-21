@@ -245,45 +245,85 @@ Do your best to make the conversation as natural as possible. Do not change subj
     });
   })
 
-  $("#send").on("click", function(event) {
-    audioInit();
-    setAlert("<i class='fas fa-robot'></i> THINKING", "info");
-    elemError.hide();
-    event.preventDefault();
-    if (message.value === "") {
-      return;
-    }
-    params["message"] = $("#message").val();
-    $("#cancel_query").css("opacity", "1");
+  // $("#send").on("click", function(event) {
+  //   audioInit();
+  //   setAlert("<i class='fas fa-robot'></i> THINKING", "info");
+  //   elemError.hide();
+  //   event.preventDefault();
+  //   if (message.value === "") {
+  //     return;
+  //   }
+  //   params["message"] = $("#message").val();
+  //   $("#cancel_query").css("opacity", "1");
 
-    if ($("#select-role").val() !== "user") {
-      reconnect_websocket(ws, function (ws) {
-        const role = $("#select-role").val().split("-")[1];
-        const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role}
-        // console.log(msg_object);
-        ws.send(JSON.stringify(msg_object));
-      });
-      $("#message").css("height", "96px").val("");
-      $("#select-role").val("").trigger("change");
-    } else {
-      reconnect_websocket(ws, function (ws) {
-        if(imageData) {
-          params.image = { data: imageData, title: imageTitle, type: imageType }
-        } else {
-          params.image = null;
-        }
-        ws.send(JSON.stringify(params))
-        imageData = null;
-        imageTitle = null;
-        imageType = null;
-      });
-      $("#message").css("height", "96px").val("");
-      $("#image-used").html("");
-      $("#image-base64").html("");
-    }
-    $("#select-role").val("user");
-    $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
-  });
+  //   if ($("#select-role").val() !== "user") {
+  //     reconnect_websocket(ws, function (ws) {
+  //       const role = $("#select-role").val().split("-")[1];
+  //       const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role}
+  //       // console.log(msg_object);
+  //       ws.send(JSON.stringify(msg_object));
+  //     });
+  //     $("#message").css("height", "96px").val("");
+  //     $("#select-role").val("").trigger("change");
+  //   } else {
+  //     reconnect_websocket(ws, function (ws) {
+  //       if(imageData) {
+  //         params.image = { data: imageData, title: imageTitle, type: imageType }
+  //       } else {
+  //         params.image = null;
+  //       }
+  //       ws.send(JSON.stringify(params))
+  //       imageData = null;
+  //       imageTitle = null;
+  //       imageType = null;
+  //     });
+  //     $("#message").css("height", "96px").val("");
+  //     $("#image-used").html("");
+  //     $("#image-base64").html("");
+  //   }
+  //   $("#select-role").val("user");
+  //   $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
+  // });
+
+$("#send").on("click", function(event) {
+  audioInit();
+  setAlert("<i class='fas fa-robot'></i> THINKING", "info");
+  elemError.hide();
+  event.preventDefault();
+  if (message.value === "") {
+    return;
+  }
+  params["message"] = $("#message").val();
+  $("#cancel_query").css("opacity", "1");
+
+  if ($("#select-role").val() !== "user") {
+    reconnect_websocket(ws, function (ws) {
+      const role = $("#select-role").val().split("-")[1];
+      const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role}
+      ws.send(JSON.stringify(msg_object));
+    });
+    $("#message").css("height", "96px").val("");
+    $("#select-role").val("").trigger("change");
+  } else {
+    reconnect_websocket(ws, function (ws) {
+      if (images && images.length > 0) {
+        // params.image = images[0];
+        params.images = images;
+      } else {
+        // params.image = null;
+        params.images = [];
+      }
+
+      ws.send(JSON.stringify(params));
+      images = []; // Clear images after sending
+    });
+    $("#message").css("height", "96px").val("");
+    $("#image-used").html("");
+  }
+  $("#select-role").val("user");
+  $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
+});
+
 
   $("#clear").on("click", function (event) {
     event.preventDefault();

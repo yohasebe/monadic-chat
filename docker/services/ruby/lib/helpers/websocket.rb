@@ -197,7 +197,7 @@ module WebSocketHelper
 
           ### code to use the OpenAI mode for AI User
           api_request = method(:openai_api_request)
-          parameters_modified["model"] = "gpt-4o-mini"
+          parameters_modified["model"] = CONFIG["AI_USER_MODEL"]
 
           mini_session = {
             :parameters => parameters_modified,

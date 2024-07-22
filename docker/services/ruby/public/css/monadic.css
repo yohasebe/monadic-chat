@@ -535,15 +535,14 @@ pre {
 }
 
 .image-container img {
-  max-width: 100px; /* Adjust size as needed */
-  max-height: 100px; /* Adjust size as needed */
+  max-width: 200px; 
+  max-height: 200px; 
 }
 
 .image-container .remove-image {
   position: absolute;
   top: 0;
   right: 0;
-  background: rgba(255, 0, 0, 0.7);
   border: none;
   color: white;
   cursor: pointer;

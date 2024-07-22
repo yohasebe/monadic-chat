@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Jul, 2024] 0.7.8
+  - [Jul, 2024] 0.7.9
       - Multiple images can be uploaded for image recognition
       - Continue button introduced
       - Jupyter Notebook app added

@@ -12,24 +12,24 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      margin: 0px;
-      padding: 0px;
+      margin: 0;
+      padding: 0;
       color: #333;
       background-color: #eeeeee;
-      overflow: hidden; /* Prevents the content from overflowing */
-    }
-    body, input, textarea, button, pre {
+      overflow: hidden;
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
     }
 
-    button {
-      color: #888;
+    h1 {
+      margin: 10px;
+      font-size: 16px;
+      font-weight: bold;
     }
 
-    h1 {
-      margin-top: 0;
+    #settings-container {
+      overflow-y: auto;
+      padding: 0 10px;
       margin-bottom: 10px;
-      font-size: 16px;
     }
 
     label {
@@ -39,7 +39,7 @@
       font-size: 12px;
     }
 
-    input {
+    input, select {
       width: 100%;
       padding: 6px 12px;
       margin-top: 5px;
@@ -50,82 +50,86 @@
       box-sizing: border-box;
     }
 
-    input:focus {
+    input:focus, select:focus {
       outline: none;
       border-color: #ffc107;
     }
 
-    button {
-      padding: 6px 12px;
-      margin-left: 10px;
+    .button-group {
+      border-top: 1px solid #ccc;
+      height: 74px;
+      padding: 12px;
+      align-items: center;
+      text-align: right; 
+    }
+
+    .button-group button {
       background-color: #ffc107;
       color: #000;
       border: none;
       border-radius: 5px;
+      padding: 5px 10px;
+      margin-left: 5px;
       cursor: pointer;
-      font-size: 13px;
-      font-family: inherit;
+      font-size: 14px;
+      align-items: center;
     }
 
-    button:hover {
+    .button-group button:hover {
       background-color: #e0ac07;
-    }
-
-    button#cancel {
-      background-color: #ffc107;
-    }
-
-    button#cancel:hover {
-      background-color: #e0ac07;
-    }
-
-    .button-group {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 20px;
     }
 
     button#toggle-visibility {
-      width: 150px;
-      background-color: #ffc107;
+      margin-right: auto;
       margin-left: 0;
+      background-color: #ffc107;
     }
 
     button#toggle-visibility:hover {
       background-color: #e0ac07;
     }
 
-    div#settings-container {
-      margin: 10px;
+    .fa-icon {
+      margin-right: 5px;
     }
-
     </style>
   </head>
   <body>
+    <h1>Monadic Chat <span style="font-weight: normal;">Settings</span></h1>
     <div id="settings-container">
-      <h1>Monadic Chat <span style="font-weight: normal;">Settings</span></h1>
       <form id="settings-form">
         <label for="openai-api-key">OPENAI_API_KEY (Required)</label>
-        <input type="text" id="openai-api-key" name="openai-api-key" spellcheck="false">
+        <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false">
+
+        <label for="vision-model">VISION_MODEL</label>
+        <select id="vision-model" name="vision-model">
+          <option value="gpt-4o-mini">gpt-4o-mini</option>
+          <option value="gpt-4o">gpt-4o</option>
+        </select>
+
+        <label for="ai-user-model">AI_USER_MODEL</label>
+        <select id="ai-user-model" name="ai-user-model">
+          <option value="gpt-4o-mini">gpt-4o-mini</option>
+          <option value="gpt-4o">gpt-4o</option>
+        </select>
 
         <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
-        <input type="text" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
+        <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
 
         <label for="cohere-api-key">COHERE_API_KEY</label>
-        <input type="text" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
+        <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
 
         <label for="gemini-api-key">GEMINI_API_KEY</label>
-        <input type="text" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
+        <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
 
         <label for="mistral-api-key">MISTRAL_API_KEY</label>
-        <input type="text" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
-
-        <div class="button-group">
-          <button type="button" id="toggle-visibility"><i class="fas fa-eye"></i> Show API Keys</button>
-          <button type="submit"><i class="fas fa-save"></i> Save and Close</button>
-          <button type="button" id="cancel"><i class="fas fa-times"></i> Cancel</button>
-        </div>
+        <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
       </form>
+    </div>
+    <div class="button-group">
+      <button type="button" id="toggle-visibility"><i class="fas fa-eye fa-icon"></i>Show API Keys</button>
+      <button type="submit" form="settings-form"><i class="fas fa-save fa-icon"></i>Save and Close</button>
+      <button type="button" id="cancel"><i class="fas fa-times fa-icon"></i>Cancel</button>
     </div>
     <script>
       const { ipcRenderer } = require('electron');
@@ -137,7 +141,9 @@
           ANTHROPIC_API_KEY: document.getElementById('anthropic-api-key').value,
           COHERE_API_KEY: document.getElementById('cohere-api-key').value,
           GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
-          MISTRAL_API_KEY: document.getElementById('mistral-api-key').value
+          MISTRAL_API_KEY: document.getElementById('mistral-api-key').value,
+          VISION_MODEL: document.getElementById('vision-model').value,
+          AI_USER_MODEL: document.getElementById('ai-user-model').value
         };
         ipcRenderer.send('save-settings', data);
       });
@@ -152,6 +158,8 @@
         document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
         document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
         document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
+        document.getElementById('vision-model').value = data.VISION_MODEL || 'gpt-4o-mini';
+        document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';
       });
 
       ipcRenderer.send('request-settings');
@@ -181,7 +189,7 @@
 
       let isVisible = false;
       const toggleButton = document.getElementById('toggle-visibility');
-      const apiInputs = document.querySelectorAll('input[type="text"]');
+      const apiInputs = document.querySelectorAll('input[type="password"]');
 
       toggleButton.addEventListener('click', () => {
         isVisible = !isVisible;

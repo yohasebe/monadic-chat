@@ -578,11 +578,7 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      body["model"] = if /gpt-4o/ =~ model
-                        model
-                      else
-                        "gpt-4o-mini"
-                      end
+      body["model"] = CONFIG["VISION_MODEL"]
       body.delete("stop")
     end
 

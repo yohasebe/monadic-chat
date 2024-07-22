@@ -40,7 +40,7 @@ selectFileButton.on("click", function () {
          images.push({ title: imageTitle, data: imageData, type: imageType });
 
           // Update the UI to show the uploaded images
-          updateImageDisplay();
+          updateImageDisplay(images);
           $("#imageModal").modal("hide");
           $("#imageModal button").prop("disabled", false);
         });
@@ -98,7 +98,7 @@ function imageToBase64(blob, callback) {
 }
 
 // Function to update the image display
-function updateImageDisplay() {
+function updateImageDisplay(images) {
   $("#image-used").html(""); // Clear previous images
   images.forEach((image, index) => {
     $("#image-used").append(`
@@ -113,6 +113,6 @@ function updateImageDisplay() {
   $(".remove-image").on("click", function() {
     const index = $(this).data("index");
     images.splice(index, 1); // Remove the image from the array
-    updateImageDisplay(); // Update the display
+    updateImageDisplay(images); // Update the display
   });
 }

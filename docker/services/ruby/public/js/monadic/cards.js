@@ -111,6 +111,15 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
         role = "sample-" + role;
       }
       $("#select-role").val(role).trigger("change");
+
+      // add any attached images to the image list
+      const images = messages.find((m) => m.mid === mid).images;
+
+      let image_used = "";
+      if (images.length > 0) {
+        updateImageDisplay(images);
+      }
+
       // remove this message and all the messages after this message
       const index = messages.findIndex((m) => m.mid === mid);
       const following = messages.splice(index, messages.length - index);

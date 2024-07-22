@@ -56,7 +56,8 @@ layout: default
 
 - 🖼️ **Generate images** from text prompts using OpenAI's DALL·E 3 API
 - 👀 Analyze and describe the content of **uploaded images**
-- 🎥 Recognize and describe the content and audio of **uploaded videos**
+- 📚 **Multiple images** can be uploaded for recognition
+- 🎥 Recognize and describe the content and audio of **uploaded video**
 
 ### Configuration and Extension
 

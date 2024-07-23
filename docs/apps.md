@@ -210,11 +210,19 @@ Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 <img src="./assets/icons/code-interpreter.png" width="40px"/>
 
-This is an application that allows AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. The text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat. If you request something like `Start Jupyter Notebook`, a Jupyter Notebook will be launched in the current code execution environment. (Jupyter Notebook can be used to check the Python execution environment and install libraries.)
+This is an application that allows AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. The text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat. 
 
 If you have files (such as Python code or CSV data) that you want the AI to read, save the files in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, please check the file name and ensure that it is available from the current code execution environment.
 
 Recipe file: [code_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb)
+
+## Jupyter Notebook
+
+<img src="./assets/icons/jupyter-notebook.png" width="40px"/>
+
+This is an application that allows AI to create a Jupyter notebook, add cells to it, and execute the code in the cells. The execution of the code uses a Python environment within a Docker container and the results will be overwritten in the Jupyter notebook. The Jupyter notebook file is saved in the `Shared Folder`.
+
+Recipe file: [jupyter_notebook_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb)
 
 ## Coding Assistant
 

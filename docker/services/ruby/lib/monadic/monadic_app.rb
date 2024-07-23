@@ -395,6 +395,13 @@ class MonadicApp
     end
   end
 
+  def run_jupyter_notebook(filename:)
+    command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=60 --allow-errors --inplace"
+    send_command(command: command,
+                 container: "python",
+                 success: "The notebook has been executed and updated with the results successfully.\n")
+  end
+
   def create_jupyter_notebook()
     command = "bash -c 'jupyter_controller.py create'"
     send_command(command: command, container: "python")

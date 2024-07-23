@@ -453,6 +453,22 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000) {
 let fetchWithRetryCalled = false;
 
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
+  if (command === 'start') {
+    const apiKeySet = checkAndUpdateEnvFile();
+    if (!apiKeySet) {
+      dialog.showMessageBox({
+        type: 'info',
+        buttons: ['OK'],
+        title: 'API Key Required',
+        message: 'OpenAI API key is not set',
+        detail: 'Please set it in the Settings before starting the system.',
+        icon: path.join(iconDir, 'monadic-chat.png')
+      });
+      writeToScreen('[HTML]: <p>OpenAI API Key is not set. Please set it in the Settings before starting the system.</p><hr />');
+      return;
+    }
+  }
+
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
   
@@ -839,7 +855,14 @@ function createMainWindow() {
   let openingText;
 
   if(justLaunched){
-    openingText = `[HTML]: <p>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</p><hr /><p><p>Press <b>Start</b> button to initialize the server.</p><p>Note: If you have upgraded Monadic Chat from a previous version, it will take some time for the image rebuild to complete.</p><hr />`;
+    openingText = `
+      [HTML]: 
+      <p><i>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</i></p>
+      <hr />
+      <p>Set up OPENAI API key in the <b>Settings</b> window.</p>
+      <hr />
+      <p>Press <b>Start</b> button to initialize the server. It will take some time for the image rebuild to complete.</p>
+      <hr />`
     portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
@@ -1035,4 +1058,44 @@ ipcMain.on('save-settings', (_event, data) => {
     mainWindow.removeBrowserView(settingsView);
   }
 });
+
+function checkAndUpdateEnvFile() {
+  let envPath;
+  if (os.platform() === 'darwin' || os.platform() === 'linux') {
+    envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
+  } else if (os.platform() === 'win32') {
+    const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
+    const wslPath = `/home/${path.basename(wslHome)}/monadic/data/.env`;
+    envPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+  }
+
+  try {
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    let envConfig = dotenv.parse(envContent);
+
+    let updated = false;
+
+    if (!envConfig.VISION_MODEL) {
+      envConfig.VISION_MODEL = 'gpt-4o-mini';
+      updated = true;
+    }
+
+    if (!envConfig.AI_USER_MODEL) {
+      envConfig.AI_USER_MODEL = 'gpt-4o-mini';
+      updated = true;
+    }
+
+    if (updated) {
+      const newEnvContent = Object.entries(envConfig)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n');
+      fs.writeFileSync(envPath, newEnvContent);
+    }
+
+    return !!envConfig.OPENAI_API_KEY;
+  } catch (error) {
+    console.error('Error checking/updating .env file:', error);
+    return false;
+  }
+}
 

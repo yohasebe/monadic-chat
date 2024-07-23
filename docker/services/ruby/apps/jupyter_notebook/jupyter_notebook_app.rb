@@ -31,6 +31,8 @@ class JupyterNotebook < MonadicApp
 
       If there is need to read the content of a Jupyter Notebook file, you can use the `fetch_text_from_file` function with the filename of the Jupyter Notebook file as the parameter.
 
+      If the addition of cells is successful, run the cells of the Jupyter Notebook using the `run_jupyter_notebook` function with the filename of the Jupyter Notebook file as the parameter. The function will run the cells of the Jupyter Notebook and write the output to the notebook so tha the user does not have to run the cells manually. If it is successful, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
+
       If the user wants to stop the Jupyter Lab server, use the `run_jupyter` function with the `stop` command to stop the Jupyter Lab server.
 
       [IMPORTANT] In case you get error, let me know the exact error message and terminate the process.
@@ -194,6 +196,26 @@ class JupyterNotebook < MonadicApp
                 }
               },
               "required": ["filename", "cells"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function":
+          {
+            "name": "run_jupyter_notebook",
+            "description": "Run the cells of a Jupyter Notebook and write the output to the notebook.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "command": {
+                    "type": "string",
+                    "description": "Filename of the Jupyter Notebook."
+                  }
+                }
+              },
+              "required": ["filename"]
             }
           }
         }

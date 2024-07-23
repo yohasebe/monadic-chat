@@ -17,8 +17,8 @@
 
     <link href=" https://cdn.jsdelivr.net/npm/abcjs@6.3.0/abcjs-audio.min.css" rel="stylesheet">
 
-    <link href="css/pigments-default.css" rel="stylesheet">
-    <link href="css/monadic.css" rel="stylesheet">
+    <link href="css/pigments-default.css?timestamp=<%= @timestamp %>" rel="stylesheet">
+    <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link rel="icon" href="img/favicon.png" type="image/x-icon">
   </head>
   <body>
@@ -88,7 +88,7 @@
               <div class="icon-container">
                 <span id="base-app-icon" class="app-icon"></span>
               </div>
-              <div id="base-app-title" class="ms-2 like-h3">
+              <div id="base-app-title" class="ms-2 like-h5">
               </div>
             </div>
             <div id="base-app-desc" class="mt-3 mb-1"></div>
@@ -210,30 +210,6 @@
           </div>
 
           <!--
-          <div id="tts-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text"><i class="fas fa-comment-dots"></i> Speech</span></h5>
-
-            <div class="form-check form-switch my-3">
-              <label class="form-check-label" for="auto-lang">Automatic Language Detect</label>
-              <input class="form-check-input" type="checkbox" id="auto-lang" checked>
-            </div>
-
-            <div class="my-1">
-              <label for="speech-lang" class="div-label my-2">Language</label>
-              <select class="form-select" id="speech-lang" disabled></select>
-            </div>
-            <div class="my-1">
-              <label for="speech-voice" class="div-label my-2">Voice</label>
-              <select class="form-select" id="speech-voice" disabled></select>
-            </div>
-            <div class="my-1">
-              <label for="speech-rate" class="div-label my-2">Rate (<span id="speech-rate-value">1.0</span>)</label><br />
-              <input type="range" class="div-range" min="0.5" max="1.5" step="0.1" value="1.0" id="speech-rate">
-            </div>
-          </div>
-          -->
-
-          <!--
           <div id="parameter-panel" class="p-3 my-3 rounded shaded-panel" style="display: none;">
             <h5><span class="text"><i class="fas fa-sliders"></i> Parameters</span></h5>
             <ul id="paramList" class="list-group list-group-flush mt-3"></ul>
@@ -252,7 +228,7 @@
             <h5 class="pb-2" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> GPT Settings</span></h5>
 
             <form class="row my-2">
-              <div class="col-5">
+              <div class="col-6">
                 <label class="form-label" for="apps">Base App</label>
                 <select class="form-select me-3" id="apps" ></select>
               </div>
@@ -261,7 +237,7 @@
                 <input type="number" id="context-size" min="1" max="100" stop="1" value="10" class="form-control" />
               </div>
 
-              <div class="col-3 ms-3">
+              <div class="col-2 ms-2">
                 <label class="form-label text-nowrap" for="max-tokens-toggle">Max Tokens</label>&nbsp;
                 <input class="form-check-input" type="checkbox" id="max-tokens-toggle" checked="checked">
                 <input type="number" id="max-tokens" stop="1" min="100" max="16000" value="1000" class="form-control" />
@@ -269,12 +245,12 @@
             </form>
 
             <form class="row my-3" id="model_and_file">
-              <div class="col-5">
+              <div class="col-6">
                 <label for="model" class="form-label text-nowrap">Model</label>
                 <select class="form-select me-3" id="model" ></select>
               </div>
 
-              <div class="col-3 ms-3" id="file-div" style="display: none;">
+              <div class="col-2 ms-2" id="file-div" style="display: none;">
                 <div class="row">
                   <div class="col-auto">
                     <label class="form-label" for="file" style="color: transparent;">□</label>

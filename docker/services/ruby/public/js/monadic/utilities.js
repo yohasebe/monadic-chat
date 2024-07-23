@@ -270,6 +270,8 @@ function loadParams(params, calledFor = "loadParams") {
     $("#initiate-from-assistant").prop('checked', false);
   }
   $("#model").val(params["model"]);
+  console.log(params["model"])
+  console.log("y")
 }
 
 function resetParams() {

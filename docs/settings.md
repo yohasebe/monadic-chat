@@ -39,24 +39,34 @@ Opens the folder shared between host computer and Docker containers. You can use
 **Quit**
 Quits the Monadic Chat Console. If Monadic Chat is running, it will be stopped first, which may take some time.
 
-## API Token Panel
+## Monadic Chat Settings
 
-<img src="./assets/images/config-panel.png" width="400px"/>
+<img src="./assets/images/settings-panel.png" width="400px"/>
 
-**API Token** <br />
-Enter your OpenAI API key here. Once a valid API key is confirmed, a file named `.env` will be created in the root directory of Monadic Chat, and a variable named `OPENAI_API_KEY` will be defined inside it. The value of this variable will be used thereafter.
+All the settings here are saved in the `~/monadic/data/.env` file. The settings are loaded when Monadic Chat is started.
 
-```
-OPENAI_API_KEY=api_key
-```
+**OPENAI_API_KEY** (required)<br />
+Enter your OpenAI API key here. The key is used to access the OpenAI APIs including the Chat API, the DALL·E image generation API, the Whisper speech recognition API, and the text-to-speech API. If you don't have one, you can get it at [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
-**Status** <br />
-The startup status of Monadic Chat will be displayed.
+**VISION_MODEL**<br />
+Select the model to be used for image and video recognition. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
-**OpenAI Models** <br />
-A list of OpenAI models available for use from Monadic Chat will be displayed. Model selection is done in the GPT Settings panel.
+**AI_USER_MODEL**<br />
+Select the model to be used for the AI-user feature with which the AI composes messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
-## GPT Settings Panel
+**ANTHROPIC_API_KEY**<br />
+Enter your Anthropic API key here. The key is needed for the Anthropic Claude (Chat) and Anthropic Claude (Code Interpreter) apps. If you don't have one, you can get it at [https://console.anthropic.com].
+
+**COHERE_API_KEY**<br />
+Enter your Cohere API key here. The key is needed for the Cohere Command R (Chat) and Cohere Command R (Code Interpreter) apps. If you don't have one, you can get it at [https://dashboard.cohere.com].
+
+**GEMINI_API_KEY**<br />
+Enter your Google Gemini API key here. The key is needed for the Google Gemini (Chat) app. If you don't have one, you can get it at [https://ai.google.dev/].
+
+**MISTRAL_API_KEY**<br />
+Enter your Mistral API key here. The key is needed for the Mistral AI (Chat) app. If you don't have one, you can get it from the [https://console.mistral.ai/].
+
+## App Settings Panel
 
 <img src="./assets/images/gpt-settings.png" width="700px"/>
 

@@ -82,13 +82,13 @@ layout: default
   - Mistral AI
 - 🤖💬🤖 **AI↔️AI Chat** is available:
 
-   | AI-Assistant     | | AI-User      |
-   |:-----------------|-|:-------------| 
-   | OpenAI GPT-4     |↔️| OpenAI GPT-4 |
-   | Google Gemini    |↔️| OpenAI GPT-4 |
-   | Anthropic Claude |↔️| OpenAI GPT-4 |
-   | Cohere Command R |↔️| OpenAI GPT-4 |
-   | Mistral AI         |↔️| OpenAI GPT-4 |
+   | AI-Assistant     | | AI-User               |
+   |:-----------------|-|:----------------------| 
+   | OpenAI GPT-4     |↔️| OpenAI GPT-4 or GPT4o |
+   | Google Gemini    |↔️| OpenAI GPT-4 or GPT4o |
+   | Anthropic Claude |↔️| OpenAI GPT-4 or GPT4o |
+   | Cohere Command R |↔️| OpenAI GPT-4 or GPT4o |
+   | Mistral AI       |↔️| OpenAI GPT-4 or GPT4o |
 
 ### Managing Conversations as Monads
 

@@ -212,11 +212,20 @@ Recipe file: [content_reader_app.rb](https://github.com/yohasebe/monadic-chat/bl
 
 <img src="./assets/icons/code-interpreter.png" width="40px"/>
 
-AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。`Start Jupyter Notebook` のように依頼すると、現在のコード実行環境でJupyter Notebookが起動します。（Jupyter NotebookはPython実行環境の確認やライブラリのインストールなどに使用できます。）
+AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
 
 AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
 
 Recipe file: [code_interpreter_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb)
+
+## Jupyter Notebook
+
+<img src="./assets/icons/jupyter-notebook.png" width="40px"/>
+
+AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。実行結果はJupyter Notebookに上書きされます。
+
+Recipe file: [jupyter_notebook_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb)
+
 
 ## Coding Assistant
 

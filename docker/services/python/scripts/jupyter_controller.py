@@ -32,7 +32,7 @@ def write_notebook(notebook_path, nb):
 
 def create_notebook(notebook_path):
     nb = nbf.v4.new_notebook()
-    text = "# My first Jupyter notebook\nThis is an auto-generated notebook."
+    text = "### Your Jupyterlab Notebook"
     code = "%pylab inline\nhist(normal(size=2000), bins=50);"
     nb['cells'] = [nbf.v4.new_markdown_cell(text), nbf.v4.new_code_cell(code)]
     write_notebook(notebook_path, nb)

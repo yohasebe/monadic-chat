@@ -34,34 +34,36 @@ Monadic Chatを再起動します。
 Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
 
 **Shared Folder** <br />
-ホストとDockerコンテナー間で共有されるフォルダーを開きます。ファイルのインポートやエクスポートに使用できます。
+ストとDockerコンテナー間で共有されるフォルダーを開きます。ファイルのインポートやエクスポートに使用できます。
 
 **Quit**
 Monadic Chat Consoleを終了します。Monadic Chatが起動している場合は、Monadic Chatを先に停止するため、少し時間がかかります。
 
-## API Token Panel
+## Monadic Chat Settings
 
-<img src="./assets/images/config-panel.png" width="400px"/>
+<img src="./assets/images/settings-panel.png" width="400px"/>
 
-**API Token** <br />
-ここにはOpenAIのAPI keyを入れます。有効なAPI keyが確認されると、Monadic Chatのルート・ディレクトリに`.env`というファイルが作成され、その中に`OPENAI_API_KEY`という変数が定義され、その後はこの変数の値が用いられます。
+ここでの設定はすべて `~/monadic/data/.env` ファイルに保存されます。
 
+**OPENAI_API_KEY** （必須）<br />
+OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、Whisper 音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
 
-```
-OPENAI_API_KEY=api_key
-```
+**VISION_MODEL**<br />
+画像認識と動画認識に使用するモデルを選択します。現在は `gpt-4o` と `gpt-4o-mini` が利用可能です。デフォルトは `gpt-4o-mini` です。
 
-**Status** <br />
-Monadic Chatの起動状態が表示されます。
+**AI_USER_MODEL**<br />
+AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`gpt-4o`と`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
 
-**OpenAI Models** <br />
-現在Monadic Chartから利用可能なOpenAIのモデルの一覧が表示されます。モデルの選択はGPT Settingsパネルで行います。
+**ANTHROPIC_API_KEY**<br />
+Anthropic APIキーを入力してください。このキーはAnthropic Claude (Chat) と Anthropic Claude (Code Interpreter) アプリを使用するのに必要です。[https://console.anthropic.com] で取得できます。
 
-```
-OPENAI_API_KEY=api_key
-```
+**COHERE_API_KEY**<br /> Cohere API キーを入力してください。このキーは、Cohere Command R (Chat) および Cohere Command R (Code Interpreter) アプリを使用するのに必要です。[https://dashboard.cohere.com] で取得できます。
 
-## GPT Settings Panel
+**GEMINI_API_KEY**<br /> Google Gemini API キーを入力してください。このキーはGoogle Gemini (Chat) アプリを使用するのに必要です。[https://ai.google.dev/]で取得できます。
+
+**MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーは「Mistral AI (Chat) アプリを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
+
+## App Settings Panel
 
 <img src="./assets/images/gpt-settings.png" width="700px"/>
 

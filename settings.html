@@ -72,14 +72,12 @@
       border-color: #ffc107;
     }
 
-    .button-area {
+    .button-group {
       border-top: 1px solid #ccc;
       padding: 12px;
       background-color: #eeeeee;
-      height: 70px;
-    }
-
-    .button-group {
+      height: 55px;
+      min-height: 55px;
       display: flex;
       justify-content: flex-end;
     }
@@ -94,6 +92,7 @@
       cursor: pointer;
       font-size: 14px;
       align-items: center;
+      height: 26px;
     }
 
     .button-group button:hover {
@@ -149,12 +148,10 @@
         </form>
       </div>
     </div>
-    <div class="button-area">
-      <div class="button-group">
-        <button type="button" id="toggle-visibility"><i class="fas fa-eye fa-icon"></i>Show API Keys</button>
-        <button type="submit" form="settings-form"><i class="fas fa-save fa-icon"></i>Save and Close</button>
-        <button type="button" id="cancel"><i class="fas fa-times fa-icon"></i>Cancel</button>
-      </div>
+    <div class="button-group">
+      <button type="button" id="toggle-visibility"><i class="fas fa-eye fa-icon"></i>Show API Keys</button>
+      <button type="submit" form="settings-form"><i class="fas fa-save fa-icon"></i>Save and Close</button>
+      <button type="button" id="cancel"><i class="fas fa-times fa-icon"></i>Cancel</button>
     </div>
     <script>
       const { ipcRenderer } = require('electron');

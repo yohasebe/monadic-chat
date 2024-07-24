@@ -195,12 +195,10 @@ class MonadicApp
 
       if block_given?
         yield(stdout, stderr, status)
+      elsif status.success?
+        "#{success}#{stdout}"
       else
-        if status.success?
-          "#{success}#{stdout}"
-        else
-          "Error occurred: #{stderr}"
-        end
+        "Error occurred: #{stderr}"
       end
     rescue StandardError => e
       "Error occurred: #{e.message}"
@@ -387,15 +385,23 @@ class MonadicApp
         break
       end
     end
-    if success
-      command = "bash -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
-      send_command(command: command, container: "python")
+    results1 = if success
+                command = "bash -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
+                send_command(command: command,
+                             container: "python",
+                             success: "The cells have been added to the notebook successfully.\n")
+              else
+                false
+              end
+    if results1
+      results2 = run_jupyter_cells(filename: filename)
+      results1 + "\n\n" + results2
     else
-      "Error: The temp file could not be written."
+      "Error: The cells could not be added to the notebook."
     end
   end
 
-  def run_jupyter_notebook(filename:)
+  def run_jupyter_cells(filename:)
     command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=60 --allow-errors --inplace"
     send_command(command: command,
                  container: "python",
@@ -408,7 +414,14 @@ class MonadicApp
   end
 
   def run_jupyter(command: "")
-    command = "bash -c 'run_jupyter.sh #{command}'"
+    command = case command
+              when "start", "run"
+                "bash -c 'run_jupyter.sh run'"
+              when "stop"
+                "bash -c 'run_jupyter.sh stop'"
+              else
+                return "Error: Invalid command."
+              end
     send_command(command: command,
                  container: "python",
                  success: "Success: Access Jupter Lab at 127.0.0.1:8888/lab\n")

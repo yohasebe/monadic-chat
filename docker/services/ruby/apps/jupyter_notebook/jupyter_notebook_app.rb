@@ -9,19 +9,11 @@ class JupyterNotebook < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command.
-
-      Once Jupyter Lab is up and running, provide the user with a URL in the form `<a href="http://127.0.0.1:8888/lab/" target="_blank">Jupyter Lab Notebook</a>`. Also, ask the user if he/she wants to create a new notebook ipynb file. 
-
-     If the user has asked you to open a new Jupyter Notebook file and add some cells to it, just open a new notebook first. Do not try to add cells to it at the same time.
-
-      If the user wants to create a new notebook, use the `create_jupyter_notebook` function to create a new Jupyter Notebook file. The function will create a new Jupyter Notebook file  with the filename based on the current timestamp in the `/monadic/data` folder, which is accessible to the user as the "Shared Folder".
-
-      If the user wants to use an existing Jupyter Notebook file, ask the user to specify the filename of the Jupyter Notebook file in the user's "Shared Folder".
+      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command. Second, create a new notebook using the `create_jupyter_notebook` function.  Once Jupyter Lab is up and running and a new notebook has been created, provide the user with a URL in the form `<a href="http://127.0.0.1:8888/lab/" target="_blank">Jupyter Lab Notebook</a>`. 
 
       If you have successfully specified a Jupyter Notebook file, provide the user with the filename of the newly created Jupyter Notebook file in the form `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank">Jupyter Notebook: FILENAME</a>` where FILENAME is the name of the newly created Jupyter Notebook file. Rememeber the URL should start with `tree/`.
 
-      If you need to add cells to the Jupyter Notebook,  you can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells in the following format where TYPE is either "code" or "markdown" and CONTENT is the content of the cell, which needs to be properly escaped to be valid JSON:
+      Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells in the following format where TYPE is either "code" or "markdown" and CONTENT is the content of the cell, which needs to be properly escaped to be valid JSON:
 
       ```json
       [
@@ -29,15 +21,15 @@ class JupyterNotebook < MonadicApp
       ]
       ```
 
-      If there is need to read the content of a Jupyter Notebook file, you can use the `fetch_text_from_file` function with the filename of the Jupyter Notebook file as the parameter.
-
-      If the addition of cells is successful, run the cells of the Jupyter Notebook using the `run_jupyter_notebook` function with the filename of the Jupyter Notebook file as the parameter. The function will run the cells of the Jupyter Notebook and write the output to the notebook so tha the user does not have to run the cells manually. If it is successful, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
+      The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. If the function finishes successfully, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
 
       If the user wants to stop the Jupyter Lab server, use the `run_jupyter` function with the `stop` command to stop the Jupyter Lab server.
 
-      [IMPORTANT] In case you get error, let me know the exact error message and terminate the process.
-
-      [IMPORTANT] When you call a function, make sure to provide the correct parameters as described in the function description.
+      Please make sure the following important points are respected:
+      - Include `import japanize-matplotlib` to display Japanese characters in the plots.
+      - In case you get error, let the user know the exact error message and terminate the process.
+      - When you call a function, make sure to provide the correct parameters as described in the function description.
+      - Do not add a cell with the same content as the last cell in the notebook.
     TEXT
     text.strip
   end
@@ -185,10 +177,8 @@ class JupyterNotebook < MonadicApp
               "type": "object",
               "properties": {
                 "filename": {
-                  "command": {
-                    "type": "string",
-                    "description": "Filename of the Jupyter Notebook."
-                  }
+                  "type": "string",
+                  "description": "Filename of the Jupyter Notebook."
                 },
                 "cells": {
                   "type": "object",
@@ -203,19 +193,25 @@ class JupyterNotebook < MonadicApp
           "type": "function",
           "function":
           {
-            "name": "run_jupyter_notebook",
-            "description": "Run the cells of a Jupyter Notebook and write the output to the notebook.",
+            "name": "write_to_file",
+            "description": "Write content to a file with the specified filename.",
             "parameters": {
               "type": "object",
               "properties": {
                 "filename": {
-                  "command": {
-                    "type": "string",
-                    "description": "Filename of the Jupyter Notebook."
-                  }
+                  "type": "string",
+                  "description": "Filename of the file without the file extension."
+                },
+                "extension": {
+                  "type": "string",
+                  "description": "File extension of the file."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Content text to be written to the file."
                 }
               },
-              "required": ["filename"]
+              "required": ["filename", "extension", "text"]
             }
           }
         }

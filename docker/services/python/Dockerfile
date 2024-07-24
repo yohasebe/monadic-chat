@@ -23,6 +23,7 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     numpy \
     pandas \
     matplotlib \
+    seaborn \
     jupyterlab \
     statsmodels \
     selenium \

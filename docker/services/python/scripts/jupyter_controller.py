@@ -32,9 +32,9 @@ def write_notebook(notebook_path, nb):
 
 def create_notebook(notebook_path):
     nb = nbf.v4.new_notebook()
-    text = "### Your Jupyterlab notebook"
-    code = "%pylab inline\nhist(normal(size=2000), bins=50);"
-    nb['cells'] = [nbf.v4.new_markdown_cell(text), nbf.v4.new_code_cell(code)]
+    # text = "### Your Jupyterlab notebook"
+    # code = "%pylab inline\nhist(normal(size=2000), bins=50);"
+    # nb['cells'] = [nbf.v4.new_markdown_cell(text), nbf.v4.new_code_cell(code)]
     write_notebook(notebook_path, nb)
     print(f"Notebook created at {notebook_path}")
 

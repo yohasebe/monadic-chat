@@ -377,7 +377,6 @@ function resetEvent(event) {
     $("#temp-card").hide();
     $("#config").show();
     $("#back-to-settings").hide();
-    // $("#paramList").html("")
     $("#parameter-panel").hide();
     setAlert("Ready to start.", "secondary");
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);

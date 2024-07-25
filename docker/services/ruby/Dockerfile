@@ -1,5 +1,5 @@
 # Stage 1: Build environment
-FROM ruby:3.3.1-slim-bookworm AS build
+FROM ruby:3.3-slim-bookworm AS build
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 

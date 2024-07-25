@@ -231,9 +231,6 @@ module OpenAIHelper
       break if /\Rdata: [DONE]\R/ =~ buffer
       buffer << chunk
 
-
-      break if /\Rdata: [DONE]\R/ =~ chunk
-
       scanner = StringScanner.new(buffer)
       pattern = /data: (\{.*?\})(?=\n|\z)/
       until scanner.eos?
@@ -578,7 +575,7 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      body["model"] = CONFIG["VISION_MODEL"]
+      body["model"] = CONFIG["VISION_MODEL"] || "gpt-4o-mini"
       body.delete("stop")
     end
 

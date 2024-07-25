@@ -1,20 +1,20 @@
-class CodeWithCohere < MonadicApp
+class CodeWithMistral < MonadicApp
   include UtilitiesHelper
 
-  API_ENDPOINT = "https://api.cohere.ai/v1"
+  MAX_FUNC_CALLS = 10
+  API_ENDPOINT = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
   MAX_RETRIES = 5
   RETRY_DELAY = 1
-  MAX_FUNC_CALLS = 5
-  
+
   def icon
-    "<i class='fa-solid fa-c'></i>"
+    "<i class='fa-solid fa-m'></i>"
   end
 
   def description
-    "This is an application that allows you to run Python code with Cohere Command R"
+    "This is an application that allows you to run Python code with Mistral AI"
   end
 
   attr_reader :models
@@ -27,7 +27,7 @@ class CodeWithCohere < MonadicApp
   def list_models
     return @models if @models && !@models.empty?
 
-    api_key = CONFIG["COHERE_API_KEY"]
+    api_key = CONFIG["MISTRAL_API_KEY"]
     return [] if api_key.nil?
 
     headers = {
@@ -43,14 +43,16 @@ class CodeWithCohere < MonadicApp
 
       if res.status.success?
         model_data = JSON.parse(res.body)
-        return model_data.dig("models").map do
-          |model| model["name"]
+        return model_data.dig("data").sort_by do
+          |model| model["created"]
+        end.reverse.map do
+          |model| model["id"]
         end.filter do |model|
-          !model.include?("embed") && !model.include?("rerank")
+          !model.include?("embed")
         end
       end
     rescue HTTP::Error, HTTP::TimeoutError
-      []
+      return []
     end
   end
 
@@ -205,107 +207,146 @@ class CodeWithCohere < MonadicApp
     text.strip
   end
 
+  def prompt_suffix =<<~SUFFIX
+     Use the same language as the user and insert an ascii emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses.
+  SUFFIX
+
   def settings
     {
-      "disabled": !CONFIG["COHERE_API_KEY"],
-      "temperature": 0.0,
-      "presence_penalty": 0.2,
-      "top_p": 0.0,
+      "disabled": !CONFIG["MISTRAL_API_KEY"],
+      "temperature": 0.0,  # Adjusted temperature
+      "top_p": 1.0,        # Adjusted top_p
       "context_size": 20,
       "initial_prompt": initial_prompt,
-      "image_generation": true,
+      "prompt_suffix": prompt_suffix,
+      "image_generation": false,
       "sourcecode": true,
       "easy_submit": false,
       "auto_speech": false,
-      "mathjax": true,
-      "app_name": "▷ Cohere Command R (Code Interpreter)",
+      "mathjax": false,
+      "app_name": "▷ Mistral AI (Code Interpreter)",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,
-      "image": false,
       "pdf": false,
-      "models": [
-        "command-r-plus",
-      ],
+      "image": false,
+      "toggle": false,
+      "models": ["mistral-large-latest"],
       "tools": [
         {
-          "name": "run_code",
-          "description": "Run program code and return the output.",
-          "parameter_definitions": {
-            "command": {
-              "type": "string",
-              "description": "Code execution command (e.g., 'python')",
-              "required": false
-            },
-            "code": {
-              "type": "string",
-              "description": "Code to be executed.",
-              "required": false
-            },
-            "extension": {
-              "type": "string",
-              "description": "File exsention of the code (e.g., 'py')",
-              "required": false
-            },
-          }
-        },
-        {
-          "name": "run_bash_command",
-          "description": "Run a bash command and return the output. The argument to `command` is provided as part of `docker exec -w shared_volume container COMMAND`.",
-          "parameter_definitions": {
-            "command": {
-              "type": "string",
-              "description": "Bash command to be executed.",
-              "required": true
+          "type": "function",
+          "function": {
+            "name": "run_code",
+            "description": "Run program code and return the output.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Program that execute the code (e.g., 'python')"
+                },
+                "code": {
+                  "type": "string",
+                  "description": "Program code to be executed."
+
+                },
+                "extension": {
+                  "type": "string",
+                  "description": "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
+                }
+              },
+              "required": ["command", "code", "extension"]
             }
           }
         },
         {
-          "name": "lib_installer",
-          "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
-          "parameter_definitions": {
-            "command": {
-              "type": "string",
-              "description": "Library name to be installed.",
-              "required": true
-            },
-            "packager": {
-              "type": "string",
-              "description": "Package manager to be used for installation. It can be either `pip` or `apt`.",
-              "required": true
+          "type": "function",
+          "function": {
+            "name": "lib_installer",
+            "description": "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Library name to be installed."
+                },
+                "packager": {
+                  "type": "string",
+                  "enum": ["pip", "apt"],
+                  "description": "Package manager to be used for installation."
+                }
+              },
+              "required": ["command", "packager"]
             }
           }
         },
         {
-          "name": "run_jupyter",
-          "description": "Start a Jupyter Lab server.",
-          "parameter_definitions": {
-            "command": {
-              "type": "string",
-              "description": "Command to start or stop the Jupyter Lab server. It can be either `run` or `stop`.",
-              "required": true
-            },
+          "type": "function",
+          "function": {
+            "name": "run_bash_command",
+            "description": "Run a bash command and return the output. The argument to `command` is provided as part of `docker exec -w shared_volume container COMMAND`.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Bash command to be executed."
+                }
+              },
+              "required": ["command"]
+            }
           }
         },
         {
-          "name": "fetch_text_from_file",
-          "description": "Fetch the text from a file and return its content.",
-          "parameter_definitions": {
-            "file": {
-              "type": "string",
-              "description": "File name or file path",
-              "required": true
-            },
+          "type": "function",
+          "function": {
+            "name": "run_jupyter",
+            "description": "Start a Jupyter Lab server.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "enum": ["run", "stop"],
+                  "description": "Command to start or stop the Jupyter Lab server."
+                }
+              },
+              "required": ["command"]
+            }
           }
         },
         {
-          "name": "fetch_web_content",
-          "description": "Fetch the content of the web page of the given URL and return it.",
-          "parameter_definitions": {
-            "url": {
-              "type": "string",
-              "description": "URL of the web page.",
-              "required": true
+          "type": "function",
+          "function": {
+            "name": "fetch_web_content",
+            "description": "Fetch the content of the web page of the given URL and return it.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "URL of the web page."
+                }
+              },
+              "required": ["url"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "fetch_text_from_file",
+            "description": "Fetch the text from a file and return its content.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "File name or file path"
+                }
+              },
+              "required": ["file"]
             }
           }
         }
@@ -315,187 +356,202 @@ class CodeWithCohere < MonadicApp
 
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
-    texts = []
-    tool_calls = []
+
+    buffer = ""
+    texts = {}
+    tools = {}
     finish_reason = nil
 
-    in_text_generation = false
+    body.each do |chunk|
+      begin
+        if chunk.valid_encoding? == false
+          buffer << chunk
+          next 
+        end
 
-    if body.respond_to?(:each)
-      body.each do |chunk|
-        begin
-          json = JSON.parse(chunk)
+        buffer << chunk
 
-          finish_reason = json["finish_reason"]
+        data_items = buffer.scan(/data: \{.*\}/)
+        next if data_items.nil? || data_items.empty?
+
+        data_items.each do |item|
+          data_content = item.match(/data: (\{.*\})/)
+          next if data_content.nil? || !data_content[1]
+
+          json = JSON.parse(data_content[1])
+
+          finish_reason = json.dig('choices', 0, 'finish_reason')
           case finish_reason
-          when "MAX_TOKENS"
+          when "length"
             finish_reason = "length"
-          when "COMPLETE"
+          when "stop"
             finish_reason = "stop"
+          else
+            finish_reason = nil
           end
 
-          case json["event_type"]
-          when "text-generation"
-            in_text_generation = true
-          when "citation-generation"
-            break if in_text_generation
-          when "tool-calls-generation"
-            tool_calls = json["tool_calls"]
+          if json.dig('choices', 0, 'delta', 'content')
+            id = json['id']
+            texts[id] ||= json
+            choice = texts[id]['choices'][0]
+            choice['message'] ||= choice['delta'].dup
+            choice["message"]["content"] ||= ""
+
+            fragment = json.dig('choices', 0, 'delta', 'content').to_s
+            choice["message"]["content"] << fragment
+
+            res = {
+              "type" => "fragment",
+              "content" => fragment
+            }
+            block&.call res
+
+            texts[id]['choices'][0].delete('delta')
+          end
+
+          if json.dig('choices', 0, 'delta', 'tool_calls')
             res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
             block&.call res
+
+            id = json['id']
+            tools[id] ||= json
+            choice = tools[id]['choices'][0]
+            choice['message'] ||= choice['delta'].dup
+
+            if choice["finish_reason"] == "function_call"
+              break
+            end
           end
-
-          is_finished = json.dig('is_finished')
-          break if is_finished
-
-          fragment = json.dig('text')
-          next unless fragment
-
-          texts << fragment
-
-          # fragment.split(//).each do |char|
-          #   res = { "type" => "fragment", "content" => char }
-          #   block&.call res
-          #   sleep 0.01
-          # end
-
-          res = {
-            "type" => "fragment",
-            "content" => fragment
-          }
-          block&.call res
         rescue JSON::ParserError
-          # if the JSON parsing fails, the next chunk should be appended to the buffer
-          # and the loop should continue to the next iteration
         end
-      rescue StandardError => e
-        pp e.message
-        pp e.backtrace
-        pp e.inspect
+        buffer = ""
+      end
+    rescue StandardError => e
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
+    end
+
+    result = texts.empty? ? nil : texts.first[1]
+
+    if result && obj["monadic"]
+      choice = result["choices"][0]
+      if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+        message = choice["message"]["content"]
+        modified = APPS[app].monadic_map(message)
+        choice["text"] = modified
       end
     end
 
-    result = texts.empty? ? nil : texts
+    if tools.any?
+      tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+      context = []
+      res = { "role" => "assistant" }
+      res["tool_calls"] = tools.map do |tool|
+        {
+          "id" => tool["id"],
+          "function" => tool["function"]
+        }
+      end
+      context << res
 
-    if tool_calls.any?
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
-      new_results = process_functions(app, session, tool_calls, call_depth, &block)
-      # check if result is a hash and has "error" key
-      if result.is_a?(Hash) && result["error"]
-        res = { "type" => "error", "content" => result["error"] }
-      elsif result && new_results
-        result = result.join("") + "\n\n" + new_results.dig(0, "choices", 0, "message", "content")
-        res = {"choices" => [{"message" => {"content" => result}}]}
-      elsif new_results
-        res = new_results
-      elsif result
-        res = {"choices" => [{"message" => {"content" => result.join("")}}]}
-      end
-      block&.call res
-      block&.call res
-      return [res]
+      new_results = process_functions(app, session, tools, context, call_depth, &block)
 
+      if new_results
+        new_results
+      elsif result
+        [result]
+      end
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
       block&.call res
-      [
-        {
-          "choices" => [
-            {
-              "finish_reason" => finish_reason,
-              "message" => {"content" => result.join("")}
-            }
-          ]
-        }
-      ]
+      result["choices"][0]["finish_reason"] = finish_reason
+      [result]
     else
-      api_request("empty_tool_results", session, call_depth: call_depth, &block)
+      res = { "type" => "message", "content" => "DONE" }
+      block&.call res
+      [res]
     end
   end
 
-  def process_functions(app, session, tool_calls, call_depth, &block)
+  def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
-    tool_results = []
-    tool_calls.each do |tool_call|
-      function_name = tool_call["name"]
+    tools.each do |tool_call|
+      function_call = tool_call["function"]
+      function_name = function_call["name"]
 
       begin
-        argument_hash = tool_call["parameters"]
+        escaped = function_call["arguments"]
+        argument_hash = JSON.parse(escaped)
       rescue
         argument_hash = {}
       end
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+
+      converted = {}
+      argument_hash.each_with_object(converted) do |(k, v), memo|
         memo[k.to_sym] = v
         memo
       end
 
-      function_return = send(function_name.to_sym, **argument_hash)
+      begin
+        function_return = APPS[app].send(function_name.to_sym, **converted)
+      rescue StandardError => e
+        function_return = "ERROR: #{e.message}"
+      end
 
-      tool_results << {
-        call: tool_call,
-        outputs: [{result: function_return.to_s}]
+      context << {
+        role: "tool",
+        tool_call_id: tool_call["id"],
+        name: function_name,
+        content: function_return.to_s
       }
     end
 
-    obj["tool_results"] = tool_results
+    obj["function_returns"] = context
 
-    # return Array
+    sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)
   end
 
-
-  def translate_role(role)
-    case role
-    when "user"
-      "USER"
-    when "assistant"
-      "CHATBOT"
-    when "system"
-      "SYSTEM"
-    else
-      role.upcase
-    end
-  end
-
   def api_request(role, session, call_depth: 0, &block)
-    empty_tool_results = role == "empty_tool_results" ? true : false
-
     num_retrial = 0
 
+    session[:messages].delete_if {
+      |msg| msg["role"] == "assistant" && msg["content"].to_s == ""
+    }
+
     begin
-      api_key = CONFIG["COHERE_API_KEY"]
+      api_key = CONFIG["MISTRAL_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: COHERE_API_KEY not found. Please set the COHERE_API_KEY environment variable in the ~/monadic/data/.env file."
+      pp error_message = "ERROR: MISTRAL_API_KEY not found. Please set the MISTRAL_API_KEY environment variable in the ~/monadic/data/.env file."
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
     end
 
-    # Get the parameters from the session
     obj = session[:parameters]
     app = obj["app_name"]
 
-    # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
-
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
     max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
-
+    temperature = obj["temperature"].to_f
+    top_p = obj["top_p"].to_f
+    top_p = 0.01 if top_p == 0.0
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    message = obj["message"].to_s
-
     if role != "tool"
-      # If the app is monadic, the message is passed through the monadic_map function
+      message = obj["message"].to_s
+
       if obj["monadic"].to_s == "true" && message != ""
-        message = monadic_unit(message) if message != ""
+        message = APPS[app].monadic_unit(message)
+
         html = markdown_to_html(obj["message"]) if message != ""
       elsif message != ""
         html = markdown_to_html(message)
@@ -510,12 +566,10 @@ class CodeWithCohere < MonadicApp
                   "lang" => detect_language(obj["message"])
                 }
         }
+        res["image"] = obj["image"] if obj["image"]
         block&.call res
-      else
-        message = "Hi, there!"
       end
 
-      # If the role is "user", the message is added to the session
       if message != "" && role == "user"
         res = { "mid" => request_id,
                 "role" => role,
@@ -524,57 +578,77 @@ class CodeWithCohere < MonadicApp
                 "lang" => detect_language(message),
                 "active" => true,
         }
+        if obj["image"]
+          res["image"] = obj["image"]
+        end
         session[:messages] << res
       end
     end
 
-    # Old messages in the session are set to inactive
-    # and set active messages are added to the context
-    if session[:messages].empty?
-      session[:messages] << { "role" => "user", "text" => "Hi, there!"}
-    end
+    initial = { "role" => "system",
+                "text" => initial_prompt,
+                "html" => initial_prompt,
+                "lang" => detect_language(initial_prompt)
+    } if initial_prompt != ""
+
     session[:messages].each { |msg| msg["active"] = false }
-    context = session[:messages][0...-1].last(context_size).each { |msg| msg["active"] = true }
+    latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
+    context = [initial] + latest_messages
 
-    # Set the headers for the API request
     headers = {
-      "accept" => "application/json",
-      "content-type" => "application/json",
-      "Authorization" => "bearer #{api_key}"
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
     }
 
-    # Set the body for the API request
     body = {
-      "preamble" => initial_prompt,
       "model" => obj["model"],
+      "temperature" => temperature,
+      "top_p" => top_p,
+      "safe_prompt" => false,
       "stream" => true,
-      "prompt_truncation" => "AUTO",
-      # "connectors" => [{"id" => "web-search"}]
+      "tool_choice" => "auto"
     }
 
-    body["message"] = message if role != "tool"
-    body["temperature"] = temperature if temperature
-    body["max_tokens"] = max_tokens if max_tokens
-    body["p"] = top_p if top_p
-
-    body["chat_history"] = context.compact.map do |msg|
-      {
-        "role" => translate_role(msg["role"]),
-        "message" => msg["text"]
-      }
+    if obj["tools"] && !obj["tools"].empty?
+      body["tools"] = settings[:tools] ? settings[:tools] : []
     end
 
-    if settings[:tools]
-      body["tools"] = settings[:tools]
+    body["max_tokens"] = max_tokens if max_tokens
+
+    if (obj["monadic"] || obj["json"])
+      body["response_format"] = { "type" => "json_object" }
+    end
+
+    messages_containing_img = false
+    body["messages"] = context.compact.map do |msg|
+      message = { "role" => msg["role"], "content" => msg["text"] }
+      if msg["image"] && role == "user"
+        message["content"] << {
+          "type" => "image_url",
+          "image_url" => {
+            "url" => msg["image"]["data"]
+          }
+        }
+        messages_containing_img = true
+      end
+      message
     end
 
     if role == "tool"
-      body["tool_results"] = obj["tool_results"]
-    elsif empty_tool_results
-      body["tool_results"] = []
+      body["messages"] += obj["function_returns"]
+    elsif role == "user"
+      body["messages"].last["content"] += "\n\n" + settings[:prompt_suffix] if settings[:prompt_suffix]
     end
 
-    target_uri = "#{API_ENDPOINT}/chat"
+    last_text = context.last["text"]
+
+    if messages_containing_img
+      body["model"] = "gpt-4o-mini"
+      body.delete("stop")
+    end
+
+    target_uri = "#{API_ENDPOINT}/chat/completions"
+    headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
     success = false
@@ -619,3 +693,5 @@ class CodeWithCohere < MonadicApp
     [res]
   end
 end
+
+

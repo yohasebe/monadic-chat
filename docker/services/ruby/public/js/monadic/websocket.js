@@ -603,7 +603,6 @@ function connect_websocket(callback) {
               card.find(".status").removeClass("active");
             }
           }
-
         });
         break;
       case "past_messages":

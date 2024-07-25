@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 $SINGLETON_TOKENIZER = FlaskAppClient.new
-tokenizer_test = $SINGLETON_TOKENIZER.count_tokens("Hello, World!")
-if tokenizer_test == 4
-  puts "Flask tokenizing client is ready."
-else
-  puts "Flask tokenizing client is not ready."
-end
+# tokenizer_test = $SINGLETON_TOKENIZER.count_tokens("Hello, World!")
+# if tokenizer_test == 4
+#   puts "Flask tokenizing client is ready."
+# else
+#   puts "Flask tokenizing client is not ready."
+# end
 
 class MonadicApp
   TOKENIZER = $SINGLETON_TOKENIZER

@@ -31,6 +31,7 @@ module WebSocketHelper
         end
         m["active"] = true
       end
+      end_time = Time.now
 
       # remove oldest messages until total token count and message count are within limits
       loop do
@@ -195,7 +196,7 @@ module WebSocketHelper
           parameters_modified.delete("tools")
           parameters_modified["message"] = reversed_messages.pop["text"]
 
-          ### code to use the OpenAI mode for AI User
+          # code to use the OpenAI mode for AI User
           api_request = method(:openai_api_request)
           parameters_modified["model"] = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
 
@@ -217,11 +218,9 @@ module WebSocketHelper
           end
 
           ai_user_response = aiu_buffer.join
-          @channel.push({ "type" => "ai_user_finished",
-                          "content" => ai_user_response
-          }.to_json)
+          @channel.push({ "type" => "ai_user_finished", "content" => ai_user_response }.to_json)
         when "HTML"
-          thread&.join
+          thread&.join 
           while !queue.empty?
             last_one = queue.shift
             begin
@@ -255,15 +254,19 @@ module WebSocketHelper
               end
 
               new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
+
               @channel.push({
                 "type" => "html",
                 "content" => new_data
               }.to_json)
+
               session[:messages] << new_data
               messages = session[:messages].filter { |m| m["type"] != "search" }
               past_messages_data = check_past_messages(session[:parameters])
+
               @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
               @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+
             rescue StandardError => e
               pp queue
               pp e.message
@@ -287,11 +290,10 @@ module WebSocketHelper
           if obj["content"].nil?
             @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
           else
-
             blob = Base64.decode64(obj["content"])
             res = whisper_api_request(blob, obj["format"], obj["lang_code"])
             if res["text"] && res["text"] == ""
-              @channel.push({ "type" => "error", "content" => "The text imput is empty" }.to_json)
+              @channel.push({ "type" => "error", "content" => "The text input is empty" }.to_json)
             elsif res["type"] && res["type"] == "error"
               @channel.push({ "type" => "error", "content" => res["content"] }.to_json)
             else

@@ -354,6 +354,10 @@ function checkParams() {
 
 function resetEvent(event) {
   audioInit();
+
+  $("#image-used").children().remove();
+  images = [];
+
   $("#message").css("height", "96px").val("");
   $("#resetConfirmation").modal("show");
   $("#resetConfirmation").on("shown.bs.modal", function () {

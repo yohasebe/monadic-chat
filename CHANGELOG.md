@@ -1,11 +1,11 @@
 ### Change Log
 
-  - [Jul, 2024] 0.7.9
+  - [Jul, 2024] 0.8.0
+      - Mistral AI (Chat and Code Interpreter) app added
       - Multiple images can be uploaded for image recognition
       - Continue button introduced
       - Jupyter Notebook app added
       - Browser auto open
-      - Talk to Mistral app added
   - [Jun, 2024]
       - Linux (Ubuntu/Debian) installer released
       - App file name changed from monadic-chat to Monadic Chat

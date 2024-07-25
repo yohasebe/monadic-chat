@@ -3,10 +3,10 @@
 # add /usr/local/bin to the PATH
 export PATH=$PATH:/usr/local/bin
 
-export SELENIUM_IMAGE="selenium/standalone-chrome:123.0"
+export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.7.9
+export MONADIC_VERSION=0.8.0
 
 export HOST_OS=$(uname -s)
 

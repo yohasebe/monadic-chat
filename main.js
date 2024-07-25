@@ -849,7 +849,8 @@ function createMainWindow() {
       contentIsolation: false,
       preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
     },
-    title: "Monadic Chat"
+    title: "Monadic Chat",
+    useContentSize: true
   });
 
   let openingText;
@@ -976,14 +977,17 @@ function openBrowser(url, outside = false) {
 let settingsView = null;
 
 function openSettingsWindow() {
-  let winGap = 0;
+  let winGapX = 0;
+  let winGapY = 30;
   if(os.platform() === 'win32'){
-    winGap = 16;
+    winGapX = 16;
+    winGapY = 60;
   }
 
+  const contentBounds = mainWindow.getContentBounds();
   if (settingsView) {
     mainWindow.setBrowserView(settingsView);
-    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGap, height: mainWindow.getBounds().height });
+    settingsView.setBounds({ x: 0, y: 0, width: contentBounds.width, height: contentBounds.height });
   } else {
     settingsView = new BrowserView({
       webPreferences: {
@@ -993,14 +997,14 @@ function openSettingsWindow() {
       }
     });
     mainWindow.setBrowserView(settingsView);
-    settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGap, height: mainWindow.getBounds().height });
+    settingsView.setBounds({ x: 0, y: 0, width: contentBounds.width, height: contentBounds.height });
     settingsView.webContents.loadFile('settings.html');
   }
 
   // Ensure the settings view resizes with the main window
   mainWindow.on('resize', () => {
     if (settingsView) {
-      settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGap, height: mainWindow.getBounds().height });
+      settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGapX, height: mainWindow.getBounds().height - winGapY });
     }
   });
 }
@@ -1011,31 +1015,34 @@ ipcMain.on('close-settings', () => {
   }
 });
 
-function loadSettings() {
-  let envPath;
-  if (os.platform() === 'darwin' || os.platform() === 'linux') {
-    envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
-  } else if (os.platform() === 'win32') {
-    // Get the WSL home directory using the `wslpath` command
-    const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-    // Construct the WSL path
-    wslPath = `/home/${path.basename(wslHome)}/monadic/data/.env`;
-    envPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+function getEnvPath() {
+  if (os.platform() === 'win32') {
+    try {
+      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
+      const wslPath = `/home/${path.basename(wslHome)}/monadic/data/.env`;
+      return execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+    } catch (error) {
+      console.error('Error getting WSL path:', error);
+      return null;
+    }
+  } else {
+    return path.join(os.homedir(), 'monadic', 'data', '.env');
   }
+}
 
+function readEnvFile(envPath) {
   try {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    const envConfig = dotenv.parse(envContent);
-    return envConfig;
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    envContent = envContent.replace(/\r\n/g, '\n');
+    return dotenv.parse(envContent);
   } catch (error) {
-    console.error('Error loading settings:', error);
+    console.error('Error reading .env file:', error);
     return {};
   }
 }
 
-function saveSettings(data) {
-  const envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
-  const envContent = Object.entries(data)
+function writeEnvFile(envPath, envConfig) {
+  const envContent = Object.entries(envConfig)
     .map(([key, value]) => `${key}=${value}`)
     .join('\n');
   
@@ -1044,6 +1051,43 @@ function saveSettings(data) {
     console.log('Settings saved successfully');
   } catch (error) {
     console.error('Error saving settings:', error);
+  }
+}
+
+function checkAndUpdateEnvFile() {
+  const envPath = getEnvPath();
+  if (!envPath) return false;
+
+  let envConfig = readEnvFile(envPath);
+  let updated = false;
+
+  if (!envConfig.VISION_MODEL) {
+    envConfig.VISION_MODEL = 'gpt-4o-mini';
+    updated = true;
+  }
+
+  if (!envConfig.AI_USER_MODEL) {
+    envConfig.AI_USER_MODEL = 'gpt-4o-mini';
+    updated = true;
+  }
+
+  if (updated) {
+    writeEnvFile(envPath, envConfig);
+  }
+
+  console.log('OPENAI_API_KEY:', envConfig.OPENAI_API_KEY); // デバッグ用
+  return !!envConfig.OPENAI_API_KEY;
+}
+
+function loadSettings() {
+  const envPath = getEnvPath();
+  return envPath ? readEnvFile(envPath) : {};
+}
+
+function saveSettings(data) {
+  const envPath = getEnvPath();
+  if (envPath) {
+    writeEnvFile(envPath, data);
   }
 }
 
@@ -1058,44 +1102,3 @@ ipcMain.on('save-settings', (_event, data) => {
     mainWindow.removeBrowserView(settingsView);
   }
 });
-
-function checkAndUpdateEnvFile() {
-  let envPath;
-  if (os.platform() === 'darwin' || os.platform() === 'linux') {
-    envPath = path.join(os.homedir(), 'monadic', 'data', '.env');
-  } else if (os.platform() === 'win32') {
-    const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-    const wslPath = `/home/${path.basename(wslHome)}/monadic/data/.env`;
-    envPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
-  }
-
-  try {
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    let envConfig = dotenv.parse(envContent);
-
-    let updated = false;
-
-    if (!envConfig.VISION_MODEL) {
-      envConfig.VISION_MODEL = 'gpt-4o-mini';
-      updated = true;
-    }
-
-    if (!envConfig.AI_USER_MODEL) {
-      envConfig.AI_USER_MODEL = 'gpt-4o-mini';
-      updated = true;
-    }
-
-    if (updated) {
-      const newEnvContent = Object.entries(envConfig)
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
-      fs.writeFileSync(envPath, newEnvContent);
-    }
-
-    return !!envConfig.OPENAI_API_KEY;
-  } catch (error) {
-    console.error('Error checking/updating .env file:', error);
-    return false;
-  }
-}
-

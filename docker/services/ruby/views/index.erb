@@ -13,7 +13,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css" integrity="sha512-ELV+xyi8IhEApPS/pSj66+Jiw+sOT1Mqkzlh8ExXihe4zfqbWkxPRi8wptXIO9g73FSlhmquFlUOuMSoXz5IRw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
     <link href=" https://cdn.jsdelivr.net/npm/abcjs@6.3.0/abcjs-audio.min.css" rel="stylesheet">
 
@@ -35,7 +35,6 @@
           <div id="tagline" style="margin-left: 6px; margin-bottom: 6px; font-size: 0.8em; color: #777; font-family: 'Montserrat';" class="d-none d-md-block">Grounding AI Chatbots with Full Linux Environment on Docker</div>
         </a>
 
-
         <div id="cancel_query" ><a href="#"><i class="far fa-window-close"></i> CANCEL</a></div>
         <button type="button" id="toggle-menu">
           <span class="navbar-toggler-icon"></span>
@@ -47,9 +46,8 @@
     <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 108px;">
       <div class="row g-3 mt-3 my-3">
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 20px;">
-
-
           <div id="api-token-panel" class="p-3 mb-3 rounded shaded-panel">
+            <!--
             <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-key"></i></span> OpenAI API Token</h5>
             <form id="api-token-form" class="form-inline">
               <div class="form-group mb-2 me-2 align-middle" style="display:inline-block;">
@@ -59,8 +57,9 @@
                 <button class="btn btn-warning" id="check-token">Verify Token</button>
               </div>
             </form>
+            -->
 
-            <h5 class="mt-3"><span class="text"><i class="fas fa-chart-line"></i> Status</span></h5>
+            <h5><span class="text"><i class="fas fa-chart-line"></i> Monadi Chat Status</span></h5>
             <div id="alert-message"></div>
           </div>
 
@@ -109,7 +108,7 @@
 
             <div id="back-to-settings" style="display: none;">
             <button class="btn btn-sm btn-warning ms-0" id="settings"><i class="fas fa-bars"></i> Settings</button>
-            <p class="my-2"> Press "settings" to go back to GPT settings.</p>
+            <p class="my-2"> Press "settings" to go back to Chat settings.</p>
             </div>
           </div>
 
@@ -225,7 +224,7 @@
 
         <div id="main" class="col-md-8 order-md-1 scrollable" style="padding-bottom: 20px;">
           <div id="config" class="rounded p-3 shaded-panel">
-            <h5 class="pb-2" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> GPT Settings</span></h5>
+            <h5 class="pb-2" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> Chat Settings</span></h5>
 
             <form class="row my-2">
               <div class="col-6">

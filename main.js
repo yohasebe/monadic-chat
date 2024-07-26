@@ -863,6 +863,32 @@ function writeToScreen(text) {
   }
 }
 
+let settingsWindow = null;
+
+function prepareSettingsWindow() {
+  if (settingsWindow) return;
+
+  settingsWindow = new BrowserWindow({
+    width: 600,
+    height: 400,
+    parent: mainWindow,
+    modal: true,
+    show: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
+    }
+  });
+
+  settingsWindow.loadFile('settings.html');
+
+  settingsWindow.on('close', (event) => {
+    event.preventDefault();
+    settingsWindow.hide();
+  });
+}
+
 function createMainWindow() {
   if (mainWindow) return;
 
@@ -910,6 +936,11 @@ function createMainWindow() {
 
   mainWindow.loadFile('index.html');
 
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.send('updateStatusIndicator', currentStatus);
+    prepareSettingsWindow();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -925,11 +956,6 @@ function createMainWindow() {
       event.preventDefault();
       mainWindow.hide();
     }
-  });
-
-  // Send the current status to the main window right after it is created
-  mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.send('updateStatusIndicator', currentStatus);
   });
 }
 
@@ -1004,36 +1030,11 @@ function openBrowser(url, outside = false) {
 let settingsView = null;
 
 function openSettingsWindow() {
-  let winGapX = 0;
-  let winGapY = 30;
-  if(os.platform() === 'win32'){
-    winGapX = 16;
-    winGapY = 60;
+  if (!settingsWindow) {
+    prepareSettingsWindow();
   }
-
-  const contentBounds = mainWindow.getContentBounds();
-  if (settingsView) {
-    mainWindow.setBrowserView(settingsView);
-    settingsView.setBounds({ x: 0, y: 0, width: contentBounds.width, height: contentBounds.height });
-  } else {
-    settingsView = new BrowserView({
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-        preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
-      }
-    });
-    mainWindow.setBrowserView(settingsView);
-    settingsView.setBounds({ x: 0, y: 0, width: contentBounds.width, height: contentBounds.height });
-    settingsView.webContents.loadFile('settings.html');
-  }
-
-  // Ensure the settings view resizes with the main window
-  mainWindow.on('resize', () => {
-    if (settingsView) {
-      settingsView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width - winGapX, height: mainWindow.getBounds().height - winGapY });
-    }
-  });
+  settingsWindow.show();
+  settingsWindow.webContents.send('request-settings');
 }
 
 ipcMain.on('close-settings', () => {
@@ -1130,7 +1131,9 @@ ipcMain.on('save-settings', (_event, data) => {
 });
 
 // Initialize the app
-app.whenReady().then(initializeApp);
+app.whenReady().then(() => {
+  initializeApp();
+});
 
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
@@ -1142,5 +1145,11 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createMainWindow();
+  }
+});
+
+ipcMain.on('close-settings', () => {
+  if (settingsWindow) {
+    settingsWindow.hide();
   }
 });

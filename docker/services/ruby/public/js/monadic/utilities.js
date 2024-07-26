@@ -370,6 +370,7 @@ function resetEvent(event) {
     resetParams();
     console.log(model_options);
     $("#model").html(model_options);
+    $("#model-selected").text($("#model option:selected").text());
     $("#resetConfirmation").modal("hide");
     $("#main-panel").hide();
     $("#discourse").html("").hide();

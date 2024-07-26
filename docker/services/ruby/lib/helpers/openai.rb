@@ -42,7 +42,7 @@ module OpenAIHelper
   FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH)
   FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH)
 
-  def set_api_key(api_key, num_retrial = 0)
+  def set_api_key(api_key)
     if api_key
       api_key = api_key.strip
       settings.api_key = api_key
@@ -68,41 +68,9 @@ module OpenAIHelper
           !item.include?("instruct") &&
           !item.include?("gpt-3.5")
       end
-
-      if api_key
-        begin
-          env_vars = File.read(ENV_PATH).split("\n")
-          env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
-          env_vars_hash["OPENAI_API_KEY"] = api_key
-          File.open(ENV_PATH, "w") do |f|
-            env_vars_hash.each do |key, value|
-              f.puts "#{key}=#{value}"
-            end
-          end
-          ENV["OPENAI_API_KEY"] = api_key
-        rescue StandardError => e
-          { "type" => "error", "content" => "Config file contains a problem; Check <code>~/monadic/data/.env</code>."}
-        end
-      end
-      { "type" => "models", "content" => "API token verified and stored in <code>~/monadic/data/.env</code>", "models" => models }
+      { "type" => "models", "content" => "API token verified", "models" => models }
     else
-      env_vars = File.read(ENV_PATH).split("\n")
-      env_vars_hash = env_vars.map { |line| line.split("=") }.to_h
-      env_vars_hash["OPENAI_API_KEY"] = ""
-      File.open(ENV_PATH, "w") do |f|
-        env_vars_hash.each do |key, value|
-          f.puts "#{key}=#{value}"
-        end
-      end
-      ENV["OPENAI_API_KEY"] = ""
-      settings.api_key = ""
-      if num_retrial >= MAX_RETRIES
-        { "type" => "error", "content" => "ERROR: API token is not accepted" }
-      else
-        num_retrial += 1
-        sleep RETRY_DELAY
-        set_api_key(api_key, num_retrial)
-      end
+      { "type" => "error", "content" => "ERROR: API token is not accepted" }
     end
   end
 

@@ -870,7 +870,9 @@ function prepareSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 600,
+    minWidth: 780,
     height: 400,
+    minHeight: 400,
     parent: mainWindow,
     modal: true,
     show: false,
@@ -883,7 +885,12 @@ function prepareSettingsWindow() {
 
   settingsWindow.loadFile('settings.html');
 
-  settingsWindow.setMenu(null);
+  if (process.platform === 'darwin') {
+    const emptyMenu = Menu.buildFromTemplate([]);
+    settingsWindow.setMenu(emptyMenu);
+  } else {
+    settingsWindow.setMenu(null);
+  }
 
   settingsWindow.on('close', (event) => {
     event.preventDefault();
@@ -1155,3 +1162,4 @@ ipcMain.on('close-settings', () => {
     settingsWindow.hide();
   }
 });
+

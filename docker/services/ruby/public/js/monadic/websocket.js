@@ -479,7 +479,7 @@ function connect_websocket(callback) {
         $("#model").html(model_options);
         $("#model").val("gpt-4o-mini");
         $("#model-selected").text("gpt-4o-mini");
-        setAlert("Ready to start.", "secondary");
+        setAlert("Ready to start.", "success");
         verified = true;
 
         $("#start").prop("disabled", false);
@@ -499,7 +499,7 @@ function connect_websocket(callback) {
         // console.log("Token not verified");
         $("#api-token").val("");
 
-        const message = "<p>Please set a valid API token and press Verify Token.</p>"
+        const message = "<p>Please set a valid API token.</p>"
         $("#start").prop("disabled", true);
         $("#send, #clear, #voice").prop("disabled", true);
         $("#api-token").focus();

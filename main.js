@@ -43,13 +43,48 @@ let initialLaunch = true;
 
 const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
 
-checkDockerInstallation()
-  .then(initializeApp)
-  .catch((error) => {
-    dialog.showErrorBox('Error', error);
-    console.error(error);
-    app.quit();
+let dockerInstalled = false;
+let wsl2Installed = false;
+
+function checkRequirements() {
+  return new Promise((resolve, reject) => {
+    if (os.platform() === 'win32') {
+      exec('docker -v', function (err, _stdout, _stderr) {
+        dockerInstalled = !err;
+        exec('wsl -l -v', function (err, _stdout, _stderr) {
+          wsl2Installed = !err;
+          if (!dockerInstalled) {
+            reject("Docker is not installed. Please install Docker Desktop for Windows first.");
+          } else if (!wsl2Installed) {
+            reject("WSL 2 is not installed. Please install WSL 2 first.");
+          } else {
+            resolve();
+          }
+        });
+      });
+    } else if (os.platform() === 'darwin') {
+      exec('/usr/local/bin/docker -v', function (err, stdout, _stderr) {
+        dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+        if (!dockerInstalled) {
+          reject("Docker is not installed. Please install Docker Desktop for Mac first.");
+        } else {
+          resolve();
+        }
+      });
+    } else if (os.platform() === 'linux') {
+      exec('docker -v', function (err, stdout, _stderr) {
+        dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+        if (!dockerInstalled) {
+          reject("Docker is not installed. Please install Docker for Linux first.");
+        } else {
+          resolve();
+        }
+      });
+    } else {
+      reject('Unsupported platform');
+    }
   });
+}
 
 function compareVersions(version1, version2) {
   const parts1 = version1.split('.');
@@ -134,44 +169,6 @@ function uninstall() {
   });
 }
 
-function checkDockerInstallation() {
-  return new Promise((resolve, reject) => {
-    if (os.platform() === 'win32') {
-      exec('docker -v', function (_err, _stdout, _stderr) {
-        if (_err) {
-          reject("Docker is not installed. Please install Docker Desktop for Windows first and then try starting Monadic Chat.");
-        } else {
-          exec('wsl -l -v', function (_err, _stdout, _stderr) {
-            if (_err) {
-              reject("WSL 2 is not installed. Please install WSL 2 first and then try starting Monadic Chat.");
-            } else {
-              resolve();
-            }
-          });
-        }
-      });
-    } else if (os.platform() === 'darwin') {
-      exec('/usr/local/bin/docker -v', function (_err, stdout, _stderr) {
-        if (stdout.includes('docker') || stdout.includes('Docker')) {
-          resolve();
-        } else {
-          reject("Docker is not installed. Please install Docker Desktop for Mac first and then try starting Monadic Chat.");
-        }
-      });
-    } else if (os.platform() === 'linux') {
-      exec('docker -v', function (_err, stdout, _stderr) {
-        if (stdout.includes('docker') || stdout.includes('Docker')) {
-          resolve();
-        } else {
-          reject("Docker is not installed. Please install Docker for Linux first and then try starting Monadic Chat.");
-        }
-      });
-    } else {
-      reject('Unsupported platform');
-    }
-  });
-}
-
 function quitApp() {
   let options = {
     type: 'question',
@@ -252,7 +249,13 @@ const menuItems = [
     label: 'Rebuild',
     click: () => {
       openMainWindow();
-      runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+      checkRequirements()
+        .then(() => {
+          runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+        })
+        .catch((error) => {
+          dialog.showErrorBox('Error', error);
+        });
     },
     enabled: true
   },
@@ -261,7 +264,13 @@ const menuItems = [
     label: 'Start',
     click: () => {
       openMainWindow();
-      runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+      checkRequirements()
+        .then(() => {
+          runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+        })
+        .catch((error) => {
+          dialog.showErrorBox('Error', error);
+        });
     },
     enabled: true
   },
@@ -352,7 +361,13 @@ function initializeApp() {
     ipcMain.on('command', (_event, command) => {
       switch (command) {
         case 'start':
-          runCommand('start', '[HTML]: <p>Monadic Chat starting. Please wait . . .</p>', 'Starting', 'Running');
+          checkRequirements()
+            .then(() => {
+              runCommand('start', '[HTML]: <p>Monadic Chat starting. Please wait . . .</p>', 'Starting', 'Running');
+            })
+            .catch((error) => {
+              dialog.showErrorBox('Error', error);
+            });
           break;
         case 'stop':
           runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
@@ -747,7 +762,13 @@ function updateApplicationMenu() {
           label: 'Start',
           click: () => {
             openMainWindow();
-            runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+            checkRequirements()
+              .then(() => {
+                runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+              })
+              .catch((error) => {
+                dialog.showErrorBox('Error', error);
+              });
           },
           enabled: currentStatus === 'Stopped'
         },
@@ -774,7 +795,13 @@ function updateApplicationMenu() {
           label: 'Rebuild',
           click: () => {
             openMainWindow();
-            runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+            checkRequirements()
+              .then(() => {
+                runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+              })
+              .catch((error) => {
+                dialog.showErrorBox('Error', error);
+              });
           },
           enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
         },
@@ -1075,7 +1102,6 @@ function checkAndUpdateEnvFile() {
     writeEnvFile(envPath, envConfig);
   }
 
-  console.log('OPENAI_API_KEY:', envConfig.OPENAI_API_KEY); // デバッグ用
   return !!envConfig.OPENAI_API_KEY;
 }
 
@@ -1100,5 +1126,21 @@ ipcMain.on('save-settings', (_event, data) => {
   saveSettings(data);
   if (settingsView) {
     mainWindow.removeBrowserView(settingsView);
+  }
+});
+
+// Initialize the app
+app.whenReady().then(initializeApp);
+
+// Quit when all windows are closed, except on macOS
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createMainWindow();
   }
 });

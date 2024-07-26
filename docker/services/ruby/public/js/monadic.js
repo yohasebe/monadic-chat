@@ -242,7 +242,7 @@ Do your best to make the conversation as natural as possible. Do not change subj
 
 $("#send").on("click", function(event) {
   audioInit();
-  setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
+  setAlert("<i class='fas fa-robot'></i> THINKING", "info");
   elemError.hide();
   event.preventDefault();
   if (message.value === "") {

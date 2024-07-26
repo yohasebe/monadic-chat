@@ -163,6 +163,11 @@
         ipcRenderer.send('close-settings');
       });
 
+      ipcRenderer.on('request-settings', () => {
+        ipcRenderer.send('request-settings');
+      });
+
+
       ipcRenderer.on('load-settings', (_event, data) => {
         document.getElementById('openai-api-key').value = data.OPENAI_API_KEY || '';
         document.getElementById('anthropic-api-key').value = data.ANTHROPIC_API_KEY || '';

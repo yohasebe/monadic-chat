@@ -62,7 +62,7 @@ class CodeWithCohere < MonadicApp
 
       If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents. Throughout the conversation, the user can provide a new URL to analyze.
 
-      A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment. Use the `fetch_text_from_file` function to fetch the text from the file and return its content. Give the base file name as the parameter to the function.
+      A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment. Use the `fetch_text_from_file` function to fetch the plain text from the file and return its content. Give the base file name as the parameter to the function. Do not use `fetch_text_from_file` for binary files.
 
       If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
 
@@ -78,8 +78,6 @@ class CodeWithCohere < MonadicApp
 
       If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
-      If the user asks for it, you can also start a Jupyter Lab server using the `run_jupyter(command)` function. If successful, you should provide the user with the URL to access the Jupyter Lab server in a way that the user can easily click on it and the new tab opens in the browser using `<a href="URL" target="_blank">Jupyter Lab</a>`.
-      
       ### Error Handling:
 
       - In case of errors or exceptions during code execution, display the error message to the user. This will help in troubleshooting and improving the code.
@@ -274,17 +272,6 @@ class CodeWithCohere < MonadicApp
               "description": "Package manager to be used for installation. It can be either `pip` or `apt`.",
               "required": true
             }
-          }
-        },
-        {
-          "name": "run_jupyter",
-          "description": "Start a Jupyter Lab server.",
-          "parameter_definitions": {
-            "command": {
-              "type": "string",
-              "description": "Command to start or stop the Jupyter Lab server. It can be either `run` or `stop`.",
-              "required": true
-            },
           }
         },
         {

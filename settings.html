@@ -103,6 +103,13 @@
       margin-right: 5px;
     }
 
+    #save-message {
+      display: none;
+      color: green;
+      margin-left: 10px;
+      font-size: 14px;
+    }
+
     </style>
   </head>
   <body>
@@ -137,11 +144,14 @@
         <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
       </form>
     </div>
+
     <div class="button-group">
       <button type="button" id="toggle-visibility"><i class="fas fa-eye fa-icon"></i>Show API Keys</button>
       <button type="submit" form="settings-form"><i class="fas fa-save fa-icon"></i>Save and Close</button>
-      <button type="button" id="cancel"><i class="fas fa-times fa-icon"></i>Cancel</button>
+      <button type="button" id="cancel"><i class="fas fa-times fa-icon"></i>Close</button>
+      <span id="save-message">Settings saved</span>
     </div>
+
     <script>
       const { ipcRenderer } = require('electron');
 
@@ -157,6 +167,16 @@
           AI_USER_MODEL: document.getElementById('ai-user-model').value
         };
         ipcRenderer.send('save-settings', data);
+        
+        // Show the save message
+        const saveMessage = document.getElementById('save-message');
+        saveMessage.style.display = 'inline';
+        
+        // Hide the message after 3 seconds
+        setTimeout(() => {
+          saveMessage.style.display = 'none';
+          // ipcRenderer.send('close-settings');
+        }, 3000);
       });
 
       document.getElementById('cancel').addEventListener('click', () => {
@@ -180,23 +200,47 @@
 
       ipcRenderer.send('request-settings');
 
-      // Enable cut/copy/paste/select all shortcuts
-      const inputs = document.querySelectorAll('input[type="text"]');
+      // Enable cut/copy/paste/select all shortcuts for all input fields
+      const inputs = document.querySelectorAll('input');
       inputs.forEach(input => {
         input.addEventListener('keydown', (e) => {
-          if (e.ctrlKey || e.metaKey) {
-            switch (e.key) {
+          if (e.ctrlKey || e.metaKey) {  // Windows/LinuxのCtrlキーとmacOSのCommandキーの両方に対応
+            switch (e.key.toLowerCase()) {
               case 'a':
+                e.preventDefault();
                 e.target.select();
                 break;
               case 'c':
-                document.execCommand('copy');
+                e.preventDefault();
+                if (e.target.type === 'password') {
+                  const selection = window.getSelection().toString();
+                  if (selection) {
+                    navigator.clipboard.writeText(selection);
+                  }
+                } else {
+                  document.execCommand('copy');
+                }
                 break;
               case 'x':
-                document.execCommand('cut');
+                e.preventDefault();
+                if (e.target.type === 'password') {
+                  const selection = window.getSelection().toString();
+                  if (selection) {
+                    navigator.clipboard.writeText(selection);
+                    e.target.value = e.target.value.replace(selection, '');
+                  }
+                } else {
+                  document.execCommand('cut');
+                }
                 break;
               case 'v':
-                document.execCommand('paste');
+                e.preventDefault();
+                navigator.clipboard.readText().then(text => {
+                  const start = e.target.selectionStart;
+                  const end = e.target.selectionEnd;
+                  e.target.value = e.target.value.slice(0, start) + text + e.target.value.slice(end);
+                  e.target.setSelectionRange(start + text.length, start + text.length);
+                });
                 break;
             }
           }

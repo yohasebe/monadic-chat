@@ -229,16 +229,6 @@ module OpenAIHelper
               fragment = json.dig('choices', 0, 'delta', 'content').to_s
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
-
-              # fragment.split(//).each do |char|
-              #   res = {
-              #     "type" => "fragment",
-              #     "content" => char
-              #   }
-              #   block&.call res
-              #   sleep 0.01
-              # end
-              
                 res = {
                   "type" => "fragment",
                   "content" => fragment

@@ -25,7 +25,6 @@ require "uri"
 require "oj"
 Oj.mimic_JSON()
 
-
 # return true if we are inside a docker container
 def in_container?
   File.file?("/.dockerenv")

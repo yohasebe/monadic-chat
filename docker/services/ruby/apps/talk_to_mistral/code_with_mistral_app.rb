@@ -62,9 +62,9 @@ class CodeWithMistral < MonadicApp
 
       If the user's messages are in a language other than English, please respond in the same language. If automatic language detection is not possible, kindly ask the user to specify their language at the beginning of their request.
 
-      If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents. Throughout the conversation, the user can provide a new URL to analyze.
+      If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents. Throughout the conversation, the user can provide a new URL to analyze. A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment.
 
-      A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment. Use the `fetch_text_from_file` function to fetch the plain text from the file and return its content. Give the base file name as the parameter to the function. Do not use `fetch_text_from_file` for binary files.
+      The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
       If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
 
@@ -327,6 +327,40 @@ class CodeWithMistral < MonadicApp
                 }
               },
               "required": ["file"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "fetch_text_from_office",
+            "description": "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "File name or file path of the Microsoft Word/Excel/PowerPoint file."
+                }
+              },
+              "required": ["file"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "fetch_text_from_pdf",
+            "description": "Fetch the text from the PDF file and return it.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "pdf": {
+                  "type": "string",
+                  "description": "File name or file path of the PDF"
+                }
+              },
+              "required": ["pdf"]
             }
           }
         }

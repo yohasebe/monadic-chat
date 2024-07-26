@@ -251,6 +251,10 @@ h3, .like-h3 {
   margin-bottom: 1em;
 }
 
+#menu {
+  color: #777;
+}
+
 #menu h3, #manu h3 {
   margin-top: 0.5em;
   margin-bottom: 0.5em;

@@ -95,14 +95,21 @@ class TalkToMistral < MonadicApp
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
 
+    buffer = ""
     texts = {}
     tools = {}
     finish_reason = nil
 
     body.each do |chunk|
       begin
-        data_items = chunk.scan(/data: \{.*\}/)
+        if buffer.valid_encoding? == false
+          buffer << chunk
+          next 
+        end
 
+        buffer << chunk
+
+        data_items = buffer.scan(/data: \{.*\}/)
         next if data_items.nil? || data_items.empty?
 
         data_items.each do |item|
@@ -155,6 +162,7 @@ class TalkToMistral < MonadicApp
           end
         rescue JSON::ParserError
         end
+        buffer = ""
       end
     rescue StandardError => e
       pp e.message

@@ -25,7 +25,7 @@ class CodeWithClaude < MonadicApp
 
       If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents. Throughout the conversation, the user can provide a new URL to analyze.
 
-      A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment. Use the `fetch_text_from_file` function to fetch the text from the file and return its content. Give the base file name as the parameter to the function.
+      A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment. Use the `fetch_text_from_file` function to fetch the plain text from the file and return its content. Give the base file name as the parameter to the function. Do not use `fetch_web_content` and `fetch_text_from_file` in the same response.
 
       If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
@@ -40,8 +40,6 @@ class CodeWithClaude < MonadicApp
       If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it.
 
       If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose. When there are multiple image file types available, SVG is preferred.
-
-      If the user asks for it, you can also start a Jupyter Lab server using the `run_jupyter(command)` function. If successful, you should provide the user with the URL to access the Jupyter Lab server in a way that the user can easily click on it and the new tab opens in the browser using `<a href="URL" target="_blank">Jupyter Lab</a>`.
      
       The code contained your function calling command is not directly shown to the user, so please make sure you include the same code to the regular text response inside a markdown code block.
 
@@ -248,21 +246,6 @@ class CodeWithClaude < MonadicApp
               }
             },
             "required": ["command", "packager"]
-          }
-        },
-        {
-          "name": "run_jupyter",
-          "description": "Start a Jupyter Lab server.",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "command": {
-                "type": "string",
-                "enum": ["run", "stop"],
-                "description": "Command to start or stop the Jupyter Lab server."
-              }
-            },
-            "required": ["command"]
           }
         },
         {
@@ -525,8 +508,6 @@ class CodeWithClaude < MonadicApp
     max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
     top_p = obj["top_p"] ? obj["top_p"].to_f : nil
 
-    tools = settings[:tools] ? settings[:tools] : []
-
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
@@ -613,9 +594,32 @@ class CodeWithClaude < MonadicApp
     # Remove assistant messages until the first user message
     messages.shift while messages.first["role"] != "user"
 
+    modified = []
+
+    messages.each do |msg|
+      if modified.empty?
+        modified << msg
+        next
+      end
+
+      if modified.last["role"] == msg["role"]
+        the_other_role = modified.last["role"] == "user" ? "assistant" : "user"
+        modified << {
+          "role" => the_other_role,
+          "content" => [
+            {
+              "type" => "text",
+              "text" => "OK"
+            }
+          ]
+        }
+      end
+      modified << msg
+    end
+
     # if there is no user message, add a placeholder
-    if messages.empty?
-      messages << {
+    if modified.empty? || modified.last["role"] == "assistant"
+      modified << {
         "role" => "user",
         "content" => [
           {
@@ -626,7 +630,7 @@ class CodeWithClaude < MonadicApp
       }
     end
 
-    body["messages"] = messages
+    body["messages"] = modified
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

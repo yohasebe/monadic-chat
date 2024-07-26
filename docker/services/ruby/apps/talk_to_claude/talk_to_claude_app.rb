@@ -399,9 +399,32 @@ class Claude < MonadicApp
     # Remove assistant messages until the first user message
     messages.shift while messages.first["role"] != "user"
 
+    modified = []
+
+    messages.each do |msg|
+      if modified.empty?
+        modified << msg
+        next
+      end
+
+      if modified.last["role"] == msg["role"]
+        the_other_role = modified.last["role"] == "user" ? "assistant" : "user"
+        modified << {
+          "role" => the_other_role,
+          "content" => [
+            {
+              "type" => "text",
+              "text" => "OK"
+            }
+          ]
+        }
+      end
+      modified << msg
+    end
+
     # if there is no user message, add a placeholder
-    if messages.empty?
-      messages << {
+    if modified.empty? || modified.last["role"] == "assistant"
+      modified << {
         "role" => "user",
         "content" => [
           {
@@ -412,7 +435,7 @@ class Claude < MonadicApp
       }
     end
 
-    body["messages"] = messages
+    body["messages"] = modified
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

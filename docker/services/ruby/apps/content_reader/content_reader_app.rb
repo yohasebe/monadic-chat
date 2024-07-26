@@ -14,7 +14,7 @@ class ContentReader < MonadicApp
 
       First, get content from a file (text, markdown, pdf, word, excel, PowerPoint, or program scripts) or a web URL.
 
-      The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
+      The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
       Alternatively, the user may give you a web URL. Then, please fetch the content of the web page using the `fetch_web_content` function. The function takes the web page URL as the parameter and saves its contents in a file. Read the file content and use it to answer the user's questions.
 

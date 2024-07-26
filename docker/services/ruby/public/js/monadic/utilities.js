@@ -180,9 +180,9 @@ function setAlertClass(alertType = "danger") {
     elemAlert.addClass(`alert-${alertType}`);
   } else {
     textAlert.removeClass(function(_index, className) {
-      return (className.match(/\bmessage-\S+/g) || []).join(' ');
+      return (className.match(/\btext-\S+/g) || []).join(' ');
     });
-    textAlert.addClass(`message-${alertType}`);
+    textAlert.addClass(`text-${alertType}`);
   }
 }
 
@@ -377,7 +377,7 @@ function resetEvent(event) {
     $("#config").show();
     $("#back-to-settings").hide();
     $("#parameter-panel").hide();
-    setAlert("Ready to start.", "secondary");
+    setAlert("Ready to start.", "success");
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
     $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
     $("#base-app-desc").html(apps[$("#apps").val()]["description"]);

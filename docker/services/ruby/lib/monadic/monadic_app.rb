@@ -638,7 +638,7 @@ class MonadicApp
 
 Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
 
-Do your best to make the conversation as natural as possible. Do not change subjects abruptly, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics. 
+Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics. 
     TEXT
     text.strip
   end

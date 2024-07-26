@@ -883,6 +883,8 @@ function prepareSettingsWindow() {
 
   settingsWindow.loadFile('settings.html');
 
+  settingsWindow.setMenu(null);
+
   settingsWindow.on('close', (event) => {
     event.preventDefault();
     settingsWindow.hide();

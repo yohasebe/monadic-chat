@@ -224,7 +224,7 @@ Do your best to make the conversation as natural as possible. Do not change subj
   });
 
   $("#cancel_query").on("click", function () {
-    setAlert("Ready to start.", "secondary");
+    setAlert("Ready to start.", "success");
     ttsStop();
 
     responseStarted = false;
@@ -242,7 +242,7 @@ Do your best to make the conversation as natural as possible. Do not change subj
 
 $("#send").on("click", function(event) {
   audioInit();
-  setAlert("<i class='fas fa-robot'></i> THINKING", "info");
+  setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
   elemError.hide();
   event.preventDefault();
   if (message.value === "") {

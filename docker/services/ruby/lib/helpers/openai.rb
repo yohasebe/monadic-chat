@@ -191,7 +191,7 @@ module OpenAIHelper
 
     body.each do |chunk|
 
-     if chunk.valid_encoding? == false
+     if buffer.valid_encoding? == false
        buffer << chunk
        next 
      end

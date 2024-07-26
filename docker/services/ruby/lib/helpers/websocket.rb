@@ -123,11 +123,7 @@ module WebSocketHelper
           if CONFIG["ERROR"].to_s == "true"
             ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/data/.env</code>" }.to_json)
           else
-            if obj["initial"].to_s == "true"
-              token = settings.api_key
-            else
-              token = obj["contents"]
-            end
+            token = CONFIG["OPENAI_API_KEY"]
 
             res = set_api_key(token) if token
 

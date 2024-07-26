@@ -479,7 +479,6 @@ function connect_websocket(callback) {
         $("#model").html(model_options);
         $("#model").val("gpt-4o-mini");
         $("#model-selected").text("gpt-4o-mini");
-        console.log("x")
         setAlert("Ready to start.", "secondary");
         verified = true;
 

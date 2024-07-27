@@ -3,7 +3,6 @@ const runningOnEdge = navigator.userAgent.includes("Edge");
 const runningOnFirefox = navigator.userAgent.includes("Firefox");
 const runningOnSafari = navigator.userAgent.includes("Safari");
 
-const elemError = $("#error-box")
 const textError = $("#error-message")
 
 const elemAlert = $("#alert-box")
@@ -172,8 +171,8 @@ function removeMarkdown(text) {
   return replaced;
 }
 
-function setAlertClass(alertType = "danger") {
-  if(alertType === "danger"){
+function setAlertClass(alertType = "error") {
+  if(alertType === "error"){
     elemAlert.removeClass(function(_index, className) {
       return (className.match(/\balert-\S+/g) || []).join(' ');
     });
@@ -187,9 +186,14 @@ function setAlertClass(alertType = "danger") {
 }
 
 function setAlert(text = "", alertType = "success") {
-  if (alertType === "danger") {
-    textError.html(text);
-    elemError.show();
+  if (alertType === "error") {
+    try {
+      msg = text["content"];
+    } catch {
+      msg = text;
+    }
+    const errorCard = createCard("system", "<span class='text text-warning'><i class='fas-soli fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p><i class='fas-solid fa-circle-exclamation'></i> Something went wrong. Please try again.</p><pre><code>" + msg + "</code></pre>");
+    $("#discourse").append(errorCard);
   } else {
     textAlert.html(text);
     setAlertClass(alertType);

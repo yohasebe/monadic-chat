@@ -47,7 +47,7 @@ selectFileButton.on("click", function () {
       } catch (error) {
         $("#imageModal button").prop("disabled", false);
         $("#imageModal").modal("hide");
-        setAlert(`Error uploading file: ${error}`, "danger");
+        setAlert(`Error uploading file: ${error}`, "error");
         return;
       }
     }

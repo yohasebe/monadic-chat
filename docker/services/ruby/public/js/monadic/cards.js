@@ -59,6 +59,10 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     }
   }
 
+  if (mid === "") {
+    return card;
+  }
+
   $(document).on("click", `#${mid} .func-play`, function () {
     $(this).tooltip('hide');
     // cutoff text after <hr> or <hr/> or <hr /> of text content
@@ -116,7 +120,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
       const images = messages.find((m) => m.mid === mid).images;
 
       let image_used = "";
-      if (images.length > 0) {
+      if (images && images.length > 0) {
         updateImageDisplay(images);
       }
 

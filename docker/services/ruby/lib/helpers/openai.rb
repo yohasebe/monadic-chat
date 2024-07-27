@@ -182,6 +182,11 @@ module OpenAIHelper
   end
 
   def process_json_data(app, session, body, call_depth, &block)
+
+    # res = { "type" => "error", "content" => "ERROR TEST" }
+    # block&.call res
+    # return
+
     obj = session[:parameters]
 
     buffer = ""
@@ -369,7 +374,6 @@ module OpenAIHelper
 
   # Connect to OpenAI API and get a response
   def openai_api_request(role, session, call_depth: 0, &block)
-
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 

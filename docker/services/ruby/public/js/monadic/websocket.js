@@ -452,6 +452,7 @@ function connect_websocket(callback) {
       case "error":
         $("#send, #clear, #voice").prop("disabled", false);
         $("#chat").html("");
+        $("#alert-message").html("Input a message.");
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
@@ -465,7 +466,7 @@ function connect_websocket(callback) {
 
         $("#message").val(params["message"]);
 
-        setAlert(data["content"], "danger");
+        setAlert(data["content"], "error");
 
         setInputFocus()
 
@@ -587,7 +588,7 @@ function connect_websocket(callback) {
         if(data["res"] === "success") {
           setAlert(data["content"], "info");
         } else {
-          setAlert(data["content"], "danger");
+          setAlert(data["content"], "error");
         }
         ws.send(JSON.stringify({"message": "PDF_TITLES"}));
         break;
@@ -793,12 +794,13 @@ function connect_websocket(callback) {
         $("#message").val("");
         $("#message").attr("placeholder", "Type your message...");
         $("#message").prop("disabled", false);
+        $("#alert-message").html("Input a message.");
         $("#cancel_query").css("opacity", "0.0");
         setInputFocus();
         break;
       default:
         if(!responseStarted || callingFunction) {
-          setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "info");
+          setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
           callingFunction = false;
           responseStarted = true;
         }
@@ -820,7 +822,7 @@ function connect_websocket(callback) {
   ws.onerror = function (err) {
     console.error('Socket encountered error: ', err.message, 'Closing socket');
     // set a message in the alert box
-    setAlert("<p>Connection terminated.</p>", "warning");
+    setAlert("<p>Connection terminated.</p>", "danger");
     ws.close();
   }
   return ws;

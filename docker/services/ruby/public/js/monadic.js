@@ -173,7 +173,6 @@ Do your best to make the conversation as natural as possible. Do not change subj
 
   $("#start").on("click", function () {
     audioInit();
-    elemError.hide();
     $("#asr-p-value").text("").hide();
     if (checkParams()) {
       params = setParams();
@@ -242,8 +241,7 @@ Do your best to make the conversation as natural as possible. Do not change subj
 
 $("#send").on("click", function(event) {
   audioInit();
-  setAlert("<i class='fas fa-robot'></i> THINKING", "info");
-  elemError.hide();
+  setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
   event.preventDefault();
   if (message.value === "") {
     return;
@@ -287,7 +285,6 @@ $("#send").on("click", function(event) {
   $("#settings").on("click", function () {
     ttsStop();
     audioInit();
-    elemError.hide();
     $("#config").show();
     $("#back-to-settings").hide();
     $("#main-panel").hide();
@@ -304,7 +301,6 @@ $("#send").on("click", function(event) {
   $("#reset, .navbar-brand").on("click", function (event) {
     ttsStop();
     audioInit();
-    elemError.hide();
     resetEvent(event);
     $("#select-role").val("user").trigger("change");
     $("#start-label").text("Start Session");
@@ -372,7 +368,7 @@ $("#send").on("click", function(event) {
           $("#file-spinner").hide();
           $("#fileModal button").prop("disabled", false);
           $("#fileModal").modal("hide");
-          setAlert(`Error uploading file: ${error}`, "danger");
+          setAlert(`Error uploading file: ${error}`, "error");
         }).always(function() {
           console.log('complete');
         });
@@ -446,7 +442,6 @@ $("#send").on("click", function(event) {
 
   $("#error-close").on("click", function (event) {
     event.preventDefault();
-    elemError.hide();
   })
 
   $("#alert-close").on("click", function (event) {

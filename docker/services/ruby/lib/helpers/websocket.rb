@@ -327,7 +327,8 @@ module WebSocketHelper
 
             responses = api_request.call("user", session) do |fragment|
               if fragment["type"] == "error"
-                @channel.push({ "type" => "error", "content" => "E1:#{fragment.to_s}" }.to_json)
+                @channel.push({ "type" => "error", "content" => fragment }.to_json)
+                break;
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"
@@ -354,7 +355,7 @@ module WebSocketHelper
               @channel.push(fragment.to_json)
             end
 
-            Thread.exit if responses.empty?
+            Thread.exit if !responses || responses.empty?
 
             if obj["auto_speech"] && !cutoff && !obj["monadic"]
               text = buffer.join

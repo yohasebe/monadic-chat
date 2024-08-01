@@ -1,0 +1,32 @@
+services:
+  ruby_service:
+    image: yohasebe/monadic-chat:${MONADIC_VERSION:-latest}
+    build:
+      context: ../ruby
+      dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
+    container_name: monadic-chat-ruby-container
+    environment:
+      HOST_OS: ${HOST_OS}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - data:/monadic/data
+      - ~/monadic/data:/monadic/data
+    ports:
+      - "4567:4567"
+    restart: on-failure
+    stdin_open: true
+    tty: true
+    command: ["thin", "start", "-R", "config.ru", "-p", "4567", "-e", "production"]
+    networks:
+      - monadic-chat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4567/"]
+      interval: 5s
+      retries: 3
+
+networks:
+  monadic-chat-network:
+    driver: bridge
+

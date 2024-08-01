@@ -1,0 +1,21 @@
+services:
+  python_service:
+    image: yohasebe/python
+    build:
+      context: ../python
+      dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
+    ports:
+      - "8888:8888"
+      - "5070:5070"
+    container_name: monadic-chat-python-container
+    volumes:
+      - data:/monadic/data
+      - ~/monadic/data:/monadic/data
+    command: /bin/sh -c "cd /monadic/flask && flask run --port=5070 --host=0.0.0.0 --debugger --reload"
+    networks:
+      - monadic-chat-network
+    depends_on:
+      - ruby_service
+      - selenium_service

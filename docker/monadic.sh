@@ -6,7 +6,7 @@ export PATH=$PATH:/usr/local/bin
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
 # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
 
-export MONADIC_VERSION=0.8.0
+export MONADIC_VERSION=0.8.1
 
 export HOST_OS=$(uname -s)
 
@@ -20,7 +20,8 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 if [[ "$(uname -s)" == "Darwin"* ]]; then
   DOCKER=/usr/local/bin/docker
   if [[ $(uname -m) == "arm64" ]]; then
-    export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
+    export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
+    # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
   fi
 else
   DOCKER=docker
@@ -66,9 +67,17 @@ start_docker() {
 build_docker_compose() {
   remove_containers
 
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
-  # $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build
-  echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
+  COMPOSE_FILES="-f $ROOT_DIR/services/ruby/compose-main.yml"
+  for file in $(ls $ROOT_DIR/services/**/compose-*.yml); do
+    if [ "$file" == "$ROOT_DIR/services/ruby/compose-main.yml" ]; then
+      continue
+    fi
+    COMPOSE_FILES="$COMPOSE_FILES -f $file"
+  done
+
+  $DOCKER compose $COMPOSE_FILES build --no-cache
+ 
+  # echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 
   $DOCKER  tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest
   echo [HTML]: "<p>Monadic Chat $MONADIC_VERSION is tagged 'latest'</p>"
@@ -100,7 +109,7 @@ start_docker_compose() {
     else
       echo "[HTML]: <p>Monadic Chat image is outdated. Building Monadic Chat image . . .</p>"
     fi
-    $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
+    $DOCKER compose $COMPOSE_FILES down
 
     build_docker_compose
   else
@@ -141,7 +150,7 @@ start_docker_compose() {
       start_container monadic-chat-ruby-container
     else
       echo "[HTML]: <p>Monadic Chat Docker image exists. Setting up Monadic Chat container. Please wait . . .</p>"
-      $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" -p "monadic-chat-container" up -d
+      $DOCKER compose $COMPOSE_FILES -p "monadic-chat-container" up -d
     fi
   else
     echo "[IMAGE NOT FOUND]"
@@ -149,7 +158,7 @@ start_docker_compose() {
     echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
     build_docker_compose
     echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
-    $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" -p "monadic-chat-container" up -d
+    $DOCKER compose $COMPOSE_FILES -p "monadic-chat-container" up -d
 
     # Periodically check if the image is ready
     while true; do
@@ -165,7 +174,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
+  $DOCKER compose $COMPOSE_FILES down
 
   # Remove specific volumes used by the monadic-chat project
   $DOCKER volume rm monadic-chat-pgvector-data
@@ -202,19 +211,19 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
+  $DOCKER compose $COMPOSE_FILES down
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
   cd "$ROOT_DIR" && git pull origin main
 
   # Build and start the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" build --no-cache
+  $DOCKER compose $COMPOSE_FILES build --no-cache
 }
 
 # Remove the Docker image and container
 remove_containers() {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$ROOT_DIR/services/docker-compose.yml" down
+  $DOCKER compose $COMPOSE_FILES down
 
   # Remove the Docker images and containers of older versions
   remove_image yohasebe/monadic-chat

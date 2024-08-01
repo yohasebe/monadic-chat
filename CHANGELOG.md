@@ -1,6 +1,8 @@
 ### Change Log
 
-  - [Jul, 2024] 0.8.0
+  - [aug, 2024] 0.8.1
+      - Code cleanup
+  - [Jul, 2024]
       - Mistral AI (Chat and Code Interpreter) app added
       - Multiple images can be uploaded for image recognition
       - Continue button introduced

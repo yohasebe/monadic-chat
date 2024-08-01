@@ -1,0 +1,19 @@
+services:
+  selenium_service:
+    image: yohasebe/selenium
+    build:
+      context: ../selenium
+      dockerfile: Dockerfile
+      args:
+        SELENIUM_IMAGE: ${SELENIUM_IMAGE}
+        PROJECT_TAG: "monadic-chat"
+    container_name: monadic-chat-selenium-container
+    depends_on:
+      - ruby_service
+    shm_size: 2gb
+    ports:
+      - 4444:4444
+      - 5900:5900
+      - 7900:7900
+    networks:
+      - monadic-chat-network

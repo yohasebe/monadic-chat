@@ -63,28 +63,27 @@ start_docker() {
   esac
 }
 
-# Function to build Docker Compose
 build_docker_compose() {
   remove_containers
 
-  COMPOSE_FILES="-f $ROOT_DIR/services/ruby/compose-main.yml"
-  for file in $(ls $ROOT_DIR/services/**/compose-*.yml); do
+  COMPOSE_FILES=("-f" "$ROOT_DIR/services/ruby/compose-main.yml")
+  for file in "$ROOT_DIR/services/"**/compose-*.yml; do
     if [ "$file" == "$ROOT_DIR/services/ruby/compose-main.yml" ]; then
       continue
     fi
-    COMPOSE_FILES="$COMPOSE_FILES -f $file"
+    COMPOSE_FILES+=("-f" "$file")
   done
 
-  $DOCKER compose $COMPOSE_FILES build --no-cache
- 
+  docker compose "${COMPOSE_FILES[@]}" build --no-cache
+
   # echo [HTML]: "<p>Monadic Chat has been built successfully!</p>"
 
-  $DOCKER  tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest
+  docker tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest
   echo [HTML]: "<p>Monadic Chat $MONADIC_VERSION is tagged 'latest'</p>"
 
   remove_project_dangling_images
 }
-
+#
 # Function to start Docker Compose
 start_docker_compose() {
   # get yohasebe/monadic-chat image tag

@@ -1,7 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -17,7 +17,7 @@
   "license": "MIT",
   "devDependencies": {
     "@electron/notarize": "",
-    "electron": "^27.3.3",
+    "electron": "^31.3.1",
     "electron-builder": "^24.13.3"
   },
   "build": {

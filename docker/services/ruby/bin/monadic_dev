@@ -39,9 +39,6 @@ def start_server(opts)
 
   # run the start script
   system(mac_docker_start)
-  # system("docker compose -f #{DOCKER_HOME}/docker-compose.yml build ruby_service") 
-  
-  # stop "monadic-chat-container" if it is running
   system("docker container stop monadic-chat-ruby-container") if system("docker container ls | grep monadic-chat-ruby-container")
 
   cmd_selenium = "docker container start monadic-chat-selenium-container"

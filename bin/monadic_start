@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# Navigate to the ruby directory
-cd ./docker/services/ruby
-
-# Execute the monadic script with 'start' argument
-./bin/monadic start
-
-echo "Monadic script executed with 'start' argument 🚀"

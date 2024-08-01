@@ -2,7 +2,7 @@ services:
   selenium_service:
     image: yohasebe/selenium
     build:
-      context: ../selenium
+      context: .
       dockerfile: Dockerfile
       args:
         SELENIUM_IMAGE: ${SELENIUM_IMAGE}

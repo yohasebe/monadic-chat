@@ -76,3 +76,4 @@ window.electron.onServerReady(() => {
   document.getElementById('browser').disabled = false;
 });
 
+

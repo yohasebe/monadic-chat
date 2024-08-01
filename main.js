@@ -169,14 +169,19 @@ function uninstall() {
   });
 }
 
+let mainWindow = null;
+let settingsWindow = null;
+
 function quitApp() {
+  if (isQuitting) return; // Prevent multiple quit attempts
+
   let options = {
     type: 'question',
     buttons: ['Cancel', 'Quit'],
     defaultId: 1,
     title: 'Confirm Quit',
     message: 'Quit Monadic Chat Console?',
-    detail: 'This app will automatically quit in 30 seconds if there is no response from the user',
+    detail: 'This will stop all running processes and close the application.',
     icon: path.join(iconDir, 'monadic-chat.png')
   };
 
@@ -185,48 +190,74 @@ function quitApp() {
     options.checkboxChecked = false;
   }
 
-  let userResponse = null;
-  let checkboxChecked = options.checkboxChecked;
-
-  // Create an AbortController
-  const controller = new AbortController();
-  const signal = controller.signal;
-
-  // Set a timeout to abort the dialog and quit the app after 5 seconds
-  setTimeout(() => {
-    controller.abort();
-    // Quit the app
-    isQuitting = true;
-    app.quit();
-  }, 20000);
-
-  // Add the signal to the options
-  options.signal = signal;
-
   dialog.showMessageBox(mainWindow, options).then((result) => {
-    userResponse = result.response;
-    checkboxChecked = result.checkboxChecked;
-    if (userResponse === 1) { // 'Quit' button
-      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped', true);
-      if (checkboxChecked) {
+    if (result.response === 1) { // 'Quit' button
+      isQuitting = true;
+
+      // Stop all running processes
+      runCommand('stop', '[HTML]: <p>Stopping all processes...</p>', 'Stopping', 'Stopped', true);
+
+      // Shut down Docker if checkbox is checked
+      if (result.checkboxChecked && process.platform === 'darwin') {
         shutdownDocker();
       }
-      isQuitting = true;
-      app.quit();
+
+      // Clean up resources
+      if (tray) {
+        tray.destroy();
+        tray = null;
+      }
+
+      if (mainWindow) {
+        mainWindow.removeAllListeners('close');
+        mainWindow.close();
+      }
+
+      if (settingsWindow) {
+        settingsWindow.removeAllListeners('close');
+        settingsWindow.close();
+      }
+
+      // Force quit after a short delay to allow for cleanup
+      setTimeout(() => {
+        app.exit(0);
+      }, 2000);
     } else {
       isQuitting = false;
-      return false;
     }
   }).catch((err) => {
-    if (err.name === 'AbortError') {
-      console.log('Dialog was closed automatically after 5 seconds');
-    } else {
-      console.error('An error occurred:', err);
+    console.error('Error in quit dialog:', err);
+    app.exit(1);
+  });
+}
+
+// Update the app's quit handler
+app.on('before-quit', (event) => {
+  if (!isQuitting) {
+    event.preventDefault();
+    quitApp();
+  }
+});
+
+// Update window close handlers
+if (mainWindow) {
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
     }
   });
 }
 
-let mainWindow = null;
+if (settingsWindow) {
+  settingsWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      settingsWindow.hide();
+    }
+  });
+}
+
 
 function openMainWindow() {
   if (mainWindow) {
@@ -862,8 +893,6 @@ function writeToScreen(text) {
     mainWindow.webContents.send('commandOutput', text);
   }
 }
-
-let settingsWindow = null;
 
 function prepareSettingsWindow() {
   if (settingsWindow) return;

@@ -2,7 +2,7 @@ services:
   ruby_service:
     image: yohasebe/monadic-chat:${MONADIC_VERSION:-latest}
     build:
-      context: ../ruby
+      context: .
       dockerfile: Dockerfile
       args:
         PROJECT_TAG: "monadic-chat"
@@ -25,8 +25,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:4567/"]
       interval: 5s
       retries: 3
-
-networks:
-  monadic-chat-network:
-    driver: bridge
+    depends_on:
+      pgvector_service:
+        condition: service_healthy
 

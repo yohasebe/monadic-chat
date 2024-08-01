@@ -2,7 +2,7 @@ services:
   python_service:
     image: yohasebe/python
     build:
-      context: ../python
+      context: .
       dockerfile: Dockerfile
       args:
         PROJECT_TAG: "monadic-chat"

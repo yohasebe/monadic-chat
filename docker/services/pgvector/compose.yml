@@ -1,13 +1,8 @@
 services:
-  ruby_service:
-    depends_on:
-      pgvector_service:
-        condition: service_healthy
-
   pgvector_service:
     image: yohasebe/pgvector
     build:
-      context: ../pgvector
+      context: .
       dockerfile: Dockerfile
       args:
         PROJECT_TAG: "monadic-chat"
@@ -26,7 +21,6 @@ services:
       - monadic-chat-network
 
 volumes:
-  data:
   postgres-data-volume:
     name: monadic-chat-pgvector-data
     driver: local

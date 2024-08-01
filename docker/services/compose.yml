@@ -1,0 +1,12 @@
+include:
+  - ruby/compose.yml
+  - pgvector/compose.yml
+  - python/compose.yml
+  - selenium/compose.yml
+
+networks:
+  monadic-chat-network:
+    driver: bridge
+
+volumes:
+  data:

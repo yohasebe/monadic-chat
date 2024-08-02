@@ -44,7 +44,7 @@ def get_base64(image_path, max_dimension = 512)
     tempfile_path = File.join(File.dirname(image_path), "#{SecureRandom.uuid}#{File.extname(image_path)}")
     # Use `convert` to resize the image with ImageMagick
     command = "convert '#{image_path}' -resize #{new_width}x#{new_height} '#{tempfile_path}'"
-    
+
     system(command)
     base64_data = Base64.strict_encode64(File.open(tempfile_path, "rb").read)
     File.delete tempfile_path
@@ -56,16 +56,16 @@ end
 
 def img2url(image_path, max_dimension = 512)
   base64_data = get_base64(image_path, max_dimension)
-  file_extension = File.extname(image_path).delete_prefix('.').downcase
+  file_extension = File.extname(image_path).delete_prefix(".").downcase
   mime_type = case file_extension
-              when 'jpg', 'jpeg'
-                'image/jpeg'
-              when 'png'
-                'image/png'
-              when 'gif'
-                'image/gif'
+              when "jpg", "jpeg"
+                "image/jpeg"
+              when "png"
+                "image/png"
+              when "gif"
+                "image/gif"
               else
-                'application/octet-stream' # Default MIME type
+                "application/octet-stream" # Default MIME type
               end
   "data:#{mime_type};base64,#{base64_data}"
 end
@@ -80,7 +80,7 @@ def image_query(message, image, model = "gpt-4o-mini")
   end
 
   if image && File.file?(image)
-    image_path = image 
+    image_path = image
     image_url = nil
   elsif image
     # check if the image is a valid URL
@@ -99,9 +99,8 @@ def image_query(message, image, model = "gpt-4o-mini")
 
   headers = {
     "Content-Type" => "application/json",
-    "Authorization" => "Bearer #{api_key}",
+    "Authorization" => "Bearer #{api_key}"
   }
-
 
   body = {
     "model" => model,
@@ -114,7 +113,7 @@ def image_query(message, image, model = "gpt-4o-mini")
     "frequency_penalty" => 0.0
   }
 
-  content = [ {"type" => "text", "text" => message } ]
+  content = [{ "type" => "text", "text" => message }]
   if image_path
     # unless the image_path refers to an existing valid png/jpg/jpeg/gif file, return an error message
     unless File.file?(image_path) && %w[.png .jpg .jpeg .gif].include?(File.extname(image_path).downcase)
@@ -122,27 +121,27 @@ def image_query(message, image, model = "gpt-4o-mini")
     end
 
     base64_image_url = img2url(image_path)
-    content << { "type" => "image_url", "image_url" => {"url" => base64_image_url } }
+    content << { "type" => "image_url", "image_url" => { "url" => base64_image_url } }
   elsif image_url
-    content << { "type" => "image_url", "image_url" => {"url" => image_url } }
+    content << { "type" => "image_url", "image_url" => { "url" => image_url } }
   end
 
   body["messages"] = [
-    { "role" => "user", "content" => content}
+    { "role" => "user", "content" => content }
   ]
 
   target_uri = "#{API_ENDPOINT}/chat/completions"
   http = HTTP.headers(headers)
 
-   res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+  res = http.timeout(connect: OPEN_TIMEOUT,
+                     write: WRITE_TIMEOUT,
+                     read: READ_TIMEOUT).post(target_uri, json: body)
   unless res.status.success?
     JSON.parse(res.body)["error"]
     "ERROR: #{JSON.parse(res.body)["error"]}"
   end
 
-  results = JSON.parse(res.body).dig("choices", 0, "message", "content")
-  results
-
+  JSON.parse(res.body).dig("choices", 0, "message", "content")
 rescue HTTP::Error, HTTP::TimeoutError
   if num_retrial < MAX_RETRIES
     num_retrial += 1
@@ -174,8 +173,7 @@ end
 begin
   response = image_query(message, image_path_or_url, model)
   puts response
-rescue => e
+rescue StandardError => e
   puts "An error occurred: #{e.message}"
   exit
 end
-

@@ -37,7 +37,7 @@ def video_query(json_path, query, model = "gpt-4o-mini")
 
   headers = {
     "Content-Type" => "application/json",
-    "Authorization" => "Bearer #{api_key}",
+    "Authorization" => "Bearer #{api_key}"
   }
 
   body = {
@@ -51,18 +51,18 @@ def video_query(json_path, query, model = "gpt-4o-mini")
     "frequency_penalty" => 0.0
   }
 
-  content = [{"type" => "text", "text" => query}]
+  content = [{ "type" => "text", "text" => query }]
   json_data.each do |image|
     if image.start_with?("data:image/")
-      content << {"type" => "image_url", "image_url" => {"url" => image}}
-    elsif image.match?(/\A[a-zA-Z0-9+\/=]+\Z/)
+      content << { "type" => "image_url", "image_url" => { "url" => image } }
+    elsif image.match?(%r{\A[a-zA-Z0-9+/=]+\Z})
       # Assume it's base64 data without MIME type prefix
       base64_image_url = "data:image/png;base64,#{image}"
-      content << {"type" => "image_url", "image_url" => {"url" => base64_image_url}}
+      content << { "type" => "image_url", "image_url" => { "url" => base64_image_url } }
     else
       uri = URI.parse(image)
       if uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
-        content << {"type" => "image_url", "image_url" => {"url" => image}}
+        content << { "type" => "image_url", "image_url" => { "url" => image } }
       else
         return "ERROR: Invalid image URL or base64 data."
       end
@@ -70,7 +70,7 @@ def video_query(json_path, query, model = "gpt-4o-mini")
   end
 
   body["messages"] = [
-    {"role" => "user", "content" => content}
+    { "role" => "user", "content" => content }
   ]
 
   target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -81,9 +81,7 @@ def video_query(json_path, query, model = "gpt-4o-mini")
     return "ERROR: #{JSON.parse(res.body)["error"]}"
   end
 
-  results = JSON.parse(res.body).dig("choices", 0, "message", "content")
-  results
-
+  JSON.parse(res.body).dig("choices", 0, "message", "content")
 rescue HTTP::Error, HTTP::TimeoutError
   if num_retrial < MAX_RETRIES
     num_retrial += 1
@@ -125,7 +123,7 @@ end
 begin
   response = video_query(json_path, query, model)
   puts response
-rescue => e
+rescue StandardError => e
   puts "An error occurred: #{e.message}"
   exit
 end

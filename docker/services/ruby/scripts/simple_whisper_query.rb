@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-require 'securerandom'
-require 'base64'
-require 'http'
+require "securerandom"
+require "base64"
+require "http"
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 10
@@ -11,7 +11,7 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
-def whisper_api_request(audiofile, outpath = ".", response_format = "text", lang_code = nil)
+def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
   num_retrial = 0
 
   begin
@@ -64,15 +64,14 @@ if audiofile.nil?
 end
 
 begin
-  response = whisper_api_request(audiofile, outpath, response_format, lang_code)
-  outfile = "#{outpath}/whisper_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json" 
+  response = whisper_api_request(audiofile, response_format, lang_code)
+  outfile = "#{outpath}/whisper_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json"
   # res = JSON.parse(response)["text"]
   File.write(outfile, response)
   puts response
-rescue => e
+rescue StandardError => e
   pp e.message
   pp e.backtrace
   pp e.inspect
   puts "An error occurred: #{e.message}"
 end
-

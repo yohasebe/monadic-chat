@@ -8,7 +8,7 @@ class CodeWithCohere < MonadicApp
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
-  
+
   def icon
     "<i class='fa-solid fa-c'></i>"
   end
@@ -43,8 +43,8 @@ class CodeWithCohere < MonadicApp
 
       if res.status.success?
         model_data = JSON.parse(res.body)
-        return model_data.dig("models").map do
-          |model| model["name"]
+        model_data["models"].map do |model|
+          model["name"]
         end.filter do |model|
           !model.include?("embed") && !model.include?("rerank")
         end
@@ -85,7 +85,7 @@ class CodeWithCohere < MonadicApp
       ### Request/Response Example 1:
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
       - Remember to add `/data/` before the file name to display the image.
 
       User Request:
@@ -118,7 +118,7 @@ class CodeWithCohere < MonadicApp
       ### Request/Response Example 2:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the output text below the code in a Markdown code block.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
 
       User Request:
 
@@ -160,7 +160,7 @@ class CodeWithCohere < MonadicApp
       ### Request/Response Example 3:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
 
       User Request:
 
@@ -223,7 +223,7 @@ class CodeWithCohere < MonadicApp
       "image": false,
       "pdf": false,
       "models": [
-        "command-r-plus",
+        "command-r-plus"
       ],
       "tools": [
         {
@@ -244,7 +244,7 @@ class CodeWithCohere < MonadicApp
               "type": "string",
               "description": "File exsention of the code (e.g., 'py')",
               "required": false
-            },
+            }
           }
         },
         {
@@ -282,7 +282,7 @@ class CodeWithCohere < MonadicApp
               "type": "string",
               "description": "File name or file path",
               "required": true
-            },
+            }
           }
         },
         {
@@ -353,10 +353,10 @@ class CodeWithCohere < MonadicApp
             block&.call res
           end
 
-          is_finished = json.dig('is_finished')
+          is_finished = json["is_finished"]
           break if is_finished
 
-          fragment = json.dig('text')
+          fragment = json["text"]
           next unless fragment
 
           texts << fragment
@@ -391,25 +391,24 @@ class CodeWithCohere < MonadicApp
         res = { "type" => "error", "content" => result["error"] }
       elsif result && new_results
         result = result.join("") + "\n\n" + new_results.dig(0, "choices", 0, "message", "content")
-        res = {"choices" => [{"message" => {"content" => result}}]}
+        res = { "choices" => [{ "message" => { "content" => result } }] }
       elsif new_results
         res = new_results
       elsif result
-        res = {"choices" => [{"message" => {"content" => result.join("")}}]}
+        res = { "choices" => [{ "message" => { "content" => result.join("") } }] }
       end
       block&.call res
       block&.call res
-      return [res]
-
+      [res]
     elsif result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => {"content" => result.join("")}
+              "message" => { "content" => result.join("") }
             }
           ]
         }
@@ -419,7 +418,7 @@ class CodeWithCohere < MonadicApp
     end
   end
 
-  def process_functions(app, session, tool_calls, call_depth, &block)
+  def process_functions(_app, session, tool_calls, call_depth, &block)
     obj = session[:parameters]
     tool_results = []
     tool_calls.each do |tool_call|
@@ -427,7 +426,7 @@ class CodeWithCohere < MonadicApp
 
       begin
         argument_hash = tool_call["parameters"]
-      rescue
+      rescue StandardError
         argument_hash = {}
       end
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
@@ -439,7 +438,7 @@ class CodeWithCohere < MonadicApp
 
       tool_results << {
         call: tool_call,
-        outputs: [{result: function_return.to_s}]
+        outputs: [{ result: function_return.to_s }]
       }
     end
 
@@ -448,7 +447,6 @@ class CodeWithCohere < MonadicApp
     # return Array
     api_request("tool", session, call_depth: call_depth, &block)
   end
-
 
   def translate_role(role)
     case role
@@ -464,7 +462,7 @@ class CodeWithCohere < MonadicApp
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    empty_tool_results = role == "empty_tool_results" ? true : false
+    empty_tool_results = role == "empty_tool_results"
 
     num_retrial = 0
 
@@ -485,9 +483,9 @@ class CodeWithCohere < MonadicApp
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+    temperature = obj["temperature"]&.to_f
+    max_tokens = obj["max_tokens"]&.to_i
+    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -510,8 +508,7 @@ class CodeWithCohere < MonadicApp
                   "text" => obj["message"],
                   "html" => html,
                   "lang" => detect_language(obj["message"])
-                }
-        }
+                } }
         block&.call res
       else
         message = "Hi, there!"
@@ -524,8 +521,7 @@ class CodeWithCohere < MonadicApp
                 "text" => message,
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
-                "active" => true,
-        }
+                "active" => true }
         session[:messages] << res
       end
     end
@@ -533,7 +529,7 @@ class CodeWithCohere < MonadicApp
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     if session[:messages].empty?
-      session[:messages] << { "role" => "user", "text" => "Hi, there!"}
+      session[:messages] << { "role" => "user", "text" => "Hi, there!" }
     end
     session[:messages].each { |msg| msg["active"] = false }
     context = session[:messages][0...-1].last(context_size).each { |msg| msg["active"] = true }
@@ -550,7 +546,7 @@ class CodeWithCohere < MonadicApp
       "preamble" => initial_prompt,
       "model" => obj["model"],
       "stream" => true,
-      "prompt_truncation" => "AUTO",
+      "prompt_truncation" => "AUTO"
       # "connectors" => [{"id" => "web-search"}]
     }
 
@@ -599,8 +595,7 @@ class CodeWithCohere < MonadicApp
       return [res]
     end
 
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

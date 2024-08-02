@@ -4,7 +4,7 @@ class MusicComposer < MonadicApp
   end
 
   def description
-    "This is an app that writes sheet music and plays it in Midi. Specify the instrument you want to use and the genre or style of music." 
+    "This is an app that writes sheet music and plays it in Midi. Specify the instrument you want to use and the genre or style of music."
   end
 
   def initial_prompt

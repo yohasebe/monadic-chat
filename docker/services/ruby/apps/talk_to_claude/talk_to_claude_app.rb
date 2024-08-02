@@ -17,44 +17,6 @@ class Claude < MonadicApp
     "This app accesses the Anthropic API to answer questions about a wide range of topics."
   end
 
-  attr_reader :models
-
-  def initialize
-    @models = get_models
-    pp @models
-    super
-  end
-
-  def get_models
-    return @models if @models && !@models.empty?
-
-    api_key = CONFIG["COHERE_API_KEY"]
-    return [] if api_key.nil?
-
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-
-    target_uri = "#{API_ENDPOINT}/models"
-    http = HTTP.headers(headers)
-
-    begin
-      res = http.get(target_uri)
-
-      if res.status.success?
-        model_data = JSON.parse(res.body)
-        return model_data.dig("models").map do
-          |model| model["name"]
-        end.filter do |model|
-          !model.include?("embed") && !model.include?("rerank")
-        end
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      []
-    end
-  end
-
   def initial_prompt
     text = <<~TEXT
       You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is unclear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
@@ -85,6 +47,7 @@ class Claude < MonadicApp
   end
 
   attr_accessor :thinking
+
   def initialize
     @leftover = []
     @thinking = []
@@ -108,20 +71,17 @@ class Claude < MonadicApp
     }
 
     replacements.each do |old, new|
-      result = result.gsub(/#{old}\n?/m){ new }
+      result = result.gsub(/#{old}\n?/m) { new }
     end
 
     result
   end
 
   def get_thinking_text(result)
-    @thinking += result.scan(/<thinking>.*?<\/thinking>/m) if result
+    @thinking += result.scan(%r{<thinking>.*?</thinking>}m) if result
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-
-    obj = session[:parameters]
-
     buffer = ""
     texts = []
     tool_calls = []
@@ -143,7 +103,7 @@ class Claude < MonadicApp
             begin
               json = JSON.parse(json_data)
 
-              new_content_type = json.dig('content_block', 'type')
+              new_content_type = json.dig("content_block", "type")
               if new_content_type == "tool_use"
                 json["content_block"]["input"] = ""
                 tool_calls << json["content_block"]
@@ -151,14 +111,15 @@ class Claude < MonadicApp
               content_type = new_content_type if new_content_type
 
               if content_type == "tool_use"
-                if json.dig('delta', 'partial_json')
-                  fragment = json.dig('delta', 'partial_json').to_s
+                if json.dig("delta", "partial_json")
+                  fragment = json.dig("delta", "partial_json").to_s
                   next if !fragment || fragment == ""
+
                   tool_calls.last["input"] << fragment
                 end
 
-                if json.dig('delta', 'stop_reason')
-                  stop_reason = json.dig('delta', 'stop_reason')
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
                   when "tool_use"
                     finish_reason = "tool_use"
@@ -167,16 +128,11 @@ class Claude < MonadicApp
                   end
                 end
               else
-                if json.dig('delta', 'text')
-                  fragment = json.dig('delta', 'text').to_s
+                if json.dig("delta", "text")
+                  fragment = json.dig("delta", "text").to_s
                   next if !fragment || fragment == ""
-                  texts << fragment
 
-                  # fragment.split(//).each do |char|
-                  #   res = { "type" => "fragment", "content" => char }
-                  #   block&.call res
-                  #   sleep 0.01
-                  # end
+                  texts << fragment
 
                   res = {
                     "type" => "fragment",
@@ -185,8 +141,8 @@ class Claude < MonadicApp
                   block&.call res
                 end
 
-                if json.dig('delta', 'stop_reason')
-                  stop_reason = json.dig('delta', 'stop_reason')
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
                   when "max_tokens"
                     finish_reason = "length"
@@ -195,7 +151,6 @@ class Claude < MonadicApp
                   end
                 end
               end
-
             rescue JSON::ParserError
               # if the JSON parsing fails, the next chunk should be appended to the buffer
               # and the loop should continue to the next iteration
@@ -219,7 +174,6 @@ class Claude < MonadicApp
                texts.join("")
              end
 
-
     if tool_calls.any?
       get_thinking_text(result)
 
@@ -235,10 +189,12 @@ class Claude < MonadicApp
         "content" => []
       }
 
-      context.last["content"] << {
-        "type" => "text",
-        "text" => result
-      } if result
+      if result
+        context.last["content"] << {
+          "type" => "text",
+          "text" => result
+        }
+      end
 
       tool_calls.each do |tool_call|
         begin
@@ -264,23 +220,23 @@ class Claude < MonadicApp
       when /opus/
         result = add_replacements(result)
         result = add_replacements(@thinking.join("\n")) + result
-        result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+        result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
       when /sonnet/
-        if !@leftover.empty?
+        unless @leftover.empty?
           leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
           result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
         end
       end
       @leftover.clear
 
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => {"content" => result}
+              "message" => { "content" => result }
             }
           ]
         }
@@ -295,7 +251,7 @@ class Claude < MonadicApp
       api_key = CONFIG["ANTHROPIC_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: ANTHROPIC_API_KEY not found. Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/data/.env file."
+      pp error_message = "ERROR: ANTHROPIC_API_KEY not found.  Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/data/.env file."
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -308,11 +264,9 @@ class Claude < MonadicApp
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
-
-    tools = settings[:tools] ? settings[:tools] : []
+    temperature = obj["temperature"]&.to_f
+    max_tokens = obj["max_tokens"]&.to_i
+    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -322,9 +276,6 @@ class Claude < MonadicApp
     # If the app is monadic, the message is passed through the monadic_map function
     if obj["monadic"].to_s == "true" && message != ""
       message = monadic_unit(message) if message != ""
-      html = markdown_to_html(obj["message"]) if message != ""
-    elsif message != ""
-      html = markdown_to_html(message)
     end
 
     if message != "" && role == "user"
@@ -336,9 +287,8 @@ class Claude < MonadicApp
                 "text" => obj["message"],
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(obj["message"]),
-                "active" => true,
-              }
-      }
+                "active" => true
+              } }
       res["images"] = obj["images"] if obj["images"]
       block&.call res
       session[:messages] << res["content"]
@@ -349,7 +299,7 @@ class Claude < MonadicApp
     begin
       session[:messages].each { |msg| msg["active"] = false }
       context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
-    rescue
+    rescue StandardError
       context = []
     end
 
@@ -365,6 +315,7 @@ class Claude < MonadicApp
       "system" => initial_prompt,
       "model" => obj["model"],
       "stream" => true,
+      "tool_choice" => { "type": "auto" }
     }
 
     body["temperature"] = temperature if temperature
@@ -373,14 +324,14 @@ class Claude < MonadicApp
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings[:tools]
-    else 
+    else
       body.delete("tools")
       body.delete("tool_choice")
     end
 
     # The context is added to the body
     messages = context.compact.map do |msg|
-      { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
+      { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
     end
 
     if messages.last["role"] == "user" && obj["images"]
@@ -467,8 +418,7 @@ class Claude < MonadicApp
       return [res]
     end
 
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -497,7 +447,7 @@ class Claude < MonadicApp
 
       begin
         argument_hash = tool_call["input"]
-      rescue
+      rescue StandardError
         argument_hash = {}
       end
 
@@ -506,16 +456,16 @@ class Claude < MonadicApp
         memo
       end
 
-      tool_return = APPS[app].send(tool_name.to_sym, **argument_hash) 
+      tool_return = APPS[app].send(tool_name.to_sym, **argument_hash)
 
-      if !tool_return
+      unless tool_return
         return [{ "type" => "error", "content" => "ERROR: Tool '#{tool_name}' failed" }]
       end
 
       content << {
         type: "tool_result",
         tool_use_id: tool_call["id"],
-        content: tool_return.to_s 
+        content: tool_return.to_s
       }
     end
 
@@ -530,4 +480,3 @@ class Claude < MonadicApp
     api_request("tool", session, call_depth: call_depth, &block)
   end
 end
-

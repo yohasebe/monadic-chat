@@ -6,7 +6,7 @@ require "json"
 require "optparse"
 
 # Parse command line arguments for the prompt and size
-options = {size: "1024x1024"} # Default size
+options = { size: "1024x1024" } # Default size
 OptionParser.new do |opts|
   opts.banner = "Usage: generate_image.rb [options]"
 
@@ -15,7 +15,7 @@ OptionParser.new do |opts|
   end
 
   opts.on("-s", "--size SIZE", "The size of the generated image (1024x1024, 1024x1792, 1792x1024)") do |size|
-    unless ["1024x1024", "1024x1792", "1792x1024"].include?(size)
+    unless %w[1024x1024 1024x1792 1792x1024].include?(size)
       puts "ERROR: Invalid size. Allowed sizes are 1024x1024, 1024x1792, 1792x1024."
       exit
     end
@@ -59,7 +59,6 @@ def generate_image(prompt, size, num_retrials: 10)
     }
 
     res = HTTP.headers(headers).post(url, json: body)
-
   rescue HTTP::Error, HTTP::TimeoutError => e
     puts "ERROR: #{e.message}"
     exit
@@ -67,7 +66,7 @@ def generate_image(prompt, size, num_retrials: 10)
 
   if res.status.success?
     json = JSON.parse(res.body)
-    data =  json["data"].first
+    data = json["data"].first
     base64_data = data["b64_json"]
     revised_prompt = data["revised_prompt"]
 
@@ -90,11 +89,10 @@ def generate_image(prompt, size, num_retrials: 10)
       f.write(image_data)
     end
 
-    {"original_prompt" => prompt, "revised_prompt" => revised_prompt, "filename" => filename }
+    { "original_prompt" => prompt, "revised_prompt" => revised_prompt, "filename" => filename }
   else
     JSON.parse(res.body)
   end
-
 rescue StandardError => e
   puts e.message
   puts e.backtrace
@@ -110,4 +108,3 @@ end
 
 res = generate_image(options[:prompt], options[:size])
 puts JSON.pretty_generate(res)
-

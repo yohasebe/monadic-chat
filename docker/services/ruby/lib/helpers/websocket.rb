@@ -21,49 +21,45 @@ module WebSocketHelper
       active_messages = messages.filter { |m| m["active"] }
 
       # gpt-4o => o200k_base;
-      model_name = /gpt\-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
+      model_name = /gpt-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
 
       encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
 
       messages.each do |m|
-        if !m["tokens"]
+        unless m["tokens"]
           m["tokens"] = MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
         end
         m["active"] = true
       end
-      end_time = Time.now
 
       # remove oldest messages until total token count and message count are within limits
       loop do
         break if active_messages.empty? || (tokens.sum <= max_tokens && active_messages.size <= context_size)
+
         res = true
         active_messages[0]["active"] = false
         active_messages.shift
       end
-      
+
       # calculate total token count
-      count_total_input_tokens = messages.filter { |m| m["role"] == "user"}.map { |m| m["tokens"] || 0 }.sum
-      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant"}.map { |m| m["tokens"] || 0}.sum
+      count_total_input_tokens = messages.filter { |m| m["role"] == "user" }.map { |m| m["tokens"] || 0 }.sum
+      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant" }.map { |m| m["tokens"] || 0 }.sum
       count_active_tokens = active_messages.map { |m| m["tokens"] || 0 }.sum
     rescue StandardError => e
       pp e.message
       pp e.backtrace
       pp e.inspect
-      count_tokens = 0
       tokenizer_available = false
     end
 
-    sum_tokens = tokenizer_available ? tokens.sum : 0
-
     # return information about state of messages array
     res = { changed: res,
-      count_total_input_tokens: count_total_input_tokens,
-      count_total_output_tokens: count_total_output_tokens,
-      count_total_active_tokens: count_active_tokens,
-      count_messages: messages.size,
-      count_active_messages: active_messages.size,
-      encoding_name: encoding_name
-    }
+            count_total_input_tokens: count_total_input_tokens,
+            count_total_output_tokens: count_total_output_tokens,
+            count_total_active_tokens: count_active_tokens,
+            count_messages: messages.size,
+            count_active_messages: active_messages.size,
+            encoding_name: encoding_name }
     res[:error] = "Error: Token count not available" unless tokenizer_available
     res
   end
@@ -125,7 +121,7 @@ module WebSocketHelper
           else
             token = CONFIG["OPENAI_API_KEY"]
 
-            res = set_api_key(token) if token
+            res = check_api_key(token) if token
 
             if token && res.is_a?(Hash) && res.key?("type")
               if res["type"] == "error"
@@ -197,15 +193,15 @@ module WebSocketHelper
           parameters_modified["model"] = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
 
           mini_session = {
-            :parameters => parameters_modified,
-            :messages => reversed_messages, 
+            parameters: parameters_modified,
+            messages: reversed_messages
           }
 
           mini_session[:parameters]["initial_prompt"] = mini_session[:parameters]["ai_user_initial_prompt"]
 
           responses = api_request.call("user", mini_session) do |fragment|
             if fragment["type"] == "error"
-              @channel.push({ "type" => "error", "content" => "E1:#{fragment.to_s}" }.to_json)
+              @channel.push({ "type" => "error", "content" => "E1:#{fragment}" }.to_json)
             elsif fragment["type"] == "fragment"
               text = fragment["content"]
               @channel.push({ "type" => "ai_user", "content" => text }.to_json)
@@ -216,8 +212,8 @@ module WebSocketHelper
           ai_user_response = aiu_buffer.join
           @channel.push({ "type" => "ai_user_finished", "content" => ai_user_response }.to_json)
         when "HTML"
-          thread&.join 
-          while !queue.empty?
+          thread&.join
+          until queue.empty?
             last_one = queue.shift
             begin
               content = last_one["choices"][0]
@@ -239,11 +235,11 @@ module WebSocketHelper
                 @channel.push({ "type" => "error", "content" => "The API stopped responding because of safety reasons" }.to_json)
               end
 
-              if session["parameters"]["monadic"]
-                html = APPS[session["parameters"]["app_name"]].monadic_html(text)
-              else
-                html = markdown_to_html(text)
-              end
+              html = if session["parameters"]["monadic"]
+                       APPS[session["parameters"]["app_name"]].monadic_html(text)
+                     else
+                       markdown_to_html(text)
+                     end
 
               if session["parameters"]["response_suffix"]
                 html += "\n\n" + session["parameters"]["response_suffix"]
@@ -262,7 +258,6 @@ module WebSocketHelper
 
               @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
               @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
-
             rescue StandardError => e
               pp queue
               pp e.message
@@ -319,16 +314,16 @@ module WebSocketHelper
 
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
-            if app_obj.respond_to?(:api_request)
-              api_request = app_obj.method(:api_request)
-            else
-              api_request = method(:openai_api_request)
-            end
+            api_request = if app_obj.respond_to?(:api_request)
+                            app_obj.method(:api_request)
+                          else
+                            method(:openai_api_request)
+                          end
 
             responses = api_request.call("user", session) do |fragment|
               if fragment["type"] == "error"
                 @channel.push({ "type" => "error", "content" => fragment }.to_json)
-                break;
+                break
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"
@@ -344,7 +339,7 @@ module WebSocketHelper
                   if obj["auto_speech"] && !cutoff && !obj["monadic"]
                     text = splitted[0] || ""
                     if text != "" && candidate != ""
-                      res_hash = tts_api_request(text, voice, speed, response_format, model) 
+                      res_hash = tts_api_request(text, voice, speed, response_format, model)
                       @channel.push(res_hash.to_json)
                     end
                   end
@@ -374,14 +369,14 @@ module WebSocketHelper
                 content = response.dig("choices", 0, "message", "content")
                 @channel.push({ "type" => "error", "content" => response.to_s }.to_json)
               else
-                content = response.dig("choices", 0, "message", "content").gsub(/\bsandbox:\//, "/")
-                content = content.gsub(/^\/mnt\//, "/")
+                content = response.dig("choices", 0, "message", "content").gsub(%r{\bsandbox:/}, "/")
+                content = content.gsub(%r{^/mnt/}, "/")
 
                 response.dig("choices", 0, "message")["content"] = content
 
                 if obj["auto_speech"] && obj["monadic"]
                   message = JSON.parse(content)["message"]
-                  res_hash = tts_api_request(message, voice, speed, response_format, model) 
+                  res_hash = tts_api_request(message, voice, speed, response_format, model)
                   @channel.push(res_hash.to_json)
                 end
 

@@ -1,11 +1,11 @@
-const { app, dialog, shell, Menu, Tray, BrowserWindow, BrowserView, ipcMain } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
+  app.on('second-instance', () => {
     // Someone tried to run a second instance, we should focus our window.
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -35,7 +35,6 @@ const net = require('net');
 
 let tray = null;
 let justLaunched = true;
-let portInUse = false;
 let currentStatus = 'Stopped';
 let isQuitting = false;
 let contextMenu = null;
@@ -49,9 +48,9 @@ let wsl2Installed = false;
 function checkRequirements() {
   return new Promise((resolve, reject) => {
     if (os.platform() === 'win32') {
-      exec('docker -v', function (err, _stdout, _stderr) {
+      exec('docker -v', function (err) {
         dockerInstalled = !err;
-        exec('wsl -l -v', function (err, _stdout, _stderr) {
+        exec('wsl -l -v', function (err) {
           wsl2Installed = !err;
           if (!dockerInstalled) {
             reject("Docker is not installed. Please install Docker Desktop for Windows first.");
@@ -63,7 +62,7 @@ function checkRequirements() {
         });
       });
     } else if (os.platform() === 'darwin') {
-      exec('/usr/local/bin/docker -v', function (err, stdout, _stderr) {
+      exec('/usr/local/bin/docker -v', function (err, stdout) {
         dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
         if (!dockerInstalled) {
           reject("Docker is not installed. Please install Docker Desktop for Mac first.");
@@ -72,7 +71,7 @@ function checkRequirements() {
         }
       });
     } else if (os.platform() === 'linux') {
-      exec('docker -v', function (err, stdout, _stderr) {
+      exec('docker -v', function (err, stdout) {
         dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
         if (!dockerInstalled) {
           reject("Docker is not installed. Please install Docker for Linux first.");
@@ -445,8 +444,6 @@ function toUnixPath(p) {
 }
 
 function shutdownDocker() {
-  const command = "shutdown";
-
   let cmd;
   if (os.platform() === 'darwin') {
     cmd = `osascript -e 'quit app "Docker Desktop"'`;
@@ -457,7 +454,7 @@ function shutdownDocker() {
     return;
   }
 
-  exec(cmd, (err, stdout, _stderr) => {
+  exec(cmd, (err, stdout) => {
     if (err) {
       dialog.showErrorBox('Error', err.message);
       console.error(err);
@@ -529,7 +526,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
   fetchWithRetryCalled = false; // Reset the flag before running the command
 
   if (sync) {
-    execSync(cmd, (err, stdout, _stderr) => {
+    execSync(cmd, (err, stdout) => {
       if (err) {
         dialog.showErrorBox('Error', err.message);
         console.error(err);
@@ -559,7 +556,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
               type: 'info',
               buttons: ['OK'],
               title: 'Update Available',
-              message: `A new version (${version}) of the app is available. Please update to the latest version.`,
+              message: `A new version of the app is available. Please update to the latest version.`,
               icon: path.join(iconDir, 'monadic-chat.png')
             });
           }
@@ -574,7 +571,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
             fetchWithRetryCalled = true;
             writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
             fetchWithRetry('http://localhost:4567')
-              .then(data => {
+              .then(() => {
                 menuItems[8].enabled = true;
                 contextMenu = Menu.buildFromTemplate(menuItems);
                 tray.setContextMenu(contextMenu);
@@ -600,7 +597,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       return;
     });
 
-    subprocess.on('close', function (code) {
+    subprocess.on('close', function () {
       currentStatus = statusAfterCommand;
       tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
       statusMenuItem.label = `Status: ${statusAfterCommand}`;
@@ -955,14 +952,12 @@ function createMainWindow() {
       <hr />
       <p>Press <b>Start</b> button to initialize the server. It will take some time for the image rebuild to complete.</p>
       <hr />`
-    portInUse = false;
     justLaunched = false;
     currentStatus = 'Stopped';
 
     isPortTaken(4567, function(taken){
       if(taken){
         openingText += `<p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b>: If other applications is using port 4567, shut them down first.</p>`
-        portInUse = true;
         currentStatus = 'Port in use';
       } 
     })

@@ -9,7 +9,7 @@ class JupyterNotebook < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command. Second, create a new notebook using the `create_jupyter_notebook` function.  Once Jupyter Lab is up and running and a new notebook has been created, provide the user with a URL in the form `<a href="http://127.0.0.1:8888/lab/" target="_blank">Jupyter Lab Notebook</a>`. 
+      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command. Second, create a new notebook using the `create_jupyter_notebook` function.  Once Jupyter Lab is up and running and a new notebook has been created, provide the user with a URL in the form `<a href="http://127.0.0.1:8888/lab/" target="_blank">Jupyter Lab Notebook</a>`.
 
       If you have successfully specified a Jupyter Notebook file, provide the user with the filename of the newly created Jupyter Notebook file in the form `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank">Jupyter Notebook: FILENAME</a>` where FILENAME is the name of the newly created Jupyter Notebook file. Rememeber the URL should start with `tree/`.
 

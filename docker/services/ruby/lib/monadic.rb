@@ -23,7 +23,7 @@ require "tempfile"
 require "uri"
 
 require "oj"
-Oj.mimic_JSON()
+Oj.mimic_JSON
 
 # return true if we are inside a docker container
 def in_container?
@@ -98,7 +98,7 @@ def load_app_files
     end
   end
 
-  apps_to_load.each do |_app_name, file|
+  apps_to_load.each_value do |file|
     require file
   end
 end
@@ -231,21 +231,21 @@ get "/data/:file_name" do
   fetch_file(params[:file_name])
 end
 
-get '/lab/?' do
+get "/lab/?" do
   url = "http://127.0.0.1:8888/lab/"
   result = HTTParty.get(url)
   status result.code
   result.body
 end
 
-get '/lab/*' do
-  url = "http://127.0.0.1:8888/lab/#{params['splat'].first}"
+get "/lab/*" do
+  url = "http://127.0.0.1:8888/lab/#{params["splat"].first}"
   result = HTTParty.get(url)
   status result.code
   result.body
 end
 
-get '/:filename' do |filename|
+get "/:filename" do |filename|
   redirect to("/data/#{filename}")
 end
 

@@ -17,9 +17,9 @@ if `uname -s`.chomp.include? "Darwin"
     selenium_image = "seleniarm/standalone-chromium:latest"
   end
 end
-ENV['SELENIUM_IMAGE'] = selenium_image
-ENV['MONADIC_VERSION'] = Monadic::VERSION.to_s
-ENV['HOST_OS'] = `uname -s`.chomp
+ENV["SELENIUM_IMAGE"] = selenium_image
+ENV["MONADIC_VERSION"] = Monadic::VERSION.to_s
+ENV["HOST_OS"] = `uname -s`.chomp
 
 # Parse command line options
 opts = Optimist.options do

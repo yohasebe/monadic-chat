@@ -28,8 +28,6 @@ class TextSplitter
     current_text = []
     current_tokens = 0
 
-    last_n_lines = []
-
     lines.each do |line|
       line_tokens = MonadicApp::TOKENIZER.get_tokens_sequence(line)
       line_token_count = line_tokens.size
@@ -73,4 +71,3 @@ if $PROGRAM_NAME == __FILE__
     puts "File not found: #{file_path}"
   end
 end
-

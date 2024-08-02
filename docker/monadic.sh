@@ -113,13 +113,17 @@ start_docker_compose() {
   remove_project_dangling_images
 
   images=("yohasebe/monadic-chat")
-  containers=("monadic-chat-container" "python-container" "selenium-container" "pgvector-container")
+  containers=("monadic-chat-ruby-container" \
+              "monadic-chat-python-container" \
+              "monadic-chat-selenium-container" \
+              "monadic-chat-pgvector-container")
 
   all_images_exist=true
   all_containers_exist=true
 
   for image in "${images[@]}"; do
     if ! $DOCKER images | grep -q "$image"; then
+      # echo "[HTML]: <p>Image not found: $image</p>"
       all_images_exist=false
       break
     fi
@@ -127,6 +131,7 @@ start_docker_compose() {
 
   for container in "${containers[@]}"; do
     if ! $DOCKER container ls --all | grep -q "$container"; then
+      # echo "[HTML]: <p>Container not found: $container</p>"
       all_containers_exist=false
       break
     fi
@@ -142,7 +147,7 @@ start_docker_compose() {
       start_container monadic-chat-python-container
       start_container monadic-chat-ruby-container
     else
-      echo "[HTML]: <p>Monadic Chat Docker image exists. Setting up Monadic Chat container. Please wait . . .</p>"
+      echo "[HTML]: <p>Setting up Monadic Chat container. Please wait . . .</p>"
       $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
     fi
   else

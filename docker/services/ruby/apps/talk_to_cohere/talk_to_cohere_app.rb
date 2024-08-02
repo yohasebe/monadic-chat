@@ -43,8 +43,8 @@ class Cohere < MonadicApp
 
       if res.status.success?
         model_data = JSON.parse(res.body)
-        return model_data.dig("models").map do
-          |model| model["name"]
+        model_data["models"].map do |model|
+          model["name"]
         end.filter do |model|
           !model.include?("embed") && !model.include?("rerank")
         end
@@ -82,7 +82,6 @@ class Cohere < MonadicApp
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-    obj = session[:parameters]
     texts = []
     tool_calls = []
     finish_reason = nil
@@ -113,19 +112,13 @@ class Cohere < MonadicApp
             block&.call res
           end
 
-          is_finished = json.dig('is_finished')
+          is_finished = json["is_finished"]
           break if is_finished
 
-          fragment = json.dig('text')
+          fragment = json["text"]
           next unless fragment
 
           texts << fragment
-
-          # fragment.split(//).each do |char|
-          #   res = { "type" => "fragment", "content" => char }
-          #   block&.call res
-          #   sleep 0.01
-          # end
 
           res = {
             "type" => "fragment",
@@ -157,25 +150,24 @@ class Cohere < MonadicApp
         res = { "type" => "error", "content" => result["error"] }
       elsif result && new_results
         result = result.join("") + "\n\n" + new_results.dig(0, "choices", 0, "message", "content")
-        res = {"choices" => [{"message" => {"content" => result}}]}
+        res = { "choices" => [{ "message" => { "content" => result } }] }
       elsif new_results
         res = new_results
       elsif result
-        res = {"choices" => [{"message" => {"content" => result.join("")}}]}
+        res = { "choices" => [{ "message" => { "content" => result.join("") } }] }
       end
       block&.call res
       block&.call res
-      return [res]
-
+      [res]
     elsif result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => {"content" => result.join("")}
+              "message" => { "content" => result.join("") }
             }
           ]
         }
@@ -185,7 +177,7 @@ class Cohere < MonadicApp
     end
   end
 
-  def process_functions(app, session, tool_calls, call_depth, &block)
+  def process_functions(_app, session, tool_calls, call_depth, &block)
     obj = session[:parameters]
     tool_results = []
     tool_calls.each do |tool_call|
@@ -193,7 +185,7 @@ class Cohere < MonadicApp
 
       begin
         argument_hash = tool_call["parameters"]
-      rescue
+      rescue StandardError
         argument_hash = {}
       end
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
@@ -205,7 +197,7 @@ class Cohere < MonadicApp
 
       tool_results << {
         call: tool_call,
-        outputs: [{result: function_return.to_s}]
+        outputs: [{ result: function_return.to_s }]
       }
     end
 
@@ -214,7 +206,6 @@ class Cohere < MonadicApp
     # return Array
     api_request("tool", session, call_depth: call_depth, &block)
   end
-
 
   def translate_role(role)
     case role
@@ -230,7 +221,7 @@ class Cohere < MonadicApp
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    empty_tool_results = role == "empty_tool_results" ? true : false
+    empty_tool_results = role == "empty_tool_results"
 
     num_retrial = 0
 
@@ -251,9 +242,9 @@ class Cohere < MonadicApp
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+    temperature = obj["temperature"]&.to_f
+    max_tokens = obj["max_tokens"]&.to_i
+    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -276,8 +267,7 @@ class Cohere < MonadicApp
                   "text" => obj["message"],
                   "html" => html,
                   "lang" => detect_language(obj["message"])
-                }
-        }
+                } }
         block&.call res
       else
         message = "Hi, there!"
@@ -290,8 +280,7 @@ class Cohere < MonadicApp
                 "text" => message,
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
-                "active" => true,
-        }
+                "active" => true }
         session[:messages] << res
       end
     end
@@ -299,7 +288,7 @@ class Cohere < MonadicApp
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     if session[:messages].empty?
-      session[:messages] << { "role" => "user", "text" => "Hi, there!"}
+      session[:messages] << { "role" => "user", "text" => "Hi, there!" }
     end
     session[:messages].each { |msg| msg["active"] = false }
     context = session[:messages][0...-1].last(context_size).each { |msg| msg["active"] = true }
@@ -316,7 +305,7 @@ class Cohere < MonadicApp
       "preamble" => initial_prompt,
       "model" => obj["model"],
       "stream" => true,
-      "prompt_truncation" => "AUTO",
+      "prompt_truncation" => "AUTO"
       # "connectors" => [{"id" => "web-search"}]
     }
 
@@ -365,8 +354,7 @@ class Cohere < MonadicApp
       return [res]
     end
 
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

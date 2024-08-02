@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'fileutils'
+require "fileutils"
 require "rspec/core/rake_task"
 require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
@@ -13,9 +13,12 @@ RuboCop::RakeTask.new
 
 task default: %i[spec rubocop]
 
+task :eslint do
+  sh "npx eslint ."
+end
+
 # task to build win/mac x64/mac arm64 packages
 task :build do
-
   home_directory_path = File.join(File.dirname(__FILE__), "docker")
   Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
   Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
@@ -37,7 +40,7 @@ task :build do
   Dir.glob("dist/*").each do |file|
     filepath = File.expand_path(file)
     FileUtils.rm_rf(filepath) unless necessary_files.include?(filepath)
-    # move the file to the /docs/assets/download/ directory if it is included in necessar_files 
-    FileUtils.mv(filepath, "docs/assets/download/") if necessary_files.include?(filepath)
+    # move the file to the /docs/assets/download/ directory if it is included in necessar_files
+    # FileUtils.mv(filepath, "docs/assets/download/") if necessary_files.include?(filepath)
   end
 end

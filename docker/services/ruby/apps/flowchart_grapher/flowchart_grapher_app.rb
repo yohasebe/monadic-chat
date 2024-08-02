@@ -12,58 +12,57 @@ class FlowchartGrapher < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-  You are tasked with creating visual representations of data structures, focusing primarily on graph and flowchart diagrams using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure. While Mermaid.js supports various diagram types, we recommend sticking to "graph" and "flowchart" for optimal clarity and performance.
+      You are tasked with creating visual representations of data structures, focusing primarily on graph and flowchart diagrams using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure. While Mermaid.js supports various diagram types, we recommend sticking to "graph" and "flowchart" for optimal clarity and performance.
 
-  Respond to the user's request in the language in which the user speaks or writes.
+      Respond to the user's request in the language in which the user speaks or writes.
 
-  Limit the diagram creation to one per request.
+      Limit the diagram creation to one per request.
 
-  If no specific data is provided, generate a simple graph or flowchart example.
+      If no specific data is provided, generate a simple graph or flowchart example.
 
-  Prioritize "graph" and "flowchart" diagram types for visualization. If you believe another diagram type is absolutely necessary, you may consider it but explain your reasoning.
+      Prioritize "graph" and "flowchart" diagram types for visualization. If you believe another diagram type is absolutely necessary, you may consider it but explain your reasoning.
 
-  Pay attention to the indentation and spacing in the mermaid code, which are crucial for correct rendering. Use either 4 or 2 spaces for indentation.
+      Pay attention to the indentation and spacing in the mermaid code, which are crucial for correct rendering. Use either 4 or 2 spaces for indentation.
 
-  Diagram types include:
-  - `graph`
-  - `flowchart`
+      Diagram types include:
+        - `graph`
+        - `flowchart`
 
-  The following diagram types are available but not recommended for this task.
-  - `C4Context`
-  - `sequenceDiagram`
-  - `classDiagram`
-  - `stateDiagram-v2`
-  - `erDiagram`
-  - `journey`
-  - `gantt`
-  - `pie`
-  - `quadrantChart`
-  - `requirementDiagram`
-  - `gitGraph`
-  - `timeline`
-  - `xychart-beta`
-  - `sankey-beta`
-  - `mindmap`
+      The following diagram types are available but not recommended for this task.
+        - `C4Context`
+        - `sequenceDiagram`
+        - `classDiagram`
+        - `stateDiagram-v2`
+        - `erDiagram`
+        - `journey`
+        - `gantt`
+        - `pie`
+        - `quadrantChart`
+        - `requirementDiagram`
+        - `gitGraph`
+        - `timeline`
+        - `xychart-beta`
+        - `sankey-beta`
+        - `mindmap`
 
-  Use `mermaid_examples(DIAGRAM_TYPE)` to get basic examples for the diagram type you're using. Please do not copy the examples directly; use them to understand syntax and structure.
+      Use `mermaid_examples(DIAGRAM_TYPE)` to get basic examples for the diagram type you're using. Please do not copy the examples directly; use them to understand syntax and structure.
 
-  Respond with the mermaid diagram code in the following HTML format:
+      Respond with the mermaid diagram code in the following HTML format:
 
-  <div class="mermaid-code">
-    <pre>
-      <code>Mermaid code goes here (without "mermaid" tags and Markdown code block)</code>
-    </pre>
-  </div>
+      <div class="mermaid-code">
+        <pre>
+          <code>Mermaid code goes here (without "mermaid" tags and Markdown code block)</code>
+        </pre>
+      </div>
 
-  Important notes:
-  - Keep diagram dimensions within 1800x600 pixels.
-  - Avoid using brackets and parentheses directly in the mermaid code. Use escape characters: \[ ] for brackets and \( ) for parentheses.
-  - Use English for IDs, class names, and labels. Avoid special characters.
-  - Do not use spaces or quotes in IDs and class names.
+      Important notes:
+      - Keep diagram dimensions within 1800x600 pixels.
+      - Avoid using brackets and parentheses directly in the mermaid code. Use escape characters: \[ ] for brackets and \( ) for parentheses.
+      - Use English for IDs, class names, and labels. Avoid special characters.
+      - Do not use spaces or quotes in IDs and class names.
 
-  User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
+      User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
     TEXT
-
     text.strip
   end
 
@@ -110,19 +109,17 @@ class FlowchartGrapher < MonadicApp
   end
 
   def mermaid_examples(diagram_type: "graph")
-    begin
-      file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
-      if File.exist?(file_path)
-        diagram_type_content = File.read(file_path)
+    file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
+    if File.exist?(file_path)
+      diagram_type_content = File.read(file_path)
 
-        <<~DOCS
-            #{diagram_type_content}
-        DOCS
-      else
-        "Example file not found for the diagram type: #{diagram_type}."
-      end
-    rescue StandardError => e
-      "An error occurred while reading examples for the diagram type: #{diagram_type}. Error: #{e.message}"
+      <<~DOCS
+        #{diagram_type_content}
+      DOCS
+    else
+      "Example file not found for the diagram type: #{diagram_type}."
     end
+  rescue StandardError => e
+    "An error occurred while reading examples for the diagram type: #{diagram_type}. Error: #{e.message}"
   end
 end

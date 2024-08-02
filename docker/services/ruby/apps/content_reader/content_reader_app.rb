@@ -1,5 +1,4 @@
 class ContentReader < MonadicApp
-
   def icon
     "<i class='fab fa-leanpub'></i>"
   end

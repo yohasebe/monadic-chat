@@ -95,7 +95,7 @@ class NovelWriter < MonadicApp
               "required": ["num_of_words_so_far", "new_paragraph"]
             }
           }
-        },
+        }
       ]
     }
   end

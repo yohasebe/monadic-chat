@@ -1,20 +1,13 @@
 # frozen_string_literal: true
 
-$SINGLETON_TOKENIZER = FlaskAppClient.new
-# tokenizer_test = $SINGLETON_TOKENIZER.count_tokens("Hello, World!")
-# if tokenizer_test == 4
-#   puts "Flask tokenizing client is ready."
-# else
-#   puts "Flask tokenizing client is not ready."
-# end
+SINGLETON_TOKENIZER = FlaskAppClient.new
 
 class MonadicApp
-  TOKENIZER = $SINGLETON_TOKENIZER
+  TOKENIZER = SINGLETON_TOKENIZER
 
   # access the flask app client so that it gets ready before the first request
 
-  attr_accessor :api_key
-  attr_accessor :context
+  attr_accessor :api_key, :context
 
   def initialize
     @context = {}
@@ -38,14 +31,14 @@ class MonadicApp
       json = "{#{Regexp.last_match(1)}}"
       JSON.parse(json)
     else
-      {"message" => monad.to_s, "context" => @context}
+      { "message" => monad.to_s, "context" => @context }
     end
   end
 
   # sanitize the data to remove invalid characters
   def sanitize_data(data)
     if data.is_a? String
-      return data.encode('UTF-8', invalid: :replace, undef: :replace, replace: '')
+      return data.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
     end
 
     if data.is_a? Hash
@@ -83,11 +76,9 @@ class MonadicApp
 
   # Convert snake_case to space ceparated capitalized words
   def snake2cap(snake)
-    begin
-      snake.split("_").map(&:capitalize).join(" ")
-    rescue
-      snake
-    end
+    snake.split("_").map(&:capitalize).join(" ")
+  rescue StandardError
+    snake
   end
 
   # Convert a JSON object to HTML
@@ -95,7 +86,7 @@ class MonadicApp
     iteration += 1
     output = +""
     hash.each do |key, value|
-      value = UtilitiesHelper:: markdown_to_html(value) if key == "message"
+      value = UtilitiesHelper.markdown_to_html(value) if key == "message"
 
       key = snake2cap(key)
       margin = iteration - 2
@@ -141,39 +132,38 @@ class MonadicApp
   def send_command(command:,
                    container:,
                    success: "")
-    begin
-      case container.to_s
-      when "ruby"
-        if IN_CONTAINER
-          script_dir = "/monadic/scripts"
-          script_dir_local = "/monadic/data/scripts"
-          shared_volume = "/monadic/data"
-        else
-          script_dir = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
-          script_dir_local = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts")) 
-          shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
-        end
-        system_command =<<~SYS
-          find #{script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-          find #{script_dir_local} -type f -exec chmod +x {} + 2>/dev/null | : && \
-          export PATH="#{script_dir}:${PATH}" && \
-          export PATH="#{script_dir_local}:${PATH}" && \
-          cd #{shared_volume} && \
-          #{command}
-        SYS
-      when "python"
+    case container.to_s
+    when "ruby"
+      if IN_CONTAINER
+        script_dir = "/monadic/scripts"
+        script_dir_local = "/monadic/data/scripts"
         shared_volume = "/monadic/data"
-        container = "monadic-chat-python-container"
-        script_dir = "/monadic/data/scripts"
-        system_command =<<~DOCKER
-          docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'
-          docker exec -w #{shared_volume} #{container} #{command}
-        DOCKER
+      else
+        script_dir = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
+        script_dir_local = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts"))
+        shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
       end
+      system_command = <<~SYS
+        find #{script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+        find #{script_dir_local} -type f -exec chmod +x {} + 2>/dev/null | : && \
+        export PATH="#{script_dir}:${PATH}" && \
+        export PATH="#{script_dir_local}:${PATH}" && \
+        cd #{shared_volume} && \
+        #{command}
+      SYS
+    when "python"
+      shared_volume = "/monadic/data"
+      container = "monadic-chat-python-container"
+      script_dir = "/monadic/data/scripts"
+      system_command = <<~DOCKER
+        docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'
+        docker exec -w #{shared_volume} #{container} #{command}
+      DOCKER
+    end
 
-      stdout, stderr, status = Open3.capture3(system_command)
+    stdout, stderr, status = Open3.capture3(system_command)
 
-      log =<<~LOG
+    log = <<~LOG
       ### original command
 
       #{system_command}
@@ -189,103 +179,97 @@ class MonadicApp
       ### status
 
       #{status}
-      LOG
+    LOG
 
-      File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
+    File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
 
-      if block_given?
-        yield(stdout, stderr, status)
-      elsif status.success?
-        "#{success}#{stdout}"
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: #{e.message}"
+    if block_given?
+      yield(stdout, stderr, status)
+    elsif status.success?
+      "#{success}#{stdout}"
+    else
+      "Error occurred: #{stderr}"
     end
+  rescue StandardError => e
+    "Error occurred: #{e.message}"
   end
 
   def write_to_file(filename:, extension:, text:)
-    begin
-      shared_volume = "/monadic/data/"
-      if IN_CONTAINER
-        data_dir = "/monadic/data/"
-      else
-        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
-      end
-
-      container = "monadic-chat-python-container"
-
-      filepath = File.join(data_dir, "#{filename}.#{extension}")
-
-      # create a temporary file inside the data directory
-      File.open(filepath, "w") do |f|
-        f.write(text)
-      end
-
-      docker_command =<<~DOCKER
-        docker cp #{filepath} #{container}:#{shared_volume}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success
-        return "The file has been written successfully."
-      else
-        return "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: The code could not be executed."
+    shared_volume = "/monadic/data/"
+    if IN_CONTAINER
+      data_dir = "/monadic/data/"
+    else
+      data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
     end
+
+    container = "monadic-chat-python-container"
+
+    filepath = File.join(data_dir, "#{filename}.#{extension}")
+
+    # create a temporary file inside the data directory
+    File.open(filepath, "w") do |f|
+      f.write(text)
+    end
+
+    docker_command = <<~DOCKER
+      docker cp #{filepath} #{container}:#{shared_volume}
+    DOCKER
+    _stdout, stderr, status = Open3.capture3(docker_command)
+    if status.success
+      "The file has been written successfully."
+    else
+      "Error occurred: #{stderr}"
+    end
+  rescue StandardError
+    "Error occurred: The code could not be executed."
   end
 
-
   def send_code(code:, command:, extension:)
-    begin
-      shared_volume = "/monadic/data/"
-      if IN_CONTAINER
-        data_dir = "/monadic/data/"
-      else
-        data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
-      end
-
-      container = "monadic-chat-python-container"
-
-      # create a temporary file inside the data directory
-      temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
-
-      temp_file.write(code)
-      temp_file.close
-      docker_command =<<~DOCKER
-        docker cp #{temp_file.path} #{container}:#{shared_volume}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      unless status.success?
-        return "Error occurred: #{stderr}"
-      end
-
-      local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
-
-      docker_command =<<~DOCKER
-        docker exec -w #{shared_volume} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
-      DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
-      if status.success?
-        local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
-        new_files = local_files2 - local_files1
-        if new_files.length > 0
-          new_files = new_files.map { |file| "/data/" + File.basename(file) }
-          output = "The code has been executed successfully; Files generated: #{new_files.join(', ')}"
-          output += "; Output: #{stdout}" if stdout.strip.length > 0
-        else
-          output = "The code has been executed successfully"
-          output += "; Output: #{stdout}" if stdout.strip.length > 0
-        end
-        output
-      else
-        "Error occurred: #{stderr}"
-      end
-    rescue StandardError => e
-      "Error occurred: The code could not be executed."
+    shared_volume = "/monadic/data/"
+    if IN_CONTAINER
+      data_dir = "/monadic/data/"
+    else
+      data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
     end
+
+    container = "monadic-chat-python-container"
+
+    # create a temporary file inside the data directory
+    temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
+
+    temp_file.write(code)
+    temp_file.close
+    docker_command = <<~DOCKER
+      docker cp #{temp_file.path} #{container}:#{shared_volume}
+    DOCKER
+    stdout, stderr, status = Open3.capture3(docker_command)
+    unless status.success?
+      return "Error occurred: #{stderr}"
+    end
+
+    local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+
+    docker_command = <<~DOCKER
+      docker exec -w #{shared_volume} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
+    DOCKER
+    stdout, stderr, status = Open3.capture3(docker_command)
+    if status.success?
+      local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+      new_files = local_files2 - local_files1
+      if !new_files.empty?
+        new_files = new_files.map { |file| "/data/" + File.basename(file) }
+        output = "The code has been executed successfully; Files generated: #{new_files.join(", ")}"
+        output += "; Output: #{stdout}" if stdout.strip.length.positive?
+      else
+        output = "The code has been executed successfully"
+        output += "; Output: #{stdout}" if stdout.strip.length.positive?
+      end
+      output
+    else
+      "Error occurred: #{stderr}"
+    end
+  rescue StandardError
+    "Error occurred: The code could not be executed."
   end
 
   def selenium_job(url: "")
@@ -297,7 +281,7 @@ class MonadicApp
         if IN_CONTAINER
           begin
             filename = File.join("/monadic/data/", File.basename(filename))
-          rescue
+          rescue StandardError
             filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
           end
         else
@@ -307,8 +291,8 @@ class MonadicApp
         sleep(5)
         begin
           contents = File.read(filename)
-        rescue StandardError => e
-          if retrials > 0
+        rescue StandardError
+          if retrials.positive?
             retrials -= 1
             sleep(5)
             retry
@@ -326,7 +310,7 @@ class MonadicApp
   ### API functions
 
   def run_code(code: "", command: "", extension: "")
-    return "Error: code, command, and extension are required." if !code || !command|| !extension
+    return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension)
   end
@@ -339,7 +323,7 @@ class MonadicApp
     code = code.gsub(/\\\\/) { "\\" }
 
     # return the error message unless all the arguments are provided
-    return "Error: code, command, and extension are required." if !code || !command|| !extension
+    return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension)
   end
@@ -369,7 +353,7 @@ class MonadicApp
     if IN_CONTAINER
       begin
         filepath = File.join("/monadic/data/", tempfile + ".json")
-      rescue
+      rescue StandardError
         filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
       end
     else
@@ -386,13 +370,13 @@ class MonadicApp
       end
     end
     results1 = if success
-                command = "bash -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
-                send_command(command: command,
-                             container: "python",
-                             success: "The cells have been added to the notebook successfully.\n")
-              else
-                false
-              end
+                 command = "bash -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
+                 send_command(command: command,
+                              container: "python",
+                              success: "The cells have been added to the notebook successfully.\n")
+               else
+                 false
+               end
     if results1
       results2 = run_jupyter_cells(filename: filename)
       results1 + "\n\n" + results2
@@ -408,7 +392,7 @@ class MonadicApp
                  success: "The notebook has been executed and updated with the results successfully.\n")
   end
 
-  def create_jupyter_notebook()
+  def create_jupyter_notebook
     command = "bash -c 'jupyter_controller.py create'"
     send_command(command: command, container: "python")
   end
@@ -459,7 +443,7 @@ class MonadicApp
   end
 
   def analyze_image(message: "", image_path: "")
-    messsage = message.gsub(/"/, '\"')
+    message = message.gsub(/"/, '\"')
     command = <<~CMD
       bash -c 'simple_image_query.rb "#{message}" "#{image_path}"'
     CMD
@@ -473,7 +457,7 @@ class MonadicApp
     send_command(command: command, container: "ruby")
   end
 
-  def text_to_speech(text: "", speed:1.0, voice: "alloy", language: "auto")
+  def text_to_speech(text: "", speed: 1.0, voice: "alloy", language: "auto")
     text = text.gsub(/"/, '\"')
 
     primary_save_path = "/monadic/data/"
@@ -493,7 +477,7 @@ class MonadicApp
     send_command(command: command, container: "ruby")
   end
 
-  def generate_image(prompt: "", size: "1024x1024", num_retrials: 10)
+  def generate_image(prompt: "", size: "1024x1024")
     command = <<~CMD
       bash -c 'simple_image_generation.rb -p "#{prompt}" -s "#{size}"'
     CMD
@@ -503,10 +487,10 @@ class MonadicApp
   def search_wikipedia(search_query: "", language_code: "en")
     number_of_results = 10
 
-    base_url = 'https://api.wikimedia.org/core/v1/wikipedia/'
-    endpoint = '/search/page'
+    base_url = "https://api.wikimedia.org/core/v1/wikipedia/"
+    endpoint = "/search/page"
     url = base_url + language_code + endpoint
-    parameters = {"q": search_query, "limit": number_of_results}
+    parameters = { "q": search_query, "limit": number_of_results }
 
     search_uri = URI(url)
     search_uri.query = URI.encode_www_form(parameters)
@@ -524,13 +508,13 @@ class MonadicApp
   def perform_request_with_retries(uri)
     retries = 2
     begin
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 5) do |http|
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 5) do |http|
         request = Net::HTTP::Get.new(uri)
         http.request(request)
       end
       response.body
     rescue Net::OpenTimeout
-      if retries > 0
+      if retries.positive?
         retries -= 1
         retry
       else
@@ -541,6 +525,7 @@ class MonadicApp
 
   def cosine_similarity(a, b)
     raise ArgumentError, "a and b must be of the same size" if a.size != b.size
+
     dot_product = a.zip(b).map { |x, y| x * y }.sum
     magnitude_a = Math.sqrt(a.map { |x| x**2 }.sum)
     magnitude_b = Math.sqrt(b.map { |x| x**2 }.sum)
@@ -555,19 +540,17 @@ class MonadicApp
   end
 
   def split_text(text)
-    begin
-      tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
-      segments = []
-      while tokenized.size < MAX_TOKENS_WIKI.to_i
-        segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
-        segments << MonadicApp::TOKENIZER.decode_tokens(segment)
-        tokenized = tokenized[MAX_TOKENS_WIKI.to_i..-1]
-      end
-      segments << self.flask_app_client.decode_tokens(tokenized)
-      segments
-    rescue StandardError => e
-      return [text]
+    tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
+    segments = []
+    while tokenized.size < MAX_TOKENS_WIKI.to_i
+      segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
+      segments << MonadicApp::TOKENIZER.decode_tokens(segment)
+      tokenized = tokenized[MAX_TOKENS_WIKI.to_i..]
     end
+    segments << flask_app_client.decode_tokens(tokenized)
+    segments
+  rescue StandardError
+    [text]
   end
 
   def get_embeddings(text, retries: 3)
@@ -598,8 +581,8 @@ class MonadicApp
 
     begin
       JSON.parse(response.body)["data"][0]["embedding"]
-    rescue StandardError => e
-      return nil
+    rescue StandardError
+      nil
     end
   end
 
@@ -610,13 +593,15 @@ class MonadicApp
     send_command(command: command, container: "python")
   end
 
-  def analyze_video(json:, audio: nil, query: "What is happening in the video?")
-    if json.nil? 
+  def analyze_video(json:, audio: nil, query: nil)
+    if json.nil?
       return "Error: JSON file is required for analyzing the video."
     end
 
+    query = query ? " \"#{query}\"" : ""
+
     video_command = <<~CMD
-      bash -c 'simple_video_query.rb "#{json}"'
+      bash -c 'simple_video_query.rb "#{json}#{query}"'
     CMD
     description = send_command(command: video_command, container: "ruby")
 
@@ -628,7 +613,7 @@ class MonadicApp
       description += "\n\n---\n\n"
       description += "Audio Transcript:\n#{audio_description}"
     end
-    
+
     description
   end
 
@@ -636,9 +621,9 @@ class MonadicApp
     text = <<~TEXT
       The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
 
-Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
+      Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
 
-Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics. 
+      Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics.
     TEXT
     text.strip
   end

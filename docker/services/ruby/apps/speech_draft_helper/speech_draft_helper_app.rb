@@ -1,5 +1,4 @@
 class SpeechDraftHelper < MonadicApp
-
   def icon
     "<i class='fas fa-user-tie'></i>"
   end
@@ -32,7 +31,7 @@ class SpeechDraftHelper < MonadicApp
       - `language`: Language of the speech in the format "en", "es", “ja”, etc. The default is 'auto'.
 
       If you have generated an MP3, present it using the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
-      TEXT
+    TEXT
 
     text.strip
   end

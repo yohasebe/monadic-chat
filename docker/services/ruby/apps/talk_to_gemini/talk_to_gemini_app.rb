@@ -31,7 +31,7 @@ class Gemini < MonadicApp
     return [] if api_key.nil?
 
     headers = {
-      "Content-Type" => "application/json",
+      "Content-Type" => "application/json"
     }
 
     target_uri = "#{API_ENDPOINT}/models?key=#{api_key}"
@@ -43,7 +43,7 @@ class Gemini < MonadicApp
       if res.status.success?
         model_data = JSON.parse(res.body)
         models = []
-        model_data.dig("models").each do |model|
+        model_data["models"].each do |model|
           name = model["name"].split("/").last
           display_name = model["displayName"]
           models << name if name && /Legacy/ !~ display_name
@@ -86,20 +86,17 @@ class Gemini < MonadicApp
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-    obj = session[:parameters]
     buffer = ""
     texts = []
     tool_calls = []
     finish_reason = nil
 
-    in_text_generation = false
-
     body.each do |chunk|
       buffer << chunk
-      if /(\{\s*\"candidates\":.*\})/m =~ buffer.strip
-        json = $1
+      if /(\{\s*"candidates":.*\})/m =~ buffer.strip
+        json = Regexp.last_match(1)
         begin
-          candidates = JSON.parse(json).dig("candidates")
+          candidates = JSON.parse(json)["candidates"]
           candidate = candidates.first
 
           finish_reason = candidate["finishReason"]
@@ -112,18 +109,13 @@ class Gemini < MonadicApp
             finish_reason = "safety"
           end
 
-          content = candidate.dig("content")
+          content = candidate["content"]
           next if content.nil?
 
-          content.dig("parts")&.each do |part|
+          content["parts"]&.each do |part|
             if part["text"]
               fragment = part["text"]
               texts << fragment
-              # fragment.split(//).each do |char|
-              #   res = { "type" => "fragment", "content" => char }
-              #   block&.call res
-              #   sleep 0.01
-              # end
 
               res = {
                 "type" => "fragment",
@@ -162,24 +154,24 @@ class Gemini < MonadicApp
       if result && new_results
         begin
           result = result.join("").strip + "\n\n" + new_results.dig(0, "choices", 0, "message", "content").strip
-        rescue
-          result = result.join("").strip + "\n\n"+ new_results.to_s.strip
+        rescue StandardError
+          result = result.join("").strip + "\n\n" + new_results.to_s.strip
         end
-        [{"choices" => [{"message" => {"content" => result}}]}]
+        [{ "choices" => [{ "message" => { "content" => result } }] }]
       elsif new_results
         new_results
       elsif result
-        [{"choices" => [{"message" => {"content" => result.join("")}}]}]
+        [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
       end
     elsif result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => {"content" => result.join("")}
+              "message" => { "content" => result.join("") }
             }
           ]
         }
@@ -187,15 +179,15 @@ class Gemini < MonadicApp
     end
   end
 
-  def process_functions(app, session, tool_calls, call_depth, &block)
+  def process_functions(_app, session, tool_calls, call_depth, &block)
     obj = session[:parameters]
-    tool_results = {"model_parts" => [], "function_parts" => []}
+    tool_results = { "model_parts" => [], "function_parts" => [] }
     tool_calls.each do |tool_call|
       function_name = tool_call["name"]
 
       begin
         argument_hash = tool_call["args"]
-      rescue
+      rescue StandardError
         argument_hash = {}
       end
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
@@ -259,12 +251,9 @@ class Gemini < MonadicApp
     obj = session[:parameters]
     app = obj["app_name"]
 
-    # Get the parameters from the session
-    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
-
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+    temperature = obj["temperature"]&.to_f
+    max_tokens = obj["max_tokens"]&.to_i
+    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -286,8 +275,7 @@ class Gemini < MonadicApp
                   "text" => obj["message"],
                   "html" => html,
                   "lang" => detect_language(obj["message"])
-                }
-        }
+                } }
         res["images"] = obj["images"] if obj["images"]
         block&.call res
       end
@@ -299,8 +287,7 @@ class Gemini < MonadicApp
                 "text" => message,
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
-                "active" => true,
-        }
+                "active" => true }
         if obj["images"]
           res["images"] = obj["images"]
         end
@@ -311,7 +298,7 @@ class Gemini < MonadicApp
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     if session[:messages].empty?
-      session[:messages] << { "role" => "user", "text" => "Hi, there!"}
+      session[:messages] << { "role" => "user", "text" => "Hi, there!" }
     end
     session[:messages].each { |msg| msg["active"] = false }
     context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
@@ -386,7 +373,7 @@ class Gemini < MonadicApp
       }
     end
 
-    target_uri = "#{API_ENDPOINT}/models/#{obj['model']}:streamGenerateContent?key=#{api_key}"
+    target_uri = "#{API_ENDPOINT}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
 
     http = HTTP.headers(headers)
 
@@ -410,8 +397,7 @@ class Gemini < MonadicApp
       return [res]
     end
 
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -432,4 +418,3 @@ class Gemini < MonadicApp
     [res]
   end
 end
-

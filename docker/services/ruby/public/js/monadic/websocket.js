@@ -101,6 +101,7 @@ function stopPing() {
 
 const chatBottom = $("#chat-bottom").get(0);
 let autoScroll = true;
+ /* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
 const defaultApp = "Chat";
@@ -438,18 +439,22 @@ function connect_websocket(callback) {
   ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data["type"]) {
-      case "wait":
+      case "wait": {
         callingFunction = true;
         setAlert(data["content"], "warning");
         break;
-      case "audio":
+      }
+      case "audio": {
         const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
         audioDataQueue.push(audioData);
         processAudioDataQueue();
-      case "pong":
+        break;
+      }
+      case "pong": {
         // console.log("Received PONG");
         break;
-      case "error":
+      }
+      case "error": {
         $("#send, #clear, #voice").prop("disabled", false);
         $("#chat").html("");
         $("#alert-message").html("Input a message.");
@@ -471,7 +476,8 @@ function connect_websocket(callback) {
         setInputFocus()
 
         break;
-      case "token_verified":
+      }
+      case "token_verified": {
         $("#api-token").val(data["token"]);
 
         model_options = data['models'].map(
@@ -496,7 +502,8 @@ function connect_websocket(callback) {
         });
 
         break;
-      case "token_not_verified":
+      }
+      case "token_not_verified": {
         // console.log("Token not verified");
         $("#api-token").val("");
 
@@ -507,7 +514,8 @@ function connect_websocket(callback) {
         setAlert(message, "warning");
 
         break;
-      case "apps":
+      }
+      case "apps": {
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);
@@ -528,7 +536,8 @@ function connect_websocket(callback) {
         originalParams = apps["Chat"];
         resetParams();
         break;
-      case "parameters":
+      }
+      case "parameters": {
         loadedApp = data["content"]["app_name"];
         setAlert("Please wait . . .", "secondary");
         loadParams(data["content"], "loadParams");
@@ -546,7 +555,8 @@ function connect_websocket(callback) {
         $("#base-app-desc").html(currentApp["description"]);
         $("#start").focus();
         break;
-      case "whisper":
+      }
+      case "whisper": {
         $("#message").val($("#message").val() + " " + data["content"]);
         let logprob = "Last ASR p-value: " + data["logprob"];
         $("#asr-p-value").text(logprob);
@@ -557,13 +567,15 @@ function connect_websocket(callback) {
         setAlert("<i class='fa-solid fa-check'></i> Voice recognition finished", "secondary");
         setInputFocus()
         break;
-      case "info":
+      }
+      case "info": {
         infoHtml = formatInfo(data["content"]);
         if (infoHtml !== "") {
           setAlert(infoHtml, "info");
         }
         break;
-      case "pdf_titles":
+      }
+      case "pdf_titles": {
         const pdf_table = "<div class='like-h6'><i class='fas fa-file-pdf'></i> Uploaded PDF</div>" +
           "<table class='table mt-1 mb-3'><tbody>" +
           data["content"].map((title, index) => {
@@ -584,7 +596,8 @@ function connect_websocket(callback) {
           });
         })
         break
-      case "pdf_deleted":
+      }
+      case "pdf_deleted": {
         if(data["res"] === "success") {
           setAlert(data["content"], "info");
         } else {
@@ -592,7 +605,8 @@ function connect_websocket(callback) {
         }
         ws.send(JSON.stringify({"message": "PDF_TITLES"}));
         break;
-      case "change_status":
+      }
+      case "change_status": {
         // change the status of each of the cards according to the data content
         // if the active status of the card is changed, add or remove "active" class from the child span containing "status" class
         data["content"].forEach((msg) => {
@@ -606,12 +620,13 @@ function connect_websocket(callback) {
           }
         });
         break;
-      case "past_messages":
+      }
+      case "past_messages": {
         messages.length = 0;
         data["content"].forEach((msg) => {
           messages.push(msg);
           switch (msg["role"]) {
-            case "user":
+            case "user": {
               let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")
               let images
               if(msg["images"] !== undefined){
@@ -622,7 +637,8 @@ function connect_websocket(callback) {
               const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], images);
               $("#discourse").append(userElement);
               break;
-            case "assistant":
+            }
+            case "assistant": {
               const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
 
@@ -651,10 +667,12 @@ function connect_websocket(callback) {
               setCopyCodeButton(gptElement);
 
               break;
-            case "system":
+            }
+            case "system": {
               const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(systemElement);
               break;
+            }
           }
         });
         setAlert(formatInfo(data["content"]), "info");
@@ -666,7 +684,8 @@ function connect_websocket(callback) {
         }
 
         break;
-      case "message":
+      }
+      case "message": {
         if (data["content"] === "DONE") {
           ws.send(JSON.stringify({"message": "HTML"}));
         } else if (data["content"] === "CLEAR") {
@@ -675,14 +694,16 @@ function connect_websocket(callback) {
           $("#indicator").show();
         }
         break;
-      case "ai_user":
+      }
+      case "ai_user": {
         $("#message").val($("#message").val() + data["content"]);
         autoResize($("#message"));
         if (autoScroll && !isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
         break
-      case "ai_user_finished":
+      }
+      case "ai_user_finished": {
         $("#message").attr("placeholder", "Type your message . . .");
         $("#message").prop("disabled", false);
         autoResize($("#message"));
@@ -695,7 +716,8 @@ function connect_websocket(callback) {
 
         setInputFocus();
         break;
-      case "html":
+      }
+      case "html": {
         responseStarted = false;
         callingFunction = false;
         messages.push(data["content"]);
@@ -771,7 +793,8 @@ function connect_websocket(callback) {
         setInputFocus();
 
         break;
-      case "user":
+      }
+      case "user": {
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
         if(data["images"] !== undefined) {
           message_obj.images = data["images"];
@@ -790,7 +813,8 @@ function connect_websocket(callback) {
         $("#user-panel").hide();
         $("#cancel_query").css("opacity", "1");
         break;
-      case "cancel":
+      }
+      case "cancel": {
         $("#message").val("");
         $("#message").attr("placeholder", "Type your message...");
         $("#message").prop("disabled", false);
@@ -798,7 +822,8 @@ function connect_websocket(callback) {
         $("#cancel_query").css("opacity", "0.0");
         setInputFocus();
         break;
-      default:
+      }
+      default: {
         if(!responseStarted || callingFunction) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
           callingFunction = false;
@@ -811,6 +836,7 @@ function connect_websocket(callback) {
         if (autoScroll && !isElementInViewport(chatBottom)) {
           chatBottom.scrollIntoView(false);
         }
+      }
     }
   }
 

@@ -40,7 +40,7 @@ class CodeWithClaude < MonadicApp
       If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it.
 
       If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose. When there are multiple image file types available, SVG is preferred.
-     
+
       The code contained your function calling command is not directly shown to the user, so please make sure you include the same code to the regular text response inside a markdown code block.
 
       ### Error Handling:
@@ -50,7 +50,7 @@ class CodeWithClaude < MonadicApp
       ### Request/Response Example 1:
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
       - Remember to add `/data/` before the file name to display the image.
 
       User Request:
@@ -83,7 +83,7 @@ class CodeWithClaude < MonadicApp
       ### Request/Response Example 2:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the output text below the code in a Markdown code block.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
 
       User Request:
 
@@ -125,7 +125,7 @@ class CodeWithClaude < MonadicApp
       ### Request/Response Example 3:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
 
       User Request:
 
@@ -309,6 +309,7 @@ class CodeWithClaude < MonadicApp
   end
 
   attr_accessor :thinking
+
   def initialize
     @leftover = []
     @thinking = []
@@ -332,20 +333,17 @@ class CodeWithClaude < MonadicApp
     }
 
     replacements.each do |old, new|
-      result = result.gsub(/#{old}\n?/m){ new }
+      result = result.gsub(/#{old}\n?/m) { new }
     end
 
     result
   end
 
   def get_thinking_text(result)
-    @thinking += result.scan(/<thinking>.*?<\/thinking>/m) if result
+    @thinking += result.scan(%r{<thinking>.*?</thinking>}m) if result
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-
-    obj = session[:parameters]
-
     buffer = ""
     texts = []
     tool_calls = []
@@ -367,7 +365,7 @@ class CodeWithClaude < MonadicApp
             begin
               json = JSON.parse(json_data)
 
-              new_content_type = json.dig('content_block', 'type')
+              new_content_type = json.dig("content_block", "type")
               if new_content_type == "tool_use"
                 json["content_block"]["input"] = ""
                 tool_calls << json["content_block"]
@@ -375,14 +373,15 @@ class CodeWithClaude < MonadicApp
               content_type = new_content_type if new_content_type
 
               if content_type == "tool_use"
-                if json.dig('delta', 'partial_json')
-                  fragment = json.dig('delta', 'partial_json').to_s
+                if json.dig("delta", "partial_json")
+                  fragment = json.dig("delta", "partial_json").to_s
                   next if !fragment || fragment == ""
+
                   tool_calls.last["input"] << fragment
                 end
 
-                if json.dig('delta', 'stop_reason')
-                  stop_reason = json.dig('delta', 'stop_reason')
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
                   when "tool_use"
                     finish_reason = "tool_use"
@@ -391,16 +390,11 @@ class CodeWithClaude < MonadicApp
                   end
                 end
               else
-                if json.dig('delta', 'text')
-                  fragment = json.dig('delta', 'text').to_s
+                if json.dig("delta", "text")
+                  fragment = json.dig("delta", "text").to_s
                   next if !fragment || fragment == ""
-                  texts << fragment
 
-                  # fragment.split(//).each do |char|
-                  #   res = { "type" => "fragment", "content" => char }
-                  #   block&.call res
-                  #   sleep 0.01
-                  # end
+                  texts << fragment
 
                   res = {
                     "type" => "fragment",
@@ -409,8 +403,8 @@ class CodeWithClaude < MonadicApp
                   block&.call res
                 end
 
-                if json.dig('delta', 'stop_reason')
-                  stop_reason = json.dig('delta', 'stop_reason')
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
                   when "max_tokens"
                     finish_reason = "length"
@@ -419,7 +413,6 @@ class CodeWithClaude < MonadicApp
                   end
                 end
               end
-
             rescue JSON::ParserError
               # if the JSON parsing fails, the next chunk should be appended to the buffer
               # and the loop should continue to the next iteration
@@ -443,7 +436,6 @@ class CodeWithClaude < MonadicApp
                texts.join("")
              end
 
-
     if tool_calls.any?
       get_thinking_text(result)
 
@@ -459,10 +451,12 @@ class CodeWithClaude < MonadicApp
         "content" => []
       }
 
-      context.last["content"] << {
-        "type" => "text",
-        "text" => result
-      } if result
+      if result
+        context.last["content"] << {
+          "type" => "text",
+          "text" => result
+        }
+      end
 
       tool_calls.each do |tool_call|
         begin
@@ -488,23 +482,23 @@ class CodeWithClaude < MonadicApp
       when /opus/
         result = add_replacements(result)
         result = add_replacements(@thinking.join("\n")) + result
-        result = result.gsub(/<thinking>.*?<\/thinking>/m, "")
+        result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
       when /sonnet/
-        if !@leftover.empty?
+        unless @leftover.empty?
           leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
           result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
         end
       end
       @leftover.clear
 
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => {"content" => result}
+              "message" => { "content" => result }
             }
           ]
         }
@@ -532,9 +526,9 @@ class CodeWithClaude < MonadicApp
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
-    temperature = obj["temperature"] ? obj["temperature"].to_f : nil
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
-    top_p = obj["top_p"] ? obj["top_p"].to_f : nil
+    temperature = obj["temperature"]&.to_f
+    max_tokens = obj["max_tokens"]&.to_i
+    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -544,9 +538,6 @@ class CodeWithClaude < MonadicApp
     # If the app is monadic, the message is passed through the monadic_map function
     if obj["monadic"].to_s == "true" && message != ""
       message = monadic_unit(message) if message != ""
-      html = markdown_to_html(obj["message"]) if message != ""
-    elsif message != ""
-      html = markdown_to_html(message)
     end
 
     if message != "" && role == "user"
@@ -558,9 +549,8 @@ class CodeWithClaude < MonadicApp
                 "text" => obj["message"],
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(obj["message"]),
-                "active" => true,
-              }
-      }
+                "active" => true
+              } }
       res["images"] = obj["images"] if obj["images"]
       block&.call res
       session[:messages] << res["content"]
@@ -571,7 +561,7 @@ class CodeWithClaude < MonadicApp
     begin
       session[:messages].each { |msg| msg["active"] = false }
       context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
-    rescue
+    rescue StandardError
       context = []
     end
 
@@ -587,7 +577,7 @@ class CodeWithClaude < MonadicApp
       "system" => initial_prompt,
       "model" => obj["model"],
       "stream" => true,
-      "tool_choice" => {"type": "auto"}
+      "tool_choice" => { "type": "auto" }
     }
 
     body["temperature"] = temperature if temperature
@@ -603,7 +593,7 @@ class CodeWithClaude < MonadicApp
 
     # The context is added to the body
     messages = context.compact.map do |msg|
-      { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
+      { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
     end
 
     if messages.last["role"] == "user" && obj["images"]
@@ -690,8 +680,7 @@ class CodeWithClaude < MonadicApp
       return [res]
     end
 
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -720,7 +709,7 @@ class CodeWithClaude < MonadicApp
 
       begin
         argument_hash = tool_call["input"]
-      rescue
+      rescue StandardError
         argument_hash = {}
       end
 
@@ -729,16 +718,16 @@ class CodeWithClaude < MonadicApp
         memo
       end
 
-      tool_return = APPS[app].send(tool_name.to_sym, **argument_hash) 
+      tool_return = APPS[app].send(tool_name.to_sym, **argument_hash)
 
-      if !tool_return
+      unless tool_return
         return [{ "type" => "error", "content" => "ERROR: Tool '#{tool_name}' failed" }]
       end
 
       content << {
         type: "tool_result",
         tool_use_id: tool_call["id"],
-        content: tool_return.to_s 
+        content: tool_return.to_s
       }
     end
 

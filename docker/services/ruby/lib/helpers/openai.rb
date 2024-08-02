@@ -12,6 +12,7 @@ module OpenAIHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
+  retries = 0
   if IN_CONTAINER
     ENV_PATH = "/monadic/data/.env"
     SCRIPTS_PATH = "/monadic/data/scripts"
@@ -25,8 +26,8 @@ module OpenAIHelper
   unless File.exist?(File.dirname(ENV_PATH))
     FileUtils.mkdir_p(File.dirname(ENV_PATH))
 
-    while true do
-      if !File.exist?(File.dirname(ENV_PATH)) && MAX_RETRIES <= 0
+    loop do
+      if !File.exist?(File.dirname(ENV_PATH)) && retries <= MAX_RETRIES
         raise "ERROR: Could not create directory #{File.dirname(ENV_PATH)}"
       end
 
@@ -35,14 +36,14 @@ module OpenAIHelper
         break
       end
       sleep RETRY_DELAY
-      max_retries -= 1
+      retries -= 1
     end
   end
 
   FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH)
   FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH)
 
-  def set_api_key(api_key)
+  def check_api_key(api_key)
     if api_key
       api_key = api_key.strip
       settings.api_key = api_key
@@ -116,8 +117,7 @@ module OpenAIHelper
       finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
       block&.call finish
     else
-      results = { "type" => "audio", "content" => Base64.strict_encode64(res) }
-      return results
+      { "type" => "audio", "content" => Base64.strict_encode64(res) }
     end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
@@ -182,11 +182,6 @@ module OpenAIHelper
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-
-    # res = { "type" => "error", "content" => "ERROR TEST" }
-    # block&.call res
-    # return
-
     obj = session[:parameters]
 
     buffer = ""
@@ -195,13 +190,13 @@ module OpenAIHelper
     finish_reason = nil
 
     body.each do |chunk|
-
-     if buffer.valid_encoding? == false
-       buffer << chunk
-       next 
-     end
+      if buffer.valid_encoding? == false
+        buffer << chunk
+        next
+      end
 
       break if /\Rdata: [DONE]\R/ =~ buffer
+
       buffer << chunk
 
       scanner = StringScanner.new(buffer)
@@ -213,7 +208,7 @@ module OpenAIHelper
           begin
             json = JSON.parse(json_data)
 
-            finish_reason = json.dig('choices', 0, 'finish_reason')
+            finish_reason = json.dig("choices", 0, "finish_reason")
             case finish_reason
             when "length"
               finish_reason = "length"
@@ -224,45 +219,46 @@ module OpenAIHelper
             end
 
             # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
-            if json.dig('choices', 0, 'delta', 'content')
-              # Merge text fragments based on 'id'
-              id = json['id']
+            if json.dig("choices", 0, "delta", "content")
+              # Merge text fragments based on "id"
+              id = json["id"]
               texts[id] ||= json
-              choice = texts[id]['choices'][0]
-              choice['message'] ||= choice['delta'].dup
+              choice = texts[id]["choices"][0]
+              choice["message"] ||= choice["delta"].dup
               choice["message"]["content"] ||= ""
-              fragment = json.dig('choices', 0, 'delta', 'content').to_s
+              fragment = json.dig("choices", 0, "delta", "content").to_s
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment
-                }
-                block&.call res
 
-              texts[id]['choices'][0].delete('delta')
+              res = {
+                "type" => "fragment",
+                "content" => fragment
+              }
+              block&.call res
+
+              texts[id]["choices"][0].delete("delta")
             end
 
-            if json.dig('choices', 0, 'delta', 'tool_calls')
+            if json.dig("choices", 0, "delta", "tool_calls")
 
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
               block&.call res
 
               # Merge tool calls based on 'id'
-              id = json['id']
+              id = json["id"]
               tools[id] ||= json
-              choice = tools[id]['choices'][0]
-              choice['message'] ||= choice['delta'].dup
+              choice = tools[id]["choices"][0]
+              choice["message"] ||= choice["delta"].dup
 
-              json.dig('choices', 0, 'delta', 'tool_calls').each do |new_tool_call|
-                existing_tool_call = choice['message']['tool_calls'].find { |tc| tc['t_index'] == new_tool_call['t_index'] }
+              json.dig("choices", 0, "delta", "tool_calls").each do |new_tool_call|
+                existing_tool_call = choice["message"]["tool_calls"].find { |tc| tc["t_index"] == new_tool_call["t_index"] }
                 if existing_tool_call
-                  existing_tool_call['function']['arguments'] += new_tool_call.dig('function', 'arguments').to_s
+                  existing_tool_call["function"]["arguments"] += new_tool_call.dig("function", "arguments").to_s
                 else
-                  choice['message']['tool_calls'] << new_tool_call
+                  choice["message"]["tool_calls"] << new_tool_call
                 end
               end
-              tools[id]['choices'][0].delete('delta')
+              tools[id]["choices"][0].delete("delta")
 
               if choice["finish_reason"] == "function_call"
                 break
@@ -324,7 +320,7 @@ module OpenAIHelper
         [result]
       end
     elsif result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
@@ -343,7 +339,7 @@ module OpenAIHelper
 
       begin
         argument_hash = JSON.parse(function_call["arguments"])
-      rescue
+      rescue JSON::ParserError
         argument_hash = {}
       end
 
@@ -386,7 +382,7 @@ module OpenAIHelper
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
+    max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f
     presence_penalty = obj["presence_penalty"].to_f
@@ -413,8 +409,7 @@ module OpenAIHelper
                   "text" => obj["message"],
                   "html" => html,
                   "lang" => detect_language(obj["message"])
-                }
-        }
+                } }
         res["images"] = obj["images"] if obj["images"]
         block&.call res
       end
@@ -441,8 +436,7 @@ module OpenAIHelper
                 "text" => message,
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
-                "active" => true,
-        }
+                "active" => true }
         if obj["images"]
           res["images"] = obj["images"]
         end
@@ -452,11 +446,12 @@ module OpenAIHelper
 
     # the initial prompt is set to the first message in the session
     # if the initial prompt is not empty
-    initial = { "role" => "system",
-                "text" => initial_prompt,
-                "html" => initial_prompt,
-                "lang" => detect_language(initial_prompt)
-    } if initial_prompt != ""
+    if initial_prompt != ""
+      initial = { "role" => "system",
+                  "text" => initial_prompt,
+                  "html" => initial_prompt,
+                  "lang" => detect_language(initial_prompt) }
+    end
 
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
@@ -491,7 +486,7 @@ module OpenAIHelper
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings[:tools]
 
-      unless body["tools"] and body["tools"].any?
+      unless body["tools"]&.any?
         body.delete("tools")
         body.delete("tool_choice")
       end
@@ -500,7 +495,7 @@ module OpenAIHelper
     # The context is added to the body
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => [ {"type" => "text", "text" => msg["text"]} ] }
+      message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
       if msg["images"] && role == "user"
         msg["images"].each do |img|
           message["content"] << {
@@ -547,14 +542,14 @@ module OpenAIHelper
     http = HTTP.headers(headers)
 
     body["messages"].each do |msg|
-      if msg["tool_calls"] || msg[:tool_call]
-        if !msg["role"] && !msg[:role]
-          msg["role"] = "assistant"
-        end
-        tool_calls = msg["tool_calls"] || msg[:tool_call]
-        tool_calls.each do |tool_call|
-          tool_call.delete("index")
-        end
+      next unless msg["tool_calls"] || msg[:tool_call]
+
+      if !msg["role"] && !msg[:role]
+        msg["role"] = "assistant"
+      end
+      tool_calls = msg["tool_calls"] || msg[:tool_call]
+      tool_calls.each do |tool_call|
+        tool_call.delete("index")
       end
     end
 
@@ -579,8 +574,7 @@ module OpenAIHelper
     end
 
     # return Array
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

@@ -9,7 +9,7 @@ class VideoDescriber < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a video describer. You can analyze video content and describe its content. 
+      You are a video describer. You can analyze video content and describe its content.
 
       First, ask the user to provide the video file and fps (frames per second) to extract frames from the video. Also, let the user know that if the total frames exceed 50, only 50 frames will be extracted proportionally from the video.
 

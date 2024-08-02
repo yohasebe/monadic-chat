@@ -30,7 +30,7 @@ class CodeInterpreter < MonadicApp
       If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it.
 
       If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
-      
+
       ### Error Handling:
 
       - In case of errors or exceptions during code execution, display the error message to the user. This will help in troubleshooting and improving the code.
@@ -38,7 +38,7 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 1:
 
       - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
       - Remember to add `/data/` before the file name to display the image.
 
       User Request:
@@ -71,7 +71,7 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 2:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the output text below the code in a Markdown code block.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
 
       User Request:
 
@@ -113,7 +113,7 @@ class CodeInterpreter < MonadicApp
       ### Request/Response Example 3:
 
       - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link.
-      - Remember to check if the image file or URL really exists before returning the response. 
+      - Remember to check if the image file or URL really exists before returning the response.
 
       User Request:
 

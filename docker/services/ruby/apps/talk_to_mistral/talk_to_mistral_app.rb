@@ -43,16 +43,16 @@ class TalkToMistral < MonadicApp
 
       if res.status.success?
         model_data = JSON.parse(res.body)
-        return model_data.dig("data").sort_by do
-          |model| model["created"]
-        end.reverse.map do
-          |model| model["id"]
+        model_data["data"].sort_by do |model|
+          model["created"]
+        end.reverse.map do |model|
+          model["id"]
         end.filter do |model|
           !model.include?("embed")
         end
       end
     rescue HTTP::Error, HTTP::TimeoutError
-      return []
+      []
     end
   end
 
@@ -64,9 +64,9 @@ class TalkToMistral < MonadicApp
     text.strip
   end
 
-  def prompt_suffix =<<~SUFFIX
-     Use the same language as the user and insert an ascii emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses.
-  SUFFIX
+  def prompt_suffix
+    "Use the same language as the user and insert an ascii emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses."
+  end
 
   def settings
     {
@@ -104,7 +104,7 @@ class TalkToMistral < MonadicApp
       begin
         if buffer.valid_encoding? == false
           buffer << chunk
-          next 
+          next
         end
 
         buffer << chunk
@@ -118,7 +118,7 @@ class TalkToMistral < MonadicApp
 
           json = JSON.parse(data_content[1])
 
-          finish_reason = json.dig('choices', 0, 'finish_reason')
+          finish_reason = json.dig("choices", 0, "finish_reason")
           case finish_reason
           when "length"
             finish_reason = "length"
@@ -128,14 +128,14 @@ class TalkToMistral < MonadicApp
             finish_reason = nil
           end
 
-          if json.dig('choices', 0, 'delta', 'content')
-            id = json['id']
+          if json.dig("choices", 0, "delta", "content")
+            id = json["id"]
             texts[id] ||= json
-            choice = texts[id]['choices'][0]
-            choice['message'] ||= choice['delta'].dup
+            choice = texts[id]["choices"][0]
+            choice["message"] ||= choice["delta"].dup
             choice["message"]["content"] ||= ""
 
-            fragment = json.dig('choices', 0, 'delta', 'content').to_s
+            fragment = json.dig("choices", 0, "delta", "content").to_s
             choice["message"]["content"] << fragment
 
             res = {
@@ -144,23 +144,26 @@ class TalkToMistral < MonadicApp
             }
             block&.call res
 
-            texts[id]['choices'][0].delete('delta')
+            texts[id]["choices"][0].delete("delta")
           end
 
-          if json.dig('choices', 0, 'delta', 'tool_calls')
+          if json.dig("choices", 0, "delta", "tool_calls")
             res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
             block&.call res
 
-            id = json['id']
+            id = json["id"]
             tools[id] ||= json
-            choice = tools[id]['choices'][0]
-            choice['message'] ||= choice['delta'].dup
+            choice = tools[id]["choices"][0]
+            choice["message"] ||= choice["delta"].dup
 
             if choice["finish_reason"] == "function_call"
               break
             end
           end
-        rescue JSON::ParserError
+        rescue JSON::ParserError => e
+          pp e.message
+          pp e.backtrace
+          pp e.inspect
         end
         buffer = ""
       end
@@ -200,15 +203,13 @@ class TalkToMistral < MonadicApp
 
       new_results = process_functions(app, session, tools, context, call_depth, &block)
 
-      if result && new_results
-        [result].concat new_results
-      elsif new_results
+      if new_results
         new_results
       elsif result
         [result]
       end
     elsif result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason}
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
@@ -228,7 +229,7 @@ class TalkToMistral < MonadicApp
       begin
         escaped = function_call["arguments"]
         argument_hash = JSON.parse(escaped)
-      rescue
+      rescue JSON::ParserError
         argument_hash = {}
       end
 
@@ -261,9 +262,9 @@ class TalkToMistral < MonadicApp
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
-    session[:messages].delete_if {
-      |msg| msg["role"] == "assistant" && msg["content"].to_s == ""
-    }
+    session[:messages].delete_if do |msg|
+      msg["role"] == "assistant" && msg["content"].to_s == ""
+    end
 
     begin
       api_key = CONFIG["MISTRAL_API_KEY"]
@@ -279,7 +280,7 @@ class TalkToMistral < MonadicApp
     app = obj["app_name"]
 
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
-    max_tokens = obj["max_tokens"] ? obj["max_tokens"].to_i : nil
+    max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f
     top_p = 0.01 if top_p == 0.0
@@ -304,8 +305,7 @@ class TalkToMistral < MonadicApp
                   "text" => obj["message"],
                   "html" => html,
                   "lang" => detect_language(obj["message"])
-                }
-        }
+                } }
         res["image"] = obj["image"] if obj["image"]
         block&.call res
       end
@@ -316,8 +316,7 @@ class TalkToMistral < MonadicApp
                 "text" => message,
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
-                "active" => true,
-        }
+                "active" => true }
         if obj["image"]
           res["image"] = obj["image"]
         end
@@ -325,11 +324,12 @@ class TalkToMistral < MonadicApp
       end
     end
 
-    initial = { "role" => "system",
-                "text" => initial_prompt,
-                "html" => initial_prompt,
-                "lang" => detect_language(initial_prompt)
-    } if initial_prompt != ""
+    if initial_prompt != ""
+      initial = { "role" => "system",
+                  "text" => initial_prompt,
+                  "html" => initial_prompt,
+                  "lang" => detect_language(initial_prompt) }
+    end
 
     session[:messages].each { |msg| msg["active"] = false }
     latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
@@ -350,12 +350,12 @@ class TalkToMistral < MonadicApp
     }
 
     if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = settings[:tools] ? settings[:tools] : []
+      body["tools"] = settings[:tools] || []
     end
 
     body["max_tokens"] = max_tokens if max_tokens
 
-    if (obj["monadic"] || obj["json"])
+    if obj["monadic"] || obj["json"]
       body["response_format"] = { "type" => "json_object" }
     end
 
@@ -379,8 +379,6 @@ class TalkToMistral < MonadicApp
     elsif role == "user"
       body["messages"].last["content"] += "\n\n" + settings[:prompt_suffix] if settings[:prompt_suffix]
     end
-
-    last_text = context.last["text"]
 
     if messages_containing_img
       body["model"] = "gpt-4o-mini"
@@ -411,8 +409,7 @@ class TalkToMistral < MonadicApp
       return [res]
     end
 
-    return process_json_data(app, session, res.body, call_depth, &block)
-
+    process_json_data(app, session, res.body, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -433,5 +430,3 @@ class TalkToMistral < MonadicApp
     [res]
   end
 end
-
-

@@ -1,7 +1,8 @@
 ### Change Log
 
-  - [aug, 2024] 0.8.1
-      - Code cleanup
+  - [Aug, 2024] 0.8.1
+      - Better container management
+      - Faster startup/qutting
   - [Jul, 2024]
       - Mistral AI (Chat and Code Interpreter) app added
       - Multiple images can be uploaded for image recognition

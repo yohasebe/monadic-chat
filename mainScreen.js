@@ -66,7 +66,7 @@ window.electron.updateControls(({ status, disableControls }) => {
     startButton.disabled = status !== 'Stopped';
     stopButton.disabled = status !== 'Running';
     restartButton.disabled = status !== 'Running';
-    browserButton.disabled = status !== 'Running' && status !== 'BrowserReady';
+    browserButton.disabled = status !== 'Running' && status !== 'Ready';
     folderButton.disabled = status !== 'Running';
   }
 });

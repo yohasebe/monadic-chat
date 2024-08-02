@@ -575,7 +575,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
                 menuItems[8].enabled = true;
                 contextMenu = Menu.buildFromTemplate(menuItems);
                 tray.setContextMenu(contextMenu);
-                updateStatusIndicator("BrowserReady");
+                updateStatusIndicator("Ready");
                 writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
                 // Send the message to the renderer process immediately
                 mainWindow.webContents.send('serverReady');
@@ -844,7 +844,7 @@ function updateApplicationMenu() {
             openMainWindow();
             openBrowser('http://localhost:4567');
           },
-          enabled: currentStatus === 'Running' || currentStatus === 'BrowserReady'
+          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
         {
           label: 'Open Shared Folder',

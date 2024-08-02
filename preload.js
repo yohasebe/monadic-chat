@@ -44,6 +44,14 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
     document.getElementById('restart').disabled = true;
     document.getElementById('browser').disabled = true;
   } else if (status === 'Running') {
+    statusElement.textContent = "Preparing . . .";
+    document.getElementById('folder').disabled = false;
+    document.getElementById('start').disabled = true;
+    document.getElementById('stop').disabled = true;
+    document.getElementById('restart').disabled = true;
+    document.getElementById('browser').disabled = true;
+  } else if (status === 'Ready') {
+    statusElement.textContent = "Ready";
     statusElement.classList.remove('inactive');
     statusElement.classList.add('active');
     document.getElementById('folder').disabled = false;
@@ -51,9 +59,6 @@ ipcRenderer.on('updateStatusIndicator', (_event, status) => {
     document.getElementById('stop').disabled = false;
     document.getElementById('restart').disabled = false;
     document.getElementById('browser').disabled = false;
-  } else if (status === 'BrowserReady') {
-    document.getElementById('browser').disabled = false;
-    statusElement.textContent = "Ready";
   } else if (status === 'Stopping') {
     statusElement.classList.remove('active');
     statusElement.classList.add('inactive');

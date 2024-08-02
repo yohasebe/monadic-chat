@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'http'
+require "http"
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 10
@@ -9,8 +9,7 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
-def tts_api_request(text, response_format = "mp3", speed = "1.0", voice = "alloy", language = "auto")
-
+def tts_api_request(text, response_format: "mp3", speed: "1.0", voice: "alloy", language: "auto")
   num_retrial = 0
 
   begin
@@ -81,7 +80,11 @@ if text.nil? || text.empty?
 end
 
 begin
-  response = tts_api_request(text, response_format, speed, voice, language)
+  response = tts_api_request(text,
+                             response_format: response_format,
+                             speed: speed,
+                             voice: voice,
+                             language: language)
 
   if response.is_a?(Hash) && response["type"] == "error"
     puts response["content"]
@@ -104,7 +107,7 @@ begin
 
   File.write(outfile, response)
   puts "Text-to-speech audio MP3 saved to #{filename} 🎉"
-rescue => e
+rescue StandardError => e
   puts "An error occurred: #{e.message} 😞"
   puts e.backtrace.join("
 ")

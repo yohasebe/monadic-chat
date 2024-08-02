@@ -18,6 +18,6 @@ begin
     res = f.read(sizecap)
     puts res
   end
-rescue => e
+rescue StandardError => e
   puts "An error occurred: #{e.message}"
 end

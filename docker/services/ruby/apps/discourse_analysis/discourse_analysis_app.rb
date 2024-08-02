@@ -26,7 +26,6 @@ class DiscourseAnalysis < MonadicApp
       - The "topics" property of "context" is a list that accumulates the topics of the user's messages.
       - The "sentence type" property of "context" is a text label that indicates the sentence type of the user's message, such as "persuasive", "questioning", "factual", "descriptive", etc.
       - The "sentiment" property of "context" is one or more emoji labels that indicate the sentiment of the user's message.
-      
     TEXT
     text.strip
   end

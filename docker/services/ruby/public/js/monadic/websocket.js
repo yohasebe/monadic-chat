@@ -487,10 +487,10 @@ function connect_websocket(callback) {
           $("#model").html(model_options);
           $("#model").val("gpt-4o-mini");
           $("#model-selected").text("gpt-4o-mini");
-          setAlert("Ready to start.", "success");
         }
 
         verified = true;
+        setAlert("Ready to start.", "success");
 
         $("#start").prop("disabled", false);
         $("#send, #clear, #voice").prop("disabled", false);

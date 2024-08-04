@@ -480,13 +480,16 @@ function connect_websocket(callback) {
       case "token_verified": {
         $("#api-token").val(data["token"]);
 
-        model_options = data['models'].map(
-          model => `<option value="${model}">${model}</option>`
-        );
-        $("#model").html(model_options);
-        $("#model").val("gpt-4o-mini");
-        $("#model-selected").text("gpt-4o-mini");
-        setAlert("Ready to start.", "success");
+        if (!verified) {
+          model_options = data['models'].map(
+            model => `<option value="${model}">${model}</option>`
+          );
+          $("#model").html(model_options);
+          $("#model").val("gpt-4o-mini");
+          $("#model-selected").text("gpt-4o-mini");
+          setAlert("Ready to start.", "success");
+        }
+
         verified = true;
 
         $("#start").prop("disabled", false);

@@ -192,7 +192,7 @@ function setAlert(text = "", alertType = "success") {
     } catch {
       msg = text;
     }
-    const errorCard = createCard("system", "<span class='text text-warning'><i class='fas-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p><i class='fas-solid fa-circle-exclamation'></i> Something went wrong. Please try again.</p><pre><code>" + msg + "</code></pre>");
+    const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p>Something went wrong. Please try again.</p><pre><code>" + msg + "</code></pre>");
     $("#discourse").append(errorCard);
   } else {
     textAlert.html(text);

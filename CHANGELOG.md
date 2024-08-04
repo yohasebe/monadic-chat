@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Aug, 2024] 0.8.1
+  - [Aug, 2024] 0.8.2
       - Better container management
       - Faster startup/qutting
   - [Jul, 2024]

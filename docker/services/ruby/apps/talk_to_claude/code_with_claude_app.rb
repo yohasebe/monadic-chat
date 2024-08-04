@@ -567,8 +567,9 @@ class CodeWithClaude < MonadicApp
 
     # Set the headers for the API request
     headers = {
-      "anthropic-version" => "2023-06-01",
       "content-type" => "application/json",
+      "anthropic-version" => "2023-06-01",
+      "anthropic-beta" => "max-tokens-3-5-sonnet-2024-07-15",
       "x-api-key" => api_key
     }
 

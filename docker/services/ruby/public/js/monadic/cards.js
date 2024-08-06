@@ -6,7 +6,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
   let className
   if (role === "user") {
     className = "role-user";
-  } else if(role === "assistant" || role === "gpt"){
+  } else if(role === "assistant"){
     className = "role-assistant";
   } else {
     className = "role-system";

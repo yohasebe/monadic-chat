@@ -192,7 +192,7 @@ function setAlert(text = "", alertType = "success") {
     } catch {
       msg = text;
     }
-    const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p>Something went wrong. Please try again.</p><pre><code>" + msg + "</code></pre>");
+    const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p>Something went wrong. Please try again.</p><pre style='white-space: pre-wrap;'>" + msg + "</pre>");
     $("#discourse").append(errorCard);
   } else {
     textAlert.html(text);
@@ -370,7 +370,6 @@ function resetEvent(event) {
     ws.send(JSON.stringify({"message": "RESET"}));
     ws.send(JSON.stringify({"message": "LOAD"}));
     resetParams();
-    console.log(model_options);
     $("#model").html(model_options);
     $("#model-selected").text($("#model option:selected").text());
     $("#resetConfirmation").modal("hide");

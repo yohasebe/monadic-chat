@@ -306,7 +306,7 @@ class TalkToMistral < MonadicApp
                   "html" => html,
                   "lang" => detect_language(obj["message"])
                 } }
-        res["image"] = obj["image"] if obj["image"]
+        res["images"] = obj["images"] if obj["images"]
         block&.call res
       end
 
@@ -317,8 +317,8 @@ class TalkToMistral < MonadicApp
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
                 "active" => true }
-        if obj["image"]
-          res["image"] = obj["image"]
+        if obj["images"]
+          res["images"] = obj["images"]
         end
         session[:messages] << res
       end
@@ -362,13 +362,15 @@ class TalkToMistral < MonadicApp
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => msg["text"] }
-      if msg["image"] && role == "user"
-        message["content"] << {
-          "type" => "image_url",
-          "image_url" => {
-            "url" => msg["image"]["data"]
+      if msg["images"] && role == "user"
+        msg["images"].each do |img|
+          message["content"] << {
+            "type" => "image_url",
+            "image_url" => {
+              "url" => img["data"]
+            }
           }
-        }
+        end
         messages_containing_img = true
       end
       message

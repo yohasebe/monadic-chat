@@ -3,6 +3,27 @@ const logOutputElement = document.getElementById('output');
 const logMaxLines = 256;
 let logLines = 0;
 
+function copyToClipboard() {
+  document.addEventListener('click', (event) => {
+    if (event.target.classList.contains('fa-copy')) {
+      const codeElement = event.target.nextElementSibling;
+      const code = codeElement.textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        event.target.style.color = 'green';
+        setTimeout(() => {
+          event.target.style.color = '';
+        }, 1000);
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  copyToClipboard();
+});
+
 window.electron.receiveCommandOutput((output) => {
   // Remove carriage return characters
   output = output.replace(/\r\n|\r|\n/g, '\n').trim();

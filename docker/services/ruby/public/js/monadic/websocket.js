@@ -550,7 +550,10 @@ function connect_websocket(callback) {
           let models_text = currentApp["models"]
           let models = JSON.parse(models_text);
           let modelList = listModels(models);
+          let model = data["content"]["model"];
           $("#model").html(modelList);
+          $("#model").val(model);
+          $("#model-selected").text(model);
         }
 
         $("#base-app-title").text(currentApp["app_name"]);

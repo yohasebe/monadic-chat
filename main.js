@@ -281,7 +281,7 @@ const menuItems = [
       openMainWindow();
       checkRequirements()
         .then(() => {
-          runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+          runCommand('build', '[HTML]: <p>Building Monadic Chat.</p><hr />', 'Building', 'Stopped', false);
         })
         .catch((error) => {
           dialog.showErrorBox('Error', error);
@@ -296,7 +296,7 @@ const menuItems = [
       openMainWindow();
       checkRequirements()
         .then(() => {
-          runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+          runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time.</p>', 'Starting', 'Running');
         })
         .catch((error) => {
           dialog.showErrorBox('Error', error);
@@ -308,7 +308,7 @@ const menuItems = [
     label: 'Stop',
     click: () => {
       openMainWindow();
-      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping. Please wait . . .</p>', 'Stopping', 'Stopped');
+      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping.</p>', 'Stopping', 'Stopped');
     },
     enabled: true
   },
@@ -316,7 +316,7 @@ const menuItems = [
     label: 'Restart',
     click: () => {
       openMainWindow();
-      runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
+      runCommand('restart', '[HTML]: <p>Monadic Chat is restarting.</p>', 'Restarting', 'Running');
     },
     enabled: true
   },
@@ -393,7 +393,7 @@ function initializeApp() {
         case 'start':
           checkRequirements()
             .then(() => {
-              runCommand('start', '[HTML]: <p>Monadic Chat starting. Please wait . . .</p>', 'Starting', 'Running');
+              runCommand('start', '[HTML]: <p>Monadic Chat starting.</p>', 'Starting', 'Running');
             })
             .catch((error) => {
               dialog.showErrorBox('Error', error);
@@ -403,7 +403,7 @@ function initializeApp() {
           runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
           break;
         case 'restart':
-          runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
+          runCommand('restart', '[HTML]: <p>Monadic Chat is restarting.</p>', 'Restarting', 'Running');
           break;
         case 'browser':
           openBrowser('http://localhost:4567');
@@ -569,7 +569,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         } else if (lines[i].trim() === "[SERVER STARTED]") {
           if (!fetchWithRetryCalled) {
             fetchWithRetryCalled = true;
-            writeToScreen('[HTML]: <p>Monadic Chat server is starting. Please wait . . .</p>');
+            writeToScreen('[HTML]: <p>Monadic Chat server is starting.</p>');
             fetchWithRetry('http://localhost:4567')
               .then(() => {
                 menuItems[8].enabled = true;
@@ -792,7 +792,7 @@ function updateApplicationMenu() {
             openMainWindow();
             checkRequirements()
               .then(() => {
-                runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time. Please wait.</p>', 'Starting', 'Running');
+                runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time.</p>', 'Starting', 'Running');
               })
               .catch((error) => {
                 dialog.showErrorBox('Error', error);
@@ -804,7 +804,7 @@ function updateApplicationMenu() {
           label: 'Stop',
           click: () => {
             openMainWindow();
-            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping. Please wait . . .</p>', 'Stopping', 'Stopped');
+            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping.</p>', 'Stopping', 'Stopped');
           },
           enabled: currentStatus === 'Running'
         },
@@ -812,7 +812,7 @@ function updateApplicationMenu() {
           label: 'Restart',
           click: () => {
             openMainWindow();
-            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting. Please wait . . .</p>', 'Restarting', 'Running');
+            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting.</p>', 'Restarting', 'Running');
           },
           enabled: currentStatus === 'Running'
         },
@@ -825,7 +825,7 @@ function updateApplicationMenu() {
             openMainWindow();
             checkRequirements()
               .then(() => {
-                runCommand('build', '[HTML]: <p>Building Monadic Chat. Please wait . . .</p>', 'Building', 'Stopped', false);
+                runCommand('build', '[HTML]: <p>Building Monadic Chat.</p>', 'Building', 'Stopped', false);
               })
               .catch((error) => {
                 dialog.showErrorBox('Error', error);
@@ -905,7 +905,8 @@ function prepareSettingsWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
+      preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
+      contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
     }
   });
 
@@ -946,10 +947,7 @@ function createMainWindow() {
   if(justLaunched){
     openingText = `
       [HTML]: 
-      <p><i>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</i></p>
-      <hr />
-      <p>Set up OPENAI API key in the <b>Settings</b> window.</p>
-      <hr />
+      <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
       <p>Press <b>Start</b> button to initialize the server. It will take some time for the image rebuild to complete.</p>
       <hr />`
     justLaunched = false;
@@ -957,7 +955,7 @@ function createMainWindow() {
 
     isPortTaken(4567, function(taken){
       if(taken){
-        openingText += `<p>Port 4567 is already in use.</p><hr /><p><b>IMPORTANT</b>: If other applications is using port 4567, shut them down first.</p>`
+        openingText += `<p>Port 4567 is already in use. If other applications is using port 4567, shut them down first.</p><hr />`
         currentStatus = 'Port in use';
       } 
     })

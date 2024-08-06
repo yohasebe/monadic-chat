@@ -1,6 +1,7 @@
 ### Change Log
 
-  - [Aug, 2024] 0.8.2
+  - [Aug, 2024] 0.8.3
+      - Docker container addition mechanism
       - Better container management
       - Faster startup/qutting
   - [Jul, 2024]

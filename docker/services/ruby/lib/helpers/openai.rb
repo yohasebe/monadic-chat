@@ -40,8 +40,8 @@ module OpenAIHelper
     end
   end
 
-  FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH)
-  FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH)
+  FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH) || File.symlink?(SCRIPTS_PATH)
+  FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH) || File.symlink?(APPS_PATH)
 
   def check_api_key(api_key)
     if api_key

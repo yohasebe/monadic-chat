@@ -194,7 +194,7 @@ function quitApp() {
       isQuitting = true;
 
       // Stop all running processes
-      runCommand('stop', '[HTML]: <p>Stopping all processes...</p>', 'Stopping', 'Stopped', true);
+      runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
 
       // Shut down Docker if checkbox is checked
       if (result.checkboxChecked && process.platform === 'darwin') {
@@ -296,7 +296,7 @@ const menuItems = [
       openMainWindow();
       checkRequirements()
         .then(() => {
-          runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time.</p>', 'Starting', 'Running');
+          runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
         })
         .catch((error) => {
           dialog.showErrorBox('Error', error);
@@ -308,7 +308,7 @@ const menuItems = [
     label: 'Stop',
     click: () => {
       openMainWindow();
-      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping.</p>', 'Stopping', 'Stopped');
+      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
     },
     enabled: true
   },
@@ -316,7 +316,7 @@ const menuItems = [
     label: 'Restart',
     click: () => {
       openMainWindow();
-      runCommand('restart', '[HTML]: <p>Monadic Chat is restarting.</p>', 'Restarting', 'Running');
+      runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
     },
     enabled: true
   },
@@ -393,7 +393,7 @@ function initializeApp() {
         case 'start':
           checkRequirements()
             .then(() => {
-              runCommand('start', '[HTML]: <p>Monadic Chat starting.</p>', 'Starting', 'Running');
+              runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
             })
             .catch((error) => {
               dialog.showErrorBox('Error', error);
@@ -403,7 +403,7 @@ function initializeApp() {
           runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
           break;
         case 'restart':
-          runCommand('restart', '[HTML]: <p>Monadic Chat is restarting.</p>', 'Restarting', 'Running');
+          runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
           break;
         case 'browser':
           openBrowser('http://localhost:4567');
@@ -569,7 +569,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         } else if (lines[i].trim() === "[SERVER STARTED]") {
           if (!fetchWithRetryCalled) {
             fetchWithRetryCalled = true;
-            writeToScreen('[HTML]: <p>Monadic Chat server is starting.</p>');
+            writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
             fetchWithRetry('http://localhost:4567')
               .then(() => {
                 menuItems[8].enabled = true;
@@ -792,7 +792,7 @@ function updateApplicationMenu() {
             openMainWindow();
             checkRequirements()
               .then(() => {
-                runCommand('start', '[HTML]: <p>Monadic Chat starting. This may take a while, especially when running for the first time.</p>', 'Starting', 'Running');
+                runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
               })
               .catch((error) => {
                 dialog.showErrorBox('Error', error);
@@ -804,7 +804,7 @@ function updateApplicationMenu() {
           label: 'Stop',
           click: () => {
             openMainWindow();
-            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping.</p>', 'Stopping', 'Stopped');
+            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
           },
           enabled: currentStatus === 'Running'
         },
@@ -812,7 +812,7 @@ function updateApplicationMenu() {
           label: 'Restart',
           click: () => {
             openMainWindow();
-            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting.</p>', 'Restarting', 'Running');
+            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
           },
           enabled: currentStatus === 'Running'
         },
@@ -825,7 +825,7 @@ function updateApplicationMenu() {
             openMainWindow();
             checkRequirements()
               .then(() => {
-                runCommand('build', '[HTML]: <p>Building Monadic Chat.</p>', 'Building', 'Stopped', false);
+                runCommand('build', '[HTML]: <p>Building Monadic Chat . . .</p>', 'Building', 'Stopped', false);
               })
               .catch((error) => {
                 dialog.showErrorBox('Error', error);
@@ -1094,8 +1094,11 @@ function readEnvFile(envPath) {
     let envContent = fs.readFileSync(envPath, 'utf8');
     envContent = envContent.replace(/\r\n/g, '\n');
     return dotenv.parse(envContent);
-  } catch (error) {
-    console.error('Error reading .env file:', error);
+  } catch {
+    // create a new .env file creating the nested directories if it doesn't exist
+    const envDir = path.dirname(envPath);
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(envPath, '');
     return {};
   }
 }

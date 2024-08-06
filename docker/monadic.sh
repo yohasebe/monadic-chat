@@ -50,13 +50,10 @@ function set_docker_compose() {
 
   # check home_paths and remove redundant paths
   local compose_user=""
-  CONTAINERS=()
   for home_path in "${home_paths[@]}"; do
     compose_user+=$(find "$home_path" -name "compose.yml" 2>/dev/null | awk '{print "  - "$1}')
-    COMPOSE_USER_LIST+=($(find "$home_path" -name "compose.yml" 2>/dev/null | awk -F/ '{print $NF}' | awk -F- '{print $1}'))
   done
 
-  # If COMPOSE_USER is empty, use default compose file
   if [ -z "$compose_user" ]; then
     COMPOSE_MAIN="$ROOT_DIR/services/compose.yml"
   else
@@ -81,9 +78,33 @@ EOF
     sleep 1
     COMPOSE_MAIN="$HOME_DIR/monadic/data/compose.yml"
   fi
-}
 
-set_docker_compose
+  images=("yohasebe/monadic-chat")
+  echo "[HTML]: <p>Setting up Monadic Chat container.</p>"
+
+  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+
+  # list all containers of the monadic-chat project
+  containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+
+  echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
+  echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
+  list_containers="<ul>"
+  for container in $containers; do
+    list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
+  done
+  list_containers+="</ul>"
+  echo "[HTML]: $list_containers<hr />"
+
+  while true; do
+    if $DOCKER images | grep -q "monadic-chat"; then
+      break
+    fi
+    sleep 1
+  done
+
+  echo "[SERVER STARTED]"
+}
 
 # Function to ensure data directory exists
 ensure_data_dir() {
@@ -131,6 +152,9 @@ build_docker_compose() {
 
 # Function to start Docker Compose
 start_docker_compose() {
+
+  set_docker_compose
+
   # get yohasebe/monadic-chat image tag
   MONADIC_CHAT_IMAGE_TAG=$($DOCKER images | grep "yohasebe/monadic-chat" | awk '{print $2}')
   MONADIC_CHAT_IMAGE_TAG=$(echo $MONADIC_CHAT_IMAGE_TAG | tr -d '\r')
@@ -163,6 +187,7 @@ start_docker_compose() {
   remove_project_dangling_images
 
   images=("yohasebe/monadic-chat")
+  containers=("monadic-chat-container")
 
   all_images_exist=true
   all_containers_exist=true
@@ -175,7 +200,7 @@ start_docker_compose() {
     fi
   done
 
-  for CONTAINERS in "${containers[@]}"; do
+  for container in "${containers[@]}"; do
     if ! $DOCKER container ls --all | grep -q "$container"; then
       # echo "[HTML]: <p>Container not found: $container</p>"
       all_containers_exist=false
@@ -188,7 +213,7 @@ start_docker_compose() {
       echo "[HTML]: <p>Monadic Chat image and container found.</p>"
       sleep 1
       echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
-      for container in "${CONTAINERS[@]}"; do
+      for container in "${containers[@]}"; do
         start_container "$container"
       done
     else

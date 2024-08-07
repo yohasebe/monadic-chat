@@ -112,7 +112,7 @@ start_docker_compose() {
     MONADIC_CHAT_IMAGE_TAG="None"
   fi
 
-  echo "[HTML]: <p>Monadic Chat $MONADIC_VERSION <=> Monadic Chat Image $MONADIC_CHAT_IMAGE_TAG</p>"
+  echo "[HTML]: <p>Monadic Chat app v.$MONADIC_VERSION <=> Monadic Chat image v.$MONADIC_CHAT_IMAGE_TAG</p>"
 
   # check if MONADIC_CHAT_IMAGE_TAG includes the same as MONADIC_VERSION
   if [[ "$MONADIC_CHAT_IMAGE_TAG" != *"$MONADIC_VERSION"* ]]; then
@@ -128,7 +128,6 @@ start_docker_compose() {
   remove_project_dangling_images
 
   local images=("yohasebe/monadic-chat")
-  local containers=("monadic-chat-container")
 
   for image in "${images[@]}"; do
     if ! $DOCKER images | grep -q "$image"; then
@@ -141,25 +140,27 @@ start_docker_compose() {
     fi
   done
 
-  echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
-  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+  local running_containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+  running_containers=$(echo $running_containers | tr ' ' '\n' | sort)
+  
+  local all_containers=$($DOCKER ps -a --filter "label=project=monadic-chat" --format "{{.Names}}")
+  all_containers=$(echo $all_containers | tr ' ' '\n' | sort)
 
-  local containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+  # compare running containers and all containers to check if they are the same
+  # if they are, do nothing, but if they are not, run compose up
+  if [ "$running_containers" != "$all_containers" ]; then
+    echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
+    $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+  fi
+
   echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
   echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
   list_containers="<ul>"
-  for container in $containers; do
+  for container in $all_containers; do
     list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
   done
   list_containers+="</ul>"
   echo "[HTML]: $list_containers<hr />"
-
-  # Wait for the image to be available
-  until $DOCKER images | grep -q "monadic-chat"; do
-    sleep 1
-  done
-
-  echo "[SERVER STARTED]"
 }
 
 # Function to stop Docker Compose
@@ -174,6 +175,11 @@ stop_docker_compose() {
     stop_container "$container"
   done
 }
+
+# Function to start a container
+# start_container() {
+#   $DOCKER container start "$1" >/dev/null
+# }
 
 # Function to stop a container
 stop_container() {
@@ -289,7 +295,6 @@ case "$1" in
   restart)
     stop_docker_compose
     start_docker_compose
-    sleep 1
     echo "[SERVER STARTED]"
     ;;
   import)

@@ -1,63 +1,44 @@
 #!/bin/bash
 
-# add /usr/local/bin to the PATH
+# Add /usr/local/bin to the PATH
 export PATH=$PATH:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-# export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
-
 export MONADIC_VERSION=0.8.3
-
 export HOST_OS=$(uname -s)
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
-
-# Define the path to the home directory
 HOME_DIR=$(eval echo ~${SUDO_USER})
 
 # Define the full path to docker-compose
-if [[ "$(uname -s)" == "Darwin"* ]]; then
-  DOCKER=/usr/local/bin/docker
-  if [[ $(uname -m) == "arm64" ]]; then
-    export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
-    # export SELENIUM_IMAGE="seleniarm/standalone-chromium:123.0"
-  fi
-else
-  DOCKER=docker
+DOCKER=$(command -v docker)
+
+if [[ "$HOST_OS" == "Darwin"* && "$(uname -m)" == "arm64" ]]; then
+  export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
 fi
 
 # Define the paths to the support scripts
-MAC_SCRIPT="${ROOT_DIR}/services/support_scripts/mac-start-docker.sh"
-WSL2_SCRIPT="${ROOT_DIR}/services/support_scripts/wsl2-start-docker.sh"
-LINUX_SCRIPT="${ROOT_DIR}/services/support_scripts/linux-start-docker.sh"
+SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
 
 function set_docker_compose() {
-  # Check if there are user compose files
   local home_paths=("$HOME_DIR/monadic/data/services" "~/monadic/data/services")
-
-  # expand each path
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
   done
 
-  # if $HOME_DIR and ~ are the same, remove ~
-  if [ "${home_paths[0]}" == "${home_paths[1]}" ]; then
-    unset home_paths[1]
-  fi
-  # also, remove non-existent paths and empty string
-  home_paths=($(echo "${home_paths[@]}" | tr ' ' '\n' | sort -u | grep -v '^$' | xargs))
+  # Remove non-existent paths and empty strings
+  home_paths=($(printf "%s\n" "${home_paths[@]}" | sort -u | grep -v '^$'))
 
-  # check home_paths and remove redundant paths
   local compose_user=""
   for home_path in "${home_paths[@]}"; do
     compose_user+=$(find "$home_path" -name "compose.yml" 2>/dev/null | awk '{print "  - "$1}')
   done
 
-  if [ -z "$compose_user" ]; then
+  if [[ -z "$compose_user" ]]; then
     COMPOSE_MAIN="$ROOT_DIR/services/compose.yml"
   else
-    local compose_file_contents=$(cat <<EOF
+    cat <<EOF > "$HOME_DIR/monadic/data/compose.yml"
 include:
   - $ROOT_DIR/services/ruby/compose.yml
   - $ROOT_DIR/services/pgvector/compose.yml
@@ -72,87 +53,54 @@ networks:
 volumes:
   data:
 EOF
-)
-    echo "$compose_file_contents" > "$HOME_DIR/monadic/data/compose.yml"
-    # wait for the file to be created
-    sleep 1
     COMPOSE_MAIN="$HOME_DIR/monadic/data/compose.yml"
   fi
-
-  images=("yohasebe/monadic-chat")
-  echo "[HTML]: <p>Setting up Monadic Chat container.</p>"
-
-  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
-
-  # list all containers of the monadic-chat project
-  containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
-
-  echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
-  echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
-  list_containers="<ul>"
-  for container in $containers; do
-    list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
-  done
-  list_containers+="</ul>"
-  echo "[HTML]: $list_containers<hr />"
-
-  while true; do
-    if $DOCKER images | grep -q "monadic-chat"; then
-      break
-    fi
-    sleep 1
-  done
-
-  echo "[SERVER STARTED]"
 }
 
 # Function to ensure data directory exists
 ensure_data_dir() {
-  if [ -f "/.dockerenv" ]; then
-    mkdir -p "/monadic/data"
-    touch "/monadic/data/.env"
+  local data_dir
+  if [[ -f "/.dockerenv" ]]; then
+    data_dir="/monadic/data"
   else
-    mkdir -p "$HOME_DIR/monadic/data"
-    touch "$HOME_DIR/monadic/data/.env"
+    data_dir="$HOME_DIR/monadic/data"
   fi
+  mkdir -p "$data_dir"
+  touch "$data_dir/.env"
 }
 
 # Function to start Docker based on OS
 start_docker() {
-  case "$(uname -s)" in
+  case "$HOST_OS" in
     Darwin)
-      sh "$MAC_SCRIPT"
+      sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
       ;;
     Linux)
       if grep -q microsoft /proc/version; then
-        sh "$WSL2_SCRIPT"
+        sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
       else
-        sh "$LINUX_SCRIPT"
+        echo "Linux script is not applicable on macOS."
+        exit 1
       fi
       ;;
     *)
-      echo "Unsupported operating system: $(uname -s)" >&2  # Redirect error message to stderr
+      echo "Unsupported operating system: $HOST_OS" >&2
       exit 1
       ;;
   esac
 }
 
+# Function to build Docker Compose
 build_docker_compose() {
-  remove_containers
   set_docker_compose
-
-  # docker compose -f "$COMPOSE_MAIN" build --no-cache
-  docker compose -f "$COMPOSE_MAIN" build --no-cache
-
-  docker tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest
-  # echo [HTML]: "<p>Monadic Chat $MONADIC_VERSION is tagged 'latest'</p>"
-
+  remove_containers
+  $DOCKER compose -f "$COMPOSE_MAIN" build --no-cache
+  $DOCKER tag yohasebe/monadic-chat:$MONADIC_VERSION yohasebe/monadic-chat:latest
   remove_project_dangling_images
 }
 
 # Function to start Docker Compose
 start_docker_compose() {
-
   set_docker_compose
 
   # get yohasebe/monadic-chat image tag
@@ -163,21 +111,14 @@ start_docker_compose() {
   if [ -z "$MONADIC_CHAT_IMAGE_TAG" ]; then
     MONADIC_CHAT_IMAGE_TAG="None"
   fi
+
   echo "[HTML]: <p>Monadic Chat $MONADIC_VERSION <=> Monadic Chat Image $MONADIC_CHAT_IMAGE_TAG</p>"
 
   # check if MONADIC_CHAT_IMAGE_TAG includes the same as MONADIC_VERSION
   if [[ "$MONADIC_CHAT_IMAGE_TAG" != *"$MONADIC_VERSION"* ]]; then
-
     remove_containers
-
-    # if image tag is "None", build the image
-    if [ "$MONADIC_CHAT_IMAGE_TAG" == "None" ]; then
-      echo "[HTML]: <p>Monadic Chat image does not exist. Building Monadic Chat image . . .</p>"
-    else
-      echo "[HTML]: <p>Monadic Chat image is outdated. Building Monadic Chat image . . .</p>"
-    fi
+    echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
     $DOCKER compose -f "$COMPOSE_MAIN" down
-
     build_docker_compose
   else
     echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
@@ -186,66 +127,44 @@ start_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
 
-  images=("yohasebe/monadic-chat")
-  containers=("monadic-chat-container")
-
-  all_images_exist=true
-  all_containers_exist=true
+  local images=("yohasebe/monadic-chat")
+  local containers=("monadic-chat-container")
 
   for image in "${images[@]}"; do
     if ! $DOCKER images | grep -q "$image"; then
-      # echo "[HTML]: <p>Image not found: $image</p>"
-      all_images_exist=false
-      break
-    fi
-  done
-
-  for container in "${containers[@]}"; do
-    if ! $DOCKER container ls --all | grep -q "$container"; then
-      # echo "[HTML]: <p>Container not found: $container</p>"
-      all_containers_exist=false
-      break
-    fi
-  done
-
-  if $all_images_exist; then
-    if $all_containers_exist; then
-      echo "[HTML]: <p>Monadic Chat image and container found.</p>"
-      sleep 1
-      echo "[HTML]: <p>Starting Monadic Chat container . . .</p>"
-      for container in "${containers[@]}"; do
-        start_container "$container"
-      done
-    else
-      echo "[HTML]: <p>Setting up Monadic Chat container. Please wait . . .</p>"
+      echo "[IMAGE NOT FOUND]"
+      echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
+      build_docker_compose
+      echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
       $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+      break
     fi
-  else
-    echo "[IMAGE NOT FOUND]"
-    sleep 1
-    echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
-    build_docker_compose
-    echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
-    $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+  done
 
-    # Periodically check if the image is ready
-    while true; do
-      if $DOCKER images | grep -q "monadic-chat"; then
-        break
-      fi
-      sleep 1
-    done
-  fi
+  echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
+  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+
+  local containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+  echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
+  echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
+  list_containers="<ul>"
+  for container in $containers; do
+    list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
+  done
+  list_containers+="</ul>"
+  echo "[HTML]: $list_containers<hr />"
+
+  # Wait for the image to be available
+  until $DOCKER images | grep -q "monadic-chat"; do
+    sleep 1
+  done
 
   echo "[SERVER STARTED]"
 }
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  $DOCKER compose -f "$COMPOSE_MAIN" down
-
-  # Remove specific volumes used by the monadic-chat project
-  $DOCKER volume rm monadic-chat-pgvector-data
+  $DOCKER compose -f "$COMPOSE_MAIN" down --remove-orphans
 }
 
 # Define a function to stop Docker Compose
@@ -254,11 +173,6 @@ stop_docker_compose() {
   for container in $containers; do
     stop_container "$container"
   done
-}
-
-# Function to start a container
-start_container() {
-  $DOCKER container start "$1" >/dev/null
 }
 
 # Function to stop a container
@@ -279,7 +193,7 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop the Docker Compose services
-  $DOCKER compose -f "$COMPOSE_MAIN" down
+  $DOCKER compose -f "$COMPOSE_MAIN" down --remove-orphans
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
   cd "$ROOT_DIR" && git pull origin main
@@ -290,11 +204,12 @@ update_monadic() {
 
 # Remove the Docker image and container
 remove_containers() {
+  set_docker_compose
   # Stop the Docker Compose services
-  $DOCKER compose -f "$COMPOSE_MAIN" down
+  $DOCKER compose -f "$COMPOSE_MAIN" down --remove-orphans
 
   local images=$($DOCKER images --filter "label=project=monadic-chat" --format "{{.Repository}}:{{.Tag}}")
-  local containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+  local containers=$($DOCKER ps -a --filter "label=project=monadic-chat" --format "{{.Names}}")
 
   # Remove the Docker images and containers of the monadic-chat project
   for image in $images; do
@@ -316,7 +231,7 @@ remove_containers() {
 
 # Function to remove images containing the string in $1
 remove_image() {
-  images=$($DOCKER images --format "{{.Repository}}:{{.Tag}}" | grep "$1")
+  local images=$($DOCKER images --format "{{.Repository}}:{{.Tag}}" | grep "$1")
   for image in $images; do
     $DOCKER rmi -f "$image" >/dev/null
   done
@@ -355,7 +270,6 @@ case "$1" in
     ensure_data_dir
     start_docker
     build_docker_compose
-    # check if the above command succeeds
     if $DOCKER images | grep -q "monadic-chat"; then
       echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p>"
     else
@@ -403,7 +317,7 @@ case "$1" in
     echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
     ;;
   *)
-    echo "Usage: $0 {build|start|stop|restart|update|remove}}" >&2  # Redirect usage message to stderr
+    echo "Usage: $0 {build|start|stop|restart|update|remove}" >&2
     exit 1
     ;;
 esac

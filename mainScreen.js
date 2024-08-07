@@ -9,8 +9,12 @@ function copyToClipboard() {
       const codeElement = event.target.nextElementSibling;
       const code = codeElement.textContent;
       navigator.clipboard.writeText(code).then(() => {
-        event.target.style.color = 'green';
+        event.target.classList.remove('fa-copy');
+        event.target.classList.add('fa-check');
+        event.target.style.color = '#DC4C64';
         setTimeout(() => {
+          event.target.classList.remove('fa-check');
+          event.target.classList.add('fa-copy');
           event.target.style.color = '';
         }, 1000);
       }).catch(err => {

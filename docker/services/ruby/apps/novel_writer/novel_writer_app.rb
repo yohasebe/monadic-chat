@@ -59,7 +59,7 @@ class NovelWriter < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o-mini",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.5,
       "top_p": 0.0,
       "context_size": 40,

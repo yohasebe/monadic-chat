@@ -9,7 +9,7 @@ class DiscourseAnalysis < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      Create a response to the user's message, which is embedded in an object of the structure below. Set your response to the "message" property of the object and update the contents of the "context" as instructed in the "INSTRUCTION" below.
+      Create a response to the user's message, which is embedded in an object of the structure below. Set your response to the "message" property of the object and update the contents of the "context" as instructed in the "INSTRUCTIONS" below.
 
       STRUCTURE:
 
@@ -33,7 +33,7 @@ class DiscourseAnalysis < MonadicApp
   def settings
     {
       "app_name": "Discourse Analysis",
-      "model": "gpt-4o",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.0,
       "top_p": 0.0,
       "context_size": 20,

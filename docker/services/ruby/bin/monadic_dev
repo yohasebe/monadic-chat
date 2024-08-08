@@ -11,6 +11,8 @@ Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 
 DEFAULT_PORT = 4567
 
+PID_FILE = __dir__ + "/thin.pid"
+
 selenium_image = "selenium/standalone-chrome:latest"
 if `uname -s`.chomp.include? "Darwin"
   if `uname -m`.chomp == "arm64"
@@ -32,24 +34,30 @@ end
 
 DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
 
-# Start the server
 def start_server(opts)
   start_script = File.join(DOCKER_HOME, "support_scripts", "mac-start-docker.sh")
   mac_docker_start = File.read(start_script)
 
-  # run the start script
   system(mac_docker_start)
-  system("docker container stop monadic-chat-ruby-container") if system("docker container ls | grep monadic-chat-ruby-container")
+  system("docker container stop monadic-chat-ruby-container > /dev/null") if system("docker container ls | grep monadic-chat-ruby-container > /dev/null")
 
-  cmd_selenium = "docker container start monadic-chat-selenium-container"
-  cmd_pg = "docker container start monadic-chat-pgvector-container"
-  cmd_python = "docker container start monadic-chat-python-container"
+  container_names = `docker ps -a --filter 'label=project=monadic-chat' --format '{{.Names}}'`.split("\n")
 
-  system(cmd_selenium)
-  system(cmd_pg)
-  system(cmd_python)
+  container_names.each do |container_name|
+    next if container_name == "monadic-chat-ruby-container"
 
-  cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT}"
+    cmd1 = "docker container start #{container_name}"
+    system(cmd1)
+    cmd2 = "docker container inspect #{container_name} --format '{{.State.Status}}'"
+    status = ""
+    while status != "running"
+      status = `#{cmd2}`.chomp
+      pp status
+      sleep 1
+    end
+  end
+
+  cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
   cmd += " --daemonize" if opts[:daemonize]
   cmd += " --log thin.log" if opts[:log]
   if system(cmd)
@@ -59,12 +67,31 @@ def start_server(opts)
   end
 end
 
-# Stop the server
 def stop_server
-  if system("thin stop")
-    puts "Server stopped"
-  else
-    puts "Server failed to stop"
+  begin
+    pid = File.read(PID_FILE).to_i
+    Process.kill 9, pid
+    File.delete PID_FILE
+    puts "Server stopped; PID file removed; Stopping docker containers"
+  rescue Errno::ENOENT
+    puts "Server not running"
+  rescue StandardError
+    puts "Server failed to stop; Maybe the server is not running"
+  end
+
+  container_names = `docker ps -a --filter 'label=project=monadic-chat' --format '{{.Names}}'`.split("\n")
+  container_names.each do |container_name|
+    next if container_name == "monadic-chat-ruby-container"
+
+    cmd1 = "docker container stop #{container_name}"
+    system(cmd1)
+    cmd2 = "docker container inspect #{container_name} --format '{{.State.Status}}'"
+    status = ""
+    while status != "exited"
+      status = `#{cmd2}`.chomp
+      pp status
+      sleep 1
+    end
   end
 end
 
@@ -85,6 +112,18 @@ when "stop"
   stop_server
 when "restart"
   restart_server(opts)
+when "status"
+  if File.exist?(PID_FILE)
+    pid = File.read(PID_FILE).to_i
+    begin
+      Process.kill 0, pid
+      puts "Server is running"
+    rescue StandardError
+      puts "Server is not running"
+    end
+  else
+    puts "Server is not running"
+  end
 else
   Optimist.die "Unknown subcommand. Use \"start\", \"stop\", or \"restart\"."
 end

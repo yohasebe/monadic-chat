@@ -29,6 +29,8 @@ class ImageGeneration < MonadicApp
       If the user asks you to add something to generated images or to modify them, re-generate another image by calling the `generate_image` function with an extended or modified prompt and discarding the old ones. Do not modify an existing image itself directly—just ignore the image URLs included in the previous message.
 
       In case `generate_image` fails, return a detailed error message to the user, not retrying the process. If the user asks you to retry, you can do so by calling the `generate_image` function again with a prompt that you have modified according to the error message.
+
+      If an error occurs as a result of calling the `generate_image` function, return the error message to the user without retrying the process. If the user asks you to retry, you can do so by calling the `generate_image` function again with a prompt that you have modified according to the error message.
     TEXT
     text.strip
   end

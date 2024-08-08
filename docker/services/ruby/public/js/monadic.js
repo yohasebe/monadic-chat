@@ -174,9 +174,7 @@ Do your best to make the conversation as natural as possible. Do not change subj
   $("#start").on("click", function () {
     audioInit();
     $("#asr-p-value").text("").hide();
-    if (checkParams()) {
-      params = setParams();
-    } else {
+    if (!checkParams()) {
       return;
     }
     if (messages.length > 0) {
@@ -246,7 +244,9 @@ $("#send").on("click", function(event) {
   if (message.value === "") {
     return;
   }
+  params = setParams();
   params["message"] = $("#message").val();
+
   $("#cancel_query").css("opacity", "1");
 
   if ($("#select-role").val() !== "user") {

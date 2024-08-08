@@ -79,8 +79,7 @@ start_docker() {
       if grep -q microsoft /proc/version; then
         sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
       else
-        echo "Linux script is not applicable on macOS."
-        exit 1
+        sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
       fi
       ;;
     *)

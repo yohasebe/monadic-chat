@@ -219,14 +219,14 @@ function quitApp() {
 
       // Force quit after a short delay to allow for cleanup
       setTimeout(() => {
-        app.exit(0);
+        app.quit();
       }, 2000);
     } else {
       isQuitting = false;
     }
   }).catch((err) => {
     console.error('Error in quit dialog:', err);
-    app.exit(1);
+    app.quit();
   });
 }
 

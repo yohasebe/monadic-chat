@@ -25,7 +25,7 @@ eslint.config.*
 
 /data/*
 /server/data/*
-/log/*
+/**/log/
 
 .env
 .cursorignore
@@ -62,3 +62,6 @@ Gemfile.lock
 .solargraph.yml
 
 rsync.sh
+
+*.pid
+*.log

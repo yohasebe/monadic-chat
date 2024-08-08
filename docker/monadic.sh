@@ -140,23 +140,15 @@ start_docker_compose() {
     fi
   done
 
-  local running_containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
-  running_containers=$(echo $running_containers | tr ' ' '\n' | sort)
-  
-  local all_containers=$($DOCKER ps -a --filter "label=project=monadic-chat" --format "{{.Names}}")
-  all_containers=$(echo $all_containers | tr ' ' '\n' | sort)
+  echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
+  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
 
-  # compare running containers and all containers to check if they are the same
-  # if they are, do nothing, but if they are not, run compose up
-  if [ "$running_containers" != "$all_containers" ]; then
-    echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
-    $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
-  fi
+  local containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
 
   echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
   echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
   list_containers="<ul>"
-  for container in $all_containers; do
+  for container in $containers; do
     list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
   done
   list_containers+="</ul>"

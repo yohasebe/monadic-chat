@@ -632,6 +632,10 @@ class MonadicApp
       Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
 
       Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics.
+
+      Your response should be consice and clear. Even if the preceding messages are formatted as json, you keep your response as plain text. do not use parentheses or brackets in your response.
+
+      Remember you are the one who inquires for information, not providing the answers.
     TEXT
     text.strip
   end

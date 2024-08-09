@@ -180,13 +180,20 @@ module WebSocketHelper
 
           reversed_messages = session[:messages].map do |m|
             m["role"] = m["role"] == "assistant" ? "user" : "assistant"
+            if /"message":\s*"([\s\S]+?)"/m =~ m["text"]
+              extract = Regexp.last_match(1)
+              m["text"] = extract
+              m.delete("html")
+            end
             m
           end
 
           # copy obj["contents"]["params"] to parameters_modified
           parameters_modified = obj["contents"]["params"].dup
           parameters_modified.delete("tools")
-          parameters_modified["message"] = reversed_messages.pop["text"]
+          message_text = reversed_messages.pop["text"]
+
+          parameters_modified["message"] = message_text
 
           # code to use the OpenAI mode for AI User
           api_request = method(:openai_api_request)
@@ -198,6 +205,7 @@ module WebSocketHelper
           }
 
           mini_session[:parameters]["initial_prompt"] = mini_session[:parameters]["ai_user_initial_prompt"]
+          mini_session[:parameters]["monadic"] = false
 
           responses = api_request.call("user", mini_session) do |fragment|
             if fragment["type"] == "error"

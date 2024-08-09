@@ -199,6 +199,9 @@ module OpenAIHelper
 
       buffer << chunk
 
+      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      buffer.encode!("UTF-8", "UTF-16")
+
       scanner = StringScanner.new(buffer)
       pattern = /data: (\{.*?\})(?=\n|\z)/
       until scanner.eos?

@@ -182,9 +182,13 @@ Do your best to make the conversation as natural as possible. Do not change subj
   $("#start").on("click", function () {
     audioInit();
     $("#asr-p-value").text("").hide();
-    if (!checkParams()) {
+
+    if (checkParams()) {
+      params = setParams();
+    } else {
       return;
     }
+
     if (messages.length > 0) {
       $("#config").hide();
       $("#back-to-settings").show();

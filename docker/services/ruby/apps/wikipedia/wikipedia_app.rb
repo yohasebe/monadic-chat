@@ -23,7 +23,7 @@ class Wikipedia < MonadicApp
       <p>YOUR RESPONSE</p>
 
       <blockquote>
-        <a href="URL" target="_blank">URL</a>
+        <a href="URL" target="_blank">Wikipedia URL</a>
       </blockquote>
       ```
     TEXT

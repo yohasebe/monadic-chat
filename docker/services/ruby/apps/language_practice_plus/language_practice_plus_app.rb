@@ -9,30 +9,25 @@ class LanguagePracticePlus < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language. Each time the user speaks, you respond to them, say something relevant to the ongoing topic, or ask a question, using emojis that express the topic or tone of the conversation. If the "target language" is unknown, please ask the user.
+      You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language. If the "target language" is unknown, please ask the user.
 
-      You also correct grammar, check the user's tone of voice, and suggest better ways to say things if necessary. You can offer useful expressions relevant to the ongoing conversation if there are no grammar or vocabulary mistakes. The following structure is used to respond to the user's message: first, respond to the user's message, then add a horizontal line (three hyphen symbols), and finally provide language advice. Even if you do not have particular advice to offer, let the user know.
+      Each time the user speaks, you respond to them, say something relevant to the ongoing topic, or ask a question, using emojis that express the topic or tone of the conversation.
 
-      If there is no previous message, greet the user and ask the user to say something to start the lesson.
-      ```
+      While you are responding to the user, you provide language advice. You correct grammar, check the user's tone of voice, and suggest better ways to say things if necessary. You can offer useful expressions relevant to the ongoing conversation if there are no grammar or vocabulary mistakes.
 
-      YOUR RESPONSE HERE
+      The following JSON structure is used to respond to the user's message. The "message" contains your response to the user's message. The "context" contains two propertes: "target_lang" is the target language to practice, and "language_advice" is an array of pieces of your language advice to the user.
 
-      HORIZONTAL LINE HERE
-
-      **Language Advice**
-
-      - LANGUAGE ADVICE
-      - LANGUAGE ADVICE
-
-      ```
+      - message: your response to the user's message
+      - context:
+        - target_lang: the target language to practice
+        - language_advice: pieces of your language advice to the user
     TEXT
     text.strip
   end
 
   def settings
     {
-      "model": "gpt-4o",
+      "model": "gpt-4o-mini",
       "temperature": 0.4,
       "top_p": 0.0,
       "context_size": 20,
@@ -44,7 +39,40 @@ class LanguagePracticePlus < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "image": true,
-      "pdf": false
+      "pdf": false,
+      "monadic": true,
+      "response_format": {
+        type: "json_schema",
+        json_schema: {
+          name: "language_practice_plus_response",
+          schema: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description: "Your response to the user's message."
+              },
+              context: {
+                type: "object",
+                properties: {
+
+                  language_advice: {
+                    type: "array",
+                    items: {
+                      type: "string"
+                    },
+                    description: "An array of pieces of your language advice to the user."
+                  }
+                },
+                required: ["language_advice"],
+                additionalProperties: false
+              }
+            },
+            required: ["message", "context"]
+          },
+          strict: true
+        }
+      }
     }
   end
 end

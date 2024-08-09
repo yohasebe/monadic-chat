@@ -88,7 +88,8 @@ class TalkToMistral < MonadicApp
       "pdf": false,
       "image": false,
       "toggle": false,
-      "models": @models
+      "models": @models,
+      "model": "mistral-medium-latest"
     }
   end
 
@@ -306,7 +307,6 @@ class TalkToMistral < MonadicApp
                   "html" => html,
                   "lang" => detect_language(obj["message"])
                 } }
-        res["images"] = obj["images"] if obj["images"]
         block&.call res
       end
 
@@ -317,9 +317,6 @@ class TalkToMistral < MonadicApp
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
                 "active" => true }
-        if obj["images"]
-          res["images"] = obj["images"]
-        end
         session[:messages] << res
       end
     end
@@ -361,19 +358,7 @@ class TalkToMistral < MonadicApp
 
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => msg["text"] }
-      if msg["images"] && role == "user"
-        msg["images"].each do |img|
-          message["content"] << {
-            "type" => "image_url",
-            "image_url" => {
-              "url" => img["data"]
-            }
-          }
-        end
-        messages_containing_img = true
-      end
-      message
+      { "role" => msg["role"], "content" => msg["text"] }
     end
 
     if role == "tool"

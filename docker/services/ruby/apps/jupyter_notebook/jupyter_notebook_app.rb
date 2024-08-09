@@ -9,17 +9,11 @@ class JupyterNotebook < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command. Second, create a new notebook using the `create_jupyter_notebook` function.  Once Jupyter Lab is up and running and a new notebook has been created, provide the user with a URL in the form `<a href="http://127.0.0.1:8888/lab/" target="_blank">Jupyter Lab Notebook</a>`.
+      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command and let the user know that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
 
-      If you have successfully specified a Jupyter Notebook file, provide the user with the filename of the newly created Jupyter Notebook file in the form `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank">Jupyter Notebook: FILENAME</a>` where FILENAME is the name of the newly created Jupyter Notebook file. Rememeber the URL should start with `tree/`.
+      Next, ask the user if he or she wants a new notebook to be created. If so, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then provide the Notebook file in the form `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank">Jupyter Notebook: FILENAME</a>` where FILENAME is the name of the newly created Jupyter Notebook file (without preceding paths such as 'data/monadic/'). If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
 
-      Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells in the following format where TYPE is either "code" or "markdown" and CONTENT is the content of the cell, which needs to be properly escaped to be valid JSON:
-
-      ```json
-      [
-        { "type": TYPE, "content": CONTENT }
-      ]
-      ```
+      Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type.
 
       The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. If the function finishes successfully, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
 
@@ -36,7 +30,7 @@ class JupyterNotebook < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.0,
       "presence_penalty": 0.2,
       "top_p": 0.0,
@@ -77,9 +71,11 @@ class JupyterNotebook < MonadicApp
                   "description": "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
                 }
               },
-              "required": ["command", "code", "extension"]
+              "required": ["command", "code", "extension"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -100,9 +96,11 @@ class JupyterNotebook < MonadicApp
                   "description": "Package manager to be used for installation."
                 }
               },
-              "required": ["command", "packager"]
+              "required": ["command", "packager"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -118,9 +116,11 @@ class JupyterNotebook < MonadicApp
                   "description": "Bash command to be executed."
                 }
               },
-              "required": ["command"]
+              "required": ["command"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -136,9 +136,11 @@ class JupyterNotebook < MonadicApp
                   "description": "File name or file path"
                 }
               },
-              "required": ["file"]
+              "required": ["file"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -155,17 +157,31 @@ class JupyterNotebook < MonadicApp
                   "description": "Command to start or stop the Jupyter Lab server."
                 }
               },
-              "required": ["command"]
+              "required": ["command"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
           "function":
           {
             "name": "create_jupyter_notebook",
-            "description": "Create a Jupyter Notebook and returns its filename."
-          }
+            "description": "Create a Jupyter Notebook and returns its filename.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string",
+                  "description": "Base filename of the Jupyter Notebook (without the file extension)."
+                }
+              }
+            },
+            "required": ["filename"],
+            "additionalProperties": false
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -181,13 +197,30 @@ class JupyterNotebook < MonadicApp
                   "description": "Filename of the Jupyter Notebook."
                 },
                 "cells": {
-                  "type": "object",
-                  "description": "JSON data of cells in the following format where TYPE is either 'code' or 'markdown' and CONTENT is the content of the cell, which needs to be properly escaped to be valid JSON."
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["code", "markdown"],
+                        "description": "Type of the cell."
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "Content of the cell."
+                      }
+                    },
+                    "required": ["type", "content"],
+                    "additionalProperties": false
+                  }
                 }
               },
-              "required": ["filename", "cells"]
+              "required": ["filename", "cells"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -211,9 +244,11 @@ class JupyterNotebook < MonadicApp
                   "description": "Content text to be written to the file."
                 }
               },
-              "required": ["filename", "extension", "text"]
+              "required": ["filename", "extension", "text"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         }
       ]
     }

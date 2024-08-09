@@ -199,9 +199,11 @@ class CodeInterpreter < MonadicApp
                   "description": "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
                 }
               },
-              "required": ["command", "code", "extension"]
+              "required": ["command", "code", "extension"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -222,9 +224,11 @@ class CodeInterpreter < MonadicApp
                   "description": "Package manager to be used for installation."
                 }
               },
-              "required": ["command", "packager"]
+              "required": ["command", "packager"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -240,9 +244,11 @@ class CodeInterpreter < MonadicApp
                   "description": "Bash command to be executed."
                 }
               },
-              "required": ["command"]
+              "required": ["command"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -258,9 +264,11 @@ class CodeInterpreter < MonadicApp
                   "description": "URL of the web page."
                 }
               },
-              "required": ["url"]
+              "required": ["url"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -276,9 +284,11 @@ class CodeInterpreter < MonadicApp
                   "description": "File name or file path"
                 }
               },
-              "required": ["file"]
+              "required": ["file"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -294,9 +304,11 @@ class CodeInterpreter < MonadicApp
                   "description": "File name or file path of the Microsoft Word/Excel/PowerPoint file."
                 }
               },
-              "required": ["file"]
+              "required": ["file"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -312,9 +324,11 @@ class CodeInterpreter < MonadicApp
                   "description": "File name or file path of the PDF"
                 }
               },
-              "required": ["pdf"]
+              "required": ["pdf"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         }
       ]
     }

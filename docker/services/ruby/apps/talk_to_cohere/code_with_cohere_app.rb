@@ -430,6 +430,9 @@ class CodeWithCohere < MonadicApp
         argument_hash = {}
       end
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+        # skip if the value is nil or null but not if it is of the string class
+        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
+
         memo[k.to_sym] = v
         memo
       end

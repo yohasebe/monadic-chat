@@ -1,4 +1,5 @@
 class SpeechDraftHelper < MonadicApp
+
   def icon
     "<i class='fas fa-user-tie'></i>"
   end
@@ -65,9 +66,12 @@ class SpeechDraftHelper < MonadicApp
                   "type": "string",
                   "description": "File name or file path of the Microsoft Word/Excel/PowerPoint file."
                 }
-              }
+              },
+              "required": ["file"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -83,9 +87,11 @@ class SpeechDraftHelper < MonadicApp
                   "description": "File name or file path of the PDF"
                 }
               },
-              "required": ["pdf"]
+              "required": ["pdf"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -101,9 +107,11 @@ class SpeechDraftHelper < MonadicApp
                   "description": "URL of the web page."
                 }
               },
-              "required": ["url"]
+              "required": ["url"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -123,9 +131,11 @@ class SpeechDraftHelper < MonadicApp
                   "description": "Path to the image file. It can be either a local file path or a URL."
                 }
               },
-              "required": ["message", "image_path"]
+              "required": ["message", "image_path"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -141,9 +151,11 @@ class SpeechDraftHelper < MonadicApp
                   "description": "File path of the audio file"
                 }
               },
-              "required": ["audio"]
+              "required": ["audio"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",

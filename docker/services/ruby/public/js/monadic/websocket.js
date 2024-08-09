@@ -707,7 +707,7 @@ function connect_websocket(callback) {
         break;
       }
       case "ai_user": {
-        $("#message").val($("#message").val() + data["content"]);
+        $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
         autoResize($("#message"));
         if (autoScroll && !isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);

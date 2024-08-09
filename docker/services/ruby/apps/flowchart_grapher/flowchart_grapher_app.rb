@@ -12,7 +12,7 @@ class FlowchartGrapher < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are tasked with creating visual representations of data structures, focusing primarily on graph and flowchart diagrams using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure. While Mermaid.js supports various diagram types, we recommend sticking to "graph" and "flowchart" for optimal clarity and performance.
+      You are tasked with creating visual representations of data structures using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure.
 
       Respond to the user's request in the language in which the user speaks or writes.
 
@@ -20,15 +20,11 @@ class FlowchartGrapher < MonadicApp
 
       If no specific data is provided, generate a simple graph or flowchart example.
 
-      Prioritize "graph" and "flowchart" diagram types for visualization. If you believe another diagram type is absolutely necessary, you may consider it but explain your reasoning.
-
       Pay attention to the indentation and spacing in the mermaid code, which are crucial for correct rendering. Use either 4 or 2 spaces for indentation.
 
       Diagram types include:
         - `graph`
         - `flowchart`
-
-      The following diagram types are available but not recommended for this task.
         - `C4Context`
         - `sequenceDiagram`
         - `classDiagram`
@@ -68,7 +64,7 @@ class FlowchartGrapher < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 4000,
@@ -100,9 +96,11 @@ class FlowchartGrapher < MonadicApp
                   "description": "the type of the mermaid diagram"
                 }
               },
-              "required": ["diagram_type"]
+              "required": ["diagram_type"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         }
       ]
     }

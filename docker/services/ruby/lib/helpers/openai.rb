@@ -344,6 +344,9 @@ module OpenAIHelper
       end
 
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+        # skip if the value is nil or null but not if it is of the string class
+        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
+
         memo[k.to_sym] = v
         memo
       end
@@ -408,7 +411,7 @@ module OpenAIHelper
                   "mid" => request_id,
                   "text" => obj["message"],
                   "html" => html,
-                  "lang" => detect_language(obj["message"])
+                  "lang" => detect_language(message)
                 } }
         res["images"] = obj["images"] if obj["images"]
         block&.call res
@@ -479,8 +482,12 @@ module OpenAIHelper
 
     body["max_tokens"] = max_tokens if max_tokens
 
-    if (obj["monadic"] || obj["json"]) && /turbo/ =~ model
-      body["response_format"] = { "type" => "json_object" }
+    if obj["response_format"]
+      body["response_format"] = APPS[app].settings["response_format"]
+    end
+
+    if obj["monadic"] || obj["json"]
+      body["response_format"] ||= { "type" => "json_object" }
     end
 
     if obj["tools"] && !obj["tools"].empty?
@@ -557,9 +564,8 @@ module OpenAIHelper
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
-      if res.status.success?
-        break
-      end
+      break if res.status.success?
+
       sleep RETRY_DELAY
     end
 

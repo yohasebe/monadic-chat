@@ -15,9 +15,7 @@ class VideoDescriber < MonadicApp
 
       If the user provides a file name, the file must exist in the current directory of the code-running environment. Use the `extract_frames` function to extract frames from the video file and convert them into PNG images in the base64 format. The function saves the data in the current directory as a single JSON file consisting of a list of base64 images. In addition, it extracts the audio data and saves it as an MP3 file. The function returns a message containing the resulting JSON file and MP3 file.
 
-      Then, the video will be analyzed using the `analyze_video` function to analyze the video content and provide a description. The function takes the JSON file (required) containing the list of base64 images of the frames extracted from the video and the audio mp3 (if available). You can provide a query to generate the description of the video content. If omitted, a default query, 'What is happening in the video?' will be used. The function returns the description of the video content.
-
-      Finally, the audio/video content description is displayed to the user.
+      Then, the video will be analyzed using the `analyze_video` function to analyze the video content and provide a description. The function takes the JSON file (required) containing the list of base64 images of the frames extracted from the video and the audio mp3 (if available) along with the fps used for extraction. You can provide a query to generate the description of the video content. If omitted, a default query, 'What is happening in the video?' will be used. The function returns the description of the video content. Finally, the audio/video content description is displayed to the user.
 
       Here is an example of the expected format of the video description:
 
@@ -71,13 +69,15 @@ class VideoDescriber < MonadicApp
                   "description": "File name or file path"
                 },
                 "fps": {
-                  "type": "integer",
-                  "description": "Frames per second (fps) to extract from the video. If omitted, the default value of 1 frame per second will be used."
+                  "type": ["integer", "null"],
+                  "description": "Frames per second (fps) to extract from the video. If omitted, the default value of 1 fps will be used."
                 }
               },
-              "required": ["file"]
+              "required": ["file", "fps"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -93,17 +93,18 @@ class VideoDescriber < MonadicApp
                   "description": "File name or file path of the json file containing the list of base64 images of the frames extracted from the video"
                 },
                 "audio": {
-                  "type": "string",
-                  "description": "File name or file path of the audio mp3 extracted from the video."
+                  "type": ["string", "null"],
+                  "description": "File name or file path of the audio mp3 extracted from the video. If no audio is available, this parameter can be omitted."
                 },
                 "query": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "description": "Query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used."
                 }
               },
-              "required": ["json"]
+              "required": ["json", "audio", "query"],
             }
-          }
+          },
+          "strict": true
         }
       ]
     }

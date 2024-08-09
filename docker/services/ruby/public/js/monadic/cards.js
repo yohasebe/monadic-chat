@@ -65,12 +65,15 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
 
   $(document).on("click", `#${mid} .func-play`, function () {
     $(this).tooltip('hide');
-    // cutoff text after <hr> or <hr/> or <hr /> of text content
-    const content = html.split(/<hr\s*\/?>/, 1)[0];
     const $this = $(this); // Store the reference to the clicked element
-    let text = removeCode(content.trim());
-
-    // remove markdown symbols (e.g., **, *, __, _) from the text
+    const content = $(`#${mid} .card-text`);
+    let text; 
+    try {
+      text = $(content.html().split(/<hr\s*\/?>/, 1)[0]).text()
+    } catch (e) {
+      text = content.text()
+    }
+    text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);
     ttsSpeak(text, true, false, function (){} );

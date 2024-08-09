@@ -550,10 +550,15 @@ function connect_websocket(callback) {
           let models_text = currentApp["models"]
           let models = JSON.parse(models_text);
           let modelList = listModels(models);
-          let model = data["content"]["model"];
           $("#model").html(modelList);
-          $("#model").val(model);
+          let model = currentApp["models"][0];
+          console.log(model);
+          if (currentApp["model"] && models.includes(currentApp["model"])) {
+            model = currentApp["model"];
+          }
+          console.log(model);
           $("#model-selected").text(model);
+          $("#model").val(model);
         }
 
         $("#base-app-title").text(currentApp["app_name"]);
@@ -645,7 +650,7 @@ function connect_websocket(callback) {
               break;
             }
             case "assistant": {
-              const gptElement = createCard("gpt", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
+              const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
 
               htmlContent = $("#discourse div.card:last");

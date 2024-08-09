@@ -120,7 +120,8 @@ def main():
 
     if args.command == 'create':
         if args.filename:
-            notebook_path = get_notebook_path(args.filename)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            notebook_path = get_notebook_path(f"{args.filename}_{timestamp}")
         else:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             notebook_path = get_notebook_path(f"notebook_{timestamp}")
@@ -191,4 +192,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

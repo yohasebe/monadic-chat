@@ -34,7 +34,7 @@ class ContentReader < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.0,
       "top_p": 0.0,
       "context_size": 20,
@@ -62,9 +62,12 @@ class ContentReader < MonadicApp
                   "type": "string",
                   "description": "File name or file path of the Microsoft Word/Excel/PowerPoint file."
                 }
-              }
+              },
+              "required": ["file"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -80,9 +83,11 @@ class ContentReader < MonadicApp
                   "description": "File name or file path of the PDF"
                 }
               },
-              "required": ["pdf"]
+              "required": ["pdf"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -98,9 +103,11 @@ class ContentReader < MonadicApp
                   "description": "URL of the web page."
                 }
               },
-              "required": ["url"]
+              "required": ["url"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -120,9 +127,11 @@ class ContentReader < MonadicApp
                   "description": "Path to the image file. It can be either a local file path or a URL."
                 }
               },
-              "required": ["message", "image_path"]
+              "required": ["message", "image_path"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -138,9 +147,11 @@ class ContentReader < MonadicApp
                   "description": "File path of the audio file"
                 }
               },
-              "required": ["audio"]
+              "required": ["audio"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         },
         {
           "type": "function",
@@ -156,9 +167,11 @@ class ContentReader < MonadicApp
                   "description": "File name or file path"
                 }
               },
-              "required": ["file"]
+              "required": ["file"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         }
       ]
     }

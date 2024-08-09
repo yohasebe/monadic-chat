@@ -90,7 +90,15 @@ Do your best to make the conversation as natural as possible. Do not change subj
       let models = JSON.parse(models_text);
       let modelList = listModels(models);
       $("#model").html(modelList);
-      $("#model-selected").text(models[0]);
+      let model = models[0];
+      console.log(model);
+      if (params["model"] && models.includes(params["model"])) {
+        model = params["model"];
+      }
+      console.log(model);
+
+      $("#model-selected").text(model);
+      $("#model").val(model);
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model_and_file").hide();
       $("#model_parameters").hide();

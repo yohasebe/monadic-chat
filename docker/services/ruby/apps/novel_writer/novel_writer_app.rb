@@ -92,9 +92,11 @@ class NovelWriter < MonadicApp
                   "description": "The new paragraph of text to be added to the novel."
                 }
               },
-              "required": ["num_of_words_so_far", "new_paragraph"]
+              "required": ["num_of_words_so_far", "new_paragraph"],
+              "additionalProperties": false
             }
-          }
+          },
+          "strict": true
         }
       ]
     }

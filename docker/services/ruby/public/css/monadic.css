@@ -553,3 +553,7 @@ pre {
   cursor: pointer;
   opacity: 0.65;
 }
+
+ul.no-bullets {
+  list-style-type: none;
+}

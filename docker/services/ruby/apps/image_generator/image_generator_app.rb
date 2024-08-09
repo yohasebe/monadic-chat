@@ -69,9 +69,11 @@ class ImageGeneration < MonadicApp
                 "description": "The size of the generated image."
               }
             },
-            "required": ["prompt", "size"]
+            "required": ["prompt", "size"],
+            "additionalProperties": false
           }
-        }
+        },
+        "strict": true
       }]
     }
   end

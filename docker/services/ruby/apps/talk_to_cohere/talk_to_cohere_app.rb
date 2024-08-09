@@ -77,7 +77,8 @@ class Cohere < MonadicApp
       "auto_speech": false,
       "initiate_from_assistant": false,
       "image": false,
-      "models": @models
+      "models": @models,
+      "model": "command-r"
     }
   end
 

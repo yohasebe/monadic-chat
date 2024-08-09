@@ -107,7 +107,7 @@ class MonadicApp
           output += json2html(value, iteration: iteration)
           output += "</li>"
         else
-          output += "<div class='mb-2' style='margin-left:#{margin}em'> <span class='fw-bold text-secondary'>#{key}: </span><br></ul>"
+          output += "<div class='mb-2' style='margin-left:#{margin}em'> <span class='fw-bold text-secondary'>#{key}: </span><br><ul class='no-bullets'>"
           value.each do |v|
             output += if v.is_a?(String)
                         "<li style='margin-left:#{margin}em'>#{v} </li>"
@@ -315,6 +315,8 @@ class MonadicApp
     send_code(code: code, command: command, extension: extension)
   end
 
+  # This is currently not used in the app
+  # Created to experiment with Google Gemini's function calling feature
   def run_script(code: "", command: "", extension: "")
     # remove escape characters from the code
     code = code.gsub(/\\n/) { "\n" }
@@ -392,8 +394,14 @@ class MonadicApp
                  success: "The notebook has been executed and updated with the results successfully.\n")
   end
 
-  def create_jupyter_notebook
-    command = "bash -c 'jupyter_controller.py create'"
+  def create_jupyter_notebook(filename:)
+    begin
+      # filename extension is not required and removed if provided
+      filename = filename.to_s.split(".")[0]
+    rescue StandardError
+      filename = ""
+    end
+    command = "bash -c 'jupyter_controller.py create #{filename}'"
     send_command(command: command, container: "python")
   end
 

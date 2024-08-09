@@ -46,7 +46,8 @@ class Wikipedia < MonadicApp
       "initiate_from_assistant": false,
       "image": true,
       "tools": [
-        { "type": "function",
+        {
+          "type": "function",
           "function": {
             "name": "search_wikipedia",
             "description": "A function to search Wikipedia articles, requiring one argument representing the query for the search.",
@@ -62,9 +63,12 @@ class Wikipedia < MonadicApp
                   "description": "language code of the Wikipedia to be searched"
                 }
               },
-              "required": ["search_query", "language_code"]
+              "required": ["search_query", "language_code"],
+              "additionalProperties": false
             }
-          } }
+          },
+          "strict": true
+        }
       ]
     }
   end

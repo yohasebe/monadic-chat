@@ -511,6 +511,9 @@ class CodeWithMistral < MonadicApp
 
       converted = {}
       argument_hash.each_with_object(converted) do |(k, v), memo|
+        # skip if the value is nil or null but not if it is of the string class
+        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
+
         memo[k.to_sym] = v
         memo
       end
@@ -582,7 +585,6 @@ class CodeWithMistral < MonadicApp
                   "html" => html,
                   "lang" => detect_language(obj["message"])
                 } }
-        res["images"] = obj["images"] if obj["images"]
         block&.call res
       end
 
@@ -593,9 +595,6 @@ class CodeWithMistral < MonadicApp
                 "html" => markdown_to_html(message),
                 "lang" => detect_language(message),
                 "active" => true }
-        if obj["images"]
-          res["images"] = obj["images"]
-        end
         session[:messages] << res
       end
     end
@@ -637,18 +636,7 @@ class CodeWithMistral < MonadicApp
 
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => msg["text"] }
-      if msg["images"] && role == "user"
-        msg["images"].each do |img|
-          message["content"] << {
-            "type" => "image_url",
-            "image_url" => {
-              "url" => img["data"]
-            }
-          }
-        end
-        messages_containing_img = true
-      end
+      { "role" => msg["role"], "content" => msg["text"] }
       message
     end
 

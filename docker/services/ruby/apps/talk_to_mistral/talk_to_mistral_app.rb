@@ -176,15 +176,6 @@ class TalkToMistral < MonadicApp
 
     result = texts.empty? ? nil : texts.first[1]
 
-    if result && obj["monadic"]
-      choice = result["choices"][0]
-      if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-        message = choice["message"]["content"]
-        modified = APPS[app].monadic_map(message)
-        choice["text"] = modified
-      end
-    end
-
     if tools.any?
       tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
       context = []
@@ -291,13 +282,11 @@ class TalkToMistral < MonadicApp
     if role != "tool"
       message = obj["message"].to_s
 
-      if obj["monadic"].to_s == "true" && message != ""
-        message = APPS[app].monadic_unit(message)
-
-        html = markdown_to_html(obj["message"]) if message != ""
-      elsif message != ""
-        html = markdown_to_html(message)
-      end
+      html = if message != ""
+               markdown_to_html(message)
+             else
+               message
+             end
 
       if message != "" && role == "user"
         res = { "type" => "user",
@@ -351,10 +340,6 @@ class TalkToMistral < MonadicApp
     end
 
     body["max_tokens"] = max_tokens if max_tokens
-
-    if obj["monadic"] || obj["json"]
-      body["response_format"] = { "type" => "json_object" }
-    end
 
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|

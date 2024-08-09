@@ -273,11 +273,6 @@ class Claude < MonadicApp
 
     message = obj["message"].to_s
 
-    # If the app is monadic, the message is passed through the monadic_map function
-    if obj["monadic"].to_s == "true" && message != ""
-      message = monadic_unit(message) if message != ""
-    end
-
     if message != "" && role == "user"
       @thinking.clear
       res = { "type" => "user",

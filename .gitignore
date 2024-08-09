@@ -65,3 +65,4 @@ rsync.sh
 
 *.pid
 *.log
+*.ipynb

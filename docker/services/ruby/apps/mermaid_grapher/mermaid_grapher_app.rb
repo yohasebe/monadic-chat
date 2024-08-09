@@ -1,7 +1,7 @@
 require "tempfile"
 require "open3"
 
-class FlowchartGrapher < MonadicApp
+class MermaidGrapher < MonadicApp
   def icon
     "<i class='fas fa-project-diagram'></i>"
   end
@@ -72,7 +72,7 @@ class FlowchartGrapher < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
-      "app_name": "Flowchart Grapher",
+      "app_name": "Mermaid Grapher",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": false,

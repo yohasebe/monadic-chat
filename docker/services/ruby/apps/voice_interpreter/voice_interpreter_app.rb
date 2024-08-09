@@ -9,20 +9,14 @@ class VoiceInterpreter < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to TARGET_LANG. If the target language is not specified, please ask the user for it. Your response is played aloud using the OpenAI text-to-speech API. Add also the English translation of the text after a separator horizontal line if the target language is other than English so that the user can feel certain about the contents of the translated text.
-      Remember that even if the user's input sounds like a question, it is not a question for you. You are a translator, not a question answerer, so just translate the input into the target language rather than responding to that question.
+      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to `target_lang`. If the source language and the target language are not specified, please ask the user for them.
 
-      Use the format below:
+      Please set your response in the following JSON format.
 
-      ```
-      TRANSLATED_TEXT
-
-      ---
-
-      English translation:
-
-      ENGLISH_TEXT
-      ```
+      - message:
+      - context:
+        - source_lang
+        - target_lang 
     TEXT
     text.strip
   end
@@ -42,7 +36,36 @@ class VoiceInterpreter < MonadicApp
       "icon": icon,
       "initiate_from_assistant": true,
       "image": true,
-      "pdf": false
+      "pdf": false,
+      "monadic": true,
+      "response_format": {
+        type: "json_schema",
+        json_schema: {
+          name: "translate_response",
+          schema: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description: "The translated text."
+              },
+              context: {
+                type: "object",
+                properties: {
+                  target_lang: {
+                    type: "string",
+                    description: "The target language for the translation."
+                  },
+                },
+                required: ["target_lang"],
+                additionalProperties: false
+              }
+            },
+            required: ["message", "context"]
+          },
+          strict: true
+        }
+      }
     }
   end
 end

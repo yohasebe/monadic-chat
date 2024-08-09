@@ -9,7 +9,7 @@ class JupyterNotebook < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command and let the user know that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
+      You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command and tell the user that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
 
       Next, ask the user if he or she wants a new notebook to be created. If so, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then provide the Notebook file in the form `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank">Jupyter Notebook: FILENAME</a>` where FILENAME is the name of the newly created Jupyter Notebook file (without preceding paths such as 'data/monadic/'). If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
 
@@ -24,6 +24,7 @@ class JupyterNotebook < MonadicApp
       - In case you get error, let the user know the exact error message and terminate the process.
       - When you call a function, make sure to provide the correct parameters as described in the function description.
       - Do not add a cell with the same content as the last cell in the notebook.
+      - Basically use English both in the conversation and in the code. If the user uses a language other than English, use it in your response and code, only as much as possible.
     TEXT
     text.strip
   end

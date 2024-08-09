@@ -150,7 +150,7 @@ class CodeInterpreter < MonadicApp
 
         <video controls src="/data/FILE_NAME"></video>
 
-      [IMPORTANT]: Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag.
+      Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag. Needless to say, only existing files should be displayed.
     TEXT
 
     text.strip

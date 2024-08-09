@@ -390,6 +390,7 @@ class CodeWithClaude < MonadicApp
                   end
                 end
               else
+
                 if json.dig("delta", "text")
                   fragment = json.dig("delta", "text").to_s
                   next if !fragment || fragment == ""
@@ -485,8 +486,10 @@ class CodeWithClaude < MonadicApp
         result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
       when /sonnet/
         unless @leftover.empty?
-          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
-          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
+          # leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
+          # result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
+
+          result = @leftover.map { |x| x.dig("content", 0, "text") }.join("\n") + result
         end
       end
       @leftover.clear
@@ -534,11 +537,6 @@ class CodeWithClaude < MonadicApp
     request_id = SecureRandom.hex(4)
 
     message = obj["message"].to_s
-
-    # If the app is monadic, the message is passed through the monadic_map function
-    if obj["monadic"].to_s == "true" && message != ""
-      message = monadic_unit(message) if message != ""
-    end
 
     if message != "" && role == "user"
       @thinking.clear

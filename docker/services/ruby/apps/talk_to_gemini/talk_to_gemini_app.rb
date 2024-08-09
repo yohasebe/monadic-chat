@@ -262,12 +262,11 @@ class Gemini < MonadicApp
     if role != "tool"
       message = obj["message"].to_s
 
-      if obj["monadic"].to_s == "true" && message != ""
-        message = monadic_unit(message) if message != ""
-        html = markdown_to_html(obj["message"]) if message != ""
-      elsif message != ""
-        html = markdown_to_html(message)
-      end
+      html = if message != ""
+               markdown_to_html(message)
+             else
+               message
+             end
 
       if message != "" && role == "user"
         res = { "type" => "user",

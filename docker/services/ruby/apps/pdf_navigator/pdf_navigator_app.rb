@@ -18,11 +18,11 @@ class PDFNavigator < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o-mini",
+      "model": "gpt-4o-2004-08-06",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 4000,
-      "context_size": 10,
+      "context_size": 20,
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,

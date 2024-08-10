@@ -242,6 +242,7 @@ To use this application, the user needs to place the video file in the `Shared F
 
 Recipe file: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/video_describer/video_describer_app.rb)
 
+<!--
 ## Discourse Analysis
 
 <img src="./assets/icons/discourse-analysis.png" width="40px"/>
@@ -249,6 +250,7 @@ Recipe file: [video_describer_app.rb](https://github.com/yohasebe/monadic-chat/b
 This is an application for analyzing and summarizing the user's discourse. The AI generates a summary of the user's messages, identifies the main topics, classifies the sentence types, and determines the sentiment of the messages. This app uses the monadic feature of the Monadic Chat framework. It accumulates and summarizes the past discourse contents and passes them over to the following conversation turns.
 
 Recipe file: [discourse_analysis_app.rb](https://github.com/yohasebe/monadic-chat/blob/main/docker/services/ruby/apps/discourse_analysis/discourse_analysis_app.rb)
+-->
 
 ## Speech Draft Helper
 

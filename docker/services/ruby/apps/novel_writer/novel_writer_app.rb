@@ -126,7 +126,7 @@ class NovelWriter < MonadicApp
                             type: "object",
                             properties: {
                               "name": "total_number_of_words",
-                              "type": "integer",
+                              "type": "integer"
                             },
                             required: ["total_number_of_words"],
                             additionalProperties: false
@@ -135,7 +135,7 @@ class NovelWriter < MonadicApp
                             type: "object",
                             properties: {
                               "name": "total_number_of_chars",
-                              "type": "integer",
+                              "type": "integer"
                             },
                             required: ["total_number_of_chars"],
                             additionalProperties: false
@@ -155,7 +155,7 @@ class NovelWriter < MonadicApp
                             type: "object",
                             properties: {
                               "name": "number_of_words_so_far",
-                              "type": "integer",
+                              "type": "integer"
                             },
                             required: ["number_of_words_so_far"],
                             additionalProperties: false
@@ -164,7 +164,7 @@ class NovelWriter < MonadicApp
                             type: "object",
                             properties: {
                               "name": "number_of_chars_so_far",
-                              "type": "integer",
+                              "type": "integer"
                             },
                             required: ["number_of_chars_so_far"],
                             additionalProperties: false

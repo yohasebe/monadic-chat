@@ -16,7 +16,7 @@ class VoiceInterpreter < MonadicApp
       - message:
       - context:
         - source_lang
-        - target_lang 
+        - target_lang
     TEXT
     text.strip
   end
@@ -55,7 +55,7 @@ class VoiceInterpreter < MonadicApp
                   target_lang: {
                     type: "string",
                     description: "The target language for the translation."
-                  },
+                  }
                 },
                 required: ["target_lang"],
                 additionalProperties: false

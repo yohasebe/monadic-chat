@@ -18,21 +18,14 @@ class MonadicApp
   def monadic_unit(message)
     res = { "message": message,
             "context": @context }
-    <<~MONAD
-      ```json
-      #{res.to_json}
-      ```
-    MONAD
+    res.to_json
   end
 
   # Unwrap the monad and return the message
   def monadic_unwrap(monad)
-    if /(?:```json\s*)?{(.+)\s*}(?:\s*```)?/m =~ monad
-      json = "{#{Regexp.last_match(1)}}"
-      JSON.parse(json)
-    else
-      { "message" => monad.to_s, "context" => @context }
-    end
+    JSON.parse(monad)
+  rescue JSON::ParserError
+    { "message" => monad.to_s, "context" => @context }
   end
 
   # sanitize the data to remove invalid characters
@@ -58,14 +51,7 @@ class MonadicApp
   def monadic_map(monad)
     obj = monadic_unwrap(monad)
     @context = block_given? ? yield(obj["context"]) : obj["context"]
-
-    <<~MONAD
-
-      ```json
-      #{JSON.pretty_generate(sanitize_data(obj))}
-      ```
-
-    MONAD
+    JSON.pretty_generate(sanitize_data(obj))
   end
 
   # Convert a monad to HTML
@@ -81,52 +67,66 @@ class MonadicApp
     snake
   end
 
-  # Convert a JSON object to HTML
-  def json2html(hash, iteration: 0)
+  def json2html(hash, iteration: 0, exclude_empty: true)
     iteration += 1
     output = +""
+
+    if hash.key?("message")
+      output += UtilitiesHelper.markdown_to_html(hash["message"])
+      output += "<hr />"
+      hash = hash.reject { |k, _| k == "message" }
+    end
+
     hash.each do |key, value|
-      value = UtilitiesHelper.markdown_to_html(value) if key == "message"
+      next if exclude_empty && (value.nil? || value == "" || (value.is_a?(Array) && value.empty?))
 
       key = snake2cap(key)
-      margin = iteration - 2
-      case value
-      when Hash
-        if iteration == 1
-          output += "<div class='mb-2'>"
-          output += json2html(value, iteration: iteration)
-          output += "</div>"
-        else
-          output += "<div class='mb-2' style='margin-left:#{margin}em'> <span class='fw-bold text-secondary'>#{key}: </span><br>"
-          output += json2html(value, iteration: iteration)
-          output += "</div>"
-        end
-      when Array
-        if iteration == 1
-          output += "<li class='mb-2'>"
-          output += json2html(value, iteration: iteration)
-          output += "</li>"
-        else
-          output += "<div class='mb-2' style='margin-left:#{margin}em'> <span class='fw-bold text-secondary'>#{key}: </span><br><ul class='no-bullets'>"
-          value.each do |v|
-            output += if v.is_a?(String)
-                        "<li style='margin-left:#{margin}em'>#{v} </li>"
-                      else
-                        json2html(v, iteration: iteration)
-                      end
-          end
-        end
-        output += "</ul></div>"
+      data_key = key.downcase
+
+      if key.downcase == "context"
+        output += "<div class='json-item context' data-depth='#{iteration}' data-key='context'>"
+        output += "<div class='json-header' onclick='toggleItem(this)'>"
+        output += "<span>Context</span>"
+        output += " <i class='fas fa-chevron-down float-right'></i>"
+        output += "</div>"
+        output += "<div class='json-content' style='margin-left:1em'>"
+        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty)
+        output += "</div></div>"
       else
-        output += if iteration == 1
-                    "<div class='mb-3' style='margin-left:#{margin + 1}em'>#{value}</div><hr />"
-                  else
-                    "<div style='margin-left:#{margin}em'> <span class='fw-bold text-secondary'>#{key}: </span>#{value}</div>"
-                  end
+        case value
+        when Hash, Array
+          output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+          output += "<div class='json-header' onclick='toggleItem(this)'>"
+          output += "<span>#{key}</span>"
+          output += " <i class='fas fa-chevron-down float-right'></i>"
+          output += "</div>"
+          output += "<div class='json-content' style='margin-left:1em'>"
+
+          if value.is_a?(Hash)
+            output += json2html(value, iteration: iteration, exclude_empty: exclude_empty)
+          else # Array
+            output += "<ul class='no-bullets'>"
+            value.each do |v|
+              output += if v.is_a?(String)
+                          "<li>#{v}</li>"
+                        else
+                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty)}</li>"
+                        end
+            end
+            output += "</ul>"
+          end
+
+          output += "</div></div>"
+        else
+          output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+          output += "<span>#{key}: </span>"
+          output += "<span>#{value}</span>"
+          output += "</div>"
+        end
       end
     end
 
-    "<div class='mb-3'>#{output}</div>"
+    "<div class='json-container'>#{output}</div>"
   end
 
   def send_command(command:,

@@ -94,8 +94,6 @@ class TalkToMistral < MonadicApp
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-    obj = session[:parameters]
-
     buffer = ""
     texts = {}
     tools = {}

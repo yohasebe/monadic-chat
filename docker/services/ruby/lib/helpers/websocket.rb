@@ -180,10 +180,13 @@ module WebSocketHelper
 
           reversed_messages = session[:messages].map do |m|
             m["role"] = m["role"] == "assistant" ? "user" : "assistant"
-            if /"message":\s*"([\s\S]+?)"/m =~ m["text"]
-              extract = Regexp.last_match(1)
-              m["text"] = extract
-              m.delete("html")
+            if obj["contents"]["params"]["monadic"].to_s == "true"
+              begin
+                parsed = JSON.parse(m["text"])
+                m["text"] = parsed["message"] || parsed["response"]
+              rescue JSON::ParserError
+                # do nothing
+              end
             end
             m
           end

@@ -379,7 +379,7 @@ $("#send").on("click", function(event) {
           $("#fileModal button").prop('disabled', false);
           $("#fileModal").modal("hide");
           ws.send(JSON.stringify({message: "PDF_TITLES"}));
-          setAlert(`File uploaded successfully.<br /><b>${fileTitle}</b>`, "success");
+          setAlert(`File uploaded successfully.<br />`, "success");
         }).fail(function(error) {
           $("#file-spinner").hide();
           $("#fileModal button").prop("disabled", false);
@@ -568,4 +568,7 @@ $("#send").on("click", function(event) {
     $("#ai-user-toggle").prop("checked", false);
     adjustScrollButtons();
   });
+
+
+
 });

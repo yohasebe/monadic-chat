@@ -406,3 +406,91 @@ function autoResize(textarea) {
   textarea.css('height', textarea.prop('scrollHeight') + 'px');
 }
 
+let collapseStates = {};
+
+function toggleItem(element) {
+  const content = element.nextElementSibling;
+  const chevron = element.querySelector('.fa-chevron-down, .fa-chevron-right');
+  const item = element.closest('.json-item');
+  const key = item.dataset.key;
+  const depth = parseInt(item.dataset.depth);
+  const isOpening = content.style.display === 'none';
+
+  if (depth === 2 && item.closest('.context')) {
+    const contextKey = `context_${key}`;
+    collapseStates[contextKey] = !isOpening;
+  } else {
+    collapseStates[key] = !isOpening;
+  }
+
+  updateItemStates();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateItemStates();
+});
+
+function updateItemStates() {
+  const items = document.querySelectorAll('.json-item');
+  const contextStates = {};
+
+  items.forEach(item => {
+    const key = item.dataset.key;
+    const depth = parseInt(item.dataset.depth);
+    const content = item.querySelector('.json-content');
+    const chevron = item.querySelector('.fa-chevron-down, .fa-chevron-right');
+
+    if (!content || !chevron) return;
+
+    let isCollapsed;
+    const context = item.closest('.context');
+
+    if (depth === 2 && context) {
+      const contextKey = `context_${key}`;
+      const contextIndex = Array.from(context.parentElement.children).indexOf(context);
+
+      if (contextIndex > 0) {
+        const prevContextState = contextStates[contextKey];
+        if (prevContextState !== undefined) {
+          isCollapsed = prevContextState;
+        } else {
+          isCollapsed = collapseStates[contextKey];
+          if (isCollapsed === undefined) {
+            isCollapsed = false;
+          }
+        }
+      } else {
+        isCollapsed = collapseStates[contextKey];
+        if (isCollapsed === undefined) {
+          isCollapsed = false;
+        }
+      }
+
+      contextStates[contextKey] = isCollapsed;
+    } else {
+      isCollapsed = collapseStates[key];
+      if (isCollapsed === undefined) {
+        isCollapsed = false;
+      }
+    }
+
+    collapseStates[key] = isCollapsed;
+    
+    if (isCollapsed) {
+      content.style.display = 'none';
+      chevron.classList.replace('fa-chevron-down', 'fa-chevron-right');
+    } else {
+      content.style.display = 'block';
+      chevron.classList.replace('fa-chevron-right', 'fa-chevron-down');
+    }
+  });
+}
+
+function onNewElementAdded() {
+  updateItemStates();
+}
+
+function applyCollapseStates() {
+  updateItemStates();
+}
+

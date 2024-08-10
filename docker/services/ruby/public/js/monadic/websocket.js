@@ -50,6 +50,10 @@ function handleVisibilityChange() {
 
 // Set the copy code button for each code block
 function setCopyCodeButton(element) {
+  // check element if it exists
+  if (!element) {
+    return;
+  }
   element.find("div.card-text pre > code").each(function () {
     const codeElement = $(this);
     const copyButton = `<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`;
@@ -104,7 +108,7 @@ let autoScroll = true;
  /* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
-const defaultApp = "Chat";
+const defaultApp = "Chat (Default)";
 
 function isElementInViewport(element) {
   // Convert the jQuery element to a native DOM element
@@ -525,8 +529,7 @@ function connect_websocket(callback) {
         if (Object.keys(apps).length === 0) {
           for (const [key, value] of Object.entries(data["content"])) {
             apps[key] = value;
-            const default_label = value["app_name"] === defaultApp ? " (Default)" : "";
-            $("#apps").append(`<option value="${key}">${value["app_name"]}${default_label}</option>`);
+            $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
           }
           $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
           $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
@@ -536,7 +539,7 @@ function connect_websocket(callback) {
             ws.send(JSON.stringify({message: "PDF_TITLES"}));
           }
         }
-        originalParams = apps["Chat"];
+        originalParams = apps["Chat (Default)"];
         resetParams();
         break;
       }
@@ -552,11 +555,9 @@ function connect_websocket(callback) {
           let modelList = listModels(models);
           $("#model").html(modelList);
           let model = currentApp["models"][0];
-          console.log(model);
           if (currentApp["model"] && models.includes(currentApp["model"])) {
             model = currentApp["model"];
           }
-          console.log(model);
           $("#model-selected").text(model);
           $("#model").val(model);
         }
@@ -638,7 +639,14 @@ function connect_websocket(callback) {
           messages.push(msg);
           switch (msg["role"]) {
             case "user": {
-              let msg_text = msg["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")
+              let msg_text = msg["text"].trim()
+
+              if (msg_text.startsWith("{") && msg_text.endsWith("}")) {
+                const json = JSON.parse(msg_text);
+                msg_text = json.message;
+              }
+              msg_text = msg_text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
+
               let images
               if(msg["images"] !== undefined){
                 images = msg["images"]
@@ -767,6 +775,7 @@ function connect_websocket(callback) {
         }
 
         $("#discourse").append(htmlElement);
+        updateItemStates();
 
         htmlContent = $("#discourse div.card:last");
 

@@ -101,7 +101,7 @@ class VideoDescriber < MonadicApp
                   "description": "Query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used."
                 }
               },
-              "required": ["json", "audio", "query"],
+              "required": ["json", "audio", "query"]
             }
           },
           "strict": true

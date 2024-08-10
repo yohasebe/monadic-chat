@@ -1,5 +1,4 @@
 class SpeechDraftHelper < MonadicApp
-
   def icon
     "<i class='fas fa-user-tie'></i>"
   end

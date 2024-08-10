@@ -1,4 +1,4 @@
-class ChatDefault < MonadicApp
+class Chat < MonadicApp
   def icon
     "<i class='fas fa-comments'></i>"
   end
@@ -24,7 +24,7 @@ class ChatDefault < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
-      "app_name": "Chat (Default)",
+      "app_name": "Chat",
       "icon": icon,
       "description": description,
       "initiate_from_assistant": false,

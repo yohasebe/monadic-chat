@@ -902,6 +902,7 @@ function prepareSettingsWindow() {
     parent: mainWindow,
     modal: true,
     show: false,
+    frame: false, // Remove the default window frame
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -911,13 +912,6 @@ function prepareSettingsWindow() {
   });
 
   settingsWindow.loadFile('settings.html');
-
-  if (process.platform === 'darwin') {
-    const emptyMenu = Menu.buildFromTemplate([]);
-    settingsWindow.setMenu(emptyMenu);
-  } else {
-    settingsWindow.setMenu(null);
-  }
 
   settingsWindow.on('close', (event) => {
     event.preventDefault();

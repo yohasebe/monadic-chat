@@ -121,9 +121,20 @@ Remember you are the one who inquires for information, not providing the answers
       $("#max-tokens-toggle").prop("checked", false);
       $("#max-tokens").prop("disabled", true);
     }
-
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
     $("#base-app-icon").html(apps[$(this).val()]["icon"]);
+    if (apps[$(this).val()]["monadic"]) {
+      $("#monadic-badge").show();
+    } else {
+      $("#monadic-badge").hide();
+    }
+
+    console.log(apps[$(this).val()]["tools"]);
+    if (apps[$(this).val()]["tools"]) {
+      $("#tools-badge").show();
+    } else {
+      $("#tools-badge").hide();
+    }
     $("#base-app-desc").html(apps[$(this).val()]["description"]);
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");

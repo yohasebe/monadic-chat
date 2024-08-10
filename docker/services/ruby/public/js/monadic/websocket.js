@@ -108,7 +108,7 @@ let autoScroll = true;
  /* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
-const defaultApp = "Chat (Default)";
+const defaultApp = "Chat";
 
 function isElementInViewport(element) {
   // Convert the jQuery element to a native DOM element
@@ -532,6 +532,16 @@ function connect_websocket(callback) {
             $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
           }
           $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
+          if (apps[$("#apps").val()]["monadic"]) {
+            $("#monadic-badge").show();
+          } else {
+            $("#monadic-badge").hide();
+          }
+          if (apps[$("#apps").val()]["tools"]) {
+            $("#tools-badge").show();
+          } else {
+            $("#tools-badge").hide();
+          }
           $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
           $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
 
@@ -539,7 +549,7 @@ function connect_websocket(callback) {
             ws.send(JSON.stringify({message: "PDF_TITLES"}));
           }
         }
-        originalParams = apps["Chat (Default)"];
+        originalParams = apps["Chat"];
         resetParams();
         break;
       }
@@ -564,6 +574,16 @@ function connect_websocket(callback) {
 
         $("#base-app-title").text(currentApp["app_name"]);
         $("#base-app-icon").html(currentApp["icon"]);
+        if (currentApp["monadic"]) {
+          $("#monadic-badge").show();
+        } else {
+          $("#monadic-badge").hide();
+        }
+        if (currentApp["tools"]) {
+          $("#tools-badge").show();
+        } else {
+          $("#tools-badge").hide();
+        }
         $("#base-app-desc").html(currentApp["description"]);
         $("#start").focus();
         break;

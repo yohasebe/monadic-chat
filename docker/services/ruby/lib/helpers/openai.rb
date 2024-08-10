@@ -233,6 +233,8 @@ module OpenAIHelper
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
 
+              fragment = fragment.gsub(/\\\n/, "\n") if obj["monadic"]
+
               res = {
                 "type" => "fragment",
                 "content" => fragment

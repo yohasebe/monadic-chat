@@ -579,7 +579,4 @@ $("#send").on("click", function(event) {
     $("#ai-user-toggle").prop("checked", false);
     adjustScrollButtons();
   });
-
-
-
 });

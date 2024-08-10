@@ -72,7 +72,8 @@ class MonadicApp
     output = +""
 
     if hash.key?("message")
-      output += UtilitiesHelper.markdown_to_html(hash["message"])
+      message_markdown = hash["message"].gsub(/\\n/, "\n")
+      output += UtilitiesHelper.markdown_to_html(message_markdown)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end

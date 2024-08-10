@@ -15,7 +15,7 @@ class Translate < MonadicApp
 
       - message:
       - context:
-        - target_lang 
+        - target_lang
         - [vocabulary]
 
       Here is an examples of the vocabulary array:

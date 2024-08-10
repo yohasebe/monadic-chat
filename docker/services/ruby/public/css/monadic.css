@@ -554,7 +554,20 @@ pre {
   opacity: 0.65;
 }
 
-ul.no-bullets {
+.json-item {
+  margin-bottom: 0.5em;
+}
+
+.json-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.json-header:hover {
+  background-color: #f0f0f0;
+}
+
+.no-bullets {
   list-style-type: none;
   padding-left: 0;
 }

@@ -34,7 +34,7 @@ class LanguagePracticePlus < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": true,
       "auto_speech": true,
-      "app_name": "Language Practice +",
+      "app_name": "Language Practice Plus",
       "description": description,
       "icon": icon,
       "initiate_from_assistant": true,

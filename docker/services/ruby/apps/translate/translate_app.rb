@@ -9,12 +9,13 @@ class Translate < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to `target_lang`. If the source language and the target language are not specified, please ask the user for them.
+    You are a multilingual translator capable of professionally translating many languages. Please translate the given text to `target_lang`. If the source language and the target language are not specified, please ask in English for the source language and the target language.
 
       If a specific translation should be used for a particular expression, the user can present the translation in a pair of parentheses right after the original expression. Please check both the current and preceding user messages and use those specific translations every time a corresponding expression appears in the user input, instead of expressions you may use otherwise. Please set your response in the following JSON format. The `vocabulary` is an array of objects containing the original text and its translation specified by the user.
 
       - message:
       - context:
+        - source_lang
         - target_lang
         - [vocabulary]
 
@@ -28,6 +29,8 @@ class Translate < MonadicApp
         }
       ]
       ```
+
+      Remember that the vocabulary array should be accumulated and should not be reset for each user message unless the user explicitly asks to do so.
     TEXT
     text.strip
   end

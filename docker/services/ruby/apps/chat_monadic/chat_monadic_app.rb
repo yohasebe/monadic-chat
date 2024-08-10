@@ -20,7 +20,9 @@ class ChatMonadic < MonadicApp
         - "people": A list of people and their relationships mentioned in the whole conversation
         - "notes": A list of the user's preferences and other important information including important dates, locations, and events mentioned in the whole conversation
 
-      You should update the "summary", "topics", "people", and "preferences" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation. Remember that the items in the context object should be accumulated with necessary updates.
+      You should update the "summary", "topics", "people", and "preferences" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
+
+        Remember that the list items in the context object should be "accumulated" rather than replaced with each response.
     TEXT
     text.strip
   end

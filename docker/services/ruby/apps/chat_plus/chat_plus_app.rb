@@ -1,4 +1,4 @@
-class ChatMonadic < MonadicApp
+class ChatPlus < MonadicApp
   def icon
     "<i class='fas fa-comments'></i>"
   end
@@ -16,13 +16,13 @@ class ChatMonadic < MonadicApp
       Your response should be contained in a JSON object with the following structure:
       - "message": Your response to the user
       - "context": An object containing the following properties:
-        - "topics": A list of topics discussed in the whole conversation
-        - "people": A list of people and their relationships mentioned in the whole conversation
-        - "notes": A list of the user's preferences and other important information including important dates, locations, and events mentioned in the whole conversation
+        - "topics": A list of topics ever discussed in the whole conversation
+        - "people": A list of people and their relationships ever mentioned in the whole conversation
+        - "notes": A list of the user's preferences and other important information including important dates, locations, and events ever mentioned in the whole conversation
 
       You should update the "summary", "topics", "people", and "preferences" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
 
-        Remember that the list items in the context object should be "accumulated" rather than replaced with each response.
+        Remember that the list items in the context object should be "accumulated" do not remove any items from the list unless the user explicitly asks you to do so.
     TEXT
     text.strip
   end
@@ -37,7 +37,7 @@ class ChatMonadic < MonadicApp
       "initial_prompt": initial_prompt,
       "easy_submit": false,
       "auto_speech": false,
-      "app_name": "Chat (Monadic)",
+      "app_name": "Chat Plus",
       "icon": icon,
       "description": description,
       "initiate_from_assistant": false,

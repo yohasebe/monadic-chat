@@ -95,11 +95,9 @@ Remember you are the one who inquires for information, not providing the answers
       let modelList = listModels(models);
       $("#model").html(modelList);
       let model = models[0];
-      console.log(model);
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
       }
-      console.log(model);
 
       $("#model-selected").text(model);
       $("#model").val(model);
@@ -129,7 +127,6 @@ Remember you are the one who inquires for information, not providing the answers
       $("#monadic-badge").hide();
     }
 
-    console.log(apps[$(this).val()]["tools"]);
     if (apps[$(this).val()]["tools"]) {
       $("#tools-badge").show();
     } else {

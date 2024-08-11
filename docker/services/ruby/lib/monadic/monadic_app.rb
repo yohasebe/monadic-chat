@@ -67,13 +67,23 @@ class MonadicApp
     snake
   end
 
+  def escape_all_special_characters(str)
+    str.gsub(/\a/, "\\a")
+       .gsub(/\f/, "\\f")
+       .gsub(/\n/, "\\n")
+       .gsub(/\r/, "\\r")
+       .gsub(/\t/, "\\t")
+       .gsub(/\v/, "\\v")
+       .gsub("\\root", "\\sqrt")
+  end
+
   def json2html(hash, iteration: 0, exclude_empty: true)
     iteration += 1
     output = +""
 
     if hash.key?("message")
-      message_markdown = hash["message"].gsub(/\\n/, "\n")
-      output += UtilitiesHelper.markdown_to_html(message_markdown)
+      message = escape_all_special_characters(hash["message"])
+      output += UtilitiesHelper.markdown_to_html(message)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end
@@ -109,6 +119,8 @@ class MonadicApp
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
+                          v = escape_all_special_characters(v)
+                          v = UtilitiesHelper.markdown_to_html(v)
                           "<li>#{v}</li>"
                         else
                           "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty)}</li>"
@@ -121,6 +133,8 @@ class MonadicApp
         else
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<span>#{key}: </span>"
+          value = escape_all_special_characters(value)
+          value = UtilitiesHelper.markdown_to_html(value)
           output += "<span>#{value}</span>"
           output += "</div>"
         end

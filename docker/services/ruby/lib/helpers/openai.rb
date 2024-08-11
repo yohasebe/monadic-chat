@@ -230,10 +230,9 @@ module OpenAIHelper
               choice["message"] ||= choice["delta"].dup
               choice["message"]["content"] ||= ""
               fragment = json.dig("choices", 0, "delta", "content").to_s
+
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
-
-              fragment = fragment.gsub(/\\\n/, "\n") if obj["monadic"]
 
               res = {
                 "type" => "fragment",

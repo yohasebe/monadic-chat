@@ -1,6 +1,6 @@
 const mids = [];
 
-function createCard(role, badge, html, lang = "en", mid = "", status = true, images = []) {
+function createCard(role, badge, html, lang = "en", mid = "", status = true, images = [], monadic = false) {
   const status_class = status === true ? "active" : "";
 
   let className
@@ -106,11 +106,24 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
   $(document).on("click", `#${mid} .func-edit`, function () {
     $(this).tooltip('hide');
     const $this = $(this); // Store the reference to the clicked element
-    // confirm to delete this message and all the messages after this message
+    const text = messages.find((m) => m.mid === mid).text;
+
+    // check if text is JSON
+    let json = false;
+    try {
+      JSON.parse(text);
+      json = true;
+    } catch (e) {
+      ;
+    }
+    if (json) {
+      alert("The current app is monadic. You can't edit JSON messages");
+      return;
+    }
+
     const confirmed = confirm(`Are you sure to edit this message?\nThis will delete all the messages after it.`);
     if (confirmed) {
       $this.find("i").removeClass("fa-square-pen").addClass("fa-check").css("color", "#DC4C64");
-      const text = messages.find((m) => m.mid === mid).text;
       // "#message" textbox should automatically expand according to the size of the text
       $("#message").val(text).trigger("input").focus();
       let role = messages.find((m) => m.mid === mid).role;

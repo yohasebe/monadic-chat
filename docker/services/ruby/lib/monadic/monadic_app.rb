@@ -7,7 +7,7 @@ class MonadicApp
 
   # access the flask app client so that it gets ready before the first request
 
-  attr_accessor :api_key, :context
+  attr_accessor :api_key, :context, :settings
 
   def initialize
     @context = {}
@@ -57,7 +57,7 @@ class MonadicApp
   # Convert a monad to HTML
   def monadic_html(monad)
     obj = monadic_unwrap(monad)
-    json2html(obj)
+    json2html(obj, mathjax: settings["mathjax"] || settings[:mathjax])
   end
 
   # Convert snake_case to space ceparated capitalized words
@@ -68,21 +68,31 @@ class MonadicApp
   end
 
   def escape_all_special_characters(str)
-    str.gsub(/\a/, "\\a")
-       .gsub(/\f/, "\\f")
-       .gsub(/\n/, "\\n")
-       .gsub(/\r/, "\\r")
-       .gsub(/\t/, "\\t")
-       .gsub(/\v/, "\\v")
-       .gsub("\\root", "\\sqrt")
+    str.gsub(/\$\$(.*?)\$\$|\$(.*?)\$/m) do
+      match = Regexp.last_match
+      content = match[1] || match[2]
+      escaped_content = content.gsub(/\a/, "\\a")
+                               .gsub(/\f/, "\\f")
+                               .gsub(/\n/, "\\n")
+                               .gsub(/\r/, "\\r")
+                               .gsub(/\t/, "\\t")
+                               .gsub(/\v/, "\\v")
+                               .gsub("\\root", "\\sqrt")
+      if match[1] # $$...$$
+        "$$#{escaped_content}$$"
+      else # $...$
+        "$#{escaped_content}$"
+      end
+    end
   end
 
-  def json2html(hash, iteration: 0, exclude_empty: true)
+  def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
     iteration += 1
     output = +""
 
     if hash.key?("message")
-      message = escape_all_special_characters(hash["message"])
+      message = hash["message"]
+      message = escape_all_special_characters(message) if mathjax
       output += UtilitiesHelper.markdown_to_html(message)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
@@ -101,7 +111,7 @@ class MonadicApp
         output += " <i class='fas fa-chevron-down float-right'></i>"
         output += "</div>"
         output += "<div class='json-content' style='margin-left:1em'>"
-        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty)
+        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
         output += "</div></div>"
       else
         case value
@@ -114,16 +124,15 @@ class MonadicApp
           output += "<div class='json-content' style='margin-left:1em'>"
 
           if value.is_a?(Hash)
-            output += json2html(value, iteration: iteration, exclude_empty: exclude_empty)
+            output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
           else # Array
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
-                          v = escape_all_special_characters(v)
-                          v = UtilitiesHelper.markdown_to_html(v)
+                          v = escape_all_special_characters(v) if mathjax
                           "<li>#{v}</li>"
                         else
-                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty)}</li>"
+                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)}</li>"
                         end
             end
             output += "</ul>"
@@ -133,7 +142,7 @@ class MonadicApp
         else
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<span>#{key}: </span>"
-          value = escape_all_special_characters(value)
+          value = escape_all_special_characters(value) if mathjax
           value = UtilitiesHelper.markdown_to_html(value)
           output += "<span>#{value}</span>"
           output += "</div>"

@@ -120,7 +120,7 @@ def init_apps
     if app.settings[:mathjax]
       initial_prompt_suffix << <<~INITIAL
 
-        When incorporating MathJax expressions or LaTeX expressions into your response, adhere to the following notation guidelines: Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text.
+      When incorporating MathJax expressions or LaTeX expressions into your response, adhere to the following notation guidelines: Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text.
       INITIAL
 
       prompt_suffix << <<~SUFFIX

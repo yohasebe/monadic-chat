@@ -130,18 +130,13 @@ function applyMathJax(element) {
     return;
   }
 
-  // if (!/\$[^$]+\$/.test(element.text())) {
-  //   return;
-  // }
-
   if (typeof MathJax === 'undefined') {
     console.error('MathJax is not loaded. Please make sure to include the MathJax script in your HTML file.');
     return;
   }
 
-
   // Get the DOM element from the jQuery object
-  const domElement = element.get(0);
+  let domElement = element.get(0);
 
   // Typeset the element using MathJax
   MathJax.typesetPromise([domElement])

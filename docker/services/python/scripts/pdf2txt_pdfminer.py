@@ -3,33 +3,49 @@
 import argparse
 import json
 import os
-import fitz  # PyMuPDF
+import re
+from io import StringIO, BytesIO
+from pdfminer.high_level import extract_text_to_fp
+from pdfminer.layout import LAParams
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage
+from pdfminer.converter import TextConverter, HTMLConverter, XMLConverter
 
 def extract_text(pdf_path, output_format, all_pages):
-    doc = fitz.open(pdf_path)
-    
-    for page in doc:
-        if output_format == 'text':
-            text = page.get_text()
-        elif output_format == 'html':
-            text = page.get_text("html")
+    rsrcmgr = PDFResourceManager()
+    laparams = LAParams()
+    if output_format == 'text':
+        codec = 'utf-8'
+        output = StringIO()
+        device = TextConverter(rsrcmgr, output, codec=codec, laparams=laparams)
+    else:
+        output = BytesIO()
+        if output_format == 'html':
+            device = HTMLConverter(rsrcmgr, output, codec='utf-8', laparams=laparams)
         elif output_format == 'xml':
-            text = page.get_text("xml")
-        
-        if all_pages:
-            continue
-        else:
-            yield text
-    
+            device = XMLConverter(rsrcmgr, output, codec='utf-8', laparams=laparams)
+
+    with open(pdf_path, 'rb') as fp:
+        interpreter = PDFPageInterpreter(rsrcmgr, device)
+        for page in PDFPage.get_pages(fp):
+            interpreter.process_page(page)
+            if all_pages:
+                continue
+            else:
+                text = output.getvalue()
+                if output_format != 'text':
+                    text = text.decode('utf-8')
+                yield text
+                output.truncate(0)
+                output.seek(0)
+
+    text = output.getvalue()
+    if output_format != 'text':
+        text = text.decode('utf-8')
+    device.close()
+    output.close()
     if all_pages:
-        if output_format == 'text':
-            yield "\n".join([page.get_text() for page in doc])
-        elif output_format == 'html':
-            yield "\n".join([page.get_text("html") for page in doc])
-        elif output_format == 'xml':
-            yield "\n".join([page.get_text("xml") for page in doc])
-    
-    doc.close()
+        yield text
 
 def export_as_json(pdf_path, output_format, all_pages):
     data = {'pages': []}

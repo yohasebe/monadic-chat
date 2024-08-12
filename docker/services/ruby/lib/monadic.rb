@@ -151,6 +151,10 @@ def init_apps
       INITIAL
     end
 
+    if app.settings[:pdf]
+      app.embeddings_db = EMBEDDINGS_DB
+    end
+
     if app.settings[:mermaid]
       prompt_suffix << <<~INITIAL
 

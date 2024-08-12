@@ -11,14 +11,22 @@ class PDFNavigator < MonadicApp
 
   def initial_prompt
     text = <<~TEXT
-      Respond to the user based on the "text" property of the JSON object attached to the user input. The "text" value is an excerpt of a PDF uploaded by the user and may be accompanied by other properties containing metadata. In addition to your response based on the "text" property of the JSON, display the metadata contained in other properties such as "title" and "tokens" using this format: "(PDF Title: TITLE)".
+      You are an agent to assist users in navigating PDF documents contained in the database. According to the user's input, you provide information based on the content of the text snippets in the database.
+
+      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes a single parameter "text" and returns a JSON object containing "text" which is a snippet from a PDF in the database highly relevant to the input text, the "title" of the PDF that the snippet is part of, and "tokens" representing the number of tokens that the text snippet contains.
+
+      Present your response in the following format:
+
+      RESPONSE_TEXT
+
+      [Title: TITLE] [Tokens: TOKENS]
     TEXT
     text.strip
   end
 
   def settings
     {
-      "model": "gpt-4o-2004-08-06",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.0,
       "top_p": 0.0,
       "max_tokens": 4000,
@@ -32,7 +40,27 @@ class PDFNavigator < MonadicApp
       "initiate_from_assistant": false,
       "pdf": true,
       "image": true,
-      "mathjax": true
+      "mathjax": true,
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "find_closest_text",
+            "description": "Find the closest text in the database based on the input text",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "The input text"
+                }
+              },
+              "required": ["text"]
+            }
+          },
+          "strict": true
+        }
+      ]
     }
   end
 end

@@ -41,7 +41,8 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     tiktoken \
     opencv-python \
     moviepy \
-    'pdfminer.six[image]'
+    'pdfminer.six[image]' \ 
+    'pymupdf'
     # spacy && python -m spacy download en_core_web_sm
 
 # Set up JupyterLab user settings

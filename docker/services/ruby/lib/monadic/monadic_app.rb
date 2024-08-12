@@ -7,11 +7,12 @@ class MonadicApp
 
   # access the flask app client so that it gets ready before the first request
 
-  attr_accessor :api_key, :context, :settings
+  attr_accessor :api_key, :context, :settings, :embeddings_db
 
   def initialize
     @context = {}
     @api_key = ""
+    @embeddings_db = nil
   end
 
   # Wrap the user's message in a monad
@@ -647,6 +648,16 @@ class MonadicApp
     end
 
     description
+  end
+
+  def find_closest_text(text: "")
+    if embeddings_db.nil?
+      return "Error: The database connection is not available."
+    end
+
+    embeddings_db.find_closest_text(text)
+  rescue StandardError
+    "Error: The text could not be found."
   end
 
   def ai_user_initial_prompt

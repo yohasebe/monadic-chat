@@ -14,9 +14,9 @@ class TextEmbeddings
   # Set up PostgreSQL connection
   def self.connect_to_db(db_name, recreate_db: false)
     conn = if IN_CONTAINER
-             PG.connect(dbname: "postgres", host: "pgvector_service", port: 5432, user: "postgres")
+             PG.connect(dbname: db_name, host: "pgvector_service", port: 5432, user: "postgres")
            else
-             PG.connect(dbname: "postgres")
+             PG.connect(dbname: db_name)
            end
 
     if recreate_db
@@ -130,7 +130,9 @@ class TextEmbeddings
     result = @conn.exec("SELECT DISTINCT metadata->>'title' FROM items")
 
     # Map the resulting rows to an array of unique "title" values
-    result.map { |row| row["?column?"] }
+    result.map do |row|
+      row["?column?"]
+    end
   end
 
   # list all the metadata other than "text"

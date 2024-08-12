@@ -57,7 +57,7 @@ class PDF2Text
     @text_data = ""
 
     Parallel.each(doc_json["pages"], in_threads: THREADS) do |page|
-      text = page["text"].gsub(/[^[:print:]]/, "")
+      text = page["text"].gsub(/[^[:print:]\s]/, " ")
       text = text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
       @text_data += "#{text}\n"
     end

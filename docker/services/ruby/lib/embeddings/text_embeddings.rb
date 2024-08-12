@@ -12,12 +12,18 @@ class TextEmbeddings
   attr_accessor :conn
 
   # Set up PostgreSQL connection
-  def self.connect_to_db(db_name, recreate_db: false)
-    conn = if IN_CONTAINER
-             PG.connect(dbname: db_name, host: "pgvector_service", port: 5432, user: "postgres")
-           else
-             PG.connect(dbname: db_name)
-           end
+  def self.connect_to_db(db_name, recreate_db: true)
+    begin
+      conn = if IN_CONTAINER
+               # "postgres" is the default database name in the PostgreSQL Docker image
+               # it is used (only) to create the new database named `db_name`
+               PG.connect(dbname: "postgres", host: "pgvector_service", port: 5432, user: "postgres")
+             else
+               PG.connect(dbname: "postgres")
+             end
+    rescue PG::Error => e
+      puts "Error connecting to database: #{e.message}"
+    end
 
     if recreate_db
       # Drop the database if it exists
@@ -49,7 +55,8 @@ class TextEmbeddings
 
     conn.exec("SET client_min_messages TO warning")
     conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
-    conn.exec("CREATE TABLE IF NOT EXISTS items (id serial primary key, metadata jsonb, embedding vector(1536))")
+    conn.exec("DROP TABLE IF EXISTS items")
+    conn.exec("CREATE TABLE IF NOT EXISTS items (id serial primary key, doc_id integer, text text, metadata jsonb, embedding vector(1536))")
 
     registry = PG::BasicTypeRegistry.new.define_default_types
     Pgvector::PG.register_vector(registry)
@@ -101,12 +108,14 @@ class TextEmbeddings
   end
 
   # Store embeddings in the database with metadata
-  def store_embeddings(text, metadata, api_key: nil)
+  def store_embeddings(doc_id, text, metadata, api_key: nil)
     return false if text == ""
 
-    metadata = metadata.merge({ "text" => text })
     embedding = get_embeddings(text, api_key: api_key)
-    @conn.exec_params("INSERT INTO items (metadata, embedding) VALUES ($1, $2)", [metadata.to_json, embedding])
+    @conn.exec_params(
+      "INSERT INTO items (doc_id, text, metadata, embedding) VALUES ($1, $2, $3, $4)",
+      [doc_id, text, metadata.to_json, embedding]
+    )
   end
 
   # Find the closest text in the database
@@ -114,8 +123,25 @@ class TextEmbeddings
     return false if text == ""
 
     embedding = get_embeddings(text)
-    result = @conn.exec_params("SELECT metadata FROM items ORDER BY embedding <-> $1 LIMIT 1", [embedding]).first
-    result ? result["metadata"] : {}
+    result1 = @conn.exec_params("SELECT doc_id, text, metadata FROM items ORDER BY embedding <-> $1 LIMIT 1", [embedding]).first
+    doc_id = result1["doc_id"].to_i
+    text = result1["text"]
+    metadata = result1["metadata"]
+
+    # get the total number of the entries with the same doc_id
+    result2 = @conn.exec_params("SELECT COUNT(*) FROM items WHERE doc_id = $1", [doc_id]).first
+    total_entries = result2["count"].to_i
+    metadata = metadata.merge("total_entries" => total_entries)
+
+    if doc_id || metadata || total_entries
+      {
+        text: text,
+        doc_id: doc_id,
+        metadata: metadata
+      }
+    else
+      {}
+    end
   end
 
   # Search metadata in the database
@@ -125,13 +151,16 @@ class TextEmbeddings
   end
 
   # List all the "title" values in the metadata JSON for each row in the "items" table
+  # with its doc_id in an array
   def list_titles
-    # Select the distinct "title" value from the metadata JSON for each row in the "items" table
-    result = @conn.exec("SELECT DISTINCT metadata->>'title' FROM items")
+    # Select the distinct doc_id and the "title" value from the metadata JSON for each row in the "items" table
+    # result = @conn.exec("SELECT doc_id, metadata->>'title' FROM items")
+    # The above does not qualify because it returns non-distinct doc_id values
+    result = @conn.exec("SELECT DISTINCT ON (doc_id) doc_id, metadata->>'title' FROM items")
 
-    # Map the resulting rows to an array of unique "title" values
+    # Map the resulting [doc_id, title] to an array
     result.map do |row|
-      row["?column?"]
+      [row["doc_id"].to_i, row["?column?"].to_s]
     end
   end
 

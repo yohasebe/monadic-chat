@@ -69,10 +69,9 @@ module WebSocketHelper
       queue = Queue.new
       thread = nil
       sid = nil
-
       @channel = EventMachine::Channel.new
-      ws = Faye::WebSocket.new(env, nil, { ping: 15 })
 
+      ws = Faye::WebSocket.new(env, nil, { ping: 15 })
       ws.on :open do
         sid = @channel.subscribe { |obj| ws.send(obj) }
       end
@@ -106,7 +105,10 @@ module WebSocketHelper
           queue.clear
           @channel.push({ "type" => "cancel" }.to_json)
         when "PDF_TITLES"
-          ws.send({ "type" => "pdf_titles", "content" => list_pdf_titles }.to_json)
+          ws.send({
+            "type" => "pdf_titles",
+            "content" => list_pdf_titles.map { |t| t[1] }
+          }.to_json)
         when "DELETE_PDF"
           title = obj["contents"]
           res = EMBEDDINGS_DB.delete_by_title(title)

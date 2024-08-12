@@ -44,3 +44,8 @@ task :build do
     # FileUtils.mv(filepath, "docs/assets/download/") if necessary_files.include?(filepath)
   end
 end
+
+# Test ruby code with rspec ./docker/services/ruby/spec
+task :spec do
+  sh "rspec ./docker/services/ruby/spec"
+end

@@ -655,7 +655,12 @@ class MonadicApp
       return "Error: The database connection is not available."
     end
 
-    embeddings_db.find_closest_text(text)
+    res = embeddings_db.find_closest_text(text)
+    if res.empty?
+      "Error: The text could not be found."
+    else
+      res.to_json
+    end
   rescue StandardError
     "Error: The text could not be found."
   end

@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require "cld"
+require "digest"
 require "dotenv"
 require "eventmachine"
 require "faye/websocket"
@@ -227,6 +228,14 @@ def fetch_file(file_name)
   end
 end
 
+# Convert a string to a integer
+def string_to_int(str)
+  hash = Digest::SHA256.hexdigest(str)
+  int_value = hash[0..7].to_i(16) % 2_147_483_648 # 0 to 2,147,483,647
+  int_value -= 2_147_483_648 if int_value > 1_073_741_823
+  int_value
+end
+
 get "/monadic/data/:file_name" do
   fetch_file(params[:file_name])
 end
@@ -310,15 +319,22 @@ post "/pdf" do
     # Close and delete the temporary file
     temp_file.close
     temp_file.unlink
-    pdf.split_text.each do |segment|
+    pdf.split_text.each_with_index do |segment, position|
       # if params["pdfTitle"] does not exist, use the title
       title = if params["pdfTitle"].to_s != ""
                 params["pdfTitle"]
               else
                 params["pdfFile"]["filename"]
               end
-      segment["title"] = title
-      EMBEDDINGS_DB.store_embeddings(segment["text"], segment, api_key: settings.api_key)
+
+      text = segment["text"]
+      metadata = {
+        "title" => title,
+        "total_entries" => segment["total_entries"],
+        "position" => position + 1
+      }
+      doc_id = string_to_int(title)
+      EMBEDDINGS_DB.store_embeddings(doc_id, text, metadata, api_key: settings.api_key)
     end
     return params["pdfFile"]["filename"]
   else

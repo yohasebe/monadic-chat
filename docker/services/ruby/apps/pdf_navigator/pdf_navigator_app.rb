@@ -13,13 +13,26 @@ class PDFNavigator < MonadicApp
     text = <<~TEXT
       You are an agent to assist users in navigating PDF documents contained in the database. According to the user's input, you provide information based on the content of the text snippets in the database.
 
-      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes a single parameter "text" and returns a JSON object containing "text" which is a snippet from a PDF in the database highly relevant to the input text, the "title" of the PDF that the snippet is part of, and "tokens" representing the number of tokens that the text snippet contains.
+      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes a single parameter "text" and returns a JSON object of the following structure:
+
+        {
+          doc_id: document id
+          text: text snippet from the document
+          metadata: {
+            total_entries: total number of text snippets of the same document id
+            title: title of the document
+            position: positional order of the text snippet within the document
+            tokens: number of tokens in the text snippet
+          }
+        }
+
+      containing "text" which is a snippet from a PDF in the database highly relevant to the input text, the "title" of the PDF that the snippet is part of, and "tokens" representing the number of tokens that the text snippet contains.
 
       Present your response in the following format:
 
-      RESPONSE_TEXT
+        YOUR_RESPONSE
 
-      [Title: TITLE] [Tokens: TOKENS]
+        Title: TITLE (Snippet tokens: TOKENS, Snippet position: POSITION/TOTAL_ENTRIES)
     TEXT
     text.strip
   end

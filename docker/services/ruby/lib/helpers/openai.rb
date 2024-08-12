@@ -421,21 +421,6 @@ module OpenAIHelper
         block&.call res
       end
 
-      ## if the app uses the PDF tool, the message is passed through
-      ## the find_closest_text function and the snippet is added to the message
-      #if obj["pdf"]
-      #  snippet = EMBEDDINGS_DB.find_closest_text(obj["message"])
-      #  message_with_snippet = <<~TEXT
-      #    #{obj["message"]}
-
-      #    SNIPPET:
-
-      #    ```
-      #      #{snippet.to_json}
-      #    ```
-      #  TEXT
-      #end
-
       # If the role is "user", the message is added to the session
       if message != "" && role == "user"
         res = { "mid" => request_id,

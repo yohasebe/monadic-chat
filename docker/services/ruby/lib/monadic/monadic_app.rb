@@ -650,12 +650,25 @@ class MonadicApp
     description
   end
 
-  def find_closest_text(text: "")
+  def list_titles
     if embeddings_db.nil?
       return "Error: The database connection is not available."
     end
 
-    res = embeddings_db.find_closest_text(text)
+    res = embeddings_db.list_titles
+    if res.empty?
+      "Error: No titles found."
+    else
+      res.to_json
+    end
+  end
+
+  def find_closest_text(text: "", top_n: 1)
+    if embeddings_db.nil?
+      return "Error: The database connection is not available."
+    end
+
+    res = embeddings_db.find_closest_text(text, top_n: top_n)
     if res.empty?
       "Error: The text could not be found."
     else
@@ -663,6 +676,21 @@ class MonadicApp
     end
   rescue StandardError
     "Error: The text could not be found."
+  end
+
+  def find_closest_doc(text: "", top_n: 1)
+    if embeddings_db.nil?
+      return "Error: The database connection is not available."
+    end
+
+    res = embeddings_db.find_closest_doc(text, top_n: top_n)
+    if res.empty?
+      "Error: The document could not be found."
+    else
+      res.to_json
+    end
+  rescue StandardError
+    "Error: The document could not be found."
   end
 
   def get_text_snippet(doc_id:, position:)

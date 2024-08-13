@@ -5,17 +5,17 @@ class PDFNavigator < MonadicApp
 
   def description
     <<~TEXT
-      This is an application that reads a PDF file, and the assistant answers the user's questions based on its content. First, click on the "Upload PDF" button and specify the file. The content of the file will be divided into segments of approximately max_tokens length, and the text embedding will be calculated for each segment. When input is received from the user, the text segment closest to the text embedding value of the input text is given to GPT along with the user's input value, and an answer is generated based on that content.
+      This is an application that reads PDF files, and the assistant answers the user's questions based on their contents. First, click on the "Upload PDF" button and specify the file. The content of the file will be divided into segments and the text embedding will be calculated for each segment. When input is received from the user, the text segment closest to the text embedding value of the input text is given to GPT along with the user's input value, and an answer is generated based on that content.
     TEXT
   end
 
   def initial_prompt
     text = <<~TEXT
-      You are an agent to assist users in navigating PDF documents contained in the database. According to the user's input, you provide information based on the content of the text snippets in the database.
+      You are an agent to assist users in navigating PDF documents contained in the database. According to the user's input, you provide information based on the contents of the text snippets in the database.
 
-      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes a single parameter "text" and the text is converted to a text embedding to find the closest text snippet in the database. The function returns the following JSON object:
+      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes parameter "text" and "top_n" (number of closest text snippets to return). The input text is used to find the closest text snippet in the database. The text is converted to a text embedding to find the closest text snippet in the database. The function returns an array of JSON objects in the following format. The recommended value of "top_n" is 2.
 
-        {
+        [{
           text: text snippet from the document
           doc_id: document id
           doc_title: document title
@@ -24,7 +24,7 @@ class PDFNavigator < MonadicApp
           metadata: {
             tokens: number of tokens in the text snippet
           }
-        }
+        }]
 
       Present your response in the following format:
 
@@ -39,7 +39,7 @@ class PDFNavigator < MonadicApp
 
       If the user requests a text snippet in a specific position, you can use the function "get_text_snippet" with the parameters "doc_id" and "position" to retrieve the text snippet.
 
-      Please make sure that if your response does not have a particular reference to a text snippet, you should not include every property in the JSON object. Only include the properties that are relevant to the response.
+      Please make sure that if your response does not have a particular reference to a text snippet, you shouldn't include every property in the JSON object. Only include the properties that are relevant to the response.
     TEXT
     text.strip
   end
@@ -73,9 +73,13 @@ class PDFNavigator < MonadicApp
                 "text": {
                   "type": "string",
                   "description": "The input text"
+                },
+                "top_n": {
+                  "type": "integer",
+                  "description": "The number of closest text snippets to return"
                 }
               },
-              "required": ["text"]
+              "required": ["text", "top_n"]
             }
           },
           "strict": true
@@ -98,6 +102,38 @@ class PDFNavigator < MonadicApp
                 }
               },
               "required": ["doc_id", "position"]
+            }
+          },
+          "strict": true
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "list_titles",
+            "description": "List objects of the doc id and the title value from the docs table",
+            "parameters": {},
+            "required": []
+          },
+          "strict": true
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "find_closest_doc",
+            "description": "Get the embedding of the input text and find the closest doc in the database",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "The input text"
+                },
+                "top_n": {
+                  "type": "integer",
+                  "description": "The number of closest documents to return"
+                }
+              },
+              "required": ["text", "top_n"]
             }
           },
           "strict": true

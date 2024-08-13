@@ -107,7 +107,7 @@ module WebSocketHelper
         when "PDF_TITLES"
           ws.send({
             "type" => "pdf_titles",
-            "content" => list_pdf_titles.map { |t| t[1] }
+            "content" => list_pdf_titles.map { |t| t[:title] }
           }.to_json)
         when "DELETE_PDF"
           title = obj["contents"]

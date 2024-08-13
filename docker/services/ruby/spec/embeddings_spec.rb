@@ -55,7 +55,8 @@ RSpec.describe "get_embeddings" do
   describe "find_closest_text" do
     context "when given valid input text" do
       it "returns the closest text in the database" do
-        doc_data = { title: "Test Document", metadata: {} }
+        doc_title = "Test Document"
+        doc_data = { title: doc_title, metadata: {} }
 
         text1 = "This is a test sentence."
         metadata1 = { "author" => "John Doe", "date" => "2022-01-01", "tokens" => 5 }
@@ -73,13 +74,15 @@ RSpec.describe "get_embeddings" do
         # order starts from 1
         model = {
           doc_id: doc_id,
+          doc_title: doc_title,
           text: text1,
           position: 1,
           total_items: 2,
           metadata: metadata1
         }
         query_text = "This is a test sentence."
-        expect(@text_db.find_closest_text(query_text)).to eq(model)
+        res = @text_db.find_closest_text(query_text, top_n: 1)
+        expect(res.first).to eq(model)
       end
     end
 

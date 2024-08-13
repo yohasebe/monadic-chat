@@ -371,6 +371,7 @@ function resetEvent(event) {
     ws.send(JSON.stringify({"message": "LOAD"}));
     resetParams();
     $("#model").html(model_options);
+    $("#model").val("gpt-4o-mini");
     $("#model-selected").text($("#model option:selected").text());
     $("#resetConfirmation").modal("hide");
     $("#main-panel").hide();

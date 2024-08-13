@@ -26,12 +26,6 @@ RSpec.describe "get_embeddings" do
         expect(@text_db.conn.exec("SELECT COUNT(*) FROM pg_catalog.pg_extension WHERE extname = 'vector'").first["count"]).to eq(1)
       end
     end
-
-    # context "when given an invalid database name" do
-    #   it "raises an error" do
-    #     expect { TextEmbeddings.connect_to_db("invalid_db") }.to raise_error(PG::ConnectionBad)
-    #   end
-    # end
   end
 
   describe "get_embeddings" do
@@ -61,21 +55,28 @@ RSpec.describe "get_embeddings" do
   describe "find_closest_text" do
     context "when given valid input text" do
       it "returns the closest text in the database" do
-        doc_id = 1234
+        doc_data = { title: "Test Document", metadata: {} }
 
         text1 = "This is a test sentence."
-        metadata1 = { "author" => "John Doe", "date" => "2022-01-01" }
-        @text_db.store_embeddings(doc_id, text1, metadata1)
+        metadata1 = { "author" => "John Doe", "date" => "2022-01-01", "tokens" => 5 }
+        item_data1 = { text: text1, metadata: metadata1 }
 
-        text2 = "This is another test sentence."
-        metadata2 = { "author" => "Jane Doe", "date" => "2022-01-02" }
-        @text_db.store_embeddings(doc_id, text2, metadata2)
+        text2 = "This is yet another test sentence."
+        metadata2 = { "author" => "Jane Doe", "date" => "2023-12-31", "tokens" => 6 }
+        item_data2 = { text: text2, metadata: metadata2 }
+
+        items_data = [item_data1, item_data2]
+
+        res = @text_db.store_embeddings(doc_data, items_data)
+        doc_id = res[:doc_id]
 
         # order starts from 1
         model = {
           doc_id: doc_id,
           text: text1,
-          metadata: metadata1.merge("total_entries" => 2)
+          position: 1,
+          total_items: 2,
+          metadata: metadata1
         }
         query_text = "This is a test sentence."
         expect(@text_db.find_closest_text(query_text)).to eq(model)

@@ -13,26 +13,33 @@ class PDFNavigator < MonadicApp
     text = <<~TEXT
       You are an agent to assist users in navigating PDF documents contained in the database. According to the user's input, you provide information based on the content of the text snippets in the database.
 
-      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes a single parameter "text" and returns a JSON object of the following structure:
+      Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes a single parameter "text" and the text is converted to a text embedding to find the closest text snippet in the database. The function returns the following JSON object:
 
         {
-          doc_id: document id
           text: text snippet from the document
+          doc_id: document id
+          doc_title: document title
+          position: positional order of the text snippet within the document
+          total_items: total number of text snippets of the same document id
           metadata: {
-            total_entries: total number of text snippets of the same document id
-            title: title of the document
-            position: positional order of the text snippet within the document
             tokens: number of tokens in the text snippet
           }
         }
-
-      containing "text" which is a snippet from a PDF in the database highly relevant to the input text, the "title" of the PDF that the snippet is part of, and "tokens" representing the number of tokens that the text snippet contains.
 
       Present your response in the following format:
 
         YOUR_RESPONSE
 
-        Title: TITLE (Snippet tokens: TOKENS, Snippet position: POSITION/TOTAL_ENTRIES)
+        ---
+
+        Doc ID: doc_id
+        Doc Title: doc_title
+        Snippet tokens: tokens
+        Snippet position: position/total_items
+
+      If the user requests a text snippet in a specific position, you can use the function "get_text_snippet" with the parameters "doc_id" and "position" to retrieve the text snippet.
+
+      Please make sure that if your response does not have a particular reference to a text snippet, you should not include every property in the JSON object. Only include the properties that are relevant to the response.
     TEXT
     text.strip
   end
@@ -69,6 +76,28 @@ class PDFNavigator < MonadicApp
                 }
               },
               "required": ["text"]
+            }
+          },
+          "strict": true
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_text_snippet",
+            "description": "Retrieve the text snippet from the database",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "doc_id": {
+                  "type": "integer",
+                  "description": "The document id"
+                },
+                "position": {
+                  "type": "integer",
+                  "description": "The position of the text snippet within the document"
+                }
+              },
+              "required": ["doc_id", "position"]
             }
           },
           "strict": true

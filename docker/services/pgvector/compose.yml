@@ -12,7 +12,7 @@ services:
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
     volumes:
-      - postgres-data-volume:/var/lib/postgresql/data:rw
+      - monadic-chat-pgvector-data:/var/lib/postgresql/data:rw
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
@@ -21,7 +21,5 @@ services:
       - monadic-chat-network
 
 volumes:
-  postgres-data-volume:
+  monadic-chat-pgvector-data:
     name: monadic-chat-pgvector-data
-    driver: local
-

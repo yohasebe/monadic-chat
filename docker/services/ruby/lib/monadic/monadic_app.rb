@@ -665,6 +665,21 @@ class MonadicApp
     "Error: The text could not be found."
   end
 
+  def get_text_snippet(doc_id:, position:)
+    if embeddings_db.nil?
+      return "Error: The database connection is not available."
+    end
+
+    res = embeddings_db.get_text_snippet(doc_id, position)
+    if res.empty?
+      "Error: The text could not be found."
+    else
+      res.to_json
+    end
+  rescue StandardError
+    "Error: The text could not be found."
+  end
+
   def ai_user_initial_prompt
     text = <<~TEXT
       The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.

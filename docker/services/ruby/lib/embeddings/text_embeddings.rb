@@ -4,6 +4,7 @@ require "pg"
 require "pgvector"
 require "net/http"
 require "json"
+require "matrix"
 require "dotenv/load"
 
 EMBEDDINGS_MODEL = "text-embedding-3-small"
@@ -55,7 +56,7 @@ class TextEmbeddings
 
     conn.exec("SET client_min_messages TO warning")
     conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
-    conn.exec("CREATE TABLE IF NOT EXISTS docs (id serial primary key, title text, items integer, metadata jsonb)")
+    conn.exec("CREATE TABLE IF NOT EXISTS docs (id serial primary key, title text, items integer, metadata jsonb, embedding vector(1536))")
     conn.exec("CREATE TABLE IF NOT EXISTS items (id serial primary key, doc_id integer, text text, position smallint, metadata jsonb, embedding vector(1536))")
 
     registry = PG::BasicTypeRegistry.new.define_default_types
@@ -72,6 +73,19 @@ class TextEmbeddings
   # Close the PostgreSQL connection
   def close_connection
     @conn&.close
+  end
+
+  # Combine embeddings of multiple text snippets
+  def combine_embeddings(snippets_embeddings)
+    num_snippets = snippets_embeddings.size
+    combined_embedding = Vector.zero(snippets_embeddings.first.size)
+
+    snippets_embeddings.each do |embedding|
+      combined_embedding += embedding
+    end
+
+    combined_embedding /= num_snippets.to_f
+    combined_embedding
   end
 
   # Get text embeddings using OpenAI API
@@ -117,31 +131,37 @@ class TextEmbeddings
       [doc_data[:title], items_data.size, doc_data[:metadata].to_json]
     ).getvalue(0, 0)
 
+    embeddings = []
     items_data.each_with_index do |item, index|
       embedding = get_embeddings(item[:text], api_key: api_key)
+      embeddings << Vector.elements(embedding)
+
       @conn.exec_params(
         "INSERT INTO items (doc_id, text, position, metadata, embedding) VALUES ($1, $2, $3, $4, $5)",
         [doc_id, item[:text], index + 1, item[:metadata].to_json, embedding]
       )
     end
 
+    combined_embedding = combine_embeddings(embeddings)
+    @conn.exec_params("UPDATE docs SET embedding = $1 WHERE id = $2", [combined_embedding.to_a, doc_id])
+
     { doc_id: doc_id, total_items: items_data.size }
   end
 
   # Find the closest text in the database
-  def find_closest_text(text)
+  def find_closest_text(text, top_n: 1)
     return false if text == ""
 
     embedding = get_embeddings(text)
 
     sql = <<~SQL
       SELECT docs.id, docs.title, items.text, items.position, docs.items, items.metadata, items.embedding
-      FROM items JOIN docs ON items.doc_id = docs.id ORDER BY items.embedding <-> $1 LIMIT 1
+      FROM items JOIN docs ON items.doc_id = docs.id ORDER BY items.embedding <-> $1 LIMIT $2
     SQL
 
     # Find the closest text in the database joining the "items" table with the "docs" table
-    result = @conn.exec_params(sql, [embedding]).first
-    if result
+    results = @conn.exec_params(sql, [embedding, top_n])
+    results.map do |result|
       {
         text: result["text"],
         doc_id: result["id"].to_i,
@@ -150,8 +170,22 @@ class TextEmbeddings
         total_items: result["items"].to_i,
         metadata: result["metadata"]
       }
-    else
-      {}
+    end
+  end
+
+  # Find the closest doc in the database
+  def find_closest_doc(text, top_n: 1)
+    return false if text == ""
+
+    embedding = get_embeddings(text)
+
+    sql = <<~SQL
+      SELECT id, title FROM docs ORDER BY embedding <-> $1 LIMIT $2
+    SQL
+
+    results = @conn.exec_params(sql, [embedding, top_n])
+    results.map do |result|
+      { id: result["id"].to_i, title: result["title"] }
     end
   end
 
@@ -171,7 +205,7 @@ class TextEmbeddings
   def list_titles
     result = @conn.exec("SELECT id, title FROM docs")
     result.map do |row|
-      [row["id"].to_i, row["title"]]
+      { id: row["id"].to_i, title: row["title"] }
     end
   end
 
@@ -195,7 +229,6 @@ class TextEmbeddings
 end
 
 # execute the following only if the file is directly run
-# Main program
 if $PROGRAM_NAME == __FILE__
 
   if ARGV.length < 2

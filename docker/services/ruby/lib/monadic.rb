@@ -319,23 +319,23 @@ post "/pdf" do
     # Close and delete the temporary file
     temp_file.close
     temp_file.unlink
-    pdf.split_text.each_with_index do |segment, position|
-      # if params["pdfTitle"] does not exist, use the title
+
+    doc_data = { items: 0, metadata: {} }
+    items_data = []
+
+    pdf.split_text.each do |i|
       title = if params["pdfTitle"].to_s != ""
                 params["pdfTitle"]
               else
                 params["pdfFile"]["filename"]
               end
 
-      text = segment["text"]
-      metadata = {
-        "title" => title,
-        "total_entries" => segment["total_entries"],
-        "position" => position + 1
-      }
-      doc_id = string_to_int(title)
-      EMBEDDINGS_DB.store_embeddings(doc_id, text, metadata, api_key: settings.api_key)
+      doc_data[:title] = title
+      doc_data[:items] += 1
+
+      items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
     end
+    EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
     return params["pdfFile"]["filename"]
   else
     session[:error] = "Error: No file selected. Please choose a PDF file to upload."

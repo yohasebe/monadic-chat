@@ -201,12 +201,18 @@ class TextEmbeddings
     results.map { |result| result["metadata"] }
   end
 
-  # List arrays of the doc id and the title value from the docs table
+  # List arrays of the doc id, title, and num of items value from the docs table
   def list_titles
-    result = @conn.exec("SELECT id, title FROM docs")
+    result = @conn.exec("SELECT id, title, items FROM docs")
     result.map do |row|
-      { id: row["id"].to_i, title: row["title"] }
+      { id: row["id"].to_i, title: row["title"], items: row["items"].to_i }
     end
+  end
+
+  # Retrieve all the text snippets of a document from the database
+  def get_text_snippets(doc_id)
+    results = @conn.exec_params("SELECT text FROM items WHERE doc_id = $1 ORDER BY position", [doc_id])
+    results.map { |result| result["text"] }
   end
 
   # delete the row having the given "title" value from the docs table

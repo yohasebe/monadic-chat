@@ -663,6 +663,19 @@ class MonadicApp
     end
   end
 
+  def get_text_snippets(doc_id:)
+    if embeddings_db.nil?
+      return "Error: The database connection is not available."
+    end
+
+    res = embeddings_db.get_text_snippets(doc_id)
+    if res.empty?
+      "Error: No text snippets found."
+    else
+      res.to_json
+    end
+  end
+
   def find_closest_text(text: "", top_n: 1)
     if embeddings_db.nil?
       return "Error: The database connection is not available."

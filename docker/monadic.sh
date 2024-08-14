@@ -261,6 +261,30 @@ remove_older_images() {
   $DOCKER images --format "{{.ID}} {{.Repository}}:{{.Tag}}" "$image_name" | grep -v "$latest_image_id" | awk '{print $1}' | xargs -r $DOCKER rmi -f
 }
 
+# function to export the pgvector database
+export_db() {
+  $DOCKER exec monadic-chat-pgvector-container sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
+
+  # if the above command is successful, print the success message
+  if [ $? -eq 0 ]; then
+    echo "[HTML]: <p>Database has been exported successfully!</p>"
+  else
+    echo "[HTML]: <p>Database export failed!</p>"
+  fi
+}
+
+# function to import the pgvector database
+import_db() {
+  $DOCKER exec monadic-chat-pgvector-container sh -c "dropdb -f -U postgres monadic && createdb -U postgres --locale=C --template=template0 monadic && gunzip -c \"/monadic/data/monadic.gz\" | psql -U postgres monadic"
+
+  # if the above command is successful, print the success message
+  if [ $? -eq 0 ]; then
+    echo "[HTML]: <p>Database has been imported successfully!</p>"
+  else
+    echo "[HTML]: <p>Database import failed!</p>"
+  fi
+}
+
 # Parse the user command
 case "$1" in
   build)
@@ -311,6 +335,16 @@ case "$1" in
     start_docker
     remove_containers
     echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
+    ;;
+  export-db)
+    start_docker
+    export_db
+    stop_docker_compose
+    ;;
+  import-db)
+    start_docker
+    import_db
+    stop_docker_compose
     ;;
   *)
     echo "Usage: $0 {build|start|stop|restart|update|remove}" >&2

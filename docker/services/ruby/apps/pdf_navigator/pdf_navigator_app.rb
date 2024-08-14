@@ -137,6 +137,24 @@ class PDFNavigator < MonadicApp
             }
           },
           "strict": true
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "get_text_snippets",
+            "description": "Retrieve all the text snippets of a document from the database",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "doc_id": {
+                  "type": "integer",
+                  "description": "The document id"
+                }
+              },
+              "required": ["doc_id"]
+            }
+          },
+          "strict": true
         }
       ]
     }

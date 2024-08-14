@@ -121,12 +121,17 @@ def init_apps
     if app.settings[:mathjax]
       initial_prompt_suffix << <<~INITIAL
 
-      When incorporating MathJax expressions or LaTeX expressions into your response, adhere to the following notation guidelines: Use double dollar signs `$$` to enclose expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text.
+      Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. 
+
+      Good example:
+      `$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$` for inline expressions
+      `$$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$$` for separate block expressions
+      `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
+      `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
+
       INITIAL
 
       prompt_suffix << <<~SUFFIX
-
-        Remember to use single dollar signs `$` before and after the expressions that should appear inline with the text outside independent code blocks
       SUFFIX
     end
 
@@ -270,7 +275,7 @@ get "/lctags" do
   return { "languages" => languages, "countries" => countries }.to_json
 end
 
-# Upload a JSON file to load past messages
+# Upload a Session JSON file to load past messages
 post "/load" do
   if params[:file]
     begin

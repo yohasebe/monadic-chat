@@ -833,6 +833,24 @@ function updateApplicationMenu() {
           },
           enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
         },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Import DB',
+          click: () => {
+            openMainWindow();
+            runCommand('import-db', '[HTML]: <p>Importing database . . .</p>', 'Importing', 'Stopped', false)
+          },
+          enabled: currentStatus === 'Running'
+        },
+        {
+          label: 'Export DB',
+          click: () => {
+            runCommand('export-db', '[HTML]: <p>Exporting database . . .</p>', 'Exporting', 'Stopped', false);
+          },
+          enabled: currentStatus === 'Running'
+        },
       ]
     },
     {

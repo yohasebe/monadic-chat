@@ -123,15 +123,14 @@ def init_apps
 
       Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
 
-      Good example:
-      `$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$` for inline expressions
-      `$$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$$` for separate block expressions
-      `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
-      `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
+      Good examples:
+      - `$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$`
+      - `$$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$$`
+      - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
+      - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
       INITIAL
 
       prompt_suffix << <<~SUFFIX
-      IT'S EXTREMELY IMPORTANT TO USE THE CORRECT MATHJAX/LATEX SYNTAX. IF YOU DON'T USE THE CORRECT SYNTAX, THE EQUATIONS WILL NOT RENDER CORRECTLY.
       SUFFIX
     end
 

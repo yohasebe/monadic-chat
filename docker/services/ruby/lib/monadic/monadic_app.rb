@@ -94,12 +94,8 @@ class MonadicApp
 
     if hash.key?("message")
       message = hash["message"]
-      if mathjax
-        message = escape_all_special_characters(message) if mathjax
-        output += UtilitiesHelper.markdown_to_html(message, mathjax: true)
-      else
-        output += UtilitiesHelper.markdown_to_html(message)
-      end
+      message = escape_all_special_characters(message) if mathjax
+      output += UtilitiesHelper.markdown_to_html(message)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end

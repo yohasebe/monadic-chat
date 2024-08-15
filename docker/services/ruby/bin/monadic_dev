@@ -3,7 +3,6 @@
 # frozen_string_literal: false
 
 require "optimist"
-
 require_relative "../lib/monadic/version"
 
 # change current directory to the parent directory of the directory containing this file
@@ -12,6 +11,9 @@ Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 DEFAULT_PORT = 4567
 
 PID_FILE = __dir__ + "/thin.pid"
+
+# Set the data directory $HOME/monadic/data
+DATA_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "data"))
 
 selenium_image = "selenium/standalone-chrome:latest"
 if `uname -s`.chomp.include? "Darwin"
@@ -26,7 +28,7 @@ ENV["HOST_OS"] = `uname -s`.chomp
 # Parse command line options
 opts = Optimist.options do
   version Monadic::VERSION.to_s
-  banner "Usage: monadic [start|stop|restart] [options]"
+  banner "Usage: monadic [start|stop|restart|export|input] [options]"
   opt :daemonize, "Enable or disable daemon mode", default: false
   opt :log, "Enable or disable logging mode", default: false
   opt :port, "Specify the port number", type: :integer, default: DEFAULT_PORT
@@ -107,18 +109,7 @@ def restart_server(opts)
   start_server(opts)
 end
 
-# Parse subcommand
-subcommand = ARGV.shift
-
-# Execute subcommand
-case subcommand
-when "start"
-  start_server(opts)
-when "stop"
-  stop_server
-when "restart"
-  restart_server(opts)
-when "status"
+def print_status
   if File.exist?(PID_FILE)
     pid = File.read(PID_FILE).to_i
     begin
@@ -130,6 +121,54 @@ when "status"
   else
     puts "Server is not running"
   end
+end
+
+def export_document_db
+  command = <<~SHELL
+pg_dump monadic | gzip > "#{DATA_DIR}/monadic.gz"
+  SHELL
+
+  # run command and get the result with error reporting
+  res = system(command)
+
+  if res
+    puts "Document DB exported to 'monadic.gz'"
+  else
+    puts "Failed to export document DB"
+  end
+end
+
+def import_document_db
+  command = <<~SHELL
+dropdb monadic && createdb --locale=C --template=template0 monadic && gunzip -c "#{DATA_DIR}/monadic.gz" | psql monadic
+  SHELL
+
+  res = system(command)
+
+  if res
+    puts "Document DB imported from 'monadic.gz'"
+  else
+    puts "Failed to import document DB"
+  end
+end
+
+# Parse subcommand
+subcommand = ARGV.shift
+
+# Execute subcommand
+case subcommand
+when "start"
+  start_server(opts)
+when "stop"
+  stop_server
+when "restart"
+  restart_server(opts)
+when "export"
+  export_document_db
+when "import"
+  import_document_db
+when "status"
+  print_status
 else
-  Optimist.die "Unknown subcommand. Use \"start\", \"stop\", or \"restart\"."
+  Optimist.die "Unknown subcommand. Use \"start\", \"stop\", \"restart\", \"export\", \"import\", or \"status\""
 end

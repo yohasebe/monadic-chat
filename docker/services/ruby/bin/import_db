@@ -1,4 +1,0 @@
-#!/bin/sh
-DIR=$(cd $(dirname "$0"); pwd)
-
-dropdb monadic && createdb --locale=C --template=template0 monadic && gunzip -c "${DIR}/../data/monadic.gz" | psql monadic 

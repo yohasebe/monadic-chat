@@ -567,7 +567,7 @@ class CodeWithClaude < MonadicApp
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "max-tokens-3-5-sonnet-2024-07-15",
+      "anthropic-beta" => "prompt-caching-2024-07-31",
       "x-api-key" => api_key
     }
 

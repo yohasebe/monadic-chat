@@ -111,7 +111,9 @@ start_docker_compose() {
     MONADIC_CHAT_IMAGE_TAG="None"
   fi
 
-  echo "[HTML]: <p>Monadic Chat app v.$MONADIC_VERSION <=> Monadic Chat image v.$MONADIC_CHAT_IMAGE_TAG</p>"
+  if [[ "$1" != "silent" ]]; then
+    echo "[HTML]: <p>Monadic Chat app v.$MONADIC_VERSION <=> Monadic Chat image v.$MONADIC_CHAT_IMAGE_TAG</p>"
+  fi
 
   # check if MONADIC_CHAT_IMAGE_TAG includes the same as MONADIC_VERSION
   if [[ "$MONADIC_CHAT_IMAGE_TAG" != *"$MONADIC_VERSION"* ]]; then
@@ -119,7 +121,7 @@ start_docker_compose() {
     echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
     $DOCKER compose -f "$COMPOSE_MAIN" down
     build_docker_compose
-  else
+  elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
   fi
 
@@ -133,25 +135,32 @@ start_docker_compose() {
       echo "[IMAGE NOT FOUND]"
       echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
       build_docker_compose
-      echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
+      if [[ "$1" != "silent" ]]; then
+        echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
+      fi
       $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
       break
     fi
   done
 
-  echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
+  if [[ "$1" != "silent" ]]; then
+    echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
+  fi
+
   $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
 
   local containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
 
-  echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
-  echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
-  list_containers="<ul>"
-  for container in $containers; do
-    list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
-  done
-  list_containers+="</ul>"
-  echo "[HTML]: $list_containers<hr />"
+  if [[ "$1" != "silent" ]]; then
+    echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
+    echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
+    list_containers="<ul>"
+    for container in $containers; do
+      list_containers+="<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it $container bash</code></li>"
+    done
+    list_containers+="</ul>"
+    echo "[HTML]: $list_containers<hr />"
+  fi
 }
 
 # Function to stop Docker Compose
@@ -263,25 +272,48 @@ remove_older_images() {
 
 # function to export the pgvector database
 export_db() {
-  $DOCKER exec monadic-chat-pgvector-container sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
+  local container_name="monadic-chat-pgvector-container"
+  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    start_docker_compose silent
+  else
+    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
+    exit 1
+  fi
 
+  $DOCKER exec "${container_name}" sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
+  
   # if the above command is successful, print the success message
   if [ $? -eq 0 ]; then
-    echo "[HTML]: <p>Database has been exported successfully!</p>"
+    stop_docker_compose
+    echo "[HTML]: <p>Document DB has been exported to 'monadic.gz' successfully!</p><hr />"
   else
-    echo "[HTML]: <p>Database export failed!</p>"
+    echo "[HTML]: <p>Document DB export failed!</p><hr />"
   fi
 }
 
 # function to import the pgvector database
 import_db() {
-  $DOCKER exec monadic-chat-pgvector-container sh -c "dropdb -f -U postgres monadic && createdb -U postgres --locale=C --template=template0 monadic && gunzip -c \"/monadic/data/monadic.gz\" | psql -U postgres monadic"
+  local container_name="monadic-chat-pgvector-container"
+  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    start_docker_compose silent
+  else
+    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
+    exit 1
+  fi
+
+  if [ ! -f "$HOME_DIR/monadic/data/monadic.gz" ]; then
+    echo "[HTML]: <p>Document DB file 'monadic.gz' does not exist. Please set the file in the shared folder first.</p><hr />"
+    exit 1
+  fi
+
+  $DOCKER exec "${container_name}" sh -c "dropdb -f -U postgres monadic && createdb -U postgres --locale=C --template=template0 monadic && gunzip -t \"/monadic/data/monadic.gz\" && gunzip -c \"/monadic/data/monadic.gz\" | psql -v ON_ERROR_STOP=1 -U postgres monadic || exit 1"
 
   # if the above command is successful, print the success message
   if [ $? -eq 0 ]; then
-    echo "[HTML]: <p>Database has been imported successfully!</p>"
+    stop_docker_compose
+    echo "[HTML]: <p>Document DB has been imported successfully!</p><hr />"
   else
-    echo "[HTML]: <p>Database import failed!</p>"
+    echo "[HTML]: <p>Document DB import failed! Please check the database file.</p><hr />"
   fi
 }
 
@@ -339,12 +371,10 @@ case "$1" in
   export-db)
     start_docker
     export_db
-    stop_docker_compose
     ;;
   import-db)
     start_docker
     import_db
-    stop_docker_compose
     ;;
   *)
     echo "Usage: $0 {build|start|stop|restart|update|remove}" >&2

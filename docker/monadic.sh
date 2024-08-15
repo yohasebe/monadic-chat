@@ -4,7 +4,7 @@
 export PATH=$PATH:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.8.4
+export MONADIC_VERSION=0.8.5
 export HOST_OS=$(uname -s)
 
 # Define the path to the root directory

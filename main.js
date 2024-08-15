@@ -573,6 +573,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
                 currentStatus = 'Stopped';
                 tray.setImage(path.join(iconDir, `${currentStatus}.png`));
                 statusMenuItem.label = `Status: ${currentStatus}`;
+                updateContextMenu(false);
                 updateStatusIndicator(currentStatus);
               });
           }

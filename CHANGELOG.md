@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Aug, 2024] 0.8.6
+  - [Aug, 2024] 0.8.7
       - PDF Document import/export feature
       - Several bug fixes
       - Docker container addition mechanism

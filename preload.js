@@ -33,6 +33,8 @@ try {
     if (status === 'Port in use') {
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = true;
       document.getElementById('stop').disabled = true;
       document.getElementById('restart').disabled = true;
@@ -40,12 +42,16 @@ try {
     } else if (status === 'Starting') {
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = true;
       document.getElementById('stop').disabled = true;
       document.getElementById('restart').disabled = true;
       document.getElementById('browser').disabled = true;
     } else if (status === 'Running') {
       statusElement.textContent = "Preparing . . .";
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = true;
       document.getElementById('stop').disabled = true;
       document.getElementById('restart').disabled = true;
@@ -54,6 +60,8 @@ try {
       statusElement.textContent = "Ready";
       statusElement.classList.remove('inactive');
       statusElement.classList.add('active');
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = true;
       document.getElementById('stop').disabled = false;
       document.getElementById('restart').disabled = false;
@@ -61,6 +69,8 @@ try {
     } else if (status === 'Stopping') {
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = true;
       document.getElementById('stop').disabled = true;
       document.getElementById('restart').disabled = true;
@@ -68,6 +78,8 @@ try {
     } else if (status === 'Stopped') {
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = false;
       document.getElementById('stop').disabled = true;
       document.getElementById('restart').disabled = true;
@@ -75,6 +87,8 @@ try {
     } else {
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
+      document.getElementById('folder').disabled = false;
+      document.getElementById('settings').disabled = false;
       document.getElementById('start').disabled = true;
       document.getElementById('stop').disabled = true;
       document.getElementById('restart').disabled = true;

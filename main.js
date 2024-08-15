@@ -276,21 +276,6 @@ const menuItems = [
   statusMenuItem,
   { type: 'separator' },
   {
-    label: 'Rebuild',
-    click: () => {
-      openMainWindow();
-      checkRequirements()
-        .then(() => {
-          runCommand('build', '[HTML]: <p>Building Monadic Chat.</p><hr />', 'Building', 'Stopped', false);
-        })
-        .catch((error) => {
-          dialog.showErrorBox('Error', error);
-        });
-    },
-    enabled: true
-  },
-  { type: 'separator' },
-  {
     label: 'Start',
     click: () => {
       openMainWindow();
@@ -335,7 +320,7 @@ const menuItems = [
       openMainWindow();
       openFolder();
     },
-    enabled: false
+    enabled: true
   },
   {
     label: 'Open Console',
@@ -572,7 +557,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
             writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
             fetchWithRetry('http://localhost:4567')
               .then(() => {
-                menuItems[8].enabled = true;
+                menuItems[6].enabled = true;
                 contextMenu = Menu.buildFromTemplate(menuItems);
                 tray.setContextMenu(contextMenu);
                 updateStatusIndicator("Ready");
@@ -650,48 +635,44 @@ function updateContextMenu(disableControls = false) {
   tray.setImage(path.join(iconDir, `${currentStatus}.png`));
   if (disableControls) {
     menuItems[2].enabled = false;
+    menuItems[3].enabled = false;
     menuItems[4].enabled = false;
-    menuItems[5].enabled = false;
     menuItems[6].enabled = false;
     menuItems[8].enabled = false;
     menuItems[10].enabled = false;
     menuItems[12].enabled = false;
     menuItems[14].enabled = false;
-    menuItems[16].enabled = false;
   } else {
     menuItems[2].enabled = true;
+    menuItems[3].enabled = true;
     menuItems[4].enabled = true;
-    menuItems[5].enabled = true;
-    menuItems[6].enabled = true;
+    menuItems[8].enabled = true;
     menuItems[10].enabled = true;
     menuItems[12].enabled = true;
     menuItems[14].enabled = true;
-    menuItems[16].enabled = true;
   }
   
   if(currentStatus !== 'Stopped' && currentStatus !== 'Uninstalled'){
-    menuItems[2].enabled = false;
-    menuItems[5].enabled = false;
+    menuItems[3].enabled = false;
   }
 
   if(currentStatus === 'Uninstalled'){
-    menuItems[16].enabled = false;
+    menuItems[14].enabled = false;
   }
 
   if(currentStatus === 'Running'){
-    menuItems[4].enabled = false;
-    menuItems[5].enabled = true;
-    menuItems[6].enabled = true;
-    menuItems[8].enabled = false;
-    menuItems[9].enabled = true;
-  } else {
+    menuItems[2].enabled = false;
+    menuItems[3].enabled = true;
+    menuItems[4].enabled = true;
     menuItems[6].enabled = false;
+  } else {
+    menuItems[4].enabled = false;
   }
 
   if(currentStatus === 'Stopped'){
-    menuItems[4].enabled = true;
+    menuItems[2].enabled = true;
     menuItems[5].enabled = false;
-    menuItems[8].enabled = false;
+    menuItems[6].enabled = false;
   }
 
   contextMenu = Menu.buildFromTemplate(menuItems);
@@ -837,19 +818,19 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
-          label: 'Import DB',
+          label: 'Import Document DB',
           click: () => {
             openMainWindow();
-            runCommand('import-db', '[HTML]: <p>Importing database . . .</p>', 'Importing', 'Stopped', false)
+            runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
           },
-          enabled: currentStatus === 'Running'
+          enabled: currentStatus === 'Stopped'
         },
         {
-          label: 'Export DB',
+          label: 'Export Document DB',
           click: () => {
-            runCommand('export-db', '[HTML]: <p>Exporting database . . .</p>', 'Exporting', 'Stopped', false);
+            runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
           },
-          enabled: currentStatus === 'Running'
+          enabled: currentStatus === 'Stopped'
         },
       ]
     },
@@ -869,8 +850,7 @@ function updateApplicationMenu() {
           click: () => {
             openMainWindow();
             openFolder();
-          },
-          enabled: currentStatus === 'Running'
+          }
         },
         {
           label: 'Open Console',

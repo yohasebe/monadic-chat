@@ -69,6 +69,7 @@ class MonadicApp
   end
 
   def escape_all_special_characters(str)
+    str = str.to_s
     str.gsub(/\$\$(.*?)\$\$|\$(.*?)\$/m) do
       match = Regexp.last_match
       content = match[1] || match[2]
@@ -93,8 +94,12 @@ class MonadicApp
 
     if hash.key?("message")
       message = hash["message"]
-      message = escape_all_special_characters(message) if mathjax
-      output += UtilitiesHelper.markdown_to_html(message)
+      if mathjax
+        message = escape_all_special_characters(message) if mathjax
+        output += UtilitiesHelper.markdown_to_html(message, mathjax: true)
+      else
+        output += UtilitiesHelper.markdown_to_html(message)
+      end
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end

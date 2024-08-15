@@ -561,9 +561,9 @@
     <script>
       MathJax = {
         tex: {
-          inlineMath:  [ ['$','$'], ['\\(','\\)'] ],
-          displayMath: [ ['$$','$$'], ['\\[','\\]'] ],
-          processEscapes: true
+          inlineMath:  [ ['$','$'], ['\\(','\\)'], ['\(','\)'] ],
+          displayMath: [ ['$$','$$'], ['\\[','\\]'], ['\[','\]'] ],
+          processEscapes: false
         },
         options: {
           skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"]

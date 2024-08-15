@@ -4,7 +4,7 @@
 export PATH=$PATH:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.8.6
+export MONADIC_VERSION=0.8.7
 export HOST_OS=$(uname -s)
 
 # Define the path to the root directory
@@ -324,7 +324,7 @@ case "$1" in
     start_docker
     build_docker_compose
     if $DOCKER images | grep -q "monadic-chat"; then
-      echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p>"
+      echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
     else
       echo "[HTML]: <p>Monadic Chat has failed to build. Please try <b>Rebuild</b>.</p>"
     fi

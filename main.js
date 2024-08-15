@@ -2,6 +2,8 @@ const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('elec
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 
+let metRequirements = false;
+
 if (!gotTheLock) {
   app.quit();
 } else {
@@ -53,9 +55,9 @@ function checkRequirements() {
         exec('wsl -l -v', function (err) {
           wsl2Installed = !err;
           if (!dockerInstalled) {
-            reject("Docker is not installed. Please install Docker Desktop for Windows first.");
+            reject("Docker is not installed.|Please install Docker Desktop for Windows first.");
           } else if (!wsl2Installed) {
-            reject("WSL 2 is not installed. Please install WSL 2 first.");
+            reject("WSL 2 is not installed.|Please install WSL 2 first.");
           } else {
             resolve();
           }
@@ -65,7 +67,7 @@ function checkRequirements() {
       exec('/usr/local/bin/docker -v', function (err, stdout) {
         dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
         if (!dockerInstalled) {
-          reject("Docker is not installed. Please install Docker Desktop for Mac first.");
+          reject("Docker is not installed.|Please install Docker Desktop for Mac first.");
         } else {
           resolve();
         }
@@ -74,7 +76,7 @@ function checkRequirements() {
       exec('docker -v', function (err, stdout) {
         dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
         if (!dockerInstalled) {
-          reject("Docker is not installed. Please install Docker for Linux first.");
+          reject("Docker is not installed.|Please install Docker for Linux first.");
         } else {
           resolve();
         }
@@ -381,7 +383,21 @@ function initializeApp() {
               runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
             })
             .catch((error) => {
-              dialog.showErrorBox('Error', error);
+              let message = error;
+              let detail = '';
+              let [e1, e2] = error.split('|');
+              if (e1 && e2) {
+                message = e1;
+                detail = e2;
+              }
+              dialog.showMessageBox({
+                type: 'info',
+                buttons: ['OK'],
+                title: 'Requirements Not Met',
+                message: message,
+                detail: detail,
+                icon: path.join(iconDir, 'monadic-chat.png')
+              });
             });
           break;
         case 'stop':
@@ -403,6 +419,11 @@ function initializeApp() {
           quitApp(mainWindow);
           break;
       }
+    });
+
+    checkRequirements().then(() => {
+      metRequirements = true;
+      updateApplicationMenu();
     });
 
     app.on('activate', () => {
@@ -567,7 +588,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
                 openBrowser('http://localhost:4567');
               })
               .catch(error => {
-                writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p></p>');
+                writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
                 console.error('Fetch operation failed after retries:', error);
                 // switch the status back to Stopped
                 currentStatus = 'Stopped';
@@ -657,14 +678,6 @@ function updateContextMenu(disableControls = false) {
     menuItems[12].enabled = true;
     menuItems[14].enabled = true;
   }
-  
-  if(currentStatus !== 'Stopped' && currentStatus !== 'Uninstalled'){
-    menuItems[3].enabled = false;
-  }
-
-  if(currentStatus === 'Uninstalled'){
-    menuItems[14].enabled = false;
-  }
 
   if(currentStatus === 'Running'){
     menuItems[2].enabled = false;
@@ -677,6 +690,7 @@ function updateContextMenu(disableControls = false) {
 
   if(currentStatus === 'Stopped'){
     menuItems[2].enabled = true;
+    menuItems[3].enabled = false;
     menuItems[5].enabled = false;
     menuItems[6].enabled = false;
   }
@@ -827,16 +841,16 @@ function updateApplicationMenu() {
           label: 'Import Document DB',
           click: () => {
             openMainWindow();
-            runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
+            runCommand('import-db', '[HTML]: <hr /><p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
           },
-          enabled: currentStatus === 'Stopped'
+          enabled: currentStatus === 'Stopped' && metRequirements
         },
         {
           label: 'Export Document DB',
           click: () => {
-            runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
+            runCommand('export-db', '[HTML]: <hr /><p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
           },
-          enabled: currentStatus === 'Stopped'
+          enabled: currentStatus === 'Stopped' && metRequirements
         },
       ]
     },

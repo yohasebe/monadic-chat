@@ -22,8 +22,8 @@ layout: default
 1. Docker Desktop for Macをインストールします（[詳細](#install-docker-macos)）。
 2. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.4-arm64.dmg) (0.8.4)
-- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.4.dmg) (0.8.4)
+- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.5-arm64.dmg) (0.8.5)
+- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.5.dmg) (0.8.5)
 
 ### Windows
 
@@ -31,15 +31,15 @@ layout: default
 2. Docker Desktop for Windowsをインストールします（[詳細](#install-docker-win)）。
 3. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.8.4.exe) (0.8.4)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.8.5.exe) (0.8.5)
 
 ### Linux (Ubuntu/Debian)
 
 1. Docker Desktop for Linuxをインストールします。（参考：[LinuxにDocker Desktopをインストール](https://docs.docker.jp/desktop/install/linux-install.html)）
 2. Monadic Chat のインストーラーをダウンロードしてインストールします。 
 
-- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.8.4_amd64.deb) (0.8.4)
-- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.8.4_arm64.deb) (0.8.4)
+- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.8.5_amd64.deb) (0.8.5)
+- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.8.5_arm64.deb) (0.8.5)
 
 ## 依存ソフトウェアのインストール
 

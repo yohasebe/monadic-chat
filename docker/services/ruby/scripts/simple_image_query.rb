@@ -166,7 +166,7 @@ image_path_or_url = ARGV[1]
 model = ARGV[2] || "gpt-4o-mini"
 
 if message.nil? || image_path_or_url.nil?
-  puts "Usage: #{$PROGRAM_NAME} 'message' 'image_path_or_url'"
+  puts "Usage: #{$PROGRAM_NAME} 'message' 'image_path_or_url' 'model'"
   exit
 end
 

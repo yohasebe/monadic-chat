@@ -567,8 +567,13 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
                 openBrowser('http://localhost:4567');
               })
               .catch(error => {
-                writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server</b></p>');
+                writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p></p>');
                 console.error('Fetch operation failed after retries:', error);
+                // switch the status back to Stopped
+                currentStatus = 'Stopped';
+                tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+                statusMenuItem.label = `Status: ${currentStatus}`;
+                updateStatusIndicator(currentStatus);
               });
           }
         } else {

@@ -23,6 +23,8 @@ task :build do
   Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
   Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
 
+  sh "npm cache clean --force"
+
   sh "npm run build:linux-x64"
   sh "npm run build:linux-arm64"
   sh "npm run build:win"

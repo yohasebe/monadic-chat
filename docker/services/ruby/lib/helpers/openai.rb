@@ -403,10 +403,12 @@ module OpenAIHelper
 
       # If the app is monadic, the message is passed through the monadic_map function
       if obj["monadic"].to_s == "true" && message != ""
-        message = APPS[app].monadic_unit(message) if message != ""
-        html = markdown_to_html(obj["message"]) if message != ""
+        if message != ""
+          message = APPS[app].monadic_unit(message)
+          html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
+        end
       elsif message != ""
-        html = markdown_to_html(message)
+        html = markdown_to_html(message, mathjax: obj["mathjax"])
       end
 
       if message != "" && role == "user"
@@ -426,7 +428,7 @@ module OpenAIHelper
         res = { "mid" => request_id,
                 "role" => role,
                 "text" => message,
-                "html" => markdown_to_html(message),
+                "html" => markdown_to_html(message, mathjax: obj["mathjax"]),
                 "lang" => detect_language(message),
                 "active" => true }
         if obj["images"]

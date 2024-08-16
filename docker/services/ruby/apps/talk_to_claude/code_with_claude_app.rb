@@ -390,7 +390,6 @@ class CodeWithClaude < MonadicApp
                   end
                 end
               else
-
                 if json.dig("delta", "text")
                   fragment = json.dig("delta", "text").to_s
                   next if !fragment || fragment == ""
@@ -486,10 +485,8 @@ class CodeWithClaude < MonadicApp
         result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
       when /sonnet/
         unless @leftover.empty?
-          # leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
-          # result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
-
-          result = @leftover.map { |x| x.dig("content", 0, "text") }.join("\n") + result
+          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
+          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
         end
       end
       @leftover.clear
@@ -528,6 +525,15 @@ class CodeWithClaude < MonadicApp
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    system_prompts = []
+    system_prompts << { type: "text", text: initial_prompt }
+    session[:messages].each do |msg|
+      system_prompts << { type: "text", text: msg["text"] } if msg["role"] == "system"
+    end
+    # system_prompts.each do |prompt|
+    #   # This works only when the number of the tokens is at least 1024
+    #   prompt["cache_control"] = { "type" => "ephemeral" }
+    # end
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i
@@ -558,7 +564,14 @@ class CodeWithClaude < MonadicApp
     # and set active messages are added to the context
     begin
       session[:messages].each { |msg| msg["active"] = false }
-      context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
+
+      context = session[:messages].filter do |msg|
+        msg["role"] == "user" || msg["role"] == "assistant"
+      end.last(context_size).each { |msg| msg["active"] = true }
+
+      session[:messages].filter do |msg|
+        msg["role"] == "system"
+      end.each { |msg| msg["active"] = true }
     rescue StandardError
       context = []
     end
@@ -573,7 +586,7 @@ class CodeWithClaude < MonadicApp
 
     # Set the body for the API request
     body = {
-      "system" => initial_prompt,
+      "system" => system_prompts,
       "model" => obj["model"],
       "stream" => true,
       "tool_choice" => { "type": "auto" }
@@ -713,9 +726,6 @@ class CodeWithClaude < MonadicApp
       end
 
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        # skip if the value is nil or null but not if it is of the string class
-        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
-
         memo[k.to_sym] = v
         memo
       end
@@ -744,3 +754,4 @@ class CodeWithClaude < MonadicApp
     api_request("tool", session, call_depth: call_depth, &block)
   end
 end
+

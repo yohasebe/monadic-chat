@@ -119,16 +119,28 @@ def init_apps
     response_suffix = ""
 
     if app.settings[:mathjax]
-      initial_prompt_suffix << <<~INITIAL
 
+      if app.settings[:monadic]
+        initial_prompt_suffix << <<~INITIAL
+      Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Make sure to double-escape backslashes in the expressions.
+
+      Good examples (MathJax/LaTeX in plain text or markdown):
+      - `$[1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)]$`
+      - `$$[1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)]$$`
+      - `$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$`
+      - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
+        INITIAL
+      else
+        initial_prompt_suffix << <<~INITIAL
       Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
 
-      Good examples:
+      Good examples (MathJax/LaTeX in plain text or markdown):
       - `$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$`
       - `$$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$$`
       - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
       - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
-      INITIAL
+        INITIAL
+      end
 
       prompt_suffix << <<~SUFFIX
       SUFFIX

@@ -8,10 +8,6 @@ module UtilitiesHelper
     CLD.detect_language(text)[:code]
   end
 
-  def escape_mathjax_chars(text)
-    text.gsub(/\\[a-zA-Z]+/) { |match| "\\" + match }
-  end
-
   def markdown_to_html(text, mathjax: false)
     text = text.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
     text = text.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
@@ -27,18 +23,10 @@ module UtilitiesHelper
         "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
       end
 
-      block_mathjax.map! do |code|
-        escape_mathjax_chars(code)
-      end
-
       # Replace $...$ with placeholders
       text = text.gsub(/\$(.*?)\$/m) do
         inline_mathjax << Regexp.last_match(1)
         "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
-      end
-
-      inline_mathjax.map! do |code|
-        escape_mathjax_chars(code)
       end
 
       # Convert markdown to HTML using Kramdown

@@ -129,23 +129,35 @@ def init_apps
         # the blank line at the beginning is important!
         initial_prompt_suffix << <<~INITIAL
 
-      Make sure to double-escape backslashes in the MathJax expressions.
+        Make sure to escape properly in the MathJax expressions.
 
-      Good examples (MathJax/LaTeX in plain text or markdown):
-      - `$[1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)]$`
-      - `$$[1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)]$$`
-      - `$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$`
-      - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
+        Good examples of inline MathJax expressions:
+        - `$1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)$`
+        - `$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$`
+        - `$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$`
+        - `$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$`
+
+        Good examples of block MathJax expressions:
+        - `$$1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)$$`
+        - `$$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
+        - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
+        - `$$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$$`
         INITIAL
       else
         # the blank line at the beginning is important!
         initial_prompt_suffix << <<~INITIAL
 
-      Good examples (MathJax/LaTeX in plain text or markdown):
-      - `$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$`
-      - `$$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$$`
-      - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
-      - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
+        Good examples of inline MathJax expressions:
+        - `$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$`
+        - `$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$`
+        - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
+        - `$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$`
+
+        Good examples of block MathJax expressions:
+        - `$$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$$`
+        - `$$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
+        - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
+        - `$$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$$`
         INITIAL
       end
 

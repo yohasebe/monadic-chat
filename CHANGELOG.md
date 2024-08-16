@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Aug, 2024] 0.8.8
+  - [Aug, 2024] 0.8.9
       - Math rendering improved
       - Second Opinion app added
       - PDF Document import/export feature

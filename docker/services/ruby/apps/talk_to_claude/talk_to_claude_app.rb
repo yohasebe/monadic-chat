@@ -263,6 +263,15 @@ class Claude < MonadicApp
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    system_prompts = []
+    system_prompts << { type: "text", text: initial_prompt }
+    session[:messages].each do |msg|
+      system_prompts << { type: "text", text: msg["text"] } if msg["role"] == "system"
+    end
+    # system_prompts.each do |prompt|
+    #   # This works only when the number of the tokens is at least 1024
+    #   prompt["cache_control"] = { "type" => "ephemeral" }
+    # end
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i
@@ -293,7 +302,14 @@ class Claude < MonadicApp
     # and set active messages are added to the context
     begin
       session[:messages].each { |msg| msg["active"] = false }
-      context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
+
+      context = session[:messages].filter do |msg|
+        msg["role"] == "user" || msg["role"] == "assistant"
+      end.last(context_size).each { |msg| msg["active"] = true }
+
+      session[:messages].filter do |msg|
+        msg["role"] == "system"
+      end.each { |msg| msg["active"] = true }
     rescue StandardError
       context = []
     end
@@ -308,7 +324,7 @@ class Claude < MonadicApp
 
     # Set the body for the API request
     body = {
-      "system" => initial_prompt,
+      "system" => system_prompts,
       "model" => obj["model"],
       "stream" => true,
       "tool_choice" => { "type": "auto" }

@@ -89,6 +89,9 @@ class MonadicApp
   end
 
   def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
+    # if hash is not a hash, return the string representation
+    return hash.to_s unless hash.is_a?(Hash)
+
     iteration += 1
     output = +""
 
@@ -736,5 +739,74 @@ class MonadicApp
       Remember you are the one who inquires for information, not providing the answers.
     TEXT
     text.strip
+  end
+
+  def simple_chat_query(messages, model: "gpt-4o-mini")
+    # num_retrial = 0
+    api_key = ENV["OPENAI_API_KEY"]
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    body = {
+      "model" => model,
+      "n" => 1,
+      "stream" => false,
+      "stop" => nil,
+      "messages" => messages
+    }
+
+    target_uri = "https://api.openai.com/v1/chat/completions"
+
+    http = HTTP.headers(headers)
+    res = http.timeout(connect: 5, write: 60, read: 60).post(target_uri, json: body)
+
+    unless res.status.success?
+      pp JSON.parse(res.body)["error"]
+      "ERROR: #{JSON.parse(res.body)["error"]}"
+    end
+
+    JSON.parse(res.body).dig("choices", 0, "message", "content")
+  rescue StandardError
+    "Error: The request could not be completed."
+  end
+
+  def verify_response(user_query: "", agent_response: "")
+    model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
+
+    prompt = <<~TEXT
+      Your are an agent that verify and make comments about given pairs of query and response. If the response is correct, you should say 'The response is correct'. But you are rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
+
+      You should point out the errors or possible caveats in the response and suggest corrections where necessary. Your response should be formatted as follows with the validity of the original response out of 10 and the model used for the evaluation which is specified in the text below:
+
+      ### COMMENTS
+      YOUR_COMMENTS
+
+      ### VALIDITY
+      VALIDITY_OF_ORIGINAL_RESPONSE/10
+
+      ### Evaluation Model
+      #{model}
+    TEXT
+
+    messages = [
+      {
+        "role" => "system",
+        "content" => prompt
+      },
+      {
+        "role" => "user",
+        "content" => <<~TEXT
+          ### Query
+          #{user_query}
+
+          ### Response
+          #{agent_response}
+        TEXT
+      }
+    ]
+    simple_chat_query(messages, model: model)
   end
 end

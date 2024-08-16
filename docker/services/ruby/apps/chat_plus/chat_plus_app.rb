@@ -4,7 +4,7 @@ class ChatPlus < MonadicApp
   end
 
   def description
-    "This is the standard application for monadic chat. It can be used in basically the same way as ChatGPT."
+    "This is a chat application that keeps track of topics, people, and notes mentioned in the conversation."
   end
 
   def initial_prompt

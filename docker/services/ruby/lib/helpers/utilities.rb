@@ -35,7 +35,13 @@ module UtilitiesHelper
                                     input: "GFM",
                                     syntax_highlighter_ops: {
                                       guess_lang: true
-                                    }).to_html
+                                    }).to_html.gsub(/(?:\\)+n/) { "\n" }
+
+      # add an extra backslash to the backslash in the mathjax code in inline_mathjax
+      inline_mathjax.map! do |code|
+        code.gsub(/(?:\r)+/, "\\r")
+            .gsub(/(?:\t)+/, "\\t")
+      end
 
       # Replace placeholders with the original mathjax codes
       block_mathjax.each_with_index do |code, index|

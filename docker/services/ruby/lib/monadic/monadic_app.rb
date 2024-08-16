@@ -133,7 +133,7 @@ class MonadicApp
       end
     end
 
-    "<div class='json-container'>#{UtilitiesHelper.markdown_to_html(output, mathjax: mathjax)}</div>"
+    "<div class='json-container'>#{output}</div>"
   end
 
   def send_command(command:,

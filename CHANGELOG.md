@@ -1,7 +1,7 @@
 ### Change Log
 
   - [Aug, 2024] 0.8.8
-      - First response time improved
+      - Math rendering improved
       - Second Opinion app added
       - PDF Document import/export feature
       - Several bug fixes

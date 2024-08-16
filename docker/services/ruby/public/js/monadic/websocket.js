@@ -528,16 +528,25 @@ function connect_websocket(callback) {
             $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
           }
           $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
+
           if (apps[$("#apps").val()]["monadic"]) {
             $("#monadic-badge").show();
           } else {
             $("#monadic-badge").hide();
           }
+
           if (apps[$("#apps").val()]["tools"]) {
             $("#tools-badge").show();
           } else {
             $("#tools-badge").hide();
           }
+
+          if (apps[$("#apps").val()]["mathjax"]) {
+            $("#math-badge").show();
+          } else {
+            $("#math-badge").hide();
+          }
+
           $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
           $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
 

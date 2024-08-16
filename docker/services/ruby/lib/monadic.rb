@@ -119,10 +119,17 @@ def init_apps
     response_suffix = ""
 
     if app.settings[:mathjax]
+      # the blank line at the beginning is important!
+      initial_prompt_suffix << <<~INITIAL
+
+        You use the MathJax notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
+      INITIAL
 
       if app.settings[:monadic]
+        # the blank line at the beginning is important!
         initial_prompt_suffix << <<~INITIAL
-      Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Make sure to double-escape backslashes in the expressions.
+
+      Make sure to double-escape backslashes in the MathJax expressions.
 
       Good examples (MathJax/LaTeX in plain text or markdown):
       - `$[1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)]$`
@@ -131,8 +138,8 @@ def init_apps
       - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
         INITIAL
       else
+        # the blank line at the beginning is important!
         initial_prompt_suffix << <<~INITIAL
-      Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
 
       Good examples (MathJax/LaTeX in plain text or markdown):
       - `$[1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)]$`
@@ -143,10 +150,12 @@ def init_apps
       end
 
       prompt_suffix << <<~SUFFIX
+      Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
       SUFFIX
     end
 
     if app.settings[:tools]
+      # the blank line at the beginning is important!
       initial_prompt_suffix << <<~INITIAL
 
         You should NEVER invent or use functions not defined or not listed HERE. If you need to call multiple functions, you will call them one at a time.
@@ -154,7 +163,9 @@ def init_apps
     end
 
     if app.settings[:image_generation]
+      # the blank line at the beginning is important!
       response_suffix << <<~INITIAL
+
         <script>
           document.querySelectorAll('.generated_image').forEach((img) => {
             img.addEventListener('click', (e) => {
@@ -173,6 +184,7 @@ def init_apps
     end
 
     if app.settings[:mermaid]
+      # the blank line at the beginning is important!
       prompt_suffix << <<~INITIAL
 
         Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
@@ -195,6 +207,12 @@ def init_apps
         )
       end
     end
+
+    # the blank line at the beginning is important!
+    prompt_suffix = <<~SUFFIX
+
+      Rerturn your response in the same language as the prompt. If you need to switch to another language, please inform the user.
+    SUFFIX
 
     apps[app_name] = app
   end

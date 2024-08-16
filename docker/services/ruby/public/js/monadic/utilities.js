@@ -383,16 +383,25 @@ function resetEvent(event) {
     $("#parameter-panel").hide();
     setAlert("Ready to start.", "success");
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
+
     if (apps[$("#apps").val()]["monadic"]) {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
     }
+
     if (apps[$("#apps").val()]["tools"]) {
-      $("#tools-badges").show();
+      $("#tools-badge").show();
     } else {
-      $("#tools-badges").hide();
+      $("#tools-badge").hide();
     }
+
+    if (apps[$("#apps").val()]["mathjax"]) {
+      $("#math-badge").show();
+    } else {
+      $("#math-badge").hide();
+    }
+
     $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
     $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
 

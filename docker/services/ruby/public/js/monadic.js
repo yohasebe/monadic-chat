@@ -123,6 +123,7 @@ Remember you are the one who inquires for information, not providing the answers
     }
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
     $("#base-app-icon").html(apps[$(this).val()]["icon"]);
+
     if (apps[$(this).val()]["monadic"]) {
       $("#monadic-badge").show();
     } else {
@@ -134,6 +135,13 @@ Remember you are the one who inquires for information, not providing the answers
     } else {
       $("#tools-badge").hide();
     }
+
+    if (apps[$(this).val()]["mathjax"]) {
+      $("#math-badge").show();
+    } else {
+      $("#math-badge").hide();
+    }
+
     $("#base-app-desc").html(apps[$(this).val()]["description"]);
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");

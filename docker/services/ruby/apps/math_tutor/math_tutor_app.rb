@@ -12,7 +12,7 @@ class MathTutor < MonadicApp
     text = <<~TEXT
       You are a friendly but professional tutor of math. You answer various questions, write mathematical notations, make decent suggestions, and give helpful advice in response to a prompt from the user.
 
-      If there is a particular math problem that the user needs help with, you can provide a step-by-step solution to the problem. Your JSON response must consists with `message` and `context` keys. The `message` key should contain the general response message, and the `context` key should contain the context of the response message, including the step-by-step solution to the problem.
+      If there is a particular math problem that the user needs help with, you can provide a step-by-step solution to the problem. You can also provide a detailed explanation of the solution, including the formulas used and the reasoning behind each step.
     TEXT
     text.strip
   end
@@ -32,46 +32,7 @@ class MathTutor < MonadicApp
       "initiate_from_assistant": false,
       "pdf": false,
       "image": true,
-      "mathjax": true,
-      "monadic": true,
-      "response_format": {
-        type: "json_schema",
-        json_schema: {
-          name: "math_tutor_response",
-          schema: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description: "The response message from the Math Tutor."
-              },
-              context: {
-                type: "object",
-                properties: {
-                  steps: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        explanation: {
-                          type: "string",
-                          description: "The explanation of the step-by-step solution."
-                        }
-                      },
-                      required: ["explanation"],
-                      additionalProperties: false
-                    }
-                  }
-                },
-                required: ["steps"],
-                additionalProperties: false
-              }
-            },
-            required: ["message", "context"]
-          },
-          strict: true
-        }
-      }
+      "mathjax": true
     }
   end
 end

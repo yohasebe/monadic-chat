@@ -125,6 +125,7 @@ function isElementInViewport(element) {
 }
 
 function applyMathJax(element) {
+
   // do the following only outside <div class="diagram"> elements
   if (element.hasClass("diagram")) {
     return;

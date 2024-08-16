@@ -68,26 +68,6 @@ class MonadicApp
     snake
   end
 
-  def escape_all_special_characters(str)
-    str = str.to_s
-    str.gsub(/\$\$(.*?)\$\$|\$(.*?)\$/m) do
-      match = Regexp.last_match
-      content = match[1] || match[2]
-      escaped_content = content.gsub(/\a/, "\\a")
-                               .gsub(/\f/, "\\f")
-                               .gsub(/\n/, "\\n")
-                               .gsub(/\r/, "\\r")
-                               .gsub(/\t/, "\\t")
-                               .gsub(/\v/, "\\v")
-                               .gsub("\\root", "\\sqrt")
-      if match[1] # $$...$$
-        "$$#{escaped_content}$$"
-      else # $...$
-        "$#{escaped_content}$"
-      end
-    end
-  end
-
   def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
     # if hash is not a hash, return the string representation
     return hash.to_s unless hash.is_a?(Hash)
@@ -97,8 +77,7 @@ class MonadicApp
 
     if hash.key?("message")
       message = hash["message"]
-      message = escape_all_special_characters(message) if mathjax
-      output += UtilitiesHelper.markdown_to_html(message)
+      output += UtilitiesHelper.markdown_to_html(message, mathjax: mathjax)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end
@@ -134,7 +113,7 @@ class MonadicApp
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
-                          v = escape_all_special_characters(v) if mathjax
+                          v = UtilitiesHelper.markdown_to_html(v, mathjax: mathjax)
                           "<li>#{v}</li>"
                         else
                           "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)}</li>"
@@ -147,15 +126,14 @@ class MonadicApp
         else
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<span>#{key}: </span>"
-          value = escape_all_special_characters(value) if mathjax
-          value = UtilitiesHelper.markdown_to_html(value)
+          value = UtilitiesHelper.markdown_to_html(value, mathjax: mathjax)
           output += "<span>#{value}</span>"
           output += "</div>"
         end
       end
     end
 
-    "<div class='json-container'>#{output}</div>"
+    "<div class='json-container'>#{UtilitiesHelper.markdown_to_html(output, mathjax: mathjax)}</div>"
   end
 
   def send_command(command:,

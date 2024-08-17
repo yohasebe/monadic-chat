@@ -206,7 +206,7 @@ def init_apps
     # the blank line at the beginning is important!
     prompt_suffix = <<~SUFFIX
 
-      Rerturn your response in the same language as the prompt. If you need to switch to another language, please inform the user.
+      Return your response in the same language as the prompt. If you need to switch to another language, please inform the user.
     SUFFIX
 
     if !initial_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?

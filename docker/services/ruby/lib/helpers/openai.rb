@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 module OpenAIHelper
   MAX_FUNC_CALLS = 10
@@ -184,7 +184,7 @@ module OpenAIHelper
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
 
-    buffer = ""
+    buffer = String.new
     texts = {}
     tools = {}
     finish_reason = nil

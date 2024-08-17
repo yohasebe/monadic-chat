@@ -268,19 +268,21 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
   ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
 }
 
-function applyToggle(element) {
+function applyToggle(element, nl2br = false) {
   element.find(".toggle").each(function () {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");
     toggleElement.find("pre").addClass("sourcecode");
-    let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
-    toggleElement.find("pre").text(toggleText);
+    if(nl2br) {
+      let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
+      toggleElement.find("pre").text(toggleText);
+    }
     addToggleSourceCode(toggleElement);
   });
 }
 
 function addToggleSourceCode(element) {
-  let title = "Toggle Source Code";
+  let title = "Show/Hide Code";
   // if element has data-title attribute, use that as the title
   if (element.data("title")) {
     title = element.data("title");

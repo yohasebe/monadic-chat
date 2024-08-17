@@ -388,8 +388,13 @@ module ClaudeHelper
       }
     end
 
-    if respond_to?(:prompt_suffix) && modified.last["role"] == "user"
-      modified.last["content"].first["text"] += "\n\n#{obj["prompt_suffix"]}"
+    if modified.last["role"] == "user"
+      modified.last["content"].each do |content|
+        if content["type"] == "text"
+          content["text"] += "\n\n#{obj["prompt_suffix"]}"
+          break
+        end
+      end
     end
 
     body["messages"] = modified

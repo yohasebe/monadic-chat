@@ -238,7 +238,8 @@ module CommandRHelper
       # "connectors" => [{"id" => "web-search"}]
     }
 
-    body["message"] = message if role != "tool"
+    body["message"] = "#{message}\n\n#{obj["prompt_suffix"]}" if role != "tool"
+
     body["temperature"] = temperature if temperature
     body["max_tokens"] = max_tokens if max_tokens
     body["p"] = top_p if top_p

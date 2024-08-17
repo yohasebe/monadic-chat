@@ -269,8 +269,15 @@ module GeminiHelper
       }
     end
 
-    if body["contents"].last["role"] == "user" && obj["images"]
-      obj["images"].each do |img|
+    if body["contents"].last["role"] == "user"
+      # append prompt suffix to the first item of parts with the key "text"
+      body["contents"].last["parts"].each do |part|
+        if part["text"]
+          part["text"] = "#{part["text"]}\n\n#{obj["prompt_suffix"]}"
+          break
+        end
+      end
+      obj["images"]&.each do |img|
         body["contents"].last["parts"] << {
           "inlineData" => {
             "mimeType" => img["type"],

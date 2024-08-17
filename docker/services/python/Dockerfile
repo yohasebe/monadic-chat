@@ -41,9 +41,8 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     tiktoken \
     opencv-python \
     moviepy \
-    'pdfminer.six[image]' \ 
-    'pymupdf'
-    # spacy && python -m spacy download en_core_web_sm
+    pymupdf \
+    textblob
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

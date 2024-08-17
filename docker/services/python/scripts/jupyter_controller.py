@@ -25,7 +25,7 @@ def get_json_path(filename):
 def notebook_exists(notebook_path):
     return os.path.exists(notebook_path)
 
-def read_notebook(notebook_path, max_retries=20, retry_delay=1.5):
+def read_notebook(notebook_path, max_retries=5, retry_delay=1):
     for attempt in range(max_retries):
         try:
             with open(notebook_path, 'r', encoding='utf-8') as f:
@@ -41,7 +41,7 @@ def read_notebook(notebook_path, max_retries=20, retry_delay=1.5):
                 time.sleep(retry_delay + random.uniform(0, 1))
     raise IOError(f"Failed to read notebook at {notebook_path} after {max_retries} attempts")
 
-def write_notebook(notebook_path, nb, max_retries=20, retry_delay=1.5):
+def write_notebook(notebook_path, nb, max_retries=5, retry_delay=1):
     for attempt in range(max_retries):
         try:
             with open(notebook_path, 'w', encoding='utf-8') as f:
@@ -60,7 +60,7 @@ def create_notebook(notebook_path):
     write_notebook(notebook_path, nb)
     print(f"Notebook created at {notebook_path}")
 
-def add_cells_to_notebook(notebook_path, new_cells, max_retries=20, retry_delay=1.5):
+def add_cells_to_notebook(notebook_path, new_cells, max_retries=5, retry_delay=1):
     for attempt in range(max_retries):
         try:
             nb = read_notebook(notebook_path)
@@ -89,7 +89,7 @@ def display_notebook_cells(notebook_path):
         content = cell['source']
         print(f"Cell {i} - Type: {cell_type}\n{content}\n{'-'*40}")
 
-def delete_cell(notebook_path, index, max_retries=20, retry_delay=1.5):
+def delete_cell(notebook_path, index, max_retries=5, retry_delay=1):
     for attempt in range(max_retries):
         try:
             nb = read_notebook(notebook_path)
@@ -109,7 +109,7 @@ def delete_cell(notebook_path, index, max_retries=20, retry_delay=1.5):
                 time.sleep(retry_delay + random.uniform(0, 1))
     raise IOError(f"Failed to delete cell from notebook at {notebook_path} after {max_retries} attempts")
 
-def update_cell(notebook_path, index, new_content, cell_type='markdown', max_retries=20, retry_delay=1.5):
+def update_cell(notebook_path, index, new_content, cell_type='markdown', max_retries=5, retry_delay=1):
     for attempt in range(max_retries):
         try:
             nb = read_notebook(notebook_path)

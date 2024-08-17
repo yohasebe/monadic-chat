@@ -6,6 +6,9 @@ import argparse
 import nbformat as nbf
 from datetime import datetime
 import json
+import time
+import random
+import errno
 
 def get_notebook_path(filename):
     notebook_path = f"/monadic/data/{filename}"
@@ -22,31 +25,62 @@ def get_json_path(filename):
 def notebook_exists(notebook_path):
     return os.path.exists(notebook_path)
 
-def read_notebook(notebook_path):
-    with open(notebook_path, 'r', encoding='utf-8') as f:
-        return nbf.read(f, as_version=4)
+def read_notebook(notebook_path, max_retries=20, retry_delay=1.5):
+    for attempt in range(max_retries):
+        try:
+            with open(notebook_path, 'r', encoding='utf-8') as f:
+                nb = nbf.read(f, as_version=4)
+                if not isinstance(nb, dict) or 'cells' not in nb:
+                    raise ValueError("Invalid notebook structure")
+                return nb
+        except Exception as e:
+            print(f"Error reading notebook: {str(e)}")
+            if attempt == max_retries - 1:
+                raise
+            else:
+                time.sleep(retry_delay + random.uniform(0, 1))
+    raise IOError(f"Failed to read notebook at {notebook_path} after {max_retries} attempts")
 
-def write_notebook(notebook_path, nb):
-    with open(notebook_path, 'w', encoding='utf-8') as f:
-        nbf.write(nb, f)
+def write_notebook(notebook_path, nb, max_retries=20, retry_delay=1.5):
+    for attempt in range(max_retries):
+        try:
+            with open(notebook_path, 'w', encoding='utf-8') as f:
+                nbf.write(nb, f)
+            return
+        except Exception as e:
+            print(f"Error writing notebook: {str(e)}")
+            if attempt == max_retries - 1:
+                raise
+            else:
+                time.sleep(retry_delay + random.uniform(0, 1))
+    raise IOError(f"Failed to write notebook at {notebook_path} after {max_retries} attempts")
 
 def create_notebook(notebook_path):
     nb = nbf.v4.new_notebook()
-    # text = "### Your Jupyterlab notebook"
-    # code = "%pylab inline\nhist(normal(size=2000), bins=50);"
-    # nb['cells'] = [nbf.v4.new_markdown_cell(text), nbf.v4.new_code_cell(code)]
     write_notebook(notebook_path, nb)
     print(f"Notebook created at {notebook_path}")
 
-def add_cells_to_notebook(notebook_path, new_cells):
-    nb = read_notebook(notebook_path)
-    for cell in new_cells:
-        if cell['type'] == 'markdown':
-            nb['cells'].append(nbf.v4.new_markdown_cell(cell['content']))
-        elif cell['type'] == 'code':
-            nb['cells'].append(nbf.v4.new_code_cell(cell['content']))
-    write_notebook(notebook_path, nb)
-    print(f"Cells added to notebook at {notebook_path}")
+def add_cells_to_notebook(notebook_path, new_cells, max_retries=20, retry_delay=1.5):
+    for attempt in range(max_retries):
+        try:
+            nb = read_notebook(notebook_path)
+            for cell in new_cells:
+                if cell['type'] == 'markdown':
+                    nb['cells'].append(nbf.v4.new_markdown_cell(cell['content']))
+                elif cell['type'] == 'code':
+                    nb['cells'].append(nbf.v4.new_code_cell(cell['content']))
+                else:
+                    raise ValueError(f"Invalid cell type: {cell['type']}")
+            write_notebook(notebook_path, nb)
+            print(f"Cells added to notebook at {notebook_path}")
+            return
+        except Exception as e:
+            print(f"Error occurred: {str(e)}")
+            if attempt == max_retries - 1:
+                raise
+            else:
+                time.sleep(retry_delay + random.uniform(0, 1))
+    print(f"Failed to add cells to notebook at {notebook_path} after {max_retries} attempts")
 
 def display_notebook_cells(notebook_path):
     nb = read_notebook(notebook_path)
@@ -55,26 +89,50 @@ def display_notebook_cells(notebook_path):
         content = cell['source']
         print(f"Cell {i} - Type: {cell_type}\n{content}\n{'-'*40}")
 
-def delete_cell(notebook_path, index):
-    nb = read_notebook(notebook_path)
-    if 0 <= index < len(nb['cells']):
-        del nb['cells'][index]
-        write_notebook(notebook_path, nb)
-        print(f"Cell {index} deleted from notebook at {notebook_path}")
-    else:
-        print(f"Index {index} is out of range")
+def delete_cell(notebook_path, index, max_retries=20, retry_delay=1.5):
+    for attempt in range(max_retries):
+        try:
+            nb = read_notebook(notebook_path)
+            if 0 <= index < len(nb['cells']):
+                del nb['cells'][index]
+                write_notebook(notebook_path, nb)
+                print(f"Cell {index} deleted from notebook at {notebook_path}")
+                return
+            else:
+                print(f"Index {index} is out of range")
+                return
+        except Exception as e:
+            print(f"Error deleting cell: {str(e)}")
+            if attempt == max_retries - 1:
+                raise
+            else:
+                time.sleep(retry_delay + random.uniform(0, 1))
+    raise IOError(f"Failed to delete cell from notebook at {notebook_path} after {max_retries} attempts")
 
-def update_cell(notebook_path, index, new_content, cell_type='markdown'):
-    nb = read_notebook(notebook_path)
-    if 0 <= index < len(nb['cells']):
-        if cell_type == 'markdown':
-            nb['cells'][index] = nbf.v4.new_markdown_cell(new_content)
-        elif cell_type == 'code':
-            nb['cells'][index] = nbf.v4.new_code_cell(new_content)
-        write_notebook(notebook_path, nb)
-        print(f"Cell {index} updated in notebook at {notebook_path}")
-    else:
-        print(f"Index {index} is out of range")
+def update_cell(notebook_path, index, new_content, cell_type='markdown', max_retries=20, retry_delay=1.5):
+    for attempt in range(max_retries):
+        try:
+            nb = read_notebook(notebook_path)
+            if 0 <= index < len(nb['cells']):
+                if cell_type == 'markdown':
+                    nb['cells'][index] = nbf.v4.new_markdown_cell(new_content)
+                elif cell_type == 'code':
+                    nb['cells'][index] = nbf.v4.new_code_cell(new_content)
+                else:
+                    raise ValueError(f"Invalid cell type: {cell_type}")
+                write_notebook(notebook_path, nb)
+                print(f"Cell {index} updated in notebook at {notebook_path}")
+                return
+            else:
+                print(f"Index {index} is out of range")
+                return
+        except Exception as e:
+            print(f"Error updating cell: {str(e)}")
+            if attempt == max_retries - 1:
+                raise
+            else:
+                time.sleep(retry_delay + random.uniform(0, 1))
+    raise IOError(f"Failed to update cell in notebook at {notebook_path} after {max_retries} attempts")
 
 def search_cells(notebook_path, keyword):
     nb = read_notebook(notebook_path)
@@ -118,77 +176,86 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == 'create':
-        if args.filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            notebook_path = get_notebook_path(f"{args.filename}_{timestamp}")
-        else:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            notebook_path = get_notebook_path(f"notebook_{timestamp}")
-        
-        if notebook_exists(notebook_path):
-            print(f"File {notebook_path} already exists.")
-        else:
-            create_notebook(notebook_path)
+    try:
+        if args.command == 'create':
+            if args.filename:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                notebook_path = get_notebook_path(f"{args.filename}_{timestamp}")
+            else:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                notebook_path = get_notebook_path(f"notebook_{timestamp}")
+            
+            if notebook_exists(notebook_path):
+                print(f"File {notebook_path} already exists.")
+            else:
+                create_notebook(notebook_path)
 
-    elif args.command == 'read':
-        notebook_path = get_notebook_path(args.filename)
-        if notebook_exists(notebook_path):
-            nb = read_notebook(notebook_path)
-            print(nb)
-        else:
-            print(f"File {notebook_path} does not exist.")
-
-    elif args.command == 'add':
-        notebook_path = get_notebook_path(args.filename)
-        if notebook_exists(notebook_path):
-            new_cells = json.loads(args.cells)
-            add_cells_to_notebook(notebook_path, new_cells)
-        else:
-            print(f"File {notebook_path} does not exist.")
-
-    elif args.command == 'display':
-        notebook_path = get_notebook_path(args.filename)
-        if notebook_exists(notebook_path):
-            display_notebook_cells(notebook_path)
-        else:
-            print(f"File {notebook_path} does not exist.")
-
-    elif args.command == 'delete':
-        notebook_path = get_notebook_path(args.filename)
-        if notebook_exists(notebook_path):
-            delete_cell(notebook_path, args.index)
-        else:
-            print(f"File {notebook_path} does not exist.")
-
-    elif args.command == 'update':
-        notebook_path = get_notebook_path(args.filename)
-        if notebook_exists(notebook_path):
-            update_cell(notebook_path, args.index, args.content, args.cell_type)
-        else:
-            print(f"File {notebook_path} does not exist.")
-
-    elif args.command == 'search':
-        notebook_path = get_notebook_path(args.filename)
-        if notebook_exists(notebook_path):
-            results = search_cells(notebook_path, args.keyword)
-            for index, cell_type, content in results:
-                print(f"Found keyword in Cell {index} - Type: {cell_type}\n{content}\n{'-'*40}")
-        else:
-            print(f"File {notebook_path} does not exist.")
-
-    elif args.command == 'add_from_json':
-        notebook_path = get_notebook_path(args.notebook_filename)
-        json_path = get_json_path(args.json_filename)
-        if notebook_exists(notebook_path) and os.path.exists(json_path):
-            with open(json_path, 'r', encoding='utf-8') as f:
-                new_cells = json.load(f)
-            add_cells_to_notebook(notebook_path, new_cells)
-        else:
-            if not notebook_exists(notebook_path):
+        elif args.command == 'read':
+            notebook_path = get_notebook_path(args.filename)
+            if notebook_exists(notebook_path):
+                nb = read_notebook(notebook_path)
+                print(nb)
+            else:
                 print(f"File {notebook_path} does not exist.")
-            if not os.path.exists(json_path):
-                print(f"File {json_path} does not exist.")
+
+        elif args.command == 'add':
+            notebook_path = get_notebook_path(args.filename)
+            if notebook_exists(notebook_path):
+                new_cells = json.loads(args.cells)
+                add_cells_to_notebook(notebook_path, new_cells)
+            else:
+                print(f"File {notebook_path} does not exist.")
+
+        elif args.command == 'display':
+            notebook_path = get_notebook_path(args.filename)
+            if notebook_exists(notebook_path):
+                display_notebook_cells(notebook_path)
+            else:
+                print(f"File {notebook_path} does not exist.")
+
+        elif args.command == 'delete':
+            notebook_path = get_notebook_path(args.filename)
+            if notebook_exists(notebook_path):
+                delete_cell(notebook_path, args.index)
+            else:
+                print(f"File {notebook_path} does not exist.")
+
+        elif args.command == 'update':
+            notebook_path = get_notebook_path(args.filename)
+            if notebook_exists(notebook_path):
+                update_cell(notebook_path, args.index, args.content, args.cell_type)
+            else:
+                print(f"File {notebook_path} does not exist.")
+
+        elif args.command == 'search':
+            notebook_path = get_notebook_path(args.filename)
+            if notebook_exists(notebook_path):
+                results = search_cells(notebook_path, args.keyword)
+                for index, cell_type, content in results:
+                    print(f"Found keyword in Cell {index} - Type: {cell_type}\n{content}\n{'-'*40}")
+            else:
+                print(f"File {notebook_path} does not exist.")
+
+        elif args.command == 'add_from_json':
+            notebook_path = get_notebook_path(args.notebook_filename)
+            json_path = get_json_path(args.json_filename)
+            if notebook_exists(notebook_path) and os.path.exists(json_path):
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    new_cells = json.load(f)
+                add_cells_to_notebook(notebook_path, new_cells)
+            else:
+                if not notebook_exists(notebook_path):
+                    print(f"File {notebook_path} does not exist.")
+                if not os.path.exists(json_path):
+                    print(f"File {json_path} does not exist.")
+
+    except IOError as e:
+        print(f"An IO error occurred: {str(e)}")
+    except ValueError as e:
+        print(f"Invalid input: {str(e)}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
 
 if __name__ == '__main__':
     main()
+

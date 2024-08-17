@@ -1,4 +1,4 @@
-class TalkToMistral < MonadicApp
+module MistralHelper
   include UtilitiesHelper
 
   MAX_FUNC_CALLS = 10
@@ -8,14 +8,6 @@ class TalkToMistral < MonadicApp
   WRITE_TIMEOUT = 60
   MAX_RETRIES = 5
   RETRY_DELAY = 1
-
-  def icon
-    "<i class='fa-solid fa-m'></i>"
-  end
-
-  def description
-    "This app accesses the Mistral AI API to answer questions about a wide range of topics."
-  end
 
   attr_reader :models
 
@@ -56,45 +48,8 @@ class TalkToMistral < MonadicApp
     end
   end
 
-  def initial_prompt
-    text = <<~TEXT
-      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it.
-    TEXT
-
-    text.strip
-  end
-
-  def prompt_suffix
-    "Use the same language as the user and insert an ascii emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses."
-  end
-
-  def settings
-    {
-      "disabled": !CONFIG["MISTRAL_API_KEY"],
-      "temperature": 0.7,  # Adjusted temperature
-      "top_p": 1.0,        # Adjusted top_p
-      "context_size": 20,
-      "initial_prompt": initial_prompt,
-      "prompt_suffix": prompt_suffix,
-      "image_generation": false,
-      "sourcecode": true,
-      "easy_submit": false,
-      "auto_speech": false,
-      "mathjax": false,
-      "app_name": "▷ Mistral AI (Chat)",
-      "description": description,
-      "icon": icon,
-      "initiate_from_assistant": false,
-      "pdf": false,
-      "image": false,
-      "toggle": false,
-      "models": @models,
-      "model": "mistral-medium-latest"
-    }
-  end
-
   def process_json_data(app, session, body, call_depth, &block)
-    buffer = ""
+    buffer = String.new
     texts = {}
     tools = {}
     finish_reason = nil
@@ -164,7 +119,7 @@ class TalkToMistral < MonadicApp
           pp e.backtrace
           pp e.inspect
         end
-        buffer = ""
+        buffer = String.new
       end
     rescue StandardError => e
       pp e.message

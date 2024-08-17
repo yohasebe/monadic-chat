@@ -25,6 +25,7 @@ class MathTutor < MonadicApp
       "presence_penalty": 0.2,
       "context_size": 20,
       "initial_prompt": initial_prompt,
+      "prompt_suffix": "",
       "easy_submit": false,
       "auto_speech": false,
       "app_name": "Math Tutor",

@@ -440,6 +440,7 @@ module OpenAIHelper
 
     # the initial prompt is set to the first message in the session
     # if the initial prompt is not empty
+
     if initial_prompt != ""
       initial = { "role" => "system",
                   "text" => initial_prompt,
@@ -529,6 +530,16 @@ module OpenAIHelper
       end
     end
 
+    # initial prompt in the body is appended with the settings["initial_prompt_suffix"
+    if initial_prompt != "" && obj["initial_prompt_suffix"].to_s != ""
+      new_text = initial_prompt + "\n\n" + obj["initial_prompt_suffix"].strip
+      body["messages"].first["content"].each do |content_item|
+        if content_item["type"] == "text"
+          content_item["text"] = new_text
+        end
+      end
+    end
+
     if messages_containing_img
       body["model"] = CONFIG["VISION_MODEL"] || "gpt-4o-mini"
       body.delete("stop")
@@ -550,6 +561,8 @@ module OpenAIHelper
         tool_call.delete("index")
       end
     end
+
+    pp body["messages"]
 
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,

@@ -85,6 +85,14 @@ module ClaudeHelper
                   stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
                   when "tool_use"
+                    fragment = <<~FRAG
+                      <div class='toggle'><pre>
+                      #{JSON.pretty_generate(tool_calls.last)}
+                      </pre></div>
+                    FRAG
+
+                    texts << "\n" + fragment.strip
+
                     finish_reason = "tool_use"
                     res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                     block&.call res1
@@ -136,6 +144,23 @@ module ClaudeHelper
              else
                texts.join("")
              end
+
+    # if tool_calls.empty? && !result.to_s.empty?
+    #   result.scan(%r{<div class='toggle'><pre>(.*?)</pre></div>}m).each do |x|
+    #     json_string = x.first.strip
+    #     json = JSON.parse(json_string)
+    #     if json["type"] && json["id"] && json["name"] && json["input"]
+    #       result = <<~COMMENT
+    #       <hr />
+    #       Tool call is not complete yet. Please wait for the result.
+    #       <hr />
+    #       COMMENT
+    #       tool_calls << json
+    #     end
+    #   rescue JSON::ParserError
+    #     next
+    #   end
+    # end
 
     if tool_calls.any?
       get_thinking_text(result)
@@ -290,7 +315,9 @@ module ClaudeHelper
       "system" => system_prompts,
       "model" => obj["model"],
       "stream" => true,
-      "tool_choice" => { "type": "auto" }
+      "tool_choice" => {
+        "type": "auto"
+      }
     }
 
     body["temperature"] = temperature if temperature
@@ -359,6 +386,10 @@ module ClaudeHelper
           }
         ]
       }
+    end
+
+    if respond_to?(:prompt_suffix) && modified.last["role"] == "user"
+      modified.last["content"].first["text"] += "\n\n#{obj["prompt_suffix"]}"
     end
 
     body["messages"] = modified

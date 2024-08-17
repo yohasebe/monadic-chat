@@ -203,6 +203,12 @@ def init_apps
       INITIAL
     end
 
+    # the blank line at the beginning is important!
+    prompt_suffix = <<~SUFFIX
+
+      Rerturn your response in the same language as the prompt. If you need to switch to another language, please inform the user.
+    SUFFIX
+
     if !initial_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?
       initial_prompt_suffix = "\n\n" + initial_prompt_suffix.strip unless initial_prompt_suffix.empty?
       prompt_suffix = "\n\n" + prompt_suffix.strip unless prompt_suffix.empty?
@@ -219,12 +225,6 @@ def init_apps
         )
       end
     end
-
-    # the blank line at the beginning is important!
-    prompt_suffix = <<~SUFFIX
-
-      Rerturn your response in the same language as the prompt. If you need to switch to another language, please inform the user.
-    SUFFIX
 
     apps[app_name] = app
   end

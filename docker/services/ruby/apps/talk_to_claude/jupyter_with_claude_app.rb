@@ -13,6 +13,14 @@ class JupyterWithClaude < MonadicApp
     "This is an application that allows Anthropic Claude to create and read/write Jupyter Notebooks"
   end
 
+  def prompt_suffix
+    <<~TEXT
+      When addin cells to the Jupyter Notebook, make sure to provide the cells as a JSON array of objects properly escaped and formatted."
+
+      Always use tool calls to add Jupyter cells. Do not make a mistake of just showing JSON data for tool calls, but be sure to execute the tool calls properly. If you show JSON data withtout executing the tool calls, the user will not be able to see the output of the cells in the Jupyter Notebook.
+    TEXT
+  end
+
   def initial_prompt
     text = <<~TEXT
       You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command and tell the user that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
@@ -23,7 +31,7 @@ class JupyterWithClaude < MonadicApp
 
       IN the code above, FILENAME is the name of the newly created Jupyter Notebook file (without preceding paths such as 'data/monadic/'). If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
 
-      Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type.
+      Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type. The JSON data must be properly escaped and formatted.
 
       The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. If the function finishes successfully, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
 
@@ -43,11 +51,11 @@ class JupyterWithClaude < MonadicApp
   def settings
     {
       "disabled": !CONFIG["ANTHROPIC_API_KEY"],
-      "temperature": 0.0,
-      "presence_penalty": 0.2,
+      "temperature": 0.3,
       "top_p": 0.0,
       "context_size": 100,
       "initial_prompt": initial_prompt,
+      "prompt_suffix": prompt_suffix,
       "image_generation": true,
       "sourcecode": true,
       "easy_submit": false,
@@ -60,6 +68,7 @@ class JupyterWithClaude < MonadicApp
       "pdf": false,
       "image": true,
       "toggle": true,
+      "model": "claude-3-5-sonnet-20240620",
       "models": [
         "claude-3-5-sonnet-20240620",
         "claude-3-opus-20240229"
@@ -201,7 +210,7 @@ class JupyterWithClaude < MonadicApp
         },
         {
           "name": "add_jupyter_cells",
-          "description": "Add cells to the Jupyter Notebook and return the URL of the Jupyter Notebook.",
+          "description": "Add cells to the Jupyter Notebook and return the URL of the Jupyter Notebook. The cells need to be provided as a JSON array of objects properly escaped and formatted.",
           "input_schema": {
             "type": "object",
             "properties": {

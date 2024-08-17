@@ -188,7 +188,7 @@ class MonadicApp
       #{status}
     LOG
 
-    File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
+    # File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
 
     if block_given?
       yield(stdout, stderr, status)
@@ -354,7 +354,7 @@ class MonadicApp
 
   def add_jupyter_cells(filename:, cells:)
     return "Error: filename is required." if filename.empty? || filename == ""
-    return "Error: cells is required." if cells.empty? || cells == ""
+    return "Error: cells data is required." if cells.empty? || cells == ""
 
     tempfile = Time.now.to_i.to_s
     write_to_file(filename: tempfile, extension: "json", text: cells.to_json)
@@ -370,9 +370,9 @@ class MonadicApp
     end
 
     success = false
-    max_retrial = 5
+    max_retrial = 20
     max_retrial.times do
-      sleep 1.0
+      sleep 1.5
       if File.exist?(filepath)
         success = true
         break

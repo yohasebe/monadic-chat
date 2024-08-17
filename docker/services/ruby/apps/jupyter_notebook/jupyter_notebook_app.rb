@@ -4,7 +4,7 @@ class JupyterNotebook < MonadicApp
   end
 
   def description
-    "This is an application that allows you to create and read Jupyter Notebooks."
+    "This is an application that allows OpenAI GPT to create and read/write Jupyter Notebooks."
   end
 
   def initial_prompt
@@ -151,6 +151,34 @@ class JupyterNotebook < MonadicApp
           "type": "function",
           "function":
           {
+            "name": "write_to_file",
+            "description": "Write content to a file with the specified filename.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string",
+                  "description": "Filename of the file without the file extension."
+                },
+                "extension": {
+                  "type": "string",
+                  "description": "File extension of the file."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Content text to be written to the file."
+                }
+              },
+              "required": ["filename", "extension", "text"],
+              "additionalProperties": false
+            }
+          },
+          "strict": true
+        },
+        {
+          "type": "function",
+          "function":
+          {
             "name": "run_jupyter",
             "description": "Start a Jupyter Lab server.",
             "parameters": {
@@ -222,34 +250,6 @@ class JupyterNotebook < MonadicApp
                 }
               },
               "required": ["filename", "cells"],
-              "additionalProperties": false
-            }
-          },
-          "strict": true
-        },
-        {
-          "type": "function",
-          "function":
-          {
-            "name": "write_to_file",
-            "description": "Write content to a file with the specified filename.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "filename": {
-                  "type": "string",
-                  "description": "Filename of the file without the file extension."
-                },
-                "extension": {
-                  "type": "string",
-                  "description": "File extension of the file."
-                },
-                "text": {
-                  "type": "string",
-                  "description": "Content text to be written to the file."
-                }
-              },
-              "required": ["filename", "extension", "text"],
               "additionalProperties": false
             }
           },

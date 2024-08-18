@@ -3,6 +3,9 @@ const mids = [];
 function createCard(role, badge, html, lang = "en", mid = "", status = true, images = [], monadic = false) {
   const status_class = status === true ? "active" : "";
 
+  // fix jupyter notebook URL issue
+  const replaced_html = html.replaceAll("/lab/tree/monadic/data/", "/lab/tree/");
+
   let className
   if (role === "user") {
     className = "role-user";
@@ -25,7 +28,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
         <div class="fs-5 card-title mb-0">${badge}</div>
       </div>
       <div class="card-body ${className} pb-1">
-        <div class="card-text">${html}${image_data}</div>
+        <div class="card-text">${replaced_html}${image_data}</div>
       </div>
     </div>
     `);

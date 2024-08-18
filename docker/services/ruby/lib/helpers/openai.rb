@@ -244,30 +244,20 @@ module OpenAIHelper
             end
 
             if json.dig("choices", 0, "delta", "tool_calls")
-
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
               block&.call res
 
-              # Merge tool calls based on 'id'
-              id = json["id"]
-              tools[id] ||= json
-              choice = tools[id]["choices"][0]
-              choice["message"] ||= choice["delta"].dup
+              tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
 
-              json.dig("choices", 0, "delta", "tool_calls").each do |new_tool_call|
-                existing_tool_call = choice["message"]["tool_calls"].find { |tc| tc["t_index"] == new_tool_call["t_index"] }
-                if existing_tool_call
-                  existing_tool_call["function"]["arguments"] += new_tool_call.dig("function", "arguments").to_s
-                else
-                  choice["message"]["tool_calls"] << new_tool_call
-                end
+              if tid
+                tools[tid] = json
+                tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
+                tools[tid]["choices"][0].delete("delta")
+              else
+                new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
+                existing_tool_call = tools.values.last.dig("choices", 0, "message")
+                existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
               end
-              tools[id]["choices"][0].delete("delta")
-
-              if choice["finish_reason"] == "function_call"
-                break
-              end
-
             end
           rescue JSON::ParserError
             # if the JSON parsing fails, the next chunk should be appended to the buffer
@@ -358,6 +348,8 @@ module OpenAIHelper
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
       rescue StandardError => e
+        pp e.message
+        pp e.backtrace
         function_return = "ERROR: #{e.message}"
       end
 

@@ -352,12 +352,18 @@ class MonadicApp
                  success: "The library #{command} has been installed successfully.\n")
   end
 
-  def add_jupyter_cells(filename:, cells:)
-    return "Error: filename is required." if filename.empty? || filename == ""
-    return "Error: cells data is required." if cells.empty? || cells == ""
+  def add_jupyter_cells(filename: "", cells: "")
+    return "Error: Filename is required." if filename == ""
+    return "Error: Proper cell data is required; Probably the structure is ill-formated." if cells == ""
+
+    begin
+      cells_in_json = cells.to_json
+    rescue StandardError => e
+      return "Error: The cells data could not be converted to JSON. #{e.message}"
+    end
 
     tempfile = Time.now.to_i.to_s
-    write_to_file(filename: tempfile, extension: "json", text: cells.to_json)
+    write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
 
     if IN_CONTAINER
       begin

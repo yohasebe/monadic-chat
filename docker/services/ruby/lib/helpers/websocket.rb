@@ -254,9 +254,6 @@ module WebSocketHelper
                        markdown_to_html(text)
                      end
 
-              # jupyter notebook fix
-              html = html.gsub(%r{/lab/tree/monadic/data/}) { "/lab/tree/" }
-
               if session["parameters"]["response_suffix"]
                 html += "\n\n" + session["parameters"]["response_suffix"]
               end

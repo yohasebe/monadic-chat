@@ -1,6 +1,7 @@
 ### Change Log
 
-  - [Aug, 2024] 0.8.9
+  - [Aug, 2024] 0.8.10
+      - Claude Jupyter Notebook app added
       - Math rendering improved
       - Second Opinion app added
       - PDF Document import/export feature

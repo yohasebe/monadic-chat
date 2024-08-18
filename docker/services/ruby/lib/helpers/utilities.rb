@@ -9,6 +9,9 @@ module UtilitiesHelper
   end
 
   def markdown_to_html(text, mathjax: false)
+    # if text is not a String, return a string representation of it
+    return text.to_s unless text.is_a?(String)
+
     text = text.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
     text = text.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
 

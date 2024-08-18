@@ -7,6 +7,11 @@ class JupyterNotebook < MonadicApp
     "This is an application that allows OpenAI GPT to create and read/write Jupyter Notebooks."
   end
 
+  def prompt_suffix
+    <<~TEXT
+    TEXT
+  end
+
   def initial_prompt
     text = <<~TEXT
       You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command and tell the user that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
@@ -15,7 +20,7 @@ class JupyterNotebook < MonadicApp
 
       `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank" rel="noopener noreferrer">Jupyter Notebook: FILENAME</a>`
 
-      IN the code above, FILENAME is the name of the newly created Jupyter Notebook file (without preceding paths such as 'data/monadic/'). If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
+      IN the code above, FILENAME is the name of the newly created Jupyter Notebook file. If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
 
       Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type.
 
@@ -43,6 +48,7 @@ class JupyterNotebook < MonadicApp
       "top_p": 0.0,
       "context_size": 100,
       "initial_prompt": initial_prompt,
+      "prompt_suffix": prompt_suffix,
       "image_generation": true,
       "sourcecode": true,
       "easy_submit": false,

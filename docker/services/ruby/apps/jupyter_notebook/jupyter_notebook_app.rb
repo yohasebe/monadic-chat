@@ -9,6 +9,7 @@ class JupyterNotebook < MonadicApp
 
   def prompt_suffix
     <<~TEXT
+      The function `add_jupyter_cells` needs parameters `filename` and `cells`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly.
     TEXT
   end
 
@@ -20,6 +21,8 @@ class JupyterNotebook < MonadicApp
 
       `<a href="http://127.0.0.1:8888/lab/tree/FILENAME" target="_blank" rel="noopener noreferrer">Jupyter Notebook: FILENAME</a>`
 
+      Example: `<a href="http://127.0.0.1:8888/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb`
+
       IN the code above, FILENAME is the name of the newly created Jupyter Notebook file. If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
 
       Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type.
@@ -27,6 +30,8 @@ class JupyterNotebook < MonadicApp
       The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. If the function finishes successfully, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
 
       If the user just wants to have some information, just respond to the user's request. If the user wants addition of cells to the existing notebook, call the `add_jupyter_cells` function as part of the "tool calls" providing the filename of the existing notebook and the structured data of the cells.
+
+      If the user's request is rather complex, break it down into smaller steps and ask the user for confirmation at each step.
 
       If the user wants to stop the Jupyter Lab server, use the `run_jupyter` function with the `stop` command to stop the Jupyter Lab server.
 
@@ -44,7 +49,6 @@ class JupyterNotebook < MonadicApp
     {
       "model": "gpt-4o-2024-08-06",
       "temperature": 0.0,
-      "presence_penalty": 0.2,
       "top_p": 0.0,
       "context_size": 100,
       "initial_prompt": initial_prompt,
@@ -250,7 +254,7 @@ class JupyterNotebook < MonadicApp
                       },
                       "content": {
                         "type": "string",
-                        "description": "Content of the cell."
+                        "description": "Content of the cell addequatelly escaped as JSON."
                       }
                     },
                     "required": ["type", "content"],

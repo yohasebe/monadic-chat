@@ -7,13 +7,20 @@ class NovelWriter < MonadicApp
     "Craft a novel with engaging characters, vivid descriptions, and compelling plots. Develop the story based on user prompts, maintaining coherence and flow."
   end
 
+  def prompt_suffix
+    <<~TEXT
+      Remember you are supposed to write a novel, not a summary, synopsis, or outline. It is not a good idea to let the plot move too fast. Stick to the good old rule of "show, don't tell." 
+    TEXT
+  end
+
   def initial_prompt
     text = <<~TEXT
       You are a skilled and imaginative author tasked with writing a novel. To begin, please ask the user for the necessary information to develop the novel, such as the setting, characters, time period, genre, the total number of words or characters they plan to write, and the language used. Once you have this information, start crafting the story.
 
-      You can run the function `update_number_of_words` or `update_number_of_chars` to see the current progress of the novel. For novels written in a language where whitespace is not used to separate words, use the `update_number_of_chars` function. Otherwise, use the `update_number_of_words` function. The arguments for these functions are the number of words or characters and the new paragraph of text you are adding to the novel. The function will return the updated total number of words or characters written so far.
+      You can run the function `count_number_of_words` or `count_number_of_chars` For novels written in a language where whitespace is not used to separate words, use the `count_number_of_chars` function. Otherwise, use the `count_number_of_words` function. The argument for these functions is the text you want to count. You can use these functions to keep track of the number of words or characters written in the novel.
 
-      As the story progresses, the user will provide prompts suggesting the next event, a topic of conversation between characters, or a summary of the plot that develops. Your task is to weave these prompts seamlessly into the narrative, maintaining the coherence and flow of the story.
+      As the story progresses, the user will provide prompts suggesting the next event, a topic of conversation between characters, or a summary of the plot that develops upon your inquiry. You are expected
+      to weave these prompts seamlessly into the narrative, maintaining the coherence and flow of the story.
 
       Make sure to include the ideas and suggestions provided by the user in the story so that your paragraphs will be coherent and engaging by themselves.
 
@@ -29,6 +36,7 @@ class NovelWriter < MonadicApp
       - "summary_so_far" is a summary of the story up to the current point, including the main events, characters, and themes.
       - "progress" is the current progress of the novel, such as the percentage of completion.
       - "characters" is a dictionary that contains the characters that appear in the novel. Each character has a name and its specification and the role are provided in the dictionary.
+      - "inquiry" is a prompt for the user to provide the next event, a topic of conversation between characters, or a summary of the plot that develops.
     TEXT
     text.strip
   end
@@ -54,21 +62,17 @@ class NovelWriter < MonadicApp
           "type": "function",
           "function":
           {
-            "name": "update_num_of_words",
-            "description": "Update the total number of words written so far in the novel.",
+            "name": "count_num_of_words",
+            "description": "Count the number of words in a given text.",
             "parameters": {
               "type": "object",
               "properties": {
-                "num_of_words_so_far": {
-                  "type": "integer",
-                  "description": "The total number of words written so far in the novel."
-                },
-                "new_paragraph": {
+                "text": {
                   "type": "string",
-                  "description": "The new paragraph of text to be added to the novel."
+                  "description": "The text to count the number of words."
                 }
               },
-              "required": ["num_of_words_so_far", "new_paragraph"],
+              "required": ["count_num_of_words"],
               "additionalProperties": false
             }
           },
@@ -78,21 +82,17 @@ class NovelWriter < MonadicApp
           "type": "function",
           "function":
           {
-            "name": "update_num_of_chars",
-            "description": "Update the total number of chars written so far in the novel.",
+            "name": "count_num_of_chars",
+            "description": "Count the number of characters in a given text.",
             "parameters": {
               "type": "object",
               "properties": {
-                "num_of_chars_so_far": {
-                  "type": "integer",
-                  "description": "The total number of chars written so far in the novel."
-                },
-                "new_paragraph": {
+                "text": {
                   "type": "string",
-                  "description": "The new paragraph of text to be added to the novel."
+                  "description": "The text to count the number of characters."
                 }
               },
-              "required": ["num_of_chars_so_far", "new_paragraph"],
+              "required": ["count_num_of_chars"],
               "additionalProperties": false
             }
           },
@@ -204,6 +204,17 @@ class NovelWriter < MonadicApp
                       required: ["name", "specification", "role"],
                       additionalProperties: false
                     }
+                  },
+                  inquiry: {
+                    type: "object",
+                    properties: {
+                      prompt: {
+                        type: "string",
+                        description: "The prompt for the user to provide the next event, a topic of conversation between characters, or a summary of the plot that develops."
+                      }
+                    },
+                    required: ["prompt"],
+                    additionalProperties: false
                   }
                 },
                 required: ["grand_plot", "total_text_amount", "text_amount_so_far", "language", "summary_so_far", "characters"],
@@ -219,15 +230,11 @@ class NovelWriter < MonadicApp
     }
   end
 
-  def update_num_of_words(num_of_words_so_far: 0, new_paragraph: "")
-    num_of_words_so_far = num_of_words_so_far.to_i
-    num_of_words_so_far += new_paragraph.split.size
-    num_of_words_so_far
+  def count_num_of_words(text: "")
+    text.split.size
   end
 
-  def update_num_of_chars(num_of_chars_so_far: 0, new_paragraph: "")
-    num_of_chars_so_far = num_of_chars_so_far.to_i
-    num_of_chars_so_far += new_paragraph.split(//).size
-    num_of_chars_so_far
+  def count_num_of_chars(text: "")
+    text.size
   end
 end

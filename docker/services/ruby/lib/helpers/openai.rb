@@ -562,8 +562,6 @@ module OpenAIHelper
       end
     end
 
-    pp body["messages"]
-
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,

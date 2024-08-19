@@ -615,27 +615,24 @@ class MonadicApp
     send_command(command: command, container: "python")
   end
 
-  def analyze_video(json:, audio: nil, query: nil)
-    if json.nil?
-      return "Error: JSON file is required for analyzing the video."
-    end
+  def analyze_video(json_file:, audio_file: nil, query: nil)
+    return "Error: json file is required." if json_file.to_s.empty?
 
     query = query ? " \"#{query}\"" : ""
 
     video_command = <<~CMD
-      bash -c 'simple_video_query.rb "#{json}#{query}"'
+      bash -c 'simple_video_query.rb "#{json_file}" #{query}'
     CMD
     description = send_command(command: video_command, container: "ruby")
 
-    if audio
+    if audio_file
       audio_command = <<~CMD
-        bash -c 'simple_whisper_query.rb "#{audio}"'
+        bash -c 'simple_whisper_query.rb "#{audio_file}"'
       CMD
       audio_description = send_command(command: audio_command, container: "ruby")
       description += "\n\n---\n\n"
       description += "Audio Transcript:\n#{audio_description}"
     end
-
     description
   end
 

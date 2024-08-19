@@ -4,6 +4,8 @@ import pkgutil
 from tiktoken.registry import get_encoding
 
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False
+app.config['JSONIFY_MIMETYPE'] = 'application/json;charset=utf-8'
 
 default_model = 'gpt-3.5-turbo'
 
@@ -39,7 +41,7 @@ def count_tokens():
     model_name = data.get('model_name', default_model)
     encoding_name = model_to_encoding_map[model_name]
     encoding = get_encoding(encoding_name)
-    tokens = encoding.encode_ordinary(text)
+    tokens = encoding.encode(text)
     return jsonify({'number_of_tokens': len(tokens)})
 
 @app.route('/get_tokens_sequence', methods=['POST'])
@@ -49,7 +51,7 @@ def get_tokens_sequence():
     model_name = data.get('model_name', default_model)
     encoding_name = model_to_encoding_map[model_name]
     encoding = get_encoding(encoding_name)
-    tokens = encoding.encode_ordinary(text)
+    tokens = encoding.encode(text)  # encode_ordinaryの代わりにencodeを使用
     return jsonify({'tokens_sequence': ",".join(map(str, tokens))})
 
 @app.route('/decode_tokens', methods=['POST'])
@@ -60,8 +62,12 @@ def decode_tokens():
     encoding_name = model_to_encoding_map[model_name]
     tokens = list(map(int, tokens_str.replace(",", " ").split()))
     encoding = get_encoding(encoding_name)
-    original_text = encoding.decode(tokens)
+    try:
+        original_text = encoding.decode(tokens)
+    except Exception as e:
+        return jsonify({'error': str(e)})
     return jsonify({'original_text': original_text})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+

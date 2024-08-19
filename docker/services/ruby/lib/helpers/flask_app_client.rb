@@ -50,10 +50,11 @@ class FlaskAppClient
     header = { "Content-Type": "application/json" }
     http = Net::HTTP.new(uri.host, uri.port)
     request = Net::HTTP::Post.new(uri.request_uri, header)
+
     request.body = body.to_json
-    # make a request with the timeout set to 20 seconds
-    http.read_timeout = 20
+    http.read_timeout = 600
     response = http.request(request)
+
     response.is_a?(Net::HTTPSuccess) ? JSON.parse(response.body) : nil
   end
 end

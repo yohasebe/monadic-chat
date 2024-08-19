@@ -25,6 +25,7 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     matplotlib \
     seaborn \
     jupyterlab \
+    gunicorn \
     statsmodels \
     selenium \
     japanize-matplotlib \

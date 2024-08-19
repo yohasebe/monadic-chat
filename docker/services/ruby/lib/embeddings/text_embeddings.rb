@@ -108,6 +108,8 @@ class TextEmbeddings
     response = nil
     retries.times do |i|
       response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
+        http.read_timeout = 900 # 15min
+        http.open_timeout = 120 # 2min
         http.request(request)
       end
       break if response.is_a?(Net::HTTPSuccess)

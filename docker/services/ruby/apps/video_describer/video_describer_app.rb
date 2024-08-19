@@ -49,8 +49,12 @@ class VideoDescriber < MonadicApp
 
   def settings
     {
-      "model": "gpt-4o-2024-08-06",
-      "models": ["gpt-4o-2024-08-06"],
+      "model": "gpt-4o-mini",
+      "models": [
+        "gpt-4o-2024-08-06",
+        "gpt-4o-mini",
+        "gpt-4o"
+      ],
       "temperature": 0.0,
       "presence_penalty": 0.2,
       "top_p": 0.0,

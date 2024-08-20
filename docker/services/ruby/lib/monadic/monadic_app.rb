@@ -1,8 +1,16 @@
 # frozen_string_literal: true
 
+Dir.glob(File.expand_path("agents/*.rb", __dir__)).sort.each do |rb|
+  require rb
+end
+
+require_relative ""
+
 SINGLETON_TOKENIZER = FlaskAppClient.new
 
 class MonadicApp
+  include MonadicAgent
+
   TOKENIZER = SINGLETON_TOKENIZER
 
   # access the flask app client so that it gets ready before the first request
@@ -625,7 +633,7 @@ class MonadicApp
       #{split_res}
     TEXT
 
-    agent_res = binary_examine(prompt, split_res)
+    agent_res = command_output_agent(prompt, split_res)
 
     if agent_res["result"] == "success"
       json_file, audio_file = agent_res["content"].split(";")
@@ -737,149 +745,5 @@ class MonadicApp
       Remember you are the one who inquires for information, not providing the answers.
     TEXT
     text.strip
-  end
-
-  def simple_chat_query(messages, model: "gpt-4o-mini")
-    # num_retrial = 0
-    api_key = ENV["OPENAI_API_KEY"]
-
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-
-    body = {
-      "model" => model,
-      "n" => 1,
-      "stream" => false,
-      "stop" => nil,
-      "messages" => messages
-    }
-
-    target_uri = "https://api.openai.com/v1/chat/completions"
-
-    http = HTTP.headers(headers)
-    res = http.timeout(connect: 5, write: 60, read: 60).post(target_uri, json: body)
-
-    unless res.status.success?
-      pp JSON.parse(res.body)["error"]
-      "ERROR: #{JSON.parse(res.body)["error"]}"
-    end
-
-    JSON.parse(res.body).dig("choices", 0, "message", "content")
-  rescue StandardError
-    "Error: The request could not be completed."
-  end
-
-  def verify_response(user_query: "", agent_response: "")
-    model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
-
-    prompt = <<~TEXT
-      Your are an agent that verify and make comments about given pairs of query and response. If the response is correct, you should say 'The response is correct'. But you are rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
-
-      You should point out the errors or possible caveats in the response and suggest corrections where necessary. Your response should be formatted as follows with the validity of the original response out of 10 and the model used for the evaluation which is specified in the text below:
-
-      ### COMMENTS
-      YOUR_COMMENTS
-
-      ### VALIDITY
-      VALIDITY_OF_ORIGINAL_RESPONSE/10
-
-      ### Evaluation Model
-      #{model}
-    TEXT
-
-    messages = [
-      {
-        "role" => "system",
-        "content" => prompt
-      },
-      {
-        "role" => "user",
-        "content" => <<~TEXT
-          ### Query
-          #{user_query}
-
-          ### Response
-          #{agent_response}
-        TEXT
-      }
-    ]
-    simple_chat_query(messages, model: model)
-  end
-
-  def binary_examine(prompt, content)
-    num_retrial = 0
-
-    api_key = ENV["OPENAI_API_KEY"]
-
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-
-    model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
-
-    body = {
-      "model" => model,
-      "temperature" => 0.0,
-      "top_p" => 0.0,
-      "n" => 1,
-      "stream" => false,
-      "response_format" => {
-        type: "json_schema",
-        json_schema: {
-          name: "examine_response",
-          schema: {
-            type: "object",
-            properties: {
-              result: {
-                type: "string",
-                enum: ["success", "error"]
-              },
-              content: {
-                type: "string"
-              }
-            },
-            required: ["result", "content"],
-            additionalProperties: false
-          },
-          strict: true
-        }
-      }
-    }
-
-    body["messages"] = [
-      { "role" => "system", "content" => prompt },
-      { "role" => "user", "content" => content }
-    ]
-
-    target_uri = "https://api.openai.com/v1/chat/completions"
-
-    http = HTTP.headers(headers)
-
-    res = http.post(target_uri, json: body)
-    unless res.status.success?
-      return "ERROR: #{JSON.parse(res.body)}"
-    end
-
-    structured_res = JSON.parse(res.body).dig("choices", 0, "message", "content")
-    JSON.parse(structured_res)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
-      num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      error_message = "The request has timed out."
-      puts "ERROR: #{error_message}"
-      exit
-    end
-  rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
-    puts "ERROR: #{e.message}"
-    exit
   end
 end

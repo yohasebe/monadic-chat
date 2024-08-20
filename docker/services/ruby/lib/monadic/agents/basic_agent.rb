@@ -1,6 +1,15 @@
 module BasicAgent
-  def self.simple_chat_agent(messages, model: "gpt-4o-mini")
-    # num_retrial = 0
+  API_ENDPOINT = "https://api.openai.com/v1"
+
+  OPEN_TIMEOUT = 5
+  READ_TIMEOUT = 60
+  WRITE_TIMEOUT = 60
+
+  MAX_FUNC_CALLS = 10
+  MAX_RETRIES = 5
+  RETRY_DELAY = 1
+
+  def self.send_query(options)
     api_key = ENV["OPENAI_API_KEY"]
 
     headers = {
@@ -9,18 +18,19 @@ module BasicAgent
     }
 
     body = {
-      "model" => model,
+      "model" => "gpt-4o-mini",
       "n" => 1,
       "stream" => false,
       "stop" => nil,
-      "messages" => messages
+      "messages" => []
     }
 
-    target_uri = "https://api.openai.com/v1/chat/completions"
+    body.merge!(options)
+
+    target_uri = API_ENDPOINT + "/chat/completions"
 
     http = HTTP.headers(headers)
-    res = http.timeout(connect: 5, write: 60, read: 60).post(target_uri, json: body)
-
+    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
       pp JSON.parse(res.body)["error"]
       "ERROR: #{JSON.parse(res.body)["error"]}"

@@ -1,5 +1,7 @@
 # frozen_string_literal: false
 
+require "active_support"
+require "active_support/core_ext/hash/indifferent_access"
 require "cld"
 require "digest"
 require "dotenv"
@@ -108,24 +110,26 @@ end
 def init_apps
   apps = {}
   klass = Object.const_get("MonadicApp")
-  klass.subclasses.each do |app|
-    app = app.new
-    next if app.settings[:disabled]
+  klass.subclasses.each do |a|
+    app = a.new
+    app.settings = ActiveSupport::HashWithIndifferentAccess.new(a.instance_variable_get(:@settings))
 
-    app_name = app.settings[:app_name]
+    next if app.settings["disabled"]
+
+    app_name = app.settings["app_name"]
 
     initial_prompt_suffix = ""
     prompt_suffix = ""
     response_suffix = ""
 
-    if app.settings[:mathjax]
+    if app.settings["mathjax"]
       # the blank line at the beginning is important!
       initial_prompt_suffix << <<~INITIAL
 
         You use the MathJax notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
       INITIAL
 
-      if app.settings[:monadic] || app.settings[:jupyter]
+      if app.settings["monadic"] || app.settings["jupyter"]
         # the blank line at the beginning is important!
         initial_prompt_suffix << <<~INITIAL
 
@@ -158,6 +162,9 @@ def init_apps
         - `$$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
         - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
         - `$$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$$`
+
+        Remember that the following are not available in MathJax:
+        - `\begin{itemize}` and `\end{itemize}`
         INITIAL
       end
 
@@ -166,7 +173,7 @@ def init_apps
       SUFFIX
     end
 
-    if app.settings[:tools]
+    if app.settings["tools"]
       # the blank line at the beginning is important!
       initial_prompt_suffix << <<~INITIAL
 
@@ -174,7 +181,7 @@ def init_apps
       INITIAL
     end
 
-    if app.settings[:image_generation]
+    if app.settings["image_generation"]
       # the blank line at the beginning is important!
       response_suffix << <<~INITIAL
 
@@ -191,11 +198,11 @@ def init_apps
       INITIAL
     end
 
-    if app.settings[:pdf]
+    if app.settings["pdf"]
       app.embeddings_db = EMBEDDINGS_DB
     end
 
-    if app.settings[:mermaid]
+    if app.settings["mermaid"]
       # the blank line at the beginning is important!
       prompt_suffix << <<~INITIAL
 
@@ -214,20 +221,20 @@ def init_apps
       prompt_suffix = "\n\n" + prompt_suffix.strip unless prompt_suffix.empty?
       response_suffix = "\n\n" + response_suffix.strip unless response_suffix.empty?
 
-      original_settings = app.settings.dup
-      app.define_singleton_method(:settings) do
-        original_settings.merge(
-          {
-            initial_prompt: "#{original_settings[:initial_prompt]}#{initial_prompt_suffix}".strip,
-            prompt_suffix: "#{original_settings[:prompt_suffix]}#{prompt_suffix}".strip,
-            response_suffix: "#{original_settings[:response_suffix]}#{response_suffix}".strip
-          }
-        )
-      end
+      new_settings = app.settings.dup
+      new_settings.merge!(
+        {
+          "initial_prompt" => "#{new_settings["initial_prompt"]}#{initial_prompt_suffix}".strip,
+          "prompt_suffix" => "#{new_settings["prompt_suffix"]}#{prompt_suffix}".strip,
+          "response_suffix" => "#{new_settings["response_suffix"]}#{response_suffix}".strip
+        }
+      )
+      app.settings = new_settings
     end
 
     apps[app_name] = app
   end
+  # remove apps if its settings are empty
   apps.sort_by { |k, _v| k }.to_h
 end
 
@@ -392,7 +399,8 @@ end
 APPS.each do |k, v|
   # convert `k` from a capitalized multi word title to snake_case
   # e.g., `Monadic App` to `monadic_app`
-  endpoint = k.gsub(/\s+/, "_").downcase
+  endpoint = k.to_s.gsub(/\s+/, "_").downcase
+
   get "/#{endpoint}" do
     session[:messages] = []
     session[:parameters] = v.settings

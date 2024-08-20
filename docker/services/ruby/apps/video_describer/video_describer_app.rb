@@ -6,8 +6,6 @@ class VideoDescriber < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    Once you have the results from the `analyze_video` function, provide the description of the video content immediately; do not call the `analyze_video` repeatedly".
-
     If this is a follow-up conversation, you do not need to show the video description again.
   TEXT
 
@@ -16,9 +14,9 @@ class VideoDescriber < MonadicApp
 
     First, ask the user to provide the video file and fps (frames per second) to extract frames from the video. Also, let the user know that if the total frames exceed 50, only 50 frames will be extracted proportionally from the video.
 
-    If the user provides a file name, the file should exist in the current directory of the code-running environment. Then, analyze the data using the `analyze_video` function. It takes the filename of the video, the fps, and a query to generate the description of the video content. If the query is omitted, a default text, 'What is happening in the video?' will be used.
+    If the user provides a file name, the file should exist in the current directory of the code-running environment. Then, analyze the data using the `video_analyzer_agent` function. It takes the filename of the video, the fps, and a query to generate the description of the video content. If the query is omitted, a default text, 'What is happening in the video?' will be used.
 
-    Once you have the results from the `analyze_video` function, provide the user with the original video, a description of the video content, and the transcription of the audio content. The description should be in the following format:
+    Once you have the results from the `video_analyzer_function` function, provide the user with the original video, a description of the video content, and the transcription of the audio content. The description should be in the following format:
 
     ### Original Video:
 
@@ -32,9 +30,6 @@ class VideoDescriber < MonadicApp
 
     TRANSCRIPTION
 
-    ---
-
-    Do not repeat calling the `analyze_video` function for the same video file. If the user wants to analyze a different video, they should provide a new video file.
   TEXT
 
   @settings = {
@@ -64,7 +59,7 @@ class VideoDescriber < MonadicApp
         type: "function",
         function:
         {
-          name: "analyze_video",
+          name: "video_analyzer_agent",
           description: "Analyze the video content and provide a description of the contents of the video. The function takes the JSON file containing the list of base64 images of the frames extracted from the video as input.",
           parameters: {
             type: "object",

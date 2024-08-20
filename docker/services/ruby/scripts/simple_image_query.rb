@@ -98,22 +98,22 @@ def image_query(message, image, model = "gpt-4o-mini")
   end
 
   headers = {
-    "Content-Type" => "application/json",
-    "Authorization" => "Bearer #{api_key}"
+    "Content-Type": "application/json",
+    Authorization: "Bearer #{api_key}"
   }
 
   body = {
-    "model" => model,
-    "temperature" => 0.0,
-    "top_p" => 0.0,
-    "n" => 1,
-    "stream" => false,
-    "max_tokens" => 1000,
-    "presence_penalty" => 0.0,
-    "frequency_penalty" => 0.0
+    model: model,
+    temperature: 0.0,
+    top_p: 0.0,
+    n: 1,
+    stream: false,
+    max_tokens: 1000,
+    presence_penalty: 0.0,
+    frequency_penalty: 0.0
   }
 
-  content = [{ "type" => "text", "text" => message }]
+  content = [{ type: "text", text: message }]
   if image_path
     # unless the image_path refers to an existing valid png/jpg/jpeg/gif file, return an error message
     unless File.file?(image_path) && %w[.png .jpg .jpeg .gif].include?(File.extname(image_path).downcase)
@@ -121,13 +121,13 @@ def image_query(message, image, model = "gpt-4o-mini")
     end
 
     base64_image_url = img2url(image_path)
-    content << { "type" => "image_url", "image_url" => { "url" => base64_image_url } }
+    content << { type: "image_url", image_url: { url: base64_image_url } }
   elsif image_url
-    content << { "type" => "image_url", "image_url" => { "url" => image_url } }
+    content << { type: "image_url", image_url: { url: image_url } }
   end
 
   body["messages"] = [
-    { "role" => "user", "content" => content }
+    { role: "user", content: content }
   ]
 
   target_uri = "#{API_ENDPOINT}/chat/completions"

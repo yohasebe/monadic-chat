@@ -46,16 +46,16 @@ def generate_image(prompt, size, num_retrials: 10)
 
   begin
     headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
+      "Content-Type": "application/json",
+      Authorization: "Bearer #{api_key}"
     }
 
     body = {
-      "model" => "dall-e-3",
-      "prompt" => prompt,
-      "n" => 1,
-      "size" => size,
-      "response_format" => "b64_json"
+      model: "dall-e-3",
+      prompt: prompt,
+      n: 1,
+      size: size,
+      response_format: "b64_json"
     }
 
     res = HTTP.headers(headers).post(url, json: body)
@@ -89,7 +89,7 @@ def generate_image(prompt, size, num_retrials: 10)
       f.write(image_data)
     end
 
-    { "original_prompt" => prompt, "revised_prompt" => revised_prompt, "filename" => filename }
+    { original_prompt: prompt, revised_prompt: revised_prompt, filename: filename }
   else
     JSON.parse(res.body)
   end

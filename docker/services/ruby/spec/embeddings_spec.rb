@@ -22,8 +22,8 @@ RSpec.describe "get_embeddings" do
       it "connects to the database and sets up the table and extension" do
         expect(@text_db.conn).to be_a(PG::Connection)
         expect(@text_db.conn.status).to eq(PG::CONNECTION_OK)
-        expect(@text_db.conn.exec("SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename = 'items'").first["count"]).to eq(1)
-        expect(@text_db.conn.exec("SELECT COUNT(*) FROM pg_catalog.pg_extension WHERE extname = 'vector'").first["count"]).to eq(1)
+        expect(@text_db.conn.exec("SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename = 'items'").first[:count]).to eq(1)
+        expect(@text_db.conn.exec("SELECT COUNT(*) FROM pg_catalog.pg_extension WHERE extname = 'vector'").first[:count]).to eq(1)
       end
     end
   end
@@ -59,11 +59,11 @@ RSpec.describe "get_embeddings" do
         doc_data = { title: doc_title, metadata: {} }
 
         text1 = "This is a test sentence."
-        metadata1 = { "author" => "John Doe", "date" => "2022-01-01", "tokens" => 5 }
+        metadata1 = { author: "John Doe", date: "2022-01-01", tokens: 5 }
         item_data1 = { text: text1, metadata: metadata1 }
 
         text2 = "This is yet another test sentence."
-        metadata2 = { "author" => "Jane Doe", "date" => "2023-12-31", "tokens" => 6 }
+        metadata2 = { author: "Jane Doe", date: "2023-12-31", tokens: 6 }
         item_data2 = { text: text2, metadata: metadata2 }
 
         items_data = [item_data1, item_data2]

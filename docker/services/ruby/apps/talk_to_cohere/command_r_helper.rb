@@ -9,6 +9,43 @@ module CommandRHelper
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
 
+  attr_reader :models
+
+  def initialize
+    @models = list_models
+    super
+  end
+
+  def list_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["COHERE_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type": "application/json",
+      Authorization: "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        model_data["models"].map do |model|
+          model["name"]
+        end.filter do |model|
+          !model.include?("embed") && !model.include?("rerank")
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
+  end
+
   def process_json_data(app, session, body, call_depth, &block)
     texts = []
     tool_calls = []
@@ -251,8 +288,8 @@ module CommandRHelper
       }
     end
 
-    if settings[:tools]
-      body["tools"] = settings[:tools]
+    if settings["tools"]
+      body["tools"] = settings["tools"]
     end
 
     if role == "tool"

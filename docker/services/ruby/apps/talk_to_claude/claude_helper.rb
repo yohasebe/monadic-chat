@@ -22,13 +22,10 @@ module ClaudeHelper
     replacements = {
       "<thinking>" => "<div data-title='Thinking' class='toggle'><div class='toggle-open'>",
       "</thinking>" => "</div></div>",
-
       "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'><div class='toggle-open'>",
       "</search_quality_reflection>" => "</div></div>",
-
       "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'><div class='toggle-open'>",
       "</search_quality_score>" => "</div></div>",
-
       "<result>" => "",
       "</result>" => ""
     }
@@ -325,7 +322,7 @@ module ClaudeHelper
     body["top_p"] = top_p if top_p
 
     if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings[:tools]
+      body["tools"] = APPS[app].settings["tools"]
     else
       body.delete("tools")
       body.delete("tool_choice")

@@ -15,12 +15,13 @@ class MonadicApp
 
   # access the flask app client so that it gets ready before the first request
 
-  attr_accessor :api_key, :context, :settings, :embeddings_db
+  attr_accessor :api_key, :context, :embeddings_db, :settings
 
   def initialize
     @context = {}
     @api_key = ""
     @embeddings_db = nil
+    @settings = {}
   end
 
   # Wrap the user's message in a monad
@@ -66,7 +67,7 @@ class MonadicApp
   # Convert a monad to HTML
   def monadic_html(monad)
     obj = monadic_unwrap(monad)
-    json2html(obj, mathjax: settings["mathjax"] || settings[:mathjax])
+    json2html(obj, mathjax: settings["mathjax"])
   end
 
   # Convert snake_case to space ceparated capitalized words
@@ -648,6 +649,7 @@ class MonadicApp
     video_command = <<~CMD
       bash -c 'simple_video_query.rb "#{json_file}" #{query} "#{model}"'
     CMD
+
     description = send_command(command: video_command, container: "ruby")
 
     if audio_file

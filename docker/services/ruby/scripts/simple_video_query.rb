@@ -36,33 +36,33 @@ def video_query(json_path, query, model = "gpt-4o-mini")
   end
 
   headers = {
-    "Content-Type" => "application/json",
-    "Authorization" => "Bearer #{api_key}"
+    "Content-Type": "application/json",
+    Authorization: "Bearer #{api_key}"
   }
 
   body = {
-    "model" => model,
-    "temperature" => 0.0,
-    "top_p" => 0.0,
-    "n" => 1,
-    "stream" => false,
-    "max_tokens" => 1000,
-    "presence_penalty" => 0.0,
-    "frequency_penalty" => 0.0
+    model: model,
+    temperature: 0.0,
+    top_p: 0.0,
+    n: 1,
+    stream: false,
+    max_tokens: 1000,
+    presence_penalty: 0.0,
+    frequency_penalty: 0.0
   }
 
-  content = [{ "type" => "text", "text" => query }]
+  content = [{ type: "text", text: query }]
   json_data.each do |image|
     if image.start_with?("data:image/")
-      content << { "type" => "image_url", "image_url" => { "url" => image } }
+      content << { type: "image_url", image_url: { url: image } }
     elsif image.match?(%r{\A[a-zA-Z0-9+/=]+\Z})
       # Assume it's base64 data without MIME type prefix
       base64_image_url = "data:image/png;base64,#{image}"
-      content << { "type" => "image_url", "image_url" => { "url" => base64_image_url } }
+      content << { type: "image_url", image_url: { url: base64_image_url } }
     else
       uri = URI.parse(image)
       if uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
-        content << { "type" => "image_url", "image_url" => { "url" => image } }
+        content << { type: "image_url", image_url: { url: image } }
       else
         return "ERROR: Invalid image URL or base64 data."
       end
@@ -70,7 +70,7 @@ def video_query(json_path, query, model = "gpt-4o-mini")
   end
 
   body["messages"] = [
-    { "role" => "user", "content" => content }
+    { role: "user", content: content }
   ]
 
   target_uri = "#{API_ENDPOINT}/chat/completions"

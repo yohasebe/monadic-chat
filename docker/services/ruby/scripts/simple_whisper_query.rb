@@ -25,15 +25,15 @@ def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
 
   begin
     options = {
-      "file" => HTTP::FormData::File.new(audiofile),
-      "model" => "whisper-1",
-      "response_format" => response_format
+      file: HTTP::FormData::File.new(audiofile),
+      model: "whisper-1",
+      response_format: response_format
     }
     options["language"] = lang_code if lang_code
     form_data = HTTP::FormData.create(options)
     response = HTTP.headers(
-      "Authorization" => "Bearer #{api_key}",
-      "Content-Type" => form_data.content_type
+      "Content-Type": form_data.content_type,
+      Authorization: "Bearer #{api_key}"
     ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(url, body: form_data.to_s)
   rescue HTTP::Error, HTTP::TimeoutError => e
     if num_retrial < MAX_RETRIES
@@ -41,7 +41,7 @@ def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
       sleep RETRY_DELAY
       retry
     else
-      return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      return { type: "error", content: "ERROR: #{e.message}" }
     end
   end
 
@@ -49,7 +49,7 @@ def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
     response.body
   else
     pp "Error: #{response.status} - #{response.body}"
-    { "type" => "error", "content" => "Whisper API Error" }
+    { type: "error", content: "Whisper API Error" }
   end
 end
 

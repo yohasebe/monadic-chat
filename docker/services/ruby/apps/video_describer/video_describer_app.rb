@@ -9,8 +9,6 @@ class VideoDescriber < MonadicApp
     Once you have the results from the `analyze_video` function, provide the description of the video content immediately; do not call the `analyze_video` repeatedly".
 
     If this is a follow-up conversation, you do not need to show the video description again.
-
-    Use the same language as the user to describe the video content.
   TEXT
 
   initial_prompt = <<~TEXT

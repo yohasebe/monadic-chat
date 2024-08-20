@@ -475,7 +475,7 @@ module OpenAIHelper
     end
 
     if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings[:tools]
+      body["tools"] = APPS[app].settings["tools"]
 
       unless body["tools"]&.any?
         body.delete("tools")

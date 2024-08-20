@@ -1,14 +1,11 @@
 class LanguagePracticePlus < MonadicApp
-  def icon
-    "<i class='fas fa-person-chalkboard'></i>"
-  end
+  icon = "<i class='fas fa-person-chalkboard'></i>"
 
-  def description
-    "This is a language learning application where conversations start with the assistant's speech. The assistant's speech is played back in a synthesized voice. To speak, press the Enter key to start speech input and press Enter again to stop speech input. The assistant's response will include linguistic advice and the usual content. The language advice is presented only as text and not as text-to-speech."
-  end
+  description = <<~TEXT
+    This is a language learning application where conversations start with the assistant's speech. The assistant's speech is played back in a synthesized voice. To speak, press the Enter key to start speech input and press Enter again to stop speech input. The assistant's response will include linguistic advice and the usual content. The language advice is presented only as text and not as text-to-speech.
+  TEXT
 
-  def initial_prompt
-    text = <<~TEXT
+  initial_prompt = <<~TEXT
     You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language. If the "target language" is unknown, please ask in English what language the user would like to learn.
 
       Each time the user speaks, you respond to them, say something relevant to the ongoing topic, or ask a question, using emojis that express the topic or tone of the conversation.
@@ -21,58 +18,54 @@ class LanguagePracticePlus < MonadicApp
       - context:
         - target_lang: the target language to practice
         - language_advice: pieces of your language advice to the user
-    TEXT
-    text.strip
-  end
+  TEXT
 
-  def settings
-    {
-      "model": "gpt-4o-mini",
-      "temperature": 0.4,
-      "top_p": 0.0,
-      "context_size": 20,
-      "initial_prompt": initial_prompt,
-      "easy_submit": true,
-      "auto_speech": true,
-      "app_name": "Language Practice Plus",
-      "description": description,
-      "icon": icon,
-      "initiate_from_assistant": true,
-      "image": true,
-      "pdf": false,
-      "monadic": true,
-      "response_format": {
-        type: "json_schema",
-        json_schema: {
-          name: "language_practice_plus_response",
-          schema: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description: "Your response to the user's message."
-              },
-              context: {
-                type: "object",
-                properties: {
-
-                  language_advice: {
-                    type: "array",
-                    items: {
-                      type: "string"
-                    },
-                    description: "An array of pieces of your language advice to the user."
-                  }
-                },
-                required: ["language_advice"],
-                additionalProperties: false
-              }
+  @settings = {
+    model: "gpt-4o-mini",
+    temperature: 0.4,
+    top_p: 0.0,
+    context_size: 20,
+    initial_prompt: initial_prompt,
+    easy_submit: true,
+    auto_speech: true,
+    app_name: "Language Practice Plus",
+    description: description,
+    icon: icon,
+    initiate_from_assistant: true,
+    image: true,
+    pdf: false,
+    monadic: true,
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "language_practice_plus_response",
+        schema: {
+          type: "object",
+          properties: {
+            message: {
+              type: "string",
+              description: "Your response to the user's message."
             },
-            required: ["message", "context"]
+            context: {
+              type: "object",
+              properties: {
+
+                language_advice: {
+                  type: "array",
+                  items: {
+                    type: "string"
+                  },
+                  description: "An array of pieces of your language advice to the user."
+                }
+              },
+              required: ["language_advice"],
+              additionalProperties: false
+            }
           },
-          strict: true
-        }
+          required: ["message", "context"]
+        },
+        strict: true
       }
     }
-  end
+  }
 end

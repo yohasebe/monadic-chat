@@ -37,6 +37,11 @@ module MonadicAgent
         TEXT
       }
     ]
-    BasicAgent.simple_chat_agent(messages, model: model)
+    body = {
+      messages: messages,
+      model: model
+    }
+
+    BasicAgent.send_query(body)
   end
 end

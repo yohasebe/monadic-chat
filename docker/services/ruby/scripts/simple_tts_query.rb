@@ -24,11 +24,11 @@ def tts_api_request(text, response_format: "mp3", speed: "1.0", voice: "alloy", 
   response = nil
 
   body = {
-    "input" => text,
-    "model" => "tts-1",
-    "voice" => voice,
-    "speed" => speed,
-    "response_format" => response_format
+    input: text,
+    model: "tts-1",
+    voice: voice,
+    speed: speed,
+    response_format: response_format
   }
 
   unless language == "auto"
@@ -36,8 +36,8 @@ def tts_api_request(text, response_format: "mp3", speed: "1.0", voice: "alloy", 
   end
 
   headers = {
-    "Content-Type" => "application/json",
-    "Authorization" => "Bearer #{api_key}"
+    "Content-Type": "application/json",
+    Authorization: "Bearer #{api_key}"
   }
 
   http = HTTP.headers(headers)
@@ -45,7 +45,7 @@ def tts_api_request(text, response_format: "mp3", speed: "1.0", voice: "alloy", 
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_url, json: body)
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
-      return { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+      return { type: "error", content: "ERROR: #{error_report["message"]}" }
     end
     response = res.body.to_s
   rescue HTTP::Error, HTTP::TimeoutError
@@ -54,7 +54,7 @@ def tts_api_request(text, response_format: "mp3", speed: "1.0", voice: "alloy", 
       sleep RETRY_DELAY
       retry
     else
-      return { "type" => "error", "content" => "ERROR: The request has timed out." }
+      return { type: "error", content: "ERROR: The request has timed out." }
     end
   end
 

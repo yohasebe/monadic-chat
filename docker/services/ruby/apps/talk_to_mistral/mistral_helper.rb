@@ -289,7 +289,7 @@ module MistralHelper
     }
 
     if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = settings[:tools] || []
+      body["tools"] = settings["tools"] || []
     end
 
     body["max_tokens"] = max_tokens if max_tokens
@@ -302,7 +302,7 @@ module MistralHelper
     if role == "tool"
       body["messages"] += obj["function_returns"]
     elsif role == "user"
-      body["messages"].last["content"] += "\n\n" + settings[:prompt_suffix] if settings[:prompt_suffix]
+      body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
     end
 
     if messages_containing_img

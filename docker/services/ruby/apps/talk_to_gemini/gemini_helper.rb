@@ -9,6 +9,47 @@ module GeminiHelper
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
 
+  attr_reader :models
+
+  def initialize
+    @models = list_models
+    super
+  end
+
+  def list_models
+    return @models if @models && !@models.empty?
+
+    api_key = CONFIG["GEMINI_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type": "application/json"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models?key=#{api_key}"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        models = []
+        model_data["models"].each do |model|
+          name = model["name"].split("/").last
+          display_name = model["displayName"]
+          models << name if name && /Legacy/ !~ display_name
+        end
+      end
+
+      models.filter do |model|
+        /(?:embedding|aqa|vision)/ !~ model && model != "gemini-pro"
+      end.reverse
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
+  end
+
   def process_json_data(app, session, body, call_depth, &block)
     buffer = String.new
     texts = []
@@ -288,8 +329,8 @@ module GeminiHelper
       end
     end
 
-    if settings[:tools]
-      body["tools"] = settings[:tools]
+    if settings["tools"]
+      body["tools"] = settings["tools"]
     end
 
     if role == "tool"

@@ -5,48 +5,40 @@ require_relative "./mistral_helper"
 class ChatWithMistral < MonadicApp
   include MistralHelper
 
-  def icon
-    "<i class='fa-solid fa-m'></i>"
-  end
+  icon = "<i class='fa-solid fa-m'></i>"
 
-  def description
-    "This app accesses the Mistral AI API to answer questions about a wide range of topics."
-  end
+  description = <<~TEXT
+    This app accesses the Mistral AI API to answer questions about a wide range of topics.
+  TEXT
 
-  def initial_prompt
-    text = <<~TEXT
+  initial_prompt = <<~TEXT
       You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it.
-    TEXT
+  TEXT
 
-    text.strip
-  end
-
-  def prompt_suffix
+  prompt_suffix = <<~TEXT
     "Use the same language as the user and insert an ascii emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses."
-  end
+  TEXT
 
-  def settings
-    {
-      "disabled": !CONFIG["MISTRAL_API_KEY"],
-      "temperature": 0.7,  # Adjusted temperature
-      "top_p": 1.0,        # Adjusted top_p
-      "context_size": 20,
-      "initial_prompt": initial_prompt,
-      "prompt_suffix": prompt_suffix,
-      "image_generation": false,
-      "sourcecode": true,
-      "easy_submit": false,
-      "auto_speech": false,
-      "mathjax": false,
-      "app_name": "▷ Mistral AI (Chat)",
-      "description": description,
-      "icon": icon,
-      "initiate_from_assistant": false,
-      "pdf": false,
-      "image": false,
-      "toggle": false,
-      "models": @models,
-      "model": "mistral-medium-latest"
-    }
-  end
+  @settings = {
+    disabled: !CONFIG["MISTRAL_API_KEY"],
+    temperature: 0.7,  # Adjusted temperature
+    top_p: 1.0,        # Adjusted top_p
+    context_size: 20,
+    initial_prompt: initial_prompt,
+    prompt_suffix: prompt_suffix,
+    image_generation: false,
+    sourcecode: true,
+    easy_submit: false,
+    auto_speech: false,
+    mathjax: false,
+    app_name: "▷ Mistral AI (Chat)",
+    description: description,
+    icon: icon,
+    initiate_from_assistant: false,
+    pdf: false,
+    image: false,
+    toggle: false,
+    models: @models,
+    model: "mistral-medium-latest"
+  }
 end

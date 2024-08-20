@@ -39,6 +39,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rspec"
   spec.add_development_dependency "solargraph"
 
+  spec.add_dependency "activesupport"
   spec.add_dependency "cld"
   spec.add_dependency "dotenv"
   spec.add_dependency "faye-websocket"

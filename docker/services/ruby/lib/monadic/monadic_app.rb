@@ -521,8 +521,17 @@ class MonadicApp
     search_uri = URI(url)
     search_uri.query = URI.encode_www_form(parameters)
 
-    search_response = perform_request_with_retries(search_uri)
-    search_data = JSON.parse(search_response)
+    begin
+      search_response = perform_request_with_retries(search_uri)
+    rescue StandardError
+      return "Error: The search request could not be completed. The URL is: #{search_uri}"
+    end
+
+    begin
+      search_data = JSON.parse(search_response)
+    rescue JSON::ParserError
+      return "Error: The search response could not be parsed. The response is: #{search_response}"
+    end
 
     <<~TEXT
       ```json
@@ -610,57 +619,6 @@ class MonadicApp
     rescue StandardError
       nil
     end
-  end
-
-  def analyze_video(file:, fps: 1, query: nil)
-    return "Error: file is required." if file.to_s.empty?
-
-    split_command = <<~CMD
-      bash -c 'extract_frames.py "#{file}" ./ --fps #{fps} --format png --json --audio'
-    CMD
-
-    split_res = send_command(command: split_command, container: "python")
-
-    prompt = <<~TEXT
-      The user tried to split the video into frames using a command and got the following response. If the process was successful, the user will get a JSON file containing the list of base64 images of the frames extracted from the video and an audio file. The two files will be separated by a semicolon. If it is not successful, the user will get an error message. Examine the command response and provide the result in the following JSON format:
-
-      {
-        "result": "success" | "error",
-        "content": JSON_FILE;AUDIO_FILE | ERROR_MESSAGE
-      }
-
-      ### Command Response
-
-      #{split_res}
-    TEXT
-
-    agent_res = command_output_agent(prompt, split_res)
-
-    if agent_res["result"] == "success"
-      json_file, audio_file = agent_res["content"].split(";")
-    else
-      return agent_res["content"]
-    end
-
-    query = query ? " \"#{query}\"" : ""
-
-    model = ENV["VISION_MODEL"] || "gpt-4o-mini"
-
-    video_command = <<~CMD
-      bash -c 'simple_video_query.rb "#{json_file}" #{query} "#{model}"'
-    CMD
-
-    description = send_command(command: video_command, container: "ruby")
-
-    if audio_file
-      audio_command = <<~CMD
-        bash -c 'simple_whisper_query.rb "#{audio_file}"'
-      CMD
-      audio_description = send_command(command: audio_command, container: "ruby")
-      description += "\n\n---\n\n"
-      description += "Audio Transcript:\n#{audio_description}"
-    end
-    description
   end
 
   def list_titles

@@ -11,14 +11,7 @@ module CommandRHelper
 
   attr_reader :models
 
-  def initialize
-    @models = list_models
-    super
-  end
-
-  def list_models
-    return @models if @models && !@models.empty?
-
+  def self.list_models
     api_key = CONFIG["COHERE_API_KEY"]
     return [] if api_key.nil?
 
@@ -208,7 +201,7 @@ module CommandRHelper
     app = obj["app_name"]
 
     # Get the parameters from the session
-    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    initial_prompt = session[:messages].first["text"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i

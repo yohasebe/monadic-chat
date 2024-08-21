@@ -90,7 +90,6 @@ Remember you are the one who inquires for information, not providing the answers
     }
 
     if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
-      console.log("a");
       let models_text = apps[$(this).val()]["models"]
       let models = JSON.parse(models_text);
       let modelList = listModels(models);
@@ -103,7 +102,6 @@ Remember you are the one who inquires for information, not providing the answers
       $("#model-selected").text(model);
       $("#model").val(model);
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
-      console.log("b");
       $("#model_and_file").hide();
       $("#model_parameters").hide();
     } else {
@@ -146,6 +144,13 @@ Remember you are the one who inquires for information, not providing the answers
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+
+    // check if app name contains "claude" in it
+    if (apps[$(this).val()]["app_name"].toLowerCase().includes("claude")) {
+      $("#prompt-caching").prop("disabled", false);
+    } else {
+      $("#prompt-caching").prop("disabled", true);
+    }
 
     $("#start").focus();
   })

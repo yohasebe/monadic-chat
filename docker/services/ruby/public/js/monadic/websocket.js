@@ -608,10 +608,11 @@ function connect_websocket(callback) {
         break;
       }
       case "info": {
-        infoHtml = formatInfo(data["content"]);
-        if (infoHtml !== "") {
-          setAlert(infoHtml, "info");
-        }
+        // infoHtml = formatInfo(data["content"]);
+        // if (infoHtml !== "") {
+        //   setAlert(infoHtml, "info");
+        // }
+        setAlert("Ready", "success");
         break;
       }
       case "pdf_titles": {
@@ -662,8 +663,13 @@ function connect_websocket(callback) {
       }
       case "past_messages": {
         messages.length = 0;
-        data["content"].forEach((msg) => {
+        data["content"].forEach((msg, index) => {
           messages.push(msg);
+
+          if (index === 0) {
+            return;
+          }
+
           switch (msg["role"]) {
             case "user": {
               let msg_text = msg["text"].trim()
@@ -721,7 +727,7 @@ function connect_websocket(callback) {
             }
           }
         });
-        setAlert(formatInfo(data["content"]), "info");
+        // setAlert(formatInfo(data["content"]), "info");
 
         if (messages.length > 0) {
           $("#start-label").text("Continue Session");

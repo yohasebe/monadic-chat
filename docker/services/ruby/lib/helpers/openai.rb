@@ -378,7 +378,7 @@ module OpenAIHelper
     api_key = settings.api_key
 
     # Get the parameters from the session
-    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    initial_prompt = session[:messages].first["text"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
     max_tokens = obj["max_tokens"]&.to_i
@@ -397,55 +397,33 @@ module OpenAIHelper
       if obj["monadic"].to_s == "true" && message != ""
         if message != ""
           message = APPS[app].monadic_unit(message)
-          html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
         end
-      elsif message != ""
-        html = markdown_to_html(message, mathjax: obj["mathjax"])
       end
+      html = markdown_to_html(message, mathjax: obj["mathjax"])
 
       if message != "" && role == "user"
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
-                  "text" => obj["message"],
+                  "text" => message,
                   "html" => html,
+                  "role" => role,
                   "lang" => detect_language(message)
                 } }
         res["images"] = obj["images"] if obj["images"]
         block&.call res
+        session[:messages] << res["content"]
       end
-
-      # If the role is "user", the message is added to the session
-      if message != "" && role == "user"
-        res = { "mid" => request_id,
-                "role" => role,
-                "text" => message,
-                "html" => markdown_to_html(message, mathjax: obj["mathjax"]),
-                "lang" => detect_language(message),
-                "active" => true }
-        if obj["images"]
-          res["images"] = obj["images"]
-        end
-
-        session[:messages] << res
-      end
-    end
-
-    # the initial prompt is set to the first message in the session
-    # if the initial prompt is not empty
-
-    if initial_prompt != ""
-      initial = { "role" => "system",
-                  "text" => initial_prompt,
-                  "html" => initial_prompt,
-                  "lang" => detect_language(initial_prompt) }
     end
 
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     session[:messages].each { |msg| msg["active"] = false }
-    latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
-    context = [initial] + latest_messages
+    context = [session[:messages].first]
+    if session[:messages].length > 1
+      context += session[:messages][1..].last(context_size)
+    end
+    context.each { |msg| msg["active"] = true }
 
     # Set the headers for the API request
     headers = {
@@ -554,6 +532,8 @@ module OpenAIHelper
         tool_call.delete("index")
       end
     end
+
+    pp body
 
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,

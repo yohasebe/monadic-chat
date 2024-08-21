@@ -31,7 +31,7 @@ class ChatWithMistral < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "▷ Mistral AI (Chat)",
+    app_name: "▹ Mistral AI (Chat)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

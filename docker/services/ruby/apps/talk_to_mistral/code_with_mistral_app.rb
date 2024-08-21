@@ -170,7 +170,7 @@ class CodeWithMistral < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "▷ Mistral AI (Code)",
+    app_name: "▹ Mistral AI (Code)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

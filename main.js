@@ -175,6 +175,7 @@ let settingsWindow = null;
 
 function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
+  isQuitting = true;
 
   let options = {
     type: 'question',

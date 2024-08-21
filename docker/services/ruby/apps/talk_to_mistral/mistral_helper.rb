@@ -11,14 +11,7 @@ module MistralHelper
 
   attr_reader :models
 
-  def initialize
-    @models = list_models
-    super
-  end
-
-  def list_models
-    return @models if @models && !@models.empty?
-
+  def self.list_models
     api_key = CONFIG["MISTRAL_API_KEY"]
     return [] if api_key.nil?
 
@@ -224,7 +217,8 @@ module MistralHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
-    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    initial_prompt = session[:messages].first["text"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f
@@ -245,34 +239,22 @@ module MistralHelper
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
-                  "text" => obj["message"],
+                  "role" => role,
+                  "text" => message,
                   "html" => html,
                   "lang" => detect_language(obj["message"])
                 } }
         block&.call res
+        session[:messages] << res["content"]
       end
-
-      if message != "" && role == "user"
-        res = { "mid" => request_id,
-                "role" => role,
-                "text" => message,
-                "html" => markdown_to_html(message),
-                "lang" => detect_language(message),
-                "active" => true }
-        session[:messages] << res
-      end
-    end
-
-    if initial_prompt != ""
-      initial = { "role" => "system",
-                  "text" => initial_prompt,
-                  "html" => initial_prompt,
-                  "lang" => detect_language(initial_prompt) }
     end
 
     session[:messages].each { |msg| msg["active"] = false }
-    latest_messages = session[:messages].last(context_size).each { |msg| msg["active"] = true }
-    context = [initial] + latest_messages
+    context = [session[:messages].first]
+    if session[:messages].length > 1
+      context += session[:messages][1..].last(context_size + 1)
+    end
+    context.each { |msg| msg["active"] = true }
 
     headers = {
       "Content-Type" => "application/json",

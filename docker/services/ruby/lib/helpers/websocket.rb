@@ -260,11 +260,6 @@ module WebSocketHelper
 
               new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
 
-              if obj["prompt_caching"]
-                num_tokens = MonadicApp::TOKENIZER.count_tokens(text)
-                new_data["tokens"] = num_tokens
-              end
-
               @channel.push({
                 "type" => "html",
                 "content" => new_data
@@ -283,6 +278,18 @@ module WebSocketHelper
               @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
             end
           end
+        when "SYSTEM_PROMPT"
+          text = obj["content"] || ""
+          new_data = { "mid" => SecureRandom.hex(4),
+                       "role" => "system",
+                       "text" => text,
+                       "html" => markdown_to_html(text),
+                       "lang" => detect_language(text),
+                       "active" => true }
+          # Initial prompt is added to messages but not shown as the first message
+          # @channel.push({ "type" => "html", "content" => new_data }.to_json)
+          session[:messages] << new_data
+
         when "SAMPLE"
           text = obj["content"]
           images = obj["images"]
@@ -293,11 +300,6 @@ module WebSocketHelper
                        "lang" => detect_language(text),
                        "active" => true }
           new_data["images"] = images if images
-
-          if obj["prompt_caching"]
-            num_tokens = MonadicApp::TOKENIZER.count_tokens(text)
-            new_data["tokens"] = num_tokens
-          end
 
           @channel.push({ "type" => "html", "content" => new_data }.to_json)
           session[:messages] << new_data

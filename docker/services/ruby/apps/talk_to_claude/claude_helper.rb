@@ -243,20 +243,26 @@ module ClaudeHelper
     end
 
     # Get the parameters from the session
-    obj = session[:parameters]
+    pp obj = session[:parameters]
     app = obj["app_name"]
 
     # Get the parameters from the session
     initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
     system_prompts = []
     system_prompts << { type: "text", text: initial_prompt }
-    session[:messages].each do |msg|
-      system_prompts << { type: "text", text: msg["text"] } if msg["role"] == "system"
+    if obj["prompt_caching"] && MonadicApp::TOKENIZER.count_tokens(initial_prompt).to_i > 1024
+      system_prompts[-1]["cache_control"] = { "type" => "ephemeral" }
     end
-    # system_prompts.each do |prompt|
-    #   # This works only when the number of the tokens is at least 1024
-    #   prompt["cache_control"] = { "type" => "ephemeral" }
-    # end
+
+    session[:messages].each do |msg|
+      next if msg["role"] != "system"
+
+      sp = { type: "text", text: msg["text"] }
+      if obj["prompt_caching"] && msg["tokens"] > 1024
+        sp["cache_control"] = { "type" => "ephemeral" }
+      end
+      system_prompts << sp
+    end
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i
@@ -278,6 +284,11 @@ module ClaudeHelper
                 "lang" => detect_language(obj["message"]),
                 "active" => true
               } }
+
+      num_tokens = MonadicApp::TOKENIZER.count_tokens(obj["message"])
+      res["content"]["tokens"] = num_tokens
+      res["content"]["cache_control"] = { "type" => "ephemeral" } if num_tokens > 1024
+
       res["images"] = obj["images"] if obj["images"]
       block&.call res
       session[:messages] << res["content"]
@@ -330,7 +341,11 @@ module ClaudeHelper
 
     # The context is added to the body
     messages = context.compact.map do |msg|
-      { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
+      content = { "type" => "text", "text" => msg["text"] }
+      if obj["prompt_caching"] && msg["tokens"] > 10
+        content["cache_control"] = { "type" => "ephemeral" }
+      end
+      { "role" => msg["role"], "content" => [content] }
     end
 
     if messages.last["role"] == "user" && obj["images"]

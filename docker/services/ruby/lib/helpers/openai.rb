@@ -426,6 +426,7 @@ module OpenAIHelper
         if obj["images"]
           res["images"] = obj["images"]
         end
+
         session[:messages] << res
       end
     end

@@ -10,7 +10,6 @@ SINGLETON_TOKENIZER = FlaskAppClient.new
 
 class MonadicApp
   include MonadicAgent
-
   TOKENIZER = SINGLETON_TOKENIZER
 
   # access the flask app client so that it gets ready before the first request

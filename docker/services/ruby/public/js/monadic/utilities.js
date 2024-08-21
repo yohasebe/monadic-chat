@@ -71,6 +71,9 @@ function formatInfo(info) {
           label = "Tokens in all active messages";
           break;
         case "encoding_name":
+          // skip and go to next iteration
+          continue;
+
           label = "Token encoding";
           break;
       }
@@ -306,6 +309,11 @@ function setParams() {
     }
   } else {
     params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
+  }
+
+  params["prompt_caching"] = false;
+  if ($("#prompt-caching").prop('checked') && !$("#prompt-caching").prop('disabled')) {
+    params["prompt_caching"] = true;
   }
 
   params["initial_prompt"] = $("#initial-prompt").val();

@@ -9,6 +9,9 @@ module ClaudeHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
+  MIN_PROMPT_CACHING = 1024
+  MAX_PC_PROMPTS = 4
+
   attr_accessor :thinking
 
   def initialize
@@ -142,23 +145,6 @@ module ClaudeHelper
                texts.join("")
              end
 
-    # if tool_calls.empty? && !result.to_s.empty?
-    #   result.scan(%r{<div class='toggle'><pre>(.*?)</pre></div>}m).each do |x|
-    #     json_string = x.first.strip
-    #     json = JSON.parse(json_string)
-    #     if json["type"] && json["id"] && json["name"] && json["input"]
-    #       result = <<~COMMENT
-    #       <hr />
-    #       Tool call is not complete yet. Please wait for the result.
-    #       <hr />
-    #       COMMENT
-    #       tool_calls << json
-    #     end
-    #   rescue JSON::ParserError
-    #     next
-    #   end
-    # end
-
     if tool_calls.any?
       get_thinking_text(result)
 
@@ -229,6 +215,17 @@ module ClaudeHelper
     end
   end
 
+  def check_num_tokens(msg)
+    t = ms["tokens"]
+    if t
+      new_t = t.to_i
+    else
+      new_t = MonadicApp::TOKENIZER.count_tokens(msg["text"]).to_i
+      msg["tokens"] = new_t
+    end
+    new_t > MIN_PROMPT_CACHING
+  end
+
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
@@ -243,24 +240,22 @@ module ClaudeHelper
     end
 
     # Get the parameters from the session
-    pp obj = session[:parameters]
+    obj = session[:parameters]
     app = obj["app_name"]
 
-    # Get the parameters from the session
-    initial_prompt = obj["initial_prompt"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
     system_prompts = []
-    system_prompts << { type: "text", text: initial_prompt }
-    if obj["prompt_caching"] && MonadicApp::TOKENIZER.count_tokens(initial_prompt).to_i > 1024
-      system_prompts[-1]["cache_control"] = { "type" => "ephemeral" }
-    end
+    session[:messages].each_with_index do |msg, i|
+      next unless msg["role"] == "system"
 
-    session[:messages].each do |msg|
-      next if msg["role"] != "system"
+      if obj["prompt_caching"] && i < MAX_PC_PROMPTS
+        check_num_tokens(msg) if obj["prompt_caching"]
+      end
 
       sp = { type: "text", text: msg["text"] }
       if obj["prompt_caching"] && msg["tokens"] > 1024
         sp["cache_control"] = { "type" => "ephemeral" }
       end
+
       system_prompts << sp
     end
 
@@ -284,10 +279,6 @@ module ClaudeHelper
                 "lang" => detect_language(obj["message"]),
                 "active" => true
               } }
-
-      num_tokens = MonadicApp::TOKENIZER.count_tokens(obj["message"])
-      res["content"]["tokens"] = num_tokens
-      res["content"]["cache_control"] = { "type" => "ephemeral" } if num_tokens > 1024
 
       res["images"] = obj["images"] if obj["images"]
       block&.call res
@@ -342,9 +333,6 @@ module ClaudeHelper
     # The context is added to the body
     messages = context.compact.map do |msg|
       content = { "type" => "text", "text" => msg["text"] }
-      if obj["prompt_caching"] && msg["tokens"] > 10
-        content["cache_control"] = { "type" => "ephemeral" }
-      end
       { "role" => msg["role"], "content" => [content] }
     end
 

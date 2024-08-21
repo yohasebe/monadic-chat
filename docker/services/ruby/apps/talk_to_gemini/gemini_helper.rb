@@ -11,14 +11,7 @@ module GeminiHelper
 
   attr_reader :models
 
-  def initialize
-    @models = list_models
-    super
-  end
-
-  def list_models
-    return @models if @models && !@models.empty?
-
+  def self.list_models
     api_key = CONFIG["GEMINI_API_KEY"]
     return [] if api_key.nil?
 
@@ -193,7 +186,7 @@ module GeminiHelper
     when "assistant"
       "model"
     when "system"
-      "system"
+      "user"
     else
       role.downcase
     end
@@ -265,7 +258,11 @@ module GeminiHelper
       session[:messages] << { "role" => "user", "text" => "Hi, there!" }
     end
     session[:messages].each { |msg| msg["active"] = false }
-    context = session[:messages].last(context_size).each { |msg| msg["active"] = true }
+    context = [session[:messages].first]
+    if session[:messages].length > 1
+      context += session[:messages][1..].last(context_size)
+    end
+    context.each { |msg| msg["active"] = true }
 
     # Set the headers for the API request
     headers = {

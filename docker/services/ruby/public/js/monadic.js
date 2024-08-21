@@ -227,6 +227,8 @@ Remember you are the one who inquires for information, not providing the answers
       $("#user-panel").show();
       setInputFocus()
     } else {
+      ws.send(JSON.stringify({ message: "SYSTEM_PROMPT", content: $("#initial-prompt").val() }));
+
       $("#config").hide();
       $("#back-to-settings").show();
       $("#parameter-panel").show();
@@ -347,6 +349,7 @@ $("#send").on("click", function(event) {
   });
 
   $("#save").on("click", function () {
+    const initial_prompt = $("#initial-prompt").val();
     const textOnly = messages.map(function (message) {
       let message_obj = { "role": message.role, "text": message.text, "mid": message.mid };
       if(message.image){
@@ -354,7 +357,8 @@ $("#send").on("click", function(event) {
       }
       return message_obj;
     });
-    obj = { "parameters": setParams(), "messages": textOnly };
+    allMessages = [{ "role": "system", "text": initial_prompt }].concat(textOnly);
+    obj = { "parameters": setParams(), "messages": allMessages };
     saveObjToJson(obj, "monadic.json");
   });
 

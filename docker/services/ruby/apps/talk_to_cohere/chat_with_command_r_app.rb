@@ -30,7 +30,7 @@ class ChatWithCommandR < MonadicApp
     auto_speech: false,
     initiate_from_assistant: false,
     image: false,
-    models: @models,
-    model: "command-r"
+    models: CommandRHelper.list_models,
+    model: "command-r-plus"
   }
 end

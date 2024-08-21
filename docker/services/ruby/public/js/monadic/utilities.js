@@ -260,6 +260,9 @@ function loadParams(params, calledFor = "loadParams") {
     let app_name = params["app_name"];
     $("#apps").val(app_name);
     $(`#apps option[value="${params['app_name']}"]`).attr('selected','selected');
+    // setTimeout(function () {
+    $("#model").val(params["model"]);
+    // }, 500);
   }
   if (params["easy_submit"]) {
     $("#check-easy-submit").prop('checked', true);
@@ -276,7 +279,6 @@ function loadParams(params, calledFor = "loadParams") {
   } else{
     $("#initiate-from-assistant").prop('checked', false);
   }
-  $("#model").val(params["model"]);
 }
 
 function resetParams() {
@@ -316,7 +318,7 @@ function setParams() {
     params["prompt_caching"] = true;
   }
 
-  params["initial_prompt"] = $("#initial-prompt").val();
+  // params["initial_prompt"] = $("#initial-prompt").val();
   params["model"] = $("#model").val();
   params["temperature"] = $("#temperature").val();
   params["top_p"] = $("#top-p").val();

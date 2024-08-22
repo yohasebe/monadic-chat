@@ -14,7 +14,7 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 # Define the full path to docker-compose
 DOCKER=$(command -v docker)
 
-if [[ "$HOST_OS" == "Darwin"* && "$(uname -m)" == "arm64" ]]; then
+if [[ "$HOST_OS" == "Darwin"* || "$HOST_OS" == "Linux" ]] && [[ "$(uname -m)" == "arm64" ]]; then
   export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
 fi
 

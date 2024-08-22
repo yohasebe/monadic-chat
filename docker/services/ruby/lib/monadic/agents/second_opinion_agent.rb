@@ -3,7 +3,7 @@ require_relative "basic_agent"
 module MonadicAgent
   extend BasicAgent
 
-  def response_verifier_agent(user_query: "", agent_response: "")
+  def second_opinion_agent(user_query: "", agent_response: "")
     model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
 
     prompt = <<~TEXT

@@ -8,7 +8,7 @@ class SecondOpinion < MonadicApp
   initial_prompt = <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are capable of answering various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. But you are aware that you are not perfect and you always need a second opinion to verify your response even if the question is simple.
 
-    You can call the `response_verifier_agent` function to get a second opinion regarding your response. The function takes two parameters: `user_query` and `agent_response`. The `user_query` is the user's input, and the `agent_response` is the response you have generated. The function returns the comments, the validity of your response, and the model used for the evaluation. Show these three values (comments, validity, and model) with your response.
+    You can call the `second_opinion_agent` function to get a second opinion regarding your response. The function takes two parameters: `user_query` and `agent_response`. The `user_query` is the user's input, and the `agent_response` is the response you have generated. The function returns the comments, the validity of your response, and the model used for the evaluation. Show these three values (comments, validity, and model) with your response.
   TEXT
 
   @settings = {
@@ -31,7 +31,7 @@ class SecondOpinion < MonadicApp
         type: "function",
         function:
         {
-          name: "response_verifier_agent",
+          name: "second_opinion_agent",
           description: "Verify the response before returning it to the user",
           parameters: {
             type: "object",

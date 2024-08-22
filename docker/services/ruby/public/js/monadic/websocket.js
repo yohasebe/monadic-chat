@@ -268,7 +268,7 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
   ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
 }
 
-function applyToggle(element, nl2br = false) {
+function applyToggle(element, open = false, nl2br = false) {
   element.find(".toggle").each(function () {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");
@@ -277,11 +277,11 @@ function applyToggle(element, nl2br = false) {
       let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
       toggleElement.find("pre").text(toggleText);
     }
-    addToggleSourceCode(toggleElement);
+    addToggleSourceCode(toggleElement, open);
   });
 }
 
-function addToggleSourceCode(element) {
+function addToggleSourceCode(element, open = false) {
   let title = "Show/Hide Code";
   // if element has data-title attribute, use that as the title
   if (element.data("title")) {
@@ -300,7 +300,9 @@ function addToggleSourceCode(element) {
       $(this).html(toggleShow);
     }
   });
-  element.hide();
+  if (!open) {
+    element.hide();
+  }
 }
 
 function formatSourceCode(element) {
@@ -812,8 +814,8 @@ function connect_websocket(callback) {
 
         htmlContent = $("#discourse div.card:last");
 
-        if (params["toggle"] === "true") {
-          applyToggle(htmlContent);
+        if (params["toggle"] === "true" || params["toggle"] === "open") {
+          applyToggle(htmlContent, params["toggle"] === "open");
         }
 
         if (params["mermaid"] === "true") {

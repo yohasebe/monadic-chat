@@ -15,7 +15,7 @@ module MonadicAgent
     messages = [
       {
         "role" => "system",
-        "content" => prompt,
+        "content" => prompt
       },
       {
         "role" => "user",
@@ -27,7 +27,14 @@ module MonadicAgent
       }
     ]
 
-    ref = binary ? "#/properties" : "#"
+    recursion = if binary
+                  {
+                    left: { type: "object", item: { "$ref": "#" } },
+                    right: { type: "object", item: { "$ref": "#" } }
+                  }
+                else
+                  { children: { type: "array", items: { "$ref": "#" } } }
+                end
 
     response_format = {
       type: "json_schema",
@@ -49,12 +56,7 @@ module MonadicAgent
                   "type": "string",
                   "description": "The content of the syntactic node, for example a word or a phrase."
                 },
-                children: {
-                  type: "array",
-                  items: {
-                    "$ref": ref
-                  }
-                }
+                recursion
               ]
             }
           },

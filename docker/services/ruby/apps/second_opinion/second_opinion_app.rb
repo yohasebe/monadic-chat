@@ -45,7 +45,8 @@ class SecondOpinion < MonadicApp
                 description: "Your response to be verified"
               }
             },
-            required: ["user_query", "agent_response"]
+            required: ["user_query", "agent_response"],
+            additionalProperties: false
           }
         },
         strict: true

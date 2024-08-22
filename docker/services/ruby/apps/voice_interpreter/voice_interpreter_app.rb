@@ -14,7 +14,7 @@ class VoiceInterpreter < MonadicApp
     - context:
       - source_lang
       - target_lang
-    TEXT
+  TEXT
 
   @settings = {
     model: "gpt-4o-mini",
@@ -55,7 +55,8 @@ class VoiceInterpreter < MonadicApp
               additionalProperties: false
             }
           },
-          required: ["message", "context"]
+          required: ["message", "context"],
+          additionalProperties: false
         },
         strict: true
       }

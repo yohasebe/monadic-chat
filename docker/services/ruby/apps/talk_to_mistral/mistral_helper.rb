@@ -217,8 +217,6 @@ module MistralHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
-    initial_prompt = session[:messages].first["text"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
-
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f

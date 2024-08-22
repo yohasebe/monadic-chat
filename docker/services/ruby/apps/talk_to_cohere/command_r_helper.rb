@@ -201,7 +201,7 @@ module CommandRHelper
     app = obj["app_name"]
 
     # Get the parameters from the session
-    initial_prompt = session[:messages].first["text"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    initial_prompt = session[:messages].first["text"]
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i

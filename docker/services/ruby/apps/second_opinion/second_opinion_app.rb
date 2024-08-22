@@ -12,7 +12,7 @@ class SecondOpinion < MonadicApp
   TEXT
 
   @settings = {
-    model: "gpt-4o-mini",
+    model: "gpt-4o-2024-08-06",
     temperature: 0.2,
     top_p: 0.0,
     max_tokens: 4000,

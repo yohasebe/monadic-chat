@@ -26,145 +26,145 @@ class ContentReader < MonadicApp
   TEXT
 
   @settings = {
-      model: "gpt-4o-2024-08-06",
-      temperature: 0.0,
-      top_p: 0.0,
-      context_size: 20,
-      initial_prompt: initial_prompt,
-      easy_submit: false,
-      auto_speech: false,
-      app_name: "Content Reader",
-      description: description,
-      icon: icon,
-      initiate_from_assistant: true,
-      mathjax: true,
-      image: true,
-      audio_video: true,
-      tools: [
+    model: "gpt-4o-2024-08-06",
+    temperature: 0.0,
+    top_p: 0.0,
+    context_size: 20,
+    initial_prompt: initial_prompt,
+    easy_submit: false,
+    auto_speech: false,
+    app_name: "Content Reader",
+    description: description,
+    icon: icon,
+    initiate_from_assistant: true,
+    mathjax: true,
+    image: true,
+    audio_video: true,
+    tools: [
+      {
+        type: "function",
+        function:
         {
-          type: "function",
-          function:
-          {
-            name: "fetch_text_from_office",
-            description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
-            parameters: {
-              type: "object",
-              properties: {
-                file: {
-                  type: "string",
-                  description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
-                }
-              },
-              required: ["file"],
-              additionalProperties: false
-            }
-          },
-          strict: true
+          name: "fetch_text_from_office",
+          description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
+          parameters: {
+            type: "object",
+            properties: {
+              file: {
+                type: "string",
+                description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
+              }
+            },
+            required: ["file"],
+            additionalProperties: false
+          }
         },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
         {
-          type: "function",
-          function:
-          {
-            name: "fetch_text_from_pdf",
-            description: "Fetch the text from the PDF file and return it.",
-            parameters: {
-              type: "object",
-              properties: {
-                pdf: {
-                  type: "string",
-                  description: "File name or file path of the PDF"
-                }
-              },
-              required: ["pdf"],
-              additionalProperties: false
-            }
-          },
-          strict: true
+          name: "fetch_text_from_pdf",
+          description: "Fetch the text from the PDF file and return it.",
+          parameters: {
+            type: "object",
+            properties: {
+              pdf: {
+                type: "string",
+                description: "File name or file path of the PDF"
+              }
+            },
+            required: ["pdf"],
+            additionalProperties: false
+          }
         },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
         {
-          type: "function",
-          function:
-          {
-            name: "fetch_web_content",
-            description: "Fetch the content of the web page of the given URL and save it to a file.",
-            parameters: {
-              type: "object",
-              properties: {
-                url: {
-                  type: "string",
-                  description: "URL of the web page."
-                }
-              },
-              required: ["url"],
-              additionalProperties: false
-            }
-          },
-          strict: true
+          name: "fetch_web_content",
+          description: "Fetch the content of the web page of the given URL and save it to a file.",
+          parameters: {
+            type: "object",
+            properties: {
+              url: {
+                type: "string",
+                description: "URL of the web page."
+              }
+            },
+            required: ["url"],
+            additionalProperties: false
+          }
         },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
         {
-          type: "function",
-          function:
-          {
-            name: "analyze_image",
-            description: "Analyze the image and return the result.",
-            parameters: {
-              type: "object",
-              properties: {
-                message: {
-                  type: "string",
-                  description: "Text prompt asking about the image (e.g. 'What is in the image?')."
-                },
-                image_path: {
-                  type: "string",
-                  description: "Path to the image file. It can be either a local file path or a URL."
-                }
+          name: "analyze_image",
+          description: "Analyze the image and return the result.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description: "Text prompt asking about the image (e.g. 'What is in the image?')."
               },
-              required: ["message", "image_path"],
-              additionalProperties: false
-            }
-          },
-          strict: true
+              image_path: {
+                type: "string",
+                description: "Path to the image file. It can be either a local file path or a URL."
+              }
+            },
+            required: ["message", "image_path"],
+            additionalProperties: false
+          }
         },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
         {
-          type: "function",
-          function:
-          {
-            name: "analyze_audio",
-            description: "Analyze the audio and return the transcript.",
-            parameters: {
-              type: "object",
-              properties: {
-                audio: {
-                  type: "string",
-                  description: "File path of the audio file"
-                }
-              },
-              required: ["audio"],
-              additionalProperties: false
-            }
-          },
-          strict: true
+          name: "analyze_audio",
+          description: "Analyze the audio and return the transcript.",
+          parameters: {
+            type: "object",
+            properties: {
+              audio: {
+                type: "string",
+                description: "File path of the audio file"
+              }
+            },
+            required: ["audio"],
+            additionalProperties: false
+          }
         },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
         {
-          type: "function",
-          function:
-          {
-            name: "fetch_text_from_file",
-            description: "Fetch the text from a file and return its content.",
-            parameters: {
-              type: "object",
-              properties: {
-                file: {
-                  type: "string",
-                  description: "File name or file path"
-                }
-              },
-              required: ["file"],
-              additionalProperties: false
-            }
-          },
-          strict: true
-        }
-      ]
-    }
+          name: "fetch_text_from_file",
+          description: "Fetch the text from a file and return its content.",
+          parameters: {
+            type: "object",
+            properties: {
+              file: {
+                type: "string",
+                description: "File name or file path"
+              }
+            },
+            required: ["file"],
+            additionalProperties: false
+          }
+        },
+        strict: true
+      }
+    ]
+  }
 end

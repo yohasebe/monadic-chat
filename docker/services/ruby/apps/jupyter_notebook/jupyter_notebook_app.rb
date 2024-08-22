@@ -36,7 +36,7 @@ class JupyterNotebook < MonadicApp
     - When you call a function, make sure to provide the correct parameters as described in the function description.
     - Do not add a cell with the same content as the last cell in the notebook.
     - Basically use English both in the conversation and in the code. If the user uses a language other than English, use it in your response and code, only as much as possible.
-    TEXT
+  TEXT
 
   @settings = {
     model: "gpt-4o-2024-08-06",

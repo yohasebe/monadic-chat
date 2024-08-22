@@ -78,7 +78,7 @@ class ChatPlus < MonadicApp
                   }
                 }
               },
-              required: ["topics", "people", "preferences", "notes"],
+              required: ["summary", "topics", "people", "notes"],
               additionalProperties: false
             }
           },

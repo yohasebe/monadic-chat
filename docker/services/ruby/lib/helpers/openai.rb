@@ -396,16 +396,18 @@ module OpenAIHelper
       # If the app is monadic, the message is passed through the monadic_map function
       if obj["monadic"].to_s == "true" && message != ""
         if message != ""
+          APPS[app].methods
           message = APPS[app].monadic_unit(message)
         end
       end
+
       html = markdown_to_html(message, mathjax: obj["mathjax"])
 
       if message != "" && role == "user"
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
-                  "text" => message,
+                  "text" => obj["message"],
                   "html" => html,
                   "role" => role,
                   "lang" => detect_language(message)
@@ -532,8 +534,6 @@ module OpenAIHelper
         tool_call.delete("index")
       end
     end
-
-    pp body
 
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,

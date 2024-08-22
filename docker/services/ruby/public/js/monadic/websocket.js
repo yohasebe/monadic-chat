@@ -492,7 +492,7 @@ function connect_websocket(callback) {
         }
 
         verified = true;
-        setAlert("Ready to start.", "success");
+        setAlert("Ready to start", "success");
 
         $("#start").prop("disabled", false);
         $("#send, #clear, #voice").prop("disabled", false);
@@ -612,7 +612,7 @@ function connect_websocket(callback) {
         // if (infoHtml !== "") {
         //   setAlert(infoHtml, "info");
         // }
-        setAlert("Ready", "success");
+        setAlert("Ready to start", "success");
         break;
       }
       case "pdf_titles": {

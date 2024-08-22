@@ -8,7 +8,6 @@ RUN apt update && \
     build-essential wget curl git pandoc \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
-    imagemagick libmagickwand-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

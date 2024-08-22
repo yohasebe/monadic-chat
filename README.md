@@ -14,6 +14,7 @@
 
 - Recent Updates
   - [Aug, 2024] 0.8.11
+      - App authoring format changed
       - Claude Jupyter Notebook app added
       - Math rendering improved
       - Second Opinion app added

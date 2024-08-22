@@ -23,7 +23,7 @@ class ChatPlus < MonadicApp
   TEXT
 
   @settings = {
-    model: "gpt-4o-mini",
+    model: "gpt-4o-2024-08-06",
     temperature: 0.5,
     top_p: 0.0,
     max_tokens: 4000,

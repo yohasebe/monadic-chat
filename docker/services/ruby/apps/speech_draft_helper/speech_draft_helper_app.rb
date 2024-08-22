@@ -28,10 +28,10 @@ class SpeechDraftHelper < MonadicApp
     - `language`: Language of the speech in the format "en", "es", “ja”, etc. The default is 'auto'.
 
     If you have generated an MP3, present it using the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
-    TEXT
+  TEXT
 
   @settings = {
-    model: "gpt-4o-mini",
+    model: "gpt-4o-2024-08-06",
     temperature: 0.0,
     top_p: 0.0,
     context_size: 20,

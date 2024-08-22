@@ -378,7 +378,7 @@ module OpenAIHelper
     api_key = settings.api_key
 
     # Get the parameters from the session
-    initial_prompt = session[:messages].first["text"].gsub("{{DATE}}", Time.now.strftime("%Y-%m-%d"))
+    initial_prompt = session[:messages].first["text"]
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
     max_tokens = obj["max_tokens"]&.to_i

@@ -49,7 +49,6 @@ class LanguagePracticePlus < MonadicApp
             context: {
               type: "object",
               properties: {
-
                 language_advice: {
                   type: "array",
                   items: {
@@ -62,7 +61,8 @@ class LanguagePracticePlus < MonadicApp
               additionalProperties: false
             }
           },
-          required: ["message", "context"]
+          required: ["message", "context"],
+          additionalProperties: false
         },
         strict: true
       }

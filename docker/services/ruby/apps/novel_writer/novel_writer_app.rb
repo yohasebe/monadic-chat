@@ -116,22 +116,12 @@ class NovelWriter < MonadicApp
                     item: {
                       anyOf: [
                         {
-                          type: "object",
-                          properties: {
-                            name: "total_number_of_words",
-                            type: "integer"
-                          },
-                          required: ["total_number_of_words"],
-                          additionalProperties: false
+                          name: "total_number_of_words",
+                          type: "integer"
                         },
                         {
-                          type: "object",
-                          properties: {
-                            name: "total_number_of_chars",
-                            type: "integer"
-                          },
-                          required: ["total_number_of_chars"],
-                          additionalProperties: false
+                          name: "total_number_of_chars",
+                          type: "integer"
                         }
                       ]
                     }
@@ -145,22 +135,12 @@ class NovelWriter < MonadicApp
                     item: {
                       anyOf: [
                         {
-                          type: "object",
-                          properties: {
-                            name: "number_of_words_so_far",
-                            type: "integer"
-                          },
-                          required: ["number_of_words_so_far"],
-                          additionalProperties: false
+                          name: "number_of_words_so_far",
+                          type: "integer"
                         },
                         {
-                          type: "object",
-                          properties: {
-                            name: "number_of_chars_so_far",
-                            type: "integer"
-                          },
-                          required: ["number_of_chars_so_far"],
-                          additionalProperties: false
+                          name: "number_of_chars_so_far",
+                          type: "integer"
                         }
                       ]
                     }
@@ -210,7 +190,13 @@ class NovelWriter < MonadicApp
                   additionalProperties: false
                 }
               },
-              required: ["grand_plot", "total_text_amount", "text_amount_so_far", "language", "summary_so_far", "characters"],
+              required: ["grand_plot",
+                         "total_text_amount",
+                         "text_amount_so_far",
+                         "language",
+                         "summary_so_far",
+                         "characters",
+                         "inquiry"],
               additionalProperties: false
             }
           },

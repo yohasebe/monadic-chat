@@ -91,7 +91,8 @@ class Translate < MonadicApp
               additionalProperties: false
             }
           },
-          required: ["message", "context"]
+          required: ["message", "context"],
+          additionalProperties: false
         },
         strict: true
       }

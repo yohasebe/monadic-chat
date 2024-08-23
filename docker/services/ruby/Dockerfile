@@ -63,4 +63,4 @@ COPY views/ $WORKSPACE/views/
 
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*
-ENV PATH="$WORKSPACE/scripts:${PATH}"
+ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"

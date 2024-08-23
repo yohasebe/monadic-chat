@@ -30,7 +30,6 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     ca-certificates curl gnupg lsb-release \
     postgresql-client \
-    imagemagick \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -45,7 +44,11 @@ RUN echo "deb [arch=$(dpkg --print-architecture) \
 
 RUN apt update && \
     apt install -y --no-install-recommends \
-    docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    docker-ce docker-ce-cli containerd.io docker-compose-plugin \
+    gobject-introspection \
+    imagemagick libmagickcore-dev libmagickwand-dev
+
+RUN gem install rsyntaxtree
 
 ENV WORKSPACE /monadic
 WORKDIR $WORKSPACE

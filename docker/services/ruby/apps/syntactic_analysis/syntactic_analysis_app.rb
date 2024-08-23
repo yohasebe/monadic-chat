@@ -14,8 +14,7 @@ class SyntaxTree < MonadicApp
 
     The function will return a JSON object representing the syntax tree of the sentence.
 
-
-    Upon receiving the JSON object, call `syntree_render_agent` with the the labeled blacket notation of the JSON object as a parameter. The function will render the syntax tree as an image and return the image file name SYNTREE_FILE.
+    Upon receiving the JSON object, call `syntree_render_agent` with the three parameters: the labeled blacket notation of the JSON object; the format of the image (svg, png, or jpg); and the number of seconds for the function to wait for the RSyntaxTree progam to finish outputting the image before it returns the output file name SYNTREE_FILE. Use the default value of "svg" for the format and 1 second for the wait time unless there is a specific reason to change them.
 
     Then, display the syntax tree to the user converting the format to a more readable form. The response format is given below. Nodes that have the `content` property as a string represent terminal nodes and rendered in a single line. Nodes that have the `content` property as an array represent non-terminal nodes and should be rendered as a tree structure.
 
@@ -105,9 +104,18 @@ class SyntaxTree < MonadicApp
               text: {
                 type: "string",
                 description: "The labeled bracket notation of the syntax tree"
+              },
+              format: {
+                type: "string",
+                description: "The format of the image (e.g., svg, png, jpg)",
+                enum: ["svg", "png", "jpg"]
+              },
+              wait: {
+                type: "number",
+                description: "The time to wait before rendering the image"
               }
             },
-            required: ["text"],
+            required: ["text", "format", "wait"],
             additionalProperties: false
           }
         },

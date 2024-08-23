@@ -216,7 +216,7 @@ module ClaudeHelper
   end
 
   def check_num_tokens(msg)
-    t = ms["tokens"]
+    t = msg["tokens"]
     if t
       new_t = t.to_i
     else

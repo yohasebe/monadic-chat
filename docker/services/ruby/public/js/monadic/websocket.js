@@ -189,21 +189,42 @@ $(document).on("click", ".copy-button", function () {
   });
 });
  
-
 async function applyMermaid(element) {
-  element.find(".mermaid-code").each(function () {
+  element.find(".mermaid-code").each(function (index) {
     const mermaidElement = $(this);
     mermaidElement.addClass("sourcecode");
     mermaidElement.find("pre").addClass("sourcecode");
     let mermaidText = mermaidElement.text().trim();
     mermaidElement.find("pre").text(mermaidText);
     addToggleSourceCode(mermaidElement);
-    mermaidElement.after(`<div class="diagram"><mermaid>\n${mermaidText}\n</mermaid></div>`);
+    const diagramContainer = $(`<div class="diagram" id="diagram-${index}"><mermaid>${mermaidText}</mermaid></div>`);
+    mermaidElement.after(diagramContainer);
   });
 
   mermaid.initialize(mermaid_config);
   await mermaid.run({
     querySelector: 'mermaid'
+  });
+
+  // Add download functionality
+  element.find(".diagram").each(function (index) {
+    const diagram = $(this);
+    const downloadButton = $('<button class="btn btn-secondary btn-sm mermaid-btn">Download SVG</button>');
+    downloadButton.on('click', function () {
+      const svgElement = diagram.find('svg')[0];
+      const serializer = new XMLSerializer();
+      const source = serializer.serializeToString(svgElement);
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `diagram-${index + 1}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+    diagram.after(downloadButton);
   });
 }
 

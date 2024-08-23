@@ -45,8 +45,10 @@ module MonadicAgent
       end
     end
 
+    result_file = File.join(datadir, "#{tempname}.png")
+
     if success
-      command = "bash -c 'mv syntree.png #{tempname}.png'"
+      command = "bash -c 'mv #{syntree_file} #{result_file}'"
       send_command(command: command, container: "ruby",
                    success: "Syntax tree rendered successfully as #{tempname}.png")
     else

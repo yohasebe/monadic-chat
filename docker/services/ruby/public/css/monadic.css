@@ -460,9 +460,11 @@ div.sourcecode-toggle {
 
 .generated_image img {
   max-width: 100%;
+  max-height: 600px;
   margin-bottom: 16px;
 }
 
+.syntree_image img 
 .card-body table {
   border: 1px solid #ccc;
   border-collapse: collapse;

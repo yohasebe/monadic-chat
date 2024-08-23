@@ -573,3 +573,8 @@ pre {
   list-style-type: none;
   padding-left: 0;
 }
+
+.mermaid-btn {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}

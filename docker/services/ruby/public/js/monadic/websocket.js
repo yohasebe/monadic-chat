@@ -196,7 +196,7 @@ async function applyMermaid(element) {
     mermaidElement.find("pre").addClass("sourcecode");
     let mermaidText = mermaidElement.text().trim();
     mermaidElement.find("pre").text(mermaidText);
-    addToggleSourceCode(mermaidElement);
+    addToggleSourceCode(mermaidElement, "Toggle Mermaid Diagram");
     const diagramContainer = $(`<div class="diagram" id="diagram-${index}"><mermaid>${mermaidText}</mermaid></div>`);
     mermaidElement.after(diagramContainer);
   });
@@ -209,7 +209,7 @@ async function applyMermaid(element) {
   // Add download functionality
   element.find(".diagram").each(function (index) {
     const diagram = $(this);
-    const downloadButton = $('<button class="btn btn-secondary btn-sm mermaid-btn">Download SVG</button>');
+    const downloadButton = $('<button class="btn btn-secondary btn-sm">Download SVG</button>');
     downloadButton.on('click', function () {
       const svgElement = diagram.find('svg')[0];
       const serializer = new XMLSerializer();
@@ -289,7 +289,7 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
   ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
 }
 
-function applyToggle(element, open = false, nl2br = false) {
+function applyToggle(element, nl2br = false) {
   element.find(".toggle").each(function () {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");
@@ -298,12 +298,11 @@ function applyToggle(element, open = false, nl2br = false) {
       let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
       toggleElement.find("pre").text(toggleText);
     }
-    addToggleSourceCode(toggleElement, open);
+    addToggleSourceCode(toggleElement, toggleElement.data("label"));
   });
 }
 
-function addToggleSourceCode(element, open = false) {
-  let title = "Show/Hide Code";
+function addToggleSourceCode(element, title = "Toggle Source Code") {
   // if element has data-title attribute, use that as the title
   if (element.data("title")) {
     title = element.data("title");
@@ -321,9 +320,7 @@ function addToggleSourceCode(element, open = false) {
       $(this).html(toggleShow);
     }
   });
-  if (!open) {
-    element.hide();
-  }
+  element.hide();
 }
 
 function formatSourceCode(element) {
@@ -351,7 +348,7 @@ function applyAbc(element) {
     abcElement.find("pre").text(abcText);
     const abcSVG = `abc-svg-${abcId}`;
     const abcMidi = `abc-midi-${abcId}`;
-    addToggleSourceCode(abcElement);
+    addToggleSourceCode(abcElement, "Toggle ABC Notation");
     abcElement.after(`<div>&nbsp;</div>`);
     abcElement.after(`<div id="${abcMidi}" class="abc-midi"></div>`);
     abcElement.after(`<div id="${abcSVG}" class="abc-svg"></div>`);
@@ -835,8 +832,8 @@ function connect_websocket(callback) {
 
         htmlContent = $("#discourse div.card:last");
 
-        if (params["toggle"] === "true" || params["toggle"] === "open") {
-          applyToggle(htmlContent, params["toggle"] === "open");
+        if (params["toggle"] === "true") {
+          applyToggle(htmlContent);
         }
 
         if (params["mermaid"] === "true") {

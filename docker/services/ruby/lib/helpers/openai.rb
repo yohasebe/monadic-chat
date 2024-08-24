@@ -473,7 +473,8 @@ module OpenAIHelper
           message["content"] << {
             "type" => "image_url",
             "image_url" => {
-              "url" => img["data"]
+              "url" => img["data"],
+              "detail" => "high"
             }
           }
         end

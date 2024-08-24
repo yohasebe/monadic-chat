@@ -42,7 +42,7 @@ class MermaidGrapher < MonadicApp
 
     Respond with the mermaid diagram code in the following HTML format:
 
-    <div class="mermaid-code">
+    <div class="mermaid-code" label="Show/Hide Mermaid code">
       <pre>
         <code>Mermaid code goes here (without "mermaid" tags and Markdown code block)</code>
       </pre>
@@ -116,7 +116,7 @@ class MermaidGrapher < MonadicApp
   }
 
   def mermaid_examples(diagram_type: "graph")
-    file_path = File.join(__dir__, "examples", "#{diagram_type}.md")
+    file_path = File.join(__dir__, "mermaid_examples", "#{diagram_type}.md")
     if File.exist?(file_path)
       diagram_type_content = File.read(file_path)
 

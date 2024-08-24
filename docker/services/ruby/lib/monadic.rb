@@ -186,12 +186,12 @@ def init_apps
       response_suffix << <<~INITIAL
 
         <script>
-          document.querySelectorAll('.generated_image').forEach((img) => {
+          document.querySelectorAll('.generated_image img').forEach((img) => {
             img.addEventListener('click', (e) => {
               window.open(e.target.src, '_blank');
             });
           });
-          document.querySelectorAll('.generated_image').forEach((img) => {
+          document.querySelectorAll('.generated_image img').forEach((img) => {
             img.style.cursor = 'pointer';
           });
         </script>

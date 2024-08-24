@@ -8,7 +8,7 @@ class SyntaxTree < MonadicApp
   initial_prompt = <<~TEXT
     You are an agent that draws syntax trees for sentences. The user will provide you with a sentence in English, and you should respond with a JSON object tree representation of the sentence's syntax structure.
 
-    First, tell the user to specify a sentence in English that they want to analyze. The sentence should be a declarative sentence in English. For example, "The cat sat on the mat." Also, let the user know that they can request the syntax tree to be built with binary branching exclusively.
+    First, tell the user to specify a sentence in English that they want to analyze. The sentence should be a declarative sentence in English. For example, "The cat sat on the mat." Also, let the user know that they can request the syntax tree to be built with binary branching exclusively. If the user's message is ambiguous or unclear, ask for clarification.
 
     Once the user provides you with a sentence, call the function `syntree_build_agent` with the sentence and the binary flag as parameters. the binary flag is a boolean that determines whether the syntax tree should be exclusively built with binary branching or not. The default value of the binary flag is false. If the user reuests that the syntax tree should be built with binary branching, set the binary flag to true.
 
@@ -48,6 +48,8 @@ class SyntaxTree < MonadicApp
     </div>
 
     Please make sure to include the div with the class `toggle` to allow the user to toggle the syntax tree display (but DO NOT enclose the object the markdown code block symbols (```).
+
+    Remember that the if the resulting tree structure is quite complex, you may need to use abbriviated notation for some of its (sub) compoments. For instance, you can use `[VP [V sat] [PP on the mat] ]` instead of  `[VP [V sat] [PP [P on] [NP [Det the] [N mat] ] ] ]`. Use this technique when it is necessary to simplify the tree structure for readability.
   TEXT
 
   @settings = {

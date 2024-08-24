@@ -24,7 +24,7 @@ class SyntaxTree < MonadicApp
 
     **Binary Mode**: BINARY_MODE
 
-    <div class='toggle'><pre><code>
+    <div class='toggle' data-label='Toggle synatax code'><pre><code>
     [S
       [NP
         [Det The]

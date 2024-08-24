@@ -1,5 +1,3 @@
-require_relative "basic_agent"
-
 module MonadicAgent
   def syntree_render_agent(text:, format: "svg", wait: 1)
     return "Error: input text is required." if text.to_s.empty?

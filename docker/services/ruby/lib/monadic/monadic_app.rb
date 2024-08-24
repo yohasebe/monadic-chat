@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "./agents/basic_agent"
+
 Dir.glob(File.expand_path("agents/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
-
-require_relative ""
 
 SINGLETON_TOKENIZER = FlaskAppClient.new
 
@@ -169,6 +169,14 @@ class MonadicApp
     when "python"
       shared_volume = "/monadic/data"
       container = "monadic-chat-python-container"
+      script_dir = "/monadic/data/scripts"
+      system_command = <<~DOCKER
+        docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'
+        docker exec -w #{shared_volume} #{container} #{command}
+      DOCKER
+    else
+      shared_volume = "/monadic/data"
+      container = "monadic-chat-#{container}-container"
       script_dir = "/monadic/data/scripts"
       system_command = <<~DOCKER
         docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'

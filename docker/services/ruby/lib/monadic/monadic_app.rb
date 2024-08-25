@@ -12,6 +12,14 @@ class MonadicApp
   include MonadicAgent
   TOKENIZER = SINGLETON_TOKENIZER
 
+  SYSTEM_SCRIPT_DIR = "/monadic/scripts"
+  USER_SCRIPT_DIR = "/monadic/data/scripts"
+  SHARED_VOL = "/monadic/data"
+
+  LOCAL_SYSTEM_SCRIPT_DIR = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
+  LOCAL_USER_SCRIPT_DIR = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts"))
+  LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
+
   # access the flask app client so that it gets ready before the first request
 
   attr_accessor :api_key, :context, :embeddings_db, :settings
@@ -150,37 +158,33 @@ class MonadicApp
     case container.to_s
     when "ruby"
       if IN_CONTAINER
-        script_dir = "/monadic/scripts"
-        script_dir_local = "/monadic/data/scripts"
-        shared_volume = "/monadic/data"
+        system_script_dir = SYSTEM_SCRIPT_DIR
+        user_system_script_dir = USER_SCRIPT_DIR
+        shared_volume = SHARED_VOL
       else
-        script_dir = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
-        script_dir_local = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts"))
-        shared_volume = File.expand_path(File.join(Dir.home, "monadic", "data"))
+        system_script_dir = LOCAL_SYSTEM_SCRIPT_DIR
+        user_system_script_dir = LOCAL_USER_SCRIPT_DIR
+        shared_volume = LOCAL_SHARED_VOL
       end
       system_command = <<~SYS
-        find #{script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        find #{script_dir_local} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        export PATH="#{script_dir}:${PATH}" && \
-        export PATH="#{script_dir_local}:${PATH}" && \
+        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+        find #{user_system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+        export PATH="#{system_script_dir}:${PATH}" && \
+        export PATH="#{user_system_script_dir}:${PATH}" && \
         cd #{shared_volume} && \
         #{command}
       SYS
     when "python"
-      shared_volume = "/monadic/data"
       container = "monadic-chat-python-container"
-      script_dir = "/monadic/data/scripts"
       system_command = <<~DOCKER
-        docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'
-        docker exec -w #{shared_volume} #{container} #{command}
+        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +'
+        docker exec -w #{SHARED_VOL} #{container} #{command}
       DOCKER
     else
-      shared_volume = "/monadic/data"
       container = "monadic-chat-#{container}-container"
-      script_dir = "/monadic/data/scripts"
       system_command = <<~DOCKER
-        docker exec #{container} bash -c 'find #{script_dir} -type f -exec chmod +x {} +'
-        docker exec -w #{shared_volume} #{container} #{command}
+        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +'
+        docker exec -w #{SHARED_VOL} #{container} #{command}
       DOCKER
     end
 
@@ -213,15 +217,13 @@ class MonadicApp
   end
 
   def write_to_file(filename:, extension:, text:)
-    shared_volume = "/monadic/data/"
     if IN_CONTAINER
-      data_dir = "/monadic/data/"
+      data_dir = SHARED_VOL
     else
-      data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+      data_dir = LOCAL_SHARED_VOL
     end
 
     container = "monadic-chat-python-container"
-
     filepath = File.join(data_dir, "#{filename}.#{extension}")
 
     # create a temporary file inside the data directory
@@ -230,7 +232,7 @@ class MonadicApp
     end
 
     docker_command = <<~DOCKER
-      docker cp #{filepath} #{container}:#{shared_volume}
+      docker cp #{filepath} #{container}:#{SHARED_VOL}
     DOCKER
     _stdout, stderr, status = Open3.capture3(docker_command)
     if status.success
@@ -243,11 +245,10 @@ class MonadicApp
   end
 
   def send_code(code:, command:, extension:)
-    shared_volume = "/monadic/data/"
     if IN_CONTAINER
-      data_dir = "/monadic/data/"
+      data_dir = SHARED_VOL
     else
-      data_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
+      data_dir = LOCAL_SHARED_VOL
     end
 
     container = "monadic-chat-python-container"
@@ -258,7 +259,7 @@ class MonadicApp
     temp_file.write(code)
     temp_file.close
     docker_command = <<~DOCKER
-      docker cp #{temp_file.path} #{container}:#{shared_volume}
+      docker cp #{temp_file.path} #{container}:#{SHARED_VOL}
     DOCKER
     stdout, stderr, status = Open3.capture3(docker_command)
     unless status.success?
@@ -268,9 +269,11 @@ class MonadicApp
     local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
 
     docker_command = <<~DOCKER
-      docker exec -w #{shared_volume} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
+      docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
     DOCKER
+
     stdout, stderr, status = Open3.capture3(docker_command)
+
     if status.success?
       local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
       new_files = local_files2 - local_files1
@@ -289,43 +292,6 @@ class MonadicApp
   rescue StandardError
     "Error occurred: The code could not be executed."
   end
-
-  def selenium_job(url: "")
-    command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
-    # we wait for the following command to finish before returning the output
-    send_command(command: command, container: "python") do |stdout, stderr, status|
-      if status.success?
-        filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
-        if IN_CONTAINER
-          begin
-            filename = File.join("/monadic/data/", File.basename(filename))
-          rescue StandardError
-            filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
-          end
-        else
-          filename = File.join(File.expand_path("~/monadic/data/"), File.basename(filename))
-        end
-        retrials = 3
-        sleep(5)
-        begin
-          contents = File.read(filename)
-        rescue StandardError
-          if retrials.positive?
-            retrials -= 1
-            sleep(5)
-            retry
-          else
-            "Error occurred: The #{filename} could not be read."
-          end
-        end
-        contents
-      else
-        "Error occurred: #{stderr}"
-      end
-    end
-  end
-
-  ### API functions
 
   def run_code(code: "", command: "", extension: "")
     return "Error: code, command, and extension are required." if !code || !command || !extension
@@ -346,357 +312,6 @@ class MonadicApp
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension)
-  end
-
-  def lib_installer(command: "", packager: "")
-    install_command = case packager
-                      when "pip"
-                        "pip install #{command}"
-                      when "apt"
-                        "apt-get install -y #{command}"
-                      else
-                        "echo 'Invalid packager'"
-                      end
-
-    send_command(command: install_command,
-                 container: "python",
-                 success: "The library #{command} has been installed successfully.\n")
-  end
-
-  def add_jupyter_cells(filename: "", cells: "")
-    return "Error: Filename is required." if filename == ""
-    return "Error: Proper cell data is required; Probably the structure is ill-formated." if cells == ""
-
-    begin
-      cells_in_json = cells.to_json
-    rescue StandardError => e
-      return "Error: The cells data could not be converted to JSON. #{e.message}"
-    end
-
-    tempfile = Time.now.to_i.to_s
-    write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
-
-    if IN_CONTAINER
-      begin
-        filepath = File.join("/monadic/data/", tempfile + ".json")
-      rescue StandardError
-        filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
-      end
-    else
-      filepath = File.join(File.expand_path("~/monadic/data/"), tempfile + ".json")
-    end
-
-    success = false
-    max_retrial = 20
-    max_retrial.times do
-      sleep 1.5
-      if File.exist?(filepath)
-        success = true
-        break
-      end
-    end
-    results1 = if success
-                 command = "bash -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
-                 send_command(command: command,
-                              container: "python",
-                              success: "The cells have been added to the notebook successfully.\n")
-               else
-                 false
-               end
-    if results1
-      results2 = run_jupyter_cells(filename: filename)
-      results1 + "\n\n" + results2
-    else
-      "Error: The cells could not be added to the notebook."
-    end
-  end
-
-  def run_jupyter_cells(filename:)
-    command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=60 --allow-errors --inplace"
-    send_command(command: command,
-                 container: "python",
-                 success: "The notebook has been executed and updated with the results successfully.\n")
-  end
-
-  def create_jupyter_notebook(filename:)
-    begin
-      # filename extension is not required and removed if provided
-      filename = filename.to_s.split(".")[0]
-    rescue StandardError
-      filename = ""
-    end
-    command = "bash -c 'jupyter_controller.py create #{filename}'"
-    send_command(command: command, container: "python")
-  end
-
-  def run_jupyter(command: "")
-    command = case command
-              when "start", "run"
-                "bash -c 'run_jupyter.sh run'"
-              when "stop"
-                "bash -c 'run_jupyter.sh stop'"
-              else
-                return "Error: Invalid command."
-              end
-    send_command(command: command,
-                 container: "python",
-                 success: "Success: Access Jupter Lab at 127.0.0.1:8888/lab\n")
-  end
-
-  def run_bash_command(command: "")
-    send_command(command: command,
-                 container: "python",
-                 success: "Command executed successfully.\n")
-  end
-
-  def fetch_web_content(url: "")
-    selenium_job(url: url)
-  end
-
-  def fetch_text_from_office(file: "")
-    command = <<~CMD
-      bash -c 'office2txt.py "#{file}"'
-    CMD
-    send_command(command: command, container: "python")
-  end
-
-  def fetch_text_from_pdf(pdf: "")
-    command = <<~CMD
-      bash -c 'pdf2txt.py "#{pdf}" --format text'
-    CMD
-    send_command(command: command, container: "python")
-  end
-
-  def fetch_text_from_file(file: "")
-    command = <<~CMD
-      bash -c 'simple_content_fetcher.rb "#{file}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def analyze_image(message: "", image_path: "", model: "gpt-4o-mini")
-    message = message.gsub(/"/, '\"')
-    model = ENV["VISION_MODEL"] || model == "gpt-4o-mini"
-    command = <<~CMD
-      bash -c 'simple_image_query.rb "#{message}" "#{image_path}" "#{model}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def analyze_audio(audio: "")
-    command = <<~CMD
-      bash -c 'simple_whisper_query.rb "#{audio}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def text_to_speech(text: "", speed: 1.0, voice: "alloy", language: "auto")
-    text = text.gsub(/"/, '\"')
-
-    primary_save_path = "/monadic/data/"
-    secondary_save_path = File.expand_path("~/monadic/data/")
-
-    save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
-    textfile = "#{Time.now.to_i}.md"
-    textpath = File.join(save_path, textfile)
-
-    File.open(textpath, "w") do |f|
-      f.write(text)
-    end
-
-    command = <<~CMD
-      bash -c 'simple_tts_query.rb "#{textpath}" --speed=#{speed} --voice=#{voice} --language=#{language}'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def generate_image(prompt: "", size: "1024x1024")
-    command = <<~CMD
-      bash -c 'simple_image_generation.rb -p "#{prompt}" -s "#{size}"'
-    CMD
-    send_command(command: command, container: "ruby")
-  end
-
-  def search_wikipedia(search_query: "", language_code: "en")
-    number_of_results = 10
-
-    base_url = "https://api.wikimedia.org/core/v1/wikipedia/"
-    endpoint = "/search/page"
-    url = base_url + language_code + endpoint
-    parameters = { "q": search_query, "limit": number_of_results }
-
-    search_uri = URI(url)
-    search_uri.query = URI.encode_www_form(parameters)
-
-    begin
-      search_response = perform_request_with_retries(search_uri)
-    rescue StandardError
-      return "Error: The search request could not be completed. The URL is: #{search_uri}"
-    end
-
-    begin
-      search_data = JSON.parse(search_response)
-    rescue JSON::ParserError
-      return "Error: The search response could not be parsed. The response is: #{search_response}"
-    end
-
-    <<~TEXT
-      ```json
-      #{search_data.to_json}
-      ```
-    TEXT
-  end
-
-  def perform_request_with_retries(uri)
-    retries = 2
-    begin
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 5) do |http|
-        request = Net::HTTP::Get.new(uri)
-        http.request(request)
-      end
-      response.body
-    rescue Net::OpenTimeout
-      if retries.positive?
-        retries -= 1
-        retry
-      else
-        raise
-      end
-    end
-  end
-
-  def cosine_similarity(a, b)
-    raise ArgumentError, "a and b must be of the same size" if a.size != b.size
-
-    dot_product = a.zip(b).map { |x, y| x * y }.sum
-    magnitude_a = Math.sqrt(a.map { |x| x**2 }.sum)
-    magnitude_b = Math.sqrt(b.map { |x| x**2 }.sum)
-    dot_product / (magnitude_a * magnitude_b)
-  end
-
-  def most_similar_text_index(topic, texts)
-    embeddings = get_embeddings(topic)
-    texts_embeddings = texts.map { |t| get_embeddings(t) }.compact
-    cosine_similarities = texts_embeddings.map { |e| cosine_similarity(embeddings, e) }
-    cosine_similarities.each_with_index.max[1]
-  end
-
-  def split_text(text)
-    tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
-    segments = []
-    while tokenized.size < MAX_TOKENS_WIKI.to_i
-      segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
-      segments << MonadicApp::TOKENIZER.decode_tokens(segment)
-      tokenized = tokenized[MAX_TOKENS_WIKI.to_i..]
-    end
-    segments << flask_app_client.decode_tokens(tokenized)
-    segments
-  rescue StandardError
-    [text]
-  end
-
-  def get_embeddings(text, retries: 3)
-    raise ArgumentError, "text cannot be empty" if text.empty?
-
-    uri = URI("https://api.openai.com/v1/embeddings")
-    request = Net::HTTP::Post.new(uri)
-    request["Content-Type"] = "application/json"
-
-    api_key = ENV["OPENAI_API_KEY"]
-
-    request["Authorization"] = "Bearer #{api_key}"
-    request.body = {
-      model: "text-embedding-3-small",
-      input: text
-    }.to_json
-
-    response = nil
-    retries.times do |i|
-      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|
-        http.request(request)
-      end
-      break if response.is_a?(Net::HTTPSuccess)
-    rescue StandardError => e
-      puts "Error: #{e.message}. Retrying in #{i + 1} seconds..."
-      sleep(i + 1)
-    end
-
-    begin
-      JSON.parse(response.body)["data"][0]["embedding"]
-    rescue StandardError
-      nil
-    end
-  end
-
-  def list_titles
-    if embeddings_db.nil?
-      return "Error: The database connection is not available."
-    end
-
-    res = embeddings_db.list_titles
-    if res.empty?
-      "Error: No titles found."
-    else
-      res.to_json
-    end
-  end
-
-  def get_text_snippets(doc_id:)
-    if embeddings_db.nil?
-      return "Error: The database connection is not available."
-    end
-
-    res = embeddings_db.get_text_snippets(doc_id)
-    if res.empty?
-      "Error: No text snippets found."
-    else
-      res.to_json
-    end
-  end
-
-  def find_closest_text(text: "", top_n: 1)
-    if embeddings_db.nil?
-      return "Error: The database connection is not available."
-    end
-
-    res = embeddings_db.find_closest_text(text, top_n: top_n)
-    if res.empty?
-      "Error: The text could not be found."
-    else
-      res.to_json
-    end
-  rescue StandardError
-    "Error: The text could not be found."
-  end
-
-  def find_closest_doc(text: "", top_n: 1)
-    if embeddings_db.nil?
-      return "Error: The database connection is not available."
-    end
-
-    res = embeddings_db.find_closest_doc(text, top_n: top_n)
-    if res.empty?
-      "Error: The document could not be found."
-    else
-      res.to_json
-    end
-  rescue StandardError
-    "Error: The document could not be found."
-  end
-
-  def get_text_snippet(doc_id:, position:)
-    if embeddings_db.nil?
-      return "Error: The database connection is not available."
-    end
-
-    res = embeddings_db.get_text_snippet(doc_id, position)
-    if res.empty?
-      "Error: The text could not be found."
-    else
-      res.to_json
-    end
-  rescue StandardError
-    "Error: The text could not be found."
   end
 
   def ai_user_initial_prompt

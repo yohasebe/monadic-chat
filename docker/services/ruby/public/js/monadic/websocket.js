@@ -290,6 +290,10 @@ function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEve
 }
 
 function applyToggle(element, nl2br = false) {
+  // return if element is already applied with toggle
+  if (element.find(".sourcecode-toggle").length > 0) {
+    return;
+  }
   element.find(".toggle").each(function () {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");

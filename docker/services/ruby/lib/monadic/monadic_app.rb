@@ -26,6 +26,18 @@ class MonadicApp
   # shared volume in the local computer to share with the containers
   LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
 
+  AI_USER_INITIAL_PROMPT = <<~PROMPT
+      The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
+
+      Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
+
+      Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics.
+
+      Your response should be consice and clear. Even if the preceding messages are formatted as json, you keep your response as plain text. do not use parentheses or brackets in your response.
+
+      Remember you are the one who inquires for information, not providing the answers.
+  PROMPT
+
   # access the flask app client so that it gets ready before the first request
 
   attr_accessor :api_key, :context, :embeddings_db, :settings
@@ -290,20 +302,5 @@ class MonadicApp
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension)
-  end
-
-  def ai_user_initial_prompt
-    text = <<~TEXT
-      The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
-
-      Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
-
-      Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics.
-
-      Your response should be consice and clear. Even if the preceding messages are formatted as json, you keep your response as plain text. do not use parentheses or brackets in your response.
-
-      Remember you are the one who inquires for information, not providing the answers.
-    TEXT
-    text.strip
   end
 end

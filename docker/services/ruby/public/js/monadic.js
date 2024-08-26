@@ -510,6 +510,7 @@ $("#send").on("click", function(event) {
   $("#ai-user-initial-prompt-toggle").on("change", function() {
     if (this.checked) {
       $("#ai-user-initial-prompt").css("display", "");
+      autoResize($("#ai-user-initial-prompt"));
     } else {
       $("#ai-user-initial-prompt").css("display", "none");
     }
@@ -586,8 +587,6 @@ $("#send").on("click", function(event) {
   $(document).click(adjustScrollButtons);
 
   $(document).ready(function() {
-    $("#ai-user-initial-prompt").val(aiUserInitialPrompt);
-    autoResize($("#ai-user-initial-prompt"));
     $("#initial-prompt").css("display", "none");
     $("#initial-prompt-toggle").prop("checked", false);
     $("#ai-user-initial-prompt").css("display", "none");

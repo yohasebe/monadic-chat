@@ -12,12 +12,18 @@ class MonadicApp
   include MonadicAgent
   TOKENIZER = SINGLETON_TOKENIZER
 
+  # script directory to store the system scripts
   SYSTEM_SCRIPT_DIR = "/monadic/scripts"
+  # script directory to store the user scripts
   USER_SCRIPT_DIR = "/monadic/data/scripts"
+  # shared volume between the containers
   SHARED_VOL = "/monadic/data"
 
+  # script directory in the dev mode (= when ruby-container is not used)
   LOCAL_SYSTEM_SCRIPT_DIR = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
+  # script directory in the local computer to store the user scripts
   LOCAL_USER_SCRIPT_DIR = File.expand_path(File.join(Dir.home, "monadic", "data", "scripts"))
+  # shared volume in the local computer to share with the containers
   LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
 
   # access the flask app client so that it gets ready before the first request
@@ -214,34 +220,6 @@ class MonadicApp
     end
   rescue StandardError => e
     "Error occurred: #{e.message}"
-  end
-
-  def write_to_file(filename:, extension:, text:)
-    if IN_CONTAINER
-      data_dir = SHARED_VOL
-    else
-      data_dir = LOCAL_SHARED_VOL
-    end
-
-    container = "monadic-chat-python-container"
-    filepath = File.join(data_dir, "#{filename}.#{extension}")
-
-    # create a temporary file inside the data directory
-    File.open(filepath, "w") do |f|
-      f.write(text)
-    end
-
-    docker_command = <<~DOCKER
-      docker cp #{filepath} #{container}:#{SHARED_VOL}
-    DOCKER
-    _stdout, stderr, status = Open3.capture3(docker_command)
-    if status.success
-      "The file has been written successfully."
-    else
-      "Error occurred: #{stderr}"
-    end
-  rescue StandardError
-    "Error occurred: The code could not be executed."
   end
 
   def send_code(code:, command:, extension:)

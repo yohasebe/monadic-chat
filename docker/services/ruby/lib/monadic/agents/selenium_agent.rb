@@ -1,5 +1,10 @@
 module MonadicAgent
+  def fetch_web_content(url: "")
+    selenium_job(url: url)
+  end
+
   def selenium_job(url: "")
+    max_retrials = 10
     command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
     # we wait for the following command to finish before returning the output
     send_command(command: command, container: "python") do |stdout, stderr, status|
@@ -12,22 +17,26 @@ module MonadicAgent
                           MonadicApp::LOCAL_SHARED_VOL
                         end
 
-        filename = File.join(shared_volume, File.basename(filename))
+        filepath = File.join(shared_volume, File.basename(filename))
 
-        retrials = 3
-        sleep 4
-        begin
-          contents = File.read(filename)
-        rescue StandardError
-          if retrials.positive?
-            retrials -= 1
-            sleep 4
-            retry
+        success = false
+        max_retrials.times do
+          if File.exist?(filepath)
+            success = true
+            break
+          elsif max_retrials.positive?
+            max_retrials -= 1
+            sleep 2
           else
-            "Error occurred: The #{filename} could not be read."
+            break
           end
         end
-        contents
+
+        if success
+          File.read(filepath)
+        else
+          "Error occurred: The #{filename} could not be read."
+        end
       else
         "Error occurred: #{stderr}"
       end

@@ -506,6 +506,8 @@ function connect_websocket(callback) {
       case "token_verified": {
         $("#api-token").val(data["token"]);
 
+        $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
+
         if (!verified) {
           model_options = data['models'].map(
             model => `<option value="${model}">${model}</option>`

@@ -38,6 +38,7 @@ module MonadicAgent
     docker_command = <<~DOCKER
       docker cp #{filepath} #{container}:#{data_dir}
     DOCKER
+
     _stdout, stderr, status = Open3.capture3(docker_command)
 
     if status.exitstatus.zero?

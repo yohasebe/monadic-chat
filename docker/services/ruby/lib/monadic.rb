@@ -40,7 +40,6 @@ require_relative "helpers/flask_app_client"
 
 require_relative "embeddings/pdf_text_extractor"
 require_relative "embeddings/text_embeddings"
-require_relative "monadic/monadic_app"
 require_relative "monadic/version"
 
 require_relative "helpers/openai"
@@ -51,6 +50,8 @@ helpers WebSocketHelper
 
 require_relative "helpers/utilities"
 helpers UtilitiesHelper
+
+require_relative "monadic/monadic_app"
 
 envpath = File.expand_path OpenAIHelper::ENV_PATH
 Dotenv.load(envpath)

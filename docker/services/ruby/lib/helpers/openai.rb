@@ -442,7 +442,8 @@ module OpenAIHelper
       "stream" => true,
       "stop" => nil,
       "presence_penalty" => presence_penalty,
-      "frequency_penalty" => frequency_penalty
+      "frequency_penalty" => frequency_penalty,
+      "parallel_tool_calls" => false
     }
 
     body["max_tokens"] = max_tokens if max_tokens

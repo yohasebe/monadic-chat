@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "./gemini_helper"
-
 class ChatWithGemini < MonadicApp
   include GeminiHelper
 

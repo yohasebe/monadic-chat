@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "./mistral_helper"
-
 class CodeWithMistral < MonadicApp
   include MistralHelper
 

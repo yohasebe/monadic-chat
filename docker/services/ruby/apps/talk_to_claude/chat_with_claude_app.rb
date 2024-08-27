@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "./claude_helper"
-
 class ChatWithClaude < MonadicApp
   include ClaudeHelper
 

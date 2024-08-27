@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "./command_r_helper"
-
 class CodeWithCommandR < MonadicApp
   include CommandRHelper
 

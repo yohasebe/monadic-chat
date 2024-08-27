@@ -2,6 +2,10 @@
 
 require_relative "./agents/basic_agent"
 
+Dir.glob(File.expand_path("vendors/*.rb", __dir__)).sort.each do |rb|
+  require rb
+end
+
 Dir.glob(File.expand_path("agents/*.rb", __dir__)).sort.each do |rb|
   require rb
 end

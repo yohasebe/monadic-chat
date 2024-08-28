@@ -1,7 +1,9 @@
+require_relative "basic_agent"
+
 module MonadicAgent
   extend BasicAgent
 
-  def second_opinion_agent(prompt, content)
+  def command_output_agent(prompt, content)
     model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
 
     body = {

@@ -1,4 +1,6 @@
 class SpeechDraftHelper < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-user-tie'></i>"
 
   description = <<~TEXT

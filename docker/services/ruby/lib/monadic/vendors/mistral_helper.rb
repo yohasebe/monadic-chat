@@ -1,6 +1,4 @@
 module MistralHelper
-  include UtilitiesHelper
-
   MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT = 5

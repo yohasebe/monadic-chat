@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "./agents/basic_agent"
+require_relative "./utils/string_utils"
 
 Dir.glob(File.expand_path("vendors/*.rb", __dir__)).sort.each do |rb|
   require rb
@@ -10,11 +11,11 @@ Dir.glob(File.expand_path("agents/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
 
-SINGLETON_TOKENIZER = FlaskAppClient.new
-
 class MonadicApp
   include MonadicAgent
-  TOKENIZER = SINGLETON_TOKENIZER
+  include StringUtils
+
+  TOKENIZER = FlaskAppClient.new
 
   # script directory to store the system scripts
   SYSTEM_SCRIPT_DIR = "/monadic/scripts"

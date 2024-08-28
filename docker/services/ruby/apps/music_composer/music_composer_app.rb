@@ -1,4 +1,6 @@
 class MusicComposer < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-music'></i>"
 
   description = <<~TEXT

@@ -1,4 +1,6 @@
 class Translate < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-language'></i>"
 
   description = <<~TEXT

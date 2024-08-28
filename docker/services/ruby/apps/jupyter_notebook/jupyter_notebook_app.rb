@@ -1,4 +1,6 @@
 class JupyterNotebook < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-rocket'></i>"
 
   description = <<~TEXT

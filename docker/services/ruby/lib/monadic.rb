@@ -30,11 +30,7 @@ require "oj"
 Oj.mimic_JSON
 
 # return true if we are inside a docker container
-def in_container?
-  File.file?("/.dockerenv")
-end
-
-IN_CONTAINER = in_container?
+IN_CONTAINER = File.file?("/.dockerenv")
 
 require_relative "monadic/version"
 

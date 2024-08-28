@@ -61,6 +61,9 @@ COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/
 
+# create directories log/, public/, tmp/, and tmp/pids/
+RUN mkdir -p log/
+
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*
 ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"

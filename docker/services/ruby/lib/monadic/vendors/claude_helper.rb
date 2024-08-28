@@ -42,188 +42,6 @@ module ClaudeHelper
     @thinking += result.scan(%r{<thinking>.*?</thinking>}m) if result
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
-    buffer = String.new
-    texts = []
-    tool_calls = []
-    finish_reason = nil
-    content_type = "text"
-
-    if body.respond_to?(:each)
-      body.each do |chunk|
-        break if /\Rdata: [DONE]\R/ =~ chunk
-
-        buffer << chunk
-        scanner = StringScanner.new(buffer)
-        pattern = /data: (\{.*?\})(?=\n|\z)/
-
-        until scanner.eos?
-          matched = scanner.scan_until(pattern)
-          if matched
-            json_data = matched.match(pattern)[1]
-            begin
-              json = JSON.parse(json_data)
-
-              new_content_type = json.dig("content_block", "type")
-              if new_content_type == "tool_use"
-                json["content_block"]["input"] = ""
-                tool_calls << json["content_block"]
-              end
-              content_type = new_content_type if new_content_type
-
-              if content_type == "tool_use"
-                if json.dig("delta", "partial_json")
-                  fragment = json.dig("delta", "partial_json").to_s
-                  next if !fragment || fragment == ""
-
-                  tool_calls.last["input"] << fragment
-                end
-
-                if json.dig("delta", "stop_reason")
-                  stop_reason = json.dig("delta", "stop_reason")
-                  case stop_reason
-                  when "tool_use"
-                    fragment = <<~FRAG
-                      <div class='toggle'><pre>
-                      #{JSON.pretty_generate(tool_calls.last)}
-                      </pre></div>
-                    FRAG
-
-                    texts << "\n" + fragment.strip
-
-                    finish_reason = "tool_use"
-                    res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                    block&.call res1
-                  end
-                end
-              else
-                if json.dig("delta", "text")
-                  fragment = json.dig("delta", "text").to_s
-                  next if !fragment || fragment == ""
-
-                  texts << fragment
-
-                  res = {
-                    "type" => "fragment",
-                    "content" => fragment
-                  }
-                  block&.call res
-                end
-
-                if json.dig("delta", "stop_reason")
-                  stop_reason = json.dig("delta", "stop_reason")
-                  case stop_reason
-                  when "max_tokens"
-                    finish_reason = "length"
-                  when "end_turn"
-                    finish_reason = "stop"
-                  end
-                end
-              end
-            rescue JSON::ParserError
-              # if the JSON parsing fails, the next chunk should be appended to the buffer
-              # and the loop should continue to the next iteration
-            end
-
-          else
-            buffer = scanner.rest
-            break
-          end
-        end
-      rescue StandardError => e
-        pp e.message
-        pp e.backtrace
-        pp e.inspect
-      end
-    end
-
-    result = if texts.empty?
-               nil
-             else
-               texts.join("")
-             end
-
-    if tool_calls.any?
-      get_thinking_text(result)
-
-      call_depth += 1
-
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
-      end
-
-      context = []
-      context << {
-        "role" => "assistant",
-        "content" => []
-      }
-
-      if result
-        context.last["content"] << {
-          "type" => "text",
-          "text" => result
-        }
-      end
-
-      tool_calls.each do |tool_call|
-        begin
-          input_hash = JSON.parse(tool_call["input"])
-        rescue JSON::ParserError
-          input_hash = {}
-        end
-
-        tool_call["input"] = input_hash
-        context.last["content"] << {
-          "type" => "tool_use",
-          "id" => tool_call["id"],
-          "name" => tool_call["name"],
-          "input" => tool_call["input"]
-        }
-      end
-
-      process_functions(app, session, tool_calls, context, call_depth, &block)
-
-    elsif result
-
-      case session[:parameters]["model"]
-      when /opus/
-        result = add_replacements(result)
-        result = add_replacements(@thinking.join("\n")) + result
-        result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
-      when /sonnet/
-        unless @leftover.empty?
-          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
-          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
-        end
-      end
-      @leftover.clear
-
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-      block&.call res
-      [
-        {
-          "choices" => [
-            {
-              "finish_reason" => finish_reason,
-              "message" => { "content" => result }
-            }
-          ]
-        }
-      ]
-    end
-  end
-
-  def check_num_tokens(msg)
-    t = msg["tokens"]
-    if t
-      new_t = t.to_i
-    else
-      new_t = MonadicApp::TOKENIZER.count_tokens(msg["text"]).to_i
-      msg["tokens"] = new_t
-    end
-    new_t > MIN_PROMPT_CACHING
-  end
-
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
@@ -446,6 +264,188 @@ module ClaudeHelper
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
     block&.call res
     [res]
+  end
+
+  def process_json_data(app, session, body, call_depth, &block)
+    buffer = String.new
+    texts = []
+    tool_calls = []
+    finish_reason = nil
+    content_type = "text"
+
+    if body.respond_to?(:each)
+      body.each do |chunk|
+        break if /\Rdata: [DONE]\R/ =~ chunk
+
+        buffer << chunk
+        scanner = StringScanner.new(buffer)
+        pattern = /data: (\{.*?\})(?=\n|\z)/
+
+        until scanner.eos?
+          matched = scanner.scan_until(pattern)
+          if matched
+            json_data = matched.match(pattern)[1]
+            begin
+              json = JSON.parse(json_data)
+
+              new_content_type = json.dig("content_block", "type")
+              if new_content_type == "tool_use"
+                json["content_block"]["input"] = ""
+                tool_calls << json["content_block"]
+              end
+              content_type = new_content_type if new_content_type
+
+              if content_type == "tool_use"
+                if json.dig("delta", "partial_json")
+                  fragment = json.dig("delta", "partial_json").to_s
+                  next if !fragment || fragment == ""
+
+                  tool_calls.last["input"] << fragment
+                end
+
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
+                  case stop_reason
+                  when "tool_use"
+                    fragment = <<~FRAG
+                      <div class='toggle'><pre>
+                      #{JSON.pretty_generate(tool_calls.last)}
+                      </pre></div>
+                    FRAG
+
+                    texts << "\n" + fragment.strip
+
+                    finish_reason = "tool_use"
+                    res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                    block&.call res1
+                  end
+                end
+              else
+                if json.dig("delta", "text")
+                  fragment = json.dig("delta", "text").to_s
+                  next if !fragment || fragment == ""
+
+                  texts << fragment
+
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment
+                  }
+                  block&.call res
+                end
+
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
+                  case stop_reason
+                  when "max_tokens"
+                    finish_reason = "length"
+                  when "end_turn"
+                    finish_reason = "stop"
+                  end
+                end
+              end
+            rescue JSON::ParserError
+              # if the JSON parsing fails, the next chunk should be appended to the buffer
+              # and the loop should continue to the next iteration
+            end
+
+          else
+            buffer = scanner.rest
+            break
+          end
+        end
+      rescue StandardError => e
+        pp e.message
+        pp e.backtrace
+        pp e.inspect
+      end
+    end
+
+    result = if texts.empty?
+               nil
+             else
+               texts.join("")
+             end
+
+    if tool_calls.any?
+      get_thinking_text(result)
+
+      call_depth += 1
+
+      if call_depth > MAX_FUNC_CALLS
+        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+      end
+
+      context = []
+      context << {
+        "role" => "assistant",
+        "content" => []
+      }
+
+      if result
+        context.last["content"] << {
+          "type" => "text",
+          "text" => result
+        }
+      end
+
+      tool_calls.each do |tool_call|
+        begin
+          input_hash = JSON.parse(tool_call["input"])
+        rescue JSON::ParserError
+          input_hash = {}
+        end
+
+        tool_call["input"] = input_hash
+        context.last["content"] << {
+          "type" => "tool_use",
+          "id" => tool_call["id"],
+          "name" => tool_call["name"],
+          "input" => tool_call["input"]
+        }
+      end
+
+      process_functions(app, session, tool_calls, context, call_depth, &block)
+
+    elsif result
+
+      case session[:parameters]["model"]
+      when /opus/
+        result = add_replacements(result)
+        result = add_replacements(@thinking.join("\n")) + result
+        result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
+      when /sonnet/
+        unless @leftover.empty?
+          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
+          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
+        end
+      end
+      @leftover.clear
+
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
+      block&.call res
+      [
+        {
+          "choices" => [
+            {
+              "finish_reason" => finish_reason,
+              "message" => { "content" => result }
+            }
+          ]
+        }
+      ]
+    end
+  end
+
+  def check_num_tokens(msg)
+    t = msg["tokens"]
+    if t
+      new_t = t.to_i
+    else
+      new_t = MonadicApp::TOKENIZER.count_tokens(msg["text"]).to_i
+      msg["tokens"] = new_t
+    end
+    new_t > MIN_PROMPT_CACHING
   end
 
   def process_functions(app, session, tools, context, call_depth, &block)

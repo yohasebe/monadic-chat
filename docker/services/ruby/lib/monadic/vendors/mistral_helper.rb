@@ -39,6 +39,144 @@ module MistralHelper
     end
   end
 
+  def api_request(role, session, call_depth: 0, &block)
+    num_retrial = 0
+
+    session[:messages].delete_if do |msg|
+      msg["role"] == "assistant" && msg["content"].to_s == ""
+    end
+
+    begin
+      api_key = CONFIG["MISTRAL_API_KEY"]
+      raise if api_key.nil?
+    rescue StandardError
+      pp error_message = "ERROR: MISTRAL_API_KEY not found. Please set the MISTRAL_API_KEY environment variable in the ~/monadic/data/.env file."
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
+    end
+
+    obj = session[:parameters]
+    app = obj["app_name"]
+
+    max_tokens = obj["max_tokens"]&.to_i
+    temperature = obj["temperature"].to_f
+    top_p = obj["top_p"].to_f
+    top_p = 0.01 if top_p == 0.0
+    context_size = obj["context_size"].to_i
+    request_id = SecureRandom.hex(4)
+
+    if role != "tool"
+      message = obj["message"].to_s
+
+      html = if message != ""
+               markdown_to_html(message)
+             else
+               message
+             end
+
+      if message != "" && role == "user"
+        res = { "type" => "user",
+                "content" => {
+                  "mid" => request_id,
+                  "role" => role,
+                  "text" => message,
+                  "html" => html,
+                  "lang" => detect_language(obj["message"])
+                } }
+        block&.call res
+        session[:messages] << res["content"]
+      end
+    end
+
+    session[:messages].each { |msg| msg["active"] = false }
+    context = [session[:messages].first]
+    if session[:messages].length > 1
+      context += session[:messages][1..].last(context_size + 1)
+    end
+    context.each { |msg| msg["active"] = true }
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    body = {
+      "model" => obj["model"],
+      "temperature" => temperature,
+      "top_p" => top_p,
+      "safe_prompt" => false,
+      "stream" => true,
+      "tool_choice" => "auto"
+    }
+
+    if obj["tools"] && !obj["tools"].empty?
+      body["tools"] = settings["tools"] || []
+    end
+
+    body["max_tokens"] = max_tokens if max_tokens
+
+    messages_containing_img = false
+    body["messages"] = context.compact.map do |msg|
+      { "role" => msg["role"], "content" => msg["text"] }
+    end
+
+    if role == "tool"
+      body["messages"] += obj["function_returns"]
+    elsif role == "user"
+      body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
+    end
+
+    if messages_containing_img
+      body["model"] = "gpt-4o-mini"
+      body.delete("stop")
+    end
+
+    target_uri = "#{API_ENDPOINT}/chat/completions"
+    headers["Accept"] = "text/event-stream"
+    http = HTTP.headers(headers)
+
+    success = false
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      if res.status.success?
+        success = true
+        break
+      end
+      sleep RETRY_DELAY
+    end
+
+    unless res.status.success?
+      error_report = JSON.parse(res.body)
+      pp error_report
+      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
+      block&.call res
+      return [res]
+    end
+
+    process_json_data(app, session, res.body, call_depth, &block)
+  rescue HTTP::Error, HTTP::TimeoutError
+    if num_retrial < MAX_RETRIES
+      num_retrial += 1
+      sleep RETRY_DELAY
+      retry
+    else
+      pp error_message = "The request has timed out."
+      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      block&.call res
+      [res]
+    end
+  rescue StandardError => e
+    pp e.message
+    pp e.backtrace
+    pp e.inspect
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    block&.call res
+    [res]
+  end
+
   def process_json_data(app, session, body, call_depth, &block)
     buffer = String.new
     texts = {}
@@ -193,143 +331,5 @@ module MistralHelper
 
     sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)
-  end
-
-  def api_request(role, session, call_depth: 0, &block)
-    num_retrial = 0
-
-    session[:messages].delete_if do |msg|
-      msg["role"] == "assistant" && msg["content"].to_s == ""
-    end
-
-    begin
-      api_key = CONFIG["MISTRAL_API_KEY"]
-      raise if api_key.nil?
-    rescue StandardError
-      pp error_message = "ERROR: MISTRAL_API_KEY not found. Please set the MISTRAL_API_KEY environment variable in the ~/monadic/data/.env file."
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return []
-    end
-
-    obj = session[:parameters]
-    app = obj["app_name"]
-
-    max_tokens = obj["max_tokens"]&.to_i
-    temperature = obj["temperature"].to_f
-    top_p = obj["top_p"].to_f
-    top_p = 0.01 if top_p == 0.0
-    context_size = obj["context_size"].to_i
-    request_id = SecureRandom.hex(4)
-
-    if role != "tool"
-      message = obj["message"].to_s
-
-      html = if message != ""
-               markdown_to_html(message)
-             else
-               message
-             end
-
-      if message != "" && role == "user"
-        res = { "type" => "user",
-                "content" => {
-                  "mid" => request_id,
-                  "role" => role,
-                  "text" => message,
-                  "html" => html,
-                  "lang" => detect_language(obj["message"])
-                } }
-        block&.call res
-        session[:messages] << res["content"]
-      end
-    end
-
-    session[:messages].each { |msg| msg["active"] = false }
-    context = [session[:messages].first]
-    if session[:messages].length > 1
-      context += session[:messages][1..].last(context_size + 1)
-    end
-    context.each { |msg| msg["active"] = true }
-
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-
-    body = {
-      "model" => obj["model"],
-      "temperature" => temperature,
-      "top_p" => top_p,
-      "safe_prompt" => false,
-      "stream" => true,
-      "tool_choice" => "auto"
-    }
-
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = settings["tools"] || []
-    end
-
-    body["max_tokens"] = max_tokens if max_tokens
-
-    messages_containing_img = false
-    body["messages"] = context.compact.map do |msg|
-      { "role" => msg["role"], "content" => msg["text"] }
-    end
-
-    if role == "tool"
-      body["messages"] += obj["function_returns"]
-    elsif role == "user"
-      body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
-    end
-
-    if messages_containing_img
-      body["model"] = "gpt-4o-mini"
-      body.delete("stop")
-    end
-
-    target_uri = "#{API_ENDPOINT}/chat/completions"
-    headers["Accept"] = "text/event-stream"
-    http = HTTP.headers(headers)
-
-    success = false
-    MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
-      if res.status.success?
-        success = true
-        break
-      end
-      sleep RETRY_DELAY
-    end
-
-    unless res.status.success?
-      error_report = JSON.parse(res.body)
-      pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
-      block&.call res
-      return [res]
-    end
-
-    process_json_data(app, session, res.body, call_depth, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
-      num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
-      block&.call res
-      [res]
-    end
-  rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
-    block&.call res
-    [res]
   end
 end

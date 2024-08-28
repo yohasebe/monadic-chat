@@ -41,155 +41,6 @@ module GeminiHelper
     end
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
-    buffer = String.new
-    texts = []
-    tool_calls = []
-    finish_reason = nil
-
-    body.each do |chunk|
-      buffer << chunk
-      if /(\{\s*"candidates":.*\})/m =~ buffer.strip
-        json = Regexp.last_match(1)
-        begin
-          candidates = JSON.parse(json)["candidates"]
-          candidate = candidates.first
-
-          finish_reason = candidate["finishReason"]
-          case finish_reason
-          when "MAX_TOKENS"
-            finish_reason = "length"
-          when "STOP"
-            finish_reason = "stop"
-          when "SAFETY"
-            finish_reason = "safety"
-          end
-
-          content = candidate["content"]
-          next if content.nil?
-
-          content["parts"]&.each do |part|
-            if part["text"]
-              fragment = part["text"]
-              texts << fragment
-
-              res = {
-                "type" => "fragment",
-                "content" => fragment
-              }
-              block&.call res
-
-            elsif part["functionCall"]
-              tool_calls << part["functionCall"]
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
-            end
-          end
-          buffer = String.new
-        rescue JSON::ParserError
-          # if the JSON parsing fails, the next chunk should be appended to the buffer
-          # and the loop should continue to the next iteration
-        end
-      end
-    rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
-    end
-
-    result = texts.empty? ? nil : texts
-
-    if tool_calls.any?
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
-      end
-
-      new_results = process_functions(app, session, tool_calls, call_depth, &block)
-
-      if result && new_results
-        begin
-          result = result.join("").strip + "\n\n" + new_results.dig(0, "choices", 0, "message", "content").strip
-        rescue StandardError
-          result = result.join("").strip + "\n\n" + new_results.to_s.strip
-        end
-        [{ "choices" => [{ "message" => { "content" => result } }] }]
-      elsif new_results
-        new_results
-      elsif result
-        [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
-      end
-    elsif result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-      block&.call res
-      [
-        {
-          "choices" => [
-            {
-              "finish_reason" => finish_reason,
-              "message" => { "content" => result.join("") }
-            }
-          ]
-        }
-      ]
-    end
-  end
-
-  def process_functions(_app, session, tool_calls, call_depth, &block)
-    obj = session[:parameters]
-    tool_results = { "model_parts" => [], "function_parts" => [] }
-    tool_calls.each do |tool_call|
-      function_name = tool_call["name"]
-
-      begin
-        argument_hash = tool_call["args"]
-      rescue StandardError
-        argument_hash = {}
-      end
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        memo[k.to_sym] = v
-        memo
-      end
-
-      function_return = send(function_name.to_sym, **argument_hash)
-
-      tool_results["model_parts"] << {
-        "functionCall" => {
-          "name" => function_name,
-          "args" => argument_hash
-        }
-      }
-
-      tool_results["function_parts"] << {
-        "functionResponse" => {
-          "name" => function_name,
-          "response" => {
-            "name" => function_name,
-            "content" => {
-              "result" => function_return.to_s
-            }
-          }
-        }
-      }
-    end
-
-    obj["tool_results"] = tool_results
-    api_request("tool", session, call_depth: call_depth, &block)
-  end
-
-  def translate_role(role)
-    case role
-    when "user"
-      "user"
-    when "assistant"
-      "model"
-    when "system"
-      "user"
-    else
-      role.downcase
-    end
-  end
-
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
@@ -382,5 +233,154 @@ module GeminiHelper
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
     block&.call res
     [res]
+  end
+
+  def process_json_data(app, session, body, call_depth, &block)
+    buffer = String.new
+    texts = []
+    tool_calls = []
+    finish_reason = nil
+
+    body.each do |chunk|
+      buffer << chunk
+      if /(\{\s*"candidates":.*\})/m =~ buffer.strip
+        json = Regexp.last_match(1)
+        begin
+          candidates = JSON.parse(json)["candidates"]
+          candidate = candidates.first
+
+          finish_reason = candidate["finishReason"]
+          case finish_reason
+          when "MAX_TOKENS"
+            finish_reason = "length"
+          when "STOP"
+            finish_reason = "stop"
+          when "SAFETY"
+            finish_reason = "safety"
+          end
+
+          content = candidate["content"]
+          next if content.nil?
+
+          content["parts"]&.each do |part|
+            if part["text"]
+              fragment = part["text"]
+              texts << fragment
+
+              res = {
+                "type" => "fragment",
+                "content" => fragment
+              }
+              block&.call res
+
+            elsif part["functionCall"]
+              tool_calls << part["functionCall"]
+              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+              block&.call res
+            end
+          end
+          buffer = String.new
+        rescue JSON::ParserError
+          # if the JSON parsing fails, the next chunk should be appended to the buffer
+          # and the loop should continue to the next iteration
+        end
+      end
+    rescue StandardError => e
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
+    end
+
+    result = texts.empty? ? nil : texts
+
+    if tool_calls.any?
+      call_depth += 1
+      if call_depth > MAX_FUNC_CALLS
+        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+      end
+
+      new_results = process_functions(app, session, tool_calls, call_depth, &block)
+
+      if result && new_results
+        begin
+          result = result.join("").strip + "\n\n" + new_results.dig(0, "choices", 0, "message", "content").strip
+        rescue StandardError
+          result = result.join("").strip + "\n\n" + new_results.to_s.strip
+        end
+        [{ "choices" => [{ "message" => { "content" => result } }] }]
+      elsif new_results
+        new_results
+      elsif result
+        [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
+      end
+    elsif result
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
+      block&.call res
+      [
+        {
+          "choices" => [
+            {
+              "finish_reason" => finish_reason,
+              "message" => { "content" => result.join("") }
+            }
+          ]
+        }
+      ]
+    end
+  end
+
+  def process_functions(_app, session, tool_calls, call_depth, &block)
+    obj = session[:parameters]
+    tool_results = { "model_parts" => [], "function_parts" => [] }
+    tool_calls.each do |tool_call|
+      function_name = tool_call["name"]
+
+      begin
+        argument_hash = tool_call["args"]
+      rescue StandardError
+        argument_hash = {}
+      end
+      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+        memo[k.to_sym] = v
+        memo
+      end
+
+      function_return = send(function_name.to_sym, **argument_hash)
+
+      tool_results["model_parts"] << {
+        "functionCall" => {
+          "name" => function_name,
+          "args" => argument_hash
+        }
+      }
+
+      tool_results["function_parts"] << {
+        "functionResponse" => {
+          "name" => function_name,
+          "response" => {
+            "name" => function_name,
+            "content" => {
+              "result" => function_return.to_s
+            }
+          }
+        }
+      }
+    end
+
+    obj["tool_results"] = tool_results
+    api_request("tool", session, call_depth: call_depth, &block)
+  end
+
+  def translate_role(role)
+    case role
+    when "user"
+      "user"
+    when "assistant"
+      "model"
+    when "system"
+      "user"
+    else
+      role.downcase
+    end
   end
 end

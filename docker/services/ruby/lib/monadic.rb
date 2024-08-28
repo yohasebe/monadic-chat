@@ -2,6 +2,7 @@
 
 require "active_support"
 require "active_support/core_ext/hash/indifferent_access"
+require "base64"
 require "cld"
 require "digest"
 require "dotenv"
@@ -35,25 +36,27 @@ end
 
 IN_CONTAINER = in_container?
 
-require_relative "helpers/text_splitter"
-require_relative "helpers/flask_app_client"
-
-require_relative "embeddings/pdf_text_extractor"
-require_relative "embeddings/text_embeddings"
 require_relative "monadic/version"
 
-require_relative "helpers/openai"
-helpers OpenAIHelper
+require_relative "monadic/utils/setup"
+require_relative "monadic/utils/text_splitter"
+require_relative "monadic/utils/flask_app_client"
 
-require_relative "helpers/websocket"
+require_relative "monadic/utils/string_utils"
+helpers StringUtils
+
+require_relative "monadic/utils/openai_utils"
+helpers OpenAIUtils
+
+require_relative "monadic/utils/websocket"
 helpers WebSocketHelper
 
-require_relative "helpers/utilities"
-helpers UtilitiesHelper
+require_relative "monadic/embeddings/pdf_text_extractor"
+require_relative "monadic/embeddings/text_embeddings"
 
 require_relative "monadic/monadic_app"
 
-envpath = File.expand_path OpenAIHelper::ENV_PATH
+envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)
 
 # Connect to the database
@@ -62,16 +65,9 @@ EMBEDDINGS_DB = TextEmbeddings.new("monadic", recreate_db: false)
 CONFIG = {}
 
 begin
-  if File.file?("/.dockerenv")
-    File.read("/monadic/data/.env").split("\n").each do |line|
-      key, value = line.split("=")
-      CONFIG[key] = value
-    end
-  else
-    File.read("#{Dir.home}/monadic/data/.env").split("\n").each do |line|
-      key, value = line.split("=")
-      CONFIG[key] = value
-    end
+  File.read(Paths::ENV_PATH).split("\n").each do |line|
+    key, value = line.split("=")
+    CONFIG[key] = value
   end
 rescue StandardError => e
   CONFIG["ERROR"] = e.message

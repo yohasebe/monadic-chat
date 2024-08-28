@@ -343,13 +343,8 @@ module WebSocketHelper
 
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
-            api_request = if app_obj.respond_to?(:api_request)
-                            app_obj.method(:api_request)
-                          else
-                            method(:openai_api_request)
-                          end
 
-            responses = api_request.call("user", session) do |fragment|
+            responses = app_obj.api_request("user", session) do |fragment|
               if fragment["type"] == "error"
                 @channel.push({ "type" => "error", "content" => fragment }.to_json)
                 break

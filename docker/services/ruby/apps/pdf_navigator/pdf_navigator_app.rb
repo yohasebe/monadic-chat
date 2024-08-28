@@ -1,4 +1,6 @@
 class PDFNavigator < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-file-pdf'></i>"
 
   description = <<~TEXT

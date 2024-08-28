@@ -1,6 +1,4 @@
 module GeminiHelper
-  include UtilitiesHelper
-
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60

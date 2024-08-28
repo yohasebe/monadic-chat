@@ -1,4 +1,6 @@
 class SecondOpinion < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fa-solid fa-people-arrows'></i>"
 
   description = <<~TEXT

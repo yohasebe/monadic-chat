@@ -1,4 +1,6 @@
 class ImageGeneration < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fa-regular fa-image'></i>"
 
   description = <<~TEXT

@@ -1,6 +1,4 @@
 module ClaudeHelper
-  include UtilitiesHelper
-
   MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.anthropic.com/v1"
   OPEN_TIMEOUT = 5

@@ -1,5 +1,6 @@
-# We can't use the name Math because it is a reserved word in Ruby
 class MathTutor < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fa-solid fa-square-root-variable'></i>"
 
   description = "This is an application that allows AI chatbot to give a response with the MathJax mathematical notation"

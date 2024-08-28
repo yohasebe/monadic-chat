@@ -1,4 +1,6 @@
 class ChatPlus < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-comments'></i>"
 
   description = <<~TEXT

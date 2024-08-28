@@ -1,4 +1,6 @@
 class ContentReader < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fab fa-leanpub'></i>"
 
   description = <<~TEXT

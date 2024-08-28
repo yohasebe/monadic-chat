@@ -1,4 +1,6 @@
 class VideoDescriber < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-video'></i>"
 
   description = <<~TEXT

@@ -1,4 +1,6 @@
 class Wikipedia < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fab fa-wikipedia-w'></i>"
 
   description = <<~TEXT

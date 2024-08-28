@@ -1,4 +1,6 @@
 class VoiceInterpreter < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='far fa-comments'></i>"
 
   description = <<~TEXT

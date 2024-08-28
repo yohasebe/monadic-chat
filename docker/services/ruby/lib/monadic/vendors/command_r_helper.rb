@@ -1,6 +1,4 @@
 module CommandRHelper
-  include UtilitiesHelper
-
   API_ENDPOINT = "https://api.cohere.ai/v1"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60

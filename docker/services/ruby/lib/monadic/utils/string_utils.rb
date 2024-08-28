@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module UtilitiesHelper
+module StringUtils
   module_function
 
   # language detection using CLD gem

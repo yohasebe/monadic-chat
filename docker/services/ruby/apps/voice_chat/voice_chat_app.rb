@@ -1,4 +1,6 @@
 class VoiceChat < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-microphone'></i>"
 
   description = <<~TEXT

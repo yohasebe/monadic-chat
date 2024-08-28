@@ -1,4 +1,6 @@
 class SyntaxTree < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fa-solid fa-tree'></i>"
 
   description = <<~DESC

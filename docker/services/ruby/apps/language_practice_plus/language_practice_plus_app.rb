@@ -1,4 +1,6 @@
 class LanguagePracticePlus < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-person-chalkboard'></i>"
 
   description = <<~TEXT

@@ -209,7 +209,7 @@ async function applyMermaid(element) {
   // Add download functionality
   element.find(".diagram").each(function (index) {
     const diagram = $(this);
-    const downloadButton = $('<button class="btn btn-secondary btn-sm">Download SVG</button>');
+    const downloadButton = $('<div class="mb-3"'><button class="btn btn-secondary btn-sm">Download SVG</button></div>');
     downloadButton.on('click', function () {
       const svgElement = diagram.find('svg')[0];
       const serializer = new XMLSerializer();

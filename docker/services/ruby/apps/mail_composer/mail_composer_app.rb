@@ -1,4 +1,6 @@
 class MailComposer < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fa-solid fa-at'></i>"
 
   description = <<~TEXT

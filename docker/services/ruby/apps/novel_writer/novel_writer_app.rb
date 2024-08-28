@@ -1,4 +1,6 @@
 class NovelWriter < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-book'></i>"
 
   description = <<~TEXT

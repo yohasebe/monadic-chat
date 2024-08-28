@@ -1,4 +1,6 @@
 class CodeInterpreter < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fab fa-python'></i>"
 
   description = <<~TEXT

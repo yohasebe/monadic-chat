@@ -1,7 +1,6 @@
-require "tempfile"
-require "open3"
-
 class MermaidGrapher < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-project-diagram'></i>"
 
   description = <<~TEXT

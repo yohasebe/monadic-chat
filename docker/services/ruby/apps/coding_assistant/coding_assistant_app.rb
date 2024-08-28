@@ -1,4 +1,6 @@
 class CodingAssistant < MonadicApp
+  include OpenAIHelper
+
   icon = "<i class='fas fa-laptop-code'></i></i>"
 
   description = <<~TEXT

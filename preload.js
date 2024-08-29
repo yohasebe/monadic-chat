@@ -30,71 +30,27 @@ try {
     const statusElement = document.getElementById('status');
     statusElement.textContent = status;
 
-    if (status === 'Port in use') {
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('stop').disabled = true;
-      document.getElementById('restart').disabled = true;
-      document.getElementById('browser').disabled = true;
-    } else if (status === 'Starting') {
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('stop').disabled = true;
-      document.getElementById('restart').disabled = true;
-      document.getElementById('browser').disabled = true;
-    } else if (status === 'Running') {
+    const isActive = status === 'Ready';
+    statusElement.classList.toggle('active', isActive);
+    statusElement.classList.toggle('inactive', !isActive);
+
+    const controls = {
+      folder: true,
+      settings: true,
+      start: status === 'Stopped',
+      stop: status === 'Ready',
+      restart: status === 'Ready',
+      browser: status === 'Ready'
+    };
+
+    for (const [id, enabled] of Object.entries(controls)) {
+      document.getElementById(id).disabled = !enabled;
+    }
+
+    if (status === 'Running') {
       statusElement.textContent = "Preparing . . .";
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('stop').disabled = true;
-      document.getElementById('restart').disabled = true;
-      document.getElementById('browser').disabled = true;
-    } else if (status === 'Ready') {
-      statusElement.textContent = "Ready";
-      statusElement.classList.remove('inactive');
-      statusElement.classList.add('active');
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('stop').disabled = false;
-      document.getElementById('restart').disabled = false;
-      document.getElementById('browser').disabled = false;
-    } else if (status === 'Stopping') {
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('stop').disabled = true;
-      document.getElementById('restart').disabled = true;
-      document.getElementById('browser').disabled = true;
-    } else if (status === 'Stopped') {
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = false;
-      document.getElementById('stop').disabled = true;
-      document.getElementById('restart').disabled = true;
-      document.getElementById('browser').disabled = true;
-    } else {
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      document.getElementById('folder').disabled = false;
-      document.getElementById('settings').disabled = false;
-      document.getElementById('start').disabled = true;
-      document.getElementById('stop').disabled = true;
-      document.getElementById('restart').disabled = true;
-      document.getElementById('browser').disabled = true;
     }
   });
-} catch {
-  // console.error('Error in preload script:', error);
+} catch (error) {
+  console.error('Error in preload script:', error);
 }

@@ -1,14 +1,4 @@
 $(function () {
-  const aiUserInitialPrompt = `The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
-
-Keep on pretending as if you were the "user" and as if the user were the "assistant" throughout the conversation.
-
-Do your best to make the conversation as natural as possible. Do not change subjects abruptly, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics.
-
-Your response should be consice and clear. Even if the preceding messages are formatted as json, you keep your response as plain text. do not use parentheses or brackets in your response.
-
-Remember you are the one who inquires for information, not providing the answers.`;
-
   elemAlert.draggable({ cursor: "move" });
 
   const backToTop = $("#back_to_top");
@@ -21,30 +11,22 @@ Remember you are the one who inquires for information, not providing the answers
   // UI event handlers
   //////////////////////////////
   
-  function listModels(models) {
-    let modelList = "";
-    for (let model of models) {
-      modelList += `<option value="${model}">${model}</option>`;
-    }
-    return modelList;
-  }
-
   let lastApp = defaultApp;
 
-  $("#auto-scroll-toggle").on("change", function() {
-    if ($(this).is(":checked")) {
-      autoScroll = true;
-    } else {
-      autoScroll = false;
-    }
-  });
+  // Consolidate event handlers for toggles
+  function setupToggleHandlers() {
+    $("#auto-scroll-toggle").on("change", function() {
+      autoScroll = $(this).is(":checked");
+    });
 
-  $("#max-tokens-toggle").on("change", function() {
-    if ($(this).is(":checked")) {
-      $("#max-tokens").prop("disabled", false);
-    } else {
-      $("#max-tokens").prop("disabled", true);
-    }
+    $("#max-tokens-toggle").on("change", function() {
+      $("#max-tokens").prop("disabled", !$(this).is(":checked"));
+    });
+  }
+
+  // Call this function on document ready
+  $(function () {
+    setupToggleHandlers();
   });
 
   $("#apps").on("change", function(event) {
@@ -148,8 +130,12 @@ Remember you are the one who inquires for information, not providing the answers
     // check if app name contains "claude" in it
     if (apps[$(this).val()]["app_name"].toLowerCase().includes("claude")) {
       $("#prompt-caching").prop("disabled", false);
+      if (params["prompt_caching"] !== undefined) {
+        $("#prompt-caching").prop("checked", params["prompt_caching"]);
+      }
     } else {
       $("#prompt-caching").prop("disabled", true);
+      $("#prompt-caching").prop("checked", false);
     }
 
     $("#start").focus();
@@ -358,7 +344,10 @@ $("#send").on("click", function(event) {
       return message_obj;
     });
     allMessages = [{ "role": "system", "text": initial_prompt }].concat(textOnly);
-    obj = { "parameters": setParams(), "messages": allMessages };
+    obj = { 
+      "parameters": setParams(),
+      "messages": allMessages
+    };
     saveObjToJson(obj, "monadic.json");
   });
 

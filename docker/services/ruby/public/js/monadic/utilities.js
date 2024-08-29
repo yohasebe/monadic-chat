@@ -263,6 +263,7 @@ function loadParams(params, calledFor = "loadParams") {
     // setTimeout(function () {
     $("#model").val(params["model"]);
     // }, 500);
+    // if app name includes "claude" enable "#prompt-caching" checkbox
   }
   if (params["easy_submit"]) {
     $("#check-easy-submit").prop('checked', true);
@@ -278,6 +279,20 @@ function loadParams(params, calledFor = "loadParams") {
     $("#initiate-from-assistant").prop('checked', true);
   } else{
     $("#initiate-from-assistant").prop('checked', false);
+  }
+
+  console.log(params);
+  // if param["app_name"] small case includes "claude" enable "#prompt-caching" checkbox
+  if (params["app_name"] && params["app_name"].toLowerCase().includes("claude")) {
+    $("#prompt-caching").prop('disabled', false);
+    if (params["prompt_caching"]) {
+      $("#prompt-caching").prop('checked', true);
+    } else {
+      $("#prompt-caching").prop('checked', false);
+    }
+  } else {
+    $("#prompt-caching").prop('checked', false);
+    $("#prompt-caching").prop('disabled', true);
   }
 }
 
@@ -313,7 +328,6 @@ function setParams() {
     params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
   }
 
-  params["prompt_caching"] = false;
   if ($("#prompt-caching").prop('checked') && !$("#prompt-caching").prop('disabled')) {
     params["prompt_caching"] = true;
   }

@@ -38,7 +38,7 @@ function set_docker_compose() {
   if [[ -z "$compose_user" ]]; then
     COMPOSE_MAIN="$ROOT_DIR/services/compose.yml"
   else
-    cat <<EOF > "$HOME_DIR/monadic/data/compose.yml"
+    cat <<EOF >"$HOME_DIR/monadic/data/compose.yml"
 include:
   - $ROOT_DIR/services/ruby/compose.yml
   - $ROOT_DIR/services/pgvector/compose.yml
@@ -72,20 +72,20 @@ ensure_data_dir() {
 # Function to start Docker based on OS
 start_docker() {
   case "$HOST_OS" in
-    Darwin)
-      sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
-      ;;
-    Linux)
-      if grep -q microsoft /proc/version; then
-        sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
-      else
-        sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
-      fi
-      ;;
-    *)
-      echo "Unsupported operating system: $HOST_OS" >&2
-      exit 1
-      ;;
+  Darwin)
+    sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
+    ;;
+  Linux)
+    if grep -q microsoft /proc/version; then
+      sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
+    else
+      sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
+    fi
+    ;;
+  *)
+    echo "Unsupported operating system: $HOST_OS" >&2
+    exit 1
+    ;;
   esac
 }
 
@@ -201,7 +201,7 @@ update_monadic() {
   # Stop the Docker Compose services
   $DOCKER compose -f "$COMPOSE_MAIN" down --remove-orphans
 
-  # Move to `ROOT_DIR` and download the latest version of Monadic Chat 
+  # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "$ROOT_DIR" && git pull origin main
 
   # Build and start the Docker Compose services
@@ -281,7 +281,7 @@ export_db() {
   fi
 
   $DOCKER exec "${container_name}" sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
-  
+
   # if the above command is successful, print the success message
   if [ $? -eq 0 ]; then
     stop_docker_compose
@@ -319,67 +319,67 @@ import_db() {
 
 # Parse the user command
 case "$1" in
-  build)
-    ensure_data_dir
-    start_docker
-    build_docker_compose
-    if $DOCKER images | grep -q "monadic-chat"; then
-      echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
-    else
-      echo "[HTML]: <p>Monadic Chat has failed to build. Please try <b>Rebuild</b>.</p>"
-    fi
-    ;;
-  start)
-    ensure_data_dir
-    start_docker
-    start_docker_compose
-    echo "[SERVER STARTED]"
-    ;;
-  stop)
-    stop_docker_compose
-    echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
-    ;;
-  restart)
-    stop_docker_compose
-    start_docker_compose
-    echo "[SERVER STARTED]"
-    ;;
-  import)
-    start_docker
-    stop_docker_compose
-    import_database
-    ;;
-  export)
-    start_docker
-    export_database
-    ;;
-  update)
-    start_docker
-    update_monadic
-    echo "[HTML]: <p>Monadic Chat has been updated successfully!</p>"
-    ;;
-  down)
-    start_docker
-    down_docker_compose
-    echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
-    ;;
-  remove)
-    start_docker
-    remove_containers
-    echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
-    ;;
-  export-db)
-    start_docker
-    export_db
-    ;;
-  import-db)
-    start_docker
-    import_db
-    ;;
-  *)
-    echo "Usage: $0 {build|start|stop|restart|update|remove}" >&2
-    exit 1
-    ;;
+build)
+  ensure_data_dir
+  start_docker
+  build_docker_compose
+  if $DOCKER images | grep -q "monadic-chat"; then
+    echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
+  else
+    echo "[HTML]: <p>Monadic Chat has failed to build. Please try <b>Rebuild</b>.</p>"
+  fi
+  ;;
+start)
+  ensure_data_dir
+  start_docker
+  start_docker_compose
+  echo "[SERVER STARTED]"
+  ;;
+stop)
+  stop_docker_compose
+  echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
+  ;;
+restart)
+  stop_docker_compose
+  start_docker_compose
+  echo "[SERVER STARTED]"
+  ;;
+import)
+  start_docker
+  stop_docker_compose
+  import_database
+  ;;
+export)
+  start_docker
+  export_database
+  ;;
+update)
+  start_docker
+  update_monadic
+  echo "[HTML]: <p>Monadic Chat has been updated successfully!</p>"
+  ;;
+down)
+  start_docker
+  down_docker_compose
+  echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
+  ;;
+remove)
+  start_docker
+  remove_containers
+  echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
+  ;;
+export-db)
+  start_docker
+  export_db
+  ;;
+import-db)
+  start_docker
+  import_db
+  ;;
+*)
+  echo "Usage: $0 {build|start|stop|restart|update|remove}" >&2
+  exit 1
+  ;;
 esac
 
 exit 0

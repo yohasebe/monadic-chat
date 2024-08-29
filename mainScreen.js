@@ -100,5 +100,3 @@ window.electron.updateControls(({ status, disableControls }) => {
 window.electron.onServerReady(() => {
   document.getElementById('browser').disabled = false;
 });
-
-

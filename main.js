@@ -521,7 +521,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
 
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
-  
+
   const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app').replace(' ', '\\ ');
 
   const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
@@ -555,7 +555,7 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
         lines.pop();
       }
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim().startsWith('[VERSION]: ')) { 
+        if (lines[i].trim().startsWith('[VERSION]: ')) {
           // get the version number from the output
           const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
           if (compareVersions(imageVersion, app.getVersion()) > 0) {
@@ -680,7 +680,7 @@ function updateContextMenu(disableControls = false) {
     menuItems[14].enabled = true;
   }
 
-  if(currentStatus === 'Running'){
+  if (currentStatus === 'Running') {
     menuItems[2].enabled = false;
     menuItems[3].enabled = true;
     menuItems[4].enabled = true;
@@ -689,7 +689,7 @@ function updateContextMenu(disableControls = false) {
     menuItems[4].enabled = false;
   }
 
-  if(currentStatus === 'Stopped'){
+  if (currentStatus === 'Stopped') {
     menuItems[2].enabled = true;
     menuItems[3].enabled = false;
     menuItems[5].enabled = false;
@@ -957,7 +957,7 @@ function createMainWindow() {
 
   let openingText;
 
-  if(justLaunched){
+  if (justLaunched) {
     openingText = `
       [HTML]: 
       <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
@@ -966,11 +966,11 @@ function createMainWindow() {
     justLaunched = false;
     currentStatus = 'Stopped';
 
-    isPortTaken(4567, function(taken){
-      if(taken){
+    isPortTaken(4567, function (taken) {
+      if (taken) {
         openingText += `<p>Port 4567 is already in use. If other applications is using port 4567, shut them down first.</p><hr />`
         currentStatus = 'Port in use';
-      } 
+      }
     })
   };
 
@@ -1040,11 +1040,11 @@ function openBrowser(url, outside = false) {
     console.error('Unsupported platform');
     return;
   }
-  
-  if(outside){
+
+  if (outside) {
     spawn(...openCommands[platform]);
     return;
-  } 
+  }
 
   // wait until the system is ready on the port 4567
   // before opening the browser with the timeout of 20 seconds
@@ -1120,7 +1120,7 @@ function writeEnvFile(envPath, envConfig) {
   const envContent = Object.entries(envConfig)
     .map(([key, value]) => `${key}=${value}`)
     .join('\n');
-  
+
   try {
     fs.writeFileSync(envPath, envContent);
     console.log('Settings saved successfully');

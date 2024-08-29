@@ -10,7 +10,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
   let className
   if (role === "user") {
     className = "role-user";
-  } else if(role === "assistant"){
+  } else if (role === "assistant") {
     className = "role-assistant";
   } else {
     className = "role-system";
@@ -35,7 +35,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     `);
 
   // Check if the card already exists
-  if (mid !== "" && mids.has(mid)){
+  if (mid !== "" && mids.has(mid)) {
     return;
   } else if (mid !== "") {
     mids.add(mid);
@@ -74,16 +74,17 @@ function attachEventListeners($card) {
   $card.on("click", ".func-play", function () {
     $(this).tooltip('hide');
     const content = $card.find(".card-text");
-    let text; 
+    let text;
     try {
-      text = $(content.html().split(/<hr\s*\/?>/, 1)[0]).text()
+      text = content.html().replace(/<script[\s\S]*?<\/script>/g, "");
+      text = $(text.split(/<hr\s*\/?>/, 1)[0]).text()
     } catch (e) {
       text = content.text()
     }
     text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);
-    ttsSpeak(text, true, false, function (){} );
+    ttsSpeak(text, true, false, function () { });
   });
 
   $card.on("click", ".func-stop", function () {
@@ -131,7 +132,7 @@ function attachEventListeners($card) {
       $this.find("i").removeClass("fa-square-pen").addClass("fa-check").css("color", "#DC4C64");
       $("#message").val(text).trigger("input").focus();
       let role = messages.find((m) => m.mid === mid).role;
-      if(role !== "user") {
+      if (role !== "user") {
         role = "sample-" + role;
       }
       $("#select-role").val(role).trigger("change");
@@ -146,10 +147,10 @@ function attachEventListeners($card) {
       const following = messages.splice(index, messages.length - index);
       following.forEach((m) => {
         $(`#${m.mid}`).remove();
-        ws.send(JSON.stringify({"message": "DELETE", "mid": m.mid}));
+        ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
       });
       $card.remove();
-      ws.send(JSON.stringify({"message": "DELETE", "mid": mid}));
+      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
     }
   });
 
@@ -165,7 +166,7 @@ function attachEventListeners($card) {
       $card.remove();
       const index = messages.findIndex((m) => m.mid === mid);
       messages.splice(index, 1);
-      ws.send(JSON.stringify({"message": "DELETE", "mid": mid}));
+      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
     }
   });
 

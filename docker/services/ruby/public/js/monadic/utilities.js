@@ -78,7 +78,7 @@ function formatInfo(info) {
           break;
       }
 
-      if (value && !isNaN(value) && label){
+      if (value && !isNaN(value) && label) {
         numRows += `
             <tr>
               <td>${label}</td>
@@ -158,7 +158,7 @@ function removeMarkdown(text) {
   return text.replace(/(\*\*|__|[\*_`])/g, "");
 }
 
-function removeEmojis(text){
+function removeEmojis(text) {
   // in case of error, return the original text
   try {
     return text.replace(/\p{Extended_Pictographic}/gu, "");
@@ -169,13 +169,13 @@ function removeEmojis(text){
 }
 
 function setAlertClass(alertType = "error") {
-  if(alertType === "error"){
-    elemAlert.removeClass(function(_index, className) {
+  if (alertType === "error") {
+    elemAlert.removeClass(function (_index, className) {
       return (className.match(/\balert-\S+/g) || []).join(' ');
     });
     elemAlert.addClass(`alert-${alertType}`);
   } else {
-    textAlert.removeClass(function(_index, className) {
+    textAlert.removeClass(function (_index, className) {
       return (className.match(/\btext-\S+/g) || []).join(' ');
     });
     textAlert.addClass(`text-${alertType}`);
@@ -206,7 +206,7 @@ function deleteMessage(mid) {
   $(`#${mid}`).remove();
   const index = messages.findIndex((m) => m.mid === mid);
   messages.splice(index, 1);
-  ws.send(JSON.stringify({"message": "DELETE", "mid": mid}));
+  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
 }
 
 //////////////////////////////
@@ -249,11 +249,11 @@ function loadParams(params, calledFor = "loadParams") {
   if (calledFor === "reset") {
     $("#file-div").hide();
     $("#apps").val(defaultApp);
-    $(`#apps option[value="${defaultApp}"]`).attr('selected','selected');
+    $(`#apps option[value="${defaultApp}"]`).attr('selected', 'selected');
   } else if (calledFor === "loadParams" || calledFor === "changeApp") {
     let app_name = params["app_name"];
     $("#apps").val(app_name);
-    $(`#apps option[value="${params['app_name']}"]`).attr('selected','selected');
+    $(`#apps option[value="${params['app_name']}"]`).attr('selected', 'selected');
     // setTimeout(function () {
     $("#model").val(params["model"]);
     // }, 500);
@@ -266,12 +266,12 @@ function loadParams(params, calledFor = "loadParams") {
   }
   if (params["auto_speech"]) {
     $("#check-auto-speech").prop('checked', true);
-  } else{
+  } else {
     $("#check-auto-speech").prop('checked', false);;
   }
   if (params["initiate_from_assistant"]) {
     $("#initiate-from-assistant").prop('checked', true);
-  } else{
+  } else {
     $("#initiate-from-assistant").prop('checked', false);
   }
 
@@ -384,8 +384,8 @@ function resetEvent(event) {
   });
   $("#resetConfirmed").on("click", function (event) {
     event.preventDefault();
-    ws.send(JSON.stringify({"message": "RESET"}));
-    ws.send(JSON.stringify({"message": "LOAD"}));
+    ws.send(JSON.stringify({ "message": "RESET" }));
+    ws.send(JSON.stringify({ "message": "LOAD" }));
     resetParams();
     $("#model").html(model_options);
     $("#model").val("gpt-4o-mini");
@@ -433,7 +433,7 @@ function resetEvent(event) {
     if (ws) {
       reconnect_websocket(ws);
     }
-    window.scroll({top: 0});
+    window.scroll({ top: 0 });
     messages.length = 0;
   });
 }
@@ -512,7 +512,7 @@ function updateItemStates() {
     }
 
     collapseStates[key] = isCollapsed;
-    
+
     if (isCollapsed) {
       content.style.display = 'none';
       chevron.classList.replace('fa-chevron-down', 'fa-chevron-right');

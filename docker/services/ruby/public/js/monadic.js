@@ -24,9 +24,40 @@ $(function () {
     });
   }
 
-  // Call this function on document ready
+  // Setup optimized event listeners
+  function setupEventListeners() {
+    const $document = $(document);
+    const $main = $("#main");
+
+    // Event delegation for dynamically added elements
+    $document.on("click", ".contBtn", function() {
+      $("#message").val("continue");
+      $("#send").trigger("click");
+    });
+
+    $document.on("click", ".base64-image", function () {
+      window.open().document.write(this.outerHTML);
+    });
+
+    // Optimize scroll event
+    let scrollTimer;
+    $main.on("scroll", function() {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(adjustScrollButtons, 100);
+    });
+
+    // Optimize resize event
+    let resizeTimer;
+    $(window).on("resize", function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(adjustScrollButtons, 250);
+    });
+  }
+
+  // Call these functions on document ready
   $(function () {
     setupToggleHandlers();
+    setupEventListeners();
   });
 
   $("#apps").on("change", function(event) {
@@ -430,18 +461,15 @@ $("#send").on("click", function(event) {
   // Set up the initial state of the UI
   //////////////////////////////
 
-  // if scrollbar inside `#main` is visible, show the back-to-top and back-to-bottom buttons
+  // Adjust scroll buttons visibility
   function adjustScrollButtons() {
-    if ($(this).scrollTop() > 200) {
-      backToTop.css("opacity", "0.5");
-    } else {
-      backToTop.css("opacity", "0.0");
-    }
-    if ($(this).scrollTop() < $(this).prop("scrollHeight") - $(this).height() - 200) {
-      backToBottom.css("opacity", "0.5");
-    } else {
-      backToBottom.css("opacity", "0.0");
-    }
+    const $main = $("#main");
+    const scrollTop = $main.scrollTop();
+    const scrollHeight = $main.prop("scrollHeight");
+    const height = $main.height();
+
+    backToTop.css("opacity", scrollTop > 200 ? "0.5" : "0.0");
+    backToBottom.css("opacity", scrollTop < scrollHeight - height - 200 ? "0.5" : "0.0");
   }
 
   backToTop.click(function (e) {
@@ -570,10 +598,6 @@ $("#send").on("click", function(event) {
     const w = window.open();
     w.document.write(this.outerHTML);
   });
-
-  $("#main").scroll(adjustScrollButtons);
-  $(window).resize(adjustScrollButtons);
-  $(document).click(adjustScrollButtons);
 
   $(document).ready(function() {
     $("#initial-prompt").css("display", "none");

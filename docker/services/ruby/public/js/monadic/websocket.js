@@ -149,29 +149,11 @@ function applyMathJax(element) {
     });
 }
 
-// click on .copy-button will copy the message
-$(document).on("click", ".copy-button", function () {
-  const codeElement = $(this).prev().find("code");
-  const text = codeElement.text();
-  navigator.clipboard.writeText(text).then(function () {
-    $(this).find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-    setTimeout(function () {
-      $(this).find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
-    }, 1000);
-  }, function () {
-    $(this).find("i").removeClass("fa-copy").addClass("fa-times").css("color", "#DC4C64");
-    setTimeout(function () {
-      $(this).find("i").removeClass("fa-times").addClass("fa-copy").css("color", "");
-    }, 1000);
-  });
-});
-
 const mermaid_config = {
   startOnLoad: true,
   securityLevel: 'strict',
   theme: 'default'
 };
-
   
 $(document).on("click", ".copy-button", function () {
   const codeElement = $(this).prev().find("code");

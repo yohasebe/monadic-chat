@@ -69,9 +69,14 @@ rescue StandardError => e
   CONFIG["ERROR"] = e.message
 end
 
+def handle_error(message)
+  session[:error] = message
+  redirect "/"
+end
+
 # list PDF titles in the database
 def list_pdf_titles
-  EMBEDDINGS_DB.list_titles
+  EMBEDDINGS_DB.list_titles.map { |t| t[:title] }
 end
 
 # Load app files
@@ -325,6 +330,12 @@ post "/load" do
       json_data = JSON.parse(content)
       session[:status] = "loaded"
       session[:parameters] = json_data["parameters"]
+
+      # Check if the first message is a system message
+      if json_data["messages"].first && json_data["messages"].first["role"] == "system"
+        session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
+      end
+
       session[:messages] = json_data["messages"].uniq.map do |msg|
         if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant"
           text = msg["text"]
@@ -338,10 +349,10 @@ post "/load" do
         message_obj
       end
     rescue JSON::ParserError
-      session[:error] = "Error: Invalid JSON file. Please upload a valid JSON file."
+      handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
     end
   else
-    session[:error] = "Error: No file selected. Please choose a JSON file to upload."
+    handle_error("Error: No file selected. Please choose a JSON file to upload.")
   end
   redirect "/"
 end

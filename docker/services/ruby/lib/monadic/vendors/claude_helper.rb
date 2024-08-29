@@ -152,6 +152,15 @@ module ClaudeHelper
       { "role" => msg["role"], "content" => [content] }
     end
 
+    if messages.empty?
+      # raise error
+      res = {
+        "type" => "error",
+        "content" => "Please disable \"start from assistant\ option. Anthropic Claude models require a context of at least one user message."
+      }
+      block&.call res
+    end
+
     if messages.last["role"] == "user" && obj["images"]
       obj["images"].each do |img|
         messages.last["content"] << {
@@ -225,15 +234,12 @@ module ClaudeHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    success = false
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
-      if res.status.success?
-        success = true
-        break
-      end
+      break if res.status.success?
+
       sleep RETRY_DELAY
     end
 

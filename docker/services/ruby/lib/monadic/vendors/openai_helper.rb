@@ -35,8 +35,8 @@ module OpenAIHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
-    if role != "tool" && session[:messages].length > 1
-      message = session[:messages][-1]["text"]
+    if role != "tool"
+      message = obj["message"].to_s
 
       # If the app is monadic, the message is passed through the monadic_map function
       if obj["monadic"].to_s == "true" && message != ""
@@ -138,7 +138,7 @@ module OpenAIHelper
     last_text = context.last["text"]
     last_text = message_with_snippet if message_with_snippet.to_s != ""
 
-    if last_text.to_s != "" && prompt_suffix.to_s != ""
+    if last_text != "" && prompt_suffix.to_s != ""
       new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""
       if body.dig("messages", -1, "content")
         body["messages"].last["content"].each do |content_item|

@@ -10,16 +10,16 @@ $(function () {
   //////////////////////////////
   // UI event handlers
   //////////////////////////////
-  
+
   let lastApp = defaultApp;
 
   // Consolidate event handlers for toggles
   function setupToggleHandlers() {
-    $("#auto-scroll-toggle").on("change", function() {
+    $("#auto-scroll-toggle").on("change", function () {
       autoScroll = $(this).is(":checked");
     });
 
-    $("#max-tokens-toggle").on("change", function() {
+    $("#max-tokens-toggle").on("change", function () {
       $("#max-tokens").prop("disabled", !$(this).is(":checked"));
     });
   }
@@ -30,7 +30,7 @@ $(function () {
     const $main = $("#main");
 
     // Event delegation for dynamically added elements
-    $document.on("click", ".contBtn", function() {
+    $document.on("click", ".contBtn", function () {
       $("#message").val("continue");
       $("#send").trigger("click");
     });
@@ -41,14 +41,14 @@ $(function () {
 
     // Optimize scroll event
     let scrollTimer;
-    $main.on("scroll", function() {
+    $main.on("scroll", function () {
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(adjustScrollButtons, 100);
     });
 
     // Optimize resize event
     let resizeTimer;
-    $(window).on("resize", function() {
+    $(window).on("resize", function () {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(adjustScrollButtons, 250);
     });
@@ -60,7 +60,7 @@ $(function () {
     setupEventListeners();
   });
 
-  $("#apps").on("change", function(event) {
+  $("#apps").on("change", function (event) {
     event.preventDefault();
     if (messages.length > 0) {
       if (this.value === lastApp) {
@@ -70,7 +70,7 @@ $(function () {
       $("#clearConfirmation").modal("show");
       // if `#clearConfirmed` button is clicked, clear the current conversation
       $("#clearConfirmed").on("click", function () {
-        ws.send(JSON.stringify({"message": "RESET"}));
+        ws.send(JSON.stringify({ "message": "RESET" }));
         messages = [];
         $("#discourse").html("");
         $("#clearConfirmation").modal("hide");
@@ -84,11 +84,11 @@ $(function () {
     Object.assign(params, apps[$(this).val()]);
     loadParams(params, "changeApp");
 
-    if (apps[$(this).val()]["pdf"]){
+    if (apps[$(this).val()]["pdf"]) {
       $("#file-div").show();
       $("#pdf-panel").show();
-      ws.send(JSON.stringify({message: "PDF_TITLES"}));
-    } else if (apps[$(this).val()]["file"]){
+      ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+    } else if (apps[$(this).val()]["file"]) {
       $("#pdf-panel").hide();
       $("#file-div").show();
     } else {
@@ -96,7 +96,7 @@ $(function () {
       $("#pdf-panel").hide();
     }
 
-    if (apps[$(this).val()]["image"]){
+    if (apps[$(this).val()]["image"]) {
       $("#image-file").show();
     } else {
       $("#image-file").hide();
@@ -206,7 +206,7 @@ $(function () {
     } else {
       $("#main").toggleClass("col-md-8", "col-md-12");
       // show menu after #main width has been fully adjusted
-      $("body, html").animate({scrollTop: 0}, 0);
+      $("body, html").animate({ scrollTop: 0 }, 0);
       setTimeout(() => {
         $("#menu").show();
       }, 500);
@@ -252,7 +252,7 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      if(!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
+      if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
         reconnect_websocket(ws, function (ws) {
@@ -266,13 +266,13 @@ $(function () {
   });
 
   // if $ai-user-toggle is enabled, $ai-user-initial-prompt will be automatically disabled
-  $("#ai-user-toggle").on("change", function() {
+  $("#ai-user-toggle").on("change", function () {
     if ($(this).is(":checked")) {
       $("#initiate-from-assistant").prop("checked", false).trigger("change");
     }
   });
   // if $ai-user-initial-prompt is enabled, $ai-user-toggle will be automatically disabled
-  $("#initiate-from-assistant").on("change", function() {
+  $("#initiate-from-assistant").on("change", function () {
     if ($(this).is(":checked")) {
       $("#ai-user-toggle").prop("checked", false);
     }
@@ -286,7 +286,7 @@ $(function () {
     callingFunction = false;
 
     // send cancel message to server
-    ws.send(JSON.stringify({message: "CANCEL"}));
+    ws.send(JSON.stringify({ message: "CANCEL" }));
     // reset UI
     $("#chat").html("");
     $("#temp-card").hide();
@@ -295,43 +295,43 @@ $(function () {
     setInputFocus();
   });
 
-$("#send").on("click", function(event) {
-  audioInit();
-  setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
-  event.preventDefault();
-  if (message.value === "") {
-    return;
-  }
-  params = setParams();
-  params["message"] = $("#message").val();
+  $("#send").on("click", function (event) {
+    audioInit();
+    setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
+    event.preventDefault();
+    if (message.value === "") {
+      return;
+    }
+    params = setParams();
+    params["message"] = $("#message").val();
 
-  $("#cancel_query").css("opacity", "1");
+    $("#cancel_query").css("opacity", "1");
 
-  if ($("#select-role").val() !== "user") {
-    reconnect_websocket(ws, function (ws) {
-      const role = $("#select-role").val().split("-")[1];
-      const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role}
-      ws.send(JSON.stringify(msg_object));
-    });
-    $("#message").css("height", "96px").val("");
-    $("#select-role").val("").trigger("change");
-  } else {
-    reconnect_websocket(ws, function (ws) {
-      if (images && images.length > 0) {
-        params.images = images;
-      } else {
-        params.images = [];
-      }
+    if ($("#select-role").val() !== "user") {
+      reconnect_websocket(ws, function (ws) {
+        const role = $("#select-role").val().split("-")[1];
+        const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role }
+        ws.send(JSON.stringify(msg_object));
+      });
+      $("#message").css("height", "96px").val("");
+      $("#select-role").val("").trigger("change");
+    } else {
+      reconnect_websocket(ws, function (ws) {
+        if (images && images.length > 0) {
+          params.images = images;
+        } else {
+          params.images = [];
+        }
 
-      ws.send(JSON.stringify(params));
-      images = []; // Clear images after sending
-    });
-    $("#message").css("height", "96px").val("");
-    $("#image-used").html("");
-  }
-  $("#select-role").val("user");
-  $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
-});
+        ws.send(JSON.stringify(params));
+        images = []; // Clear images after sending
+      });
+      $("#message").css("height", "96px").val("");
+      $("#image-used").html("");
+    }
+    $("#select-role").val("user");
+    $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
+  });
 
 
   $("#clear").on("click", function (event) {
@@ -369,13 +369,13 @@ $("#send").on("click", function(event) {
     const initial_prompt = $("#initial-prompt").val();
     const textOnly = messages.map(function (message) {
       let message_obj = { "role": message.role, "text": message.text, "mid": message.mid };
-      if(message.image){
+      if (message.image) {
         message_obj.image = message.image;
       }
       return message_obj;
     });
     allMessages = [{ "role": "system", "text": initial_prompt }].concat(textOnly);
-    obj = { 
+    obj = {
       "parameters": setParams(),
       "messages": allMessages
     };
@@ -421,18 +421,18 @@ $("#send").on("click", function(event) {
           data: formData,
           processData: false,
           contentType: false
-        }).done(function(_filename) {
+        }).done(function (_filename) {
           $("#file-spinner").hide();
           $("#fileModal button").prop('disabled', false);
           $("#fileModal").modal("hide");
-          ws.send(JSON.stringify({message: "PDF_TITLES"}));
+          ws.send(JSON.stringify({ message: "PDF_TITLES" }));
           setAlert(`File uploaded successfully.<br />`, "success");
-        }).fail(function(error) {
+        }).fail(function (error) {
           $("#file-spinner").hide();
           $("#fileModal button").prop("disabled", false);
           $("#fileModal").modal("hide");
           setAlert(`Error uploading file: ${error}`, "error");
-        }).always(function() {
+        }).always(function () {
           console.log('complete');
         });
       }
@@ -441,19 +441,19 @@ $("#send").on("click", function(event) {
     }
   });
 
-  $("#temperature").on("input", function() {
+  $("#temperature").on("input", function () {
     $("#temperature-value").text(parseFloat($(this).val()).toFixed(1));
   });
 
-  $("#top-p").on("input", function() {
+  $("#top-p").on("input", function () {
     $("#top-p-value").text(parseFloat($(this).val()).toFixed(1));
   });
 
-  $("#presence-penalty").on("input", function() {
+  $("#presence-penalty").on("input", function () {
     $("#presence-penalty-value").text(parseFloat($(this).val()).toFixed(1));
   });
 
-  $("#frequency-penalty").on("input", function() {
+  $("#frequency-penalty").on("input", function () {
     $("#frequency-penalty-value").text(parseFloat($(this).val()).toFixed(1));
   });
 
@@ -474,27 +474,27 @@ $("#send").on("click", function(event) {
 
   backToTop.click(function (e) {
     e.preventDefault();
-    $("#main").animate({scrollTop: 0}, 500);
+    $("#main").animate({ scrollTop: 0 }, 500);
   });
 
   backToBottom.click(function (e) {
     e.preventDefault();
-    $("#main").animate({scrollTop: $("#main").prop("scrollHeight")}, 500);
+    $("#main").animate({ scrollTop: $("#main").prop("scrollHeight") }, 500);
   });
 
   resetParams();
 
-  $("#tts-voice").on("change", function(){
+  $("#tts-voice").on("change", function () {
     params["tts_voice"] = $("#tts-voice option:selected").val();
     setCookie("userVoice", params["tts_voice"], 30);
   });
 
-  $("#asr-lang").on("change", function(){
+  $("#asr-lang").on("change", function () {
     params["asr_lang"] = $("#asr-lang option:selected").val();
     setCookie("asrLang", params["asr-lang"], 30);
   });
 
-  $("#tts-speed").on("input", function() {
+  $("#tts-speed").on("input", function () {
     $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
     params["tts_speed_rate"] = parseFloat($(this).val());
     setCookie("userSpeed", params["tts_speed_rate"], 30);
@@ -509,13 +509,13 @@ $("#send").on("click", function(event) {
     elemAlert.hide();
   })
 
-  $("#message, #initial-prompt, #ai-user-initial-prompt").on("input", function() {
+  $("#message, #initial-prompt, #ai-user-initial-prompt").on("input", function () {
     if (message.dataset.ime !== "true") {
       autoResize($(this));
     }
   });
 
-  $("#initial-prompt-toggle").on("change", function() {
+  $("#initial-prompt-toggle").on("change", function () {
     if (this.checked) {
       $("#initial-prompt").css("display", "");
       autoResize($("#initial-prompt"));
@@ -524,7 +524,7 @@ $("#send").on("click", function(event) {
     }
   });
 
-  $("#ai-user-initial-prompt-toggle").on("change", function() {
+  $("#ai-user-initial-prompt-toggle").on("change", function () {
     if (this.checked) {
       $("#ai-user-initial-prompt").css("display", "");
       autoResize($("#ai-user-initial-prompt"));
@@ -543,9 +543,9 @@ $("#send").on("click", function(event) {
     const role = $("#select-role option:selected").val();
     if (role === "user" || role === "sample-user") {
       $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
-    } else if (role === "sample-assistant"){
+    } else if (role === "sample-assistant") {
       $("#role-icon i").removeClass("fa-face-smile fa-bars").addClass("fa-robot");
-    } else if (role === "sample-system"){
+    } else if (role === "sample-system") {
       $("#role-icon i").removeClass("fa-face-smile fa-robot").addClass("fa-bars");
     }
   });
@@ -558,7 +558,7 @@ $("#send").on("click", function(event) {
   const fileInput = $('#file-load');
   const loadButton = $('#import-button');
 
-  fileInput.on('change', function() {
+  fileInput.on('change', function () {
     if (fileInput[0].files.length > 0) {
       loadButton.prop('disabled', false);
     } else {
@@ -569,7 +569,7 @@ $("#send").on("click", function(event) {
   const fileFile = $('#fileFile');
   const fileButton = $('#uploadFile');
 
-  fileFile.on('change', function() {
+  fileFile.on('change', function () {
     if (fileFile[0].files.length > 0) {
       fileButton.prop('disabled', false);
     } else {
@@ -578,7 +578,7 @@ $("#send").on("click", function(event) {
   });
 
   // if #model value is changed, update the value #model-selected
-  $("#model").on("change", function() {
+  $("#model").on("change", function () {
     $("#model-selected").text($("#model option:selected").val());
   });
 
@@ -588,7 +588,7 @@ $("#send").on("click", function(event) {
     show: 100
   });
 
-  $(document).on("click", ".contBtn", function() {
+  $(document).on("click", ".contBtn", function () {
     $("#message").val("continue");
     $("#send").click();
   });
@@ -599,7 +599,7 @@ $("#send").on("click", function(event) {
     w.document.write(this.outerHTML);
   });
 
-  $(document).ready(function() {
+  $(document).ready(function () {
     $("#initial-prompt").css("display", "none");
     $("#initial-prompt-toggle").prop("checked", false);
     $("#ai-user-initial-prompt").css("display", "none");

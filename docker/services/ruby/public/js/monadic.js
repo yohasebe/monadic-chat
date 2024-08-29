@@ -158,17 +158,6 @@ $(function () {
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
-    // check if app name contains "claude" in it
-    if (apps[$(this).val()]["app_name"].toLowerCase().includes("claude")) {
-      $("#prompt-caching").prop("disabled", false);
-      if (params["prompt_caching"] !== undefined) {
-        $("#prompt-caching").prop("checked", params["prompt_caching"]);
-      }
-    } else {
-      $("#prompt-caching").prop("disabled", true);
-      $("#prompt-caching").prop("checked", false);
-    }
-
     $("#start").focus();
   })
 

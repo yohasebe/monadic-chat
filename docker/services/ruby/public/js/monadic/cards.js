@@ -1,9 +1,10 @@
-const mids = [];
+// Use a Set for faster searching
+const mids = new Set();
 
 function createCard(role, badge, html, lang = "en", mid = "", status = true, images = [], monadic = false) {
   const status_class = status === true ? "active" : "";
 
-  // fix jupyter notebook URL issue
+  // Fix jupyter notebook URL issue
   const replaced_html = html.replaceAll("/lab/tree/monadic/data/", "/lab/tree/");
 
   let className
@@ -33,43 +34,46 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     </div>
     `);
 
-  if (mid !== "" && mids.includes(mid)){
+  // Check if the card already exists
+  if (mid !== "" && mids.has(mid)){
     return;
   } else if (mid !== "") {
-    mids.push(mid);
+    mids.add(mid);
     card.attr("id", mid);
 
-    if (runningOnFirefox) {
-      card.find(".card-header").append(`
-          <div class="me-1 text-secondary d-flex align-items-center">
-            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-            <span class="status ${status_class}"></span>
-          </div>
-        `);
-    } else {
-      card.find(".card-header").append(`
-          <div class="me-1 text-secondary d-flex align-items-center">
-            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-            <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
-            <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
-            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-            <span class="status ${status_class}"></span>
-          </div>
-        `);
-    }
+    // Store header buttons HTML in a variable
+    const headerButtons = runningOnFirefox ? `
+      <div class="me-1 text-secondary d-flex align-items-center">
+        <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+        <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+        <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+        <span class="status ${status_class}"></span>
+      </div>
+    ` : `
+      <div class="me-1 text-secondary d-flex align-items-center">
+        <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+        <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
+        <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
+        <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+        <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+        <span class="status ${status_class}"></span>
+      </div>
+    `;
+
+    card.find(".card-header").append(headerButtons);
+
+    // Attach event listeners directly here
+    attachEventListeners(card);
   }
 
-  if (mid === "") {
-    return card;
-  }
+  return card;
+}
 
-  $(document).on("click", `#${mid} .func-play`, function () {
+// Function to attach all event listeners
+function attachEventListeners($card) {
+  $card.on("click", ".func-play", function () {
     $(this).tooltip('hide');
-    const $this = $(this); // Store the reference to the clicked element
-    const content = $(`#${mid} .card-text`);
+    const content = $card.find(".card-text");
     let text; 
     try {
       text = $(content.html().split(/<hr\s*\/?>/, 1)[0]).text()
@@ -82,16 +86,15 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     ttsSpeak(text, true, false, function (){} );
   });
 
-  $(document).on("click", `#${mid} .func-stop`, function () {
+  $card.on("click", ".func-stop", function () {
     $(this).tooltip('hide');
     ttsStop();
   });
 
-  // click on the copy icon will copy the message
-  $(document).on("click", `#${mid} .func-copy`, function () {
+  $card.on("click", ".func-copy", function () {
     $(this).tooltip('hide');
-    const $this = $(this); // Store the reference to the clicked element
-    const text = $(`#${mid} .card-text`).text();
+    const $this = $(this);
+    const text = $card.find(".card-text").text();
     navigator.clipboard.writeText(text).then(function () {
       $this.find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
       setTimeout(function () {
@@ -105,19 +108,18 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     });
   });
 
-  // click on the edit icon will enable editing the message
-  $(document).on("click", `#${mid} .func-edit`, function () {
+  $card.on("click", ".func-edit", function () {
     $(this).tooltip('hide');
-    const $this = $(this); // Store the reference to the clicked element
+    const $this = $(this);
+    const mid = $card.attr('id');
     const text = messages.find((m) => m.mid === mid).text;
 
-    // check if text is JSON
     let json = false;
     try {
       JSON.parse(text);
       json = true;
     } catch (e) {
-      ;
+      // Not JSON, continue
     }
     if (json) {
       alert("The current app is monadic. You can't edit JSON messages");
@@ -127,7 +129,6 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     const confirmed = confirm(`Are you sure to edit this message?\nThis will delete all the messages after it.`);
     if (confirmed) {
       $this.find("i").removeClass("fa-square-pen").addClass("fa-check").css("color", "#DC4C64");
-      // "#message" textbox should automatically expand according to the size of the text
       $("#message").val(text).trigger("input").focus();
       let role = messages.find((m) => m.mid === mid).role;
       if(role !== "user") {
@@ -135,72 +136,42 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
       }
       $("#select-role").val(role).trigger("change");
 
-      // add any attached images to the image list
       const images = messages.find((m) => m.mid === mid).images;
 
-      let image_used = "";
       if (images && images.length > 0) {
         updateImageDisplay(images);
       }
 
-      // remove this message and all the messages after this message
       const index = messages.findIndex((m) => m.mid === mid);
       const following = messages.splice(index, messages.length - index);
-      // remove the cards of the messages after this message
       following.forEach((m) => {
         $(`#${m.mid}`).remove();
         ws.send(JSON.stringify({"message": "DELETE", "mid": m.mid}));
       });
-      // remove this card
-      $(`#${mid}`).remove();
+      $card.remove();
       ws.send(JSON.stringify({"message": "DELETE", "mid": mid}));
     }
   });
 
-  // click on the delete icon will delete the message after confirmation
-  // the card will be removed from the DOM and the message will be removed from the message list
-  // also, the deletion is notified via websocket
-
-  $(document).on("click", `#${mid} .func-delete`, function () {
-    const text = $(`#${mid} .card-text`).text();
+  $card.on("click", ".func-delete", function () {
+    const text = $card.find(".card-text").text();
+    const mid = $card.attr('id');
 
     ttsStop();
 
     const confirmed = confirm(`Are you sure to delete the message "${text}"?`);
     if (confirmed) {
       $(this).tooltip('hide');
-      $(`#${mid}`).remove();
+      $card.remove();
       const index = messages.findIndex((m) => m.mid === mid);
       messages.splice(index, 1);
       ws.send(JSON.stringify({"message": "DELETE", "mid": mid}));
     }
   });
 
-  // when the mouse cursor hover eather the copy, play, or delete icon, the color of the icon is changed
-  // the color will be reset when the mouse cursor leaves the icon
-  // this feature is disabled when the text to speech is playing
-
-  $(document).on("mouseenter", `#${mid} .func-play`, function () {
-    // if (speechSynthesis.speaking) {
-    //   return;
-    // }
-    $(this).find("i").css("color", "#DC4C64");
+  // Combine mouse events into a single listener
+  $card.on("mouseenter mouseleave", ".func-play, .func-copy, .func-delete, .func-edit", function (event) {
+    const $icon = $(this).find("i");
+    $icon.css("color", event.type === "mouseenter" ? "#DC4C64" : "");
   });
-
-  $(document).on("mouseleave", `#${mid} .func-play`, function () {
-    // if (speechSynthesis.speaking) {
-    //   return;
-    // }
-    $(this).find("i").css("color", "");
-  });
-
-  $(document).on("mouseenter", `#${mid} .func-copy, #${mid} .func-delete, #${mid} .func-edit`, function () {
-    $(this).find("i").css("color", "#DC4C64");
-  });
-
-  $(document).on("mouseleave", `#${mid} .func-copy, #${mid} .func-delete, #${mid} .func-edit`, function () {
-    $(this).find("i").css("color", "");
-  });
-
-  return card;
 }

@@ -151,11 +151,11 @@ function setInputFocus() {
 //////////////////////////////
 
 function removeCode(text) {
-  let replaced = text.replace(/```[\s\S]+?[\s]```/g, " ");
-  replaced = replaced.replace(/<script>[\s\S]+?<\/script>/g, " ");
-  replaced = replaced.replace(/<style>[\s\S]+?<\/style>/g, " ");
-  replaced = replaced.replace(/<img [\s\S]+?\/>/g, " ");
-  return replaced;
+  return text.replace(/```[\s\S]+?```|\<(script|style)[\s\S]+?<\/\1>|\<img [\s\S]+?\/>/g, " ");
+}
+
+function removeMarkdown(text) {
+  return text.replace(/(\*\*|__|[\*_`])/g, "");
 }
 
 function removeEmojis(text){
@@ -166,12 +166,6 @@ function removeEmojis(text){
   catch (error) {
     return text;
   }
-}
-
-function removeMarkdown(text) {
-  let replaced = text.replace(/\*\*|__|\*|_/g, "");
-  replaced = replaced.replace(/`/g, "");
-  return replaced;
 }
 
 function setAlertClass(alertType = "error") {
@@ -281,7 +275,6 @@ function loadParams(params, calledFor = "loadParams") {
     $("#initiate-from-assistant").prop('checked', false);
   }
 
-  console.log(params);
   // if param["app_name"] small case includes "claude" enable "#prompt-caching" checkbox
   if (params["app_name"] && params["app_name"].toLowerCase().includes("claude")) {
     $("#prompt-caching").prop('disabled', false);

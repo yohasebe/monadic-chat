@@ -116,7 +116,7 @@ class MonadicApp
 
     if hash.key?("message")
       message = hash["message"]
-      output += UtilitiesHelper.markdown_to_html(message, mathjax: mathjax)
+      output += StringUtils.markdown_to_html(message, mathjax: mathjax)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end
@@ -152,7 +152,7 @@ class MonadicApp
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
-                          v = UtilitiesHelper.markdown_to_html(v, mathjax: mathjax)
+                          v = StringUtils.markdown_to_html(v, mathjax: mathjax)
                           "<li>#{v}</li>"
                         else
                           "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)}</li>"
@@ -165,7 +165,7 @@ class MonadicApp
         else
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<span>#{key}: </span>"
-          value = UtilitiesHelper.markdown_to_html(value, mathjax: mathjax)
+          value = StringUtils.markdown_to_html(value, mathjax: mathjax)
           output += "<span>#{value}</span>"
           output += "</div>"
         end

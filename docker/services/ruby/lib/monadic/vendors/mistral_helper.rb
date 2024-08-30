@@ -136,15 +136,14 @@ module MistralHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    success = false
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
       if res.status.success?
-        success = true
         break
       end
+
       sleep RETRY_DELAY
     end
 

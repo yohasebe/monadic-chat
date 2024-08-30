@@ -146,7 +146,6 @@ module GeminiHelper
       body["generationConfig"]["topP"] = top_p if top_p
     end
 
-    messages_containing_img = false
     body["contents"] = context.compact.map do |msg|
       message = {
         "role" => translate_role(msg["role"]),
@@ -171,7 +170,6 @@ module GeminiHelper
             "data" => img["data"].split(",")[1]
           }
         }
-        messages_containing_img = true
       end
     end
 
@@ -194,15 +192,14 @@ module GeminiHelper
 
     http = HTTP.headers(headers)
 
-    success = false
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
       if res.status.success?
-        success = true
         break
       end
+
       sleep RETRY_DELAY
     end
 

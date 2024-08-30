@@ -7,6 +7,7 @@ const textError = $("#error-message")
 
 const elemAlert = $("#alert-box")
 const textAlert = $("#alert-message")
+const textStats = $("#stats-message")
 
 function setCookie(name, value, days) {
   const date = new Date();
@@ -54,9 +55,13 @@ function formatInfo(info) {
           noValue = false;
           label = "Number of active messages";
           break;
-        case "count_tokens":
+        case "count_all_tokens":
           noValue = false;
           label = "Tokens in all messages";
+          break;
+        case "count_total_system_tokens":
+          noValue = false;
+          label = "Tokens in all system prompts";
           break;
         case "count_total_input_tokens":
           noValue = false;
@@ -73,9 +78,6 @@ function formatInfo(info) {
         case "encoding_name":
           // skip and go to next iteration
           continue;
-
-          label = "Token encoding";
-          break;
       }
 
       if (value && !isNaN(value) && label) {
@@ -101,13 +103,20 @@ function formatInfo(info) {
   }
 
   return `
-    <table class="table table-sm mt-2 mb-0">
-      <tbody>
-        ${textRows}
-        ${numRows}
-      </tbody>
-    </table>
-  `;
+     <div class="json-item" data-key="stats" data-depth="0">
+       <div class="json-toggle" onclick="toggleItem(this)">
+         <i class="fas fa-chevron-right"></i> <span class="toggle-text">Open</span>
+       </div>
+       <div class="json-content" style="display: none;">
+         <table class="table table-sm mt-2 mb-0">
+           <tbody>
+             ${textRows}
+             ${numRows}
+           </tbody>
+         </table>
+       </div>
+     </div>
+   `;
 }
 
 //////////////////////////////
@@ -192,7 +201,7 @@ function setAlert(text = "", alertType = "success") {
     const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p>Something went wrong. Please try again.</p><pre style='white-space: pre-wrap;'>" + msg + "</pre>");
     $("#discourse").append(errorCard);
   } else {
-    textAlert.html(`<b>${text}</b>`);
+    textAlert.html(`${text}`);
     setAlertClass(alertType);
     if ($("#show-notification").is(":checked")) {
       elemAlert.show();
@@ -200,6 +209,10 @@ function setAlert(text = "", alertType = "success") {
       elemAlert.hide();
     }
   }
+}
+
+function setStats(text = "") {
+  textStats.html(`${text}`);
 }
 
 function deleteMessage(mid) {
@@ -414,6 +427,8 @@ function resetEvent(event) {
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
+    setStats("−");
+
     if (ws) {
       reconnect_websocket(ws);
     }
@@ -432,6 +447,7 @@ let collapseStates = {};
 function toggleItem(element) {
   const content = element.nextElementSibling;
   const chevron = element.querySelector('.fa-chevron-down, .fa-chevron-right');
+  const toggleText = element.querySelector('.toggle-text');
   const item = element.closest('.json-item');
   const key = item.dataset.key;
   const depth = parseInt(item.dataset.depth);
@@ -443,6 +459,8 @@ function toggleItem(element) {
   } else {
     collapseStates[key] = !isOpening;
   }
+
+  toggleText.textContent = isOpening ? 'Close' : 'Open';
 
   updateItemStates();
 }

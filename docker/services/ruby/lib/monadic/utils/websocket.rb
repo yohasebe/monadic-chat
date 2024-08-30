@@ -42,9 +42,11 @@ module WebSocketHelper
       end
 
       # calculate total token count
+      count_total_system_tokens = messages.filter { |m| m["role"] == "system" }.map { |m| m["tokens"] || 0 }.sum
       count_total_input_tokens = messages.filter { |m| m["role"] == "user" }.map { |m| m["tokens"] || 0 }.sum
       count_total_output_tokens = messages.filter { |m| m["role"] == "assistant" }.map { |m| m["tokens"] || 0 }.sum
       count_active_tokens = active_messages.map { |m| m["tokens"] || 0 }.sum
+      count_all_tokens =  messages.map { |m| m["tokens"] || 0 }.sum
     rescue StandardError => e
       pp e.message
       pp e.backtrace
@@ -54,9 +56,11 @@ module WebSocketHelper
 
     # return information about state of messages array
     res = { changed: res,
+            count_total_system_tokens: count_total_system_tokens,
             count_total_input_tokens: count_total_input_tokens,
             count_total_output_tokens: count_total_output_tokens,
             count_total_active_tokens: count_active_tokens,
+            count_all_tokens: count_all_tokens,
             count_messages: messages.size,
             count_active_messages: active_messages.size,
             encoding_name: encoding_name }
@@ -138,12 +142,12 @@ module WebSocketHelper
               ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
             end
           end
-        when "NUM_TOKENS"
-          half_max = obj["max_tokens"].to_i / 2
-          doc = TextSplitter.new(text: obj["message"], max_tokens: half_max, separator: "\n", overwrap_lines: 0)
-          split_texts = doc.split_text
-          total_num_tokens = split_texts.map { |t| t["tokens"] }.sum
-          ws.send({ "type" => "num_tokens", "content" => total_num_tokens }.to_json)
+        # when "NUM_TOKENS"
+        #   half_max = obj["max_tokens"].to_i / 2
+        #   doc = TextSplitter.new(text: obj["message"], max_tokens: half_max, separator: "\n", overwrap_lines: 0)
+        #   split_texts = doc.split_text
+        #   total_num_tokens = split_texts.map { |t| t["tokens"] }.sum
+        #   ws.send({ "type" => "num_tokens", "content" => total_num_tokens }.to_json)
         when "PING"
           @channel.push({ "type" => "pong" }.to_json)
         when "RESET"

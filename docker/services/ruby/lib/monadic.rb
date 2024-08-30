@@ -35,7 +35,6 @@ IN_CONTAINER = File.file?("/.dockerenv")
 require_relative "monadic/version"
 
 require_relative "monadic/utils/setup"
-require_relative "monadic/utils/text_splitter"
 require_relative "monadic/utils/flask_app_client"
 
 require_relative "monadic/utils/string_utils"

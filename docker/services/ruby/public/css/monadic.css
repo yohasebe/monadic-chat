@@ -189,20 +189,12 @@ button.fixed-width {
     pointer-events: auto;
 }
 
-/* .shaded { */
-/*   box-shadow: 2px 2px 2px rgba(0,0,0,0.3); */
-/* } */
-
-/* .shaded-y { */
-/*   box-shadow: 0px 2px 2px rgba(0,0,0,0.3); */
-/* } */
-
 .shaded-panel, .discourse {
   /* box-shadow: 2px 2px 2px rgba(0,0,0,0.3); */
   background-color: #eeeeee;
 }
 
-#alert-message table td {
+#alert-message table td, #stats-message table td {
   padding-left: 0;
   border-bottom: 0;
   color: rgba(0,0,0,.6);

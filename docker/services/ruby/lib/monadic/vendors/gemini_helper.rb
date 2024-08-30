@@ -1,8 +1,8 @@
 module GeminiHelper
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  OPEN_TIMEOUT = 10
+  READ_TIMEOUT = 90
+  WRITE_TIMEOUT = 90
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
@@ -215,14 +215,15 @@ module GeminiHelper
     end
 
     process_json_data(app, session, res.body, call_depth, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
+  rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError => e
     if num_retrial < MAX_RETRIES
       num_retrial += 1
-      sleep RETRY_DELAY
+      sleep RETRY_DELAY * num_retrial
       retry
     else
-      pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      error_message = e.is_a?(OpenSSL::SSL::SSLError) ? "SSL ERROR: #{e.message}" : "The request has timed out."
+      pp error_message
+      res = { "type" => "error", "content" => "HTTP/SSL ERROR: #{error_message}" }
       block&.call res
       [res]
     end

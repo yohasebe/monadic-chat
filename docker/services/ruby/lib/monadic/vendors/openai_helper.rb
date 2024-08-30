@@ -23,7 +23,12 @@ module OpenAIHelper
     api_key = CONFIG["OPENAI_API_KEY"]
 
     # Get the parameters from the session
-    initial_prompt = session[:messages].first["text"]
+    initial_prompt = if session[:messages].empty?
+                       obj["initial_prompt"]
+                     else
+                       session[:messages].first["text"]
+                     end
+
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
     max_tokens = obj["max_tokens"]&.to_i

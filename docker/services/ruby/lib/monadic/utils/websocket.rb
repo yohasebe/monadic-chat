@@ -327,7 +327,7 @@ module WebSocketHelper
               }.to_json)
             end
           end
-        else
+        else # fragment
           session[:parameters].merge! obj
 
           if obj["auto_speech"]
@@ -372,6 +372,7 @@ module WebSocketHelper
                 end
               end
               @channel.push(fragment.to_json)
+              sleep 0.01
             end
 
             Thread.exit if !responses || responses.empty?

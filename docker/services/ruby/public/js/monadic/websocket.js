@@ -10,16 +10,16 @@ let model_options;
 // message is submitted upon pressing enter
 const message = $("#message")[0];
 
-message.addEventListener("compositionstart", function() {
+message.addEventListener("compositionstart", function () {
   message.dataset.ime = "true";
 });
 
-message.addEventListener("compositionend", function() {
+message.addEventListener("compositionend", function () {
   message.dataset.ime = "false";
 });
 
-document.addEventListener("keydown", function(event) {
-  if($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
+document.addEventListener("keydown", function (event) {
+  if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
     event.preventDefault();
     if ($("#voice").prop("disabled") === false) {
       $("#voice").click();
@@ -27,8 +27,8 @@ document.addEventListener("keydown", function(event) {
   }
 });
 
-message.addEventListener("keydown", function(event) {
-  if($("#check-easy-submit").is(":checked") && (event.key === "Enter") && message.dataset.ime !== "true") {
+message.addEventListener("keydown", function (event) {
+  if ($("#check-easy-submit").is(":checked") && (event.key === "Enter") && message.dataset.ime !== "true") {
     event.preventDefault();
     $("#send").click();
   }
@@ -43,7 +43,7 @@ function handleVisibilityChange() {
     // If the document becomes visible again, you can reconnect the WebSocket if needed
     // Make sure to check if the socket is already connected before attempting to reconnect
     if (ws.readyState === WebSocket.CLOSED) {
-      ws = connect_websocket(); 
+      ws = connect_websocket();
     }
   }
 }
@@ -92,7 +92,7 @@ function startPing() {
   }
   pingInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({message: 'PING'}));
+      ws.send(JSON.stringify({ message: 'PING' }));
     }
   }, 30000);
 }
@@ -105,7 +105,7 @@ function stopPing() {
 
 const chatBottom = $("#chat-bottom").get(0);
 let autoScroll = true;
- /* exported autoScroll */
+/* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
 const defaultApp = "Chat";
@@ -154,7 +154,7 @@ const mermaid_config = {
   securityLevel: 'strict',
   theme: 'default'
 };
-  
+
 $(document).on("click", ".copy-button", function () {
   const codeElement = $(this).prev().find("code");
   const text = codeElement.text();
@@ -170,7 +170,7 @@ $(document).on("click", ".copy-button", function () {
     }, 1000);
   });
 });
- 
+
 async function applyMermaid(element) {
   element.find(".mermaid-code").each(function (index) {
     const mermaidElement = $(this);
@@ -213,7 +213,7 @@ async function applyMermaid(element) {
 function abcCursorControl(element_id) {
   var self = this;
 
-  self.onStart = function() {
+  self.onStart = function () {
     var svg = document.querySelector(`${element_id} svg`);
     var cursor = document.createElementNS("http://www.w3.org/2000/svg", "line");
     cursor.setAttribute("class", "abcjs-cursor");
@@ -225,7 +225,7 @@ function abcCursorControl(element_id) {
 
   };
   self.beatSubdivisions = 2;
-  self.onEvent = function(ev) {
+  self.onEvent = function (ev) {
     if (ev.measureStart && ev.left === null)
       return; // this was the second part of a tie across a measure line. Just ignore it.
 
@@ -233,7 +233,7 @@ function abcCursorControl(element_id) {
     for (var k = 0; k < lastSelection.length; k++)
       lastSelection[k].classList.remove("highlight");
 
-    for (var i = 0; i < ev.elements.length; i++ ) {
+    for (var i = 0; i < ev.elements.length; i++) {
       var note = ev.elements[i];
       for (var j = 0; j < note.length; j++) {
         note[j].classList.add("highlight");
@@ -248,9 +248,9 @@ function abcCursorControl(element_id) {
       cursor.setAttribute("y2", ev.top + ev.height);
     }
   };
-  self.onFinished = function() {
+  self.onFinished = function () {
     var els = document.querySelectorAll("svg .highlight");
-    for (var i = 0; i < els.length; i++ ) {
+    for (var i = 0; i < els.length; i++) {
       els[i].classList.remove("highlight");
     }
     var cursor = document.querySelector(`${element_id} svg .abcjs-cursor`);
@@ -280,7 +280,7 @@ function applyToggle(element, nl2br = false) {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");
     toggleElement.find("pre").addClass("sourcecode");
-    if(nl2br) {
+    if (nl2br) {
       let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
       toggleElement.find("pre").text(toggleText);
     }
@@ -356,13 +356,13 @@ function applyAbc(element) {
         tablabelfont: "Helvetica 10 box",
         tabnumberfont: "Times 10",
         dynamicVAlign: false,
-        dynamicHAlign: false 
+        dynamicHAlign: false
       }
     };
     if (instrument === "violin" || instrument === "mandolin" || instrument === "fiddle" || instrument === "guitar" || instrument === "fiveString") {
-      abcOptions.tablature = [{instrument: instrument}];
+      abcOptions.tablature = [{ instrument: instrument }];
     } else if (instrument === "bass") {
-      abcOptions.tablature = [{instrument: "bass", label: "Base (%T)", tuning: ["E,", "A,", "D", "G"]}]
+      abcOptions.tablature = [{ instrument: "bass", label: "Base (%T)", tuning: ["E,", "A,", "D", "G"] }]
     }
     const visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
     if (ABCJS.synth.supportsAudio()) {
@@ -411,7 +411,7 @@ function connect_websocket(callback) {
   ws.onopen = function () {
     // console.log('WebSocket connected');
     setAlert("<p>Verifying token . . .</p>", "warning");
-    ws.send(JSON.stringify({message: "CHECK_TOKEN", initial: true, contents: $("#token").val()}));
+    ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
     if (!mediaSource) {
       mediaSource = new MediaSource();
@@ -434,7 +434,7 @@ function connect_websocket(callback) {
     // check verified at a regular interval
     let verificationCheckTimer = setInterval(function () {
       if (verified) {
-        ws.send(JSON.stringify({"message": "LOAD"}));
+        ws.send(JSON.stringify({ "message": "LOAD" }));
         startPing();
         if (callback) {
           callback(ws);
@@ -508,7 +508,7 @@ function connect_websocket(callback) {
         // filter out the models that are not available from the dropdown
         const available_models = data['models']
         $("#apps option").each(function () {
-          let  model = apps[$(this).val()]["model"]
+          let model = apps[$(this).val()]["model"]
           if (model && !available_models.includes(model)) {
             $(this).remove();
           }
@@ -561,7 +561,7 @@ function connect_websocket(callback) {
           $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
 
           if ($("#apps").val() === "PDF") {
-            ws.send(JSON.stringify({message: "PDF_TITLES"}));
+            ws.send(JSON.stringify({ message: "PDF_TITLES" }));
           }
         }
         originalParams = apps["Chat"];
@@ -616,10 +616,10 @@ function connect_websocket(callback) {
         break;
       }
       case "info": {
-        // infoHtml = formatInfo(data["content"]);
-        // if (infoHtml !== "") {
-        //   setAlert(infoHtml, "info");
-        // }
+        infoHtml = formatInfo(data["content"]);
+        if (infoHtml !== "") {
+          setStats(infoHtml);
+        }
         setAlert("Ready to start", "success");
         break;
       }
@@ -637,7 +637,7 @@ function connect_websocket(callback) {
             $("#pdfToDelete").text(title);
             $("#pdfDeleteConfirmed").on("click", function (event) {
               event.preventDefault();
-              ws.send(JSON.stringify({message: "DELETE_PDF", contents: title}));
+              ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
               $("#pdfDeleteConfirmation").modal("hide");
               $("#pdfToDelete").text("");
             });
@@ -646,12 +646,12 @@ function connect_websocket(callback) {
         break
       }
       case "pdf_deleted": {
-        if(data["res"] === "success") {
+        if (data["res"] === "success") {
           setAlert(data["content"], "info");
         } else {
           setAlert(data["content"], "error");
         }
-        ws.send(JSON.stringify({"message": "PDF_TITLES"}));
+        ws.send(JSON.stringify({ "message": "PDF_TITLES" }));
         break;
       }
       case "change_status": {
@@ -689,7 +689,7 @@ function connect_websocket(callback) {
               msg_text = msg_text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
 
               let images
-              if(msg["images"] !== undefined){
+              if (msg["images"] !== undefined) {
                 images = msg["images"]
               } else {
                 images = []
@@ -735,7 +735,7 @@ function connect_websocket(callback) {
             }
           }
         });
-        // setAlert(formatInfo(data["content"]), "info");
+        setStats(formatInfo(data["content"]), "info");
 
         if (messages.length > 0) {
           $("#start-label").text("Continue Session");
@@ -747,7 +747,7 @@ function connect_websocket(callback) {
       }
       case "message": {
         if (data["content"] === "DONE") {
-          ws.send(JSON.stringify({"message": "HTML"}));
+          ws.send(JSON.stringify({ "message": "HTML" }));
         } else if (data["content"] === "CLEAR") {
           $("#chat").html("");
           $("#temp-card .status").hide();
@@ -770,7 +770,7 @@ function connect_websocket(callback) {
         $("#cancel_query").css("opacity", "0.0");
         $("#send, #clear, #image-file, #voice").prop("disabled", false);
 
-        if (!isElementInViewport(mainPanel)){
+        if (!isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
 
@@ -784,8 +784,8 @@ function connect_websocket(callback) {
 
         if (data["content"]["role"] === "assistant") {
           htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
-          
-          if(params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
+
+          if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
             $("#message").attr("placeholder", "Waiting for AI-user input . . .");
             $("#message").prop("disabled", true);
             let simple_messages = messages.map(msg => {
@@ -807,7 +807,7 @@ function connect_websocket(callback) {
         } else if (data["content"]["role"] === "user") {
           let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
           let images;
-          if(data["images"] !== undefined){
+          if (data["images"] !== undefined) {
             images = data["images"]
           }
           htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
@@ -847,7 +847,7 @@ function connect_websocket(callback) {
         $("#indicator").hide();
         $("#user-panel").show();
 
-        if (!isElementInViewport(mainPanel)){
+        if (!isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
 
@@ -857,13 +857,13 @@ function connect_websocket(callback) {
       }
       case "user": {
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
-        if(data["images"] !== undefined) {
+        if (data["images"] !== undefined) {
           message_obj.images = data["images"];
         }
         messages.push(message_obj);
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
         let images;
-        if(data["images"] !== undefined){
+        if (data["images"] !== undefined) {
           images = data["images"];
         }
         const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
@@ -885,7 +885,7 @@ function connect_websocket(callback) {
         break;
       }
       default: {
-        if(!responseStarted || callingFunction) {
+        if (!responseStarted || callingFunction) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
           callingFunction = false;
           responseStarted = true;

@@ -173,6 +173,7 @@ class CodeWithCommandR < MonadicApp
     image: false,
     pdf: false,
     models: [
+      "command-r-plus-08-2024",
       "command-r-plus"
     ],
     tools: [

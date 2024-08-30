@@ -49,42 +49,38 @@ let wsl2Installed = false;
 
 function checkRequirements() {
   return new Promise((resolve, reject) => {
-    const platform = os.platform();
-    const checkDocker = () => exec('docker -v', (err) => !err);
-    const checkWSL = () => exec('wsl -l -v', (err) => !err);
-
-    const checks = {
-      win32: async () => {
-        dockerInstalled = await checkDocker();
-        wsl2Installed = await checkWSL();
-        if (!dockerInstalled) {
-          reject("Docker is not installed.|Please install Docker Desktop for Windows first.");
-        } else if (!wsl2Installed) {
-          reject("WSL 2 is not installed.|Please install WSL 2 first.");
-        } else {
-          resolve();
-        }
-      },
-      darwin: async () => {
-        dockerInstalled = await checkDocker();
+    if (os.platform() === 'win32') {
+      exec('docker -v', function (err) {
+        dockerInstalled = !err;
+        exec('wsl -l -v', function (err) {
+          wsl2Installed = !err;
+          if (!dockerInstalled) {
+            reject("Docker is not installed.|Please install Docker Desktop for Windows first.");
+          } else if (!wsl2Installed) {
+            reject("WSL 2 is not installed.|Please install WSL 2 first.");
+          } else {
+            resolve();
+          }
+        });
+      });
+    } else if (os.platform() === 'darwin') {
+      exec('/usr/local/bin/docker -v', function (err, stdout) {
+        dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
         if (!dockerInstalled) {
           reject("Docker is not installed.|Please install Docker Desktop for Mac first.");
         } else {
           resolve();
         }
-      },
-      linux: async () => {
-        dockerInstalled = await checkDocker();
+      });
+    } else if (os.platform() === 'linux') {
+      exec('docker -v', function (err, stdout) {
+        dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
         if (!dockerInstalled) {
           reject("Docker is not installed.|Please install Docker for Linux first.");
         } else {
           resolve();
         }
-      }
-    };
-
-    if (checks[platform]) {
-      checks[platform]();
+      });
     } else {
       reject('Unsupported platform');
     }
@@ -224,14 +220,14 @@ function quitApp() {
 
       // Force quit after a short delay to allow for cleanup
       setTimeout(() => {
-        app.exit(0); // Use app.exit(0) instead of app.quit()
+        app.exit(0);
       }, 2000);
     } else {
       isQuitting = false;
     }
   }).catch((err) => {
     console.error('Error in quit dialog:', err);
-    app.exit(0); // Use app.exit(0) instead of app.quit()
+    app.quit();
   });
 }
 
@@ -261,7 +257,6 @@ if (settingsWindow) {
     }
   });
 }
-
 
 function openMainWindow() {
   if (mainWindow) {
@@ -663,18 +658,35 @@ function updateStatusIndicator(status) {
 
 function updateContextMenu(disableControls = false) {
   tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-
-  const menuItemsToUpdate = [2, 3, 4, 6, 8, 10, 12, 14];
-  menuItemsToUpdate.forEach(index => {
-    menuItems[index].enabled = !disableControls;
-  });
+  if (disableControls) {
+    menuItems[2].enabled = false;
+    menuItems[3].enabled = false;
+    menuItems[4].enabled = false;
+    menuItems[6].enabled = false;
+    menuItems[8].enabled = false;
+    menuItems[10].enabled = false;
+    menuItems[12].enabled = false;
+    menuItems[14].enabled = false;
+  } else {
+    menuItems[2].enabled = true;
+    menuItems[3].enabled = true;
+    menuItems[4].enabled = true;
+    menuItems[8].enabled = true;
+    menuItems[10].enabled = true;
+    menuItems[12].enabled = true;
+    menuItems[14].enabled = true;
+  }
 
   if (currentStatus === 'Running') {
     menuItems[2].enabled = false;
     menuItems[3].enabled = true;
     menuItems[4].enabled = true;
     menuItems[6].enabled = false;
-  } else if (currentStatus === 'Stopped') {
+  } else {
+    menuItems[4].enabled = false;
+  }
+
+  if (currentStatus === 'Stopped') {
     menuItems[2].enabled = true;
     menuItems[3].enabled = false;
     menuItems[5].enabled = false;
@@ -684,6 +696,7 @@ function updateContextMenu(disableControls = false) {
   contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
 
+  // Update main window buttons and menu items
   updateMainWindowControls(disableControls);
   updateApplicationMenu();
 }
@@ -1030,19 +1043,29 @@ function openBrowser(url, outside = false) {
     return;
   }
 
-  const checkServerAndOpen = () => {
+  // wait until the system is ready on the port 4567
+  // before opening the browser with the timeout of 20 seconds
+  const timeout = 20000;
+  const interval = 500;
+  let time = 0;
+  const timer = setInterval(() => {
     isPortTaken(4567, (taken) => {
       if (taken) {
+        clearInterval(timer);
         writeToScreen("[HTML]: <p>The server is running on port 4567. Opening the browser.</p>");
         spawn(...openCommands[platform]);
       } else {
-        setTimeout(checkServerAndOpen, 500);
+        if (time == 0) {
+          writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
+        }
+        time += interval;
+        if (time >= timeout) {
+          clearInterval(timer);
+          dialog.showErrorBox('Error', 'Failed to start the server. Please try again.');
+        }
       }
     });
-  };
-
-  writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
-  checkServerAndOpen();
+  }, interval);
 }
 
 let settingsView = null;

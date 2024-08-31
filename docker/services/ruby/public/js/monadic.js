@@ -577,16 +577,16 @@ $(function () {
     show: 100
   });
 
-  $(document).on("click", ".contBtn", function () {
-    $("#message").val("continue");
-    $("#send").click();
-  });
-
-  $(document).on("click", ".base64-image", function () {
-    // open a new window to show the image
-    const w = window.open();
-    w.document.write(this.outerHTML);
-  });
+  // $(document).on("click", ".contBtn", function () {
+  //   $("#message").val("continue");
+  //   $("#send").click();
+  // });
+  //
+  // $(document).on("click", ".base64-image", function () {
+  //   // open a new window to show the image
+  //   const w = window.open();
+  //   w.document.write(this.outerHTML);
+  // });
 
   $(document).ready(function () {
     $("#initial-prompt").css("display", "none");

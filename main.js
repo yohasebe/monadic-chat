@@ -175,7 +175,6 @@ let settingsWindow = null;
 
 function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
-  isQuitting = true;
 
   let options = {
     type: 'question',
@@ -194,6 +193,8 @@ function quitApp() {
 
   dialog.showMessageBox(mainWindow, options).then((result) => {
     if (result.response === 1) { // 'Quit' button
+      isQuitting = true;
+
       // Stop all running processes
       runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
 
@@ -220,14 +221,16 @@ function quitApp() {
 
       // Force quit after a short delay to allow for cleanup
       setTimeout(() => {
-        app.exit(0);
+        app.quit();
       }, 2000);
     } else {
       isQuitting = false;
     }
   }).catch((err) => {
     console.error('Error in quit dialog:', err);
-    app.quit();
+    setTimeout(() => {
+      app.quit();
+    }, 2000);
   });
 }
 
@@ -257,6 +260,7 @@ if (settingsWindow) {
     }
   });
 }
+
 
 function openMainWindow() {
   if (mainWindow) {

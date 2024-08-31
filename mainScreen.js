@@ -1,36 +1,50 @@
+// Get HTML elements
 const htmlOutputElement = document.getElementById('messages');
 const logOutputElement = document.getElementById('output');
 const logMaxLines = 256;
 let logLines = 0;
 
+// Function to add copy functionality to code blocks
 function copyToClipboard() {
   document.removeEventListener('click', handleCopyClick);
   document.addEventListener('click', handleCopyClick);
 }
 
+// Handle click events for copying code
 function handleCopyClick(event) {
-  if (event.target.classList.contains('fa-copy')) {
-    const codeElement = event.target.nextElementSibling;
-    const code = codeElement.textContent;
-    navigator.clipboard.writeText(code).then(() => {
-      event.target.classList.remove('fa-copy');
-      event.target.classList.add('fa-check');
-      event.target.style.color = '#DC4C64';
+  if (!event.target.classList.contains('fa-copy')) return;
+
+  const codeElement = event.target.nextElementSibling;
+  navigator.clipboard.writeText(codeElement.textContent)
+    .then(() => {
+      const icon = event.target;
+      icon.classList.replace('fa-copy', 'fa-check');
+      icon.style.color = '#DC4C64';
       setTimeout(() => {
-        event.target.classList.remove('fa-check');
-        event.target.classList.add('fa-copy');
-        event.target.style.color = '';
+        icon.classList.replace('fa-check', 'fa-copy');
+        icon.style.color = '';
       }, 1000);
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-    });
-  }
+    })
+    .catch(err => console.error('Failed to copy text: ', err));
 }
 
+// Add event listeners for command buttons
+function addCommandListener(id, command) {
+  document.getElementById(id).addEventListener('click', () => {
+    window.electron.sendCommand(command);
+  });
+}
+
+// Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   copyToClipboard();
+
+  ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit'].forEach(id => {
+    addCommandListener(id, id);
+  });
 });
 
+// Handle command output
 window.electron.receiveCommandOutput((output) => {
   try {
     // Remove carriage return characters
@@ -52,62 +66,34 @@ window.electron.receiveCommandOutput((output) => {
     }
   } catch (error) {
     console.error('Error processing command output:', error);
+    // Notify user if an error occurs
+    htmlOutputElement.innerHTML += '<p style="color: red;">An error occurred. Please check the console for details.</p>\n';
+    htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
   }
 });
 
-document.getElementById('start').addEventListener('click', () => {
-  window.electron.sendCommand('start');
-});
-
-document.getElementById('stop').addEventListener('click', () => {
-  window.electron.sendCommand('stop');
-});
-
-document.getElementById('restart').addEventListener('click', () => {
-  window.electron.sendCommand('restart');
-});
-
-document.getElementById('browser').addEventListener('click', () => {
-  window.electron.sendCommand('browser');
-});
-
-document.getElementById('folder').addEventListener('click', () => {
-  window.electron.sendCommand('folder');
-});
-
-document.getElementById('settings').addEventListener('click', () => {
-  window.electron.sendCommand('settings');
-});
-
-document.getElementById('exit').addEventListener('click', () => {
-  window.electron.sendCommand('exit');
-});
-
+// Update control buttons based on status
 window.electron.updateControls(({ status, disableControls }) => {
-  const startButton = document.getElementById('start');
-  const stopButton = document.getElementById('stop');
-  const restartButton = document.getElementById('restart');
-  const browserButton = document.getElementById('browser');
-  const folderButton = document.getElementById('folder');
+  const buttons = {
+    start: document.getElementById('start'),
+    stop: document.getElementById('stop'),
+    restart: document.getElementById('restart'),
+    browser: document.getElementById('browser'),
+    folder: document.getElementById('folder')
+  };
 
   if (disableControls) {
-    startButton.disabled = true;
-    stopButton.disabled = true;
-    restartButton.disabled = true;
-    browserButton.disabled = true;
-    folderButton.disabled = true;
+    Object.values(buttons).forEach(button => button.disabled = true);
   } else {
-    startButton.disabled = status !== 'Stopped';
-    stopButton.disabled = status !== 'Running';
-    restartButton.disabled = status !== 'Running';
-    browserButton.disabled = status !== 'Running' && status !== 'Ready';
-    folderButton.disabled = status !== 'Running';
+    buttons.start.disabled = status !== 'Stopped';
+    buttons.stop.disabled = status !== 'Running';
+    buttons.restart.disabled = status !== 'Running';
+    buttons.browser.disabled = status !== 'Running' && status !== 'Ready';
+    buttons.folder.disabled = status !== 'Running';
   }
 });
 
-// Listen for the serverReady event to enable the browser button immediately
+// Enable browser button when server is ready
 window.electron.onServerReady(() => {
   document.getElementById('browser').disabled = false;
 });
-
-

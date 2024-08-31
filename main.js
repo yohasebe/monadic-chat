@@ -47,6 +47,7 @@ const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons')
 let dockerInstalled = false;
 let wsl2Installed = false;
 
+// Check if Docker and WSL 2 are installed (Windows only) or Docker is installed (macOS and Linux)
 function checkRequirements() {
   return new Promise((resolve, reject) => {
     if (os.platform() === 'win32') {
@@ -87,6 +88,7 @@ function checkRequirements() {
   });
 }
 
+// Compare two version strings (e.g., "1.2.3" vs "1.2.4")
 function compareVersions(version1, version2) {
   const parts1 = version1.split('.');
   const parts2 = version2.split('.');
@@ -105,6 +107,7 @@ function compareVersions(version1, version2) {
   return 0;
 }
 
+// Check for updates by comparing the current app version with the latest version on GitHub
 function checkForUpdates() {
   const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
@@ -149,6 +152,7 @@ function checkForUpdates() {
   });
 }
 
+// Uninstall Monadic Chat by removing Docker images and containers
 function uninstall() {
   let options = {
     type: 'question',
@@ -173,6 +177,7 @@ function uninstall() {
 let mainWindow = null;
 let settingsWindow = null;
 
+// Quit the application after confirming with the user and stopping all running processes
 function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
 
@@ -195,34 +200,35 @@ function quitApp() {
     if (result.response === 1) { // 'Quit' button
       isQuitting = true;
 
-      // Stop all running processes
-      runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
+      // Stop all running processes and wait for completion
+      runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true)
+        .then(() => {
+          // Shut down Docker if checkbox is checked
+          if (result.checkboxChecked && process.platform === 'darwin') {
+            shutdownDocker();
+          }
 
-      // Shut down Docker if checkbox is checked
-      if (result.checkboxChecked && process.platform === 'darwin') {
-        shutdownDocker();
-      }
+          // Clean up resources
+          if (tray) {
+            tray.destroy();
+            tray = null;
+          }
 
-      // Clean up resources
-      if (tray) {
-        tray.destroy();
-        tray = null;
-      }
+          if (mainWindow) {
+            mainWindow.removeAllListeners('close');
+            mainWindow.close();
+          }
 
-      if (mainWindow) {
-        mainWindow.removeAllListeners('close');
-        mainWindow.close();
-      }
+          if (settingsWindow) {
+            settingsWindow.removeAllListeners('close');
+            settingsWindow.close();
+          }
 
-      if (settingsWindow) {
-        settingsWindow.removeAllListeners('close');
-        settingsWindow.close();
-      }
-
-      // Force quit after a short delay to allow for cleanup
-      setTimeout(() => {
-        app.quit();
-      }, 2000);
+          // Force quit after a short delay to allow for cleanup
+          setTimeout(() => {
+            app.quit();
+          }, 2000);
+        });
     } else {
       isQuitting = false;
     }
@@ -447,10 +453,12 @@ function initializeApp() {
   });
 }
 
+// Convert Windows path to Unix path format
 function toUnixPath(p) {
   return p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
 }
 
+// Shut down Docker Desktop (macOS only)
 function shutdownDocker() {
   let cmd;
   if (os.platform() === 'darwin') {
@@ -462,9 +470,9 @@ function shutdownDocker() {
     return;
   }
 
-  exec(cmd, (err, stdout) => {
+  exec(cmd, (err, stdout, stderr) => {
     if (err) {
-      dialog.showErrorBox('Error', err.message);
+      dialog.showErrorBox('Error shutting down Docker', err.message);
       console.error(err);
       return;
     }
@@ -474,35 +482,48 @@ function shutdownDocker() {
   });
 }
 
-function fetchWithRetry(url, options = {}, retries = 30, delay = 2000) {
+// Fetch a URL with retries and a delay between attempts
+function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {
   const attemptFetch = (attempt) => {
-    return fetch(url, options)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        console.log(`Connecting to server: success`);
-        return true;
-      })
-      .catch(error => {
-        console.log(`Connecting to server: attempt ${attempt} failed`);
-        if (attempt <= retries) {
-          console.log(`Retrying in ${delay}ms . . .`);
-          return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Fetch request timed out after ${timeout}ms`));
+      }, timeout);
+
+      fetch(url, options)
+        .then(response => {
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          console.log(`Connecting to server: success`);
+          resolve(true);
+        })
+        .catch(error => {
+          clearTimeout(timeoutId);
+          console.log(`Connecting to server: attempt ${attempt} failed`);
+          if (attempt <= retries) {
+            console.log(`Retrying in ${delay}ms . . .`);
             setTimeout(() => {
               resolve(attemptFetch(attempt + 1));
             }, delay);
-          });
-        } else {
-          throw error;
-        }
-      });
+          } else {
+            reject(error);
+          }
+        });
+    });
   };
   return attemptFetch(1);
 }
 
 let fetchWithRetryCalled = false;
 
+// Run a command using monadic.sh and update the UI accordingly
+// command: The command to run (e.g., 'start', 'stop', 'restart')
+// message: The initial message to display in the output area
+// statusWhileCommand: The status to display while the command is running
+// statusAfterCommand: The status to display after the command has finished
+// sync: Whether to run the command synchronously (default: false)
 function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   if (command === 'start') {
     const apiKeySet = checkAndUpdateEnvFile();
@@ -533,93 +554,101 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
 
   fetchWithRetryCalled = false; // Reset the flag before running the command
 
-  if (sync) {
-    execSync(cmd, (err, stdout) => {
-      if (err) {
-        dialog.showErrorBox('Error', err.message);
-        console.error(err);
-        return;
-      }
-      currentStatus = statusAfterCommand;
-      tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
-      statusMenuItem.label = `Status: ${statusAfterCommand}`;
-      writeToScreen(stdout);
-      updateContextMenu(false);
-      updateStatusIndicator(currentStatus);
-    });
-  } else {
-    let subprocess = spawn(cmd, [], { shell: true });
-
-    subprocess.stdout.on('data', function (data) {
-      const lines = data.toString().split(/\r\n|\r|\n/);
-      if (lines[lines.length - 1] === '') {
-        lines.pop();
-      }
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim().startsWith('[VERSION]: ')) {
-          // get the version number from the output
-          const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
-          if (compareVersions(imageVersion, app.getVersion()) > 0) {
-            dialog.showMessageBox({
-              type: 'info',
-              buttons: ['OK'],
-              title: 'Update Available',
-              message: `A new version of the app is available. Please update to the latest version.`,
-              icon: path.join(iconDir, 'monadic-chat.png')
-            });
-          }
-        } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
-          writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
-          currentStatus = "Building";
-          tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-          statusMenuItem.label = `Status: ${currentStatus}`;
-          updateStatusIndicator(currentStatus);
-        } else if (lines[i].trim() === "[SERVER STARTED]") {
-          if (!fetchWithRetryCalled) {
-            fetchWithRetryCalled = true;
-            writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
-            fetchWithRetry('http://localhost:4567')
-              .then(() => {
-                menuItems[6].enabled = true;
-                contextMenu = Menu.buildFromTemplate(menuItems);
-                tray.setContextMenu(contextMenu);
-                updateStatusIndicator("Ready");
-                writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
-                // Send the message to the renderer process immediately
-                mainWindow.webContents.send('serverReady');
-                openBrowser('http://localhost:4567');
-              })
-              .catch(error => {
-                writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
-                console.error('Fetch operation failed after retries:', error);
-                // switch the status back to Stopped
-                currentStatus = 'Stopped';
-                tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-                statusMenuItem.label = `Status: ${currentStatus}`;
-                updateContextMenu(false);
-                updateStatusIndicator(currentStatus);
-              });
-          }
-        } else {
-          writeToScreen(lines[i]);
+  // Return a promise that resolves when the command execution is complete
+  return new Promise((resolve, reject) => {
+    if (sync) {
+      // Use exec instead of execSync for better error handling
+      exec(cmd, (err, stdout, stderr) => {
+        if (err) {
+          dialog.showErrorBox('Error', err.message + '\n' + stderr); // Show a more informative error message
+          console.error(err);
+          reject(err); // Reject the promise if an error occurs
+          return;
         }
-      }
-    });
+        currentStatus = statusAfterCommand;
+        tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
+        statusMenuItem.label = `Status: ${statusAfterCommand}`;
+        writeToScreen(stdout);
+        updateContextMenu(false);
+        updateStatusIndicator(currentStatus);
+        resolve(); // Resolve the promise when the command is finished
+      });
+    } else {
+      let subprocess = spawn(cmd, [], { shell: true });
 
-    subprocess.stderr.on('data', function (data) {
-      console.error(data.toString());
-      return;
-    });
+      subprocess.stdout.on('data', function (data) {
+        const lines = data.toString().split(/\r\n|\r|\n/);
+        if (lines[lines.length - 1] === '') {
+          lines.pop();
+        }
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].trim().startsWith('[VERSION]: ')) {
+            // Get the version number from the output
+            const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
+            if (compareVersions(imageVersion, app.getVersion()) > 0) {
+              dialog.showMessageBox({
+                type: 'info',
+                buttons: ['OK'],
+                title: 'Update Available',
+                message: `A new version of the app is available. Please update to the latest version.`,
+                icon: path.join(iconDir, 'monadic-chat.png')
+              });
+            }
+          } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
+            writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
+            currentStatus = "Building";
+            tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+            statusMenuItem.label = `Status: ${currentStatus}`;
+            updateStatusIndicator(currentStatus);
+          } else if (lines[i].trim() === "[SERVER STARTED]") {
+            if (!fetchWithRetryCalled) {
+              fetchWithRetryCalled = true;
+              writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
+              fetchWithRetry('http://localhost:4567')
+                .then(() => {
+                  menuItems[6].enabled = true;
+                  contextMenu = Menu.buildFromTemplate(menuItems);
+                  tray.setContextMenu(contextMenu);
+                  updateStatusIndicator("Ready");
+                  writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
+                  // Send the message to the renderer process immediately
+                  mainWindow.webContents.send('serverReady');
+                  openBrowser('http://localhost:4567');
+                })
+                .catch(error => {
+                  writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
+                  console.error('Fetch operation failed after retries:', error);
+                  // Switch the status back to Stopped
+                  currentStatus = 'Stopped';
+                  tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+                  statusMenuItem.label = `Status: ${currentStatus}`;
+                  updateContextMenu(false);
+                  updateStatusIndicator(currentStatus);
+                });
+            }
+          } else {
+            writeToScreen(lines[i]);
+          }
+        }
+      });
 
-    subprocess.on('close', function () {
-      currentStatus = statusAfterCommand;
-      tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
-      statusMenuItem.label = `Status: ${statusAfterCommand}`;
+      subprocess.stderr.on('data', function (data) {
+        console.error(data.toString());
+        return;
+      });
 
-      updateContextMenu(false);
-      updateStatusIndicator(currentStatus);
-    });
-  }
+      subprocess.on('close', function () {
+        currentStatus = statusAfterCommand;
+        tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
+        statusMenuItem.label = `Status: ${statusAfterCommand}`;
+
+        updateContextMenu(false);
+        updateStatusIndicator(currentStatus);
+
+        resolve(); // Resolve the promise when the command is finished
+      });
+    }
+  });
 }
 
 function isPortTaken(port, callback) {
@@ -1088,6 +1117,7 @@ ipcMain.on('close-settings', () => {
   }
 });
 
+// Get the path to the .env file based on the operating system
 function getEnvPath() {
   if (os.platform() === 'win32') {
     try {
@@ -1103,13 +1133,14 @@ function getEnvPath() {
   }
 }
 
+// Read the .env file and parse its contents
 function readEnvFile(envPath) {
   try {
     let envContent = fs.readFileSync(envPath, 'utf8');
     envContent = envContent.replace(/\r\n/g, '\n');
     return dotenv.parse(envContent);
   } catch {
-    // create a new .env file creating the nested directories if it doesn't exist
+    // Create a new .env file and its parent directories if it doesn't exist
     const envDir = path.dirname(envPath);
     fs.mkdirSync(envDir, { recursive: true });
     fs.writeFileSync(envPath, '');
@@ -1117,6 +1148,7 @@ function readEnvFile(envPath) {
   }
 }
 
+// Write the settings to the .env file
 function writeEnvFile(envPath, envConfig) {
   const envContent = Object.entries(envConfig)
     .map(([key, value]) => `${key}=${value}`)
@@ -1130,6 +1162,7 @@ function writeEnvFile(envPath, envConfig) {
   }
 }
 
+// Check if the OpenAI API key is set in the .env file and update default settings if necessary
 function checkAndUpdateEnvFile() {
   const envPath = getEnvPath();
   if (!envPath) return false;
@@ -1154,11 +1187,13 @@ function checkAndUpdateEnvFile() {
   return !!envConfig.OPENAI_API_KEY;
 }
 
+// Load settings from the .env file
 function loadSettings() {
   const envPath = getEnvPath();
   return envPath ? readEnvFile(envPath) : {};
 }
 
+// Save settings to the .env file
 function saveSettings(data) {
   const envPath = getEnvPath();
   if (envPath) {
@@ -1201,4 +1236,3 @@ ipcMain.on('close-settings', () => {
     settingsWindow.hide();
   }
 });
-

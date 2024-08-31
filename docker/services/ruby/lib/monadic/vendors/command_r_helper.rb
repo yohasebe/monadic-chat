@@ -66,37 +66,27 @@ module CommandRHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    message = obj["message"].to_s
+    message = obj["message"]
 
     if role != "tool"
+      message ||= "Hi there!"
       html = if message != ""
                markdown_to_html(message)
              else
                message
              end
 
-      if message != "" && role == "user"
+      if role == "user"
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
+                  "role" => role,
                   "text" => obj["message"],
                   "html" => html,
                   "lang" => detect_language(obj["message"])
                 } }
         block&.call res
-      else
-        message = "Hi, there!"
-      end
-
-      # If the role is "user", the message is added to the session
-      if message != "" && role == "user"
-        res = { "mid" => request_id,
-                "role" => role,
-                "text" => message,
-                "html" => markdown_to_html(message),
-                "lang" => detect_language(message),
-                "active" => true }
-        session[:messages] << res
+        session[:messages] << res["content"]
       end
     end
 

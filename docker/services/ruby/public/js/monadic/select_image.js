@@ -17,7 +17,7 @@ selectFileButton.on("click", function () {
     imageButton.prop('disabled', true);
   });
 
-  fileImage.on('change', function() {
+  fileImage.on('change', function () {
     if (fileImage[0].files.length > 0) {
       imageButton.prop('disabled', false);
     }
@@ -37,7 +37,7 @@ selectFileButton.on("click", function () {
           const imageData = "data:" + imageType + ";base64," + base64;
 
           // Store the image data
-         images.push({ title: imageTitle, data: imageData, type: imageType });
+          images.push({ title: imageTitle, data: imageData, type: imageType });
 
           // Update the UI to show the uploaded images
           updateImageDisplay(images);
@@ -103,14 +103,14 @@ function updateImageDisplay(images) {
   images.forEach((image, index) => {
     $("#image-used").append(`
       <div class="image-container">
-        <img class='base64-image' src='${image.data}' />
+        <img class='base64-image' alt='${image.title}' src='${image.data}' data-type='${image.type}' />
         <button class='btn btn-secondary btn-sm remove-image' data-index='${index}' tabindex="99"><i class="fas fa-times"></i></button>
       </div>
     `);
   });
 
   // Add event listener for removing images
-  $(".remove-image").on("click", function() {
+  $(".remove-image").on("click", function () {
     const index = $(this).data("index");
     images.splice(index, 1); // Remove the image from the array
     updateImageDisplay(images); // Update the display

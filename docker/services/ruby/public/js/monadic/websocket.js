@@ -807,8 +807,8 @@ function connect_websocket(callback) {
         } else if (data["content"]["role"] === "user") {
           let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
           let images;
-          if (data["images"] !== undefined) {
-            images = data["images"]
+          if (data["content"]["images"] !== undefined) {
+            images = data["content"]["images"]
           }
           htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         } else if (data["content"]["role"] === "system") {
@@ -857,14 +857,14 @@ function connect_websocket(callback) {
       }
       case "user": {
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
-        if (data["images"] !== undefined) {
-          message_obj.images = data["images"];
+        if (data["content"]["images"] !== undefined) {
+          message_obj.images = data["content"]["images"];
         }
         messages.push(message_obj);
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
         let images;
-        if (data["images"] !== undefined) {
-          images = data["images"];
+        if (data["content"]["images"] !== undefined) {
+          images = data["content"]["images"];
         }
         const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         $("#discourse").append(userElement);

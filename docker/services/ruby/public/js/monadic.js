@@ -306,12 +306,12 @@ $(function () {
       $("#select-role").val("").trigger("change");
     } else {
       reconnect_websocket(ws, function (ws) {
-        if (images && images.length > 0) {
+        // check if #image-used has any children img elements
+        if (images.length > 0) {
           params.images = images;
         } else {
           params.images = [];
         }
-
         ws.send(JSON.stringify(params));
         images = []; // Clear images after sending
       });
@@ -321,7 +321,6 @@ $(function () {
     $("#select-role").val("user");
     $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
   });
-
 
   $("#clear").on("click", function (event) {
     event.preventDefault();

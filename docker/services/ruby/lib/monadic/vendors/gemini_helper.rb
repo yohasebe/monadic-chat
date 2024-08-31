@@ -78,26 +78,14 @@ module GeminiHelper
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
-                  "text" => obj["message"],
+                  "role" => role,
+                  "text" => message,
                   "html" => html,
-                  "lang" => detect_language(obj["message"])
+                  "lang" => detect_language(message)
                 } }
-        res["images"] = obj["images"] if obj["images"]
+        res["content"]["images"] = obj["images"] if obj["images"]
+        session[:messages] << res["content"]
         block&.call res
-      end
-
-      # If the role is "user", the message is added to the session
-      if message != "" && role == "user"
-        res = { "mid" => request_id,
-                "role" => role,
-                "text" => message,
-                "html" => markdown_to_html(message),
-                "lang" => detect_language(message),
-                "active" => true }
-        if obj["images"]
-          res["images"] = obj["images"]
-        end
-        session[:messages] << res
       end
     end
 

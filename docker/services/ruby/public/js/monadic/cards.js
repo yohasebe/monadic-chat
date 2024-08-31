@@ -114,6 +114,12 @@ function attachEventListeners($card) {
     const $this = $(this);
     const mid = $card.attr('id');
     const text = messages.find((m) => m.mid === mid).text;
+    $card.find("img").each((_i, img) => {
+      const src = $(img).attr("src");
+      const title = $(img).attr("title");
+      const type = $(img).attr("type");
+      images.push({ title: title, data: src, type: type });
+    });
 
     let json = false;
     try {
@@ -136,8 +142,6 @@ function attachEventListeners($card) {
         role = "sample-" + role;
       }
       $("#select-role").val(role).trigger("change");
-
-      const images = messages.find((m) => m.mid === mid).images;
 
       if (images && images.length > 0) {
         updateImageDisplay(images);

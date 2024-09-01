@@ -177,7 +177,21 @@ function uninstall() {
 let mainWindow = null;
 let settingsWindow = null;
 
-// Quit the application after confirming with the user and stopping all running processes
+// Function to check the status of Docker containers with the monadic-chat project tag
+function areAllContainersStopped() {
+  return new Promise((resolve, reject) => {
+    exec('docker ps -q --filter "label=project=monadic-chat"', (err, stdout) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      // If stdout is empty, all containers for the monadic-chat project are stopped
+      resolve(stdout.trim() === '');
+    });
+  });
+}
+
+// Modified quitApp function
 function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
 
@@ -203,41 +217,61 @@ function quitApp() {
       // Stop all running processes and wait for completion
       runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true)
         .then(() => {
-          // Shut down Docker if checkbox is checked
-          if (result.checkboxChecked && process.platform === 'darwin') {
-            shutdownDocker();
-          }
+          const timeout = 30000; // 30 seconds
+          const interval = 1000; // Check every 1 second
+          let elapsed = 0;
 
-          // Clean up resources
-          if (tray) {
-            tray.destroy();
-            tray = null;
-          }
-
-          if (mainWindow) {
-            mainWindow.removeAllListeners('close');
-            mainWindow.close();
-          }
-
-          if (settingsWindow) {
-            settingsWindow.removeAllListeners('close');
-            settingsWindow.close();
-          }
-
-          // Force quit after a short delay to allow for cleanup
-          setTimeout(() => {
-            app.quit();
-          }, 5000);
+          const checkInterval = setInterval(() => {
+            areAllContainersStopped().then((allStopped) => {
+              if (allStopped) {
+                clearInterval(checkInterval);
+                finalizeQuit(result);
+              } else if (elapsed >= timeout) {
+                clearInterval(checkInterval);
+                console.warn('Timeout reached. Forcing quit.');
+                app.quit(0);
+              }
+              elapsed += interval;
+            }).catch((err) => {
+              clearInterval(checkInterval);
+              console.error('Error checking container status:', err);
+              app.quit(0);
+            });
+          }, interval);
         });
     } else {
       isQuitting = false;
     }
   }).catch((err) => {
     console.error('Error in quit dialog:', err);
-    setTimeout(() => {
-      app.quit();
-    }, 5000);
+    app.quit();
   });
+}
+
+// Finalize the application quit process
+function finalizeQuit(result) {
+  // Shut down Docker if checkbox is checked
+  if (result.checkboxChecked && process.platform === 'darwin') {
+    shutdownDocker();
+  }
+
+  // Clean up resources
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+
+  if (mainWindow) {
+    mainWindow.removeAllListeners('close');
+    mainWindow.close();
+  }
+
+  if (settingsWindow) {
+    settingsWindow.removeAllListeners('close');
+    settingsWindow.close();
+  }
+
+  app.quit();
 }
 
 // Update the app's quit handler

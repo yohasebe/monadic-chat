@@ -179,6 +179,7 @@ class CodeWithClaude < MonadicApp
       "claude-3-5-sonnet-20240620",
       "claude-3-opus-20240229"
     ],
+    model: "claude-3-5-sonnet-20240620",
     tools: [
       {
         name: "run_code",

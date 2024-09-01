@@ -857,7 +857,11 @@ function updateApplicationMenu() {
             openMainWindow();
             checkRequirements()
               .then(() => {
-                runCommand('build', '[HTML]: <p>Building Monadic Chat . . .</p>', 'Building', 'Stopped', false);
+                runCommand('build',
+                  '[HTML]: <p>Building Monadic Chat . . .</p><p>If the monitor area stays blank for a long time, please make sure that Docker Desktop is active.</p>',
+                  'Building',
+                  'Stopped',
+                  false);
               })
               .catch((error) => {
                 dialog.showErrorBox('Error', error);

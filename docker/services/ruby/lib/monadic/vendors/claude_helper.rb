@@ -96,7 +96,7 @@ module ClaudeHelper
                 "active" => true
               } }
 
-      res["content"]["images"] = obj["images"] if obj["images"]
+      res["images"] = obj["images"] if obj["images"]
       block&.call res
       session[:messages] << res["content"]
     end

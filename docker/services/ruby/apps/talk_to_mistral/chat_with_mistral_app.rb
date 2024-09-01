@@ -37,6 +37,6 @@ class ChatWithMistral < MonadicApp
     image: false,
     toggle: false,
     models: MistralHelper.list_models,
-    model: "mistral-medium-latest"
+    model: "mistral-large-latest"
   }
 end

@@ -176,6 +176,7 @@ class CodeWithCommandR < MonadicApp
       "command-r-plus-08-2024",
       "command-r-plus"
     ],
+    model: "command-r-plus-08-2024",
     tools: [
       {
         name: "run_code",

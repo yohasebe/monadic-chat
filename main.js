@@ -191,10 +191,10 @@ function quitApp() {
     icon: path.join(iconDir, 'monadic-chat.png')
   };
 
-  // if (process.platform === 'darwin') {
-  //   options.checkboxLabel = 'Shut down Docker Desktop (if possible)';
-  //   options.checkboxChecked = false;
-  // }
+  if (process.platform === 'darwin') {
+    options.checkboxLabel = 'Shut down Docker Desktop (if possible)';
+    options.checkboxChecked = false;
+  }
 
   dialog.showMessageBox(mainWindow, options).then((result) => {
     if (result.response === 1) { // 'Quit' button
@@ -204,9 +204,9 @@ function quitApp() {
       runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true)
         .then(() => {
           // Shut down Docker if checkbox is checked
-          // if (result.checkboxChecked && process.platform === 'darwin') {
-          //   shutdownDocker();
-          // }
+          if (result.checkboxChecked && process.platform === 'darwin') {
+            shutdownDocker();
+          }
 
           // Clean up resources
           if (tray) {
@@ -227,7 +227,7 @@ function quitApp() {
           // Force quit after a short delay to allow for cleanup
           setTimeout(() => {
             app.quit();
-          }, 2000);
+          }, 5000);
         });
     } else {
       isQuitting = false;
@@ -236,7 +236,7 @@ function quitApp() {
     console.error('Error in quit dialog:', err);
     setTimeout(() => {
       app.quit();
-    }, 2000);
+    }, 5000);
   });
 }
 
@@ -459,28 +459,28 @@ function toUnixPath(p) {
 }
 
 // Shut down Docker Desktop (macOS only)
-// function shutdownDocker() {
-//   let cmd;
-//   if (os.platform() === 'darwin') {
-//     cmd = `osascript -e 'quit app "Docker Desktop"'`;
-//   } else if (os.platform() === 'linux') {
-//     cmd = `sudo systemctl stop docker`;
-//   } else {
-//     console.error('Unsupported platform');
-//     return;
-//   }
+function shutdownDocker() {
+  let cmd;
+  if (os.platform() === 'darwin') {
+    cmd = `osascript -e 'quit app "Docker Desktop"'`;
+  } else if (os.platform() === 'linux') {
+    cmd = `sudo systemctl stop docker`;
+  } else {
+    console.error('Unsupported platform');
+    return;
+  }
 
-//   exec(cmd, (err, stdout, stderr) => {
-//     if (err) {
-//       dialog.showErrorBox('Error shutting down Docker', err.message);
-//       console.error(err);
-//       return;
-//     }
-//     if (mainWindow) {
-//       mainWindow.webContents.send('commandOutput', stdout);
-//     }
-//   });
-// }
+  exec(cmd, (err, stdout) => {
+    if (err) {
+      dialog.showErrorBox('Error shutting down Docker', err.message);
+      console.error(err);
+      return;
+    }
+    if (mainWindow) {
+      mainWindow.webContents.send('commandOutput', stdout);
+    }
+  });
+}
 
 // Fetch a URL with retries and a delay between attempts
 function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {

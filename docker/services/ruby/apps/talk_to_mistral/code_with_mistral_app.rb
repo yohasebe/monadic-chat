@@ -176,6 +176,7 @@ class CodeWithMistral < MonadicApp
     image: false,
     toggle: false,
     models: ["mistral-large-latest"],
+    model: "mistral-large-latest",
     tools: [
       {
         type: "function",

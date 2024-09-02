@@ -95,7 +95,7 @@ function startDockerDesktop() {
 async function ensureDockerDesktopRunning() {
   try {
     await checkDockerDesktopStatus();
-  } catch (error) {
+  } catch {
     console.log('Docker Desktop is not running. Attempting to start...');
     await startDockerDesktop();
     // Wait for Docker Desktop to start
@@ -448,8 +448,8 @@ function initializeApp() {
     console.log(`Initial Docker Desktop status: ${lastDockerStatus}`);
 
     await updateDockerStatus();
-    setInterval(updateDockerStatus, 10000);
 
+    setInterval(updateDockerStatus, 30000);
 
     tray = new Tray(path.join(iconDir, 'Stopped.png'));
     tray.setToolTip('Monadic Chat');
@@ -615,7 +615,7 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
 
   try {
     await ensureDockerDesktopRunning();
-  } catch (error) {
+  } catch {
     dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
     return;
   }
@@ -1320,13 +1320,29 @@ ipcMain.on('close-settings', () => {
   }
 });
 
-async function updateDockerStatus() {
-  const status = await checkDockerDesktopStatus();
-  console.log(`Current Docker status: ${status}`);
-  lastDockerStatus = status;
-  if (mainWindow) {
-    mainWindow.webContents.send('docker-desktop-status-update', status);
-  }
-}
-
 setInterval(updateDockerStatus, 5000);
+
+const debounce = (func, delay) => {
+  let inDebounce;
+  return function() {
+    const context = this;
+    const args = arguments;
+    clearTimeout(inDebounce);
+    inDebounce = setTimeout(() => func.apply(context, args), delay);
+  }
+};
+
+const debouncedUpdateDockerStatus = debounce(async () => {
+  const status = await checkDockerDesktopStatus();
+  if (status !== lastDockerStatus) {
+    console.log(`Docker status changed: ${lastDockerStatus} -> ${status}`);
+    lastDockerStatus = status;
+    if (mainWindow) {
+      mainWindow.webContents.send('docker-desktop-status-update', status);
+    }
+  }
+}, 2000);
+
+function updateDockerStatus() {
+  debouncedUpdateDockerStatus();
+}

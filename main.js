@@ -51,11 +51,14 @@ let wsl2Installed = false;
 async function checkDockerDesktopStatus() {
   return new Promise((resolve) => {
     exec('docker version --format "{{.Server.Version}}"', (error, stdout, stderr) => {
-      if (error || stderr) {
-        console.error(`Docker Desktop status check error: ${error || stderr}`);
+      if (error) {
+        console.error(`Docker Desktop status check error: ${error}`);
         resolve(false);
+      } else if (stderr) {
+        console.warn(`Docker Desktop status check warning: ${stderr}`);
+        resolve(true);
       } else {
-        console.log(`Docker version: ${stdout.trim()}`);
+        console.log(`Docker is running, version: ${stdout.trim()}`);
         resolve(true);
       }
     });
@@ -442,14 +445,18 @@ function initializeApp() {
     app.name = 'Monadic Chat'; // Set the application name early
 
     lastDockerStatus = await checkDockerDesktopStatus();
-    if (mainWindow) {
+    console.log(`Initial Docker Desktop status: ${lastDockerStatus}`);
+
+    createMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('docker-desktop-status-update', lastDockerStatus);
     }
+
     console.log(`Initial Docker Desktop status: ${lastDockerStatus}`);
 
     await updateDockerStatus();
 
-    setInterval(updateDockerStatus, 30000);
+    setInterval(updateDockerStatus, 5000);
 
     tray = new Tray(path.join(iconDir, 'Stopped.png'));
     tray.setToolTip('Monadic Chat');
@@ -491,7 +498,7 @@ function initializeApp() {
             break;
         }
       } catch (error) {
-        dialog.showErrorBox('Error', error.toString());
+        console.error('Error during app initialization:', error);
       }
     });
 
@@ -519,8 +526,7 @@ function initializeApp() {
 
     ipcMain.handle('check-docker-desktop-status', async () => {
       try {
-        await checkDockerDesktopStatus();
-        return true;
+        return await checkDockerDesktopStatus();
       } catch (error) {
         console.error('Docker Desktop status check failed:', error);
         return false;
@@ -1320,29 +1326,13 @@ ipcMain.on('close-settings', () => {
   }
 });
 
-setInterval(updateDockerStatus, 5000);
-
-const debounce = (func, delay) => {
-  let inDebounce;
-  return function() {
-    const context = this;
-    const args = arguments;
-    clearTimeout(inDebounce);
-    inDebounce = setTimeout(() => func.apply(context, args), delay);
-  }
-};
-
-const debouncedUpdateDockerStatus = debounce(async () => {
+async function updateDockerStatus() {
   const status = await checkDockerDesktopStatus();
+  console.log(`Current Docker status: ${status}`);
   if (status !== lastDockerStatus) {
-    console.log(`Docker status changed: ${lastDockerStatus} -> ${status}`);
     lastDockerStatus = status;
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('docker-desktop-status-update', status);
     }
   }
-}, 2000);
-
-function updateDockerStatus() {
-  debouncedUpdateDockerStatus();
 }

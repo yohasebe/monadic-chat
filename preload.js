@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose specific Electron APIs to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
+  onDockerDesktopStatusUpdate: (callback) => ipcRenderer.on('docker-desktop-status-update', (_event, status) => callback(status)),
   // Listen for command output from the main process
   onCommandOutput: (callback) => ipcRenderer.on('commandOutput', callback),
   // Send a command to the main process
@@ -21,5 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Save settings to the main process
   saveSettings: (data) => ipcRenderer.send('save-settings', data),
   // Close settings window
-  closeSettings: () => ipcRenderer.send('close-settings')
+  closeSettings: () => ipcRenderer.send('close-settings'),
+  // Check Docker Desktop status
+  checkDockerDesktopStatus: () => ipcRenderer.invoke('check-docker-desktop-status'),
+  // Listen for Docker Desktop status update
 });

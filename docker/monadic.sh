@@ -21,6 +21,14 @@ fi
 # Define the paths to the support scripts
 SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
 
+# Function to check Docker Desktop status
+check_docker_desktop() {
+  if ! $DOCKER info >/dev/null 2>&1; then
+    echo "Docker Desktop is not running. Please start Docker Desktop and try again."
+    exit 1
+  fi
+}
+
 function set_docker_compose() {
   local home_paths=("$HOME_DIR/monadic/data/services" "~/monadic/data/services")
   for i in "${!home_paths[@]}"; do
@@ -176,11 +184,6 @@ stop_docker_compose() {
   done
 }
 
-# Function to start a container
-# start_container() {
-#   $DOCKER container start "$1" >/dev/null
-# }
-
 # Function to stop a container
 stop_container() {
   $DOCKER container stop -t 0 "$1" >/dev/null
@@ -322,6 +325,7 @@ case "$1" in
 build)
   ensure_data_dir
   start_docker
+  check_docker_desktop
   build_docker_compose
   if $DOCKER images | grep -q "monadic-chat"; then
     echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
@@ -332,47 +336,61 @@ build)
 start)
   ensure_data_dir
   start_docker
+  check_docker_desktop
   start_docker_compose
   echo "[SERVER STARTED]"
   ;;
 stop)
-  stop_docker_compose
-  echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
+  if docker info >/dev/null 2>&1; then
+    check_docker_desktop
+    stop_docker_compose
+    echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
+  else
+    echo "[HTML]: <p>Docker Desktop is not running, skipping stop operation.</p>"
+  fi
   ;;
 restart)
+  check_docker_desktop
   stop_docker_compose
   start_docker_compose
   echo "[SERVER STARTED]"
   ;;
 import)
+  check_docker_desktop
   start_docker
   stop_docker_compose
   import_database
   ;;
 export)
+  check_docker_desktop
   start_docker
   export_database
   ;;
 update)
+  check_docker_desktop
   start_docker
   update_monadic
   echo "[HTML]: <p>Monadic Chat has been updated successfully!</p>"
   ;;
 down)
+  check_docker_desktop
   start_docker
   down_docker_compose
   echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
   ;;
 remove)
+  check_docker_desktop
   start_docker
   remove_containers
   echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
   ;;
 export-db)
+  check_docker_desktop
   start_docker
   export_db
   ;;
 import-db)
+  check_docker_desktop
   start_docker
   import_db
   ;;

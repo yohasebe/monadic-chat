@@ -34,10 +34,44 @@ function addCommandListeners() {
   });
 }
 
+// Function to check Docker Desktop status and update UI
+async function checkDockerDesktopStatus() {
+  try {
+    const status = await window.electronAPI.checkDockerDesktopStatus();
+    updateDockerStatusUI(status);
+  } catch (error) {
+    console.error('Error checking Docker Desktop status:', error);
+    updateDockerStatusUI(false);
+  }
+}
+
+// Function to update UI based on Docker Desktop status
+function updateDockerStatusUI(isRunning) {
+  const dockerStatusElement = document.getElementById('dockerStatus');
+  console.log(`Updating Docker status UI: ${isRunning}`);
+  if (isRunning) {
+    dockerStatusElement.textContent = 'Running';
+    dockerStatusElement.classList.remove('inactive');
+    dockerStatusElement.classList.add('active');
+  } else {
+    dockerStatusElement.textContent = 'Stopped';
+    dockerStatusElement.classList.remove('active');
+    dockerStatusElement.classList.add('inactive');
+  }
+}
+
 // Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   addCopyToClipboardListener();
   addCommandListeners();
+
+  const dockerStatusElement = document.getElementById('dockerStatus');
+  dockerStatusElement.textContent = 'Docker Desktop: Checking...';
+  dockerStatusElement.classList.remove('active', 'inactive');
+
+  // Check Docker Desktop status initially and periodically
+  checkDockerDesktopStatus();
+  setInterval(checkDockerDesktopStatus, 30000); // Check every 30 seconds
 
   // Update version
   window.electronAPI.onUpdateVersion((_event, version) => {
@@ -97,7 +131,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ... (Other event listeners)
+  // Listen for Docker Desktop status updates
+  window.electronAPI.onDockerDesktopStatusUpdate((isRunning) => {
+    console.log(`Received Docker status update in renderer: ${isRunning}`);
+    updateDockerStatusUI(isRunning);
+  });
 });
 
 // Handle command output

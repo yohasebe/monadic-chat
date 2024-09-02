@@ -47,6 +47,63 @@ const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons')
 let dockerInstalled = false;
 let wsl2Installed = false;
 
+// Check Docker Desktop status
+async function checkDockerDesktopStatus() {
+  return new Promise((resolve) => {
+    exec('docker version --format "{{.Server.Version}}"', (error, stdout, stderr) => {
+      if (error || stderr) {
+        console.error(`Docker Desktop status check error: ${error || stderr}`);
+        resolve(false);
+      } else {
+        console.log(`Docker version: ${stdout.trim()}`);
+        resolve(true);
+      }
+    });
+  });
+}
+
+// Start Docker Desktop
+function startDockerDesktop() {
+  return new Promise((resolve, reject) => {
+    let command;
+    switch (process.platform) {
+      case 'darwin':
+        command = 'open -a Docker';
+        break;
+      case 'win32':
+        command = 'start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
+        break;
+      case 'linux':
+        command = 'systemctl start docker';
+        break;
+      default:
+        reject('Unsupported platform');
+        return;
+    }
+
+    exec(command, (error) => {
+      if (error) {
+        reject('Failed to start Docker Desktop.');
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+// Ensure Docker Desktop is running
+async function ensureDockerDesktopRunning() {
+  try {
+    await checkDockerDesktopStatus();
+  } catch (error) {
+    console.log('Docker Desktop is not running. Attempting to start...');
+    await startDockerDesktop();
+    // Wait for Docker Desktop to start
+    await new Promise(resolve => setTimeout(resolve, 20000));
+    await checkDockerDesktopStatus();
+  }
+}
+
 // Check if Docker and WSL 2 are installed (Windows only) or Docker is installed (macOS and Linux)
 function checkRequirements() {
   return new Promise((resolve, reject) => {
@@ -178,7 +235,7 @@ let mainWindow = null;
 let settingsWindow = null;
 
 // Quit the application after confirming with the user and stopping all running processes
-function quitApp() {
+async function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
 
   let options = {
@@ -200,14 +257,23 @@ function quitApp() {
     if (result.response === 1) { // 'Quit' button
       isQuitting = true;
 
-      // Stop all running processes and wait for completion
-      runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true)
-        .then(() => {
-          // Shut down Docker if checkbox is checked
-          if (result.checkboxChecked && process.platform === 'darwin') {
-            shutdownDocker();
+      const quitProcess = async () => {
+        try {
+          const dockerStatus = await checkDockerDesktopStatus();
+          if (dockerStatus) {
+            // Only execute stop command if Docker Desktop is running
+            await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
+          } else {
+            console.log('Docker Desktop is not running, skipping stop command.');
           }
 
+          // Shut down Docker if checkbox is checked (macOS only)
+          if (result.checkboxChecked && process.platform === 'darwin') {
+            await shutdownDocker();
+          }
+        } catch (error) {
+          console.error('Error occurred during application quit:', error);
+        } finally {
           // Clean up resources
           if (tray) {
             tray.destroy();
@@ -227,8 +293,11 @@ function quitApp() {
           // Force quit after a short delay to allow for cleanup
           setTimeout(() => {
             app.quit();
-          }, 5000);
-        });
+          }, 1000);
+        }
+      };
+
+      quitProcess();
     } else {
       isQuitting = false;
     }
@@ -236,7 +305,7 @@ function quitApp() {
     console.error('Error in quit dialog:', err);
     setTimeout(() => {
       app.quit();
-    }, 5000);
+    }, 1000);
   });
 }
 
@@ -266,7 +335,6 @@ if (settingsWindow) {
     }
   });
 }
-
 
 function openMainWindow() {
   if (mainWindow) {
@@ -367,9 +435,21 @@ const menuItems = [
   }
 ];
 
+let lastDockerStatus = false;
+
 function initializeApp() {
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     app.name = 'Monadic Chat'; // Set the application name early
+
+    lastDockerStatus = await checkDockerDesktopStatus();
+    if (mainWindow) {
+      mainWindow.webContents.send('docker-desktop-status-update', lastDockerStatus);
+    }
+    console.log(`Initial Docker Desktop status: ${lastDockerStatus}`);
+
+    await updateDockerStatus();
+    setInterval(updateDockerStatus, 10000);
+
 
     tray = new Tray(path.join(iconDir, 'Stopped.png'));
     tray.setToolTip('Monadic Chat');
@@ -383,49 +463,35 @@ function initializeApp() {
     updateStatus();
     mainWindow.webContents.send('updateVersion', app.getVersion());
 
-    ipcMain.on('command', (_event, command) => {
-      switch (command) {
-        case 'start':
-          checkRequirements()
-            .then(() => {
-              runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
-            })
-            .catch((error) => {
-              let message = error;
-              let detail = '';
-              let [e1, e2] = error.split('|');
-              if (e1 && e2) {
-                message = e1;
-                detail = e2;
-              }
-              dialog.showMessageBox({
-                type: 'info',
-                buttons: ['OK'],
-                title: 'Requirements Not Met',
-                message: message,
-                detail: detail,
-                icon: path.join(iconDir, 'monadic-chat.png')
-              });
-            });
-          break;
-        case 'stop':
-          runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
-          break;
-        case 'restart':
-          runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
-          break;
-        case 'browser':
-          openBrowser('http://localhost:4567');
-          break;
-        case 'folder':
-          openFolder();
-          break;
-        case 'settings':
-          openSettingsWindow();
-          break;
-        case 'exit':
-          quitApp(mainWindow);
-          break;
+    ipcMain.on('command', async (_event, command) => {
+      try {
+        await ensureDockerDesktopRunning();
+        switch (command) {
+          case 'start':
+            await checkRequirements();
+            runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+            break;
+          case 'stop':
+            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+            break;
+          case 'restart':
+            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            break;
+          case 'browser':
+            openBrowser('http://localhost:4567');
+            break;
+          case 'folder':
+            openFolder();
+            break;
+          case 'settings':
+            openSettingsWindow();
+            break;
+          case 'exit':
+            quitApp(mainWindow);
+            break;
+        }
+      } catch (error) {
+        dialog.showErrorBox('Error', error.toString());
       }
     });
 
@@ -450,6 +516,17 @@ function initializeApp() {
     if (mainWindow) {
       mainWindow.show();
     }
+
+    ipcMain.handle('check-docker-desktop-status', async () => {
+      try {
+        await checkDockerDesktopStatus();
+        return true;
+      } catch (error) {
+        console.error('Docker Desktop status check failed:', error);
+        return false;
+      }
+    });
+
   });
 }
 
@@ -484,34 +561,29 @@ function shutdownDocker() {
 
 // Fetch a URL with retries and a delay between attempts
 function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {
-  const attemptFetch = (attempt) => {
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error(`Fetch request timed out after ${timeout}ms`));
-      }, timeout);
+  const attemptFetch = async (attempt) => {
+    try {
+      await ensureDockerDesktopRunning();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      fetch(url, options)
-        .then(response => {
-          clearTimeout(timeoutId);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          console.log(`Connecting to server: success`);
-          resolve(true);
-        })
-        .catch(error => {
-          clearTimeout(timeoutId);
-          console.log(`Connecting to server: attempt ${attempt} failed`);
-          if (attempt <= retries) {
-            console.log(`Retrying in ${delay}ms . . .`);
-            setTimeout(() => {
-              resolve(attemptFetch(attempt + 1));
-            }, delay);
-          } else {
-            reject(error);
-          }
-        });
-    });
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      console.log(`Connecting to server: success`);
+      return true;
+    } catch (error) {
+      console.log(`Connecting to server: attempt ${attempt} failed`);
+      if (attempt <= retries) {
+        console.log(`Retrying in ${delay}ms . . .`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return attemptFetch(attempt + 1);
+      }
+      throw error;
+    }
   };
   return attemptFetch(1);
 }
@@ -524,7 +596,7 @@ let fetchWithRetryCalled = false;
 // statusWhileCommand: The status to display while the command is running
 // statusAfterCommand: The status to display after the command has finished
 // sync: Whether to run the command synchronously (default: false)
-function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
+async function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   if (command === 'start') {
     const apiKeySet = checkAndUpdateEnvFile();
     if (!apiKeySet) {
@@ -539,6 +611,13 @@ function runCommand(command, message, statusWhileCommand, statusAfterCommand, sy
       writeToScreen('[HTML]: <p>OpenAI API Key is not set. Please set it in the Settings before starting the system.</p><hr />');
       return;
     }
+  }
+
+  try {
+    await ensureDockerDesktopRunning();
+  } catch (error) {
+    dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+    return;
   }
 
   writeToScreen(message);
@@ -1240,3 +1319,14 @@ ipcMain.on('close-settings', () => {
     settingsWindow.hide();
   }
 });
+
+async function updateDockerStatus() {
+  const status = await checkDockerDesktopStatus();
+  console.log(`Current Docker status: ${status}`);
+  lastDockerStatus = status;
+  if (mainWindow) {
+    mainWindow.webContents.send('docker-desktop-status-update', status);
+  }
+}
+
+setInterval(updateDockerStatus, 5000);

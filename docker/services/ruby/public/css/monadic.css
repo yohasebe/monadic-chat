@@ -113,7 +113,6 @@ span.status {
   /* box-shadow: 0px 0px 1px rgba(0,0,0,0.5); */
   font-family: var(--bs-font-sans-serif);
   font-size: 0.8rem;
-  font-weight: 400;
   line-height: 1.5;
   color: #212529;
   -webkit-text-size-adjust: 100%;

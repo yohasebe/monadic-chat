@@ -191,32 +191,3 @@ window.electronAPI.onUpdateControls((_event, { status, disableControls }) => {
 window.electronAPI.onServerReady(() => {
   document.getElementById('browser').disabled = false;
 });
-
-const debounce = (func, delay) => {
-  let inDebounce;
-  return function() {
-    const context = this;
-    const args = arguments;
-    clearTimeout(inDebounce);
-    inDebounce = setTimeout(() => func.apply(context, args), delay);
-  }
-};
-
-const debouncedUpdateDockerStatusUI = debounce((isRunning) => {
-  const dockerStatusElement = document.getElementById('dockerStatus');
-  console.log(`Updating Docker status UI: ${isRunning}`);
-  if (isRunning) {
-    dockerStatusElement.textContent = 'Docker Desktop: Running';
-    dockerStatusElement.classList.remove('inactive');
-    dockerStatusElement.classList.add('active');
-  } else {
-    dockerStatusElement.textContent = 'Docker Desktop: Stopped';
-    dockerStatusElement.classList.remove('active');
-    dockerStatusElement.classList.add('inactive');
-  }
-}, 1000);
-
-window.electronAPI.onDockerDesktopStatusUpdate((isRunning) => {
-  console.log(`Received Docker status update in renderer: ${isRunning}`);
-  debouncedUpdateDockerStatusUI(isRunning);
-});

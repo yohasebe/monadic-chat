@@ -347,6 +347,25 @@ post "/load" do
         message_obj["images"] = msg["images"] if msg["images"]
         message_obj
       end
+
+      # Send the updated parameters to the client via WebSocket
+      # This ensures that the client-side selectors are updated correctly
+      EM.next_tick do
+        @channel.push({
+          type: "parameters",
+          content: session[:parameters]
+        }.to_json)
+      end
+
+      # Send the loaded messages to the client via WebSocket
+      # This ensures that the conversation history is updated
+      EM.next_tick do
+        @channel.push({
+          type: "past_messages",
+          content: session[:messages]
+        }.to_json)
+      end
+
     rescue JSON::ParserError
       handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
     end

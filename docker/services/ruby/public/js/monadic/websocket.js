@@ -444,6 +444,15 @@ function connect_websocket(callback) {
     }, 1000);
   }
 
+  function updateAppAndModelSelection(parameters) {
+    if (parameters.app_name) {
+      $("#apps").val(parameters.app_name).trigger('change');
+    }
+    if (parameters.model) {
+      $("#model").val(parameters.model).trigger('change');
+    }
+  }
+
   ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data["type"]) {
@@ -603,6 +612,8 @@ function connect_websocket(callback) {
         }
         $("#base-app-desc").html(currentApp["description"]);
         $("#start").focus();
+
+        updateAppAndModelSelection(data["content"]);
         break;
       }
       case "whisper": {

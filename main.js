@@ -239,14 +239,36 @@ function uninstall() {
   });
 }
 
+// Shut down Docker Desktop (macOS only)
+function shutdownDocker() {
+  let cmd;
+  if (os.platform() === 'darwin') {
+    cmd = `osascript -e 'quit app "Docker Desktop"'`;
+  } else if (os.platform() === 'linux') {
+    cmd = `sudo systemctl stop docker`;
+  } else {
+    console.error('Unsupported platform');
+    return;
+  }
+
+  exec(cmd, (err, stdout) => {
+    if (err) {
+      dialog.showErrorBox('Error shutting down Docker', err.message);
+      console.error(err);
+      return;
+    }
+    if (mainWindow) {
+      mainWindow.webContents.send('command-output', stdout);
+    }
+  });
+}
+
 let mainWindow = null;
 let settingsWindow = null;
 
 // Quit the application after confirming with the user and stopping all running processes
 async function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
-
-  isQuitting = true;
 
   let options = {
     type: 'question',
@@ -263,73 +285,60 @@ async function quitApp() {
     options.checkboxChecked = false;
   }
 
-  try {
-    // Check Docker status before showing the dialog
-    const dockerStatus = await checkDockerStatus();
-    if (!dockerStatus) {
-      console.log('Docker is not running, proceeding with quit');
-      await cleanupAndQuit();
-      return;
-    }
-
-    const result = await dialog.showMessageBox(mainWindow, options);
-
+  dialog.showMessageBox(mainWindow, options).then((result) => {
     if (result.response === 1) { // 'Quit' button
-      await quitProcess(result.checkboxChecked);
+      isQuitting = true;
+
+      const quitProcess = async () => {
+        try {
+          const dockerStatus = await checkDockerStatus();
+          if (dockerStatus) {
+            // Only execute stop command if Docker Desktop is running
+            await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
+          } else {
+            // console.log('Docker Desktop is not running, skipping stop command.');
+          }
+
+          // Shut down Docker if checkbox is checked (macOS only)
+          if (result.checkboxChecked && process.platform === 'darwin') {
+            await shutdownDocker();
+          }
+        } catch (error) {
+          console.error('Error occurred during application quit:', error);
+        } finally {
+          // Clean up resources
+          if (tray) {
+            tray.destroy();
+            tray = null;
+          }
+
+          if (mainWindow) {
+            mainWindow.removeAllListeners('close');
+            mainWindow.close();
+          }
+
+          if (settingsWindow) {
+            settingsWindow.removeAllListeners('close');
+            settingsWindow.close();
+          }
+
+          // Force quit after a short delay to allow for cleanup
+          setTimeout(() => {
+            app.quit();
+          }, 1000);
+        }
+      };
+
+      quitProcess();
     } else {
       isQuitting = false;
     }
-  } catch (error) {
-    console.error('Error during quit process:', error);
-    await cleanupAndQuit();
-  }
-}
-
-async function quitProcess(shutdownDocker) {
-  try {
-    console.log('Starting quit process');
-    const dockerStatus = await checkDockerStatus();
-    if (dockerStatus) {
-      console.log('Stopping all processes');
-      await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
-    }
-
-    if (shutdownDocker && process.platform === 'darwin') {
-      console.log('Shutting down Docker');
-      await shutdownDocker();
-    }
-
-    await cleanupAndQuit();
-  } catch (error) {
-    console.error('Error during quit process:', error);
-    await cleanupAndQuit();
-  }
-}
-
-async function cleanupAndQuit() {
-  console.log('Cleaning up resources');
-  
-  // Clean up resources
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-
-  if (mainWindow) {
-    mainWindow.removeAllListeners('close');
-    mainWindow.close();
-  }
-
-  if (settingsWindow) {
-    settingsWindow.removeAllListeners('close');
-    settingsWindow.close();
-  }
-
-  // Wait for a short time to allow cleanup to complete
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  console.log('Quitting application');
-  app.quit();
+  }).catch((err) => {
+    console.error('Error in quit dialog:', err);
+    setTimeout(() => {
+      app.quit();
+    }, 1000);
+  });
 }
 
 // Update the app's quit handler

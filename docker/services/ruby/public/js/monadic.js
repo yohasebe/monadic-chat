@@ -387,7 +387,6 @@ $(function () {
   });
 
   let fileTitle = "";
-  let fileContents = "";
 
   $("#uploadFile").on("click", function () {
     const fileInput = $("#fileFile")[0];

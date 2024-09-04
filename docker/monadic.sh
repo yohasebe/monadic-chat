@@ -29,6 +29,14 @@ check_docker_desktop() {
   fi
 }
 
+check_if_docker_desktop_is_running() {
+  if $DOCKER info >/dev/null 2>&1; then
+    echo "1"
+  else
+    echo "0"
+  fi
+}
+
 function set_docker_compose() {
   local home_paths=("$HOME_DIR/monadic/data/services" "~/monadic/data/services")
   for i in "${!home_paths[@]}"; do
@@ -333,6 +341,9 @@ build)
     echo "[HTML]: <p>Monadic Chat has failed to build. Please try <b>Rebuild</b>.</p>"
   fi
   ;;
+check)
+  check_if_docker_desktop_is_running
+  ;;
 start)
   ensure_data_dir
   start_docker
@@ -395,7 +406,7 @@ import-db)
   import_db
   ;;
 *)
-  echo "Usage: $0 {build|start|stop|restart|update|remove}" >&2
+  echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2
   exit 1
   ;;
 esac

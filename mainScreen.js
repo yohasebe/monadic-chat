@@ -34,21 +34,10 @@ function addCommandListeners() {
   });
 }
 
-// Function to check Docker Desktop status and update UI
-async function checkDockerDesktopStatus() {
-  try {
-    const status = await window.electronAPI.checkDockerDesktopStatus();
-    updateDockerStatusUI(status);
-  } catch (error) {
-    console.error('Error checking Docker Desktop status:', error);
-    updateDockerStatusUI(false);
-  }
-}
-
 // Function to update UI based on Docker Desktop status
 function updateDockerStatusUI(isRunning) {
   const dockerStatusElement = document.getElementById('dockerStatus');
-  console.log(`Updating Docker status UI: ${isRunning}`);
+  // console.log(`Updating Docker status UI: ${isRunning}`);
   if (isRunning) {
     dockerStatusElement.textContent = 'Running';
     dockerStatusElement.classList.remove('inactive');
@@ -66,17 +55,19 @@ document.addEventListener('DOMContentLoaded', () => {
   addCommandListeners();
 
   const dockerStatusElement = document.getElementById('dockerStatus');
-  dockerStatusElement.textContent = 'Docker Desktop: Checking...';
-  dockerStatusElement.classList.remove('active', 'inactive');
-
-  // Check Docker Desktop status initially and periodically
-  checkDockerDesktopStatus();
-  setInterval(checkDockerDesktopStatus, 30000); // Check every 30 seconds
+  dockerStatusElement.classList.add('inactive');
+  dockerStatusElement.textContent = 'Checking...';
 
   // Update version
-  window.electronAPI.onUpdateVersion((_event, version) => {
-    document.getElementById('version').textContent = version;
+  window.electronAPI.onUpdateVersion((_event, ver) => {
+    const versionElement = document.getElementById('version');
+    versionElement.textContent = ver;
   });
+
+  // Update docker status
+  window.electronAPI.onUpdateDockerStatusIndicator((_event, status) => {
+    updateDockerStatusUI(status);
+  })
 
   // Update status indicator
   window.electronAPI.onUpdateStatusIndicator((_event, status) => {
@@ -93,8 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Enable/disable buttons based on status
-    if (status === 'Port in use' || status === 'Starting' || status === 'Stopping' || status === 'Building' || status === 'Uninstalling' || status === 'Importing' || status === 'Exporting') {
+    if (status === 'Port in use'
+      || status === 'Starting'
+      || status === 'Stopping'
+      || status === 'Building'
+      || status === 'Uninstalling'
+      || status === 'Importing' ||
+      status === 'Exporting') {
       Object.values(buttons).forEach(button => button.disabled = true);
+      statusElement.classList.remove('active');
+      statusElement.classList.add('inactive');
       buttons.folder.disabled = false;
       buttons.settings.disabled = false;
     } else if (status === 'Running') {
@@ -129,12 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
       buttons.folder.disabled = false;
       buttons.settings.disabled = false;
     }
-  });
-
-  // Listen for Docker Desktop status updates
-  window.electronAPI.onDockerDesktopStatusUpdate((isRunning) => {
-    console.log(`Received Docker status update in renderer: ${isRunning}`);
-    updateDockerStatusUI(isRunning);
   });
 });
 

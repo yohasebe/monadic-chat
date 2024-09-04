@@ -23,14 +23,6 @@ const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
 const path = require('path');
 const fs = require('fs');
-let dotenv;
-
-if (app.ispackaged) {
-  dotenv = require('./node_modules/dotenv');
-} else {
-  dotenv = require('dotenv');
-}
-
 const os = require('os');
 const https = require('https');
 const net = require('net');
@@ -42,24 +34,38 @@ let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
 
-const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
-
 let dockerInstalled = false;
 let wsl2Installed = false;
 
-// Check Docker Desktop status
-async function checkDockerDesktopStatus() {
-  return new Promise((resolve) => {
-    exec('docker version --format "{{.Server.Version}}"', (error, stdout, stderr) => {
+let dotenv;
+if (app.ispackaged) {
+  dotenv = require('./node_modules/dotenv');
+} else {
+  dotenv = require('dotenv');
+}
+
+const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
+
+let monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh')
+  .replace('app.asar', 'app')
+  .replace(' ', '\\ ');
+
+if (os.platform() === 'win32') {
+  monadicScriptPath = `wsl ${toUnixPath(monadicScriptPath)}`
+}
+
+// Check Docker Desktop status using monadic.sh
+async function checkDockerStatus() {
+  return new Promise((resolve, reject) => {
+    const cmd = `${monadicScriptPath} check`
+    exec(cmd, (error, stdout, stderr) => {
       if (error) {
-        console.error(`Docker Desktop status check error: ${error}`);
-        resolve(false);
+        reject(error);
       } else if (stderr) {
-        console.warn(`Docker Desktop status check warning: ${stderr}`);
-        resolve(true);
+        reject(stderr);
       } else {
-        console.log(`Docker is running, version: ${stdout.trim()}`);
-        resolve(true);
+        const isRunning = stdout.trim() === '1';
+        resolve(isRunning);
       }
     });
   });
@@ -96,14 +102,13 @@ function startDockerDesktop() {
 
 // Ensure Docker Desktop is running
 async function ensureDockerDesktopRunning() {
-  try {
-    await checkDockerDesktopStatus();
-  } catch {
-    console.log('Docker Desktop is not running. Attempting to start...');
+  const st = await checkDockerStatus();
+  if (!st) {
+    // console.log('Docker Desktop is not running. Attempting to start...');
     await startDockerDesktop();
     // Wait for Docker Desktop to start
     await new Promise(resolve => setTimeout(resolve, 20000));
-    await checkDockerDesktopStatus();
+    await checkDockerStatus();
   }
 }
 
@@ -241,6 +246,8 @@ let settingsWindow = null;
 async function quitApp() {
   if (isQuitting) return; // Prevent multiple quit attempts
 
+  isQuitting = true;
+
   let options = {
     type: 'question',
     buttons: ['Cancel', 'Quit'],
@@ -256,59 +263,99 @@ async function quitApp() {
     options.checkboxChecked = false;
   }
 
-  dialog.showMessageBox(mainWindow, options).then((result) => {
+  try {
+    // Check Docker status before showing the dialog
+    const dockerStatus = await checkDockerStatus();
+    if (!dockerStatus) {
+      console.log('Docker is not running, proceeding with quit');
+      await cleanupAndQuit();
+      return;
+    }
+
+    const result = await dialog.showMessageBox(mainWindow, options);
+
     if (result.response === 1) { // 'Quit' button
-      isQuitting = true;
-
-      const quitProcess = async () => {
-        try {
-          const dockerStatus = await checkDockerDesktopStatus();
-          if (dockerStatus) {
-            // Only execute stop command if Docker Desktop is running
-            await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
-          } else {
-            console.log('Docker Desktop is not running, skipping stop command.');
-          }
-
-          // Shut down Docker if checkbox is checked (macOS only)
-          if (result.checkboxChecked && process.platform === 'darwin') {
-            await shutdownDocker();
-          }
-        } catch (error) {
-          console.error('Error occurred during application quit:', error);
-        } finally {
-          // Clean up resources
-          if (tray) {
-            tray.destroy();
-            tray = null;
-          }
-
-          if (mainWindow) {
-            mainWindow.removeAllListeners('close');
-            mainWindow.close();
-          }
-
-          if (settingsWindow) {
-            settingsWindow.removeAllListeners('close');
-            settingsWindow.close();
-          }
-
-          // Force quit after a short delay to allow for cleanup
-          setTimeout(() => {
-            app.quit();
-          }, 1000);
-        }
-      };
-
-      quitProcess();
+      await quitProcess(result.checkboxChecked);
     } else {
       isQuitting = false;
     }
-  }).catch((err) => {
-    console.error('Error in quit dialog:', err);
-    setTimeout(() => {
-      app.quit();
-    }, 1000);
+  } catch (error) {
+    console.error('Error during quit process:', error);
+    await cleanupAndQuit();
+  }
+}
+
+async function quitProcess(shutdownDocker) {
+  try {
+    console.log('Starting quit process');
+    const dockerStatus = await checkDockerStatus();
+    if (dockerStatus) {
+      console.log('Stopping all processes');
+      await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
+    }
+
+    if (shutdownDocker && process.platform === 'darwin') {
+      console.log('Shutting down Docker');
+      await shutdownDocker();
+    }
+
+    await cleanupAndQuit();
+  } catch (error) {
+    console.error('Error during quit process:', error);
+    await cleanupAndQuit();
+  }
+}
+
+async function cleanupAndQuit() {
+  console.log('Cleaning up resources');
+  
+  // Clean up resources
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+
+  if (mainWindow) {
+    mainWindow.removeAllListeners('close');
+    mainWindow.close();
+  }
+
+  if (settingsWindow) {
+    settingsWindow.removeAllListeners('close');
+    settingsWindow.close();
+  }
+
+  // Wait for a short time to allow cleanup to complete
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  console.log('Quitting application');
+  app.quit();
+}
+
+// Update the app's quit handler
+app.on('before-quit', (event) => {
+  if (!isQuitting) {
+    event.preventDefault();
+    quitApp();
+  }
+});
+
+// Update window close handlers
+if (mainWindow) {
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+}
+
+if (settingsWindow) {
+  settingsWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      settingsWindow.hide();
+    }
   });
 }
 
@@ -438,25 +485,11 @@ const menuItems = [
   }
 ];
 
-let lastDockerStatus = false;
-
 function initializeApp() {
   app.whenReady().then(async () => {
-    app.name = 'Monadic Chat'; // Set the application name early
+    app.name = 'Monadic Chat';
 
-    lastDockerStatus = await checkDockerDesktopStatus();
-    console.log(`Initial Docker Desktop status: ${lastDockerStatus}`);
-
-    createMainWindow();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docker-desktop-status-update', lastDockerStatus);
-    }
-
-    console.log(`Initial Docker Desktop status: ${lastDockerStatus}`);
-
-    await updateDockerStatus();
-
-    setInterval(updateDockerStatus, 5000);
+    setInterval(updateDockerStatus, 2000);
 
     tray = new Tray(path.join(iconDir, 'Stopped.png'));
     tray.setToolTip('Monadic Chat');
@@ -468,7 +501,6 @@ function initializeApp() {
     contextMenu = Menu.buildFromTemplate(menuItems);
 
     updateStatus();
-    mainWindow.webContents.send('updateVersion', app.getVersion());
 
     ipcMain.on('command', async (_event, command) => {
       try {
@@ -523,46 +555,12 @@ function initializeApp() {
     if (mainWindow) {
       mainWindow.show();
     }
-
-    ipcMain.handle('check-docker-desktop-status', async () => {
-      try {
-        return await checkDockerDesktopStatus();
-      } catch (error) {
-        console.error('Docker Desktop status check failed:', error);
-        return false;
-      }
-    });
-
   });
 }
 
 // Convert Windows path to Unix path format
 function toUnixPath(p) {
   return p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
-}
-
-// Shut down Docker Desktop (macOS only)
-function shutdownDocker() {
-  let cmd;
-  if (os.platform() === 'darwin') {
-    cmd = `osascript -e 'quit app "Docker Desktop"'`;
-  } else if (os.platform() === 'linux') {
-    cmd = `sudo systemctl stop docker`;
-  } else {
-    console.error('Unsupported platform');
-    return;
-  }
-
-  exec(cmd, (err, stdout) => {
-    if (err) {
-      dialog.showErrorBox('Error shutting down Docker', err.message);
-      console.error(err);
-      return;
-    }
-    if (mainWindow) {
-      mainWindow.webContents.send('commandOutput', stdout);
-    }
-  });
 }
 
 // Fetch a URL with retries and a delay between attempts
@@ -597,11 +595,6 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout =
 let fetchWithRetryCalled = false;
 
 // Run a command using monadic.sh and update the UI accordingly
-// command: The command to run (e.g., 'start', 'stop', 'restart')
-// message: The initial message to display in the output area
-// statusWhileCommand: The status to display while the command is running
-// statusAfterCommand: The status to display after the command has finished
-// sync: Whether to run the command synchronously (default: false)
 async function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
   if (command === 'start') {
     const apiKeySet = checkAndUpdateEnvFile();
@@ -629,25 +622,21 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
 
-  const monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh').replace('app.asar', 'app').replace(' ', '\\ ');
-
-  const cmd = `${os.platform() === 'win32' ? 'wsl ' : ''}${os.platform() === 'win32' ? toUnixPath(monadicScriptPath) : monadicScriptPath} ${command}`;
+  const cmd = `${monadicScriptPath} ${command}`;
 
   currentStatus = statusWhileCommand;
   updateContextMenu(true);
   updateStatusIndicator(statusWhileCommand);
 
-  fetchWithRetryCalled = false; // Reset the flag before running the command
+  fetchWithRetryCalled = false;
 
-  // Return a promise that resolves when the command execution is complete
   return new Promise((resolve, reject) => {
     if (sync) {
-      // Use exec instead of execSync for better error handling
       exec(cmd, (err, stdout, stderr) => {
         if (err) {
-          dialog.showErrorBox('Error', err.message + '\n' + stderr); // Show a more informative error message
+          dialog.showErrorBox('Error', err.message + '\n' + stderr);
           console.error(err);
-          reject(err); // Reject the promise if an error occurs
+          reject(err);
           return;
         }
         currentStatus = statusAfterCommand;
@@ -656,7 +645,7 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
         writeToScreen(stdout);
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
-        resolve(); // Resolve the promise when the command is finished
+        resolve();
       });
     } else {
       let subprocess = spawn(cmd, [], { shell: true });
@@ -668,7 +657,6 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
         }
         for (let i = 0; i < lines.length; i++) {
           if (lines[i].trim().startsWith('[VERSION]: ')) {
-            // Get the version number from the output
             const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
             if (compareVersions(imageVersion, app.getVersion()) > 0) {
               dialog.showMessageBox({
@@ -696,14 +684,12 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
                   tray.setContextMenu(contextMenu);
                   updateStatusIndicator("Ready");
                   writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
-                  // Send the message to the renderer process immediately
-                  mainWindow.webContents.send('serverReady');
+                  mainWindow.webContents.send('server-ready');
                   openBrowser('http://localhost:4567');
                 })
                 .catch(error => {
                   writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
                   console.error('Fetch operation failed after retries:', error);
-                  // Switch the status back to Stopped
                   currentStatus = 'Stopped';
                   tray.setImage(path.join(iconDir, `${currentStatus}.png`));
                   statusMenuItem.label = `Status: ${currentStatus}`;
@@ -730,7 +716,7 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
 
-        resolve(); // Resolve the promise when the command is finished
+        resolve();
       });
     }
   });
@@ -769,9 +755,8 @@ function updateStatus() {
 }
 
 function updateStatusIndicator(status) {
-  // Send the current status to the main window unless it is closed
   if (!mainWindow) return;
-  mainWindow.webContents.send('updateStatusIndicator', status);
+  mainWindow.webContents.send('update-status-indicator', status);
 }
 
 function updateContextMenu(disableControls = false) {
@@ -814,7 +799,6 @@ function updateContextMenu(disableControls = false) {
   contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
 
-  // Update main window buttons and menu items
   updateMainWindowControls(disableControls);
   updateApplicationMenu();
 }
@@ -823,7 +807,7 @@ function updateMainWindowControls(disableControls) {
   if (!mainWindow) return;
 
   const status = currentStatus;
-  mainWindow.webContents.send('updateControls', { status, disableControls });
+  mainWindow.webContents.send('update-controls', { status, disableControls });
 }
 
 function updateApplicationMenu() {
@@ -961,14 +945,14 @@ function updateApplicationMenu() {
           label: 'Import Document DB',
           click: () => {
             openMainWindow();
-            runCommand('import-db', '[HTML]: <hr /><p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
+            runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
           },
           enabled: currentStatus === 'Stopped' && metRequirements
         },
         {
           label: 'Export Document DB',
           click: () => {
-            runCommand('export-db', '[HTML]: <hr /><p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
+            runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
           },
           enabled: currentStatus === 'Stopped' && metRequirements
         },
@@ -1025,7 +1009,7 @@ function updateApplicationMenu() {
 
 function writeToScreen(text) {
   if (mainWindow) {
-    mainWindow.webContents.send('commandOutput', text);
+    mainWindow.webContents.send('command-output', text);
   }
 }
 
@@ -1033,6 +1017,7 @@ function prepareSettingsWindow() {
   if (settingsWindow) return;
 
   settingsWindow = new BrowserWindow({
+    devTools: true,
     width: 600,
     minWidth: 780,
     height: 400,
@@ -1040,7 +1025,7 @@ function prepareSettingsWindow() {
     parent: mainWindow,
     modal: true,
     show: false,
-    frame: false, // Remove the default window frame
+    frame: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -1068,7 +1053,8 @@ function createMainWindow() {
     webPreferences: {
       nodeIntegration: true,
       contentIsolation: false,
-      preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
+      preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
+      contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
     },
     title: "Monadic Chat",
     useContentSize: true
@@ -1095,12 +1081,13 @@ function createMainWindow() {
 
   setTimeout(() => {
     writeToScreen(openingText);
+    mainWindow.webContents.send('update-version', app.getVersion());
   }, 1000);
 
   mainWindow.loadFile('index.html');
 
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.send('updateStatusIndicator', currentStatus);
+    mainWindow.webContents.send('update-status-indicator', currentStatus);
     prepareSettingsWindow();
   });
 
@@ -1128,9 +1115,7 @@ function openFolder() {
     folderPath = path.join(os.homedir(), 'monadic', 'data');
   } else if (os.platform() === 'win32') {
     try {
-      // Get the WSL home directory using the `wslpath` command
       const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      // Construct the WSL path
       const wslPath = `/home/${path.basename(wslHome)}/monadic/data`;
       folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
     } catch (error) {
@@ -1165,8 +1150,6 @@ function openBrowser(url, outside = false) {
     return;
   }
 
-  // wait until the system is ready on the port 4567
-  // before opening the browser with the timeout of 20 seconds
   const timeout = 20000;
   const interval = 500;
   let time = 0;
@@ -1206,7 +1189,6 @@ ipcMain.on('close-settings', () => {
   }
 });
 
-// Get the path to the .env file based on the operating system
 function getEnvPath() {
   if (os.platform() === 'win32') {
     try {
@@ -1222,14 +1204,12 @@ function getEnvPath() {
   }
 }
 
-// Read the .env file and parse its contents
 function readEnvFile(envPath) {
   try {
     let envContent = fs.readFileSync(envPath, 'utf8');
     envContent = envContent.replace(/\r\n/g, '\n');
     return dotenv.parse(envContent);
   } catch {
-    // Create a new .env file and its parent directories if it doesn't exist
     const envDir = path.dirname(envPath);
     fs.mkdirSync(envDir, { recursive: true });
     fs.writeFileSync(envPath, '');
@@ -1237,7 +1217,6 @@ function readEnvFile(envPath) {
   }
 }
 
-// Write the settings to the .env file
 function writeEnvFile(envPath, envConfig) {
   const envContent = Object.entries(envConfig)
     .map(([key, value]) => `${key}=${value}`)
@@ -1251,7 +1230,6 @@ function writeEnvFile(envPath, envConfig) {
   }
 }
 
-// Check if the OpenAI API key is set in the .env file and update default settings if necessary
 function checkAndUpdateEnvFile() {
   const envPath = getEnvPath();
   if (!envPath) return false;
@@ -1276,13 +1254,11 @@ function checkAndUpdateEnvFile() {
   return !!envConfig.OPENAI_API_KEY;
 }
 
-// Load settings from the .env file
 function loadSettings() {
   const envPath = getEnvPath();
   return envPath ? readEnvFile(envPath) : {};
 }
 
-// Save settings to the .env file
 function saveSettings(data) {
   const envPath = getEnvPath();
   if (envPath) {
@@ -1302,12 +1278,10 @@ ipcMain.on('save-settings', (_event, data) => {
   }
 });
 
-// Initialize the app
 app.whenReady().then(() => {
   initializeApp();
 });
 
-// Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -1327,12 +1301,9 @@ ipcMain.on('close-settings', () => {
 });
 
 async function updateDockerStatus() {
-  const status = await checkDockerDesktopStatus();
-  console.log(`Current Docker status: ${status}`);
-  if (status !== lastDockerStatus) {
-    lastDockerStatus = status;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docker-desktop-status-update', status);
-    }
+  const status = await checkDockerStatus();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docker-desktop-status-update', status);
   }
 }
+

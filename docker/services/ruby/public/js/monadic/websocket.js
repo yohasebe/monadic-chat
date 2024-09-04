@@ -505,14 +505,15 @@ function connect_websocket(callback) {
         $("#start").prop("disabled", false);
         $("#send, #clear, #voice").prop("disabled", false);
 
+        console.log("Token verified");
         // filter out the models that are not available from the dropdown
-        const available_models = data['models']
-        $("#apps option").each(function () {
-          let model = apps[$(this).val()]["model"]
-          if (model && !available_models.includes(model)) {
-            $(this).remove();
-          }
-        });
+        // const available_models = data['models']
+        // $("#apps option").each(function () {
+        //   let model = apps[$(this).val()]["model"]
+        //   if (model && !available_models.includes(model)) {
+        //     $(this).remove();
+        //   }
+        // });
 
         break;
       }
@@ -529,6 +530,7 @@ function connect_websocket(callback) {
         break;
       }
       case "apps": {
+        console.log("Apps loaded");
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);
@@ -901,7 +903,7 @@ function connect_websocket(callback) {
     }
   }
 
-  ws.onclose = function (e) {
+  ws.onclose = function (_e) {
     // console.log(`Socket is closed. Reconnect will be attempted in ${reconnectDelay} second.`, e.reason);
     reconnect_websocket(ws);
   }

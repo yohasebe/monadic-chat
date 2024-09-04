@@ -19,6 +19,10 @@ if (!gotTheLock) {
 app.commandLine.appendSwitch('no-sandbox');
 app.name = 'Monadic Chat';
 
+if (process.platform === 'darwin') {
+  app.commandLine.appendSwitch('no-sound');
+}
+
 const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
 const path = require('path');
@@ -239,36 +243,15 @@ function uninstall() {
   });
 }
 
-// Shut down Docker Desktop (macOS only)
-function shutdownDocker() {
-  let cmd;
-  if (os.platform() === 'darwin') {
-    cmd = `osascript -e 'quit app "Docker Desktop"'`;
-  } else if (os.platform() === 'linux') {
-    cmd = `sudo systemctl stop docker`;
-  } else {
-    console.error('Unsupported platform');
-    return;
-  }
-
-  exec(cmd, (err, stdout) => {
-    if (err) {
-      dialog.showErrorBox('Error shutting down Docker', err.message);
-      console.error(err);
-      return;
-    }
-    if (mainWindow) {
-      mainWindow.webContents.send('command-output', stdout);
-    }
-  });
-}
-
 let mainWindow = null;
 let settingsWindow = null;
 
-// Quit the application after confirming with the user and stopping all running processes
+let isQuittingDialogShown = false;
+
 async function quitApp() {
-  if (isQuitting) return; // Prevent multiple quit attempts
+  if (isQuittingDialogShown) return; // Do nothing if the quit dialog is already shown
+
+  isQuittingDialogShown = true;
 
   let options = {
     type: 'question',
@@ -280,102 +263,116 @@ async function quitApp() {
     icon: path.join(iconDir, 'monadic-chat.png')
   };
 
-  if (process.platform === 'darwin') {
-    options.checkboxLabel = 'Shut down Docker Desktop (if possible)';
-    options.checkboxChecked = false;
-  }
-
-  dialog.showMessageBox(mainWindow, options).then((result) => {
+  try {
+    const result = await dialog.showMessageBox(mainWindow, options);
     if (result.response === 1) { // 'Quit' button
-      isQuitting = true;
-
-      const quitProcess = async () => {
-        try {
-          const dockerStatus = await checkDockerStatus();
-          if (dockerStatus) {
-            // Only execute stop command if Docker Desktop is running
-            await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
-          } else {
-            // console.log('Docker Desktop is not running, skipping stop command.');
-          }
-
-          // Shut down Docker if checkbox is checked (macOS only)
-          if (result.checkboxChecked && process.platform === 'darwin') {
-            await shutdownDocker();
-          }
-        } catch (error) {
-          console.error('Error occurred during application quit:', error);
-        } finally {
-          // Clean up resources
-          if (tray) {
-            tray.destroy();
-            tray = null;
-          }
-
-          if (mainWindow) {
-            mainWindow.removeAllListeners('close');
-            mainWindow.close();
-          }
-
-          if (settingsWindow) {
-            settingsWindow.removeAllListeners('close');
-            settingsWindow.close();
-          }
-
-          // Force quit after a short delay to allow for cleanup
-          setTimeout(() => {
-            app.quit();
-          }, 1000);
+      try {
+        const dockerStatus = await checkDockerStatus();
+        if (dockerStatus) {
+          // Only execute stop command if Docker Desktop is running
+          await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
         }
-      };
-
-      quitProcess();
+      } catch (error) {
+        console.error('Error occurred during application quit:', error);
+      } finally {
+        // Clean up resources and quit
+        cleanupAndQuit();
+      }
     } else {
-      isQuitting = false;
+      isQuittingDialogShown = false;
     }
-  }).catch((err) => {
+  } catch (err) {
     console.error('Error in quit dialog:', err);
-    setTimeout(() => {
-      app.quit();
-    }, 1000);
-  });
+    cleanupAndQuit();
+  }
+}
+
+function cleanupAndQuit() {
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+
+  if (mainWindow) {
+    mainWindow.removeAllListeners('close');
+    mainWindow.close();
+  }
+
+  if (settingsWindow) {
+    settingsWindow.removeAllListeners('close');
+    settingsWindow.close();
+  }
+
+  // Force quit after a short delay to allow for cleanup
+  setTimeout(() => {
+    app.exit(0);
+  }, 1000);
 }
 
 // Update the app's quit handler
 app.on('before-quit', (event) => {
-  if (!isQuitting) {
+  if (!isQuittingDialogShown) {
     event.preventDefault();
     quitApp();
   }
 });
 
-// Update window close handlers
-if (mainWindow) {
-  mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
+// Function to update window close handlers
+function updateWindowCloseHandlers() {
+  if (mainWindow) {
+    mainWindow.on('close', (event) => {
+      if (!isQuittingDialogShown) {
+        event.preventDefault();
+        quitApp();
+      }
+    });
+  }
+
+  if (settingsWindow) {
+    settingsWindow.on('close', (event) => {
+      if (!isQuittingDialogShown) {
+        event.preventDefault();
+        settingsWindow.hide();
+      }
+    });
+  }
 }
 
-if (settingsWindow) {
-  settingsWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      settingsWindow.hide();
-    }
-  });
-}
+// Call this function after creating the windows
+updateWindowCloseHandlers();
 
-// Update the app's quit handler
-app.on('before-quit', (event) => {
-  if (!isQuitting) {
-    event.preventDefault();
-    quitApp();
+// Handle quit command from renderer process
+ipcMain.on('command', async (_event, command) => {
+  try {
+    await ensureDockerDesktopRunning();
+    switch (command) {
+      case 'start':
+        await checkRequirements();
+        runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+        break;
+      case 'stop':
+        runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+        break;
+      case 'restart':
+        runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+        break;
+      case 'browser':
+        openBrowser('http://localhost:4567');
+        break;
+      case 'folder':
+        openFolder();
+        break;
+      case 'settings':
+        openSettingsWindow();
+        break;
+      case 'exit':
+        quitApp();
+        break;
+    }
+  } catch (error) {
+    console.error('Error during app initialization:', error);
   }
 });
-
 // Update window close handlers
 if (mainWindow) {
   mainWindow.on('close', (event) => {
@@ -551,13 +548,6 @@ function initializeApp() {
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createMainWindow();
-      }
-    });
-
-    app.on('before-quit', function (event) {
-      if (!isQuitting) {
-        event.preventDefault();
-        quitApp();
       }
     });
 

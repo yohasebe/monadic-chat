@@ -341,38 +341,6 @@ function updateWindowCloseHandlers() {
 // Call this function after creating the windows
 updateWindowCloseHandlers();
 
-// Handle quit command from renderer process
-ipcMain.on('command', async (_event, command) => {
-  try {
-    await ensureDockerDesktopRunning();
-    switch (command) {
-      // case 'start':
-      //   await checkRequirements();
-      //   runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
-      //   break;
-      case 'stop':
-        runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
-        break;
-      case 'restart':
-        runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
-        break;
-      case 'browser':
-        openBrowser('http://localhost:4567');
-        break;
-      case 'folder':
-        openFolder();
-        break;
-      case 'settings':
-        openSettingsWindow();
-        break;
-      case 'exit':
-        quitApp();
-        break;
-    }
-  } catch (error) {
-    console.error('Error during app initialization:', error);
-  }
-});
 // Update window close handlers
 if (mainWindow) {
   mainWindow.on('close', (event) => {

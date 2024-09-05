@@ -291,12 +291,15 @@ async function quitApp() {
 
       const quitProcess = async () => {
         try {
-          const dockerStatus = await checkDockerStatus();
+          // Skip Docker status check in Resource Saver Mode
+          const dockerStatus = await Promise.race([
+            checkDockerStatus(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+          ]);
+
           if (dockerStatus) {
             // Only execute stop command if Docker Desktop is running
             await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
-          } else {
-            // console.log('Docker Desktop is not running, skipping stop command.');
           }
 
           // Shut down Docker if checkbox is checked (macOS only)

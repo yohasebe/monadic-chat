@@ -346,10 +346,10 @@ ipcMain.on('command', async (_event, command) => {
   try {
     await ensureDockerDesktopRunning();
     switch (command) {
-      case 'start':
-        await checkRequirements();
-        runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
-        break;
+      // case 'start':
+      //   await checkRequirements();
+      //   runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+      //   break;
       case 'stop':
         runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
         break;

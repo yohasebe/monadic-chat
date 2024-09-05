@@ -138,32 +138,22 @@ start_docker_compose() {
     $DOCKER compose -f "$COMPOSE_MAIN" down
     build_docker_compose
   elif [[ "$1" != "silent" ]]; then
-    echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"
+    echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"  
+  fi
+
+  if ! $DOCKER images | grep -q "yohasebe/monadic-chat"; then
+    echo "[IMAGE NOT FOUND]"
+    echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
+    build_docker_compose
+    if [[ "$1" != "silent" ]]; then
+      echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
+    fi
   fi
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
-
-  local images=("yohasebe/monadic-chat")
-
-  for image in "${images[@]}"; do
-    if ! $DOCKER images | grep -q "$image"; then
-      echo "[IMAGE NOT FOUND]"
-      echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
-      build_docker_compose
-      if [[ "$1" != "silent" ]]; then
-        echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
-      fi
-      $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
-      break
-    fi
-  done
-
-  if [[ "$1" != "silent" ]]; then
-    echo "[HTML]: <p>Setting up Monadic Chat container . . .</p>"
-  fi
-
-  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d
+  
+  $DOCKER compose -f "$COMPOSE_MAIN" -p "monadic-chat-container" up -d 
 
   local containers=$($DOCKER ps --filter "label=project=monadic-chat" --format "{{.Names}}")
 

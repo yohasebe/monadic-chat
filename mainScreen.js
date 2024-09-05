@@ -29,6 +29,10 @@ function addCopyToClipboardListener() {
 function addCommandListeners() {
   ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit'].forEach(id => {
     document.getElementById(id).addEventListener('click', () => {
+      if (id === 'start') {
+        htmlOutputElement.innerHTML += 'Please wait. Accessing Docker Desktop . . .' + '\n';
+        document.getElementById(id).disabled = true;
+      }
       window.electronAPI.sendCommand(id);
     });
   });

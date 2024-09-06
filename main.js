@@ -108,11 +108,19 @@ function startDockerDesktop() {
 async function ensureDockerDesktopRunning() {
   const st = await checkDockerStatus();
   if (!st) {
-    // console.log('Docker Desktop is not running. Attempting to start...');
-    await startDockerDesktop();
-    // Wait for Docker Desktop to start
-    await new Promise(resolve => setTimeout(resolve, 20000));
-    await checkDockerStatus();
+    mainWindow.webContents.send('disable-ui');
+
+    startDockerDesktop()
+      .then(async () => {
+        updateContextMenu(false);
+        updateApplicationMenu();
+        await new Promise(resolve => setTimeout(resolve, 20000));
+        await checkDockerStatus();
+      })
+      .catch(error => {
+        console.error('Failed to start Docker Desktop:', error);
+        dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+      });
   }
 }
 
@@ -265,17 +273,15 @@ async function quitApp() {
 
   try {
     const result = await dialog.showMessageBox(mainWindow, options);
-    if (result.response === 1) { // 'Quit' button
+    if (result.response === 1) {
       try {
         const dockerStatus = await checkDockerStatus();
         if (dockerStatus) {
-          // Only execute stop command if Docker Desktop is running
           await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
         }
       } catch (error) {
         console.error('Error occurred during application quit:', error);
       } finally {
-        // Clean up resources and quit
         cleanupAndQuit();
       }
     } else {
@@ -579,13 +585,6 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
     }
   }
 
-  try {
-    await ensureDockerDesktopRunning();
-  } catch {
-    dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
-    return;
-  }
-
   writeToScreen(message);
   statusMenuItem.label = `Status: ${statusWhileCommand}`;
 
@@ -597,6 +596,16 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
 
   fetchWithRetryCalled = false;
 
+  try {
+    await ensureDockerDesktopRunning();
+  } catch {
+    dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+    return;
+  }
+
+  updateContextMenu();
+  updateApplicationMenu();
+
   return new Promise((resolve, reject) => {
     if (sync) {
       exec(cmd, (err, stdout, stderr) => {
@@ -607,7 +616,9 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
           return;
         }
         currentStatus = statusAfterCommand;
-        tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
+        if (tray) {
+          tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
+        }
         statusMenuItem.label = `Status: ${statusAfterCommand}`;
         writeToScreen(stdout);
         updateContextMenu(false);
@@ -637,7 +648,9 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
           } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
             writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
             currentStatus = "Building";
-            tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+            if (tray) {
+              tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+            }
             statusMenuItem.label = `Status: ${currentStatus}`;
             updateStatusIndicator(currentStatus);
           } else if (lines[i].trim() === "[SERVER STARTED]") {
@@ -658,7 +671,9 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
                   writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
                   console.error('Fetch operation failed after retries:', error);
                   currentStatus = 'Stopped';
-                  tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+                  if (tray) {
+                    tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+                  }
                   statusMenuItem.label = `Status: ${currentStatus}`;
                   updateContextMenu(false);
                   updateStatusIndicator(currentStatus);
@@ -677,7 +692,9 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
 
       subprocess.on('close', function () {
         currentStatus = statusAfterCommand;
-        tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
+        if (tray) {
+          tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
+        }
         statusMenuItem.label = `Status: ${statusAfterCommand}`;
 
         updateContextMenu(false);
@@ -727,7 +744,9 @@ function updateStatusIndicator(status) {
 }
 
 function updateContextMenu(disableControls = false) {
-  tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+  if (tray) {
+    tray.setImage(path.join(iconDir, `${currentStatus}.png`));
+  }
   if (disableControls) {
     menuItems[2].enabled = false;
     menuItems[3].enabled = false;
@@ -737,30 +756,31 @@ function updateContextMenu(disableControls = false) {
     menuItems[10].enabled = false;
     menuItems[12].enabled = false;
     menuItems[14].enabled = false;
-  } else {
-    menuItems[2].enabled = true;
-    menuItems[3].enabled = true;
-    menuItems[4].enabled = true;
-    menuItems[8].enabled = true;
-    menuItems[10].enabled = true;
-    menuItems[12].enabled = true;
-    menuItems[14].enabled = true;
   }
 
-  if (currentStatus === 'Running') {
+  if (currentStatus === 'Starting') {
+    menuItems[2].enabled = false;
+    menuItems[3].enabled = false;
+    menuItems[4].enabled = false;
+    menuItems[6].enabled = false;
+  }  else if (currentStatus === 'Running') {
     menuItems[2].enabled = false;
     menuItems[3].enabled = true;
     menuItems[4].enabled = true;
     menuItems[6].enabled = false;
-  } else {
-    menuItems[4].enabled = false;
-  }
-
-  if (currentStatus === 'Stopped') {
+  } else if (currentStatus === 'Stopped') {
     menuItems[2].enabled = true;
     menuItems[3].enabled = false;
     menuItems[5].enabled = false;
     menuItems[6].enabled = false;
+  } else {
+    menuItems[2].enabled = false 
+    menuItems[3].enabled = false;
+    menuItems[4].enabled = false;
+    menuItems[8].enabled = true;
+    menuItems[10].enabled = true;
+    menuItems[12].enabled = true;
+    menuItems[14].enabled = true;
   }
 
   contextMenu = Menu.buildFromTemplate(menuItems);
@@ -894,7 +914,7 @@ function updateApplicationMenu() {
             checkRequirements()
               .then(() => {
                 runCommand('build',
-                  '[HTML]: <p>Building Monadic Chat . . .</p><p>If the monitor area stays blank for a long time, please make sure that Docker Desktop is active.</p>',
+                  '[HTML]: <p>Building Monadic Chat . . .</p><p>If the monitor area stays blank for a long time, please restart Docker Desktop and make it active.</p>',
                   'Building',
                   'Stopped',
                   false);

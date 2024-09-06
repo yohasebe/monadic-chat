@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  
+  // Listen for temporal UI disable event from the main process 
+  onDisableUI: (callback) => ipcRenderer.on('disable-ui', callback),
 
   // Listen for command output from the main process
   onCommandOutput: (callback) => ipcRenderer.on('command-output', callback),

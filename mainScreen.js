@@ -27,12 +27,8 @@ function addCopyToClipboardListener() {
 
 // Add event listeners for command buttons
 function addCommandListeners() {
-  ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit', 'build'].forEach(id => {
+  ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit'].forEach(id => {
     document.getElementById(id).addEventListener('click', () => {
-      if (id === 'start' || id === 'build') {
-        htmlOutputElement.innerHTML += 'Please wait. Accessing Docker Desktop . . .' + '\n';
-        document.getElementById(id).disabled = true;
-      }
       window.electronAPI.sendCommand(id);
     });
   });
@@ -188,3 +184,14 @@ window.electronAPI.onUpdateControls((_event, { status, disableControls }) => {
 window.electronAPI.onServerReady(() => {
   document.getElementById('browser').disabled = false;
 });
+
+window.electronAPI.onDisableUI(() => {
+  htmlOutputElement.innerHTML += 'Checking Docker Desktop . . .' + '\n';
+  const buttons = {
+    start: document.getElementById('start'),
+    stop: document.getElementById('stop'),
+    restart: document.getElementById('restart'),
+  };
+  Object.values(buttons).forEach(button => button.disabled = true);
+});
+

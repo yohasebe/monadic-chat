@@ -1,17 +1,13 @@
 ### Change Log
 
-  - [Aug, 2024] 0.8.12
-      - Syntactic Analysis app added
+  - [Sep, 2024] 0.8.12
+      - Many under-the-hood improvements
   - [Aug, 2024] 0.8.11
       - App authoring format changed
       - Claude Jupyter Notebook app added
       - Math rendering improved
       - Second Opinion app added
       - PDF Document import/export feature
-      - Several bug fixes
-      - Docker container addition mechanism
-      - Better container management
-      - Faster startup/qutting
   - [Jul, 2024]
       - Mistral AI (Chat and Code Interpreter) app added
       - Multiple images can be uploaded for image recognition

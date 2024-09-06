@@ -462,6 +462,8 @@ function connect_websocket(callback) {
         break;
       }
       case "audio": {
+        $("#monadic-spinner").hide();
+
         const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
         audioDataQueue.push(audioData);
         processAudioDataQueue();
@@ -514,15 +516,7 @@ function connect_websocket(callback) {
         $("#start").prop("disabled", false);
         $("#send, #clear, #voice").prop("disabled", false);
 
-        console.log("Token verified");
-        // filter out the models that are not available from the dropdown
-        // const available_models = data['models']
-        // $("#apps option").each(function () {
-        //   let model = apps[$(this).val()]["model"]
-        //   if (model && !available_models.includes(model)) {
-        //     $(this).remove();
-        //   }
-        // });
+        // console.log("Token verified");
 
         break;
       }
@@ -539,7 +533,7 @@ function connect_websocket(callback) {
         break;
       }
       case "apps": {
-        console.log("Apps loaded");
+        // console.log("Apps loaded");
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);

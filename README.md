@@ -13,18 +13,14 @@
 **Monadic Chat** is a framework designed to create and use intelligent chatbots. By providing a full-fledged Linux environment on Docker to GPT-4 and other LLMs, it allows the chatbots to perform advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, suitable not only for using AI but also for developing and researching various applications.
 
 - Recent Updates
-  - [Aug, 2024] 0.8.12
-      - Syntactic Analysis app added
+  - [Sep, 2024] 0.8.12
+      - Many under-the-hood improvements
   - [Aug, 2024] 0.8.11
       - App authoring format changed
       - Claude Jupyter Notebook app added
       - Math rendering improved
       - Second Opinion app added
       - PDF Document import/export feature
-      - Several bug fixes
-      - Docker container addition mechanism
-      - Better container management
-      - Faster startup/qutting
   - [Jul, 2024]
       - Mistral AI (Chat and Code Interpreter) app added
       - Multiple images can be uploaded for image recognition

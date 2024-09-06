@@ -99,8 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (status === 'Running') {
       statusElement.textContent = "Preparing . . .";
       buttons.start.disabled = true;
-      buttons.stop.disabled = false;
-      buttons.restart.disabled = false;
+      buttons.stop.disabled = true;
+      buttons.restart.disabled = true;
       buttons.browser.disabled = true;
       buttons.folder.disabled = false;
       buttons.settings.disabled = false;

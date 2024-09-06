@@ -12,7 +12,7 @@ function audioInit() {
 
   playPromise = audio.play();
   if (!playPromise || playPromise !== undefined) {
-    playPromise.then(_ => {}).catch(error => {});
+    playPromise.then(_ => {}).catch(_error => {});
   }
 }
 

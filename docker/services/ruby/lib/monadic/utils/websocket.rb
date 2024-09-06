@@ -12,41 +12,38 @@ module WebSocketHelper
     res = false
     max_tokens = obj["max_tokens"].to_i
     context_size = obj["context_size"].to_i
-    tokens = []
     tokenizer_available = true
 
-    # calculate token count for each message and mark as active
+    # gpt-4o => o200k_base;
+    model_name = /gpt-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
+
+    encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
+
     begin
-      # filter out inactive messages
-      active_messages = messages.filter { |m| m["active"] }
-
-      # gpt-4o => o200k_base;
-      model_name = /gpt-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
-
-      encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
-
+      # Calculate token count for each message and mark as active if not already calculated
       messages.each do |m|
-        unless m["tokens"]
-          m["tokens"] = MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
-        end
+        m["tokens"] ||= MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
         m["active"] = true
       end
 
-      # remove oldest messages until total token count and message count are within limits
-      loop do
-        break if active_messages.empty? || (tokens.sum <= max_tokens && active_messages.size <= context_size)
+      # Filter active messages and calculate total token count
+      active_messages = messages.select { |m| m["active"] }
+      total_tokens = active_messages.sum { |m| m["tokens"] || 0 }
 
+      # Remove oldest messages until total token count and message count are within limits
+      until active_messages.empty? || (total_tokens <= max_tokens && active_messages.size <= context_size)
+        last_message = active_messages.pop
+        last_message["active"] = false
+        total_tokens -= last_message["tokens"] || 0
         res = true
-        active_messages[0]["active"] = false
-        active_messages.shift
       end
 
-      # calculate total token count
-      count_total_system_tokens = messages.filter { |m| m["role"] == "system" }.map { |m| m["tokens"] || 0 }.sum
-      count_total_input_tokens = messages.filter { |m| m["role"] == "user" }.map { |m| m["tokens"] || 0 }.sum
-      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant" }.map { |m| m["tokens"] || 0 }.sum
-      count_active_tokens = active_messages.map { |m| m["tokens"] || 0 }.sum
-      count_all_tokens =  messages.map { |m| m["tokens"] || 0 }.sum
+      # Calculate total token counts for different roles
+      count_total_system_tokens = messages.filter { |m| m["role"] == "system" }.sum { |m| m["tokens"] || 0 }
+      count_total_input_tokens = messages.filter { |m| m["role"] == "user" }.sum { |m| m["tokens"] || 0 }
+      count_total_output_tokens = messages.filter { |m| m["role"] == "assistant" }.sum { |m| m["tokens"] || 0 }
+      count_active_tokens = active_messages.sum { |m| m["tokens"] || 0 }
+      count_all_tokens = messages.sum { |m| m["tokens"] || 0 }
     rescue StandardError => e
       pp e.message
       pp e.backtrace
@@ -54,7 +51,7 @@ module WebSocketHelper
       tokenizer_available = false
     end
 
-    # return information about state of messages array
+    # Return information about the state of the messages array
     res = { changed: res,
             count_total_system_tokens: count_total_system_tokens,
             count_total_input_tokens: count_total_input_tokens,
@@ -163,18 +160,29 @@ module WebSocketHelper
             end
             v.api_key = settings.api_key
           end
-          messages = session[:messages].filter { |m| m["type"] != "search" }
+
+          # Filter messages only once and store in filtered_messages
+          filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+
+          # Use filtered_messages for pushing past messages
           @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
           @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
-          @channel.push({ "type" => "past_messages", "content" => messages }.to_json) unless session[:messages].empty?
+          @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty? 
+
           past_messages_data = check_past_messages(session[:parameters])
-          @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
+
+          # Reuse filtered_messages for change_status
+          @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed] 
           @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
         when "DELETE"
           session[:messages].delete_if { |m| m["mid"] == obj["mid"] }
           past_messages_data = check_past_messages(session[:parameters])
-          messages = session[:messages].filter { |m| m["type"] != "search" }
-          @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
+
+          # Filter messages only once and store in filtered_messages
+          filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+
+          # Reuse filtered_messages for change_status
+          @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed] 
           @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
         when "AI_USER_QUERY"
           thread&.join
@@ -259,7 +267,7 @@ module WebSocketHelper
                 html += "\n\n" + session["parameters"]["response_suffix"]
               end
 
-              new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true }
+              new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true } # detect_language is called only once here
 
               @channel.push({
                 "type" => "html",
@@ -285,7 +293,7 @@ module WebSocketHelper
                        "role" => "system",
                        "text" => text,
                        "html" => markdown_to_html(text),
-                       "lang" => detect_language(text),
+                       "lang" => detect_language(text), # detect_language is called only once here
                        "active" => true }
           # Initial prompt is added to messages but not shown as the first message
           # @channel.push({ "type" => "html", "content" => new_data }.to_json)
@@ -408,7 +416,7 @@ module WebSocketHelper
             end
           end
         end
-      end
+        end
 
       ws.on :close do |event|
         pp [:close, event.code, event.reason]

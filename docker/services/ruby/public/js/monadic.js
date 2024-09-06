@@ -196,9 +196,7 @@ $(function () {
       $("#main").toggleClass("col-md-8", "col-md-12");
       // show menu after #main width has been fully adjusted
       $("body, html").animate({ scrollTop: 0 }, 0);
-      setTimeout(() => {
-        $("#menu").show();
-      }, 500);
+      $("#menu").show();
     }
   })
 

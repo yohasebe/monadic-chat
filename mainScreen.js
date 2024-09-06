@@ -27,9 +27,9 @@ function addCopyToClipboardListener() {
 
 // Add event listeners for command buttons
 function addCommandListeners() {
-  ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit'].forEach(id => {
+  ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit', 'build'].forEach(id => {
     document.getElementById(id).addEventListener('click', () => {
-      if (id === 'start') {
+      if (id === 'start' || id === 'build') {
         htmlOutputElement.innerHTML += 'Please wait. Accessing Docker Desktop . . .' + '\n';
         document.getElementById(id).disabled = true;
       }

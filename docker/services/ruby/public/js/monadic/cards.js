@@ -5,9 +5,9 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
   const status_class = status === true ? "active" : "";
 
   // Fix jupyter notebook URL issue
-  const replaced_html = html.replaceAll("/lab/tree/monadic/data/", "/lab/tree/");
+  const replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
 
-  let className
+  let className;
   if (role === "user") {
     className = "role-user";
   } else if (role === "assistant") {
@@ -23,10 +23,28 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     }).join("");
   }
 
+  // Create the card element with the mid attribute
   const card = $(`
-    <div class="card mt-3">
+    <div class="card mt-3" id="${mid}"> 
       <div class="card-header p-2 ps-3 d-flex justify-content-between">
         <div class="fs-5 card-title mb-0">${badge}</div>
+        ${runningOnFirefox ? `
+          <div class="me-1 text-secondary d-flex align-items-center">
+            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+            <span class="status ${status_class}"></span>
+          </div>
+        ` : `
+          <div class="me-1 text-secondary d-flex align-items-center">
+            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+            <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
+            <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
+            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+            <span class="status ${status_class}"></span>
+          </div>
+        `}
       </div>
       <div class="card-body ${className} pb-1">
         <div class="card-text">${replaced_html}${image_data}</div>
@@ -34,36 +52,12 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     </div>
     `);
 
-  // Check if the card already exists
-  if (mid !== "" && mids.has(mid)) {
-    return;
-  } else if (mid !== "") {
+  // Attach event listeners
+  attachEventListeners(card);
+
+  // Add to mids Set if mid is not empty
+  if (mid !== "") {
     mids.add(mid);
-    card.attr("id", mid);
-
-    // Store header buttons HTML in a variable
-    const headerButtons = runningOnFirefox ? `
-      <div class="me-1 text-secondary d-flex align-items-center">
-        <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-        <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-        <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-        <span class="status ${status_class}"></span>
-      </div>
-    ` : `
-      <div class="me-1 text-secondary d-flex align-items-center">
-        <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-        <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
-        <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
-        <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-        <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-        <span class="status ${status_class}"></span>
-      </div>
-    `;
-
-    card.find(".card-header").append(headerButtons);
-
-    // Attach event listeners directly here
-    attachEventListeners(card);
   }
 
   return card;

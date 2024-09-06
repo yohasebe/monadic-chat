@@ -663,7 +663,7 @@ async function runCommand(command, message, statusWhileCommand, statusAfterComma
                   contextMenu = Menu.buildFromTemplate(menuItems);
                   tray.setContextMenu(contextMenu);
                   updateStatusIndicator("Ready");
-                  writeToScreen('[HTML]: <p>Monadic Chat server is ready. Press <b>Open Browser</b> button.</p>');
+                  writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
                   mainWindow.webContents.send('server-ready');
                   openBrowser('http://localhost:4567');
                 })

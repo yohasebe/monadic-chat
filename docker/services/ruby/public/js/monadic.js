@@ -545,6 +545,11 @@ $(function () {
   const fileInput = $('#file-load');
   const loadButton = $('#import-button');
 
+  // loadButton click event handler
+  loadButton.on('click', function () {
+    $("#monadic-spinner").show();
+  });
+
   fileInput.on('change', function () {
     if (fileInput[0].files.length > 0) {
       loadButton.prop('disabled', false);

@@ -73,6 +73,9 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
 function attachEventListeners($card) {
   $card.on("click", ".func-play", function () {
     $(this).tooltip('hide');
+
+    $("#monadic-spinner").show();
+
     const content = $card.find(".card-text");
     let text;
     try {
@@ -84,11 +87,12 @@ function attachEventListeners($card) {
     text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);
-    ttsSpeak(text, true, false, function () { });
+    ttsSpeak(text, true);
   });
 
   $card.on("click", ".func-stop", function () {
     $(this).tooltip('hide');
+    $("#monadic-spinner").hide();
     ttsStop();
   });
 

@@ -4,7 +4,6 @@
 
 let ws = connect_websocket();
 let verified = false;
-let htmlContent;
 let model_options;
 
 // message is submitted upon pressing enter
@@ -453,6 +452,45 @@ function connect_websocket(callback) {
     }
   }
 
+  // Helper function to append a card to the discourse
+  function appendCard(role, badge, html, lang, mid, status, images) {
+    const htmlElement = createCard(role, badge, html, lang, mid, status, images);
+    $("#discourse").append(htmlElement);
+    updateItemStates();
+
+    const htmlContent = $("#discourse div.card:last");
+
+    if (params["toggle"] === "true") {
+      applyToggle(htmlContent);
+    }
+
+    if (params["mermaid"] === "true") {
+      applyMermaid(htmlContent);
+    }
+
+    if (params["mathjax"] === "true") {
+      applyMathJax(htmlContent);
+    }
+
+    if (params["abc"] === "true") {
+      applyAbc(htmlContent);
+    }
+
+    if (params["sourcecode"] === "true") {
+      formatSourceCode(htmlContent);
+    }
+
+    setCopyCodeButton(htmlContent);
+  }
+
+  // Helper function to display an error message
+  function displayErrorMessage(message) {
+    // Implement your preferred error display mechanism here
+    // For example, you can use a dedicated error display area or a notification
+    console.error("WebSocket Error:", message);
+    // You can also display the error in the UI if needed
+  }
+
   ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
     switch (data["type"]) {
@@ -475,7 +513,7 @@ function connect_websocket(callback) {
       }
       case "error": {
         $("#send, #clear, #voice").prop("disabled", false);
-        $("#chat").html("");
+        // $("#chat").html(""); // Removed clearing the chat history
         $("#alert-message").html("Input a message.");
         $("#temp-card").hide();
         $("#indicator").hide();
@@ -490,9 +528,10 @@ function connect_websocket(callback) {
 
         $("#message").val(params["message"]);
 
-        setAlert(data["content"], "error");
+        // Display the error message using the helper function
+        displayErrorMessage(data["content"]);
 
-        setInputFocus()
+        setInputFocus();
 
         break;
       }
@@ -709,7 +748,7 @@ function connect_websocket(callback) {
               const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
 
-              htmlContent = $("#discourse div.card:last");
+              const htmlContent = $("#discourse div.card:last");
 
               if (apps[loadedApp]["toggle"] === "true") {
                 applyToggle(htmlContent);
@@ -790,7 +829,8 @@ function connect_websocket(callback) {
         messages.push(data["content"]);
 
         if (data["content"]["role"] === "assistant") {
-          htmlElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+          // Use the appendCard helper function
+          appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
 
           if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
             $("#message").attr("placeholder", "Waiting for AI-user input . . .");
@@ -817,37 +857,12 @@ function connect_websocket(callback) {
           if (data["content"]["images"] !== undefined) {
             images = data["content"]["images"]
           }
-          htmlElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
+          // Use the appendCard helper function
+          appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         } else if (data["content"]["role"] === "system") {
-          htmlElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+          // Use the appendCard helper function
+          appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
         }
-
-        $("#discourse").append(htmlElement);
-        updateItemStates();
-
-        htmlContent = $("#discourse div.card:last");
-
-        if (params["toggle"] === "true") {
-          applyToggle(htmlContent);
-        }
-
-        if (params["mermaid"] === "true") {
-          applyMermaid(htmlContent);
-        }
-
-        if (params["mathjax"] === "true") {
-          applyMathJax(htmlContent);
-        }
-
-        if (params["abc"] === "true") {
-          applyAbc(htmlContent);
-        }
-
-        if (params["sourcecode"] === "true") {
-          formatSourceCode(htmlContent);
-        }
-
-        setCopyCodeButton(htmlContent);
 
         $("#chat").html("");
         $("#temp-card").hide();
@@ -873,8 +888,8 @@ function connect_websocket(callback) {
         if (data["content"]["images"] !== undefined) {
           images = data["content"]["images"];
         }
-        const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
-        $("#discourse").append(userElement);
+        // Use the appendCard helper function
+        appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         $("#temp-card").show();
         $("#temp-card .status").hide();
         $("#indicator").show();
@@ -935,9 +950,10 @@ function reconnect_websocket(ws, callback) {
       }, reconnectDelay);
       break;
     case WebSocket.CONNECTING:
+      // console.log('WebSocket is connecting.');
       setTimeout(() => {
         reconnect_websocket(ws, callback);
-      }, reconnectDelay);
+      }, reconnectDelay); // Introduce a delay here
       break;
     case WebSocket.OPEN:
       // console.log('WebSocket is open.');
@@ -947,3 +963,4 @@ function reconnect_websocket(ws, callback) {
       break;
   }
 }
+

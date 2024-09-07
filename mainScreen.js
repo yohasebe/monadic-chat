@@ -37,7 +37,6 @@ function addCommandListeners() {
 // Function to update UI based on Docker Desktop status
 function updateDockerStatusUI(isRunning) {
   const dockerStatusElement = document.getElementById('dockerStatus');
-  // console.log(`Updating Docker status UI: ${isRunning}`);
   if (isRunning) {
     dockerStatusElement.textContent = 'Running';
     dockerStatusElement.classList.remove('inactive');
@@ -46,6 +45,96 @@ function updateDockerStatusUI(isRunning) {
     dockerStatusElement.textContent = 'Stopped';
     dockerStatusElement.classList.remove('active');
     dockerStatusElement.classList.add('inactive');
+  }
+}
+
+// Function to update UI based on Monadic Chat status
+function updateMonadicChatStatusUI(status) {
+  const statusElement = document.getElementById('status');
+  statusElement.textContent = status;
+
+  const buttons = {
+    start: document.getElementById('start'),
+    stop: document.getElementById('stop'),
+    restart: document.getElementById('restart'),
+    browser: document.getElementById('browser'),
+    folder: document.getElementById('folder'),
+    settings: document.getElementById('settings')
+  };
+
+  // Enable/disable buttons based on status
+  if (status === 'Port in use'
+    || status === 'Starting'
+    || status === 'Retarting'
+    || status === 'Stopping'
+    || status === 'Building'
+    || status === 'Uninstalling'
+    || status === 'Importing' ||
+    status === 'Exporting') {
+    Object.values(buttons).forEach(button => button.disabled = true);
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
+    buttons.folder.disabled = false;
+    buttons.settings.disabled = false;
+  } else if (status === 'Running') {
+    statusElement.textContent = "Preparing . . .";
+    buttons.start.disabled = true;
+    buttons.stop.disabled = true;
+    buttons.restart.disabled = true;
+    buttons.browser.disabled = true;
+    buttons.folder.disabled = false;
+    buttons.settings.disabled = false;
+  } else if (status === 'Ready') {
+    statusElement.textContent = "Ready";
+    statusElement.classList.remove('inactive');
+    statusElement.classList.add('active');
+    buttons.start.disabled = true;
+    buttons.stop.disabled = false;
+    buttons.restart.disabled = false;
+    buttons.browser.disabled = false;
+    buttons.folder.disabled = false;
+    buttons.settings.disabled = false;
+  } else if (status === 'Stopped') {
+    statusElement.classList.remove('active');
+    statusElement.classList.add('inactive');
+    buttons.start.disabled = false;
+    buttons.stop.disabled = true;
+    buttons.restart.disabled = true;
+    buttons.browser.disabled = true;
+    buttons.folder.disabled = false;
+    buttons.settings.disabled = false;
+  } else {
+    Object.values(buttons).forEach(button => button.disabled = true);
+    buttons.folder.disabled = false;
+    buttons.settings.disabled = false;
+  }
+}
+
+// Function to write to the screen
+function writeToScreen(text) {
+  try {
+    // Remove carriage return characters
+    text = text.replace(/\r\n|\r|\n/g, '\n').trim();
+
+    if (text.includes("[HTML]:")) {
+      const message = text.replace("[HTML]:", "");
+      htmlOutputElement.innerHTML += message + '\n';
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+    } else {
+      logOutputElement.textContent += text + '\n';
+      logLines++;
+      if (logLines > logMaxLines) {
+        const lines = logOutputElement.textContent.split('\n');
+        logOutputElement.textContent = lines.slice(-logMaxLines).join('\n');
+        logLines = logMaxLines;
+      }
+      logOutputElement.scrollTop = logOutputElement.scrollHeight;
+    }
+  } catch (error) {
+    console.error('Error processing command output:', error);
+    // Notify user if an error occurs
+    htmlOutputElement.innerHTML += '<p style="color: red;">An error occurred. Please check the console for details.</p>\n';
+    htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
   }
 }
 
@@ -65,133 +154,75 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Update docker status
-  window.electronAPI.onUpdateDockerStatusIndicator((_event, status) => {
-    updateDockerStatusUI(status);
-  })
+  window.electronAPI.onUpdateDockerStatusIndicator((_event, isRunning) => {
+    updateDockerStatusUI(isRunning); 
+  });
 
-  // Update status indicator
+  // Update Monadic Chat status 
   window.electronAPI.onUpdateStatusIndicator((_event, status) => {
-    const statusElement = document.getElementById('status');
-    statusElement.textContent = status;
+    updateMonadicChatStatusUI(status);
+  });
 
+  // Enable browser button when server is ready
+  window.electronAPI.onServerReady(() => {
+    document.getElementById('browser').disabled = false;
+  });
+
+  window.electronAPI.onDisableUI(() => {
+    htmlOutputElement.innerHTML += 'Checking Docker Desktop . . .' + '\n';
     const buttons = {
       start: document.getElementById('start'),
       stop: document.getElementById('stop'),
       restart: document.getElementById('restart'),
-      browser: document.getElementById('browser'),
-      folder: document.getElementById('folder'),
-      settings: document.getElementById('settings')
     };
+    Object.values(buttons).forEach(button => button.disabled = true);
+  });
 
-    // Enable/disable buttons based on status
-    if (status === 'Port in use'
-      || status === 'Starting'
-      || status === 'Stopping'
-      || status === 'Building'
-      || status === 'Uninstalling'
-      || status === 'Importing' ||
-      status === 'Exporting') {
-      Object.values(buttons).forEach(button => button.disabled = true);
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      buttons.folder.disabled = false;
-      buttons.settings.disabled = false;
-    } else if (status === 'Running') {
-      statusElement.textContent = "Preparing . . .";
-      buttons.start.disabled = true;
-      buttons.stop.disabled = true;
-      buttons.restart.disabled = true;
-      buttons.browser.disabled = true;
-      buttons.folder.disabled = false;
-      buttons.settings.disabled = false;
-    } else if (status === 'Ready') {
-      statusElement.textContent = "Ready";
-      statusElement.classList.remove('inactive');
-      statusElement.classList.add('active');
-      buttons.start.disabled = true;
-      buttons.stop.disabled = false;
-      buttons.restart.disabled = false;
-      buttons.browser.disabled = false;
-      buttons.folder.disabled = false;
-      buttons.settings.disabled = false;
-    } else if (status === 'Stopped') {
-      statusElement.classList.remove('active');
-      statusElement.classList.add('inactive');
-      buttons.start.disabled = false;
-      buttons.stop.disabled = true;
-      buttons.restart.disabled = true;
-      buttons.browser.disabled = true;
-      buttons.folder.disabled = false;
-      buttons.settings.disabled = false;
-    } else {
-      Object.values(buttons).forEach(button => button.disabled = true);
-      buttons.folder.disabled = false;
-      buttons.settings.disabled = false;
-    }
+  // Handle command output
+  window.electronAPI.onCommandOutput((_event, output) => {
+    writeToScreen(output);
+  });
+
+  // Listen for write to screen requests from main process
+  window.electronAPI.onWriteToScreen((_event, text) => {
+    writeToScreen(text);
   });
 });
 
-// Handle command output
-window.electronAPI.onCommandOutput((_event, output) => {
-  try {
-    // Remove carriage return characters
-    output = output.replace(/\r\n|\r|\n/g, '\n').trim();
 
-    if (output.includes("[HTML]:")) {
-      const message = output.replace("[HTML]:", "");
-      htmlOutputElement.innerHTML += message + '\n';
-      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
-    } else {
-      logOutputElement.textContent += output + '\n';
-      logLines++;
-      if (logLines > logMaxLines) {
-        const lines = logOutputElement.textContent.split('\n');
-        logOutputElement.textContent = lines.slice(-logMaxLines).join('\n');
-        logLines = logMaxLines;
-      }
-      logOutputElement.scrollTop = logOutputElement.scrollHeight;
-    }
-  } catch (error) {
-    console.error('Error processing command output:', error);
-    // Notify user if an error occurs
-    htmlOutputElement.innerHTML += '<p style="color: red;">An error occurred. Please check the console for details.</p>\n';
-    htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
-  }
+// Adjust the heights on window resize
+window.addEventListener('resize', function() {
+  const currentRatio = document.getElementById('messages').offsetHeight / (document.getElementById('messages').offsetHeight + document.getElementById('output').offsetHeight);
+  setInitialHeights(currentRatio);
 });
 
-// Update control buttons based on status
-window.electronAPI.onUpdateControls((_event, { status, disableControls }) => {
-  const buttons = {
-    start: document.getElementById('start'),
-    stop: document.getElementById('stop'),
-    restart: document.getElementById('restart'),
-    browser: document.getElementById('browser'),
-    folder: document.getElementById('folder')
-  };
+// Function to set initial heights based on a ratio
+function setInitialHeights(ratio) {
+  const wrapperHeight = document.querySelector('.message-wrapper').clientHeight - divider.offsetHeight;
+  const messagesHeight = wrapperHeight * ratio;
+  const outputHeight = wrapperHeight - messagesHeight;
+  document.getElementById('messages').style.height = `${messagesHeight}px`;
+  output.style.height = `${outputHeight}px`;
+}
 
-  if (disableControls) {
-    Object.values(buttons).forEach(button => button.disabled = true);
-  } else {
-    buttons.start.disabled = status !== 'Stopped';
-    buttons.stop.disabled = status !== 'Running';
-    buttons.restart.disabled = status !== 'Running';
-    buttons.browser.disabled = status !== 'Running' && status !== 'Ready';
-    buttons.folder.disabled = false; // Always enable folder button
-  }
+// Set the initial ratio
+setInitialHeights(0.75); // Adjust this value to your preferred starting ratio
+
+// Add the draggable functionality
+divider.addEventListener('mousedown', function(e) {
+  isDragging = true;
+  e.preventDefault(); // Prevent text selection during drag
 });
 
-// Enable browser button when server is ready
-window.electronAPI.onServerReady(() => {
-  document.getElementById('browser').disabled = false;
+document.addEventListener('mousemove', function(e) {
+  if (!isDragging) return;
+  const totalHeight = messageWrapper.clientHeight - divider.offsetHeight;
+  const messagesHeight = e.clientY - messageWrapper.offsetTop - divider.offsetHeight / 2;
+  const outputHeight = totalHeight - messagesHeight;
+  messages.style.height = `${messagesHeight}px`;
+  output.style.height = `${outputHeight}px`;
 });
 
-window.electronAPI.onDisableUI(() => {
-  htmlOutputElement.innerHTML += 'Checking Docker Desktop . . .' + '\n';
-  const buttons = {
-    start: document.getElementById('start'),
-    stop: document.getElementById('stop'),
-    restart: document.getElementById('restart'),
-  };
-  Object.values(buttons).forEach(button => button.disabled = true);
+document.addEventListener('mouseup', function(e) {
+  isDragging = false;
 });
-

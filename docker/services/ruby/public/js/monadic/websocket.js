@@ -485,10 +485,8 @@ function connect_websocket(callback) {
 
   // Helper function to display an error message
   function displayErrorMessage(message) {
-    // Implement your preferred error display mechanism here
-    // For example, you can use a dedicated error display area or a notification
     console.error("WebSocket Error:", message);
-    // You can also display the error in the UI if needed
+    setAlert(message, "error");
   }
 
   ws.onmessage = function (event) {

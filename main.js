@@ -113,7 +113,7 @@ class DockerManager {
         .then(async () => {
           updateContextMenu(false);
           updateApplicationMenu();
-          await new Promise(resolve => setTimeout(resolve, 20000));
+          await new Promise(resolve => setTimeout(resolve, 120000));
           await this.checkStatus();
         })
         .catch(error => {

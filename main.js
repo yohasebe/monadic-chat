@@ -574,21 +574,26 @@ function initializeApp() {
   app.whenReady().then(async () => {
     app.name = 'Monadic Chat';
 
-    setInterval(updateDockerStatus, 2000);
-
+    // Create a tray icon and set its context menu
     tray = new Tray(path.join(iconDir, 'Stopped.png'));
     tray.setToolTip('Monadic Chat');
     tray.setContextMenu(contextMenu);
 
+    // Initialize the extended context menu
     extendedContextMenu({});
 
+    // Create the main window
     createMainWindow();
+    // Build the context menu from the menu items
     contextMenu = Menu.buildFromTemplate(menuItems);
 
+    // Update the initial status
     updateStatus();
 
+    // Listen for commands from the renderer process
     ipcMain.on('command', async (_event, command) => {
       try {
+        // Ensure Docker Desktop is running before executing any commands
         await dockerManager.ensureDockerDesktopRunning();
         switch (command) {
           case 'start':
@@ -628,14 +633,41 @@ function initializeApp() {
     dockerManager.checkRequirements()
       .then(() => {
         metRequirements = true;
+
+        // Start Docker status check interval only if Docker is installed
+        setInterval(updateDockerStatus, 2000); 
       })
       .catch(error => {
+        // Display initial message even if Docker is not installed
+        let openingText = `
+          [HTML]: 
+          <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
+          <p><b>Error: ${error}</b></p>
+          <hr />`;
+        writeToScreen(openingText);
+        mainWindow.webContents.send('update-version', app.getVersion());
+
+        // Disable controls if Docker is not installed
+        currentStatus = 'Stopped'; // Keep Monadic Chat status as 'Stopped'
+        updateContextMenu(true);
+        updateApplicationMenu();
+
+        // Update Docker status to 'Not installed'
+        mainWindow.webContents.send('docker-desktop-status-update', false);
+        const dockerStatusElement = document.getElementById('dockerStatus'); // Access element in mainScreen.js
+        if (dockerStatusElement) { 
+          dockerStatusElement.textContent = 'Not installed';
+          dockerStatusElement.classList.remove('active');
+          dockerStatusElement.classList.add('inactive');
+        }
+
         dialog.showErrorBox('Error', error);
       })
       .finally(() => {
         updateApplicationMenu();
       });
 
+    // Handle app activation
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createMainWindow();
@@ -650,9 +682,15 @@ function initializeApp() {
     // Set up window close handlers
     if (mainWindow) {
       mainWindow.on('close', (event) => {
+        // Allow quitting with Quit button even if Docker is not installed
         if (!isQuitting) {
           event.preventDefault();
-          mainWindow.hide();
+          if (!dockerInstalled) {
+            isQuitting = true;
+            app.quit(); // Quit the app directly
+          } else {
+            mainWindow.hide();
+          }
         }
       });
     }

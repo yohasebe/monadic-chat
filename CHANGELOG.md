@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Sep, 2024] 0.8.12
+  - [Sep, 2024] 0.8.13
       - Many under-the-hood improvements
   - [Aug, 2024] 0.8.11
       - App authoring format changed

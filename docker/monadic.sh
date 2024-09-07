@@ -332,8 +332,8 @@ start)
   echo "[SERVER STARTED]"
   ;;
 stop)
-  start_docker
   if docker info >/dev/null 2>&1; then
+    start_docker
     stop_docker_compose
     echo "[SERVER STOPPED]"
     echo "[HTML]: <p>Monadic Chat has been stopped.</p>"

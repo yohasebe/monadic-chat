@@ -27,7 +27,7 @@ module WebSocketHelper
       end
 
       # Filter active messages and calculate total token count
-      active_messages = messages.select { |m| m["active"] }
+      active_messages = messages.select { |m| m["active"] }.reverse
       total_tokens = active_messages.sum { |m| m["tokens"] || 0 }
 
       # Remove oldest messages until total token count and message count are within limits

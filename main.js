@@ -58,112 +58,263 @@ if (os.platform() === 'win32') {
   monadicScriptPath = `wsl ${toUnixPath(monadicScriptPath)}`
 }
 
-// Check Docker Desktop status using monadic.sh
-async function checkDockerStatus() {
-  return new Promise((resolve, reject) => {
-    const cmd = `${monadicScriptPath} check`
-    exec(cmd, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-      } else if (stderr) {
-        reject(stderr);
-      } else {
-        const isRunning = stdout.trim() === '1';
-        resolve(isRunning);
-      }
-    });
-  });
-}
-
-// Start Docker Desktop
-function startDockerDesktop() {
-  return new Promise((resolve, reject) => {
-    let command;
-    switch (process.platform) {
-      case 'darwin':
-        command = 'open -a Docker';
-        break;
-      case 'win32':
-        command = 'start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
-        break;
-      case 'linux':
-        command = 'systemctl start docker';
-        break;
-      default:
-        reject('Unsupported platform');
-        return;
-    }
-
-    exec(command, (error) => {
-      if (error) {
-        reject('Failed to start Docker Desktop.');
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-// Ensure Docker Desktop is running
-async function ensureDockerDesktopRunning() {
-  const st = await checkDockerStatus();
-  if (!st) {
-    mainWindow.webContents.send('disable-ui');
-
-    startDockerDesktop()
-      .then(async () => {
-        updateContextMenu(false);
-        updateApplicationMenu();
-        await new Promise(resolve => setTimeout(resolve, 20000));
-        await checkDockerStatus();
-      })
-      .catch(error => {
-        console.error('Failed to start Docker Desktop:', error);
-        dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+// Docker operations are encapsulated in this class
+class DockerManager {
+  async checkStatus() {
+    return new Promise((resolve, reject) => {
+      const cmd = `${monadicScriptPath} check`;
+      exec(cmd, (error, stdout, stderr) => {
+        if (error) {
+          reject(error);
+        } else if (stderr) {
+          reject(stderr);
+        } else {
+          const isRunning = stdout.trim() === '1';
+          resolve(isRunning);
+        }
       });
+    });
   }
-}
 
-// Check if Docker and WSL 2 are installed (Windows only) or Docker is installed (macOS and Linux)
-function checkRequirements() {
-  return new Promise((resolve, reject) => {
-    if (os.platform() === 'win32') {
-      exec('docker -v', function (err) {
-        dockerInstalled = !err;
-        exec('wsl -l -v', function (err) {
-          wsl2Installed = !err;
+  startDockerDesktop() {
+    return new Promise((resolve, reject) => {
+      let command;
+      switch (process.platform) {
+        case 'darwin':
+          command = 'open -a Docker';
+          break;
+        case 'win32':
+          command = 'start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
+          break;
+        case 'linux':
+          command = 'systemctl start docker';
+          break;
+        default:
+          reject('Unsupported platform');
+          return;
+      }
+
+      exec(command, (error) => {
+        if (error) {
+          reject('Failed to start Docker Desktop.');
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  async ensureDockerDesktopRunning() {
+    const st = await this.checkStatus();
+    if (!st) {
+      mainWindow.webContents.send('disable-ui');
+
+      this.startDockerDesktop()
+        .then(async () => {
+          updateContextMenu(false);
+          updateApplicationMenu();
+          await new Promise(resolve => setTimeout(resolve, 20000));
+          await this.checkStatus();
+        })
+        .catch(error => {
+          console.error('Failed to start Docker Desktop:', error);
+          showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+        });
+    }
+  }
+
+  // Check if Docker and WSL 2 are installed (Windows only) or Docker is installed (macOS and Linux)
+  checkRequirements() {
+    return new Promise((resolve, reject) => {
+      if (os.platform() === 'win32') {
+        exec('docker -v', function (err) {
+          dockerInstalled = !err;
+          exec('wsl -l -v', function (err) {
+            wsl2Installed = !err;
+            if (!dockerInstalled) {
+              reject("Docker is not installed.|Please install Docker Desktop for Windows first.");
+            } else if (!wsl2Installed) {
+              reject("WSL 2 is not installed.|Please install WSL 2 first.");
+            } else {
+              resolve();
+            }
+          });
+        });
+      } else if (os.platform() === 'darwin') {
+        exec('/usr/local/bin/docker -v', function (err, stdout) {
+          dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
           if (!dockerInstalled) {
-            reject("Docker is not installed.|Please install Docker Desktop for Windows first.");
-          } else if (!wsl2Installed) {
-            reject("WSL 2 is not installed.|Please install WSL 2 first.");
+            reject("Docker is not installed.|Please install Docker Desktop for Mac first.");
           } else {
             resolve();
           }
         });
-      });
-    } else if (os.platform() === 'darwin') {
-      exec('/usr/local/bin/docker -v', function (err, stdout) {
-        dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
-        if (!dockerInstalled) {
-          reject("Docker is not installed.|Please install Docker Desktop for Mac first.");
-        } else {
-          resolve();
-        }
-      });
-    } else if (os.platform() === 'linux') {
-      exec('docker -v', function (err, stdout) {
-        dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
-        if (!dockerInstalled) {
-          reject("Docker is not installed.|Please install Docker for Linux first.");
-        } else {
-          resolve();
-        }
-      });
-    } else {
-      reject('Unsupported platform');
+      } else if (os.platform() === 'linux') {
+        exec('docker -v', function (err, stdout) {
+          dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+          if (!dockerInstalled) {
+            reject("Docker is not installed.|Please install Docker for Linux first.");
+          } else {
+            resolve();
+          }
+        });
+      } else {
+        reject('Unsupported platform');
+      }
+    });
+  }
+
+  async runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
+    // Check if the API key is set when starting the server
+    if (command === 'start') {
+      const apiKeySet = checkAndUpdateEnvFile();
+      if (!apiKeySet) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          buttons: ['OK'],
+          title: 'API Key Required',
+          message: 'OpenAI API key is not set',
+          detail: 'Please set it in the Settings before starting the system.',
+          icon: path.join(iconDir, 'monadic-chat.png')
+        });
+        writeToScreen('[HTML]: <p>OpenAI API Key is not set. Please set it in the Settings before starting the system.</p><hr />');
+        return;
+      }
     }
-  });
+
+    // Write the initial message to the screen
+    writeToScreen(message);
+    // Update the status indicator in the main window
+    updateStatusIndicator(statusWhileCommand);
+
+    // Construct the command to execute
+    const cmd = `${monadicScriptPath} ${command}`;
+
+    // Update the current status and context menu
+    currentStatus = statusWhileCommand;
+    updateContextMenu(true);
+
+    // Reset the fetchWithRetryCalled flag
+    fetchWithRetryCalled = false;
+
+    // Ensure Docker Desktop is running
+    try {
+      await this.ensureDockerDesktopRunning();
+    } catch {
+      dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+      return;
+    }
+
+    // Update the context menu and application menu
+    updateContextMenu();
+    updateApplicationMenu();
+
+    // Return a promise that resolves when the command execution is complete
+    return new Promise((resolve, reject) => {
+      // Execute the command synchronously or asynchronously
+      if (sync) {
+        exec(cmd, (err, stdout, stderr) => {
+          // Handle errors
+          if (err) {
+            dialog.showErrorBox('Error', err.message + '\n' + stderr);
+            console.error(err);
+            reject(err);
+            return;
+          }
+          // Update the status, tray image, status indicator, and context menu
+          currentStatus = statusAfterCommand;
+          updateTrayImage(statusAfterCommand);
+          updateStatusIndicator(statusAfterCommand);
+          writeToScreen(stdout);
+          updateContextMenu(false);
+          resolve();
+        });
+      } else {
+        let subprocess = spawn(cmd, [], {shell: true});
+
+        // Handle stdout data
+        subprocess.stdout.on('data', function (data) {
+          const lines = data.toString().split(/\r\n|\r|\n/);
+          if (lines[lines.length - 1] === '') {
+            lines.pop();
+          }
+          for (let i = 0; i < lines.length; i++) {
+            // Check for version information and display update message if needed
+            if (lines[i].trim().startsWith('[VERSION]: ')) {
+              const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
+              if (compareVersions(imageVersion, app.getVersion()) > 0) {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  buttons: ['OK'],
+                  title: 'Update Available',
+                  message: `A new version of the app is available. Please update to the latest version.`,
+                  icon: path.join(iconDir, 'monadic-chat.png')
+                });
+              }
+              // Check if the image is not found and update the status accordingly
+            } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
+              writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
+              currentStatus = "Building";
+              updateTrayImage(currentStatus);
+              updateStatusIndicator(currentStatus);
+              // Check if the server has started and attempt to connect to it
+            } else if (lines[i].trim() === "[SERVER STARTED]") {
+              if (!fetchWithRetryCalled) {
+                fetchWithRetryCalled = true;
+                writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
+                fetchWithRetry('http://localhost:4567')
+                  .then(() => {
+                    updateContextMenu(false);
+                    updateStatusIndicator("Ready");
+                    writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
+                    mainWindow.webContents.send('server-ready');
+                    writeToScreen(lines[i]);
+                    openBrowser('http://localhost:4567');
+                  })
+                  .catch(error => {
+                    writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
+                    console.error('Fetch operation failed after retries:', error);
+                    currentStatus = 'Stopped';
+                    updateTrayImage(currentStatus);
+                    updateStatusIndicator(currentStatus);
+                    updateContextMenu(false);
+                  });
+              }
+            // Write other output to the screen
+            } else {
+              writeToScreen(lines[i]);
+            }
+          }
+        });
+
+        // Handle stderr data
+        subprocess.stderr.on('data', function (data) {
+          console.error(data.toString());
+          return;
+        });
+
+        // Handle process close event
+        subprocess.on('close', function (code) {
+          // Check for errors based on the exit code
+          if (code !== 0) {
+            dialog.showErrorBox('Error', `monadic.sh exited with code ${code}.`);
+          }
+
+          // Update the status, tray image, status indicator, and context menu
+          currentStatus = statusAfterCommand;
+          updateTrayImage(statusAfterCommand);
+          updateStatusIndicator(statusAfterCommand);
+          updateContextMenu(false);
+
+          resolve();
+        });
+      }
+    });
+  }
 }
+
+// Create an instance of DockerManager
+const dockerManager = new DockerManager();
 
 // Compare two version strings (e.g., "1.2.3" vs "1.2.4")
 function compareVersions(version1, version2) {
@@ -204,7 +355,7 @@ function checkForUpdates() {
         const currentVersion = app.getVersion();
 
         if (compareVersions(latestVersion, currentVersion) > 0) {
-          dialog.showMessageBox({
+          dialog.showMessageBox(mainWindow, {
             type: 'info',
             buttons: ['OK'],
             title: 'Update Available',
@@ -212,7 +363,7 @@ function checkForUpdates() {
             icon: path.join(iconDir, 'monadic-chat.png')
           });
         } else {
-          dialog.showMessageBox({
+          dialog.showMessageBox(mainWindow, {
             type: 'info',
             buttons: ['OK'],
             title: 'Up to Date',
@@ -243,7 +394,7 @@ function uninstall() {
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
       if (result.response === 1) {
-        runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled', false);
+        dockerManager.runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled', false);
       } else {
         return false;
       }
@@ -275,9 +426,9 @@ async function quitApp() {
     const result = await dialog.showMessageBox(mainWindow, options);
     if (result.response === 1) {
       try {
-        const dockerStatus = await checkDockerStatus();
+        const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
+          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
         }
       } catch (error) {
         console.error('Error occurred during application quit:', error);
@@ -323,56 +474,10 @@ app.on('before-quit', (event) => {
   }
 });
 
-// Function to update window close handlers
-function updateWindowCloseHandlers() {
-  if (mainWindow) {
-    mainWindow.on('close', (event) => {
-      if (!isQuittingDialogShown) {
-        event.preventDefault();
-        quitApp();
-      }
-    });
-  }
-
-  if (settingsWindow) {
-    settingsWindow.on('close', (event) => {
-      if (!isQuittingDialogShown) {
-        event.preventDefault();
-        settingsWindow.hide();
-      }
-    });
-  }
-}
-
-// Call this function after creating the windows
-updateWindowCloseHandlers();
-
-// Update window close handlers
-if (mainWindow) {
-  mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
-}
-
-if (settingsWindow) {
-  settingsWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      settingsWindow.hide();
-    }
-  });
-}
-
 function openMainWindow() {
-  if (mainWindow) {
-    mainWindow.show();
-    mainWindow.focus();
-  } else {
-    createMainWindow();
-  }
+  createMainWindow();
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 let statusMenuItem = {
@@ -387,9 +492,9 @@ const menuItems = [
     label: 'Start',
     click: () => {
       openMainWindow();
-      checkRequirements()
+      dockerManager.checkRequirements()
         .then(() => {
-          runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+          dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
         })
         .catch((error) => {
           dialog.showErrorBox('Error', error);
@@ -401,7 +506,7 @@ const menuItems = [
     label: 'Stop',
     click: () => {
       openMainWindow();
-      runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+      dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . . </p>', 'Stopping', 'Stopped');
     },
     enabled: true
   },
@@ -409,7 +514,7 @@ const menuItems = [
     label: 'Restart',
     click: () => {
       openMainWindow();
-      runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+      dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
     },
     enabled: true
   },
@@ -484,17 +589,22 @@ function initializeApp() {
 
     ipcMain.on('command', async (_event, command) => {
       try {
-        await ensureDockerDesktopRunning();
+        await dockerManager.ensureDockerDesktopRunning();
         switch (command) {
           case 'start':
-            await checkRequirements();
-            runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+            dockerManager.checkRequirements()
+              .then(() => {
+                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+              })
+              .catch((error) => {
+                dialog.showErrorBox('Error', error);
+              });
             break;
           case 'stop':
-            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
             break;
           case 'restart':
-            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
             break;
           case 'browser':
             openBrowser('http://localhost:4567');
@@ -514,10 +624,17 @@ function initializeApp() {
       }
     });
 
-    checkRequirements().then(() => {
-      metRequirements = true;
-      updateApplicationMenu();
-    });
+    // Check requirements and update menu after the main window is ready
+    dockerManager.checkRequirements()
+      .then(() => {
+        metRequirements = true;
+      })
+      .catch(error => {
+        dialog.showErrorBox('Error', error);
+      })
+      .finally(() => {
+        updateApplicationMenu();
+      });
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -525,8 +642,28 @@ function initializeApp() {
       }
     });
 
+    // Show main window if it exists
     if (mainWindow) {
       mainWindow.show();
+    }
+
+    // Set up window close handlers
+    if (mainWindow) {
+      mainWindow.on('close', (event) => {
+        if (!isQuitting) {
+          event.preventDefault();
+          mainWindow.hide();
+        }
+      });
+    }
+
+    if (settingsWindow) {
+      settingsWindow.on('close', (event) => {
+        if (!isQuitting) {
+          event.preventDefault();
+          settingsWindow.hide();
+        }
+      });
     }
   });
 }
@@ -540,7 +677,6 @@ function toUnixPath(p) {
 function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {
   const attemptFetch = async (attempt) => {
     try {
-      await ensureDockerDesktopRunning();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -567,144 +703,6 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout =
 
 let fetchWithRetryCalled = false;
 
-// Run a command using monadic.sh and update the UI accordingly
-async function runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
-  if (command === 'start') {
-    const apiKeySet = checkAndUpdateEnvFile();
-    if (!apiKeySet) {
-      dialog.showMessageBox({
-        type: 'info',
-        buttons: ['OK'],
-        title: 'API Key Required',
-        message: 'OpenAI API key is not set',
-        detail: 'Please set it in the Settings before starting the system.',
-        icon: path.join(iconDir, 'monadic-chat.png')
-      });
-      writeToScreen('[HTML]: <p>OpenAI API Key is not set. Please set it in the Settings before starting the system.</p><hr />');
-      return;
-    }
-  }
-
-  writeToScreen(message);
-  statusMenuItem.label = `Status: ${statusWhileCommand}`;
-
-  const cmd = `${monadicScriptPath} ${command}`;
-
-  currentStatus = statusWhileCommand;
-  updateContextMenu(true);
-  updateStatusIndicator(statusWhileCommand);
-
-  fetchWithRetryCalled = false;
-
-  try {
-    await ensureDockerDesktopRunning();
-  } catch {
-    dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
-    return;
-  }
-
-  updateContextMenu();
-  updateApplicationMenu();
-
-  return new Promise((resolve, reject) => {
-    if (sync) {
-      exec(cmd, (err, stdout, stderr) => {
-        if (err) {
-          dialog.showErrorBox('Error', err.message + '\n' + stderr);
-          console.error(err);
-          reject(err);
-          return;
-        }
-        currentStatus = statusAfterCommand;
-        if (tray) {
-          tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
-        }
-        statusMenuItem.label = `Status: ${statusAfterCommand}`;
-        writeToScreen(stdout);
-        updateContextMenu(false);
-        updateStatusIndicator(currentStatus);
-        resolve();
-      });
-    } else {
-      let subprocess = spawn(cmd, [], { shell: true });
-
-      subprocess.stdout.on('data', function (data) {
-        const lines = data.toString().split(/\r\n|\r|\n/);
-        if (lines[lines.length - 1] === '') {
-          lines.pop();
-        }
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim().startsWith('[VERSION]: ')) {
-            const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
-            if (compareVersions(imageVersion, app.getVersion()) > 0) {
-              dialog.showMessageBox({
-                type: 'info',
-                buttons: ['OK'],
-                title: 'Update Available',
-                message: `A new version of the app is available. Please update to the latest version.`,
-                icon: path.join(iconDir, 'monadic-chat.png')
-              });
-            }
-          } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
-            writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
-            currentStatus = "Building";
-            if (tray) {
-              tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-            }
-            statusMenuItem.label = `Status: ${currentStatus}`;
-            updateStatusIndicator(currentStatus);
-          } else if (lines[i].trim() === "[SERVER STARTED]") {
-            if (!fetchWithRetryCalled) {
-              fetchWithRetryCalled = true;
-              writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
-              fetchWithRetry('http://localhost:4567')
-                .then(() => {
-                  menuItems[6].enabled = true;
-                  contextMenu = Menu.buildFromTemplate(menuItems);
-                  tray.setContextMenu(contextMenu);
-                  updateStatusIndicator("Ready");
-                  writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
-                  mainWindow.webContents.send('server-ready');
-                  openBrowser('http://localhost:4567');
-                })
-                .catch(error => {
-                  writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
-                  console.error('Fetch operation failed after retries:', error);
-                  currentStatus = 'Stopped';
-                  if (tray) {
-                    tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-                  }
-                  statusMenuItem.label = `Status: ${currentStatus}`;
-                  updateContextMenu(false);
-                  updateStatusIndicator(currentStatus);
-                });
-            }
-          } else {
-            writeToScreen(lines[i]);
-          }
-        }
-      });
-
-      subprocess.stderr.on('data', function (data) {
-        console.error(data.toString());
-        return;
-      });
-
-      subprocess.on('close', function () {
-        currentStatus = statusAfterCommand;
-        if (tray) {
-          tray.setImage(path.join(iconDir, `${statusAfterCommand}.png`));
-        }
-        statusMenuItem.label = `Status: ${statusAfterCommand}`;
-
-        updateContextMenu(false);
-        updateStatusIndicator(currentStatus);
-
-        resolve();
-      });
-    }
-  });
-}
 
 function isPortTaken(port, callback) {
   const tester = net.createServer()
@@ -738,63 +736,40 @@ function updateStatus() {
   });
 }
 
-function updateStatusIndicator(status) {
-  if (!mainWindow) return;
-  mainWindow.webContents.send('update-status-indicator', status);
+// Update the tray image based on the current status
+function updateTrayImage(status) {
+  if (tray) {
+    tray.setImage(path.join(iconDir, `${status}.png`));
+  }
 }
 
 function updateContextMenu(disableControls = false) {
-  if (tray) {
-    tray.setImage(path.join(iconDir, `${currentStatus}.png`));
-  }
+  updateTrayImage(currentStatus);
   if (disableControls) {
-    menuItems[2].enabled = false;
-    menuItems[3].enabled = false;
-    menuItems[4].enabled = false;
-    menuItems[6].enabled = false;
-    menuItems[8].enabled = false;
-    menuItems[10].enabled = false;
-    menuItems[12].enabled = false;
-    menuItems[14].enabled = false;
-  }
-
-  if (currentStatus === 'Starting') {
-    menuItems[2].enabled = false;
-    menuItems[3].enabled = false;
-    menuItems[4].enabled = false;
-    menuItems[6].enabled = false;
-  }  else if (currentStatus === 'Running') {
-    menuItems[2].enabled = false;
-    menuItems[3].enabled = true;
-    menuItems[4].enabled = true;
-    menuItems[6].enabled = false;
-  } else if (currentStatus === 'Stopped') {
-    menuItems[2].enabled = true;
-    menuItems[3].enabled = false;
-    menuItems[5].enabled = false;
-    menuItems[6].enabled = false;
+    menuItems.forEach(item => {
+      if (item.label && ['Start', 'Stop', 'Restart', 'Open Browser'].includes(item.label)) {
+        item.enabled = false;
+      }
+    });
   } else {
-    menuItems[2].enabled = false 
-    menuItems[3].enabled = false;
-    menuItems[4].enabled = false;
-    menuItems[8].enabled = true;
-    menuItems[10].enabled = true;
-    menuItems[12].enabled = true;
-    menuItems[14].enabled = true;
+    menuItems.forEach(item => {
+      if (item.label === 'Start') {
+        item.enabled = currentStatus === 'Stopped';
+      } else if (item.label === 'Stop') {
+        item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+      } else if (item.label === 'Restart') {
+        item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+      } else if (item.label === 'Open Browser') {
+        item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+      }
+    });
   }
 
   contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
 
-  updateMainWindowControls(disableControls);
+  mainWindow.webContents.send('update-controls', { status: currentStatus, disableControls });
   updateApplicationMenu();
-}
-
-function updateMainWindowControls(disableControls) {
-  if (!mainWindow) return;
-
-  const status = currentStatus;
-  mainWindow.webContents.send('update-controls', { status, disableControls });
 }
 
 function updateApplicationMenu() {
@@ -805,7 +780,7 @@ function updateApplicationMenu() {
         {
           label: 'About Monadic Chat',
           click: () => {
-            dialog.showMessageBox({
+            dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About Monadic Chat',
               message: `Monadic Chat\nVersion: ${app.getVersion()}`,
@@ -878,9 +853,9 @@ function updateApplicationMenu() {
           label: 'Start',
           click: () => {
             openMainWindow();
-            checkRequirements()
+            dockerManager.checkRequirements()
               .then(() => {
-                runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
               })
               .catch((error) => {
                 dialog.showErrorBox('Error', error);
@@ -892,17 +867,17 @@ function updateApplicationMenu() {
           label: 'Stop',
           click: () => {
             openMainWindow();
-            runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
           },
-          enabled: currentStatus === 'Running'
+          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
         {
           label: 'Restart',
           click: () => {
             openMainWindow();
-            runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
           },
-          enabled: currentStatus === 'Running'
+          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
         {
           type: 'separator'
@@ -911,10 +886,10 @@ function updateApplicationMenu() {
           label: 'Rebuild',
           click: () => {
             openMainWindow();
-            checkRequirements()
+            dockerManager.checkRequirements()
               .then(() => {
-                runCommand('build',
-                  '[HTML]: <p>Building Monadic Chat . . .</p><p>If the monitor area stays blank for a long time, please restart Docker Desktop and make it active.</p>',
+                dockerManager.runCommand('build',
+                  '[HTML]: <p>Building Monadic Chat . . .</p><p><b>IMPORTANT</b>: If the monitor area stays blank for a long time, restart Docker Desktop and make it active.</p>',
                   'Building',
                   'Stopped',
                   false);
@@ -932,14 +907,14 @@ function updateApplicationMenu() {
           label: 'Import Document DB',
           click: () => {
             openMainWindow();
-            runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
+            dockerManager.runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
           },
           enabled: currentStatus === 'Stopped' && metRequirements
         },
         {
           label: 'Export Document DB',
           click: () => {
-            runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
+            dockerManager.runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
           },
           enabled: currentStatus === 'Stopped' && metRequirements
         },
@@ -994,39 +969,19 @@ function updateApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Send a message to the renderer process to write to the screen
 function writeToScreen(text) {
   if (mainWindow) {
     mainWindow.webContents.send('command-output', text);
   }
 }
 
-function prepareSettingsWindow() {
-  if (settingsWindow) return;
-
-  settingsWindow = new BrowserWindow({
-    devTools: true,
-    width: 600,
-    minWidth: 780,
-    height: 400,
-    minHeight: 400,
-    parent: mainWindow,
-    modal: true,
-    show: false,
-    frame: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
-      contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
-    }
-  });
-
-  settingsWindow.loadFile('settings.html');
-
-  settingsWindow.on('close', (event) => {
-    event.preventDefault();
-    settingsWindow.hide();
-  });
+// Send a message to the renderer process to update the status indicator
+function updateStatusIndicator(status) {
+  if (mainWindow) {
+    mainWindow.webContents.send('update-status-indicator', status);
+    statusMenuItem.label = `Status: ${status}`;
+  }
 }
 
 function createMainWindow() {
@@ -1058,12 +1013,15 @@ function createMainWindow() {
     justLaunched = false;
     currentStatus = 'Stopped';
 
+    // Check if port 4567 is already in use only on initial launch
     isPortTaken(4567, function (taken) {
       if (taken) {
         openingText += `<p>Port 4567 is already in use. If other applications is using port 4567, shut them down first.</p><hr />`
         currentStatus = 'Port in use';
+        updateContextMenu(false); // Update context menu immediately if port is in use
+        updateStatusIndicator(currentStatus); // Update status indicator immediately if port is in use
       }
-    })
+    });
   };
 
   setTimeout(() => {
@@ -1075,7 +1033,6 @@ function createMainWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('update-status-indicator', currentStatus);
-    prepareSettingsWindow();
   });
 
   mainWindow.on('closed', () => {
@@ -1084,6 +1041,7 @@ function createMainWindow() {
 
   if (process.platform === "darwin") {
     Menu.setApplicationMenu(Menu.buildFromTemplate([]));
+
   } else {
     mainWindow.removeMenu();
   }
@@ -1160,21 +1118,36 @@ function openBrowser(url, outside = false) {
   }, interval);
 }
 
-let settingsView = null;
-
 function openSettingsWindow() {
   if (!settingsWindow) {
-    prepareSettingsWindow();
+    settingsWindow = new BrowserWindow({
+      devTools: true,
+      width: 600,
+      minWidth: 780,
+      height: 400,
+      minHeight: 400,
+      parent: mainWindow,
+      modal: true,
+      show: false,
+      frame: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+        preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
+        contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
+      }
+    });
+
+    settingsWindow.loadFile('settings.html');
+
+    settingsWindow.on('close', (event) => {
+      event.preventDefault();
+      settingsWindow.hide();
+    });
   }
   settingsWindow.show();
   settingsWindow.webContents.send('request-settings');
 }
-
-ipcMain.on('close-settings', () => {
-  if (settingsView) {
-    mainWindow.removeBrowserView(settingsView);
-  }
-});
 
 function getEnvPath() {
   if (os.platform() === 'win32') {
@@ -1222,20 +1195,14 @@ function checkAndUpdateEnvFile() {
   if (!envPath) return false;
 
   let envConfig = readEnvFile(envPath);
-  let updated = false;
 
+  // VISION_MODEL and AI_USER_MODEL are set with default values if not present
   if (!envConfig.VISION_MODEL) {
     envConfig.VISION_MODEL = 'gpt-4o-mini';
-    updated = true;
   }
 
   if (!envConfig.AI_USER_MODEL) {
     envConfig.AI_USER_MODEL = 'gpt-4o-mini';
-    updated = true;
-  }
-
-  if (updated) {
-    writeEnvFile(envPath, envConfig);
   }
 
   return !!envConfig.OPENAI_API_KEY;
@@ -1260,8 +1227,8 @@ ipcMain.on('request-settings', (event) => {
 
 ipcMain.on('save-settings', (_event, data) => {
   saveSettings(data);
-  if (settingsView) {
-    mainWindow.removeBrowserView(settingsView);
+  if (settingsWindow) {
+    settingsWindow.hide();
   }
 });
 
@@ -1269,17 +1236,7 @@ app.whenReady().then(() => {
   initializeApp();
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createMainWindow();
-  }
-});
+// Removed duplicate app.on('window-all-closed') and app.on('activate')
 
 ipcMain.on('close-settings', () => {
   if (settingsWindow) {
@@ -1288,9 +1245,10 @@ ipcMain.on('close-settings', () => {
 });
 
 async function updateDockerStatus() {
-  const status = await checkDockerStatus();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('docker-desktop-status-update', status);
-  }
+  if (dockerInstalled) {
+    const status = await dockerManager.checkStatus();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docker-desktop-status-update', status);
+    }
+  } 
 }
-

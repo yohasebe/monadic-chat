@@ -1,7 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  
   // Listen for temporal UI disable event from the main process 
   onDisableUI: (callback) => ipcRenderer.on('disable-ui', callback),
 
@@ -37,4 +36,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),
+
 });

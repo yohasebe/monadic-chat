@@ -585,5 +585,6 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
     adjustScrollButtons();
+    $("#monadic-spinner").show();
   });
 });

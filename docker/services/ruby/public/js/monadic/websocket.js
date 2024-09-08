@@ -665,6 +665,7 @@ function connect_websocket(callback) {
           setStats(infoHtml);
         }
         setAlert("Ready to start", "success");
+        $("#monadic-spinner").hide();
         break;
       }
       case "pdf_titles": {

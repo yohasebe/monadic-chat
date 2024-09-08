@@ -151,7 +151,6 @@ module WebSocketHelper
             ws.send({ "type" => "error", "content" => session[:error] }.to_json)
             session[:error] = nil
           end
-
           apps = {}
           APPS.each do |k, v|
             apps[k] = {}

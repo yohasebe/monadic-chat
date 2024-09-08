@@ -193,6 +193,7 @@ function setAlertClass(alertType = "error") {
 
 function setAlert(text = "", alertType = "success") {
   if (alertType === "error") {
+    $("#monnadic-spinner").hide();
     try {
       msg = text["content"];
     } catch {

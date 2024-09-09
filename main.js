@@ -62,20 +62,21 @@ if (os.platform() === 'win32') {
 
 // Docker operations are encapsulated in this class
 class DockerManager {
-async checkStatus() {
-  return new Promise((resolve, reject) => {
-    const cmd = `${monadicScriptPath} check`;
-    exec(cmd, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-      } else if (stderr) {
-        reject(stderr);
-      } else {
-        resolve(stdout.trim() === '');
-      }
+  async checkStatus() {
+    return new Promise((resolve, reject) => {
+      const cmd = `${monadicScriptPath} check`;
+      exec(cmd, (error, stdout, stderr) => {
+        if (error) {
+          reject(error);
+        } else if (stderr) {
+          reject(stderr);
+        } else {
+          const isRunning = stdout.trim() === '1';
+          resolve(isRunning);
+        }
+      });
     });
-  });
-}
+  }
 
   startDockerDesktop() {
     return new Promise((resolve, reject) => {

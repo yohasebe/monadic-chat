@@ -4,8 +4,11 @@
 export PATH=$PATH:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.8.13
+export MONADIC_VERSION=0.8.14
 export HOST_OS=$(uname -s)
+
+RETRY_INTERVAL=5
+MAX_RETRIES=20
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
@@ -315,6 +318,19 @@ case "$1" in
 build)
   ensure_data_dir
   start_docker
+
+MAX_RETRIES=20
+
+  retry_count=0
+  while ! $DOCKER info > /dev/null 2>&1; do
+    sleep $RETRY_INTERVAL
+    retry_count=$((retry_count + 1))
+    if [ $retry_count -ge $MAX_RETRIES ]; then
+      echo "[ERROR]: Docker Desktop is not running. Please start Docker Desktop first."
+      exit 1
+    fi
+  done
+
   build_docker_compose
   if $DOCKER images | grep -q "monadic-chat"; then
     echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
@@ -332,8 +348,7 @@ start)
   echo "[SERVER STARTED]"
   ;;
 stop)
-  if docker info >/dev/null 2>&1; then
-    start_docker
+  if $DOCKER info >/dev/null 2>&1; then
     stop_docker_compose
     echo "[SERVER STOPPED]"
     echo "[HTML]: <p>Monadic Chat has been stopped.</p>"

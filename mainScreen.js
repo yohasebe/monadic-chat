@@ -226,3 +226,8 @@ document.addEventListener('mousemove', function(e) {
 document.addEventListener('mouseup', function(_e) {
   isDragging = false;
 });
+
+// Update docker status
+window.electronAPI.onUpdateDockerStatusIndicator((_event, isRunning) => {
+  updateDockerStatusUI(isRunning); 
+});

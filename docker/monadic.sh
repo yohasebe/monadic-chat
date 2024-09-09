@@ -7,6 +7,9 @@ export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
 export MONADIC_VERSION=0.8.14
 export HOST_OS=$(uname -s)
 
+RETRY_INTERVAL=5
+RETRY_COUNT=12
+
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
 HOME_DIR=$(eval echo ~${SUDO_USER})
@@ -81,13 +84,13 @@ ensure_data_dir() {
 start_docker() {
   case "${HOST_OS}" in
   Darwin)
-    sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
+    start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
     ;;
   Linux)
     if [[ $(uname -r) == *microsoft* ]]; then
-      sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
+      start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
     else
-      sh "${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
+      start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
     fi
     ;;
   *)
@@ -95,6 +98,15 @@ start_docker() {
     exit 1
     ;;
   esac
+
+  if [[ -f "${start_script}" ]]; then
+    # return this function after the script has been executed without any errors
+    sh "${start_script}" && echo "[HTML]: <p>Docker is available.</p>" && return
+  else
+    echo "Start script not found: ${start_script}" >&2
+    exit 1
+  fi
+
 }
 
 # Function to build Docker Compose
@@ -109,6 +121,18 @@ build_docker_compose() {
 # Function to start Docker Compose
 start_docker_compose() {
   set_docker_compose
+
+  # Wait until Docker is running
+  local retries=0
+  while ! ${DOCKER} info > /dev/null 2>&1; do
+    if [ $retries -ge $RETRY_COUNT ]; then
+      echo "Docker did not start. Please check manually."
+      exit 1
+    fi
+    echo "Waiting for Docker to start... (${retries}/${RETRY_COUNT})"
+    sleep $RETRY_INTERVAL
+    retries=$((retries + 1))
+  done
 
   # get yohasebe/monadic-chat image tag
   MONADIC_CHAT_IMAGE_TAG=$(${DOCKER} images | grep "yohasebe/monadic-chat" | awk '{print $2}')

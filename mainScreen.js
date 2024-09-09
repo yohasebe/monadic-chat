@@ -120,6 +120,10 @@ function writeToScreen(text) {
       const message = text.replace("[HTML]:", "");
       htmlOutputElement.innerHTML += message + '\n';
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+    }  else if (text.includes("[ERROR]:")) {
+      const message = text.replace("[ERROR]:", "");
+      htmlOutputElement.innerHTML += '<p style="color: red;">' + message + '</p>\n';
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
     } else {
       logOutputElement.textContent += text + '\n';
       logLines++;
@@ -183,10 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
     writeToScreen(output);
   });
 
-  // Listen for write to screen requests from main process
-  window.electronAPI.onWriteToScreen((_event, text) => {
-    writeToScreen(text);
-  });
 });
 
 
@@ -223,6 +223,6 @@ document.addEventListener('mousemove', function(e) {
   output.style.height = `${outputHeight}px`;
 });
 
-document.addEventListener('mouseup', function(e) {
+document.addEventListener('mouseup', function(_e) {
   isDragging = false;
 });

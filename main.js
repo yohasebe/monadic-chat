@@ -1,3 +1,5 @@
+// process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
+
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -428,7 +430,7 @@ async function quitApp() {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes . . .</p>', 'Stopping', 'Stopped', true);
+          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes. Make sure Docker Desktop is not in Resource Saver mode</p><p><i class="fa-solid fa-circle-exclamation"></i>Quit or restart Docker Desktop to disable Resource Saver mode.</p>', 'Stopping', 'Stopped', true);
         }
       } catch (error) {
         console.error('Error occurred during application quit:', error);
@@ -889,7 +891,7 @@ function updateApplicationMenu() {
             dockerManager.checkRequirements()
               .then(() => {
                 dockerManager.runCommand('build',
-                  '[HTML]: <p>Building Monadic Chat . . .</p><p><b>IMPORTANT</b>: If the monitor area stays blank for a long time, restart Docker Desktop and make it active.</p>',
+                  '[HTML]: <p>Building Monadic Chat . . .</p>',
                   'Building',
                   'Stopped',
                   false);
@@ -993,7 +995,7 @@ function createMainWindow() {
     height: 480,
     minHeight: 480,
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false,
       contentIsolation: false,
       preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
       contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
@@ -1008,6 +1010,7 @@ function createMainWindow() {
     openingText = `
       [HTML]: 
       <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
+      <p><i class="fa-solid fa-circle-exclamation"></i>Docker Desktop must be running in order to start the Monadic Chat server. If the monitor area remains blank for a long time or the buttons and menus do not respond, make sure to disable the Resource Saver of Docker Desktop.</p>
       <p>Press <b>Start</b> button to initialize the server. It will take some time for the image rebuild to complete.</p>
       <hr />`
     justLaunched = false;

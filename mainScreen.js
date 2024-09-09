@@ -65,7 +65,7 @@ function updateMonadicChatStatusUI(status) {
   // Enable/disable buttons based on status
   if (status === 'Port in use'
     || status === 'Starting'
-    || status === 'Retarting'
+    || status === 'Restarting'
     || status === 'Stopping'
     || status === 'Building'
     || status === 'Uninstalling'
@@ -78,6 +78,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.settings.disabled = false;
   } else if (status === 'Running') {
     statusElement.textContent = "Preparing . . .";
+    statusElement.classList.add('inactive');
     buttons.start.disabled = true;
     buttons.stop.disabled = true;
     buttons.restart.disabled = true;
@@ -173,7 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.electronAPI.onDisableUI(() => {
-    htmlOutputElement.innerHTML += 'Checking Docker Desktop . . .' + '\n';
     const buttons = {
       start: document.getElementById('start'),
       stop: document.getElementById('stop'),

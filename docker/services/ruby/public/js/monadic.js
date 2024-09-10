@@ -22,6 +22,10 @@ $(function () {
     $("#max-tokens-toggle").on("change", function () {
       $("#max-tokens").prop("disabled", !$(this).is(":checked"));
     });
+
+    $("#context-size-toggle").on("change", function () {
+      $("#context-size").prop("disabled", !$(this).is(":checked"));
+    });
   }
 
   // Setup optimized event listeners
@@ -132,6 +136,15 @@ $(function () {
       $("#max-tokens-toggle").prop("checked", false);
       $("#max-tokens").prop("disabled", true);
     }
+
+    if (apps[$(this).val()]["context_size"]) {
+      $("#context-size-toggle").prop("checked", true);
+      $("#context-size").prop("disabled", false);
+    } else {
+      $("#context-size-toggle").prop("checked", false);
+      $("#context-size").prop("disabled", true);
+    }
+
     $("#base-app-title").text(apps[$(this).val()]["app_name"]);
     $("#base-app-icon").html(apps[$(this).val()]["icon"]);
 

@@ -213,12 +213,13 @@
                 <select class="form-select me-3" id="apps" ></select>
               </div>
               <div class="col-2 ms-2">
-                <label class="form-label text-nowrap" for="context-size">Context Size</label>
+                <label class="form-label text-nowrap" for="context-size-toggle">Context Size</label>
+                <input class="form-check-input" type="checkbox" id="context-size-toggle" checked="checked">
                 <input type="number" id="context-size" min="1" max="100" stop="1" value="10" class="form-control" />
               </div>
 
               <div class="col-2 ms-2">
-                <label class="form-label text-nowrap" for="max-tokens-toggle">Max Tokens</label>&nbsp;
+                <label class="form-label text-nowrap" for="max-tokens-toggle">Max Tokens</label>
                 <input class="form-check-input" type="checkbox" id="max-tokens-toggle" checked="checked">
                 <input type="number" id="max-tokens" stop="1" min="100" max="16000" value="1000" class="form-control" />
               </div>

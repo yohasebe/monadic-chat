@@ -15,7 +15,7 @@ services:
       - ~/monadic/data:/monadic/data
     ports:
       - "4567:4567"
-    restart: on-failure
+    restart: always
     stdin_open: true
     tty: true
     command: ["thin", "start", "-R", "config.ru", "-p", "4567", "-e", "development"]
@@ -24,7 +24,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4567/"]
       interval: 5s
-      retries: 3
+      retries: 10
     depends_on:
       pgvector_service:
         condition: service_healthy

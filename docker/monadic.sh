@@ -8,7 +8,7 @@ export MONADIC_VERSION=0.8.14
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
-RETRY_COUNT=12
+RETRY_COUNT=24
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
@@ -16,6 +16,8 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 
 # Define the full path to docker-compose
 DOCKER=$(command -v docker)
+# escape spaces in the path to docker
+DOCKER=$(echo "${DOCKER}" | sed 's/ /\\ /g')
 
 if [[ "${HOST_OS}" == "Darwin"* || "${HOST_OS}" == "Linux" ]] && [[ "$(uname -m)" == "arm64" ]]; then
   export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
@@ -101,7 +103,7 @@ start_docker() {
 
   if [[ -f "${start_script}" ]]; then
     # return this function after the script has been executed without any errors
-    sh "${start_script}" && echo "[HTML]: <p>Docker is available.</p>" && return
+    sh "${start_script}" && echo "[HTML]: <p>Starting Docker . . .</p>"
   else
     echo "Start script not found: ${start_script}" >&2
     exit 1
@@ -129,9 +131,9 @@ start_docker_compose() {
       echo "Docker did not start. Please check manually."
       exit 1
     fi
+    retries=$((retries + 1))
     echo "Waiting for Docker to start... (${retries}/${RETRY_COUNT})"
     sleep $RETRY_INTERVAL
-    retries=$((retries + 1))
   done
 
   # get yohasebe/monadic-chat image tag
@@ -338,7 +340,7 @@ import_db() {
 case "$1" in
 build)
   ensure_data_dir &&
-  start_docker
+  # start_docker
 
   while ! ${DOCKER} info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
@@ -357,13 +359,13 @@ check)
   ;;
 start)
   ensure_data_dir &&
-  start_docker &&
+  # start_docker &&
   start_docker_compose &&
   echo "[SERVER STARTED]"
   ;;
 stop)
   if ${DOCKER} info >/dev/null 2>&1; then
-    start_docker &&
+    # start_docker &&
     stop_docker_compose &&
     echo "[SERVER STOPPED]" &&
     echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
@@ -372,42 +374,42 @@ stop)
   fi
   ;;
 restart)
-  start_docker &&
+  # start_docker &&
   stop_docker_compose &&
   echo "[SERVER STOPPED]" &&
   start_docker_compose &&
   echo "[SERVER STARTED]"
   ;;
 import)
-  start_docker &&
+  # start_docker &&
   stop_docker_compose &&
   import_database
   ;;
 export)
-  start_docker &&
+  # start_docker &&
   export_database
   ;;
 update)
-  start_docker &&
+  # start_docker &&
   update_monadic &&
   echo "[HTML]: <p>Monadic Chat has been updated successfully!</p>"
   ;;
 down)
-  start_docker &&
+  # start_docker &&
   down_docker_compose &&
   echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
   ;;
 remove)
-  start_docker &&
+  # start_docker &&
   remove_containers &&
   echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
   ;;
 export-db)
-  start_docker &&
+  # start_docker &&
   export_db
   ;;
 import-db)
-  start_docker &&
+  # start_docker &&
   import_db
   ;;
 *)

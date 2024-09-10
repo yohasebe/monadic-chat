@@ -1,6 +1,9 @@
 // process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
+
+app.disableHardwareAcceleration();
+
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -18,7 +21,7 @@ if (!gotTheLock) {
   });
 }
 
-app.commandLine.appendSwitch('no-sandbox');
+// app.commandLine.appendSwitch('no-sandbox');
 app.name = 'Monadic Chat';
 
 if (process.platform === 'darwin') {

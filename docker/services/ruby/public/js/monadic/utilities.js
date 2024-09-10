@@ -254,6 +254,7 @@ function loadParams(params, calledFor = "loadParams") {
   $("#top-p").val(params["top_p"] || "0.0");
   $("#top-p-value").text(params["top_p"] || "0.0");
   $("#max-tokens").val(params["max_tokens"] || "1000");
+  $("#contenxt-size").val(params["context_size"] || "20");
   $("#presence-penalty").val(params["presence_penalty"] || "0.0");
   $("#presence-penalty-value").text(params["presence_penalty"] || "0.0");
   $("#frequency-penalty").val(params["frequency_penalty"] || "0.0");
@@ -329,14 +330,28 @@ function setParams() {
   params["top_p"] = $("#top-p").val();
   params["presence_penalty"] = $("#presence-penalty").val();
   params["frequency_penalty"] = $("#frequency-penalty").val();
-  params["max_tokens"] = $("#max-tokens").val();
-  params["context_size"] = $("#context-size").val();
+
+  if ($("#max-tokens").prop('disabled')) {
+    // just a midium-sized default value
+    params["max_tokens"] = 4000;
+  } else {
+    params["max_tokens"] = $("#max-tokens").val();
+  }
+
+  if ($("#context-size").prop('disabled')) {
+    // virtually unlimited context size
+    params["context_size"] = 1000;
+  } else {
+    params["context_size"] = $("#context-size").val();
+  }
+
   params["tts_speed"] = $("#tts-speed").val();
   params["tts_voice"] = $("#tts-voice").val();
   params["asr_lang"] = $("#asr-lang").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
+  console.log(params);
   return params;
 }
 
@@ -349,13 +364,13 @@ function checkParams() {
     alert("Please enter a max tokens value.");
     $("#max-tokens").focus();
     return false;
-  } else if (!$("#model").val()) {
-    alert("Please select a model.");
-    $("#model").focus();
-    return false;
   } else if (!$("#context-size").val()) {
     alert("Please enter a context size.");
     $("#context-size").focus();
+    return false;
+  } else if (!$("#model").val()) {
+    alert("Please select a model.");
+    $("#model").focus();
     return false;
   } else if (!$("#temperature").val()) {
     alert("Please enter a temperature.");

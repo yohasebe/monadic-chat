@@ -9,6 +9,9 @@ const elemAlert = $("#alert-box")
 const textAlert = $("#alert-message")
 const textStats = $("#stats-message")
 
+const DEFAULT_MAX_TOKENS = 4000;
+const DEFAULT_CONTEXT_SIZE = 100;
+
 function setCookie(name, value, days) {
   const date = new Date();
   date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
@@ -253,8 +256,8 @@ function loadParams(params, calledFor = "loadParams") {
   $("#temperature-value").text(params["temperature"] || "0.3");
   $("#top-p").val(params["top_p"] || "0.0");
   $("#top-p-value").text(params["top_p"] || "0.0");
-  $("#max-tokens").val(params["max_tokens"] || "1000");
-  $("#contenxt-size").val(params["context_size"] || "20");
+  $("#max-tokens").val(params["max_tokens"] || DEFAULT_MAX_TOKENS);
+  $("#contenxt-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
   $("#presence-penalty").val(params["presence_penalty"] || "0.0");
   $("#presence-penalty-value").text(params["presence_penalty"] || "0.0");
   $("#frequency-penalty").val(params["frequency_penalty"] || "0.0");
@@ -333,14 +336,14 @@ function setParams() {
 
   if ($("#max-tokens").prop('disabled')) {
     // just a midium-sized default value
-    params["max_tokens"] = 4000;
+    params["max_tokens"] = DEFAULT_MAX_TOKENS;
   } else {
     params["max_tokens"] = $("#max-tokens").val();
   }
 
   if ($("#context-size").prop('disabled')) {
     // virtually unlimited context size
-    params["context_size"] = 1000;
+    params["context_size"] = DEFAULT_CONTEXT_SIZE;
   } else {
     params["context_size"] = $("#context-size").val();
   }

@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const dockerStatusElement = document.getElementById('dockerStatus');
   dockerStatusElement.classList.add('inactive');
-  dockerStatusElement.textContent = 'Checking...';
+  dockerStatusElement.textContent = 'Checking';
 
   // Update version
   window.electronAPI.onUpdateVersion((_event, ver) => {

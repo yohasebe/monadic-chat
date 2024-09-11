@@ -88,7 +88,7 @@
       background-color: #e0ac07;
     }
     .status.running, .status.active {
-      color: green;
+      color: limegreen;
     }
     .status.stopped, .status.inactive {
       color: orange;
@@ -129,15 +129,23 @@
       color: #007bff;
       text-decoration: none;
     }
+    #status, #dockerStatus {
+      display: inline-block;
+      background-color: #555555;
+      padding: 2px 5px;
+      border-radius: 5px;
+      text-align: center;
+    }
+
   </style>
 </head>
 <body>
   <div class="status-wrapper">
     <span><i class="fa-solid fa-robot"></i> Monadic Chat </span>
     <span id="version"></span>
-    <span> | </span>
+    <span> </span>
     <span id="status" class="status"></span>
-    <span> | <i class="fa-brands fa-docker"></i> Docker Desktop | </span>
+    <span> <i class="fa-brands fa-docker"></i> Docker Desktop </span>
     <span id="dockerStatus" class="status"></span>
   </div>
   <div class="message-wrapper">

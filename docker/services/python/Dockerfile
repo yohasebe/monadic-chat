@@ -43,7 +43,9 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     opencv-python \
     moviepy \
     pymupdf \
-    textblob
+    textblob \
+    nltk \
+    gensim
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -68,3 +70,7 @@ COPY flask /monadic/flask
 # Create symbolic link for data directory
 RUN ln -s /monadic/data /data
 
+COPY Dockerfile /monadic/Dockerfile
+
+# Install NLTK modules (failure to install these modules will skip the installation)
+RUN python -m nltk.downloader all || true

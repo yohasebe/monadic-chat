@@ -34,6 +34,8 @@ class JupyterWithClaude < MonadicApp
 
     If the user wants to stop the Jupyter Lab server, use the `run_jupyter` function with the `stop` command to stop the Jupyter Lab server.
 
+    If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
+
     Please make sure the following important points are respected:
     - Include `import japanize-matplotlib` to display Japanese characters in the plots.
     - In case you get error, let the user know the exact error message and terminate the process.
@@ -246,6 +248,15 @@ class JupyterWithClaude < MonadicApp
             }
           },
           required: ["file"]
+        }
+      },
+      {
+        name: "get_dockerfile",
+        description: "Get the content of the Dockerfile used to build the current environment.",
+        input_schema: {
+          type: "object",
+          properties: {},
+          required: []
         }
       }
     ]

@@ -30,6 +30,8 @@ class JupyterNotebook < MonadicApp
 
     If the user's request is rather complex, break it down into smaller steps and ask the user for confirmation at each step.
 
+    If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
+
     If the user wants to stop the Jupyter Lab server, use the `run_jupyter` function with the `stop` command to stop the Jupyter Lab server.
 
     Please make sure the following important points are respected:
@@ -259,6 +261,15 @@ class JupyterNotebook < MonadicApp
             required: ["filename", "cells"],
             additionalProperties: false
           }
+        },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
+        {
+          name: "get_dockerfile",
+          description: "Get the content of the Dockerfile used to build the current environment.",
         },
         strict: true
       }

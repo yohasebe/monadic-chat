@@ -11,6 +11,9 @@ services:
     depends_on:
       - ruby_service
     shm_size: 2gb
+    volumes:
+      - data:/monadic/data
+      - ~/monadic/data:/monadic/data
     ports:
       - 4444:4444
       - 5900:5900

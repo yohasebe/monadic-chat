@@ -6,12 +6,12 @@ module Paths
 
   if IN_CONTAINER
     ENV_PATH = "/monadic/data/.env"
-    scripts_path = "/monadic/data/scripts"
-    apps_path = "/monadic/data/apps"
+    SCRIPTS_PATH = "/monadic/data/scripts"
+    APPS_PATH = "/monadic/data/apps"
   else
     ENV_PATH = File.join(Dir.home, "monadic", "data", ".env")
-    scripts_path = File.join(Dir.home, "monadic", "data", "scripts")
-    apps_path = File.join(Dir.home, "monadic", "data", "apps")
+    SCRIPTS_PATH = File.join(Dir.home, "monadic", "data", "scripts")
+    APPS_PATH = File.join(Dir.home, "monadic", "data", "apps")
   end
 
   unless File.exist?(File.dirname(ENV_PATH))
@@ -25,12 +25,12 @@ module Paths
       if File.exist?(File.dirname(ENV_PATH))
         FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
         break
-      end
+ end
       sleep retry_delay
       retries -= 1
     end
   end
 
-  FileUtils.mkdir_p(scripts_path) unless File.exist?(scripts_path) || File.symlink?(scripts_path)
-  FileUtils.mkdir_p(apps_path) unless File.exist?(apps_path) || File.symlink?(apps_path)
+  FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH) || File.symlink?(SCRIPTS_PATH)
+  FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH) || File.symlink?(APPS_PATH)
 end

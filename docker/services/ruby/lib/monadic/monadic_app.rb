@@ -213,21 +213,6 @@ class MonadicApp
 
     stdout, stderr, status = Open3.capture3(system_command)
 
-    # log = <<~LOG
-    #   ### original command
-    #   #{system_command}
-    #   ---
-    #   ### stdout
-    #   #{stdout}
-    #   ---
-    #   ### stderr
-    #   #{stderr}
-    #   ---
-    #   ### status
-    #   #{status}
-    # LOG
-    # File.open(File.join(Dir.home, "response.txt"), "w") { |file| file.write(log) }
-
     if block_given?
       yield(stdout, stderr, status)
     elsif status.success?

@@ -89,7 +89,7 @@ class DockerManager {
           command = 'open -a Docker';
           break;
         case 'win32':
-          command = 'start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
+          command = 'start "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
           break;
         case 'linux':
           command = 'systemctl --user start docker-desktop';
@@ -190,7 +190,7 @@ class DockerManager {
     dockerManager.checkStatus()
     .then((status) => {
       if (!status) {
-        writeToScreen('[HTML]: <p>Docker Desktop is not running. Please start Docker Desktop and try again.</p>');
+        writeToScreen('[HTML]: <p>Docker Desktop is not running (yet). Please start Docker Desktop and try again.</p>');
         return
       } else {
         // Write the initial message to the screen
@@ -726,7 +726,7 @@ function updateStatus() {
 
   isPortTaken(port, (taken) => {
     if (taken && !initialLaunch) {
-      currentStatus = 'Running';
+      currentStatus = 'Starting';
       initialLaunch = false;
     } else {
       currentStatus = 'Stopped';

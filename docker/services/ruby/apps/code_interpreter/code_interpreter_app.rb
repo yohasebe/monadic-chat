@@ -16,6 +16,8 @@ class CodeInterpreter < MonadicApp
 
     The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
+    If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
+
     If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
 
     If you need to run a Python code, follow the instructions below:
@@ -322,6 +324,15 @@ class CodeInterpreter < MonadicApp
             required: ["pdf"],
             additionalProperties: false
           }
+        },
+        strict: true
+      },
+      {
+        type: "function",
+        function:
+        {
+          name: "get_dockerfile",
+          description: "Get the content of the Dockerfile used to build the current environment.",
         },
         strict: true
       }

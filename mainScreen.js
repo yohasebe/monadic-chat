@@ -77,7 +77,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.folder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Running') {
-    statusElement.textContent = "Preparing";
+    statusElement.textContent = "Final Steps";
     statusElement.classList.add('inactive');
     buttons.start.disabled = true;
     buttons.stop.disabled = true;

@@ -67,3 +67,5 @@ RUN mkdir -p log/
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*
 ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"
+
+COPY Dockerfile $WORKSPACE/Dockerfile

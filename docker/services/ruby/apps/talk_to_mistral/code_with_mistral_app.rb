@@ -18,6 +18,8 @@ class CodeWithMistral < MonadicApp
 
     If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
 
+    If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
+
     If you need to run a Python code, follow the instructions below:
 
     ### Basic Procedure:
@@ -307,6 +309,18 @@ class CodeWithMistral < MonadicApp
               }
             },
             required: ["pdf"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_dockerfile",
+          description: "Get the content of the Dockerfile used to build the current environment.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
           }
         }
       }

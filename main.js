@@ -188,141 +188,133 @@ class DockerManager {
     }
 
     dockerManager.checkStatus()
-      .then((status) => {
-        if (!status) {
-          writeToScreen('[HTML]: <p>Monadic Chat is not running. Please wait and try again.</p>');
-          return
-        }
-      })
-
-    // Write the initial message to the screen
-    writeToScreen(message);
-    // Update the status indicator in the main window
-    updateStatusIndicator(statusWhileCommand);
-
-    // Construct the command to execute
-    const cmd = `${monadicScriptPath} ${command}`;
-
-    // Update the current status and context menu
-    currentStatus = statusWhileCommand;
-    updateContextMenu(true);
-
-    // Reset the fetchWithRetryCalled flag
-    fetchWithRetryCalled = false;
-
-    // Ensure Docker Desktop is running
-    try {
-      await this.ensureDockerDesktopRunning();
-    } catch {
-      dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
-      return;
-    }
-
-    // Update the context menu and application menu
-    updateContextMenu();
-    updateApplicationMenu();
-
-    // Return a promise that resolves when the command execution is complete
-    return new Promise((resolve, reject) => {
-      // Execute the command synchronously or asynchronously
-      if (sync) {
-        exec(cmd, (err, stdout, stderr) => {
-          // Handle errors
-          if (err) {
-            dialog.showErrorBox('Error', err.message + '\n' + stderr);
-            console.error(err);
-            reject(err);
-            return;
-          }
-          // Update the status, tray image, status indicator, and context menu
-          currentStatus = statusAfterCommand;
-          updateTrayImage(statusAfterCommand);
-          updateStatusIndicator(statusAfterCommand);
-          writeToScreen(stdout);
-          updateContextMenu(false);
-          resolve();
-        });
+    .then((status) => {
+      if (!status) {
+        writeToScreen('[HTML]: <p>Docker Desktop is not running. Please start Docker Desktop and try again.</p>');
+        return
       } else {
-        let subprocess = spawn(cmd, [], {shell: true});
+        // Write the initial message to the screen
+        writeToScreen(message);
+        // Update the status indicator in the main window
+        updateStatusIndicator(statusWhileCommand);
 
-        // Handle stdout data
-        subprocess.stdout.on('data', function (data) {
-          const lines = data.toString().split(/\r\n|\r|\n/);
-          if (lines[lines.length - 1] === '') {
-            lines.pop();
-          }
-          for (let i = 0; i < lines.length; i++) {
-            // Check for version information and display update message if needed
-            if (lines[i].trim().startsWith('[VERSION]: ')) {
-              const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
-              if (compareVersions(imageVersion, app.getVersion()) > 0) {
-                dialog.showMessageBox(mainWindow, {
-                  type: 'info',
-                  buttons: ['OK'],
-                  title: 'Update Available',
-                  message: `A new version of the app is available. Please update to the latest version.`,
-                  icon: path.join(iconDir, 'monadic-chat.png')
-                });
+        // Construct the command to execute
+        const cmd = `${monadicScriptPath} ${command}`;
+
+        // Update the current status and context menu
+        currentStatus = statusWhileCommand;
+        updateContextMenu(true);
+
+        // Reset the fetchWithRetryCalled flag
+        fetchWithRetryCalled = false;
+
+        // Update the context menu and application menu
+        updateContextMenu();
+        updateApplicationMenu();
+
+        // Return a promise that resolves when the command execution is complete
+        return new Promise((resolve, reject) => {
+          // Execute the command synchronously or asynchronously
+          if (sync) {
+            exec(cmd, (err, stdout, stderr) => {
+              // Handle errors
+              if (err) {
+                dialog.showErrorBox('Error', err.message + '\n' + stderr);
+                console.error(err);
+                reject(err);
+                return;
               }
-              // Check if the image is not found and update the status accordingly
-            } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
-              writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
-              currentStatus = "Building";
-              updateTrayImage(currentStatus);
-              updateStatusIndicator(currentStatus);
-              // Check if the server has started and attempt to connect to it
-            } else if (lines[i].trim() === "[SERVER STARTED]") {
-              if (!fetchWithRetryCalled) {
-                fetchWithRetryCalled = true;
-                writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
-                fetchWithRetry('http://localhost:4567')
-                  .then(() => {
-                    updateContextMenu(false);
-                    updateStatusIndicator("Ready");
-                    writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
-                    mainWindow.webContents.send('server-ready');
-                    writeToScreen(lines[i]);
-                    openBrowser('http://localhost:4567');
-                  })
-                  .catch(error => {
-                    writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
-                    console.error('Fetch operation failed after retries:', error);
-                    currentStatus = 'Stopped';
-                    updateTrayImage(currentStatus);
-                    updateStatusIndicator(currentStatus);
-                    updateContextMenu(false);
-                  });
+              // Update the status, tray image, status indicator, and context menu
+              currentStatus = statusAfterCommand;
+              updateTrayImage(statusAfterCommand);
+              updateStatusIndicator(statusAfterCommand);
+              writeToScreen(stdout);
+              updateContextMenu(false);
+              resolve();
+            });
+          } else {
+            let subprocess = spawn(cmd, [], {shell: true});
+
+            // Handle stdout data
+            subprocess.stdout.on('data', function (data) {
+              const lines = data.toString().split(/\r\n|\r|\n/);
+              if (lines[lines.length - 1] === '') {
+                lines.pop();
               }
-            // Write other output to the screen
-            } else {
-              writeToScreen(lines[i]);
-            }
+              for (let i = 0; i < lines.length; i++) {
+                // Check for version information and display update message if needed
+                if (lines[i].trim().startsWith('[VERSION]: ')) {
+                  const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
+                  if (compareVersions(imageVersion, app.getVersion()) > 0) {
+                    dialog.showMessageBox(mainWindow, {
+                      type: 'info',
+                      buttons: ['OK'],
+                      title: 'Update Available',
+                      message: `A new version of the app is available. Please update to the latest version.`,
+                      icon: path.join(iconDir, 'monadic-chat.png')
+                    });
+                  }
+                  // Check if the image is not found and update the status accordingly
+                } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
+                  writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
+                  currentStatus = "Building";
+                  updateTrayImage(currentStatus);
+                  updateStatusIndicator(currentStatus);
+                  // Check if the server has started and attempt to connect to it
+                } else if (lines[i].trim() === "[SERVER STARTED]") {
+                  if (!fetchWithRetryCalled) {
+                    fetchWithRetryCalled = true;
+                    writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
+                    fetchWithRetry('http://localhost:4567')
+                      .then(() => {
+                        updateContextMenu(false);
+                        updateStatusIndicator("Ready");
+                        writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
+                        mainWindow.webContents.send('server-ready');
+                        writeToScreen(lines[i]);
+                        openBrowser('http://localhost:4567');
+                      })
+                      .catch(error => {
+                        writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
+                        console.error('Fetch operation failed after retries:', error);
+                        currentStatus = 'Stopped';
+                        updateTrayImage(currentStatus);
+                        updateStatusIndicator(currentStatus);
+                        updateContextMenu(false);
+                      });
+                  }
+                  // Write other output to the screen
+                } else {
+                  writeToScreen(lines[i]);
+                }
+              }
+            });
+
+            // Handle stderr data
+            subprocess.stderr.on('data', function (data) {
+              console.error(data.toString());
+              return;
+            });
+
+            // Handle process close event
+            subprocess.on('close', function (code) {
+              // Check for errors based on the exit code
+              if (code !== 0) {
+                dialog.showErrorBox('Error', `monadic.sh exited with code ${code}.`);
+              }
+
+              // Update the status, tray image, status indicator, and context menu
+              currentStatus = statusAfterCommand;
+              updateTrayImage(statusAfterCommand);
+              updateStatusIndicator(statusAfterCommand);
+              updateContextMenu(false);
+
+              resolve();
+            });
           }
-        });
-
-        // Handle stderr data
-        subprocess.stderr.on('data', function (data) {
-          console.error(data.toString());
-          return;
-        });
-
-        // Handle process close event
-        subprocess.on('close', function (code) {
-          // Check for errors based on the exit code
-          if (code !== 0) {
-            dialog.showErrorBox('Error', `monadic.sh exited with code ${code}.`);
-          }
-
-          // Update the status, tray image, status indicator, and context menu
-          currentStatus = statusAfterCommand;
-          updateTrayImage(statusAfterCommand);
-          updateStatusIndicator(statusAfterCommand);
-          updateContextMenu(false);
-
-          resolve();
         });
       }
-    });
+    })
   }
 }
 

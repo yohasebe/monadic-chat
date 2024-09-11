@@ -1024,7 +1024,8 @@ function createMainWindow() {
     // Check if port 4567 is already in use only on initial launch
     isPortTaken(4567, function (taken) {
       if (taken) {
-        openingText += `<p>Port 4567 is already in use. If other applications is using port 4567, shut them down first.</p><hr />`
+        // Just ignore the port in use message for now
+        // openingText += `<p>Port 4567 is already in use. If other applications is using port 4567, shut them down first.</p><hr />`
         currentStatus = 'Port in use';
         updateContextMenu(false); // Update context menu immediately if port is in use
         updateStatusIndicator(currentStatus); // Update status indicator immediately if port is in use

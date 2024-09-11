@@ -137,9 +137,9 @@ class DockerManager {
           exec('wsl -l -v', function (err) {
             wsl2Installed = !err;
             if (!dockerInstalled) {
-              reject("Docker is not installed.|Please install Docker Desktop for Windows first.");
+              reject("Docker is not installed. Please install Docker Desktop for Windows first.");
             } else if (!wsl2Installed) {
-              reject("WSL 2 is not installed.|Please install WSL 2 first.");
+              reject("WSL 2 is not installed. Please install WSL 2 first.");
             } else {
               resolve();
             }
@@ -149,7 +149,7 @@ class DockerManager {
         exec('/usr/local/bin/docker -v', function (err, stdout) {
           dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
           if (!dockerInstalled) {
-            reject("Docker is not installed.|Please install Docker Desktop for Mac first.");
+            reject("Docker is not installed. Please install Docker Desktop for Mac first.");
           } else {
             resolve();
           }
@@ -186,6 +186,14 @@ class DockerManager {
         return;
       }
     }
+
+    dockerManager.checkStatus()
+      .then((status) => {
+        if (!status) {
+          writeToScreen('[HTML]: <p>Monadic Chat is not running. Please wait and try again.</p>');
+          return
+        }
+      })
 
     // Write the initial message to the screen
     writeToScreen(message);
@@ -594,36 +602,29 @@ function initializeApp() {
 
     ipcMain.on('command', async (_event, command) => {
       try {
-        dockerManager.checkStatus()
-          .then((status) => {
-            if (!status) {
-              writeToScreen('[HTML]: <p>Monadic Chat is not running. Please wait and try again.</p>');
-            } else {
-              switch (command) {
-                case 'start':
-                  dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
-                  break;
-                case 'stop':
-                  dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
-                  break;
-                case 'restart':
-                  dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
-                  break;
-                case 'browser':
-                  openBrowser('http://localhost:4567');
-                  break;
-                case 'folder':
-                  openFolder();
-                  break;
-                case 'settings':
-                  openSettingsWindow();
-                  break;
-                case 'exit':
-                  quitApp(mainWindow);
-                  break;
-              }
-            }
-          });
+        switch (command) {
+          case 'start':
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+            break;
+          case 'stop':
+            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+            break;
+          case 'restart':
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            break;
+          case 'browser':
+            openBrowser('http://localhost:4567');
+            break;
+          case 'folder':
+            openFolder();
+            break;
+          case 'settings':
+            openSettingsWindow();
+            break;
+          case 'exit':
+            quitApp(mainWindow);
+            break;
+        }
       } catch (error) {
         console.error('Error during app initialization:', error);
       }
@@ -860,13 +861,7 @@ function updateApplicationMenu() {
           label: 'Start',
           click: () => {
             openMainWindow();
-            dockerManager.checkRequirements()
-              .then(() => {
-                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
-              })
-              .catch((error) => {
-                dialog.showErrorBox('Error', error);
-              });
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
           },
           enabled: currentStatus === 'Stopped'
         },
@@ -893,17 +888,11 @@ function updateApplicationMenu() {
           label: 'Rebuild',
           click: () => {
             openMainWindow();
-            dockerManager.checkRequirements()
-              .then(() => {
-                dockerManager.runCommand('build',
-                  '[HTML]: <p>Building Monadic Chat . . .</p>',
-                  'Building',
-                  'Stopped',
-                  false);
-              })
-              .catch((error) => {
-                dialog.showErrorBox('Error', error);
-              });
+            dockerManager.runCommand('build',
+              '[HTML]: <p>Building Monadic Chat . . .</p>',
+              'Building',
+              'Stopped',
+              false);
           },
           enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
         },

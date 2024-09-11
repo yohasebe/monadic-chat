@@ -29,7 +29,7 @@ class ChatPlus < MonadicApp
     temperature: 0.5,
     top_p: 0.0,
     max_tokens: 4000,
-    context_size: 50,
+    context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,

@@ -38,7 +38,6 @@ class ImageGeneration < MonadicApp
     temperature: 0.0,
     top_p: 0.0,
     max_tokens: 4000,
-    context_size: 20,
     initial_prompt: initial_prompt,
     description: description,
     icon: icon,

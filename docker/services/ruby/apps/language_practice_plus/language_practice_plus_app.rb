@@ -26,7 +26,7 @@ class LanguagePracticePlus < MonadicApp
     model: "gpt-4o-2024-08-06",
     temperature: 0.4,
     top_p: 0.0,
-    context_size: 20,
+    context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: true,
     auto_speech: true,

@@ -242,38 +242,27 @@ function convertString(str) {
 // Functions to load/reset/set parameters
 //////////////////////////////
 
-function loadParams(params, calledFor = "loadParams") {
-  $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
-  if (params["ai_user_initial_prompt"]) {
-    $("#ai-user-initial-prompt-toggle").prop("checked", true).trigger("change");
-    $("#ai-user-initial-prompt").val(params["ai_user_initial_prompt"]).trigger("input");
-    $("#ai-user-toggle").prop("checked", true)
-  } else {
-    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
-    $("#ai-user-toggle").prop("checked", false)
-  }
-  $("#temperature").val(params["temperature"] || "0.3");
-  $("#temperature-value").text(params["temperature"] || "0.3");
-  $("#top-p").val(params["top_p"] || "0.0");
-  $("#top-p-value").text(params["top_p"] || "0.0");
-  $("#max-tokens").val(params["max_tokens"] || DEFAULT_MAX_TOKENS);
-  $("#contenxt-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
-  $("#presence-penalty").val(params["presence_penalty"] || "0.0");
-  $("#presence-penalty-value").text(params["presence_penalty"] || "0.0");
-  $("#frequency-penalty").val(params["frequency_penalty"] || "0.0");
-  $("#frequency-penalty-value").text(params["frequency_penalty"] || "0.0");
-  $("#context-size").val(params["context_size"] || "10");
+let stop_apps_trigger = false;
 
+function loadParams(params, calledFor = "loadParams") {
+  stop_apps_trigger = false;
   if (calledFor === "reset") {
     $("#file-div").hide();
     $("#apps").val(defaultApp);
     $(`#apps option[value="${defaultApp}"]`).attr('selected', 'selected');
-  } else if (calledFor === "loadParams" || calledFor === "changeApp") {
+  } else if (calledFor === "loadParams") {
+    stop_apps_trigger = true;
+    let app_name = params["app_name"];
+    $("#apps").val(app_name);
+    $(`#apps option[value="${params['app_name']}"]`).attr('selected', 'selected');
+    $("#model").val(params["model"]);
+  } else if (calledFor === "changeApp") {
     let app_name = params["app_name"];
     $("#apps").val(app_name);
     $(`#apps option[value="${params['app_name']}"]`).attr('selected', 'selected');
     $("#model").val(params["model"]);
   }
+
   if (params["easy_submit"]) {
     $("#check-easy-submit").prop('checked', true);
   } else {
@@ -289,6 +278,43 @@ function loadParams(params, calledFor = "loadParams") {
   } else {
     $("#initiate-from-assistant").prop('checked', false);
   }
+
+  $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
+
+  if (params["ai_user_initial_prompt"]) {
+    $("#ai-user-initial-prompt-toggle").prop("checked", true).trigger("change");
+    $("#ai-user-initial-prompt").val(params["ai_user_initial_prompt"]).trigger("input");
+    $("#ai-user-toggle").prop("checked", true)
+  } else {
+    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+    $("#ai-user-toggle").prop("checked", false)
+  }
+
+  const temperature = parseFloat(params["temperature"]) 
+  if (!isNaN(temperature)) {
+    $("#temperature").val(temperature);
+    $("#temperature-value").text(temperature);
+  } else {
+    $("#temperature").val("0.3");
+    $("#temperature-value").text("0.3");
+  }
+  
+  const top_p = parseFloat(params["top_p"])
+  if (!isNaN(top_p)) {
+    $("#top-p").val(top_p);
+    $("#top-p-value").text(top_p);
+  } else {
+    $("#top-p").val("0.0");
+    $("#top-p-value").text("0.0");
+  }
+
+  $("#max-tokens").val(params["max_tokens"] || DEFAULT_MAX_TOKENS);
+  $("#contenxt-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
+  $("#presence-penalty").val(params["presence_penalty"] || "0.0");
+  $("#presence-penalty-value").text(params["presence_penalty"] || "0.0");
+  $("#frequency-penalty").val(params["frequency_penalty"] || "0.0");
+  $("#frequency-penalty-value").text(params["frequency_penalty"] || "0.0");
+  $("#context-size").val(params["context_size"] || "10");
 }
 
 function resetParams() {

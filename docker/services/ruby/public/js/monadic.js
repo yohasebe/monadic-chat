@@ -65,6 +65,11 @@ $(function () {
   });
 
   $("#apps").on("change", function (event) {
+    if (stop_apps_trigger) {
+      stop_apps_trigger = false;
+      return
+    }
+
     event.preventDefault();
     if (messages.length > 0) {
       if (this.value === lastApp) {

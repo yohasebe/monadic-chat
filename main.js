@@ -169,7 +169,7 @@ class DockerManager {
     });
   }
 
-  async runCommand(command, message, statusWhileCommand, statusAfterCommand, sync = false) {
+  async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
     // Check if the API key is set when starting the server
     if (command === 'start') {
       const apiKeySet = checkAndUpdateEnvFile();
@@ -212,105 +212,85 @@ class DockerManager {
         updateApplicationMenu();
 
         // Return a promise that resolves when the command execution is complete
-        return new Promise((resolve, reject) => {
-          // Execute the command synchronously or asynchronously
-          if (sync) {
-            exec(cmd, (err, stdout, stderr) => {
-              // Handle errors
-              if (err) {
-                dialog.showErrorBox('Error', err.message + '\n' + stderr);
-                console.error(err);
-                reject(err);
-                return;
-              }
-              // Update the status, tray image, status indicator, and context menu
-              currentStatus = statusAfterCommand;
-              updateTrayImage(statusAfterCommand);
-              updateStatusIndicator(statusAfterCommand);
-              writeToScreen(stdout);
-              updateContextMenu(false);
-              resolve();
-            });
-          } else {
-            let subprocess = spawn(cmd, [], {shell: true});
+        return new Promise((resolve, _reject) => {
+          let subprocess = spawn(cmd, [], {shell: true});
 
-            // Handle stdout data
-            subprocess.stdout.on('data', function (data) {
-              const lines = data.toString().split(/\r\n|\r|\n/);
-              if (lines[lines.length - 1] === '') {
-                lines.pop();
-              }
-              for (let i = 0; i < lines.length; i++) {
-                // Check for version information and display update message if needed
-                if (lines[i].trim().startsWith('[VERSION]: ')) {
-                  const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
-                  if (compareVersions(imageVersion, app.getVersion()) > 0) {
-                    dialog.showMessageBox(mainWindow, {
-                      type: 'info',
-                      buttons: ['OK'],
-                      title: 'Update Available',
-                      message: `A new version of the app is available. Please update to the latest version.`,
-                      icon: path.join(iconDir, 'monadic-chat.png')
-                    });
-                  }
-                  // Check if the image is not found and update the status accordingly
-                } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
-                  writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
-                  currentStatus = "Building";
-                  updateTrayImage(currentStatus);
-                  updateStatusIndicator(currentStatus);
-                  // Check if the server has started and attempt to connect to it
-                } else if (lines[i].trim() === "[SERVER STARTED]") {
-                  if (!fetchWithRetryCalled) {
-                    fetchWithRetryCalled = true;
-                    writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
-                    fetchWithRetry('http://localhost:4567')
-                      .then(() => {
-                        updateContextMenu(false);
-                        updateStatusIndicator("Ready");
-                        writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
-                        mainWindow.webContents.send('server-ready');
-                        writeToScreen(lines[i]);
-                        openBrowser('http://localhost:4567');
-                      })
-                      .catch(error => {
-                        writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
-                        console.error('Fetch operation failed after retries:', error);
-                        currentStatus = 'Stopped';
-                        updateTrayImage(currentStatus);
-                        updateStatusIndicator(currentStatus);
-                        updateContextMenu(false);
-                      });
-                  }
-                  // Write other output to the screen
-                } else {
-                  writeToScreen(lines[i]);
+          // Handle stdout data
+          subprocess.stdout.on('data', function (data) {
+            const lines = data.toString().split(/\r\n|\r|\n/);
+            if (lines[lines.length - 1] === '') {
+              lines.pop();
+            }
+            for (let i = 0; i < lines.length; i++) {
+              // Check for version information and display update message if needed
+              if (lines[i].trim().startsWith('[VERSION]: ')) {
+                const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
+                if (compareVersions(imageVersion, app.getVersion()) > 0) {
+                  dialog.showMessageBox(mainWindow, {
+                    type: 'info',
+                    buttons: ['OK'],
+                    title: 'Update Available',
+                    message: `A new version of the app is available. Please update to the latest version.`,
+                    icon: path.join(iconDir, 'monadic-chat.png')
+                  });
                 }
+                // Check if the image is not found and update the status accordingly
+              } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
+                writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
+                currentStatus = "Building";
+                updateTrayImage(currentStatus);
+                updateStatusIndicator(currentStatus);
+                // Check if the server has started and attempt to connect to it
+              } else if (lines[i].trim() === "[SERVER STARTED]") {
+                if (!fetchWithRetryCalled) {
+                  fetchWithRetryCalled = true;
+                  writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
+                  fetchWithRetry('http://localhost:4567')
+                    .then(() => {
+                      updateContextMenu(false);
+                      updateStatusIndicator("Ready");
+                      writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
+                      mainWindow.webContents.send('server-ready');
+                      writeToScreen(lines[i]);
+                      openBrowser('http://localhost:4567');
+                    })
+                    .catch(error => {
+                      writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please try rebuilding the image ("Menu" → "Action" → "Rebuild") and starting the server again.</p><hr />');
+                      console.error('Fetch operation failed after retries:', error);
+                      currentStatus = 'Stopped';
+                      updateTrayImage(currentStatus);
+                      updateStatusIndicator(currentStatus);
+                      updateContextMenu(false);
+                    });
+                }
+                // Write other output to the screen
+              } else {
+                writeToScreen(lines[i]);
               }
-            });
+            }
+          });
 
-            // Handle stderr data
-            subprocess.stderr.on('data', function (data) {
-              console.error(data.toString());
-              return;
-            });
+          // Handle stderr data
+          subprocess.stderr.on('data', function (data) {
+            console.error(data.toString());
+            return;
+          });
 
-            // Handle process close event
-            subprocess.on('close', function (code) {
-              // Check for errors based on the exit code
-              if (code !== 0) {
-                dialog.showErrorBox('Error', `monadic.sh exited with code ${code}.`);
-              }
+          // Handle process close event
+          subprocess.on('close', function (code) {
+            // Check for errors based on the exit code
+            if (code !== 0) {
+              dialog.showErrorBox('Error', `monadic.sh exited with code ${code}.`);
+            }
 
-              // Update the status, tray image, status indicator, and context menu
-              currentStatus = statusAfterCommand;
-              updateTrayImage(statusAfterCommand);
-              updateStatusIndicator(statusAfterCommand);
-              updateContextMenu(false);
+            // Update the status, tray image, status indicator, and context menu
+            currentStatus = statusAfterCommand;
+            updateTrayImage(statusAfterCommand);
+            updateStatusIndicator(statusAfterCommand);
+            updateContextMenu(false);
 
-              resolve();
-            });
-          }
+            resolve();
+          });
         });
       }
     })
@@ -398,7 +378,7 @@ function uninstall() {
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
       if (result.response === 1) {
-        dockerManager.runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled', false);
+        dockerManager.runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled');
       } else {
         return false;
       }
@@ -432,22 +412,11 @@ async function quitApp() {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await new Promise((resolve, reject) => {
-            dockerManager.runCommand(
-              'stop',
-              '[HTML]: <p>Stopping all processes. Make sure Docker Desktop is not in Resource Saver mode</p>',
-              'Stopping',
-              'Stopped',
-              true 
-            )
-              .then(() => resolve())
-              .catch(err => reject(err));
-          });
+          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes. Make sure Docker Desktop is not in Resource Saver mode</p>', 'Stopping', 'Stopped');
+          cleanupAndQuit();
         }
       } catch (error) {
         console.error('Error occurred during application quit:', error);
-      } finally {
-        cleanupAndQuit();
       }
     } else {
       isQuittingDialogShown = false;
@@ -459,25 +428,24 @@ async function quitApp() {
 }
 
 function cleanupAndQuit() {
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-
-  if (mainWindow) {
-    mainWindow.removeAllListeners('close');
-    mainWindow.close();
-  }
-
-  if (settingsWindow) {
-    settingsWindow.removeAllListeners('close');
-    settingsWindow.close();
-  }
-
-  // Force quit after a short delay to allow for cleanup
   setTimeout(() => {
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+
+    if (mainWindow) {
+      mainWindow.removeAllListeners('close');
+      mainWindow.close();
+    }
+
+    if (settingsWindow) {
+      settingsWindow.removeAllListeners('close');
+      settingsWindow.close();
+    }
+
     app.exit(0);
-  }, 1000);
+  }, 5000);
 }
 
 // Update the app's quit handler
@@ -911,14 +879,14 @@ function updateApplicationMenu() {
           label: 'Start JupyterLab',
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Communicating', currentStatus, false);
+            dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Communicating', currentStatus);
           },
           enabled: (currentStatus === 'Running' || currentStatus === 'Ready' || currentStatus === 'Stopped') && metRequirements
         },
         {
           label: 'Stop JupyterLab',
           click: () => {
-            dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Communicating', currentStatus, false);
+            dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Communicating', currentStatus,);
           },
           enabled: (currentStatus === 'Running' || currentStatus === 'Ready' || currentStatus === 'Stopped') && metRequirements
         },

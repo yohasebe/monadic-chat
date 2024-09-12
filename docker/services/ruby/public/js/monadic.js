@@ -249,6 +249,7 @@ $(function () {
       $("#user-panel").show();
       setInputFocus()
     } else {
+      // create secure random 4-digit number
       ws.send(JSON.stringify({ message: "SYSTEM_PROMPT", content: $("#initial-prompt").val() }));
 
       $("#config").hide();
@@ -370,15 +371,23 @@ $(function () {
   });
 
   $("#save").on("click", function () {
+    const allMessages = [];
     const initial_prompt = $("#initial-prompt").val();
-    const textOnly = messages.map(function (message) {
-      let message_obj = { "role": message.role, "text": message.text, "mid": message.mid };
+    const sysid = Math.floor(1000 + Math.random() * 9000);
+
+    allMessages.push({"role": "system", "text": initial_prompt, "mid": sysid});
+
+    messages.forEach(function (message, index) {
+      if (index === 0 && message.role === "system") {
+        return;
+      }
+      let message_obj = {"role": message.role, "text": message.text, "mid": message.mid};
       if (message.image) {
         message_obj.image = message.image;
       }
-      return message_obj;
+      allMessages.push(message_obj);
     });
-    allMessages = [{ "role": "system", "text": initial_prompt }].concat(textOnly);
+
     obj = {
       "parameters": setParams(),
       "messages": allMessages

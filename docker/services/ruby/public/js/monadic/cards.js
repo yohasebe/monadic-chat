@@ -167,7 +167,9 @@ function attachEventListeners($card) {
       $(this).tooltip('hide');
       $card.remove();
       const index = messages.findIndex((m) => m.mid === mid);
+      // remove this message from the messages array destructively
       messages.splice(index, 1);
+      mids.delete(mid);
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
     }
   });

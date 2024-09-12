@@ -719,7 +719,7 @@ function connect_websocket(callback) {
         data["content"].forEach((msg, index) => {
           messages.push(msg);
 
-          if (index === 0) {
+          if (index === 0 && msg["role"] === "system") {
             return;
           }
 

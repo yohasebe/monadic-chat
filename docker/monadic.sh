@@ -289,6 +289,31 @@ remove_older_images() {
   ${DOCKER} images --format "{{.ID}} {{.Repository}}:{{.Tag}}" "${image_name}" | grep -v "${latest_image_id}" | awk '{print $1}' | xargs -r ${DOCKER} rmi -f
 }
 
+# function to start jupyter lab
+run_jupyter() {
+  local command="$1"
+  local container_name="monadic-chat-python-container"
+  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    start_docker_compose silent
+  else
+    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
+    exit 1
+  fi
+
+  ${DOCKER} exec "${container_name}" sh -c "run_jupyter.sh ${command}" || exit 1
+
+  if [ $? -eq 0 ]; then
+    if [ "${command}" == "run" ]; then
+      echo "[HTML]: <p>JupyterLab is running. <a href='http://localhost:8888/lab/tree/data' target='_blank'>Click here to open JupyterLab</a></p><hr />"
+    else
+      echo "[HTML]: <p>JupyterLab has been stopped.</p><hr />"
+    fi
+  else
+    echo "[HTML]: <p>JupyterLab failed to start.</p><hr />"
+    exit 1
+  fi
+}
+
 # function to export the pgvector database
 export_db() {
   local container_name="monadic-chat-pgvector-container"
@@ -340,7 +365,6 @@ import_db() {
 case "$1" in
 build)
   ensure_data_dir &&
-  # start_docker
 
   while ! ${DOCKER} info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
@@ -359,13 +383,11 @@ check)
   ;;
 start)
   ensure_data_dir &&
-  # start_docker &&
   start_docker_compose &&
   echo "[SERVER STARTED]"
   ;;
 stop)
   if ${DOCKER} info >/dev/null 2>&1; then
-    # start_docker &&
     stop_docker_compose &&
     echo "[SERVER STOPPED]" &&
     echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
@@ -374,42 +396,40 @@ stop)
   fi
   ;;
 restart)
-  # start_docker &&
   stop_docker_compose &&
   echo "[SERVER STOPPED]" &&
   start_docker_compose &&
   echo "[SERVER STARTED]"
   ;;
 import)
-  # start_docker &&
   stop_docker_compose &&
   import_database
   ;;
+start-jupyter)
+  run_jupyter run
+  ;;
+stop-jupyter)
+  run_jupyter stop
+  ;;
 export)
-  # start_docker &&
   export_database
   ;;
 update)
-  # start_docker &&
   update_monadic &&
   echo "[HTML]: <p>Monadic Chat has been updated successfully!</p>"
   ;;
 down)
-  # start_docker &&
   down_docker_compose &&
   echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
   ;;
 remove)
-  # start_docker &&
   remove_containers &&
   echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
   ;;
 export-db)
-  # start_docker &&
   export_db
   ;;
 import-db)
-  # start_docker &&
   import_db
   ;;
 *)

@@ -8,20 +8,30 @@
 # Determine the directory where the script is located
 SCRIPT_DIR=$(dirname "$0")
 
-if [ "$1" == "run" ]; then
+start_jupyterlab() {
     jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-    # Starts JupyterLab in the background and logs the PID in the script's directory
     jupyter lab --core-mode --ip='*' --port=8888 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --NotebookApp.terminado_settings='{"shell_command": ["/bin/bash"]}' > "$SCRIPT_DIR/jupyter_lab.log" 2>&1 &
     echo $! > "$SCRIPT_DIR/jupyter_lab.pid"
     echo "JupyterLab is running. PID: $(cat "$SCRIPT_DIR/jupyter_lab.pid")"
-elif [ "$1" == "stop" ]; then
-    # Stops JupyterLab using the stored PID in the script's directory
+}
+
+stop_jupyterlab() {
     if [ -f "$SCRIPT_DIR/jupyter_lab.pid" ]; then
         kill $(cat "$SCRIPT_DIR/jupyter_lab.pid") && rm "$SCRIPT_DIR/jupyter_lab.pid"
         echo "JupyterLab has been stopped."
     else
         echo "JupyterLab does not appear to be running."
     fi
+}
+
+if [ "$1" == "run" ]; then
+    if [ -f "$SCRIPT_DIR/jupyter_lab.pid" ]; then
+        echo "JupyterLab is already running. Restarting..."
+        stop_jupyterlab
+    fi
+    start_jupyterlab
+elif [ "$1" == "stop" ]; then
+    stop_jupyterlab
 else
     echo "Invalid argument. Use 'run' or 'stop'"
 fi

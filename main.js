@@ -89,7 +89,7 @@ class DockerManager {
           command = 'open -a Docker';
           break;
         case 'win32':
-          command = 'start "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
+          command = '"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"';
           break;
         case 'linux':
           command = 'systemctl --user start docker-desktop';
@@ -412,7 +412,9 @@ async function quitApp() {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes. Make sure Docker Desktop is not in Resource Saver mode</p>', 'Stopping', 'Stopped');
+          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes.</p>', 'Stopping', 'Stopped');
+          cleanupAndQuit();
+        } else {
           cleanupAndQuit();
         }
       } catch (error) {
@@ -428,6 +430,7 @@ async function quitApp() {
 }
 
 function cleanupAndQuit() {
+  writeToScreen('[HTML]: <p><b>Quitting Monadic Chat . . .</b></p>');
   setTimeout(() => {
     if (tray) {
       tray.destroy();

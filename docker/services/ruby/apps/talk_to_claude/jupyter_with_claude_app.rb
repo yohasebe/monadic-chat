@@ -14,7 +14,7 @@ class JupyterWithClaude < MonadicApp
   TEXT
 
   initial_prompt = <<~TEXT
-    You are an agent that can create and read Jupyter Notebooks. First, launch Jupyter Lab using the `run_jupyter` function with the `run` command and tell the user that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
+    You are an agent that can create and read Jupyter Notebooks. First, launch JupyterLab using the `run_jupyter` function with the `run` command and tell the user that the jupyter lab is available at `http://127.0.0.1:8888/lab` and that the user can ask the agent to stop it if needed.
 
     Next, ask the user if he or she wants a new notebook to be created. If so, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then provide the Notebook file in the form:
 
@@ -32,7 +32,7 @@ class JupyterWithClaude < MonadicApp
 
     If the user's request is rather complex, break it down into smaller steps and ask the user for confirmation at each step.
 
-    If the user wants to stop the Jupyter Lab server, use the `run_jupyter` function with the `stop` command to stop the Jupyter Lab server.
+    If the user wants to stop the JupyterLab server, use the `run_jupyter` function with the `stop` command to stop the JupyterLab server.
 
     If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
 
@@ -163,14 +163,14 @@ class JupyterWithClaude < MonadicApp
       },
       {
         name: "run_jupyter",
-        description: "Run Jupyter Lab server and return the URL of the Jupyter Lab.",
+        description: "Run JupyterLab server and return the URL of the JupyterLab.",
         input_schema: {
           type: "object",
           properties: {
             command: {
               type: "string",
               enum: ["run", "stop"],
-              description: "Command to run or stop the Jupyter Lab server."
+              description: "Command to run or stop the JupyterLab server."
             }
           },
           required: ["command"]

@@ -2,10 +2,18 @@ module OpenAIUtils
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
 
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  OPEN_TIMEOUT = 5 # Timeout for opening a connection (seconds)
+  READ_TIMEOUT = 60 # Timeout for reading data (seconds)
+  WRITE_TIMEOUT = 60 # Timeout for writing data (seconds)
 
+  # Number of retries for API requests
+  MAX_RETRIES = 5
+  # Delay between retries (seconds)
+  RETRY_DELAY = 2
+
+  # Check if the API key is valid
+  # @param api_key [String] The API key to check
+  # @return [Hash] A hash containing the result of the check
   def check_api_key(api_key)
     if api_key
       api_key = api_key.strip
@@ -18,23 +26,39 @@ module OpenAIUtils
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{settings.api_key}"
     }
-    http = HTTP.headers(headers)
-    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).get(target_uri)
-    res_body = JSON.parse(res.body)
-    if res_body && res_body["data"]
-      models = res_body["data"].sort_by do |item|
-        item["created"]
-      end.reverse[0..30].map do |item|
-        item["id"]
-      end.filter do |item|
-        item.include?("gpt") &&
-          !item.include?("vision") &&
-          !item.include?("instruct") &&
-          !item.include?("gpt-3.5")
+
+    num_retrial = 0
+
+    begin
+      http = HTTP.headers(headers)
+      res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).get(target_uri)
+      res_body = JSON.parse(res.body)
+
+      if res_body && res_body["data"]
+        models = res_body["data"].sort_by do |item|
+          item["created"]
+        end.reverse[0..30].map do |item|
+          item["id"]
+        end.filter do |item|
+          item.include?("gpt") &&
+            !item.include?("vision") &&
+            !item.include?("instruct") &&
+            !item.include?("gpt-3.5")
+        end
+        { "type" => "models", "content" => "API token verified", "models" => models }
+      else
+        { "type" => "error", "content" => "ERROR: API token is not accepted" }
       end
-      { "type" => "models", "content" => "API token verified", "models" => models }
-    else
-      { "type" => "error", "content" => "ERROR: API token is not accepted" }
+
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        pp error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
+        return { "type" => "error", "content" => "ERROR: #{error_message}" }
+      end
     end
   end
 
@@ -57,41 +81,44 @@ module OpenAIUtils
 
     target_uri = "#{API_ENDPOINT}/audio/speech"
 
-    http = HTTP.headers(headers)
-    res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+    begin
+      http = HTTP.headers(headers)
+      res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
-    unless res.status.success?
-      error_report = JSON.parse(res.body)["error"]
-      res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
-      block&.call res
-      return res
-    end
-
-    t_index = 0
-
-    if block_given?
-      res.body.each do |chunk|
-        t_index += 1
-        content = Base64.strict_encode64(chunk)
-        hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
-        block&.call hash_res
+      unless res.status.success?
+        error_report = JSON.parse(res.body)["error"]
+        res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+        block&.call res
+        return res
       end
-      t_index += 1
-      finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
-      block&.call finish
-    else
-      { "type" => "audio", "content" => Base64.strict_encode64(res) }
-    end
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
-      num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-      block&.call res
-      false
+
+      t_index = 0
+
+      if block_given?
+        res.body.each do |chunk|
+          t_index += 1
+          content = Base64.strict_encode64(chunk)
+          hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
+          block&.call hash_res
+        end
+        t_index += 1
+        finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
+        block&.call finish
+      else
+        { "type" => "audio", "content" => Base64.strict_encode64(res) }
+      end
+
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        pp error_message = "The request has timed out."
+        res = { "type" => "error", "content" => "ERROR: #{error_message}" }
+        block&.call res
+        false
+      end
     end
   end
 
@@ -120,6 +147,7 @@ module OpenAIUtils
         "Authorization" => "Bearer #{settings.api_key}",
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(url, body: form_data.to_s)
+
     rescue HTTP::Error, HTTP::TimeoutError => e
       if num_retrial < MAX_RETRIES
         num_retrial += 1

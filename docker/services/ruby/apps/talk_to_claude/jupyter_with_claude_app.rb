@@ -22,7 +22,9 @@ class JupyterWithClaude < MonadicApp
 
     Example: `<a href="http://127.0.0.1:8888/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb`
 
-    IN the code above, FILENAME is the name of the newly created Jupyter Notebook file. If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
+    In the code above, FILENAME is the name of the newly created Jupyter Notebook file. If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
+
+      If the user wants to use an existing notebook, ask the user for the filename of the existing notebook. The file should be accessible in your current environment and is able to be opened with the URL `http://127.0.0.1:8888/lab/tree/FILENAME` with the filename being the name of the existing notebook. To examine the content of the existing notebook, use the `fetch_text_from_file` function with the filename of the existing notebook.
 
     Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type. The JSON data must be properly escaped and formatted.
 
@@ -35,6 +37,8 @@ class JupyterWithClaude < MonadicApp
     If the user wants to stop the JupyterLab server, use the `run_jupyter` function with the `stop` command to stop the JupyterLab server.
 
     If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
+
+    If you need to install a library that is not available in the current environment, first ask the user to do so themselves. If the user is unable to do so, you can use the `lib_installer` function to install the library using the package manager. The package manager can be either `pip` or `apt`. The command is the name of the library to be installed.
 
     Please make sure the following important points are respected:
     - Include `import japanize-matplotlib` to display Japanese characters in the plots.

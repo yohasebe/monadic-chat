@@ -432,7 +432,17 @@ async function quitApp() {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes. Make sure Docker Desktop is not in Resource Saver mode</p><p><i class="fa-solid fa-circle-exclamation"></i>Quit or restart Docker Desktop to disable Resource Saver mode.</p>', 'Stopping', 'Stopped', true);
+          await new Promise((resolve, reject) => {
+            dockerManager.runCommand(
+              'stop',
+              '[HTML]: <p>Stopping all processes. Make sure Docker Desktop is not in Resource Saver mode</p>',
+              'Stopping',
+              'Stopped',
+              true 
+            )
+              .then(() => resolve())
+              .catch(err => reject(err));
+          });
         }
       } catch (error) {
         console.error('Error occurred during application quit:', error);
@@ -903,14 +913,14 @@ function updateApplicationMenu() {
             openMainWindow();
             dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Communicating', currentStatus, false);
           },
-          enabled: currentStatus === 'Stopped' && metRequirements
+          enabled: (currentStatus === 'Running' || currentStatus === 'Ready' || currentStatus === 'Stopped') && metRequirements
         },
         {
           label: 'Stop JupyterLab',
           click: () => {
             dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Communicating', currentStatus, false);
           },
-          enabled: currentStatus === 'Stopped' && metRequirements
+          enabled: (currentStatus === 'Running' || currentStatus === 'Ready' || currentStatus === 'Stopped') && metRequirements
         },
         {
           type: 'separator'
@@ -1014,20 +1024,13 @@ function createMainWindow() {
     useContentSize: true
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
-      shell.openExternal(url)
-    }
-    return { action: 'deny' }
-  })
-
   let openingText;
 
   if (justLaunched) {
     openingText = `
       [HTML]: 
       <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
-      <p><i class="fa-solid fa-circle-exclamation"></i>Docker Desktop must be running in order to start the Monadic Chat server. If the monitor area remains blank for a long time or the buttons and menus do not respond, make sure to disable the Resource Saver of Docker Desktop.</p>
+      <p><i class="fa-solid fa-circle-exclamation"></i>Currently Docker Desktop's <b>resource saver mode</b> is not supported and recommended to be disabled.</p>
       <p>Press <b>Start</b> button to initialize the server. It will take some time for the image rebuild to complete.</p>
       <hr />`
     justLaunched = false;
@@ -1045,15 +1048,19 @@ function createMainWindow() {
     });
   };
 
-  setTimeout(() => {
-    writeToScreen(openingText);
-    mainWindow.webContents.send('update-version', app.getVersion());
-  }, 1000);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https:') || url.startsWith('http:')) {
+      shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
 
   mainWindow.loadFile('index.html');
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('update-status-indicator', currentStatus);
+    mainWindow.webContents.send('update-version', app.getVersion());
+    writeToScreen(openingText);
   });
 
   mainWindow.on('closed', () => {

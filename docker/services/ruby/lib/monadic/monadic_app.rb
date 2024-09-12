@@ -131,7 +131,7 @@ class MonadicApp
         output += "<div class='json-item context' data-depth='#{iteration}' data-key='context'>"
         output += "<div class='json-header' onclick='toggleItem(this)'>"
         output += "<span>Context</span>"
-        output += " <i class='fas fa-chevron-down float-right'></i>"
+        output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
         output += "</div>"
         output += "<div class='json-content' style='margin-left:1em'>"
         output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
@@ -142,7 +142,7 @@ class MonadicApp
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<div class='json-header' onclick='toggleItem(this)'>"
           output += "<span>#{key}</span>"
-          output += " <i class='fas fa-chevron-down float-right'></i>"
+          output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
           output += "</div>"
           output += "<div class='json-content' style='margin-left:1em'>"
 

@@ -354,7 +354,6 @@ function setParams() {
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
-  console.log(params);
   return params;
 }
 
@@ -467,21 +466,22 @@ function toggleItem(element) {
   const content = element.nextElementSibling;
   const chevron = element.querySelector('.fa-chevron-down, .fa-chevron-right');
   const toggleText = element.querySelector('.toggle-text');
-  const item = element.closest('.json-item');
-  const key = item.dataset.key;
-  const depth = parseInt(item.dataset.depth);
-  const isOpening = content.style.display === 'none';
 
-  if (depth === 2 && item.closest('.context')) {
-    const contextKey = `context_${key}`;
-    collapseStates[contextKey] = !isOpening;
-  } else {
-    collapseStates[key] = !isOpening;
+  if (!content || !chevron || !toggleText) {
+    console.error("Element not found");
+    return;
   }
 
+  const isOpening = content.style.display === 'none';
   toggleText.textContent = isOpening ? 'Close' : 'Open';
 
-  updateItemStates();
+  if (isOpening) {
+    content.style.display = 'block';
+    chevron.classList.replace('fa-chevron-right', 'fa-chevron-down');
+  } else {
+    content.style.display = 'none';
+    chevron.classList.replace('fa-chevron-down', 'fa-chevron-right');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

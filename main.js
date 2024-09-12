@@ -203,7 +203,6 @@ class DockerManager {
 
         // Update the current status and context menu
         currentStatus = statusWhileCommand;
-        updateContextMenu(true);
 
         // Reset the fetchWithRetryCalled flag
         fetchWithRetryCalled = false;
@@ -739,37 +738,44 @@ function updateStatus() {
 // Update the tray image based on the current status
 function updateTrayImage(status) {
   if (tray) {
-    tray.setImage(path.join(iconDir, `${status}.png`));
+    // catche error and fallback to "Building.png"
+    // try {
+      tray.setImage(path.join(iconDir, `${status}.png`));
+    // } catch {
+    //   tray.setImage(path.join(iconDir, 'Building.png'));
+    // }
   }
 }
 
 function updateContextMenu(disableControls = false) {
   updateTrayImage(currentStatus);
-  if (disableControls) {
-    menuItems.forEach(item => {
-      if (item.label && ['Start', 'Stop', 'Restart', 'Open Browser'].includes(item.label)) {
-        item.enabled = false;
-      }
-    });
-  } else {
-    menuItems.forEach(item => {
-      if (item.label === 'Start') {
-        item.enabled = currentStatus === 'Stopped';
-      } else if (item.label === 'Stop') {
-        item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
-      } else if (item.label === 'Restart') {
-        item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
-      } else if (item.label === 'Open Browser') {
-        item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
-      }
-    });
+  if (tray) {
+    if (disableControls) {
+      menuItems.forEach(item => {
+        if (item.label && ['Start', 'Stop', 'Restart', 'Open Browser'].includes(item.label)) {
+          item.enabled = false;
+        }
+      });
+    } else {
+      menuItems.forEach(item => {
+        if (item.label === 'Start') {
+          item.enabled = currentStatus === 'Stopped';
+        } else if (item.label === 'Stop') {
+          item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+        } else if (item.label === 'Restart') {
+          item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+        } else if (item.label === 'Open Browser') {
+          item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+        }
+      });
+    }
+
+    contextMenu = Menu.buildFromTemplate(menuItems);
+    tray.setContextMenu(contextMenu);
+
+    mainWindow.webContents.send('update-controls', { status: currentStatus, disableControls });
+    updateApplicationMenu();
   }
-
-  contextMenu = Menu.buildFromTemplate(menuItems);
-  tray.setContextMenu(contextMenu);
-
-  mainWindow.webContents.send('update-controls', { status: currentStatus, disableControls });
-  updateApplicationMenu();
 }
 
 function updateApplicationMenu() {
@@ -892,6 +898,24 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
+          label: 'Start JupyterLab',
+          click: () => {
+            openMainWindow();
+            dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Communicating', currentStatus, false);
+          },
+          enabled: currentStatus === 'Stopped' && metRequirements
+        },
+        {
+          label: 'Stop JupyterLab',
+          click: () => {
+            dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Communicating', currentStatus, false);
+          },
+          enabled: currentStatus === 'Stopped' && metRequirements
+        },
+        {
+          type: 'separator'
+        },
+        {
           label: 'Import Document DB',
           click: () => {
             openMainWindow();
@@ -989,6 +1013,13 @@ function createMainWindow() {
     title: "Monadic Chat",
     useContentSize: true
   });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http')) {
+      shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
 
   let openingText;
 

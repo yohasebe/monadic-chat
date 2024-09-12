@@ -297,7 +297,6 @@ run_jupyter() {
     start_docker_compose silent
   else
     echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    exit 1
   fi
 
   ${DOCKER} exec "${container_name}" sh -c "run_jupyter.sh ${command}" || exit 1

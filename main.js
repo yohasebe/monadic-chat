@@ -112,8 +112,6 @@ class DockerManager {
   async ensureDockerDesktopRunning() {
     const st = await this.checkStatus();
     if (!st) {
-      // mainWindow.webContents.send('disable-ui');
-
       this.startDockerDesktop()
         .then(async () => {
           updateContextMenu(false);
@@ -190,7 +188,7 @@ class DockerManager {
     dockerManager.checkStatus()
     .then((status) => {
       if (!status) {
-        writeToScreen('[HTML]: <p>Docker Desktop is not running (yet). Please start Docker Desktop and try again.</p>');
+        writeToScreen('[HTML]: <p>Docker Desktop is not running. Please start Docker Desktop and try again.</p><hr />');
         return
       } else {
         // Write the initial message to the screen
@@ -412,7 +410,7 @@ async function quitApp() {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes.</p>', 'Stopping', 'Stopped');
+          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes.</p>', 'Stopping', 'Quitting');
           cleanupAndQuit();
         } else {
           cleanupAndQuit();
@@ -430,7 +428,7 @@ async function quitApp() {
 }
 
 function cleanupAndQuit() {
-  writeToScreen('[HTML]: <p><b>Quitting Monadic Chat . . .</b></p>');
+  writeToScreen('[HTML]: <p>Quitting Monadic Chat . . .</p>');
   setTimeout(() => {
     if (tray) {
       tray.destroy();
@@ -479,7 +477,7 @@ const menuItems = [
       openMainWindow();
       dockerManager.checkRequirements()
         .then(() => {
-          dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+          dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
         })
         .catch((error) => {
           dialog.showErrorBox('Error', error);
@@ -576,7 +574,7 @@ function initializeApp() {
       try {
         switch (command) {
           case 'start':
-            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
             break;
           case 'stop':
             dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
@@ -654,7 +652,7 @@ function toUnixPath(p) {
 }
 
 // Fetch a URL with retries and a delay between attempts
-function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {
+function fetchWithRetry(url, options = {}, retries = 60, delay = 1000, timeout = 20000) {
   const attemptFetch = async (attempt) => {
     try {
       const controller = new AbortController();
@@ -720,11 +718,11 @@ function updateStatus() {
 function updateTrayImage(status) {
   if (tray) {
     // catche error and fallback to "Building.png"
-    // try {
+    try {
       tray.setImage(path.join(iconDir, `${status}.png`));
-    // } catch {
-    //   tray.setImage(path.join(iconDir, 'Building.png'));
-    // }
+    } catch {
+      tray.setImage(path.join(iconDir, 'Building.png'));
+    }
   }
 }
 
@@ -840,7 +838,7 @@ function updateApplicationMenu() {
           label: 'Start',
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat starting . . .</p>', 'Starting', 'Running');
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
           },
           enabled: currentStatus === 'Stopped'
         },
@@ -1002,7 +1000,7 @@ function createMainWindow() {
       [HTML]: 
       <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
       <p><i class="fa-solid fa-circle-exclamation"></i>Currently Docker Desktop's <b>resource saver mode</b> is not supported and recommended to be disabled.</p>
-      <p>Press <b>Start</b> button to initialize the server. It will take some time for the image rebuild to complete.</p>
+      <p>Press <b>start</b> button to initialize the server.</p>
       <hr />`
     justLaunched = false;
     currentStatus = 'Stopped';
@@ -1010,8 +1008,6 @@ function createMainWindow() {
     // Check if port 4567 is already in use only on initial launch
     isPortTaken(4567, function (taken) {
       if (taken) {
-        // Just ignore the port in use message for now
-        // openingText += `<p>Port 4567 is already in use. If other applications is using port 4567, shut them down first.</p><hr />`
         currentStatus = 'Port in use';
         updateContextMenu(false); // Update context menu immediately if port is in use
         updateStatusIndicator(currentStatus); // Update status indicator immediately if port is in use
@@ -1248,6 +1244,15 @@ async function updateDockerStatus() {
     const status = await dockerManager.checkStatus();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('docker-desktop-status-update', status);
+      // if status is false, meaning Docker Desktop is not running,
+      // update the context menu and buttons onlly if the current status is not "Stopped"
+      if (!status && currentStatus !== 'Stopped') {
+        currentStatus = 'Stopped';
+        updateContextMenu(false);
+        updateStatusIndicator(currentStatus);
+        writeToScreen('[SERVER STOPPED]');
+        writeToScreen('[HTML]: <hr /><p>Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
+      }
     }
   } 
 }

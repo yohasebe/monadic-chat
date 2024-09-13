@@ -63,7 +63,8 @@ function updateMonadicChatStatusUI(status) {
   };
 
   // Enable/disable buttons based on status
-  if (status === 'Port in use'
+  if ( status === 'Port in use'
+    || status === 'Quitting'
     || status === 'Starting'
     || status === 'Restarting'
     || status === 'Stopping'

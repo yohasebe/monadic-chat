@@ -3,7 +3,17 @@
 require_relative "./agents/basic_agent"
 require_relative "./utils/string_utils"
 
-Dir.glob(File.expand_path("vendors/*.rb", __dir__)).sort.each do |rb|
+
+Dir.glob(File.expand_path("vendors/*.rb", Dir.pwd)).sort.each do |rb|
+  require rb
+end
+
+user_vendor_dir = if IN_CONTAINER
+  "/monadic/data/vendors"
+else
+  File.expand_path(File.join(Dir.home, "monadic", "data", "vendors"))
+end
+Dir.glob(File.expand_path(user_vendor_dir + "/*.rb")).sort.each do |rb|
   require rb
 end
 

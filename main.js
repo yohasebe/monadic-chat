@@ -999,7 +999,7 @@ function createMainWindow() {
     openingText = `
       [HTML]: 
       <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
-      <p><i class="fa-solid fa-circle-exclamation"></i>Currently Docker Desktop's <b>resource saver mode</b> is not supported and recommended to be disabled.</p>
+      <p><i class="fa-solid fa-circle-exclamation"></i>Please make sure Docker Desktop is running while using Monadic Chat.</p>
       <p>Press <b>start</b> button to initialize the server.</p>
       <hr />`
     justLaunched = false;

@@ -15,6 +15,8 @@ class ChatWithGemini < MonadicApp
     Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response. Use Japanese, for example, if the user's input is in Japanese.
 
     Your response must be formatted as a valid Markdown document.
+
+    If the response is too long to fit in one message, it can be split into multiple messages. If you need to split in the middle of a code block, be sure to properly enclose the partial code block in each message so that it will display properly as a code block when viewed as HTML.
   TEXT
 
   @settings = {

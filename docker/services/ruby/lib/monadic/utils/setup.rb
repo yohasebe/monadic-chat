@@ -27,7 +27,7 @@ module Paths
       if File.exist?(File.dirname(ENV_PATH))
         FileUtils.touch(ENV_PATH) unless File.exist?(ENV_PATH)
         break
- end
+      end
       sleep retry_delay
       retries -= 1
     end

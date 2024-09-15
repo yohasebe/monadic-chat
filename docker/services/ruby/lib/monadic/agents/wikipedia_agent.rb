@@ -42,7 +42,7 @@ module MonadicAgent
         retries -= 1
         retry
       else
-        raise
+        return "Error: The request timed out."
       end
     end
   end

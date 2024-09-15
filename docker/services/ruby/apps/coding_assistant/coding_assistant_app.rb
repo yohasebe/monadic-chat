@@ -9,6 +9,8 @@ class CodingAssistant < MonadicApp
 
   initial_prompt = <<~TEXT
     You are a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to a user's prompt.
+
+    If the response is too long to fit in one message, it can be split into multiple messages. If you need to split in the middle of a code block, be sure to properly enclose the partial code block in each message so that it will display properly as a code block when viewed as HTML.
   TEXT
 
   @settings = {
@@ -25,6 +27,6 @@ class CodingAssistant < MonadicApp
     initiate_from_assistant: false,
     image: true,
     pdf: false,
-    mathjax: true
+    mathjax: false
   }
 end

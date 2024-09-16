@@ -5,7 +5,7 @@
 require "optimist"
 require_relative "../lib/monadic/version"
 
-# change current directory to the parent directory of the directory containing this file
+# Change current directory to the parent directory of the directory containing this file
 Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 
 DEFAULT_PORT = 4567
@@ -66,11 +66,24 @@ def start_server(opts)
   else
     cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
     cmd += " --daemonize" if opts[:daemonize]
-    cmd += " --log thin.log" if opts[:log]
-    if system(cmd)
+
+    # Capture the command output
+    if opts[:daemonize]
+      output = `#{cmd} 2>&1`
+    else
+      output = `#{cmd}`
+    end
+    success = $?.success?
+
+    if success
       puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
     else
       puts "Server failed to start"
+      # Save detailed error log to the specified directory on the host
+      File.open(File.join(DATA_DIR, "error.log"), "a") do |file|
+        file.puts("Failed to start server at #{Time.now}")
+        file.puts(output)  # Write the detailed error output
+      end
     end
   end
 end
@@ -128,7 +141,7 @@ def export_document_db
 pg_dump monadic | gzip > "#{DATA_DIR}/monadic.gz"
   SHELL
 
-  # run command and get the result with error reporting
+  # Run command and get the result with error reporting
   res = system(command)
 
   if res

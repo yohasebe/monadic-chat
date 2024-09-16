@@ -349,7 +349,7 @@ function checkForUpdates() {
             type: 'info',
             buttons: ['OK'],
             title: 'Up to Date',
-            message: `You are already using the latest version (${latestVersion}) of the app.`,
+            message: `You are already using the latest version of the app.`,
             icon: path.join(iconDir, 'monadic-chat.png')
           });
         }
@@ -652,7 +652,7 @@ function toUnixPath(p) {
 }
 
 // Fetch a URL with retries and a delay between attempts
-function fetchWithRetry(url, options = {}, retries = 60, delay = 1000, timeout = 20000) {
+function fetchWithRetry(url, options = {}, retries = 30, delay = 1000, timeout = 20000) {
   const attemptFetch = async (attempt) => {
     try {
       const controller = new AbortController();
@@ -672,6 +672,8 @@ function fetchWithRetry(url, options = {}, retries = 60, delay = 1000, timeout =
         console.log(`Retrying in ${delay}ms . . .`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return attemptFetch(attempt + 1);
+      } else {
+        console.log(`Failed to connect to server after ${retries} attempts. Please check the error log in the shared folder.`);
       }
       throw error;
     }

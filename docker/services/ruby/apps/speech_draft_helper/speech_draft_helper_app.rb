@@ -44,7 +44,6 @@ class SpeechDraftHelper < MonadicApp
     icon: icon,
     initiate_from_assistant: true,
     image: true,
-    audio_video: true,
     tools: [
       {
         type: "function",

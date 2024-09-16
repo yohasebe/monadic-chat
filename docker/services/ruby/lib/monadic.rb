@@ -111,6 +111,23 @@ def init_apps
     app = a.new
     app.settings = ActiveSupport::HashWithIndifferentAccess.new(a.instance_variable_get(:@settings))
 
+    app.settings["description"] ||= ""
+    if !app.settings["initial_prompt"]
+      app.settings["initial_prompt"] = "You are an AI assistant but the initial prompt is missing. Tell the user they should provide a prompt."
+      app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The initial prompt is missing.</p>"
+    end
+    if !app.settings["description"]
+      app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The description is missing.</p>"
+    end
+    if !app.settings["icon"]
+      app.settings["icon"] = "<i class='fa-solid fa-circle-question'></i>"
+      app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The icon is missing.</p>"
+    end
+    if !app.settings["app_name"]
+      app.settings["app_name"] = "User App (#{SecureRandom.hex(4)})"
+      app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The app name is missing.</p>"
+    end
+
     next if app.settings["disabled"]
 
     app_name = app.settings["app_name"]

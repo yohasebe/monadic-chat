@@ -175,7 +175,6 @@ class CodeWithMistral < MonadicApp
     initiate_from_assistant: false,
     pdf: false,
     image: false,
-    toggle: false,
     models: ["mistral-large-latest"],
     model: "mistral-large-latest",
     tools: [

@@ -41,7 +41,6 @@ class ContentReader < MonadicApp
     initiate_from_assistant: true,
     mathjax: true,
     image: true,
-    audio_video: true,
     tools: [
       {
         type: "function",

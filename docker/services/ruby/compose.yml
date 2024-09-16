@@ -18,7 +18,7 @@ services:
     restart: always
     stdin_open: true
     tty: true
-    command: ["thin", "start", "-R", "config.ru", "-p", "4567", "-e", "development"]
+    command: ["sh", "/usr/local/bin/entrypoint.sh"]
     networks:
       - monadic-chat-network
     healthcheck:
@@ -28,4 +28,3 @@ services:
     depends_on:
       pgvector_service:
         condition: service_healthy
-

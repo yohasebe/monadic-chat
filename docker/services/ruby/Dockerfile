@@ -69,3 +69,9 @@ RUN chmod +x $WORKSPACE/scripts/*
 ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"
 
 COPY Dockerfile $WORKSPACE/Dockerfile
+
+# Copy the entrypoint script into the container
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Give execute permission to the script
+RUN chmod +x /usr/local/bin/entrypoint.sh

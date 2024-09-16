@@ -35,7 +35,6 @@ class LanguagePracticePlus < MonadicApp
     icon: icon,
     initiate_from_assistant: true,
     image: true,
-    pdf: false,
     monadic: true,
     response_format: {
       type: "json_schema",

@@ -26,26 +26,27 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     seaborn \
     jupyterlab \
     gunicorn \
-    statsmodels \
+    tiktoken \
+    pymupdf \
     selenium \
+    statsmodels \
     japanize-matplotlib \
     graphviz \
     pydotplus \
     openpyxl \
     python-docx \
     python-pptx \
-    wordcloud \
-    mecab-python3 \
     html2text \
-    librosa \
     flask \
-    tiktoken \
     opencv-python \
-    moviepy \
-    pymupdf \
-    textblob \
-    nltk \
-    gensim
+    moviepy
+
+    # librosa \
+    # mecab-python3 \
+    # wordcloud \
+    # textblob \
+    # nltk \
+    # gensim
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -73,4 +74,4 @@ RUN ln -s /monadic/data /data
 COPY Dockerfile /monadic/Dockerfile
 
 # Install NLTK modules (failure to install these modules will skip the installation)
-RUN python -m nltk.downloader all || true
+# RUN python -m nltk.downloader all || true

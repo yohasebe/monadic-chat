@@ -80,7 +80,7 @@ def start_server(opts)
     else
       puts "Server failed to start"
       # Save detailed error log to the specified directory on the host
-      File.open(File.join(DATA_DIR, "error.log"), "a") do |file|
+      File.open(File.join(DATA_DIR, "monadic.log"), "a") do |file|
         file.puts("Failed to start server at #{Time.now}")
         file.puts(output)  # Write the detailed error output
       end

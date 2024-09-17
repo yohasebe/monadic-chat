@@ -156,7 +156,7 @@ start_docker_compose() {
     ${DOCKER} compose -f "${COMPOSE_MAIN}" down
     build_docker_compose
   elif [[ "$1" != "silent" ]]; then
-    echo "[HTML]: <p>Monadic Chat image is up-to-date.</p>"  
+    echo "[HTML]: <p>Monadic Chat image is up-to-date. Moving on . . .</p>"
   fi
 
   if ! ${DOCKER} images | grep -q "yohasebe/monadic-chat"; then

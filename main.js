@@ -446,7 +446,7 @@ function cleanupAndQuit() {
     }
 
     app.exit(0);
-  }, 5000);
+  }, 3000);
 }
 
 // Update the app's quit handler
@@ -652,7 +652,7 @@ function toUnixPath(p) {
 }
 
 // Fetch a URL with retries and a delay between attempts
-function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 30000) {
+function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {
   const attemptFetch = async (attempt) => {
     try {
       const controller = new AbortController();

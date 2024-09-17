@@ -652,7 +652,7 @@ function toUnixPath(p) {
 }
 
 // Fetch a URL with retries and a delay between attempts
-function fetchWithRetry(url, options = {}, retries = 30, delay = 1000, timeout = 20000) {
+function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 30000) {
   const attemptFetch = async (attempt) => {
     try {
       const controller = new AbortController();

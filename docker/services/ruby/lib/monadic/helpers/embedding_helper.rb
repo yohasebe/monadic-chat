@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def cosine_similarity(a, b)
     raise ArgumentError, "a and b must be of the same size" if a.size != b.size
 

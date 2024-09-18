@@ -14,16 +14,20 @@ class TextEmbeddings
 
   # Set up PostgreSQL connection
   def self.connect_to_db(db_name, recreate_db: false)
-    begin
-      conn = if IN_CONTAINER
-               # "postgres" is the default database name in the PostgreSQL Docker image
-               # it is used (only) to create the new database named `db_name`
-               PG.connect(dbname: "postgres", host: "pgvector_service", port: 5432, user: "postgres")
-             else
-               PG.connect(dbname: "postgres")
-             end
-    rescue PG::Error => e
-      puts "Error connecting to database: #{e.message}"
+    conn = nil
+    retries = 5
+    retries.times do |i|
+      begin
+        conn = if IN_CONTAINER
+                 PG.connect(dbname: "postgres", host: "pgvector_service", port: 5432, user: "postgres")
+               else
+                 PG.connect(dbname: "postgres")
+               end
+        break if conn
+      rescue PG::Error => e
+        puts "Error connecting to database: #{e.message}. Retrying in #{i + 1} seconds..."
+        sleep(i + 1)
+      end
     end
 
     if recreate_db

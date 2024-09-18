@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def search_wikipedia(search_query: "", language_code: "en")
     number_of_results = 10
 

@@ -1,3 +1,5 @@
+require_relative "basic_agent"
+
 module MonadicAgent
   extend BasicAgent
 

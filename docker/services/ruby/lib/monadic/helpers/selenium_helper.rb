@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def fetch_web_content(url: "")
     selenium_job(url: url)
   end

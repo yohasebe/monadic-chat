@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def fetch_text_from_office(file: "")
     command = <<~CMD
       bash -c 'office2txt.py "#{file}"'

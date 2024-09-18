@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def get_dockerfile
     command = <<~CMD
       bash -c '/usr/bin/cat /monadic/Dockerfile'

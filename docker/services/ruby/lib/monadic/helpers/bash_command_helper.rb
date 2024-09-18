@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def lib_installer(command: "", packager: "")
     install_command = case packager
                       when "pip"

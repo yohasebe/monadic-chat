@@ -17,9 +17,9 @@ services:
       - monadic-chat-pgvector-data:/var/lib/postgresql/data:rw
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 3s
+      timeout: 10s
+      retries: 20
     networks:
       - monadic-chat-network
 

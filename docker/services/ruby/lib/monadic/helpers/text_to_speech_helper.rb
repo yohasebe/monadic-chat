@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def text_to_speech(text: "", speed: 1.0, voice: "alloy", language: "auto")
     text = text.gsub(/"/, '\"')
 

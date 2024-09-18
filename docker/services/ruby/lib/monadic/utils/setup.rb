@@ -8,12 +8,12 @@ module Paths
     ENV_PATH = "/monadic/data/.env"
     SCRIPTS_PATH = "/monadic/data/scripts"
     APPS_PATH = "/monadic/data/apps"
-    VENDORS_PATH = "/monadic/data/vendors"
+    HELPERS_PATH = "/monadic/data/helpers"
   else
     ENV_PATH = File.join(Dir.home, "monadic", "data", ".env")
     SCRIPTS_PATH = File.join(Dir.home, "monadic", "data", "scripts")
     APPS_PATH = File.join(Dir.home, "monadic", "data", "apps")
-    VENDORS_PATH = File.join(Dir.home, "monadic", "data", "vendors")
+    HELPERS_PATH = File.join(Dir.home, "monadic", "data", "helpers")
   end
 
   unless File.exist?(File.dirname(ENV_PATH))
@@ -35,5 +35,5 @@ module Paths
 
   FileUtils.mkdir_p(SCRIPTS_PATH) unless File.exist?(SCRIPTS_PATH) || File.symlink?(SCRIPTS_PATH)
   FileUtils.mkdir_p(APPS_PATH) unless File.exist?(APPS_PATH) || File.symlink?(APPS_PATH)
-  FileUtils.mkdir_p(VENDORS_PATH) unless File.exist?(VENDORS_PATH) || File.symlink?(VENDORS_PATH)
+  FileUtils.mkdir_p(HELPERS_PATH) unless File.exist?(HELPERS_PATH) || File.symlink?(HELPERS_PATH)
 end

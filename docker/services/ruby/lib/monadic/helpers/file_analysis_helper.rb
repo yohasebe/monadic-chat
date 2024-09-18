@@ -1,4 +1,4 @@
-module MonadicAgent
+module MonadicHelper
   def analyze_image(message: "", image_path: "", model: "gpt-4o-mini")
     message = message.gsub(/"/, '\"')
     model = ENV["VISION_MODEL"] || model == "gpt-4o-mini"

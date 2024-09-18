@@ -4,27 +4,28 @@ require_relative "./agents/basic_agent"
 require_relative "./utils/string_utils"
 
 
-Dir.glob(File.expand_path("vendors/*.rb", __dir__)).sort.each do |rb|
+Dir.glob(File.expand_path("helpers/**/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
 
-user_vendor_dir = if IN_CONTAINER
-                    "/monadic/data/vendors"
+user_helpers_dir = if IN_CONTAINER
+                    "/monadic/data/helpers"
                   else
-                    File.expand_path(File.join(Dir.home, "monadic", "data", "vendors"))
+                    File.expand_path(File.join(Dir.home, "monadic", "data", "helpers"))
                   end
 
-Dir.glob(File.expand_path(user_vendor_dir + "/*.rb")).sort.each do |rb|
+Dir.glob(File.expand_path(user_helpers_dir + "/**/*.rb")).sort.each do |rb|
   require rb
 end
 
-Dir.glob(File.expand_path("agents/*.rb", __dir__)).sort.each do |rb|
+Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
 
 
 class MonadicApp
   include MonadicAgent
+  include MonadicHelper
   include StringUtils
 
   TOKENIZER = FlaskAppClient.new

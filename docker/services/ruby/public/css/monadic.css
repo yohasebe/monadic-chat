@@ -6,7 +6,7 @@ html {
 body {
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
   color: #333;
-  background-color: #ccc;
+  background-color: #DCDCDC;
   line-height: 1.8;
 }
 
@@ -54,11 +54,11 @@ div.card-body.role-assistant {
 }
 
 div.card-body.role-user {
-  background-color: #f6faff
+  background-color: #f6f8ff
 }
 
 div.card-body.role-system {
-  background-color: #f1fcf7
+  background-color: #f7fff6
 }
 
 div.sourcecode, div.sourcecode pre,
@@ -191,7 +191,8 @@ button.fixed-width {
 
 .shaded-panel, .discourse {
   /* box-shadow: 2px 2px 2px rgba(0,0,0,0.3); */
-  background-color: #eeeeee;
+  /* background-color: #eeeeee; */
+  background-color: #F8F8F8;
 }
 
 #alert-message table td, #stats-message table td {
@@ -277,7 +278,7 @@ h5 i, .like-h5 i {
   display: inline-block;
   margin-right: 0.2em;
   color: #ffc107;
-  filter:drop-shadow(1px 1px 0px #999);
+  /* filter:drop-shadow(1px 1px 0px #999); */
 }
 
 #toggle-menu{
@@ -588,4 +589,10 @@ pre {
 #monadic-spinner i {
   font-size: 2em;
   color: #ffc107;
+}
+
+#main-nav{
+ height: 108px; 
+ border-bottom: 2px solid #777;
+ background-color: #F8F8F8;
 }

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "./agents/basic_agent"
+require_relative "./utils/basic_agent"
 require_relative "./utils/string_utils"
 
 

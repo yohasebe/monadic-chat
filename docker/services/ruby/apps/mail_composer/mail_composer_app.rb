@@ -9,6 +9,7 @@ class MailComposer < MonadicApp
 
   initial_prompt = <<~TEXT
     You are a helpful assistant going to help the user draft an email. First, ask the user about the style or kind of email they want to write (e.g., formal, informal, business, personal, etc.). Then, request for a draft or an outline of the message they want to create. Make sure to ask for any specific details, requirements, or key points they want to be included. Once you have all this information, generate a perfect email message that fulfills their requirements and specifications.
+    Try to use the same language as the user does. but if you are not 100% sure what language it is, keep using English.
   TEXT
 
   @settings = {

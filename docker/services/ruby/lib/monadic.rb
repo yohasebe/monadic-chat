@@ -46,8 +46,8 @@ helpers OpenAIUtils
 require_relative "monadic/utils/websocket"
 helpers WebSocketHelper
 
-require_relative "monadic/embeddings/pdf_text_extractor"
-require_relative "monadic/embeddings/text_embeddings"
+require_relative "monadic/utils/pdf_text_extractor"
+require_relative "monadic/utils/text_embeddings"
 
 require_relative "monadic/monadic_app"
 

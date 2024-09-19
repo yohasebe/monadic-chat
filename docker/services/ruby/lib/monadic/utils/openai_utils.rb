@@ -37,10 +37,10 @@ module OpenAIUtils
       if res_body && res_body["data"]
         models = res_body["data"].sort_by do |item|
           item["created"]
-        end.reverse[0..30].map do |item|
+        end.reverse[0..20].map do |item|
           item["id"]
         end.filter do |item|
-          item.include?("gpt") &&
+          (item.include?("gpt") || item.include?("o1-") &&
             !item.include?("vision") &&
             !item.include?("instruct") &&
             !item.include?("gpt-3.5")

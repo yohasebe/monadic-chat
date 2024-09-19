@@ -138,6 +138,8 @@ class CodeInterpreter < MonadicApp
 
       <div><a href="/data/FILE_NAME" target="_blank">Result</a></div>
 
+      It is often the case that a very long code block cannot be presentend in a single response. In such cases, you can split the code block into multiple parts and provide the user with the complete code in a sequential manner. This is very essential as your markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted the convered HTML will not be displayed properly.
+
     ### Request/Response Example 4:
 
     - The following is a simple example to illustrate how you might respond to a user's request to show an audio/video clip.

@@ -4,7 +4,7 @@
 
 ## 概要
 
-**Monadic Chat** は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、外部ツールを必要とする高度なタスクを実行させることができます。また、音声インタラクション、画像・動画の認識と生成、AI同士のチャットをサポートしており、AIを使うだけでなく、活用した様々なアプリケーションの開発や研究にも役立ちます。
+**Monadic Chat** は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、外部ツールを必要とする高度なタスクを実行させることができます。音声インタラクション、画像・動画の認識と生成、AIどうしのチャットをサポートしており、様々な用途にAIを使うだけでなく、AIを活用したアプリケーションの開発や研究にも役立ちます。
 
 ## 「接地」とは？
 
@@ -19,26 +19,31 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 ### 基本構造
 
 - 🤖 OpenAIのChat API（**GPT-4**）を使用したチャット機能
-- 👩‍💻 **Electron**を用いたGUIアプリとしてMacおよびWindowsにインストール可能
-- 🌐 **Webアプリ**としてブラウザ上で利用可能
-- 👩💬 🤖💬 **human↔️AI chat**と**AI↔️AI chat**の両方をサポート
+- 👩‍💻 **Electron**を用いたGUIアプリによりDocker環境を簡単に構築
+- 📁 **同期フォルダ**でローカルファイルとDockerコンテナ内のファイルを同期
+- 📦 ユーザーによる**アプリ**と**コンテナ**の追加機能
+- 👩💬 **human↔️AI chat**と🤖💬 **AI↔️AI chat**の両方をサポート
+- ✨ **複数のAIモデル**を活用したチャット機能
 
 ### AI + Linux環境
 
 - 🐧 AIに自由に利用できる**Linux環境**（Ubuntu）を提供
 - 🐳 **Dockerコンテナ**を通じてLLMから利用できるツール群
-  - Python (+ pip) for tool/function calls
-  - Ruby (+ gem) for tool/function calls
-  - PGVector (+ PostgreSQL) for DAG using vector representation
-  - Selenium (+ Chrome/Chromium) for web scraping
+  - Ruby (+ gem)
+  - Python (+ pip)
+  - PGVector (+ PostgreSQL)
+  - Selenium (+ Chrome/Chromium)
+- ⚡️ オンラインおよびローカルAPIを介したLLMの利用
 - 📦 各コンテナは**SSH**接続による管理が可能
-- 📓 **Jupyter Notebook**との連携が可能
+- 📓 **Jupyter Notebook**との連携
 
 ### データ管理
 
-- 💾 会話データの**エクスポート/インポート**
+- 💾 チャットデータの**エクスポート/インポート**
+- 📝 チャットデータの**編集**（追加、削除、編集）
 - 💬 文脈データとしてAPIに送信するメッセージ（**アクティブメッセージ**）数の指定
-- 🔢 **PDFファイル**内のデータから**テキスト埋め込み**生成
+- 📜 メッセージの**ロール**設定（ユーザー、アシスタント、システム）
+- 🔢 **PDF**からの**テキスト埋め込み**生成およびインポート／エクスポート
 
 ### 音声インタラクション
 
@@ -58,38 +63,28 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 設定と拡張
 
-- 💡 **APIパラメータ**と**システムプロンプト**を指定して、AIエージェントの設定や動作をカスタマイズ
+- 💡 **APIパラメータ**と**システムプロンプト**の指定・編集
 - 💎 プログラミング言語**Ruby**を使用した機能拡張
 - 🐍 プログラミング言語**Python**を使用した機能拡張
 - 🌎 Seleniumを使用した**Webスクレイピング**
+- 📦 独自の**Dockerコンテナ**の追加
 
-### メッセージの編集
-
-- 📝 過去のメッセージの**再編集**
-- 🗑️ 特定のメッセージの**削除**
-- 📜 新規メッセージの**ロール**設定（ユーザー、アシスタント、システム）
 
 ### 複数のLLM APIに対応
 
-- 👥 下記のLLMのAPIに対応
-  - OpenAI GPT-4
-  - Google Gemini
-  - Anthropic Claude
-  - Cohere Command R
-  - Mistral AI
-- 🤖💬🤖 AI↔️AI Chatは以下の組み合わせで利用可能
-
-   | AI-Assistant     | | AI-User               |
-   |:-----------------|-|:----------------------| 
-   | OpenAI GPT-4     |↔️| OpenAI GPT-4 or GPT4o |
-   | Google Gemini    |↔️| OpenAI GPT-4 or GPT4o |
-   | Anthropic Claude |↔️| OpenAI GPT-4 or GPT4o |
-   | Cohere Command R |↔️| OpenAI GPT-4 or GPT4o |
-   | Mistral AI       |↔️| OpenAI GPT-4 or GPT4o |
+- 👥 下記のLLMのWeb APIに対応
+  - [OpenAI GPT-4](https://platform.openai.com/docs/overview)
+  - [Google Gemini](https://ai.google.dev/gemini-api)
+  - [Anthropic Claude](https://www.anthropic.com/api)
+  - [Cohere Command R](https://cohere.com/)
+  - [Mistral AI](https://docs.mistral.ai/api/)
+- 🦙 Ollamaを用いたDocker上のローカル環境でのLLMの利用
+  - [Ollama](https://ollama.com/)
+- 🤖💬🤖 AIどうしのチャット機能
 
 ### モナドとしての会話の管理
 
-- ♻️   AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内の値を更新することで会話の（見えない）**状態の管理**が可能
+- ♻️   AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内の値を更新することで会話の（表面下での）**状態の管理**が可能
 
 ## 開発者
 

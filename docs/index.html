@@ -1,1 +1,87 @@
-<meta http-equiv="Refresh" content="0; url=https://yohasebe.github.io/monadic-chat/overview" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="utf-8">
+   <link rel="apple-touch-icon" sizes="180x180" href="assets/images/favicon/apple-touch-icon.png">
+   <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon/favicon-32x32.png">
+   <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicon/favicon-16x16.png">
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
+   <meta name="description" content="">
+   <title></title>
+
+   <!-- Themes (light + dark) -->
+   <link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
+   <link rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+   <link href="https://use.fontawesome.com/releases/v6.2.0/css/all.css" rel="stylesheet">
+
+   <!-- Custom Styles -->
+   <style>
+     :root {
+       --base-font-size: 15px;
+       --sidebar-width : 20rem;
+     }
+   </style>
+</head>
+<body>
+   <div id="app"></div>
+
+   <script>
+     // Docsify Configuration
+      window.$docsify = {
+        name: 'Monadic Chat',
+        auto2top: true,
+        loadSidebar: true,
+        subMaxLevel: 2,
+        loadNavbar: true,
+        maxLevel: 2,
+        relativePath: true,
+        coverpage: ['/', '/ja/'],
+        themeable: {
+          readyTransition: true,
+          responsiveTables: true
+        },
+         tabs: {
+            persist: true,
+            sync: true,
+            theme: 'classic',
+            tabComments: true,
+            tabHeadings: true
+         },
+         pagination: {
+            crossChapter: true,
+            crossChapterText: true,
+         },
+         copyCode: {
+            buttonText: '<i class="fas fa-copy"></i>',
+            errorText: 'Error',
+            successText: 'Copied',
+         },
+         timeUpdater: {
+            text: "> <p><b><i class='fa-solid fa-circle-info'></i> This document is currently under development</b></p><p><i class='fa-regular fa-clock'></i> Last update time: {docsify-updated}</p>",
+            formatUpdated: "{YYYY}/{MM}/{DD} {HH}:{mm}",
+            whereToPlace: "top",  // "top" or "bottom", default to "bottom"
+         },
+       };
+   </script>
+
+   <!-- Required -->
+   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/js/docsify-themeable.min.js"></script>
+
+   <!-- Recommended -->
+   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/zoom-image.min.js"></script>
+   <script src="https://unpkg.com/docsify-copy-code@2"></script>
+   <script src="https://cdn.jsdelivr.net/npm/docsify-tabs@1"></script>
+   <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-docker.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-ruby.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-git.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-markdown.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/docsify-updated/src/time-updater.min.js"></script>
+</body>
+</html>

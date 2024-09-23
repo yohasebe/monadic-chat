@@ -1,23 +1,10 @@
----
-title: Monadic Chat
-layout: default
----
+# 設定項目
 
-# 設定・操作
-{:.no_toc}
-
-[English](/monadic-chat/settings) |
-[日本語](/monadic-chat/settings_ja)
-
-## Table of Contents
-{:.no_toc}
-
-1. toc
-{:toc}
+<br />
 
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 
-## Monadic Chat Console
+## コンソールボタン項目
 
 <img src="./assets/images/monadic-chat-console.png" width="500px"/>
 
@@ -34,12 +21,32 @@ Monadic Chatを再起動します。
 Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
 
 **Shared Folder** <br />
-ストとDockerコンテナー間で共有されるフォルダーを開きます。ファイルのインポートやエクスポートに使用できます。
+ストとDockerコンテナ間で共有されるフォルダーを開きます。ファイルのインポートやエクスポートに使用できます。
 
 **Quit**
 Monadic Chat Consoleを終了します。Monadic Chatが起動している場合は、Monadic Chatを先に停止するため、少し時間がかかります。
 
-## Monadic Chat Settings
+### コンソールメニュー項目
+
+**Rebuild** <br />
+Monadic ChatのDockerイメージおよびコンテナを再構築します。
+
+**Uninstall Images and Containers** <br />
+Monadic ChatのDockerイメージおよびコンテナを削除します。
+
+**Start JupyterLab** <br />
+JupyterLabを起動します。JupyterLabは`http://localhost:8888`でアクセスできます。
+
+**Stop JupyterLab** <br />
+JupyterLabを停止します。
+
+**Import Document DB** <br />
+Monadic ChatのPGVectorデータベースにPDFドキュメントデータをインポートします。
+
+**Export Document DB** <br />
+Monadic ChatのPGVectorデータベースに保存されているPDFドキュメントデータをエクスポートします。
+
+## APIトークン設定画面
 
 <img src="./assets/images/settings-panel.png" width="400px"/>
 
@@ -63,7 +70,7 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 
 **MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーは「Mistral AI (Chat) アプリを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
 
-## App Settings Panel
+## チャット設定画面
 
 <img src="./assets/images/gpt-settings.png" width="700px"/>
 
@@ -127,7 +134,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 **Current Base App**<br />
 現在選択している基本アプリの名前と説明が表示されます。Monadic Chatの起動時にはデフォルトのアプリである`Chat`に関する情報が表示されます。
 
-## Session Panel
+## セッション表示パネル
 
 <img src="./assets/images/session.png" width="400px"/>
 
@@ -143,7 +150,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 **Export**<br />
 `Export`ボタンをクリックすると、現在の設定項目の値と会話データを外部ファイル（JSON）に保存します。
 
-## Speech Panel
+## 音声設定パネル
 
 <img src="./assets/images/speech.png" width="400px"/>
 
@@ -159,7 +166,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 音声認識にはWhisper APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。
 参考：[Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
-## PDF Database Panel
+## PDFデータベース表示パネル
 
 <img src="./assets/images/pdf-database.png" width="400px"/>
 
@@ -167,58 +174,3 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 
 **Uploaded PDF**<br />
 ここには、`Import PDF`ボタンをクリックしてアップロードしたPDFのリストが表示されます。PDFをアップロードする際に、ファイルに個別の表示名を付けることができます。指定しない場合はオリジナルのファイル名が使用されます。複数のPDFファイルをアップロードすることが可能です。PDFファイル表示名の右側のゴミ箱アイコンをクリックするとそのPDFファイルの内容が破棄されます。
-
-<img src="./assets/images/app-pdf.png" width="400px"/>
-<img src="./assets/images/import-pdf.png" width="400px"/>
-
-## Dialog Panel
-
-<img src="./assets/images/dialog.png" width="700px"/>
-
-**Buttons on Message Boxes**<br />
-
-<img src="./assets/images/copy.png" width="36px"/> Copy the message text to the system clipboard
-
-<img src="./assets/images/play.png" width="36px"/> Play text-to-speech of the message text
-
-<img src="./assets/images/close.png" width="36px"/> Delete the message text
-
-<img src="./assets/images/edit.png" width="36px"/> Edit the message text (Note: This deletes all the messages following it)
-
-<img src="./assets/images/active.png" width="36px"/> Current status of the message (Active)
-
-<img src="./assets/images/inactive.png" width="36px"/> Current status of the message (Inactive)
-
-**Role**<br />
-テキストエリア内のメッセージがどのRoleによるものかを指定します。デフォルトは`User`です。それ以外の選択肢はAPIに対して先行文脈として送信する会話データを調整するために用います。`User (to add to past messages)`を選ぶと、ユーザーからのメッセージが会話に追加されますが、APIには直ちに送信されず、後で通常の`User` Roleによるメッセージが送信されるときに、文脈の一部として一緒に送信されます。`Assistant (to add to past messages)`のRoleも基本的にこれと同様です。`System (to provide additional direction)`は会話自体の設定を追加したいときに用います。
-
-**Send**<br />
-このボタンをクリックするとテキストエリア内のメッセージがAPIに送信されます。
-
-**Clear**<br />
-このボタンをクリックするとテキストエリアをクリアします。
-
-**Voice Input**<br />
-このボタンをクリックすると、マイクを通じての音声入力が開始され、ボタン上の表示が`Stop`に変わります。`Stop`ボタンをクリックすると音声入力を停止します。音声入力中はボタンの右側に音量のインジケーター表示されます。
-
-<img src="./assets/images/voice-input-stop.png" width="400px"/>
-
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
-
-**Last ASR p-value**<br />
-この値は、最後に行った音声認識の信頼度を示すもので、`0.0`から`1.0`の間の値を取ります。この値が`1.0`に近いほど、音声認識結果の信頼度が高いことを示します。この値は、Whisper APIからのレスポンスに含まれるもので、音声入力が完了した後に表示されます。
-
----
-
-<script>
-  function copyToClipBoard(id){
-    var copyText =  document.getElementById(id).innerText;
-    document.addEventListener('copy', function(e) {
-        e.clipboardData.setData('text/plain', copyText);
-        e.preventDefault();
-      }, true);
-    document.execCommand('copy');
-    alert('copied');
-  }
-</script>

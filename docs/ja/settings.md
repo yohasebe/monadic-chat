@@ -1,4 +1,4 @@
-# 設定項目
+# 機能・設定
 
 <br />
 
@@ -26,7 +26,7 @@ Monadic Chatを使用するためにデフォルト・ブラウザーを開い�
 **Quit**
 Monadic Chat Consoleを終了します。
 
-### コンソールメニュー項目
+## コンソールメニュー項目
 
 **Rebuild** <br />
 Monadic ChatのDockerイメージおよびコンテナを再構築します。

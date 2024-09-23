@@ -253,7 +253,7 @@ class DockerManager {
                       openBrowser('http://localhost:4567');
                     })
                     .catch(error => {
-                      writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please check out monadic.log in the shared folder and start the server again. Rebuild the image ("Menu" → "Action" → "Rebuild"), if necessary.</p><hr />');
+                      writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please check out <b>monadic.log</b> in the shared folder and start the server again. Rebuild the image ("Menu" → "Action" → "Rebuild"), if necessary.</p><hr />');
                       console.error('Fetch operation failed after retries:', error);
                       currentStatus = 'Stopped';
                       updateTrayImage(currentStatus);

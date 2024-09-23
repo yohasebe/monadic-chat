@@ -1,14 +1,4 @@
----
-title: Monadic Chat
-layout: default
----
-
 # Frequently Asked Questions
-
-[English](/monadic-chat/faq) |
-[日本語](/monadic-chat/faq_ja)
-
----
 
 **Q**: How can I obtain an API token for OpenAI?
 
@@ -32,20 +22,3 @@ Monadic Chat uses the following APIs:
 - [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (Image generation model)
 - [Vision](https://platform.openai.com/docs/guides/vision) (Image recognition model)
 - [Embedding V3](https://platform.openai.com/docs/models/embeddings) (Text embedding model)
-
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
-
----
-
-<script>
-  function copyToClipBoard(id){
-    var copyText =  document.getElementById(id).innerText;
-    document.addEventListener('copy', function(e) {
-        e.clipboardData.setData('text/plain', copyText);
-        e.preventDefault();
-      }, true);
-    document.execCommand('copy');
-    alert('copied');
-  }
-</script>

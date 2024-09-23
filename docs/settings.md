@@ -1,220 +1,179 @@
----
-title: Monadic Chat
-layout: default
----
-
 # Settings
-{:.no_toc}
 
-[English](/monadic-chat/settings) |
-[日本語](/monadic-chat/settings_ja)
-
-## Table of Contents
-{:.no_toc}
-
-1. toc
-{:toc}
+<br />
 
 <img src="./assets/images/screenshot-01.png" width="700px"/>
 
-## Monadic Chat Console
+## Console Button Items
 
 <img src="./assets/images/monadic-chat-console.png" width="500px"/>
 
 **Start** <br />
-Starts Monadic Chat. It may take some time for the initial setup on Docker.
+Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
 **Stop** <br />
-Stops Monadic Chat.
+Stop Monadic Chat.
 
 **Restart** <br />
-Restarts Monadic Chat.
+Restart Monadic Chat.
 
 **Open Browser** <br />
-Opens the default browser to access `http://localhost:4567` for using Monadic Chat.
+Open the default browser to access Monadic Chat at `http://localhost:4567`.
 
 **Shared Folder** <br />
-Opens the folder shared between host computer and Docker containers. You can use this folder to import and export files.
+Open the folder shared between the host and Docker containers. It can be used for importing and exporting files.
 
 **Quit**
-Quits the Monadic Chat Console. If Monadic Chat is running, it will be stopped first, which may take some time.
+Exit the Monadic Chat Console. If Monadic Chat is running, it will stop first, which may take some time.
 
-## Monadic Chat Settings
+### Console Menu Items
+
+**Rebuild** <br />
+Rebuild the Docker images and containers for Monadic Chat.
+
+**Uninstall Images and Containers** <br />
+Remove the Docker images and containers for Monadic Chat.
+
+**Start JupyterLab** <br />
+Launch JupyterLab. It can be accessed at `http://localhost:8888`.
+
+**Stop JupyterLab** <br />
+Stop JupyterLab.
+
+**Import Document DB** <br />
+Import PDF document data into Monadic Chat's PGVector database.
+
+**Export Document DB** <br />
+Export PDF document data stored in Monadic Chat's PGVector database.
+
+## API Token Settings Screen
 
 <img src="./assets/images/settings-panel.png" width="400px"/>
 
-All the settings here are saved in the `~/monadic/data/.env` file. The settings are loaded when Monadic Chat is started.
+All settings here are saved in the `~/monadic/data/.env` file.
 
-**OPENAI_API_KEY** (required)<br />
-Enter your OpenAI API key here. The key is used to access the OpenAI APIs including the Chat API, the DALL·E image generation API, the Whisper speech recognition API, and the text-to-speech API. If you don't have one, you can get it at [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
+**OPENAI_API_KEY** (Required)<br />
+Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Whisper speech recognition API, and speech synthesis API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
 **VISION_MODEL**<br />
-Select the model to be used for image and video recognition. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
+Select the model used for image and video recognition. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
 **AI_USER_MODEL**<br />
-Select the model to be used for the AI-user feature with which the AI composes messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
+Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
 **ANTHROPIC_API_KEY**<br />
-Enter your Anthropic API key here. The key is needed for the Anthropic Claude (Chat) and Anthropic Claude (Code Interpreter) apps. If you don't have one, you can get it at [https://console.anthropic.com].
+Enter your Anthropic API key. This key is required to use the Anthropic Claude (Chat) and Anthropic Claude (Code Interpreter) apps. It can be obtained from [https://console.anthropic.com].
 
 **COHERE_API_KEY**<br />
-Enter your Cohere API key here. The key is needed for the Cohere Command R (Chat) and Cohere Command R (Code Interpreter) apps. If you don't have one, you can get it at [https://dashboard.cohere.com].
+Enter your Cohere API key. This key is required to use the Cohere Command R (Chat) and Cohere Command R (Code Interpreter) apps. It can be obtained from [https://dashboard.cohere.com].
 
 **GEMINI_API_KEY**<br />
-Enter your Google Gemini API key here. The key is needed for the Google Gemini (Chat) app. If you don't have one, you can get it at [https://ai.google.dev/].
+Enter your Google Gemini API key. This key is required to use the Google Gemini (Chat) app. It can be obtained from [https://ai.google.dev/].
 
 **MISTRAL_API_KEY**<br />
-Enter your Mistral API key here. The key is needed for the Mistral AI (Chat) app. If you don't have one, you can get it from the [https://console.mistral.ai/].
+Enter your Mistral API key. This key is required to use the Mistral AI (Chat) app. It can be obtained from [https://console.mistral.ai/].
 
-## App Settings Panel
+## Chat Settings Screen
 
 <img src="./assets/images/gpt-settings.png" width="700px"/>
 
 **Base App** <br />
-Choose one of the pre-built apps provided in Monadic Chat. Each app has different default parameter values and comes with its own initial prompt. For more information about each Base App's features, refer to [Base Apps](#base-apps).
+Select one of the basic apps provided by Monadic Chat. Each app has different default parameter values and unique initial prompts. For the characteristics of each app, see [Base Apps](#base-apps).
 
 **Model** <br />
-Choose one of the models provided by OpenAI. Each Base App has a default model specified, but you can change it according to your needs.
+Select one of the models provided by OpenAI. Each app has a default model specified, but it can be changed according to your purpose.
 
 **Max Tokens** <br />
-When this option is turned on, the text (past conversations and new messages) sent to the API will be limited to the specified number of tokens. For more information on how tokens are counted in the OpenAI API, refer to [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
+When the checkmark is on, the text sent to the API (past interactions and new messages) is limited to the specified number of tokens. For information on how tokens are counted in OpenAI's API, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
+
+Specify the "maximum number of tokens" sent as a parameter to the Chat API. This includes the number of tokens in the text sent as a prompt and the number of tokens in the text returned as a response. For information on how tokens are counted in OpenAI's API, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 
 **Context Size** <br />
-This is the maximum number of active utterances to keep in the ongoing chat. Only active utterances are sent as context information to the OpenAI chat API. Inactive utterances are still visible on the screen and will be saved when exporting. (min: 1, max: 100, default: 10)
+The maximum number of utterances to keep active in the ongoing chat. Only active utterances are sent to OpenAI's chat API as context information. Inactive utterances can still be referenced on the screen and are also saved when exported.
 
-**Parameters** <br />
+**Parameters**<br />
 
 - Temperature
 - Top P
 - Presence Penalty
 - Frequency Penalty
 
-These elements are sent as parameters to the API. For more details on each parameter, refer to the [Reference](https://platform.openai.com/docs/api-reference/chat) of the Chat API.
+These elements are sent as parameters to the API. For details on each parameter, see the Chat API [Reference](https://platform.openai.com/docs/api-reference/chat).
 
-**Initial Prompt for Assistant**<br />
-This is the text sent to the API as the initial prompt. You can specify the character settings for the conversation and the format of the response. Each Base App has a default text set according to its purpose, but you can freely change it.
+**Show Initial Prompt**<br />
+Turn on to display or edit the text sent to the API as the initial prompt (also called the system prompt). The initial prompt can specify the character settings of the conversation and the format of the response. Default text is set according to the purpose of each app, but it can be freely changed.
 
 **Show Initial Prompt for AI-User**<br />
-Displays the initial prompt given to the AI-user when the AI-user feature is enabled. When the AI-user is enabled, the first message must be created by the (non-AI) user themselves, but thereafter, the AI will "impersonate" the user and create messages on their behalf based on the content of the messages from the AI-assistant. The user can edit or add to the messages created by the AI-user in the text box.
+Displays the initial prompt given to the AI user when the AI User feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user, but thereafter, the AI will "pretend to be the user" and create messages on behalf of the user based on the content of the messages from the AI assistant. The user can edit or add to the message created by the AI user in the text box.
 
 **Enable AI-User**<br />
-Specifies whether to enable the AI-user feature.
+Specify whether to enable the AI User feature.
+
+**Chat Interaction Controls**<br />
+Options to set Monadic Chat in a form suitable for conversation with voice input. If you are having a conversation with voice input, it is recommended to turn on all the following options (`Start from assistant`, `Auto speech`, `Easy submit`). You can turn all options on or off at once by clicking `check all` or `uncheck all`.
 
 **Start from assistant**<br />
 
-When this option is turned on, the assistant will make the first utterance when starting the conversation.
+When on, the assistant makes the first utterance when starting a conversation.
+
+**Auto speech**<br />
+
+When on, the response from the assistant is automatically read aloud with synthesized speech when it is returned.
+
+**Easy submit**<br />
+
+When on, the message in the text area is automatically sent by pressing the Enter key on the keyboard without clicking the `Send` button. If you are in the middle of voice input, pressing the Enter key or clicking the `Stop` button will automatically send the message.
 
 **Start Session** <br />
-Click this button to start the chat based on the options and parameters specified in the GPT Settings.
+Click this button to start a chat with the options and parameters specified in GPT Settings.
 
-## Monadic Chat Info Panel 
+## Info Panel
 
 <img src="./assets/images/monadic-chat-info.png" width="400px"/>
 
 **Monadic Chat Info**<br />
-This panel displays the link to the related website and the version of Monadic Chat. Clicking on `API Usage` will take you to the OpenAI page. Please note that the API Usage represents the overall usage of the API and may not be solely from Monadic Chat. The parentheses after the version number indicate whether Docker or Local is displayed, depending on the installation style of Monadic Chat.
+Links to related websites and the version of Monadic Chat are shown. Clicking `API Usage` will take you to the OpenAI page. Note that the API Usage shown is the overall API usage and may not be limited to Monadic Chat. The style in which Monadic Chat was installed is displayed in parentheses after the version number, either Docker or Local.
 
 **Current Base App**<br />
-The name and description of the currently selected Base App are displayed here. When Monadic Chat is launched, information about the default Base App, which is `Chat`, is displayed.
+The name and description of the currently selected base app are displayed. When Monadic Chat is launched, information about the default app, `Chat`, is displayed.
 
-## Session Panel
+## Session Display Panel
 
 <img src="./assets/images/session.png" width="400px"/>
 
 **Reset**<br />
-Clicking the `Reset` button will discard the current conversation and return to the initial state. The Base App will also return to the default `Chat`.
+Clicking the `Reset` button will discard the current conversation and return to the initial state. The app selection will also revert to the default `Chat`.
 
 **Settings**<br />
-Clicking the `Settings` button will not discard the current conversation and will return to the GPT Settings panel. To return to the current conversation, click `Continue Session`.
+Clicking the `Settings` button will return to the GPT Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.
 
 **Import**<br />
-Clicking the `Import` button will discard the current conversation and load the conversation data saved in an external file (JSON). The settings saved in the external file will also be applied.
+Clicking the `Import` button will discard the current conversation and load conversation data saved in an external file (JSON). The settings saved in the external file will also be applied.
 
 **Export**<br />
-Clicking the `Export` button will save the current values of the settings and conversation data to an external file (JSON).
+Clicking the `Export` button will save the current settings and conversation data to an external file (JSON).
 
-## Speech Panel
+## Speech Settings Panel
 
 <img src="./assets/images/speech.png" width="400px"/>
 
-**NOTE**: To use the speech recognition feature, you need to use Google Chrome or Microsoft Edge browsers.
+**NOTE**: To use the speech feature, you need to use the Google Chrome or Microsoft Edge browser.
 
-**Automatic Language Detect**<br />
-When this setting is turned on, the language used for speech recognition and synthesis will be automatically detected. In this case, the default voice for synthesis will be used. When this setting is turned off, you can specify the language for speech recognition and synthesis using the `Language` selector. You can also specify the voice for synthesis using the `Voice` selector.
+**Text-to-Speech (TTS) Voice**<br />
+You can specify the voice used for speech synthesis.
 
-**Language**<br />
-When `Automatic Language Detect` is turned off, you can specify the language to be used for speech recognition and synthesis here. The available languages may vary depending on the operating system and browser. Since speech recognition is done through the Whisper API, only the languages listed in the [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq) are supported.
+**TTS Speed**<br />
+You can specify the speech speed for speech synthesis between 0.5 and 1.5 (default: 0.0).
 
-**Voice**<br />
-When `Automatic Language Detect` is turned off, you can specify the voice to be used for speech synthesis here. The available voices may vary depending on the operating system and browser.
+**Automatic-Speech-Recognition (ASR) Language**<br />
+Whisper API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language in the selector.
+Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
-**Rate**<br />
-You can specify the speech rate for speech synthesis between 0.5 and 1.5 (default: 1.0).
-
-## PDF Database Panel
+## PDF Database Display Panel
 
 <img src="./assets/images/pdf-database.png" width="400px"/>
 
-**NOTE**: The PDF Database Panel is only displayed when you have selected a Base App with PDF loading functionality.
+**NOTE**: This panel is displayed only when an app with PDF reading functionality is selected.
 
 **Uploaded PDF**<br />
-Here, you can see a list of PDFs that you have uploaded by clicking the `Import PDF` button. When uploading a PDF, you have the option to give it a custom display name. If no name is specified, the original file name will be used. You can upload multiple PDF files. To discard the contents of a PDF file, click on the trash can icon on the right side of its display name.
-
-<img src="./assets/images/app-pdf.png" width="400px"/>
-<img src="./assets/images/import-pdf.png" width="400px"/>
-
-## Dialog Panel
-
-<img src="./assets/images/dialog.png" width="700px"/>
-
-**Buttons on Message Boxes**<br />
-
-<img src="./assets/images/copy.png" width="36px"/> Copy the message text to the system clipboard
-
-<img src="./assets/images/play.png" width="36px"/> Play text-to-speech of the message text
-
-<img src="./assets/images/close.png" width="36px"/> Delete the message text
-
-<img src="./assets/images/edit.png" width="36px"/> Edit the message text (Note: This deletes all the messages following it)
-
-<img src="./assets/images/active.png" width="36px"/> Current status of the message (Active)
-
-<img src="./assets/images/inactive.png" width="36px"/> Current status of the message (Inactive)
-
-**Use easy submit**<br />
-**Auto speech**<br />
-
-When `Use easy submit` is turned on, you can automatically send the message in the text area by pressing the Enter key on the keyboard without clicking the `Send` button. If you are using voice input, the message will be automatically sent by pressing the Enter key or clicking the `Stop` button. When `Auto speech` is turned on, the assistant's response will be automatically read out in text-to-speech voice.
-
-When both `Use easy submit` and `Auto speech` are turned on, you can start and stop voice input with just the Enter key on the keyboard, enabling smooth conversation between the user and the assistant through voice.
-
-**Role**<br />
-The `role` parameter specifies the role of the message within the text area. The default value is `User`. Other options are used to adjust the conversation data sent to the API as a preceding context. Choosing `User (to add to past messages)` adds the user's message to the conversation, but it is not immediately sent to the API. Instead, it is sent along with the regular `User` role messages as part of the context. The `Assistant (to add to past messages)` role is essentially the same. The `System (to provide additional direction)` role is used when you want to add additional instructions regarding the conversation itself.
-
-**Send**<br />
-When you click this button, the message in the text area will be sent to the API.
-
-**Clear**<br />
-When you click this button, the text area will be cleared.
-
-**Voice Input**<br />
-When you click this button, voice input through the microphone will start, and the display on the button will change to `Stop`. Clicking the `Stop` button will stop the voice input. During voice input, a volume indicator will be displayed on the right side of the button.
-
-<img src="./assets/images/voice-input-stop.png" width="400px"/>
-
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
-
----
-
-<script>
-  function copyToClipBoard(id){
-    var copyText =  document.getElementById(id).innerText;
-    document.addEventListener('copy', function(e) {
-        e.clipboardData.setData('text/plain', copyText);
-        e.preventDefault();
-      }, true);
-    document.execCommand('copy');
-    alert('copied');
-  }
-</script>
+Here, a list of PDFs uploaded by clicking the `Import PDF` button is displayed. You can assign a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.

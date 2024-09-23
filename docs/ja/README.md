@@ -1,23 +1,20 @@
----
-title: Monadic Chat
-layout: default
----
+# Monadic Chat
 
-# 概要
+![Monadic Chat Architecture](../assets/images/monadic-chat-architecture.svg ':width=800')
 
-[English](/monadic-chat/overview) |
-[日本語](/monadic-chat/overview_ja)
-
-<img src="./assets/images/monadic-chat-architecture.png" width="800px"/>
-
-
-## これは何？
+## 概要
 
 **Monadic Chat** は、インテリジェントなチャットボットを作成・利用するためのWebアプリケーションフレームワークです。GPT-4やその他のLLMにDocker上のLinux環境を与え、外部ツールを必要とする高度なタスクを実行させることができます。また、音声インタラクション、画像・動画の認識と生成、AI同士のチャットをサポートしており、AIを使うだけでなく、活用した様々なアプリケーションの開発や研究にも役立ちます。
 
-[更新情報](https://github.com/yohasebe/monadic-chat/blob/main/CHANGELOG.md)
+## 「接地」とは？
 
-## 主な特徴
+Monadic Chatは現実世界に接地するAIフレームワークです。ここで**接地**という表現は2つの意味を持ちます。
+
+通常、談話には文脈と目的があり、それらを参照・更新しながら進行します。人間同士の会話においてと同様、AIエージェントとの会話でも、そのような**文脈の維持と参照**が有用です。事前にメタ情報のフォーマットや構造を定義することで、AIエージェントとの会話がより目的を持ったものになることが期待されます。ユーザーとAIエージェントが背景的基盤を共有しながら談話を進展させていくこと、それが1つめの意味での「接地」です。
+
+人間であるユーザーは目的を達成するために様々なツールを使用することができます。一方、多くの場合、AIエージェントにはそれができません。Monadic Chatは、AIエージェントが**自由に使えるLinux環境**を提供することで、AIエージェントが外部ツールを使ったタスクを実行できるようにします。これにより、AIエージェントはユーザーが目的を達成するためのサポートをより効果的に行うことができます。Dockerのコンテナ上の環境なので、ホストとなるシステムに影響を与えることもありません。これが2つめの意味での「接地」です。
+
+## 特徴
 
 ### 基本構造
 
@@ -35,7 +32,7 @@ layout: default
   - PGVector (+ PostgreSQL) for DAG using vector representation
   - Selenium (+ Chrome/Chromium) for web scraping
 - 📦 各コンテナは**SSH**接続による管理が可能
-- 📓 Pythonコンテナ上では**Jupyter Notebook**を起動可能
+- 📓 **Jupyter Notebook**との連携が可能
 
 ### データ管理
 
@@ -94,19 +91,12 @@ layout: default
 
 - ♻️   AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内の値を更新することで会話の（見えない）**状態の管理**が可能
 
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
+## 開発者
 
----
+長谷部 陽一郎（Yoichiro HASEBE）<br />
+[yohasebe@gmail.com](yohasebe@gmail.com)
 
-<script>
-  function copyToClipBoard(id){
-    var copyText =  document.getElementById(id).innerText;
-    document.addEventListener('copy', function(e) {
-        e.clipboardData.setData('text/plain', copyText);
-        e.preventDefault();
-      }, true);
-    document.execCommand('copy');
-    alert('copied');
-  }
-</script>
+## ライセンス
+
+This software is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+

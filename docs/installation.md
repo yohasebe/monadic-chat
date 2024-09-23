@@ -1,81 +1,87 @@
----
-title: Monadic Chat
-layout: default
----
-
 # Installation
-{:.no_toc}
 
-[English](/monadic-chat/installation) |
-[日本語](/monadic-chat/installation_ja)
+## Basic Steps
 
-## Table of Contents
-{:.no_toc}
+<!-- tabs:start -->
 
-1. toc
-{:toc}
+### **macOS**
 
-## Installer Download 
+For macOS, follow these steps to install Monadic Chat.
 
-### macOS
+1. Install Docker Desktop for Mac.
+2. Download and install the Monadic Chat installer.
 
-1. Install Docker Desktop for Mac (see [below](#install-docker-macos)).
-2. Install Monadic Chat.
+- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.13-arm64.dmg) (0.8.13)
+- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.13.dmg) (0.8.13)
 
-- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.0-arm64.dmg) (0.9.0)
-- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.0.dmg) (0.9.0)
+### **Windows**
 
-### Windows
+For Windows, follow these steps to install Monadic Chat.
 
-1. Install WSL2 (see [below](#install-wsl2-win)).
-2. Install Docker Desktop for Windows (see [below](#install-docker-win)).
-3. Install Monadic Chat.
+1. Install WSL2.
+2. Install Docker Desktop for Windows.
+3. Download and install the Monadic Chat installer.
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.9.0.exe) (0.9.0)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.8.13.exe) (0.8.13)
 
-### Linux (Ubuntu/Debian)
+### **Linux**
 
-1. Install Docker Desktop for Linux (See [Docker Desktop for Linux](https://docs.docker.com/desktop/install/linux-install/)).
-2. Install Monadic Chat.
+For Linux (Ubuntu/Debian), follow these steps to install Monadic Chat.
 
-- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.9.0_amd64.deb) (0.9.0)
-- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.9.0_arm64.deb) (0.9.0)
+1. Install Docker Desktop for Linux.
 
-## How to Install Dependencies
+Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/install/linux-install.html)
 
-### macOS
+2. Download the Monadic Chat installer.
 
-<b id="install-docker-macos">Install Docker Desktop</b>
+- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.8.13_amd64.deb) (0.8.13)
+- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.8.13_arm64.deb) (0.8.13)
 
-Next, install Docker Desktop, which is software for creating container-based virtual environments.
+3. Run the following command in the terminal.
 
-Choose on of the two different packages depending on your Mac's CPU. You can check the type of CPU on the terminal with the following command:
+```shell
+$ sudo apt install ./monadic-chat_xx.xx.xx_xxx64.deb
+```
+
+<!-- tabs:end -->
+
+## Preparation
+
+<!-- tabs:start -->
+
+### **macOS**
+
+For macOS, follow these steps to install Docker Desktop.
+
+Next, install Docker Desktop. Docker Desktop is software for creating containerized virtual environments.
+
+Use different packages depending on your Mac's CPU. You can check the type of CPU with the following command in the terminal.
 
 ```shell
 $ sysctl -n machdep.cpu.brand_string
 ```
 
-Download Docker Desktop from [Install Docker Desktop on Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac), but for Intel, download `Docker Desktop Installer.dmg`, and for Apple Silicon, download `Docker Desktop Installer Apple Silicon.dmg`.
+Download and install Docker Desktop from [Install Docker Desktop on Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac). For Intel, download `Docker Desktop Installer.dmg`, and for Apple Silicon, download `Docker Desktop Installer Apple Silicon.dmg`.
 
 <img src="./assets/images/mac-docker-download.png" width="800px"/>
 
-Double-click the downloaded dmg file. Then drag and drop the docker icon to the Applications folder to install it. Once the installation is complete, start Docker Desktop. When you start Docker Desktop first time, you will be asked to accept the service agreement (→ press accept), choose settings (→ use recommended settings), and allow privileged access to apply configuration (→ enter your Mac username and password).
+Double-click the downloaded dmg file to display a window, then drag the Docker icon to the Applications folder. Once the installation is complete, launch Docker Desktop. You will be asked to agree to the service agreement (accept it). You will also be asked whether to use the recommended settings (use the recommended settings unless you have specific preferences). You will also be prompted to enter your Mac username and password for internal use of osascript.
 
-Once everything has been set up, the Docker Desktop icon will appear in the task bar. After Docker Desktop has started, you may close the Docker Desktop Dashboard window if it is open.
+Once Docker Desktop is launched, the Docker icon will appear in the taskbar. You can close the Docker Desktop dashboard window at this point.
 
-### Windows
+### **Windows**
 
-Below, the method to install Monadic Chat on Windows 11 Home will be explained. The same method can be used for Windows 11 Pro and Windows 11 Education as well.
+To use Monadic Chat on Windows 11, you need to install Windows Subsystem for Linux 2 (WSL2) and Docker Desktop. Below is the method to install Monadic Chat on Windows 11 Home. The same method can be used for Windows 11 Pro and Windows 11 Education.
 
-<b id="install-wsl2-win">Install WSL2</b>
+#### Installing WSL2
 
-First, install [WSL2](https://brew.sh), which is a Linux environment for Windows.
+First, install [WSL2](https://brew.sh), which is a mechanism to realize a Linux environment on Windows.
 
-Open PowerShell in the administrator mode. To do this, search PowerShell (`Start -> Windows PowerShell`) and select "Run as administrator".
+Open PowerShell in administrator mode. Search for PowerShell in the Windows search box and select "Run as administrator" to launch powershell.exe.
 
 <img src="./assets/images/win-powershell.png" width="800px"/>
 
-Then execute the following command (the first `>` represents the command line prompt):
+Next, execute the following command in PowerShell (the initial `>` represents the command line prompt).
 
 ```shell
 > wsl --install
@@ -83,64 +89,33 @@ Then execute the following command (the first `>` represents the command line pr
 
 <img src="./assets/images/win-wsl-install.png" width="800px"/>
 
-Then reboot your computer. After rebooting, WSL2 and its default Linux distribution Ubuntu will be installed. During this process, you will be asked to enter a username and password for the Linux environment. Enter any username and password you like. You will need to remember this username and password later.
+Then restart your computer. After restarting, WSL2 and its default Linux distribution, Ubuntu, will be installed. During this process, you will be prompted to enter a username and password for the Linux environment. Enter any username and password. You will need to remember this username and password later.
 
-Now you have completed the installation of WSL2. You can start the Linux environment by searching for "Ubuntu" in the Windows search box and open the Ubuntu terminal. 
+This completes the installation of WSL2. Ubuntu is now available on Windows. Search for "Ubuntu" in the Windows search box and open the Ubuntu terminal.
 
 <img src="./assets/images/win-ubuntu.png" width="800px"/>
 
-<b id="install-docker-win">Install Docker Desktop</b>
+#### Installing Docker Desktop
 
-Next, install Docker Desktop, which is software for creating container-based virtual environments.
+Next, install Docker Desktop, software for creating virtual environments using containers.
 
 Download Docker Desktop from [Install Docker Desktop on Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows).
 
 <img src="./assets/images/win-docker-download.png" width="800px"/>
 
-Double-click the downloaded exe file. Once the installation is complete, start Docker Desktop. When you start Docker Desktop first time, you may be asked to accept the service agreement (→ press accept) and choose settings (→ use recommended settings).
+Double-click the downloaded exe file to start the installation. Once the installation is complete, launch Docker Desktop. When you first launch Docker Desktop, you will be asked to agree to the service agreement (agree) and whether to select settings (use recommended settings).
 
-Once everything has been set up, the Docker Desktop icon will appear in the task tray at the bottom right of the screen. After Docker Desktop has started, you may close the Docker Desktop Dashboard window if it is open.
+Once these are complete, the Docker Desktop icon will appear in the task tray at the bottom right of the screen. Once Docker Desktop is launched, you can close the Docker Desktop Dashboard window.
 
-## How to Update
+### **Linux**
 
-1. Click `Check for Updates` in the menu. If an update is available, click `Download` to download the latest version.
-2. Quit Monadic Chat.
-3. Run the installer for the latest version.
+For Linux (Ubuntu/Debian), refer to the following pages to install Docker Desktop.
 
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lightbox2@2.11.3/src/js/lightbox.js"></script>
+- [For Debian](https://docs.docker.jp/desktop/install/debian.html)
+- [For Ubuntu](https://docs.docker.jp/desktop/install/ubuntu.html)
 
-## How to Uninstall
+<!-- tabs:end -->
 
-1. Click  `Uninstall Images and Containers` in the menu. This will remove the Docker containers and images shown below.
-2. Quit Monadic Chat.
-3. For **macOS**, open the `Applications` folder in Finder and drag Monadic Chat to the trash. For **Windows**, uninstall Monadic Chat from `Add or Remove Programs`.
+## Update
 
-## Trouble Shooting
-
-In case of any trouble, updating or uninstalling Monadic Chat, remove the following Docker containers and images manually and try again.
-
-**Containers**
-
-- `monadic-chat-container`
-
-**Images**
-
-- `yohasebe/monadic-chat`
-- `yohasebe/python`
-- `yohasebe/selenium`
-- `yohasebe/pgvector`
-
----
-
-<script>
-  function copyToClipBoard(id){
-    var copyText =  document.getElementById(id).innerText;
-    document.addEventListener('copy', function(e) {
-        e.clipboardData.setData('text/plain', copyText);
-        e.preventDefault();
-      }, true);
-    document.execCommand('copy');
-    alert('copied');
-  }
-</script>
+To check if there is a newer version of Monadic Chat, run `Check for Updates` from the menu. If there is a new version, a download link will be displayed. Click the download link to download the installer for the new version.

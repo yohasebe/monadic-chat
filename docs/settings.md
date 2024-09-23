@@ -2,7 +2,8 @@
 
 <br />
 
-<img src="./assets/images/screenshot-01.png" width="700px"/>
+<img src="./assets/images/monadic-chat-web.png" width="700px"/>
+.png" width="700px"/>
 
 ## Console Button Items
 
@@ -75,7 +76,7 @@ Enter your Mistral API key. This key is required to use the Mistral AI (Chat) ap
 
 ## Chat Settings Screen
 
-<img src="./assets/images/gpt-settings.png" width="700px"/>
+<img src="./assets/images/chat-settings.png" width="700px"/>
 
 **Base App** <br />
 Select one of the basic apps provided by Monadic Chat. Each app has different default parameter values and unique initial prompts. For the characteristics of each app, see [Base Apps](#base-apps).
@@ -139,7 +140,7 @@ The name and description of the currently selected base app are displayed. When 
 
 ## Session Display Panel
 
-<img src="./assets/images/session.png" width="400px"/>
+<img src="./assets/images/monadic-chat-session.png" width="400px"/>
 
 **Reset**<br />
 Clicking the `Reset` button will discard the current conversation and return to the initial state. The app selection will also revert to the default `Chat`.
@@ -155,7 +156,7 @@ Clicking the `Export` button will save the current settings and conversation dat
 
 ## Speech Settings Panel
 
-<img src="./assets/images/speech.png" width="400px"/>
+<img src="./assets/images/monadic-chat-tts.png" width="400px"/>
 
 **NOTE**: To use the speech feature, you need to use the Google Chrome or Microsoft Edge browser.
 
@@ -171,7 +172,7 @@ Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper
 
 ## PDF Database Display Panel
 
-<img src="./assets/images/pdf-database.png" width="400px"/>
+<img src="./assets/images/monadic-chat-pdf-db.png" width="400px"/>
 
 **NOTE**: This panel is displayed only when an app with PDF reading functionality is selected.
 

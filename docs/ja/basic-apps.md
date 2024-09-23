@@ -57,6 +57,18 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 </details>
 
+### Second Opinion
+
+![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
+
+AIに質問を行うと、AIはその質問に対する回答を生成しますが、その回答の妥当性を確認するために、同じLLMモデルに質問を投げ、その回答を比較します。AIによる回答におけるハルシネーションや誤解を防ぐために、このアプリケーションを使用することができます。
+
+<details>
+<summary>second_opinion_app.rb</summary>
+
+![second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+
+</details>
 
 ## 言語学習・翻訳
 

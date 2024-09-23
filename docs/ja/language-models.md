@@ -117,4 +117,6 @@ Chat with Mistralは、Mistral AI APIにアクセスして、幅広いトピッ�
 
 ## Ollama
 
+![Ollama apps icon](../assets/icons/ollama.png ':size=40')
+
 追加のイメージとコンテナを導入することで、Ollamaを用いたアプリを使用することができます。OllamaはLLaMAやGemmaなどの言語モデルをローカルで使用することができるようにするためのツールです。Monadic ChatでOllamaを導入する方法については、[Ollamaの利用](/ja/ollama)を参照してください。

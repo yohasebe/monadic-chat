@@ -19,7 +19,7 @@
 </details>
 
 <details>
-<summary>関数定義ファイル（wikipedia_agent.rb</summary>
+<summary>関数定義ファイル（wikipedia_agent.rb）</summary>
 
 ![chat_app.rb ](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/agents/wikipedia_agent.rb ':include :type=code')
 
@@ -36,7 +36,7 @@
 Monadic ChatではJSON形式で出力する場合の特別なモード（`monadic`モード）があります。詳細については[Monadicモード](/ja/monadic-mode)も参照してください。
 
 <details>
-<summary>レシピファイル（novel_writer_app.rb</summary>
+<summary>レシピファイル（novel_writer_app.rb）</summary>
 
 ![chat_app.rb ](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 

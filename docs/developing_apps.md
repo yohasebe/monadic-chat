@@ -2,13 +2,59 @@
 
 In Monadic Chat, you can develop AI chatbot applications using original system prompts. This page explains the steps to develop a new application.
 
-## How to Add
+## How to Add a Simple App
 
 1. Create a recipe file for the app. The recipe file is written in Ruby.
 2. Save the recipe file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
 3. Restart Monadic Chat.
 
-The recipe file can be saved in any directory under the `apps` directory as long as it is correctly written. However, it is conventionally recommended to create an `app_name` directory directly under the `apps` directory and save the recipe file named `app_name_app.rb` in it.
+The recipe file can be saved in any directory under the `apps` directory as long as it is correctly written.
+
+### How to Add an Advanced App
+
+The recipe file for the app defines a class that inherits from `MonadicApp` and describes the application settings in the instance variable `@settings`. By defining a module in the helper folder, you can implement common functions that can be used in multiple apps.
+
+When adding a new container other than the standard container, store Docker-related files in the `services` folder. When you want to execute a specific command available in each container or use a Python function, use the `send_command` method or `send_code` method defined in `MonadicApp`, which is the base class for all additional apps.
+
+When defining an app by combining these elements, the folder structure will look like this:
+
+```text
+~/
+└── monadic
+    └── data
+        ├── apps
+        │   └── my_app
+        │       └── my_app.rb
+        ├── helpers
+        │   └── my_helper.rb
+        └── services
+            └── my_service
+                ├── compose.yml
+                └── Dockerfile
+```
+
+## Creating a Plugin
+
+Adding files to the `apps`, `helpers`, and `services` folders directly under the shared folder can make it difficult to manage code and difficult to redistribute. You can consolidate additional apps into a single folder and develop them as plugins.
+
+To create a plugin, create a folder under `~/monadic/data/plugins` and create `apps` and other folders directly under the plugin folder to store the necessary files.
+
+```text
+~/
+└── monadic
+    └── data
+        └── plugins
+            └── my_plugin
+                ├── apps
+                │   └── my_app
+                │       └── my_app.rb
+                ├── helpers
+                │   └── my_helper.rb
+                └── services
+                    └── my_service
+                        ├── compose.yml
+                        └── Dockerfile
+```
 
 ## Writing the Recipe File
 
@@ -139,3 +185,43 @@ Specify a list of available functions. The actual definition of the functions sp
 `response_format` (hash)
 
 Specify the output format when outputting in JSON format. For details, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
+
+## Calling Functions in the App
+
+It is possible to define functions that the AI agent can use in the app. Define functions in Ruby, specify function names and arguments in `@settings`' `tools`, and describe how to use the functions in `initial_prompt`.
+
+When you want to execute a specific command available in each container or use a Python function, use the `send_command` method or `send_code` method defined in `MonadicApp`, which is the base class for all additional apps.
+
+### `send_command`
+
+The `send_command` method is used to execute a command in the container. Specify the command as a string in the argument. The return value is a string of the command execution result.
+
+```ruby
+send_command(command: "ls", container: "python", success: "Command executed successfully.")
+```
+
+For example, the above code executes the `ls` command in the Python container and returns the result. The `command` argument specifies the command to execute. The `container` argument specifies the container to execute the command in. If `python` is specified, it refers to the `monadic-chat-python-container`. The `success` argument specifies the message to insert before the command execution result if the command execution is successful.
+
+### `send_code`
+
+The `send_code` method is used to execute code in the container. It saves the given code to a temporary file and executes that file with the specified program. When a new file is generated as a result, the returned string differs depending on whether the file is generated.
+
+```ruby
+send_code(code: "print('Hello, world!')", command: "python", extension: "py")
+```
+
+For example, the above code executes the `print('Hello, world!')` code in the Python container and returns the result. The `code` argument specifies the code to execute. The `container` argument specifies the program to execute the code. The `extension` argument specifies the extension of the temporary file.
+
+**When a file is not generated**
+
+```text
+The code has been executed successfully; Output: OUTPUT
+```
+
+**When a file is generated**
+
+```text
+The code has been executed successfully; Files generated: NEW FILE; Output: OUTPUT
+```
+
+By calling the `send_command` or `send_code` method from a method used in the app, you can realize advanced functions that utilize the Docker container's capabilities by returning messages to the AI agent according to the results.

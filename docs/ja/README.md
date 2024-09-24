@@ -8,7 +8,7 @@
 
 ## 「接地」とは？
 
-Monadic Chatは現実世界に接地するAIフレームワークです。ここで**接地**という表現は2つの意味を持ちます。
+Monadic Chatは現実世界に接地するAIフレームワークです。ここで**接地**（grounding）という表現は2つの意味を持ちます。
 
 通常、談話には文脈と目的があり、それらを参照・更新しながら進行します。人間同士の会話においてと同様、AIエージェントとの会話でも、そのような**文脈の維持と参照**が有用です。事前にメタ情報のフォーマットや構造を定義することで、AIエージェントとの会話がより目的を持ったものになることが期待されます。ユーザーとAIエージェントが背景的基盤を共有しながら談話を進展させていくこと、それが1つめの意味での「接地」です。
 
@@ -18,8 +18,8 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 基本構造
 
-- 🤖 OpenAIのChat API（**GPT-4**）を使用したチャット機能
-- 👩‍💻 **Electron**を用いたGUIアプリによりDocker環境を簡単に構築
+- 🤖 様々なwebおよびlocal APIを介した**AIアシスタント**の利用
+- ⚛️ **Electron**を用いたGUIアプリによりDocker環境を簡単に構築
 - 📁 **同期フォルダ**でローカルファイルとDockerコンテナ内のファイルを同期
 - 📦 ユーザーによる**アプリ**と**コンテナ**の追加機能
 - 👩💬 **human↔️AI chat**と🤖💬 **AI↔️AI chat**の両方をサポート
@@ -78,8 +78,11 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
-- 🦙 Ollamaを用いたDocker上のローカル環境でのLLMの利用
-  - [Ollama](https://ollama.com/)
+- 🦙 [Ollama](https://ollama.com/)を用いたDocker上のローカル環境でのLLMの利用
+  - Llama
+  - Phi
+  - Mistral
+  - Gemma
 - 🤖💬🤖 AIどうしのチャット機能
 
 ### モナドとしての会話の管理

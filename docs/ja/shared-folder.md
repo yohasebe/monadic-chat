@@ -1,7 +1,5 @@
 # 共有フォルダ
 
-Monadic ChatのDockerコンテナ内でファイルを共有するためのフォルダを設定する方法について説明します。
-
 Monadic Chatを最初に起動すると、`~/monadic/data`ディレクトリが作成されます。このディレクトリは、Monadic ChatのDockerコンテナ内でファイルを共有するためのデフォルトの共有フォルダです。
 
 Monadic Chatコンソールの`Shared Folder`ボタンをクリックすると、OS標準のファイルマネージャが起動し、共有フォルダを開くことができます。
@@ -13,6 +11,17 @@ Monadic Chatコンソールの`Shared Folder`ボタンをクリックすると�
 アプリ内部で何らかの処理を行う場合、中間ファイルを共有フォルダ内に保存することがあります。何らかの理由でアプリ上での処理が失敗した場合、共有フォルダ内のファイルを確認することで、処理の途中結果を確認することができます。
 
 Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用してJupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。このため、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
+
+## 共有フォルダに保存されるファイルの例
+
+- `monadic.log`Monadic Chatサーバーのログファイル
+- 追加コンテナ作成時の`compose.yml`ファイル
+- `code interpreter`などのアプリで実行されたコードの結果ファイル
+- `image generator`アプリで生成された画像ファイル
+- `jupyter notebook`アプリで作成されたノートブックファイル
+- `video designer`アプリが動画を分割して生成した画像ファイル
+- `video designer`アプリが抽出した音声ファイル
+- `speech draft helper`アプリで生成された音声ファイル
 
 ## 自動で作成されるサブフォルダ
 
@@ -32,12 +41,7 @@ Monadic ChatのDockerコンテナ内で自動的に作成されるサブフォ�
 
 **`scripts`**
 
-標準コンテナ内で実行可能なするシェルスクリプトを格納するフォルダです。ここでいう標準コンテナは下記のものを指します。
-
-- `monadic-chat-ruby-container`
-- `monadic-chat-python-container`
-- `monadic-chat-selenium-container`
-- `monadic-chat-pgvector-container`
+Pythonコンテナ（`monadic-chat-python-container`内で実行可能なスクリプトを格納するフォルダです。ここに格納されたスクリプトはPythonコンテナ上でパスが通った状態になります。そのため、追加アプリ内で`send_command`メソッドを使用してスクリプトを実行することができます。
 
 **`plugins`**
 

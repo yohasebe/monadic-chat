@@ -184,7 +184,7 @@ class MonadicApp
   end
 
   def send_command(command:,
-                   container:,
+                   container: "python",
                    success: "")
     case container.to_s
     when "ruby"

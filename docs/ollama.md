@@ -4,24 +4,27 @@
 
 To use Ollama, place the necessary files as shown below and rebuild Monadic Chat.
 
-1. Download the additional files for Ollama.
 
-2. Place the files in the following subfolders of the shared folder.
+1. Download the additional files for Ollama at [Monadic Chat Extra](https://github.com/yohasebe/monadic-chat-extra).
+
+2. Place the files in the `plugins` folder in the shared folder as shown below.
 
 ```
 ~
 └── monadic
     └── data
-        ├── apps
-        │   └── talk_to_ollama
-        │       └── talk_to_ollama_app.rb
-        ├── services
-        │   └── ollama
-        │       ├── compose.yml
-        │       ├── Dockerfile
-        │       └── entrypoint.sh
-        └── helpers
-            └── ollama_helper.rb
+        └── plugins
+            └── ollama
+                ├── apps
+                │   └── talk_to_ollama
+                │       └── talk_to_ollama_app.rb
+                ├── services
+                │   └── ollama
+                │       ├── compose.yml
+                │       ├── Dockerfile
+                │       └── entrypoint.sh
+                └── helpers
+                    └── ollama_helper.rb
 ```
 
 3. Rebuild Monadic Chat.

@@ -18,8 +18,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Basic Structure
 
-- 🤖 Chat functionality using OpenAI's Chat API (**GPT-4**)
-- 👩‍💻 Easy Docker environment setup using a GUI app with **Electron**
+- 🤖 AI assistant features using web and local APIs
+- ⚛️ Easy Docker environment setup using a GUI app with **Electron**
 - 📁 **Synchronized folder** for syncing local files with files inside Docker containers
 - 📦 User-added **apps** and **containers** functionality
 - 👩💬 Support for both **human↔️AI chat** and 🤖💬 **AI↔️AI chat**
@@ -77,8 +77,11 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
-- 🦙 Use of LLMs in a local environment on Docker using Ollama
-  - [Ollama](https://ollama.com/)
+- 🦙 Use of LLMs in a local environment on Docker using [Ollama](https://ollama.com/)
+  - Llama
+  - Phi
+  - Mistral
+  - Gemma
 - 🤖💬🤖 AI-to-AI chat functionality
 
 ### Managing Conversations as Monads

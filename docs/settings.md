@@ -3,11 +3,10 @@
 <br />
 
 <img src="./assets/images/monadic-chat-web.png" width="700px"/>
-.png" width="700px"/>
 
 ## Console Button Items
 
-<img src="./assets/images/monadic-chat-console.png" width="500px"/>
+<img src="./assets/images/monadic-chat-console.png" width="700px"/>
 
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
@@ -25,9 +24,9 @@ Open the default browser to access Monadic Chat at `http://localhost:4567`.
 Open the folder shared between the host and Docker containers. It can be used for importing and exporting files.
 
 **Quit**
-Exit the Monadic Chat Console. If Monadic Chat is running, it will stop first, which may take some time.
+Exit the Monadic Chat Console.
 
-### Console Menu Items
+## Console Menu Items
 
 **Rebuild** <br />
 Rebuild the Docker images and containers for Monadic Chat.
@@ -42,14 +41,14 @@ Launch JupyterLab. It can be accessed at `http://localhost:8888`.
 Stop JupyterLab.
 
 **Import Document DB** <br />
-Import PDF document data into Monadic Chat's PGVector database.
+Import PDF document data into Monadic Chat's PGVector database. When importing, place a file named `monadic.json` in the shared folder.
 
 **Export Document DB** <br />
-Export PDF document data stored in Monadic Chat's PGVector database.
+Export PDF document data stored in Monadic Chat's PGVector database. The exported file will be saved as `monadic.json` in the shared folder.
 
 ## API Token Settings Screen
 
-<img src="./assets/images/settings-panel.png" width="400px"/>
+<img src="./assets/images/settings-panel.png" width="500px"/>
 
 All settings here are saved in the `~/monadic/data/.env` file.
 
@@ -131,6 +130,7 @@ Click this button to start a chat with the options and parameters specified in G
 ## Info Panel
 
 <img src="./assets/images/monadic-chat-info.png" width="400px"/>
+<img src="./assets/images/monadic-chat-status.png" width="400px"/>
 
 **Monadic Chat Info**<br />
 Links to related websites and the version of Monadic Chat are shown. Clicking `API Usage` will take you to the OpenAI page. Note that the API Usage shown is the overall API usage and may not be limited to Monadic Chat. The style in which Monadic Chat was installed is displayed in parentheses after the version number, either Docker or Local.

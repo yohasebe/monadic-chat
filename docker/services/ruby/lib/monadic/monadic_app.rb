@@ -9,19 +9,14 @@ Dir.glob(File.expand_path("helpers/**/*.rb", __dir__)).sort.each do |rb|
 end
 
 user_helpers_dir = if IN_CONTAINER
-                    "/monadic/data/helpers"
+                    "/monadic/data/plugins/**/helpers"
                   else
-                    File.expand_path(File.join(Dir.home, "monadic", "data", "helpers"))
+                    Dir.home + "/monadic/data/plugins/**/helpers"
                   end
 
 Dir.glob(File.expand_path(user_helpers_dir + "/**/*.rb")).sort.each do |rb|
   require rb
 end
-
-Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
-  require rb
-end
-
 
 class MonadicApp
   include MonadicAgent

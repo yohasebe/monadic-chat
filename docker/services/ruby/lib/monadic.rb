@@ -82,18 +82,18 @@ end
 def load_app_files
   apps_to_load = {}
   base_app_dir = File.join(__dir__, "..", "apps")
-  user_app_dir = if IN_CONTAINER
-                   "/monadic/data/apps"
+  user_plugins_dir = if IN_CONTAINER
+                   "/monadic/data/plugins"
                  else
-                   Dir.home + "/monadic/data/apps"
+                   Dir.home + "/monadic/data/plugins"
                  end
 
   Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
     apps_to_load[File.basename(file)] = file
   end
 
-  if Dir.exist?(user_app_dir)
-    Dir["#{File.join(user_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
+  if Dir.exist?(user_plugins_dir)
+    Dir["#{File.join(user_plugins_dir, "**", "apps", "**") + File::SEPARATOR}*.rb"].sort.each do |file|
       apps_to_load[File.basename(file)] = file
     end
   end

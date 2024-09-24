@@ -6,7 +6,8 @@
 
 - **Basic Usage**
 
-    - [Settings](/settings.md)
+    - [Console Panel](/console-panel.md)
+    - [Web Interface](/web-interface.md)
     - [Basic Apps](/basic-apps.md)
     - [Language Models](/language-models.md)
 

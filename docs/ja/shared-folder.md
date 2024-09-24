@@ -12,18 +12,20 @@ Monadic Chatコンソールの`Shared Folder`ボタンをクリックすると�
 
 Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用してJupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。このため、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
 
-## 共有フォルダに保存されるファイルの例
+## 共有フォルダに保存されるファイル
 
 - `monadic.log`Monadic Chatサーバーのログファイル
 - 追加コンテナ作成時の`compose.yml`ファイル
-- `code interpreter`などのアプリで実行されたコードの結果ファイル
+- `code interpreter`などのアプリで実行されたコードの中間ファイルや結果ファイル
 - `image generator`アプリで生成された画像ファイル
 - `jupyter notebook`アプリで作成されたノートブックファイル
 - `video designer`アプリが動画を分割して生成した画像ファイル
 - `video designer`アプリが抽出した音声ファイル
 - `speech draft helper`アプリで生成された音声ファイル
 
-## 自動で作成されるサブフォルダ
+不要なファイルは定期的に削除することをお勧めします。
+
+## 共有フォルダ内サブフォルダ
 
 Monadic ChatのDockerコンテナ内で自動的に作成されるサブフォルダについて説明します。
 

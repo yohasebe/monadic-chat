@@ -35,7 +35,7 @@ check_if_docker_desktop_is_running() {
 }
 
 set_docker_compose() {
-  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
+  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
   done

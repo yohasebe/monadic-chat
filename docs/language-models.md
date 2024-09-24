@@ -8,7 +8,7 @@ Monadic Chat uses OpenAI's language models to provide features such as chat, spe
 OPENAI_API_KEY=api_key
 ```
 
-For apps using OpenAI's language models, refer to the [Basic Apps](/ja/basic-apps) section.
+For apps using OpenAI's language models, refer to the [Basic Apps](/basic-apps) section.
 
 ## Anthropic
 
@@ -71,11 +71,9 @@ Chat with Command R is an application that accesses the Cohere API to answer que
 
 ## Google
 
-By setting the Google Gemini API key, you can use apps that utilize Gemini. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
-
 ![Google apps icon](../assets/icons/google.png ':size=40')
 
-Chat with Gemini is an application that accesses the Google Gemini API to answer questions on a wide range of topics.
+By setting the Google Gemini API key, you can use apps that utilize Gemini. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
 ```
 GEMINI_API_KEY=api_key
@@ -118,4 +116,6 @@ Chat with Mistral is an application that accesses the Mistral AI API to answer q
 
 ## Ollama
 
-By introducing additional images and containers, you can use apps that utilize Ollama. Ollama is a tool that allows you to use language models such as LLaMA and Gemma locally. For information on how to introduce Ollama in Monadic Chat, refer to [Using Ollama](/ja/ollama).
+![Ollama apps icon](../assets/icons/ollama.png ':size=40')
+
+By introducing additional images and containers, you can use apps that utilize Ollama. Ollama is a tool that allows you to use language models such as LLaMA and Gemma locally. For information on how to introduce Ollama in Monadic Chat, refer to [Using Ollama](/ollama).

@@ -1,6 +1,14 @@
 # Frequently Asked Questions
 
-**Q**: How can I obtain an API token for OpenAI?
+---
+
+**Q**: Do I need an OpenAI API token to use Monadic Chat?
+
+**A**: Yes, an OpenAI API token is required not only for AI chat but also for speech recognition, speech synthesis, and creating text embeddings. Even if you mainly use APIs other than OpenAI for chat, such as Anthropic's Claude, an OpenAI API token is still necessary.
+
+---
+
+**Q**: How can I obtain an OpenAI API token?
 
 **A**: You can create an account at the following URL. Please note that the OpenAI API account is separate from the ChatGPT account. Even if you subscribe to ChatGPT Plus, it does not give you access to the API token.
 
@@ -8,17 +16,3 @@
 - [Sign Up](https://platform.openai.com/signup)
 
 ---
-
-**Q**: Where can I find the pricing for the API?
-
-**A**: Please refer to the following page on OpenAI's website.
-
-- [OpenAI: Pricing](https://openai.com/pricing#language-models)
-
-Monadic Chat uses the following APIs:
-
-- [GPT-4](https://platform.openai.com/docs/models/gpt-4) (High-performance large language model)
-- [Whisper](https://platform.openai.com/docs/models/whisper) (Speech recognition model)
-- [DALL·E 3](https://platform.openai.com/docs/models/dall-e) (Image generation model)
-- [Vision](https://platform.openai.com/docs/guides/vision) (Image recognition model)
-- [Embedding V3](https://platform.openai.com/docs/models/embeddings) (Text embedding model)

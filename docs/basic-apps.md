@@ -56,6 +56,19 @@ This application responds using mathematical notation with [MathJax](https://www
 
 </details>
 
+### Second Opinion
+
+![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
+
+When you ask a question to the AI, it generates an answer to that question, but to verify the validity of that answer, it throws the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
+
+<details>
+<summary>second_opinion_app.rb</summary>
+
+![second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+
+</details>
+
 ## Language Learning & Translation
 
 ### Language Practice

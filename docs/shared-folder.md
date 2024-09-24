@@ -12,7 +12,7 @@ In apps that can execute code (e.g., Code Interpreter app), you can read files f
 
 If any processing is done within the app, intermediate files may be saved in the shared folder. If processing fails for some reason, you can check the shared folder to see the intermediate results.
 
-By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you can start JupyterLab, which will launch with `/monadic/data` as the home directory. This allows you to access files in the shared folder within JupyterLab.
+When you use the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab, it starts with `/monadic/data` as the home directory. This allows you to access files in the shared folder within JupyterLab as well.
 
 ## Automatically Created Subfolders
 
@@ -22,10 +22,6 @@ This section explains the subfolders that are automatically created within Monad
 
 A folder for storing additional applications other than the basic apps.
 
-**`scripts`**
-
-A folder for storing scripts to be executed within the container for use by additional applications.
-
 **`services`**
 
 A folder for storing Docker-related files to create images and containers for use by additional applications.
@@ -33,3 +29,16 @@ A folder for storing Docker-related files to create images and containers for us
 **`helpers`**
 
 A folder for storing helper files that contains functions (methods) to use in apps.
+
+**`scripts`**
+
+A folder for storing shell scripts that can be executed within the standard containers. The standard containers referred to here are:
+
+- `monadic-chat-ruby-container`
+- `monadic-chat-python-container`
+- `monadic-chat-selenium-container`
+- `monadic-chat-pgvector-container`
+
+**`plugins`**
+
+A folder for storing Monadic Chat plugins. Each plugin is organized in its own folder and can have its own `apps`, `helpers`, and `services` subfolders. Plugin folders cannot have a `scripts` subfolder.

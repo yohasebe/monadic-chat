@@ -6,13 +6,14 @@
 
 - **基本操作**
 
-    - [設定項目](/ja/settings.md)
+    - [コンソールパネル](/ja/console-panel.md)
+    - [Webインターフェイス](/ja/web-interface.md)
     - [基本アプリ](/ja/basic-apps.md)
     - [言語モデル](/ja/language-models.md)
 
 - **Docker連携**
     - [コンテナへのアクセス](/ja/docker-access.md)
-    - [JupyterLabの使用](/ja/jupyterlab.md)
+    - [JupyterLabとの連携](/ja/jupyterlab.md)
     - [共有フォルダ](/ja/shared-folder.md)
 
 - **機能追加**

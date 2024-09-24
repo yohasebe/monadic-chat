@@ -8,6 +8,7 @@
 - 複数のAIモデルを活用
 - マルチモーダルなインタラクション
 - AIどうしのチャット機能
+- JupyterLabとの連携
 
 [始めよう](#monadic-chat)
 [GitHub](https://github.com/yohasebe/monadic-chat/)

@@ -8,6 +8,7 @@
 - Utilize a diverse range of AI models
 - Engage in multi-modal interactions
 - Enable AI-to-AI communication
+- JuptyerLab integration
 
 [Get Started](#monadic-chat)
 [GitHub](https://github.com/yohasebe/monadic-chat/)

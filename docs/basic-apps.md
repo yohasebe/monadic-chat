@@ -69,7 +69,7 @@ When you ask a question to the AI, it generates an answer to that question, but 
 
 </details>
 
-## Language Learning & Translation
+## Language Related
 
 ### Language Practice
 

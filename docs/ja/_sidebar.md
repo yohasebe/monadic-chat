@@ -13,7 +13,7 @@
 - **Docker連携**
     - [コンテナへのアクセス](/ja/docker-access.md)
     - [JupyterLabの使用](/ja/jupyterlab.md)
-    - [共有フォルダの利用](/ja/shared-folder.md)
+    - [共有フォルダ](/ja/shared-folder.md)
 
 - **機能追加**
 

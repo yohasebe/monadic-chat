@@ -4,7 +4,7 @@
 
 ## Overview
 
-**Monadic Chat** is a web application framework designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT-4 and other LLMs, it allows the execution of advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for using AI but also for developing and researching various applications.
+**Monadic Chat** is a web application framework designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT-4 and other LLMs, it allows the execution of advanced tasks that require external tools. It supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for various AI applications but also for developing and researching AI-powered applications.
 
 ## What is "Grounding"?
 
@@ -19,26 +19,31 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Basic Structure
 
 - 🤖 Chat functionality using OpenAI's Chat API (**GPT-4**)
-- 👩‍💻 Installable as a GUI application on Mac and Windows using **Electron**
-- 🌐 Usable as a **web application** in browsers
-- 👩💬 🤖💬 Supports both **human↔️AI chat** and **AI↔️AI chat**
+- 👩‍💻 Easy Docker environment setup using a GUI app with **Electron**
+- 📁 **Synchronized folder** for syncing local files with files inside Docker containers
+- 📦 User-added **apps** and **containers** functionality
+- 👩💬 Support for both **human↔️AI chat** and 🤖💬 **AI↔️AI chat**
+- ✨ Chat functionality utilizing **multiple AI models**
 
 ### AI + Linux Environment
 
 - 🐧 Provides a **Linux environment** (Ubuntu) freely accessible by AI
 - 🐳 Tools available to LLMs via **Docker containers**
-  - Python (+ pip) for tool/function calls
-  - Ruby (+ gem) for tool/function calls
-  - PGVector (+ PostgreSQL) for DAG using vector representation
-  - Selenium (+ Chrome/Chromium) for web scraping
+  - Ruby (+ gem)
+  - Python (+ pip)
+  - PGVector (+ PostgreSQL)
+  - Selenium (+ Chrome/Chromium)
+- ⚡️ Use of LLMs via online and local APIs
 - 📦 Each container can be managed via **SSH**
 - 📓 Integration with **Jupyter Notebook**
 
 ### Data Management
 
-- 💾 **Export/import** conversation data
+- 💾 **Export/import** chat data
+- 📝 **Edit** chat data (add, delete, edit)
 - 💬 Specify the number of messages (**active messages**) sent to the API as context data
-- 🔢 Generate **text embeddings** from data in **PDF files**
+- 📜 Set **roles** for messages (user, assistant, system)
+- 🔢 Generate and import/export **text embeddings** from **PDF** data
 
 ### Voice Interaction
 
@@ -58,40 +63,29 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Configuration and Extension
 
-- 💡 Customize AI agent settings and behavior by specifying **API parameters** and **system prompts**
+- 💡 Specify and edit **API parameters** and **system prompts**
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
 - 🌎 Perform **web scraping** using Selenium
-
-### Message Editing
-
-- 📝 **Re-edit** past messages
-- 🗑️ **Delete** specific messages
-- 📜 Set **roles** (user, assistant, system) for new messages
+- 📦 Add custom **Docker containers**
 
 ### Support for Multiple LLM APIs
 
-- 👥 Supports the following LLM APIs
-  - OpenAI GPT-4
-  - Google Gemini
-  - Anthropic Claude
-  - Cohere Command R
-  - Mistral AI
-- 🤖💬🤖 AI↔️AI Chat is available with the following combinations
-
-   | AI-Assistant     | | AI-User               |
-   |:-----------------|-|:----------------------| 
-   | OpenAI GPT-4     |↔️| OpenAI GPT-4 or GPT4o |
-   | Google Gemini    |↔️| OpenAI GPT-4 or GPT4o |
-   | Anthropic Claude |↔️| OpenAI GPT-4 or GPT4o |
-   | Cohere Command R |↔️| OpenAI GPT-4 or GPT4o |
-   | Mistral AI       |↔️| OpenAI GPT-4 or GPT4o |
+- 👥 Support for the following LLM Web APIs:
+  - [OpenAI GPT-4](https://platform.openai.com/docs/overview)
+  - [Google Gemini](https://ai.google.dev/gemini-api)
+  - [Anthropic Claude](https://www.anthropic.com/api)
+  - [Cohere Command R](https://cohere.com/)
+  - [Mistral AI](https://docs.mistral.ai/api/)
+- 🦙 Use of LLMs in a local environment on Docker using Ollama
+  - [Ollama](https://ollama.com/)
+- 🤖💬🤖 AI-to-AI chat functionality
 
 ### Managing Conversations as Monads
 
 - ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state of the conversation** by obtaining additional responses and updating values within a predefined JSON object
 
-## Author
+## Developer
 
 Yoichiro HASEBE<br />
 [yohasebe@gmail.com](yohasebe@gmail.com)

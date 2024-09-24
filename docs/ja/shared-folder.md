@@ -22,10 +22,6 @@ Monadic ChatのDockerコンテナ内で自動的に作成されるサブフォ�
 
 基本アプリ以外の追加アプリケーションを格納するフォルダです。
 
-**`scripts`**
-
-追加アプリケーションから用いるための、コンテナ内で実行するスクリプトを格納するフォルダです。
-
 **`services`**
 
 追加アプリケーションから用いるためのイメージやコンテナを作成するためのDocker関連ファイルを格納するフォルダです。
@@ -34,3 +30,15 @@ Monadic ChatのDockerコンテナ内で自動的に作成されるサブフォ�
 
 アプリ内で使用する関数（メソッド）を含むヘルパーファイルを格納するフォルダです。
 
+**`scripts`**
+
+標準コンテナ内で実行可能なするシェルスクリプトを格納するフォルダです。ここでいう標準コンテナは下記のものを指します。
+
+- `monadic-chat-ruby-container`
+- `monadic-chat-python-container`
+- `monadic-chat-selenium-container`
+- `monadic-chat-pgvector-container`
+
+**`plugins`**
+
+Monadic Chatのプラグインを格納するフォルダです。各プラグインは個別のフォルダで構成され、その中に独自の`apps`、`helpers`、`services` サブフォルダを持つことができます。プラグイン・フォルダの中に`scripts`サブフォルダを持つことはできません。

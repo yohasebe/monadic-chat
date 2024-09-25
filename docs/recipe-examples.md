@@ -31,7 +31,7 @@ To use functions within an app, follow these steps:
 - Add a `tools` key to the `@settings` hash and specify the definitions of the functions to be used in a list. The method of defining functions varies by language model vendor. For apps including the OpenAIHelper module, refer to [OpenAI: Function calling](https://platform.openai.com/docs/guides/function-calling).
 - Define the functions specified in the `tools` key in Ruby. Functions can be written within the class in the recipe file or in another file as instance methods of the `MonadicAgent` module.
 
-## App with Output Format Specification
+## Apps with Output Format Specification
 
 Monadic Chat has a special mode (called `monadic` mode) for outputting in JSON format. For details, refer to [Monadic Mode](/ja/monadic-mode).
 
@@ -48,6 +48,6 @@ To specify the output format in an app that includes `OpenAIHelper`, follow thes
 - Add a `monadic` key to the `@settings` hash and set its value to `true`.
 - Add a `response_format` key to the `@settings` hash and specify the JSON format to be used for output. For the specification method, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
 
-## App Using a Custom Container
+## Apps Using a Custom Container
 
 Refer to the section on [Adding Docker Containers](adding-containers.md).

@@ -1,4 +1,4 @@
-# JupyterLabの利用
+# JupyterLabとの連携
 
 Monadic Chatには、JupyterLabを起動する機能があります。JupyterLabは、データサイエンスや機械学習のための統合開発環境（IDE）です。JupyterLabを使用することで、PythonやRなどのプログラミング言語を用いてデータの分析や可視化を行うことができます。
 
@@ -14,7 +14,7 @@ JupyterLabを停止するには、JupyterLabのタブを閉じるか、Monadic C
 
 ## JupyterLabアプリの利用
 
-Monadic Chatの基本アプリJupyterLabでは、AIエージェントとのチャットを通じて次のようなことができます。
+Monadic Chatの基本アプリ`Jupyter Notebook`では、AIエージェントとのチャットを通じて次のようなことができます。
 
 - JupyterLabの起動と停止
 - 共有フォルダへの新規ノートブックの作成

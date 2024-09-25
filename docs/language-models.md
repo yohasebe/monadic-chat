@@ -2,7 +2,7 @@
 
 ## OpenAI
 
-Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, you must set an OpenAI API key. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, you must set an OpenAI API key even if the model you want to use in chat is not an OpenAI model. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
 ```
 OPENAI_API_KEY=api_key
@@ -20,7 +20,7 @@ By setting the Anthropic API key, you can use apps that utilize Claude. Once set
 ANTHROPIC_API_KEY=api_key
 ```
 
-Chat with Claude is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code with Claude assists in creating program code. Jupyter with Claude integrates with Jupyter Notebook to actually execute program code.
+Chat with Claude is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code with Claude assists in creating program code. Jupyter with Claude integrates with JupyterLab to actually execute program code.
 
 <details>
 <summary>chat_with_claude_app.rb</summary>
@@ -118,4 +118,11 @@ Chat with Mistral is an application that accesses the Mistral AI API to answer q
 
 ![Ollama apps icon](../assets/icons/ollama.png ':size=40')
 
-By introducing additional images and containers, you can use apps that utilize Ollama. Ollama is a tool that allows you to use language models such as LLaMA and Gemma locally. For information on how to introduce Ollama in Monadic Chat, refer to [Using Ollama](/ollama).
+By introducing additional images and containers, you can use apps that utilize Ollama. [Ollama](https://ollama.com/) is a platform that allows you to use language models in a local environment on Docker. The following models are available:
+
+- Llama
+- Phi
+- Mistral
+- Gemma
+
+For information on how to introduce Ollama in Monadic Chat, refer to [Using Ollama](/ollama).

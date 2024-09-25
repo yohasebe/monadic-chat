@@ -41,10 +41,10 @@ Launch JupyterLab. It can be accessed at `http://localhost:8888`.
 Stop JupyterLab.
 
 **Export Document DB** <br />
-Export PDF document data stored in Monadic Chat's PGVector database. The exported file will be saved as `monadic.json` in the shared folder.
+Export PDF document data stored in Monadic Chat's PGVector database. The exported file will be saved as `monadic.gz` in the shared folder.
 
 **Import Document DB** <br />
-Import PDF document data exported by Monadic Chat's export feature into the PGVector database. When importing, place a file named `monadic.json` in the shared folder.
+Import PDF document data exported by Monadic Chat's export feature into the PGVector database. When importing, place a file named `monadic.gz` in the shared folder.
 
 ## API Token Settings Panel
 

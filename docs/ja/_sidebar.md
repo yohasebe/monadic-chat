@@ -18,7 +18,7 @@
 
 - **機能追加**
 
-    - [アプリの開発](/ja/developing_apps.md)
+    - [アプリの開発](/ja/develop_apps.md)
     - [レシピ・ファイルの例](/ja/recipe-examples.md)
     - [Monadicモード](/ja/monadic-mode.md)
     - [Dockerコンテナの追加](/ja/adding-containers.md)

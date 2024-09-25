@@ -320,7 +320,7 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
 
-![Action menu](../assets/images/action-menu.png ':size=150')
+![Action menu](../assets/images/action-menu.png ':size=120')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>

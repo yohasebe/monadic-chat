@@ -2,7 +2,7 @@
 
 ## Console Button Items
 
-<img src="./assets/images/monadic-chat-console.png" width="700px"/>
+![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
 
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
@@ -24,7 +24,9 @@ Exit the Monadic Chat Console.
 
 ## Console Menu Items
 
-<img src="./assets/images/console-menu.png" width="300px"/>
+![Console Menu](../assets/images/console-menu.png ':size=300')
+
+![Action Menu](../assets/images/action-menu.png ':size=150')
 
 **Rebuild** <br />
 Rebuild the Docker images and containers for Monadic Chat.
@@ -44,9 +46,9 @@ Export PDF document data stored in Monadic Chat's PGVector database. The exporte
 **Import Document DB** <br />
 Import PDF document data exported by Monadic Chat's export feature into the PGVector database. When importing, place a file named `monadic.json` in the shared folder.
 
-## API Token Settings Screen
+## API Token Settings Panel
 
-<img src="./assets/images/settings-panel.png" width="500px"/>
+![Settings Panel](../assets/images/settings-panel.png ':size=600')
 
 All settings here are saved in the `~/monadic/data/.env` file.
 

@@ -128,7 +128,7 @@ start_docker_compose() {
   local retries=0
   while ! ${DOCKER} info > /dev/null 2>&1; do
     if [ $retries -ge $RETRY_COUNT ]; then
-      echo "Docker did not start. Please check manually."
+      echo "Docker did not start. Please start Docker Desktop manually."
       exit 1
     fi
     retries=$((retries + 1))
@@ -309,7 +309,6 @@ run_jupyter() {
     fi
   else
     echo "[HTML]: <p>JupyterLab failed to start.</p><hr />"
-    exit 1
   fi
 }
 
@@ -374,7 +373,7 @@ build)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
   else
-    echo "[HTML]: <p>Monadic Chat has failed to build. Please try <b>Rebuild</b>.</p>"
+    echo "[HTML]: <p>Monadic Chat has failed to build. </p><p>Please clear the shared folder first and then try <b>rebuild</b>.</p>"
   fi
   ;;
 check)

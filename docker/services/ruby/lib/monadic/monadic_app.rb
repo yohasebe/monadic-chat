@@ -185,7 +185,7 @@ class MonadicApp
 
   def send_command(command:,
                    container: "python",
-                   success: "")
+                   success: "Command executed successfully: ",)
     case container.to_s
     when "ruby"
       if IN_CONTAINER
@@ -232,7 +232,7 @@ class MonadicApp
     "Error occurred: #{e.message}"
   end
 
-  def send_code(code:, command:, extension:)
+  def send_code(code:, command:, extension: "The code has been executed successfully")
     if IN_CONTAINER
       data_dir = SHARED_VOL
     else
@@ -267,11 +267,10 @@ class MonadicApp
       new_files = local_files2 - local_files1
       if !new_files.empty?
         new_files = new_files.map { |file| "/data/" + File.basename(file) }
-        output = "The code has been executed successfully; Files generated: #{new_files.join(", ")}"
+        output = "#{success}; File(s) generated: #{new_files.join(", ")}"
         output += "; Output: #{stdout}" if stdout.strip.length.positive?
       else
-        output = "The code has been executed successfully"
-        output += "; Output: #{stdout}" if stdout.strip.length.positive?
+        output = "#{success}; Output: #{stdout}" if stdout.strip.length.positive?
       end
       output
     else
@@ -281,10 +280,10 @@ class MonadicApp
     "Error occurred: The code could not be executed."
   end
 
-  def run_code(code: "", command: "", extension: "")
+  def run_code(code:, command:, extension:, success:)
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
-    send_code(code: code, command: command, extension: extension)
+    send_code(code: code, command: command, extension: extension, success: success)
   end
 
   # This is currently not used in the app

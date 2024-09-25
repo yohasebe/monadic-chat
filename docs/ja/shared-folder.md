@@ -4,30 +4,39 @@ Monadic Chatを最初に起動すると、`~/monadic/data`ディレクトリが�
 
 Monadic Chatコンソールの`Shared Folder`ボタンをクリックすると、OS標準のファイルマネージャが起動し、共有フォルダを開くことができます。
 
-このディレクトリにファイルを配置すると、Monadic ChatのDockerコンテナ内でそのファイルにアクセスできます。各Dockerコンテナ内での共有フォルダのパスは、`/monadic/data`です。
+![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
+
+このディレクトリにファイルを配置すると、Monadic ChatのDockerコンテナ内でそのファイルにアクセスできます。ローカルでの共有フォルダのパスは`~/monadic/data`ですが、各Dockerコンテナ内での共有フォルダのパスは、`/monadic/data`です。
 
 コードを実行することができるアプリでは（例：Code Interpreterアプリ）、共有フォルダ内のファイルを読み込むことができます。ファイルを指定する際にはディレクトリは指定せずファイル名のみを指定します。
 
-アプリ内部で何らかの処理を行う場合、中間ファイルを共有フォルダ内に保存することがあります。何らかの理由でアプリ上での処理が失敗した場合、共有フォルダ内のファイルを確認することで、処理の途中結果を確認することができます。
+AIエージェント側で（function callingなどを用いて）何らかの処理を行う中で、中間ファイルが共有フォルダ内に保存されることがあります。定期的に確認して不要なファイルを削除することをお勧めします。
 
-Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用してJupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。このため、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
+Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用してJupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。したがって、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
 
 ## 共有フォルダに保存されるファイル
 
-- `monadic.log`Monadic Chatサーバーのログファイル
-- 追加コンテナ作成時の`compose.yml`ファイル
-- `code interpreter`などのアプリで実行されたコードの中間ファイルや結果ファイル
-- `image generator`アプリで生成された画像ファイル
-- `jupyter notebook`アプリで作成されたノートブックファイル
-- `video designer`アプリが動画を分割して生成した画像ファイル
-- `video designer`アプリが抽出した音声ファイル
-- `speech draft helper`アプリで生成された音声ファイル
+### システム関連のファイル
+
+- `monadic.log`：Monadic Chatサーバーのログファイル
+- `compose.yml`：追加コンテナ作成・起動時に必要な自動生成ファイル
+
+これらのファイルは手動で削除しないことをお勧めします。
+
+### 基本アプリが生成するファイル
+
+- `code interpreter`：などのアプリで実行されたコードの中間ファイルや結果ファイル
+- `image generator`：アプリで生成された画像ファイル
+- `jupyter notebook`：アプリで作成されたノートブックファイル
+- `video describer`：アプリが動画を分割して生成した画像ファイル
+- `video describer`：アプリが抽出した音声ファイル
+- `speech draft helper`：アプリで生成された音声ファイル
 
 不要なファイルは定期的に削除することをお勧めします。
 
-## 共有フォルダ内サブフォルダ
+## 共有フォルダ内の構成
 
-Monadic ChatのDockerコンテナ内で自動的に作成されるサブフォルダについて説明します。
+基本アプリ以外のアプリを開発したり追加したりするときには、共有フォルダ内で適切に必要なファイルやフォルダを配置する必要があります。以下は、共有フォルダ内に自動的に作成されるサブフォルダです。追加アプリの開発方法については、[追加アプリの開発](/ja/developing-apps.md)を参照してください。
 
 **`apps`**
 

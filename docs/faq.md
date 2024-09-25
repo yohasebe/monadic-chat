@@ -8,8 +8,3 @@
 
 ---
 
-**Q**: How can I obtain an OpenAI API token?
-
-**A**: You can create an account at the following URL. Please note that the OpenAI API account is separate from the ChatGPT account. Even if you subscribe to ChatGPT Plus, it does not give you access to the API token.
-
----

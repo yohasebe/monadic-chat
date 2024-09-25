@@ -884,14 +884,14 @@ function updateApplicationMenu() {
             openMainWindow();
             dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Communicating', currentStatus);
           },
-          enabled: (currentStatus === 'Running' || currentStatus === 'Ready' || currentStatus === 'Stopped') && metRequirements
+          enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
         },
         {
           label: 'Stop JupyterLab',
           click: () => {
             dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Communicating', currentStatus,);
           },
-          enabled: (currentStatus === 'Running' || currentStatus === 'Ready' || currentStatus === 'Stopped') && metRequirements
+          enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
         },
         {
           type: 'separator'

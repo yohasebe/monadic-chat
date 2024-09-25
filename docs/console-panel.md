@@ -1,4 +1,4 @@
-# Monadic Chat Console
+# Monadic Chat Console Panel
 
 ## Console Button Items
 
@@ -17,9 +17,9 @@ Restart Monadic Chat.
 Open the default browser to access Monadic Chat at `http://localhost:4567`.
 
 **Shared Folder** <br />
-Open the folder shared between the host and Docker containers. It can be used for importing and exporting files.
+Open the folder shared between the host and Docker containers. It can be used for importing and exporting files. It is also used when installing additional apps.
 
-**Quit**
+**Quit**<br />
 Exit the Monadic Chat Console.
 
 ## Console Menu Items
@@ -36,11 +36,11 @@ Launch JupyterLab. It can be accessed at `http://localhost:8888`.
 **Stop JupyterLab** <br />
 Stop JupyterLab.
 
-**Import Document DB** <br />
-Import PDF document data into Monadic Chat's PGVector database. When importing, place a file named `monadic.json` in the shared folder.
-
 **Export Document DB** <br />
 Export PDF document data stored in Monadic Chat's PGVector database. The exported file will be saved as `monadic.json` in the shared folder.
+
+**Import Document DB** <br />
+Import PDF document data exported by Monadic Chat's export feature into the PGVector database. When importing, place a file named `monadic.json` in the shared folder.
 
 ## API Token Settings Screen
 

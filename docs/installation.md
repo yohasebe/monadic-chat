@@ -89,7 +89,7 @@ Next, execute the following command in PowerShell (the initial `>` represents th
 
 <img src="./assets/images/win-wsl-install.png" width="800px"/>
 
-Then restart your computer. After restarting, WSL2 and its default Linux distribution, Ubuntu, will be installed. During this process, you will be prompted to enter a username and password for the Linux environment. Enter any username and password. You will need to remember this username and password later.
+Then restart your computer. After restarting, WSL2 and its default Linux distribution, Ubuntu, will be installed. During this process, you will be prompted to enter a username and password for the Linux environment. Enter any username and password. You will need to remember this username and password for later use.
 
 This completes the installation of WSL2. Ubuntu is now available on Windows. Search for "Ubuntu" in the Windows search box and open the Ubuntu terminal.
 

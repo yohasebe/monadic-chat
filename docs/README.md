@@ -6,7 +6,7 @@
 
 **Monadic Chat** is a web application framework designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT-4 and other LLMs, it allows the execution of advanced tasks that require external tools. It supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for various AI applications but also for developing and researching AI-powered applications.
 
-## What is "Grounding"?
+## What is Grounding?
 
 Monadic Chat is an AI framework grounded in the real world. The term **grounding** here has two meanings.
 
@@ -18,7 +18,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Basic Structure
 
-- 🤖 AI assistant features using web and local APIs
+- 🤖 Use of **AI assistants** via various web and local APIs
 - ⚛️ Easy Docker environment setup using a GUI app with **Electron**
 - 📁 **Synchronized folder** for syncing local files with files inside Docker containers
 - 📦 User-added **apps** and **containers** functionality
@@ -27,8 +27,9 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### AI + Linux Environment
 
-- 🐧 Provides a **Linux environment** (Ubuntu) freely accessible by AI
+- 🐧 Provision of a **Linux environment** to AI agents
 - 🐳 Tools available to LLMs via **Docker containers**
+  - Linux (+ apt)
   - Ruby (+ gem)
   - Python (+ pip)
   - PGVector (+ PostgreSQL)
@@ -41,13 +42,13 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 - 💾 **Export/import** chat data
 - 📝 **Edit** chat data (add, delete, edit)
-- 💬 Specify the number of messages (**active messages**) sent to the API as context data
+- 💬 Specify the number of messages to send to the API as **context size**
 - 📜 Set **roles** for messages (user, assistant, system)
-- 🔢 Generate and import/export **text embeddings** from **PDF** data
+- 🔢 Generate and import/export **text embeddings** from PDFs
 
 ### Voice Interaction
 
-- 🎙️ **Microphone input recognition** using Whisper API
+- 🎙️ **Speech recognition** using the Whisper API (+ display of p-values)
 - 🔈 **Text-to-speech** for AI assistant responses
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech

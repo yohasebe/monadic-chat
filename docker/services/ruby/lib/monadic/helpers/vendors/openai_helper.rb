@@ -88,7 +88,6 @@ module OpenAIHelper
       "model" => model,
       "n" => 1,
       "stream" => true,
-      "stop" => nil
     }
 
     body["temperature"] = temperature if temperature

@@ -24,6 +24,8 @@ Exit the Monadic Chat Console.
 
 ## Console Menu Items
 
+<img src="./assets/images/console-menu.png" width="300px"/>
+
 **Rebuild** <br />
 Rebuild the Docker images and containers for Monadic Chat.
 

@@ -24,6 +24,8 @@ Monadic Chat Consoleを終了します。
 
 ## コンソールメニュー項目
 
+<img src="./assets/images/console-menu.png" width="300px"/>
+
 **Rebuild** <br />
 Monadic ChatのDockerイメージおよびコンテナを再構築します。
 

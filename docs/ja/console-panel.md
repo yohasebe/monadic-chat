@@ -2,7 +2,7 @@
 
 ## コンソールボタン項目
 
-<img src="./assets/images/monadic-chat-console.png" width="700px"/>
+![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
 
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
@@ -24,7 +24,9 @@ Monadic Chat Consoleを終了します。
 
 ## コンソールメニュー項目
 
-<img src="./assets/images/console-menu.png" width="300px"/>
+![Console Menu](../assets/images/console-menu.png ':size=300')
+
+![Action Menu](../assets/images/action-menu.png ':size=150')
 
 **Rebuild** <br />
 Monadic ChatのDockerイメージおよびコンテナを再構築します。
@@ -44,9 +46,9 @@ Monadic ChatのPGVectorデータベースに保存されているPDFドキュメ
 **Import Document DB** <br />
 Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート機能で書き出されたPDFドキュメントデータをインポートします。インポートの際には、共有フォルダに`monadic.json`という名前のファイルを配置してください。
 
-## APIトークン設定画面
+## APIトークン設定パネル
 
-<img src="./assets/images/settings-panel.png" width="500px"/>
+![Settings Panel](../assets/images/settings-panel.png ':size=600')
 
 ここでの設定はすべて `~/monadic/data/.env` ファイルに保存されます。
 

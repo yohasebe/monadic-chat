@@ -1,6 +1,6 @@
 # Recipe File Examples
 
-## Simple App (Math Tutor)
+## Simple Apps
 
 <details>
 <summary>Recipe File (math_tutor.rb)</summary>
@@ -9,7 +9,7 @@
 
 </details>
 
-## App with Function Definitions (Wikipedia)
+## Apps with Function Definitions
 
 <details>
 <summary>Recipe File (wikipedia.rb)</summary>
@@ -31,7 +31,7 @@ To use functions within an app, follow these steps:
 - Add a `tools` key to the `@settings` hash and specify the definitions of the functions to be used in a list. The method of defining functions varies by language model vendor. For apps including the OpenAIHelper module, refer to [OpenAI: Function calling](https://platform.openai.com/docs/guides/function-calling).
 - Define the functions specified in the `tools` key in Ruby. Functions can be written within the class in the recipe file or in another file as instance methods of the `MonadicAgent` module.
 
-## App with Output Format Specification (Novel Writer)
+## App with Output Format Specification
 
 Monadic Chat has a special mode (called `monadic` mode) for outputting in JSON format. For details, refer to [Monadic Mode](/ja/monadic-mode).
 

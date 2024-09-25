@@ -1224,9 +1224,9 @@ ipcMain.on('request-settings', (event) => {
 
 ipcMain.on('save-settings', (_event, data) => {
   saveSettings(data);
-  if (settingsWindow) {
-    settingsWindow.hide();
-  }
+  // if (settingsWindow) {
+  //   settingsWindow.hide();
+  // }
 });
 
 app.whenReady().then(() => {

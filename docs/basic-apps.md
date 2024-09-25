@@ -1,6 +1,8 @@
 # Basic Apps
 
-Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file.
+Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file. For information on how to develop your own apps, refer to the [App Development](develop_apps.md) section.
+
+?> Click on the toggle button to see the recipe file of each app. The files are the same as the ones in the main brach of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
 
 ## Assistant
 
@@ -21,7 +23,7 @@ This is a standard chat application. The AI responds to the text input by the us
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-This application allows you to chat using voice, utilizing OpenAI's Whisper API and the browser's speech synthesis API. The initial prompt is the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
+This application allows you to chat using voice, utilizing OpenAI's Whisper voice recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
 
 <details>
 <summary>voice_chat_app.rb</summary>
@@ -29,6 +31,12 @@ This application allows you to chat using voice, utilizing OpenAI's Whisper API 
 ![voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
 
 </details>
+
+![Voice input](../assets/images/voice-input-stop.png ':size=400')
+
+While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-valuei, 0 - 1) of the voice recognition result is displayed.
+
+![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 ### Wikipedia
 
@@ -47,7 +55,9 @@ This is basically the same as Chat, but for questions about events that occurred
 
 ![Math Tutor app icon](../assets/icons/math.png ':size=40')
 
-This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). While it can display mathematical expressions, its mathematical calculation ability is based on OpenAI's GPT model, which is known to occasionally output incorrect results. Therefore, caution is advised when accuracy is required.
+This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
+
+!> LLMs are known to have difficulty with calculations that require multiple steps or complex logic. If the actual calculation needs to be performed, it is recommended to use the Code Interpreter app.
 
 <details>
 <summary>math_tutor_app.rb</summary>
@@ -60,7 +70,7 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-When you ask a question to the AI, it generates an answer to that question, but to verify the validity of that answer, it throws the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
+When you ask a question to this AI agent, it generates an answer to that question, but to verify the validity of that answer, it also throws the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
 
 <details>
 <summary>second_opinion_app.rb</summary>
@@ -114,7 +124,7 @@ This app translates the user's input text into another language. First, the assi
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-This app translates the user's input text into another language and speaks it using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
+This app translates the user's voice input into another language and speaks it using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
 
 <details>
 <summary>voice_interpreter_app.rb</summary>
@@ -129,8 +139,7 @@ This app translates the user's input text into another language and speaks it us
 
 ![Novel Writer app icon](../assets/icons/novel.png ':size=40')
 
-This application is for co-writing novels with the assistant. Create a novel with compelling characters, vivid descriptions, and a convincing plot. The story unfolds based on the user's prompts, maintaining consistency and flow.
-
+This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow. First, the AI agent asks for the setting of the story, the characters, the genre, and the total number of words. The user can then provide the prompt, and the AI agent will continue the story based on that prompt.
 <details>
 <summary>novel_writer_app.rb</summary>
 
@@ -196,7 +205,7 @@ This application creates simple sheet music using [ABC notation](https://en.wiki
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-In this app, users can submit speech drafts in the form of text strings, Word files, or PDF files. The app analyzes them and returns a revised version. It also provides suggestions and tips to make the speech more engaging and effective if needed. Additionally, it can provide an mp3 file of the speech.
+This application helps you draft speeches. You can either asks the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate an MP3 file of the speech.
 
 <details>
 <summary>speech_draft_helper_app.rb</summary>
@@ -205,13 +214,15 @@ In this app, users can submit speech drafts in the form of text strings, Word fi
 
 </details>
 
-## Content Understanding
+## Content Analysis
 
 ### Video Describer
 
 ![Video Describer app icon](../assets/icons/video.png ':size=40')
 
-This is an application that analyzes video content and describes its content. The AI analyzes the video content and provides a detailed description of what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data from the video, saving it as an MP3 file. Based on these, the AI provides an overall description of the visual and audio information contained in the video file.
+This is an application that analyzes video content and describes its content. The AI analyzes the video content and provides a detailed description of what is happening.
+
+The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data from the video, saving it as an MP3 file. Based on these, the AI provides an overall description of the visual and audio information contained in the video file.
 
 To use this app, users need to store the video file in the `Shared Folder` and provide the file name. Additionally, the frames per second (fps) for frame extraction must be specified. If the total number of frames exceeds 50, only 50 frames will be proportionally extracted from the video.
 
@@ -235,7 +246,11 @@ This application reads PDF files and allows the assistant to answer user questio
 
 </details>
 
-![PDF RAG illustration](../assets/images/rag.png ':size=600')
+![PDF button](../assets/images/app-pdf.png ':size=700')
+
+![Import PDF](../assets/images/import-pdf.png ':size=400')
+
+![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
 
 ### Content Reader
 
@@ -286,6 +301,8 @@ If you have a file (such as Python code or CSV data) that you want the AI to rea
 
 This is an application for writing computer program code. You can interact with an AI set up as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
 
+?> While Code Interpreter executes the code, Coding Assistant is specialized in providing code snippets and advice. A long code snippet will be divided into multiple parts and the user will be asked if they want to proceed with the next part.
+
 <details>
 <summary>coding_assistant_app.rb</summary>
 
@@ -297,7 +314,11 @@ This is an application for writing computer program code. You can interact with 
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-This application allows the AI to create Jupyter Notebooks and add cells and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`. The execution results are overwritten in the Jupyter Notebook.
+This application allows the AI to create Jupyter Notebooks and add cells and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
+
+?> You can start or stop the JupyterLab by asking the AI agent to do so. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
+
+![Action menu](../assets/images/action-menu.png ':size=150')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>

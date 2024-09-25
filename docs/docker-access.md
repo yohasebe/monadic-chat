@@ -1,6 +1,26 @@
-# Accessing Docker Containers
+# Standard Docker Containers
 
-This section explains how to access Docker containers. You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
+This section explains how to access Docker containers. By default, the following containers are built:
+
+**Ruby Container** (`monadic-chat-ruby-container`)
+
+A container used to run Monadic Chat applications. It is also used to provide the web interface.
+
+**Python Container** (`monadic-chat-python-container`)
+
+A container used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab is also run on this container.
+
+**Selenium Container** (`monadic-chat-selenium-container`)
+
+A container used to operate a virtual web browser using Selenium for web scraping.
+
+**pgvector Container** (`monadic-chat-pgvector-container`)
+
+A container used to save text embedding vector data on Postgresql for using pgvector.
+
+You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
+
+# Accessing Docker Containers
 
 There are two ways to access a Docker container.
 

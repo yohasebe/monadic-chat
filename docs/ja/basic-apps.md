@@ -1,6 +1,8 @@
 # 基本アプリ
 
-現在、以下の基本アプリが使用可能です。いずれかの基本アプリを選択し、パラメータを変更したり、初期プロンプトを書き換えたりすることで、AIエージェントの挙動を調整できます。調整した設定は、外部のJSONファイルにエクスポート／逆インポートできます。
+現在、以下の基本アプリが使用可能です。いずれかの基本アプリを選択し、パラメータを変更したり、初期プロンプトを書き換えたりすることで、AIエージェントの挙動を調整できます。調整した設定は、外部のJSONファイルにエクスポート／インポートできます。独自のアプリを作る方法については[アプリの開発](develop-apps.md)を参照してください。
+
+?> 各アプリの説明の下のトグルボタンをクリックすると、アプリのソースコードが表示されます。ソースコードはMonadic Chatの[Githubレポジトリ](https://github.com/yohasebe/monadic-chat)のmainブランチでの最新版です。
 
 ## アシスタント
 
@@ -21,7 +23,7 @@
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-OpenAIのWhisper APIとブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトはChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+OpenAIのWhisper API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
 
 <details>
 <summary>voice_chat_app.rb</summary>
@@ -29,6 +31,12 @@ OpenAIのWhisper APIとブラウザの音声合成APIを用いて、音声でチ
 ![voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
 
 </details>
+
+![Voice input](../assets/images/voice-input-stop.png ':size=400')
+
+音声入力中は波形が表示され、音声入力が終了すると、認識の「確らしさ」を示すp-value（0〜1の値）が表示されます。
+
+![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 ### Wikipedia
 
@@ -48,7 +56,9 @@ OpenAIのWhisper APIとブラウザの音声合成APIを用いて、音声でチ
 
 ![Math Tutor app icon](../assets/icons/math.png ':size=40')
 
-AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。このアプリは数式を表示できますが、数学的計算能力はOpenAIのGPTモデルに基づいており、時折、誤った計算結果が出力されることが知られています。そのため、計算の正確性が求められる場合は、このアプリの使用には注意が必要です。
+AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。数式の表示が必要なやりとりを行うのに適しています。
+
+!> LLMの数学的計算能力には制約があり、誤った結果が出力されることがあります。計算の正確性が求められる場合は、Code Interpreterアプリなどで実際に計算を行うことをお勧めします。
 
 <details>
 <summary>math_tutor_app.rb</summary>
@@ -61,7 +71,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-AIに質問を行うと、AIはその質問に対する回答を生成しますが、その回答の妥当性を確認するために、同じLLMモデルに質問を投げ、その回答を比較します。AIによる回答におけるハルシネーションや誤解を防ぐために、このアプリケーションを使用することができます。
+その質問に対する回答を生成します。その際、その回答の妥当性を確認するために、AIエージェント自身が同じLLMモデルに質問を投げ、自身の回答と比較します。AIによる回答におけるハルシネーションや誤解を防ぐために、このアプリケーションを使用することができます。
 
 <details>
 <summary>second_opinion_app.rb</summary>
@@ -70,7 +80,7 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 </details>
 
-## 言語学習・翻訳
+## 言語関連
 
 ### Language Practice
 
@@ -102,7 +112,7 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 ![Translate app icon](../assets/icons/translate.png ':size=40')
 
-ユーザーの入力テキストを別の言語に翻訳します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。特定の翻訳結果を反映させたい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳を指定してください。
+ユーザーの入力テキストを別の言語に翻訳します。まず、AIアシスタントが翻訳先の言語を尋ねます。次に、ユーザーの入力テキストを指定された言語に翻訳します。特定の表現に関して、それらをどのように訳すかを指定したい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳表現を指定してください。
 
 <details>
 <summary>translate_app.rb</summary>
@@ -115,7 +125,7 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-ユーザーの入力テキストを別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
+ユーザーが音声入力で与えた内容を別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
 
 <details>
 <summary>voice_interpreter_app.rb</summary>
@@ -130,7 +140,7 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 ![Novel Writer app icon](../assets/icons/novel.png ':size=40')
 
-アシスタントと共同で小説を執筆するためのアプリケーションです。魅力的なキャラクター、鮮やかな描写、そして、説得力のあるプロットで小説を作り上げましょう。ユーザーのプロンプトに基づいてストーリーを展開し、一貫性と流れを維持します。
+アシスタントと共同で小説を執筆するためのアプリケーションです。ユーザーのプロンプトに基づいてストーリーを展開し、一貫性と流れを維持します。AIエージェントは最初に、物語の舞台、登場人物、ジャンル、最終的な文章の量を尋ねます。その後、ユーザーが提供するプロンプトに基づいて、AIエージェントが物語を展開します。
 
 <details>
 <summary>novel_writer_app.rb</summary>
@@ -197,7 +207,7 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-このアプリでは、ユーザーがスピーチ原稿をテキスト文字列、Wordファイル、PDFファイルの形で提出することができます。アプリはそれを分析し、修正版を返します。また、ユーザーが必要であれば、スピーチをより魅力的で効果的なものにするための改善案やヒントを提供します。 また、スピーチのmp3ファイルを提供することもできます。
+このアプリでは、AIエージェントにスピーチのドラフト作成を依頼することができます。ドラフトを一から作成することもできますし、既存のドラフトを、テキスト文字列、Wordファイル、PDFファイルの形で提出することもできます。AIエージェントはそれらを分析し、修正版を返します。また、必要であれば、スピーチをより魅力的で効果的なものにするための改善案やヒントを提供します。スピーチのmp3ファイルを提供することもできます。
 
 <details>
 <summary>speech_draft_helper_app.rb</summary>
@@ -206,15 +216,17 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 </details>
 
-## コンテンツ理解
+## コンテンツ分析
 
 ### Video Describer
 
 ![Video Describer app icon](../assets/icons/video.png ':size=40')
 
-これは、動画コンテンツを分析し、その内容を説明するアプリケーションです。AIが動画コンテンツを分析し中で何が起こっているのかを詳細に説明します。アプリ内部で動画からフレームを抽出し、それらをbase64形式のPNG画像に変換します。さらに、ビデオから音声データを抽出し、MP3ファイルとして保存します。これらに基づいてAIが動画ファイルに含まれる視覚および音声情報の全体的な説明を行います。
+動画コンテンツを分析し、その内容を説明するアプリケーションです。AIが動画コンテンツを分析し中で何が起こっているのかを詳細に説明します。
 
-このアプリを使用するには、ユーザーは動画ファイルを`Shared Folder`に格納して、ファイル名を伝える必要があります。また、フレーム抽出のための秒間フレーム数（fps）を指定する必要があります。総フレーム数が50を超える場合はビデオから比例的に50フレームのみが抽出されます。
+アプリ内部で動画からフレームを抽出し、それらをbase64形式のPNG画像に変換します。さらに、ビデオから音声データを抽出し、MP3ファイルとして保存します。これらに基づいてAIが動画ファイルに含まれる視覚および音声情報の全体的な説明を行います。
+
+このアプリを使用するには、ユーザーは動画ファイルを`Shared Folder`に格納して、ファイル名を伝える必要があります。また、フレーム抽出のための秒間フレーム数（fps）を指定する必要があります。総フレーム数が50を超える場合はビデオ全体から50フレームが選択・抽出されます。
 
 <details>
 <summary>video_describer_app.rb</summary>
@@ -228,7 +240,7 @@ AIに質問を行うと、AIはその質問に対する回答を生成します�
 
 ![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
 
-PDFファイルを読み込み、アシスタントがその内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
+PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
 
 <details>
 <summary>pdf_navigator_app.rb</summary>
@@ -237,7 +249,11 @@ PDFファイルを読み込み、アシスタントがその内容に基づい�
 
 </details>
 
-![PDF RAG illustration](../assets/images/rag.png ':size=600')
+![PDF button](../assets/images/app-pdf.png ':size=700')
+
+![Import PDF](../assets/images/import-pdf.png ':size=400')
+
+![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
 
 ### Content Reader
 
@@ -288,6 +304,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 これはコンピュータプログラムコードを書くためのアプリケーションです。プロフェッショナルなソフトウェアエンジニアとして設定が与えられたAIと対話することができます。ユーザーからのプロンプトを通じて様々なな質問に答え、コードを書き、適切な提案を行い、役立つアドバイスを提供します。
 
+?> Code InterpreterアプリはDocker上のPython環境でコードを実行することができますが、Coding Assistantアプリはコードの生成に特化しており、コードの実行は行いません。長いコードはいくつかの断片に分割し、分割点ごとに続きを表示するかをユーザーに問い合わせます。
 <details>
 <summary>coding_assistant_app.rb</summary>
 
@@ -299,7 +316,11 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。実行結果はJupyter Notebookに上書きされます。
+AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。
+
+?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
+
+![Action menu](../assets/images/action-menu.png ':size=150')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>

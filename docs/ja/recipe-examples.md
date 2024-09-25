@@ -1,6 +1,6 @@
 # レシピ・ファイルの例
 
-## シンプルなアプリ（Math Tutor）
+## シンプルなアプリ
 
 <details>
 <summary>レシピ・ファイル（math_tutor.rb）</summary>
@@ -9,7 +9,7 @@
 
 </details>
 
-## 関数定義を含むアプリ（Wikipedia）
+## 関数定義を含むアプリ
 
 <details>
 <summary>レシピ・ファイル（wikipedia.rb）</summary>
@@ -31,7 +31,7 @@
 - `@settings`ハッシュに`tools`キーを追加し、使用する関数の定義をリストで指定します。関数定義の方法は言語モデルのベンダーによって異なります。OpenAIHelperモジュールをインクルードしているアプリの場合は、[OpenAI: Function calling](https://platform.openai.com/docs/guides/function-calling)を参照してください。
 - `tools`キーに指定された関数をRubyで定義します。関数はレシピ・ファイルのクラス内に記述するか、もしくは別のファイルの中で、`MonadicAgent`モジュールのインスタンスメソッドとして記述します。
 
-## 出力形式の指定を含むアプリ（Novel Writer）
+## 出力形式の指定を含むアプリ
 
 Monadic ChatではJSON形式で出力する場合の特別なモード（`monadic`モード）があります。詳細については[Monadicモード](/ja/monadic-mode)も参照してください。
 

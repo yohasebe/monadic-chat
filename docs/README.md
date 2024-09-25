@@ -1,6 +1,6 @@
 # Monadic Chat
 
-![Monadic Chat Architecture](../assets/images/monadic-chat-architecture.svg ':width=800')
+![Monadic Chat Architecture](../assets/images/monadic-chat-architecture.svg ':size=800')
 
 ## Overview
 

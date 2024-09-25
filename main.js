@@ -882,14 +882,14 @@ function updateApplicationMenu() {
           label: 'Start JupyterLab',
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Communicating', currentStatus);
+            dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Ready', 'Ready');
           },
           enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
         },
         {
           label: 'Stop JupyterLab',
           click: () => {
-            dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Communicating', currentStatus,);
+            dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Ready', 'Ready');
           },
           enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
         },
@@ -900,14 +900,14 @@ function updateApplicationMenu() {
           label: 'Import Document DB',
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped', false)
+            dockerManager.runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped')
           },
           enabled: currentStatus === 'Stopped' && metRequirements
         },
         {
           label: 'Export Document DB',
           click: () => {
-            dockerManager.runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped', false);
+            dockerManager.runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped');
           },
           enabled: currentStatus === 'Stopped' && metRequirements
         },

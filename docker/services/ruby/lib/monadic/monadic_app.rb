@@ -185,7 +185,7 @@ class MonadicApp
 
   def send_command(command:,
                    container: "python",
-                   success: "Command executed successfully: ",)
+                   success: "Command executed successfully")
     case container.to_s
     when "ruby"
       if IN_CONTAINER
@@ -224,7 +224,7 @@ class MonadicApp
     if block_given?
       yield(stdout, stderr, status)
     elsif status.success?
-      "#{success}#{stdout}"
+      "#{success}: #{stdout}"
     else
       "Error occurred: #{stderr}"
     end

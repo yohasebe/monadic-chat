@@ -18,7 +18,7 @@
 
 - **Advanced Topics**
 
-    - [Development of Extra Apps](/developing_apps.md)
+    - [Development of Extra Apps](/develop_apps.md)
     - [Recipe Examples](/recipe-examples.md)
     - [Monadic Mode](/monadic-mode.md)
     - [Adding Docker Containers](/adding-containers.md)

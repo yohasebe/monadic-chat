@@ -2,7 +2,7 @@
 
 ## OpenAI
 
-Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのため、必ずOpenAIのAPIキーを設定する必要があります。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのため（チャットで使いたいモデルがOpenAIのモデルでない場合も）必ずOpenAIのAPIキーを設定する必要があります。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 OPENAI_API_KEY=api_key
@@ -20,7 +20,7 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 ANTHROPIC_API_KEY=api_key
 ```
 
-Chat with Claudeは、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code with Claudeは、プログラム・コードの作成補助を行います。Jupyter with Claudeは、Jupyter Notebookと連携して、プログラム・コードを実際に実行することができます。
+Chat with Claudeは、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code with Claudeは、プログラム・コードの作成補助を行います。Jupyter with Claudeは、JupyterLab:と連携して、プログラム・コードを実際に実行することができます。
 
 <details>
 <summary>chat_with_claude_app.rb</summary>
@@ -71,9 +71,9 @@ Chat with Command Rは、Cohere APIにアクセスして、幅広いトピック
 
 ## Google
 
-Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
-
 ![Google apps icon](../assets/icons/google.png ':size=40')
+
+Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
 Chat with Geminiは、Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。
 ```
@@ -119,4 +119,11 @@ Chat with Mistralは、Mistral AI APIにアクセスして、幅広いトピッ�
 
 ![Ollama apps icon](../assets/icons/ollama.png ':size=40')
 
-追加のイメージとコンテナを導入することで、Ollamaを用いたアプリを使用することができます。OllamaはLLaMAやGemmaなどの言語モデルをローカルで使用することができるようにするためのツールです。Monadic ChatでOllamaを導入する方法については、[Ollamaの利用](/ja/ollama)を参照してください。
+追加のイメージとコンテナを導入することで、Ollamaを用いたアプリを使用することができます。[Ollama](https://ollama.com/)を使うと、下記のようなLLMをローカルのDocker環境で使用することができます。
+
+  - Llama
+  - Phi
+  - Mistral
+  - Gemma
+
+Monadic ChatでOllamaを導入する方法については、[Ollamaの利用](/ja/ollama)を参照してください。

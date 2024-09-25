@@ -1,4 +1,4 @@
-# Using JupyterLab
+# JupyterLab Integration
 
 Monadic Chat has a feature to launch JupyterLab. JupyterLab is an integrated development environment (IDE) for data science and machine learning. By using JupyterLab, you can perform data analysis and visualization using programming languages such as Python and R.
 

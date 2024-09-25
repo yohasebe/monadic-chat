@@ -1,6 +1,29 @@
-# コンテナへのアクセス
+# Dockerコンテナ
 
-Dockerコンテナにアクセスする方法について説明します。Dockerコンテナ上で新たなフソフトウェアをインストールしたり、ファイルを編集したりして、Monadic Chatの機能を拡張することができます。
+## 標準コンテナ
+
+標準では下記のコンテナが構築されます。
+
+**Rubyコンテナ**（`monadic-chat-ruby-container`）
+
+Monadic Chatのアプリケーションを実行するためのコンテナです。Webインターフェイスを提供するためにも使用されます。
+
+**Pythonコンテナ**（`monadic-chat-python-container`）
+
+Monadic Chatの機能を拡張するためのPythonスクリプトを実行するために使用されます。JupyterLabもこのコンテナ上で実行されます。
+
+**Seleniumコンテナ**（`monadic-chat-selenium-container`）
+
+Seleniumを使用して仮想的なWebブラウザを操作して、Webページのスクレイピングを行うために使用されます。
+
+**pgvectorコンテナ**（`monadic-chat-pgvector-container`）
+
+Postgresql上にテキスト埋め込みのベクトルデータを保存するため、pgvectorを使用するためのコンテナです。
+
+
+?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](/ja/adding-containers.md)を参照してください。
+
+# Dockerコンテナへのアクセス
 
 Dockerコンテナにアクセスする方法は2つあります。
 

@@ -45,7 +45,7 @@ In this way, Monadic Mode is characterized by maintaining "context" behind the e
 <details>
 <summary>Recipe File (novel_writer_app.rb)</summary>
 
-![novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+![novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
@@ -63,6 +63,6 @@ Here, "context" may differ slightly from the general meaning of context, but whe
 <details>
 <summary>Recipe File (language_practice_plus_app.rb)</summary>
 
-![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
 
 </details>

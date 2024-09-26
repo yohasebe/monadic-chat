@@ -15,7 +15,7 @@
 <details>
 <summary>chat_app.rb</summary>
 
-[chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/chat/chat_app.rb ':include :type=code')
+[chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/chat/chat_app.rb ':include :type=code')
 
 </details>
 
@@ -34,7 +34,7 @@ OpenAIのWhisper API（音声認識）とブラウザの音声合成APIを用い
 <details>
 <summary>voice_chat_app.rb</summary>
 
-![voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
+![voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
 
 </details>
 
@@ -47,7 +47,7 @@ OpenAIのWhisper API（音声認識）とブラウザの音声合成APIを用い
 <details>
 <summary>wikipedia_app.rb</summary>
 
-![wikipedia_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
+![wikipedia_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
 
 </details>
 
@@ -62,7 +62,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>math_tutor_app.rb</summary>
 
-![math_tutor_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
+![math_tutor_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
 
 </details>
 
@@ -75,7 +75,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>second_opinion_app.rb</summary>
 
-![second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+![second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
 
 </details>
 
@@ -90,7 +90,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>language_practice_app.rb</summary>
 
-![language_practice_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/language_practice/language_practice_app.rb ':include :type=code')
+![language_practice_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice/language_practice_app.rb ':include :type=code')
 
 </details>
 
@@ -103,7 +103,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>language_practice_plus_app.rb</summary>
 
-![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
 
 </details>
 
@@ -116,7 +116,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>translate_app.rb</summary>
 
-![translate_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/translate/translate_app.rb ':include :type=code')
+![translate_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/translate/translate_app.rb ':include :type=code')
 
 </details>
 
@@ -129,7 +129,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>voice_interpreter_app.rb</summary>
 
-![voice_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb ':include :type=code')
+![voice_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb ':include :type=code')
 
 </details>
 
@@ -144,7 +144,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>novel_writer_app.rb</summary>
 
-![novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+![novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
@@ -159,7 +159,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>image_generator_app.rb</summary>
 
-![image_generator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/image_generator/image_generator_app.rb ':include :type=code')
+![image_generator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/image_generator/image_generator_app.rb ':include :type=code')
 
 </details>
 
@@ -172,7 +172,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>mail_composer_app.rb</summary>
 
-![mail_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/mail_composer/mail_composer_app.rb ':include :type=code')
+![mail_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mail_composer/mail_composer_app.rb ':include :type=code')
 
 </details>
 
@@ -185,7 +185,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>flowchart_grapher_app.rb</summary>
 
-![flowchart_grapher_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/mermaid_grapher/mermaid_grapher_app.rb ':include :type=code')
+![flowchart_grapher_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mermaid_grapher/mermaid_grapher_app.rb ':include :type=code')
 
 </details>
 
@@ -198,7 +198,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>music_composer_app.rb</summary>
 
-![music_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/music_composer/music_composer_app.rb ':include :type=code')
+![music_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/music_composer/music_composer_app.rb ':include :type=code')
 
 </details>
 
@@ -211,7 +211,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>speech_draft_helper_app.rb</summary>
 
-![speech_draft_helper_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb ':include :type=code')
+![speech_draft_helper_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb ':include :type=code')
 
 </details>
 
@@ -230,7 +230,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 <details>
 <summary>video_describer_app.rb</summary>
 
-![video_describer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/video_describer/video_describer_app.rb ':include :type=code')
+![video_describer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/video_describer/video_describer_app.rb ':include :type=code')
 
 </details>
 
@@ -249,7 +249,7 @@ PDFファイルを読み込み、その内容に基づいてユーザーの質�
 <details>
 <summary>pdf_navigator_app.rb</summary>
 
-![pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
+![pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
 
 </details>
 
@@ -275,7 +275,7 @@ PNGやJPEGなどの画像ファイルを読み込んで、その内容を認識�
 <details>
 <summary>content_reader_app.rb</summary>
 
-![content_reader_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/content_reader/content_reader_app.rb ':include :type=code')
+![content_reader_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/content_reader/content_reader_app.rb ':include :type=code')
 
 </details>
 
@@ -292,7 +292,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 <details>
 <summary>code_interpreter_app.rb</summary>
 
-![code_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb ':include :type=code')
+![code_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb ':include :type=code')
 
 </details>
 
@@ -307,7 +307,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 <details>
 <summary>coding_assistant_app.rb</summary>
 
-[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
+[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
 
 </details>
 
@@ -324,6 +324,6 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 <summary>jupyter_notebook_app.rb</summary>
 
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
 
 </details>

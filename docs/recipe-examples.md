@@ -42,6 +42,24 @@ For some OpenAI models (such as `gpt-4o`), you can specify `response_format` to 
 
 </details>
 
+## AIエージェントがLLMを使用するアプリ
+
+AIエージェントに使わせる関数・ツールの中でOpenAIの言語モデルにアクセスするアプリの例です。[関数・ツール内でのLLMの使用](http://localhost:3000/#/ja/develop_apps?id=関数・ツール内でのLLMの使用)を参照してください。
+
+<details open=true>
+<summary>Recipe Example (second_opinion_app.rb)</summary>
+
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+
+</details>
+
+<details open=true>
+<summary>Helper Example (second_opinion_agent.rb)</summary>
+
+<!-- ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/agents/second_opinion_agent.rb ':include :type=code') -->
+
+</details>
+
 ## Apps Using a Custom Container
 
 Refer to the section on [Adding Docker Containers](adding-containers.md).

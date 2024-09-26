@@ -1,6 +1,4 @@
 module MonadicAgent
-  extend BasicAgent
-
   def video_analyzer_agent(file:, fps: 1, query: nil)
     return "Error: file is required." if file.to_s.empty?
 

@@ -39,14 +39,11 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     html2text \
     flask \
     opencv-python \
-    moviepy
-
-    # librosa \
-    # mecab-python3 \
-    # wordcloud \
-    # textblob \
-    # nltk \
-    # gensim
+    moviepy \
+    librosa \
+    mecab-python3 \
+    wordcloud \
+    gensim
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -57,21 +54,18 @@ RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
 # Copy scripts and set permissions
-COPY scripts /monadic/scripts
-RUN chmod +x /monadic/scripts/*
-RUN mkdir -p /monadic/data/scripts
+COPY scripts ${WORKSPACE}/scripts
+RUN chmod +x ${WORKSPACE}/scripts/*
+RUN mkdir -p ${WORKSPACE}/data/scripts
 
 # Set environment variables
-ENV PATH="/monadic/data/scripts:/monadic/scripts:${PATH}"
+ENV PATH="${WORKSPACE}/data/scripts:${WORKSPACE}/scripts:${PATH}"
 ENV PIP_ROOT_USER_ACTION=ignore
 
 # Copy Flask application
-COPY flask /monadic/flask
+COPY flask ${WORKSPACE}/flask
 
 # Create symbolic link for data directory
-RUN ln -s /monadic/data /data
+RUN ln -s ${WORKSPACE}/data /data
 
-COPY Dockerfile /monadic/Dockerfile
-
-# Install NLTK modules (failure to install these modules will skip the installation)
-# RUN python -m nltk.downloader all || true
+COPY Dockerfile ${WORKSPACE}/Dockerfile

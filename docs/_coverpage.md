@@ -1,7 +1,7 @@
 <img src="assets/images/favicon/favicon.png" width="100px" style="border-radius: 20%;
 "/>
 
-# Monadic Chat <small>0.8.14</small>
+# Monadic Chat <small>0.9.0</small>
 
 > AI Framework Grounded in the Real World<br />with Docker Linux Environment
 

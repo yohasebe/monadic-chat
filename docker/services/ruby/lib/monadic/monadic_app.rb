@@ -300,4 +300,8 @@ class MonadicApp
 
     send_code(code: code, command: command, extension: extension)
   end
+
+  def ask_openai(parameters)
+    BasicAgent.send_query(parameters)
+  end
 end

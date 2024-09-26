@@ -1,6 +1,4 @@
-module MonadicAgent
-  extend BasicAgent
-
+module SecondOpinionAgent
   def second_opinion_agent(user_query: "", agent_response: "")
     model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
 
@@ -35,11 +33,11 @@ module MonadicAgent
         TEXT
       }
     ]
-    body = {
+    parameters = {
       messages: messages,
       model: model
     }
 
-    BasicAgent.send_query(body)
+    ask_openai(parameters)
   end
 end

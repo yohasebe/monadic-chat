@@ -25,18 +25,18 @@ This is a standard chat application. The AI responds to the text input by the us
 
 This application allows you to chat using voice, utilizing OpenAI's Whisper voice recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
 
+![Voice input](../assets/images/voice-input-stop.png ':size=400')
+
+While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-valuei, 0 - 1) of the voice recognition result is displayed.
+
+![Voice p-value](../assets/images/voice-p-value.png ':size=400')
+
 <details>
 <summary>voice_chat_app.rb</summary>
 
 ![voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
 
 </details>
-
-![Voice input](../assets/images/voice-input-stop.png ':size=400')
-
-While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-valuei, 0 - 1) of the voice recognition result is displayed.
-
-![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 ### Wikipedia
 
@@ -140,6 +140,7 @@ This app translates the user's voice input into another language and speaks it u
 ![Novel Writer app icon](../assets/icons/novel.png ':size=40')
 
 This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow. First, the AI agent asks for the setting of the story, the characters, the genre, and the total number of words. The user can then provide the prompt, and the AI agent will continue the story based on that prompt.
+
 <details>
 <summary>novel_writer_app.rb</summary>
 
@@ -239,18 +240,18 @@ To use this app, users need to store the video file in the `Shared Folder` and p
 
 This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by max_tokens, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
 
+![PDF button](../assets/images/app-pdf.png ':size=700')
+
+![Import PDF](../assets/images/import-pdf.png ':size=400')
+
+![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
+
 <details>
 <summary>pdf_navigator_app.rb</summary>
 
 ![pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
 
 </details>
-
-![PDF button](../assets/images/app-pdf.png ':size=700')
-
-![Import PDF](../assets/images/import-pdf.png ':size=400')
-
-![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
 
 ### Content Reader
 
@@ -317,8 +318,7 @@ This is an application for writing computer program code. You can interact with 
 This application allows the AI to create Jupyter Notebooks and add cells and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
 ?> You can start or stop the JupyterLab by asking the AI agent to do so. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
-
-![Action menu](../assets/images/action-menu.png ':size=150')
+<br /><br />![Action menu](../assets/images/action-menu.png ':size=150')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>

@@ -42,6 +42,24 @@ OpenAIの一部のモデル（`gpt-4o`など）では、レスポンスをJSON�
 
 </details>
 
+## AIエージェントがLLMを使用するアプリ
+
+AIエージェントに使わせる関数・ツールの中でOpenAIの言語モデルにアクセスするアプリの例です。[関数・ツール内でのLLMの使用](http://localhost:3000/#/ja/develop_apps?id=関数・ツール内でのLLMの使用)を参照してください。
+
+<details open=true>
+<summary>レシピ・ファイル例（second_opinion_app.rb）</summary>
+
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+
+</details>
+
+<details open=true>
+<summary>ヘルパー・ファイル例（second_opinion_agent.rb）</summary>
+
+<!-- ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/agents/second_opinion_agent.rb ':include :type=code') -->
+
+</details>
+
 ## 独自のコンテナを用いたアプリ
 
-[Dockerコンテナの追加](adding-containers.md)のセクションを参照してください。
+[Dockerコンテナの追加](adding-containers.md)を参照してください。

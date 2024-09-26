@@ -96,7 +96,7 @@ end
 
 ## 設定項目
 
-設定項目には必須のものと任意の物があります。必須の設定項目が指定されていない場合は、アプリケーションの起動時にブラウザ画面上にエラーメッセージが表示されます。
+設定項目には必須のものと任意の物があります。必須の設定項目が指定されていない場合は、アプリケーションの起動時にブラウザ画面上にエラーメッセージが表示されます。下記は必須の設定項目の例です。
 
 `app_name` (string, 必須)
 
@@ -114,98 +114,7 @@ end
 
 システムプロンプトのテキストを指定します。
 
-`model` (string)
-
-デフォルトのモデルを指定します。指定されていない場合は（`OpenAIHelper`モジュールをインクルードしているアプリの場合）`gpt-4o-mini`が使用されます。
-
-`temperature` (float)
-
-デフォルトの温度を指定します。
-
-
-`presence_penalty` (float)
-
-デフォルトの`presence_penalty`を指定します。モデルが対応していない場合は無視されます。
-
-`frequency_penalty` (float)
-
-デフォルトの`frequency_penalty`を指定します。モデルが対応していない場合は無視されます。
-
-`top_p` (float)
-
-デフォルトの`top_p`を指定します。モデルが対応していない場合は無視されます。
-
-`max_tokens` (int)
-
-デフォルトの`max_tokens`を指定します。
-
-`context_size` (int)
-
-デフォルトの`context_size`を指定します。
-
-`easy_submit` (bool)
-
-テキストボックスに入力したメッセージをENTERキーだけで送信するかどうかを指定します。
-
-`auto_speech` (bool)
-
-AIアシスタントの応答を音声で読み上げるかどうかを指定します。
-
-`image` (bool)
-
-AIアシスタントに送信するメッセージボックスに画像添付のボタンを表示するかどうかを指定します。
-
-`pdf` (bool)
-
-PDFデータベース機能を有効にするかどうかを指定します。
-
-`initiate_from_assistant` (bool)
-
-ユーザーより先にAIアシスタントからの最初のメッセージで始めるかどうかを指定します。
-
-`sourcecode` (bool)
-
-プログラム・コードのシンタックスハイライトを有効にするかどうかを指定します。
-
-`mathjax` (bool)
-
-[MathJax](https://www.mathjax.org/)を用いた数式のレンダリングを有効にするかどうかを指定します。
-
-`jupyter` (bool)
-
-Jupyter Notebookと連携する場合に`true`を指定します（MathJaxの表示を最適化します）。
-
-`monadic` (bool)
-
-アプリをMonadicモードに指定します。Monadicモードについては[Monadicモード](/ja/monadic-mode)を参照してください。
-
-`file` (bool)
-
-アプリのウェブ設定画面でテキストファイルのアップロード機能を有効にするかどうかを指定します。アップロードされたファイルの内容はシステム・プロンプトの末尾に追加されます。
-
-`abc` (bool)
-
-AIエージェントのレスポンスに[ABC記譜法](https://abcnotation.com/)で入力された楽譜の表示・再生機能を有効にするかどうかを指定します。ABC記譜法は音楽の楽譜を記述するための形式です。
-
-`disabled` (bool)
-
-アプリを無効にするかどうかを指定します。無効にしたアプリはMonadic Chatのメニューに表示されません。
-
-`toggle` (bool)
-
-AIエージェントのレスポンスの一部（メタ情報、ツール使用）をトグル表示するかどうかを指定します。現在は`ClaudeHelper`モジュールをインクルードしているアプリのみで使用可能です。
-
-`models` (array)
-
-使用可能なモデルのリストを指定します。指定がない場合はインクルードしているモジュール（`OpenAIHelper`など）で用意しているモデルのリストが使用されます。
-
-`tools` (array)
-
-使用可能な関数のリストを指定します。ここで指定した関数の実際の定義はレシピ・ファイル内に記述するか、もしくは別のファイルの中で、`MonadicAgent`モジュールのインスタンスメソッドとして記述します。
-
-`response_format` (hash)
-
-JSON形式で出力する場合の出力形式を指定します。詳細については[OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs)を参照してください。
+これらの他に、任意の設定項目が多数あります。[設定項目](/ja/setting-items.md)を参照してください。
 
 ## 関数・ツールの呼び出し
 
@@ -272,3 +181,35 @@ The code has been executed successfully; File(s) generated: NEW_FILE; Output: OU
 生成されたファイルの情報を正しく得ることで、AIエージェントはさらにそれらを用いた処理を続けて行うことができます。
 
 ?> `send_code`をAIエージェントから直接呼び出すように設定すると、AIエージェントが必須の引数のいずれかを指定しない場合にコンテナ内でエラーが発生します。そのため、`send_command`を呼び出す際には、エラー処理を適切に行うようにしてください。`MonadicApp`クラスには、`run_command`というラッパーメソッドが用意されており、使用方法は`send_command`と同様ですが、引数が足りない場合にメッセージを返すようになっています。
+
+## 関数・ツール内でのLLMの使用
+
+上記の方法で作成した、AIエージェントから呼び出される関数・ツールの中で、さらにAIエージェントへのリクエストを行いたい場合があります。そのような場合、`MonadicApp`クラスで利用可能な`ask_openai`メソッドを使うことができます。
+
+`ask_openai`は、OpenAIのAPIを介してAIエージェントにリクエストを送信し、その結果を返します。APIのパラメターを設定したハッシュを引数として渡すことで、AIエージェントにリクエストを送信することができます。
+
+APIパラメターのハッシュには`messages`キーとその値としてメッセージの配列を指定する必要があります。また`model`キーには使用する言語モデルを指定します（省略時は `gpt-4o-mini`を使用）。その他、OpenAIの[Chat Completions](https://platform.openai.com/docs/guides/chat-completions) APIで利用できる各種パラメターが利用可能です。
+
+!> OpenAIのChat Compeletions APIのパラメターの1つ`stream`は`false`である必要があります。デフォルトで`false`に設定済みですので、変更する必要はありません。内部でのLLMどうしでの情報のやり取りなので、`stream`を`true`に設定すると、不要な処理を関数・ツール側で実装する必要が生じます。
+
+
+レシピファイル内でRubyを使用して作成した関数・ツールの中で、`ask_openai`を使用する方法は次の通りです。
+
+```ruby
+def my_function
+  # パラメータの設定
+  parameters = {
+    message: {
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: "What is the name of the capital city of Argentina?"
+        }
+      ]
+    }
+  }
+  # OpenAIにリクエストを送信
+  ask_openai(parameters)
+end
+```

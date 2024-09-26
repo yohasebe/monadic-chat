@@ -25,6 +25,12 @@
 
 OpenAIのWhisper API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
 
+![Voice input](../assets/images/voice-input-stop.png ':size=400')
+
+音声入力中は波形が表示され、音声入力が終了すると、認識の「確らしさ」を示すp-value（0〜1の値）が表示されます。
+
+![Voice p-value](../assets/images/voice-p-value.png ':size=400')
+
 <details>
 <summary>voice_chat_app.rb</summary>
 
@@ -32,18 +38,11 @@ OpenAIのWhisper API（音声認識）とブラウザの音声合成APIを用い
 
 </details>
 
-![Voice input](../assets/images/voice-input-stop.png ':size=400')
-
-音声入力中は波形が表示され、音声入力が終了すると、認識の「確らしさ」を示すp-value（0〜1の値）が表示されます。
-
-![Voice p-value](../assets/images/voice-p-value.png ':size=400')
-
 ### Wikipedia
 
 ![Wikipedia app icon](../assets/icons/wikipedia.png ':size=40')
 
 基本的にChatと同じですが、言語モデルのカットオフ日時以降に発生したイベントに関する質問など、GPTが回答できない質問に対しては、Wikipediaを検索して回答します。問い合わせが英語以外の言語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
-
 
 <details>
 <summary>wikipedia_app.rb</summary>
@@ -235,12 +234,17 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 </details>
 
-
 ### PDF Navigator
 
 ![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
 
 PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
+
+![PDF button](../assets/images/app-pdf.png ':size=700')
+
+![Import PDF](../assets/images/import-pdf.png ':size=400')
+
+![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
 
 <details>
 <summary>pdf_navigator_app.rb</summary>
@@ -248,12 +252,6 @@ PDFファイルを読み込み、その内容に基づいてユーザーの質�
 ![pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
 
 </details>
-
-![PDF button](../assets/images/app-pdf.png ':size=700')
-
-![Import PDF](../assets/images/import-pdf.png ':size=400')
-
-![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
 
 ### Content Reader
 
@@ -305,10 +303,11 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 これはコンピュータプログラムコードを書くためのアプリケーションです。プロフェッショナルなソフトウェアエンジニアとして設定が与えられたAIと対話することができます。ユーザーからのプロンプトを通じて様々なな質問に答え、コードを書き、適切な提案を行い、役立つアドバイスを提供します。
 
 ?> Code InterpreterアプリはDocker上のPython環境でコードを実行することができますが、Coding Assistantアプリはコードの生成に特化しており、コードの実行は行いません。長いコードはいくつかの断片に分割し、分割点ごとに続きを表示するかをユーザーに問い合わせます。
+
 <details>
 <summary>coding_assistant_app.rb</summary>
 
-!>[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
+[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
 
 </details>
 
@@ -319,13 +318,12 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。
 
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
-
-![Action menu](../assets/images/action-menu.png ':size=120')
+<br /><br />![Action menu](../assets/images/action-menu.png ':size=120')
 
 <details>
+
 <summary>jupyter_notebook_app.rb</summary>
 
 ![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
 
 </details>
-

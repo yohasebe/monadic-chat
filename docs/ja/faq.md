@@ -27,7 +27,7 @@ Ollamaコンテナにダウンロードしたモデルはロードされて使�
 
 **A**: それぞれのボタンとアイコンの役割は以下の通りです。
 
-![](../assets/images/message-buttons.png ':size=600')
+![](/assets/images/message-buttons.png ':size=600')
 
 - **Copy**<br />メッセージのテキストをクリップボードにコピーします。
 - **Play**<br />メッセージのテキストを音声合成して再生します。
@@ -57,7 +57,7 @@ Ollamaコンテナにダウンロードしたモデルはロードされて使�
 
 **Q**: それぞれ次の役割があります。
 
-![](../assets/images/role-selector.png ':size=400')
+![](/assets/images/role-selector.png ':size=400')
 
 - **User**<br />通常はこれを選択します。ユーザーとしてメッセージを入力し、直ちにAIエージェントに送信してレスポンスを求めます。
 - **User (to add to past messages)**<br />ユーザーとしてメッセージを入力しますが、コンテクストの一部として過去のメッセージに追加する目的で使用します。AIエージェントからの直接的なレスポンスを求めません。

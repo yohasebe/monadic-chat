@@ -8,7 +8,7 @@ Currently, the following basic apps are available. You can select any of the bas
 
 ### Chat
 
-![Chat app icon](../assets/icons/chat.png ':size=40')
+![Chat app icon](/assets/icons/chat.png ':size=40')
 
 This is a standard chat application. The AI responds to the text input by the user. Emojis corresponding to the content are also displayed.
 
@@ -21,15 +21,15 @@ This is a standard chat application. The AI responds to the text input by the us
 
 ### Voice Chat
 
-![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
+![Voice Chat app icon](/assets/icons/voice-chat.png ':size=40')
 
 This application allows you to chat using voice, utilizing OpenAI's Whisper voice recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
 
-![Voice input](../assets/images/voice-input-stop.png ':size=400')
+![Voice input](/assets/images/voice-input-stop.png ':size=400')
 
 While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
-![Voice p-value](../assets/images/voice-p-value.png ':size=400')
+![Voice p-value](/assets/images/voice-p-value.png ':size=400')
 
 <details>
 <summary>voice_chat_app.rb</summary>
@@ -40,7 +40,7 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 
 ### Wikipedia
 
-![Wikipedia app icon](../assets/icons/wikipedia.png ':size=40')
+![Wikipedia app icon](/assets/icons/wikipedia.png ':size=40')
 
 This is basically the same as Chat, but for questions about events that occurred after the language model's cutoff date, which GPT cannot answer, it searches Wikipedia for answers. If the query is in a language other than English, the Wikipedia search is conducted in English, and the results are translated back into the original language.
 
@@ -53,7 +53,7 @@ This is basically the same as Chat, but for questions about events that occurred
 
 ### Math Tutor
 
-![Math Tutor app icon](../assets/icons/math.png ':size=40')
+![Math Tutor app icon](/assets/icons/math.png ':size=40')
 
 This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
 
@@ -68,7 +68,7 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ### Second Opinion
 
-![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
+![Second Opinion app icon](/assets/icons/second-opinion.png ':size=40')
 
 This app generates an answer to your question. To verify the validity of that answer, it also asks the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
 
@@ -83,7 +83,7 @@ This app generates an answer to your question. To verify the validity of that an
 
 ### Language Practice
 
-![Language Practice app icon](../assets/icons/language-practice.png ':size=40')
+![Language Practice app icon](/assets/icons/language-practice.png ':size=40')
 
 This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again.
 
@@ -96,7 +96,7 @@ This is a language learning application where the conversation starts with the a
 
 ### Language Practice Plus
 
-![Language Practice Plus app icon](../assets/icons/language-practice-plus.png ':size=40')
+![Language Practice Plus app icon](/assets/icons/language-practice-plus.png ':size=40')
 
 This is a language learning application where the conversation starts with the assistant's speech, played back using speech synthesis.  The user starts and ends speech input by pressing the Enter key. In addition to the usual response, the assistant includes linguistic advice, presented as text, not speech.
 
@@ -110,7 +110,7 @@ This is a language learning application where the conversation starts with the a
 
 ### Translate
 
-![Translate app icon](../assets/icons/translate.png ':size=40')
+![Translate app icon](/assets/icons/translate.png ':size=40')
 
 This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to specify how a particular phrase should be translated, enclose the relevant part of the input text in parentheses and provide the desired translation within the parentheses.
 
@@ -123,7 +123,7 @@ This app translates the user's input text into another language. First, the assi
 
 ### Voice Interpreter
 
-![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
+![Voice Interpreter app icon](/assets/icons/voice-chat.png ':size=40')
 
 This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
 
@@ -138,7 +138,7 @@ This app translates the user's voice input into another language and speaks the 
 
 ### Novel Writer
 
-![Novel Writer app icon](../assets/icons/novel.png ':size=40')
+![Novel Writer app icon](/assets/icons/novel.png ':size=40')
 
 This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, genre, and target word count.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
 
@@ -151,7 +151,7 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 ### Image Generator
 
-![Image Generator app icon](../assets/icons/image-generator.png ':size=40')
+![Image Generator app icon](/assets/icons/image-generator.png ':size=40')
 
 This application generates images based on descriptions. If the prompt is not specific or is written in a language other than English, it returns an improved prompt and asks whether to proceed with the improved prompt. It uses the Dall-E 3 API internally.
 
@@ -166,7 +166,7 @@ Images are saved in the `Shared Folder` and also displayed in the chat.
 
 ### Mail Composer
 
-![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
+![Mail Composer app icon](/assets/icons/mail-composer.png ':size=40')
 
 This application is for drafting emails in collaboration with the assistant. The assistant drafts emails based on the user's requests and specifications.
 
@@ -179,7 +179,7 @@ This application is for drafting emails in collaboration with the assistant. The
 
 ### Mermaid Grapher
 
-![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
+![Mermaid Grapher app icon](/assets/icons/diagram-draft.png ':size=40')
 
 This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for a flowchart and renders the image.
 
@@ -192,7 +192,7 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 
 ### Music Composer
 
-![Music Composer app icon](../assets/icons/music.png ':size=40')
+![Music Composer app icon](/assets/icons/music.png ':size=40')
 
 This application creates simple sheet music using [ABC notation](https://en.wikipedia.org/wiki/ABC_notation) and plays it in Midi. Specify the instrument and the genre or style of music to be used.
 
@@ -205,7 +205,7 @@ This application creates simple sheet music using [ABC notation](https://en.wiki
 
 ### Speech Draft Helper
 
-![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
+![Speech Draft Helper app icon](/assets/icons/speech-draft-helper.png ':size=40')
 
 This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate an MP3 file of the speech.
 
@@ -220,7 +220,7 @@ This application helps you draft speeches. You can ask the assistant to draft a 
 
 ### Video Describer
 
-![Video Describer app icon](../assets/icons/video.png ':size=40')
+![Video Describer app icon](/assets/icons/video.png ':size=40')
 
 This application analyzes video content and describes what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data, saving it as an MP3 file. Based on this information, the AI provides a description of the visual and audio content.
 
@@ -235,15 +235,15 @@ To use this app, store the video file in the `Shared Folder` and provide the fil
 
 ### PDF Navigator
 
-![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
+![PDF Navigator app icon](/assets/icons/pdf-navigator.png ':size=40')
 
 This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
 
-![PDF button](../assets/images/app-pdf.png ':size=700')
+![PDF button](/assets/images/app-pdf.png ':size=700')
 
-![Import PDF](../assets/images/import-pdf.png ':size=400')
+![Import PDF](/assets/images/import-pdf.png ':size=400')
 
-![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
+![PDF DB Panel](/assets/images/monadic-chat-pdf-db.png ':size=400')
 
 <details>
 <summary>pdf_navigator_app.rb</summary>
@@ -254,7 +254,7 @@ This application reads PDF files and allows the assistant to answer user questio
 
 ### Content Reader
 
-![Content Reader app icon](../assets/icons/document-reader.png ':size=40')
+![Content Reader app icon](/assets/icons/document-reader.png ':size=40')
 
 This application features an AI chatbot that examines and explains the content of provided files or web URLs in a clear, beginner-friendly manner.  Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves and integrates the content into the conversation with GPT.
 
@@ -284,7 +284,7 @@ Supported file formats:
 
 ### Code Interpreter
 
-![Code Interpreter app icon](../assets/icons/code-interpreter.png ':size=40')
+![Code Interpreter app icon](/assets/icons/code-interpreter.png ':size=40')
 
 This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.  If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
 
@@ -297,7 +297,7 @@ This application allows the AI to create and execute program code. The execution
 
 ### Coding Assistant
 
-![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
+![Coding Assistant app icon](/assets/icons/coding-assistant.png ':size=40')
 
 This application is designed for writing computer program code. You can interact with an AI configured as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
 
@@ -312,12 +312,12 @@ This application is designed for writing computer program code. You can interact
 
 ### Jupyter Notebook
 
-![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
+![Jupyter Notebook app icon](/assets/icons/jupyter-notebook.png ':size=40')
 
 This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
 > You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
-<br /><br />![Action menu](../assets/images/action-menu.png ':size=150')
+<br /><br />![Action menu](/assets/images/action-menu.png ':size=150')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>

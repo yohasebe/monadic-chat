@@ -1,6 +1,6 @@
 <p>&nbsp;</p>
 
-<div align="center"><img src="./docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
+<div align="center"><img src="/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
 
 <div align="center"><img src="./docs/assets/images/monadic-chat-architecture.svg" width="800px"/></div>
 

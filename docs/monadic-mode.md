@@ -1,6 +1,6 @@
 # Monadic Mode
 
-Monadic Mode is one of the distinctive features of Monadic Chat. In Monadic Mode, you can maintain and update parts of the conversation in a defined format, allowing you to make new statements while referencing the context.
+Monadic Mode is a feature that allows you to maintain context in conversations with AI agents. With Monadic Mode, you can maintain and update context in a defined format while exchanging messages, and you can refer to it during the conversation.
 
 ## Basic Structure
 
@@ -16,7 +16,9 @@ In Monadic Mode, the context is maintained by generating an object with the foll
 }
 ```
 
-In both human and computer conversations, it's not just about exchanging messages that are vocalized or written as language expressions. There is always context and purpose behind the conversation, and the discourse progresses by constantly referencing and updating them. In human-to-human conversations, this kind of context maintenance and reference happens naturally, but in conversations with AI agents, maintaining and referencing such context is also useful. By defining the format and structure of such "meta-information" in advance, it is expected that conversations with AI agents will become more purposeful.
+In both human and computer conversations, it's not just about exchanging messages that are vocalized or written as language expressions. There is always context and purpose behind the conversation, and the discourse progresses by constantly referencing and updating them.
+
+In human-to-human conversations, this kind of context maintenance and reference happens naturally, but in conversations with AI agents, maintaining and referencing such context is also useful. By defining the format and structure of such "meta-information" in advance, it is expected that conversations with AI agents will become more purposeful.
 
 ## Specific Examples
 

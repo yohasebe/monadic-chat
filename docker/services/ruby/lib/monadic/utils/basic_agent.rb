@@ -9,7 +9,9 @@ module BasicAgent
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  def self.send_query(options)
+  module_function
+
+  def send_query(options)
     api_key = ENV["OPENAI_API_KEY"]
 
     headers = {

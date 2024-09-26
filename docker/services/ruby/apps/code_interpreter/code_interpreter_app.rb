@@ -69,6 +69,8 @@ class CodeInterpreter < MonadicApp
 
       ---
 
+      Always remember to check you have generated the image file before displaying it to the user.
+
     ### Request/Response Example 2:
 
     - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the output text below the code in a Markdown code block.

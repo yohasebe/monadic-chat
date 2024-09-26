@@ -69,6 +69,10 @@ class CodeWithCommandR < MonadicApp
         <img src="/data/IMAGE_FILE_NAME" />
       </div>
 
+      ---
+
+      Always remember to check you have generated the image file before displaying it to the user.
+
       It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
 
       ---

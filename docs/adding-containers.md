@@ -11,7 +11,9 @@ To add a container, you need to rebuild Monadic Chat. During this process, a `do
 
 ## Example of Necessary Files
 
-As a reference, here are the `compose.yml` and `Dockerfile` for the Python container that is included by default. In `compose.yml`, add the name of the new container under `services`.
+As a reference, here are the `compose.yml` and `Dockerfile` for the Python container that is included by default. In `compose.yml`, add the name of the new container under `services`. Files to be copied in the Dockerfile should be placed in the same directory as `compose.yml` and `Dockerfile`.
+
+### compose.yml
 
 <details open="true">
 <summary>compose.yml</summary>
@@ -20,7 +22,9 @@ As a reference, here are the `compose.yml` and `Dockerfile` for the Python conta
 
 </details>
 
-In the `Dockerfile`, describe how to build the new container. Files to be copied in the Dockerfile should be placed in the same directory as `compose.yml` and `Dockerfile`.
+### Dockerfile
+
+In the `Dockerfile`, describe how to build the new container. 
 
 <details open="true">
 <summary>Dockerfile</summary>

@@ -8,8 +8,6 @@ services:
         SELENIUM_IMAGE: ${SELENIUM_IMAGE}
         PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-selenium-container
-    depends_on:
-      - ruby_service
     shm_size: 2gb
     volumes:
       - data:/monadic/data

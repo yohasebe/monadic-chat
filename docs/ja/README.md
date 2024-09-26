@@ -73,22 +73,22 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 複数のLLM APIに対応
 
-- 👥 下記のLLMのWeb APIに対応
+- 👥 下記のLLMの**Web API**に対応
   - [OpenAI GPT-4](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
-- 🦙 [Ollama](https://ollama.com/)を用いたDocker上のローカル環境でのLLMの利用
+- 🦙 **[Ollama](https://ollama.com/)**を用いたDocker上のローカル環境でのLLMの利用
   - Llama
   - Phi
   - Mistral
   - Gemma
-- 🤖💬🤖 AIどうしのチャット機能
+- 🤖💬🤖 **AI対AI**のチャット機能
 
 ### モナドとしての会話
 
-- ♻️   AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内の値を更新することで会話の（表面下での）**状態の管理**が可能
+- ♻️   AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内の値を更新することで会話の（表面下での）**状態**の管理が可能
 
 ## 開発者
 

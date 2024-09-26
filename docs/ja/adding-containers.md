@@ -11,7 +11,9 @@
 
 ## 必要なファイルの記述例
 
-参考として、標準で組み込まれているPythonコンテナの`compose.yml`と`Dockerfile`を以下に示します。`compose.yml`では、サービス名を`services`の直下に追加して（ここでは`python_service`）、その下に必要事項を記述します。
+参考として、標準で組み込まれているPythonコンテナの`compose.yml`と`Dockerfile`を以下に示します。`compose.yml`では、サービス名を`services`の直下に追加して（ここでは`python_service`）、その下に必要事項を記述します。Dockerfileの中でCOPYするファイルは、`compose.yml`および`Dockefile`と同じディレクトリに配置します。
+
+### compose.yml
 
 <details open="true">
 <summary>compose.yml</summary>
@@ -20,7 +22,9 @@
 
 </details>
 
-`Dockerfile`では、新しいコンテナの構築方法を記述します。Dockerfileの中でCOPYするファイルは、`compose.yml`および`Dockefile`と同じディレクトリに配置します。
+### Dockerfile
+
+`Dockerfile`では、新しいコンテナの構築方法を記述します。
 
 <details open="true">
 <summary>Dockerfile</summary>

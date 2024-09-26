@@ -1,6 +1,9 @@
 ### Change Log
 
   - [Sep, 2024] 0.9.0
+      - Documentation renewed
+      - Stability improvement
+      - Better app development support
   - [Sep, 2024] 0.8.14
       - Many under-the-hood improvements
   - [Aug, 2024] 0.8.11

@@ -1,3 +1,3 @@
 # Changelog
 
-- 2024-09-24: Documentation using Docsify
+- 2024-09-26: Documentation using Docsify released

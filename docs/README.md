@@ -85,7 +85,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Gemma
 - 🤖💬🤖 AI-to-AI chat functionality
 
-### Managing Conversations as Monads
+### Conversations as Monads
 
 - ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state of the conversation** by obtaining additional responses and updating values within a predefined JSON object
 

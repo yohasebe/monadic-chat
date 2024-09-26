@@ -7,7 +7,7 @@
 <details open=true>
 <summary>レシピ・ファイル例（math_tutor.rb）</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
 
 </details>
 
@@ -18,14 +18,14 @@
 <details open=true>
 <summary>レシピ・ファイル例（wikipedia.rb）</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
 
 </details>
 
 <details open=true>
 <summary>ヘルパー・ファイル例（wikipedia_helper.rb）</summary>
 
-<!-- ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/helpers/wikipedia_helper.rb ':include :type=code') -->
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/lib/monadic/helpers/wikipedia_helper.rb ':include :type=code')
 
 </details>
 
@@ -38,7 +38,7 @@ OpenAIの一部のモデル（`gpt-4o`など）では、レスポンスをJSON�
 <details open=true>
 <summary>レシピファイル例（novel_writer_app.rb）</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
@@ -49,14 +49,14 @@ AIエージェントに使わせる関数・ツールの中でOpenAIの言語モ
 <details open=true>
 <summary>レシピ・ファイル例（second_opinion_app.rb）</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
 
 </details>
 
 <details open=true>
 <summary>ヘルパー・ファイル例（second_opinion_agent.rb）</summary>
 
-<!-- ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/agents/second_opinion_agent.rb ':include :type=code') -->
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/lib/agents/second_opinion_agent.rb ':include :type=code')
 
 </details>
 

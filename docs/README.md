@@ -72,22 +72,22 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Support for Multiple LLM APIs
 
-- 👥 Support for the following LLM Web APIs:
+- 👥 Support for the following LLM **Web APIs**:
   - [OpenAI GPT-4](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
-- 🦙 Use of LLMs in a local environment on Docker using [Ollama](https://ollama.com/)
+- 🦙 Use of LLMs in a local environment on Docker using **[Ollama](https://ollama.com/)**
   - Llama
   - Phi
   - Mistral
   - Gemma
-- 🤖💬🤖 AI-to-AI chat functionality
+- 🤖💬🤖 **AI-to-AI** chat functionality
 
 ### Conversations as Monads
 
-- ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state of the conversation** by obtaining additional responses and updating values within a predefined JSON object
+- ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state** of the conversation by obtaining additional responses and updating values within a predefined JSON object
 
 ## Developer
 

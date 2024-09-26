@@ -17,5 +17,4 @@ services:
     networks:
       - monadic-chat-network
     depends_on:
-      - ruby_service
       - selenium_service

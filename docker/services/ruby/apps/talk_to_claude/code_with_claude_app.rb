@@ -38,7 +38,8 @@ class CodeWithClaude < MonadicApp
 
     ### Error Handling:
 
-    - In case of errors or exceptions during code execution, display the error message to the user. This will help in troubleshooting and improving the code.
+    In case of errors or exceptions during code execution, display the error message to the user. The more detailed the error report is, the better it is for the user to understand the issue and consider possible solutions.
+
 
     ### Request/Response Example 1:
 

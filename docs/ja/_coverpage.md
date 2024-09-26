@@ -1,7 +1,6 @@
-<img src="assets/images/favicon/favicon.png" width="100px" style="border-radius: 20%;
-"/>
+<img src="/assets/images/favicon/favicon.png" width="100px" style="border-radius: 20%;"/>
 
-# Monadic Chat <small>0.8.14</small>
+# Monadic Chat <small>0.9.0</small>
 
 > Docker上のLinux環境を備えた<br />現実世界に接地するAIフレームワーク
 

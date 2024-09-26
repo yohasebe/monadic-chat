@@ -2,12 +2,11 @@
 
 ## Setup
 
-To use Ollama, place the necessary files as shown below and rebuild Monadic Chat.
+To use Ollama with Monadic Chat, you need to download additional files and rebuild Monadic Chat.  Follow these steps:
 
+1. Download the necessary Ollama files from the [Monadic Chat Extra](https://github.com/yohasebe/monadic-chat-extra) repository.  You'll need the `ollama` folder containing the `apps`, `services`, and `helpers` subfolders.
 
-1. Download the additional files for Ollama at [Monadic Chat Extra](https://github.com/yohasebe/monadic-chat-extra).
-
-2. Place the files in the `plugins` folder in the shared folder as shown below.
+2. Place the downloaded `ollama` folder into the `plugins` directory within your Monadic Chat shared folder.  The resulting file structure should look like this:
 
 ```
 ~
@@ -27,13 +26,13 @@ To use Ollama, place the necessary files as shown below and rebuild Monadic Chat
                     └── ollama_helper.rb
 ```
 
-3. Rebuild Monadic Chat.
+3. Rebuild Monadic Chat to incorporate the Ollama plugin.  You can do this through the Monadic Chat console.
 
-4. Start Monadic Chat and confirm that the Ollama (Chat) app has been added.
+4. Start Monadic Chat. You should now see the "Ollama (Chat)" app added to the list of available apps.
 
 ## Adding Language Models
 
-By default, the `llama3.2 (3B)` model is available. To use other language models, connect to the Ollama container from the terminal and download the model you want to add. Below is an example of adding the `gemma2:2b` model.
+By default, the `llama2.3 (3B)` model is available. To add other language models, connect to the Ollama container from your terminal and download the desired model using the `ollama run` command. For example, to add the `gemma2:2b` model:
 
 ```shell
 $ docker exec -it monadic-chat-ollama-container bash
@@ -50,8 +49,8 @@ success
 >>>
 ```
 
-You can quit the interactive shell of `ollama` by typing `/bye`.
+After the model finishes downloading, you'll see an interactive Ollama shell prompt (`>>>`). Type `/bye` to exit the shell.
 
-The models you have added will be available in the `Talk to Ollama` app. 
+The models you've added will be available for selection in the "Talk to Ollama" app.
 
-!> Loading models downloaded to the local Docker container can take some time.  Reload the page if the model does not appear immediately, especially right after adding a new model or having just started Monadic Chat.
+!> Loading locally downloaded models into the Docker container can take some time. Reload the web interface if the model doesn't appear immediately, especially after adding a new model or restarting Monadic Chat.

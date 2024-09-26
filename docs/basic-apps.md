@@ -1,8 +1,8 @@
 # Basic Apps
 
-Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file. For information on how to develop your own apps, refer to the [App Development](develop_apps.md) section.
+Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file. For information on how to develop your own apps, refer to the [App Development](/develop_apps.md) section.
 
-?> Click on the toggle button to see the recipe file of each app. The files are the same as the ones in the main brach of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
+> Click the dropdown to see the recipe file of each app. The files are the same as the ones in the `nightly` branch of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
 
 ## Assistant
 
@@ -27,14 +27,14 @@ This application allows you to chat using voice, utilizing OpenAI's Whisper voic
 
 ![Voice input](../assets/images/voice-input-stop.png ':size=400')
 
-While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-valuei, 0 - 1) of the voice recognition result is displayed.
+While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 <details>
 <summary>voice_chat_app.rb</summary>
 
-![voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
+[voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
 
 </details>
 
@@ -47,7 +47,7 @@ This is basically the same as Chat, but for questions about events that occurred
 <details>
 <summary>wikipedia_app.rb</summary>
 
-![wikipedia_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
+[wikipedia_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
 
 </details>
 
@@ -57,12 +57,12 @@ This is basically the same as Chat, but for questions about events that occurred
 
 This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
 
-!> LLMs are known to have difficulty with calculations that require multiple steps or complex logic. If the actual calculation needs to be performed, it is recommended to use the Code Interpreter app.
+!> **Warning:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
 
 <details>
 <summary>math_tutor_app.rb</summary>
 
-![math_tutor_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
+[math_tutor_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
 
 </details>
 
@@ -70,12 +70,12 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-When you ask a question to this AI agent, it generates an answer to that question, but to verify the validity of that answer, it also throws the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
+This app generates an answer to your question. To verify the validity of that answer, it also asks the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
 
 <details>
 <summary>second_opinion_app.rb</summary>
 
-![second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+[second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
 
 </details>
 
@@ -90,7 +90,7 @@ This is a language learning application where the conversation starts with the a
 <details>
 <summary>language_practice_app.rb</summary>
 
-![language_practice_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice/language_practice_app.rb ':include :type=code')
+[language_practice_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice/language_practice_app.rb ':include :type=code')
 
 </details>
 
@@ -98,12 +98,13 @@ This is a language learning application where the conversation starts with the a
 
 ![Language Practice Plus app icon](../assets/icons/language-practice-plus.png ':size=40')
 
-This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again. In addition to the usual response, the assistant includes linguistic advice. The linguistic advice is presented only as text, not as speech.
+This is a language learning application where the conversation starts with the assistant's speech, played back using speech synthesis.  The user starts and ends speech input by pressing the Enter key. In addition to the usual response, the assistant includes linguistic advice, presented as text, not speech.
+
 
 <details>
 <summary>language_practice_plus_app.rb</summary>
 
-![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+[language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
 
 </details>
 
@@ -111,12 +112,12 @@ This is a language learning application where the conversation starts with the a
 
 ![Translate app icon](../assets/icons/translate.png ':size=40')
 
-This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to reflect a specific translation result, enclose the relevant part of the input text in parentheses and specify the translation within the parentheses.
+This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to specify how a particular phrase should be translated, enclose the relevant part of the input text in parentheses and provide the desired translation within the parentheses.
 
 <details>
 <summary>translate_app.rb</summary>
 
-![translate_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/translate/translate_app.rb ':include :type=code')
+[translate_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/translate/translate_app.rb ':include :type=code')
 
 </details>
 
@@ -124,12 +125,12 @@ This app translates the user's input text into another language. First, the assi
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-This app translates the user's voice input into another language and speaks it using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
+This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
 
 <details>
 <summary>voice_interpreter_app.rb</summary>
 
-![voice_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb ':include :type=code')
+[voice_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb ':include :type=code')
 
 </details>
 
@@ -139,12 +140,12 @@ This app translates the user's voice input into another language and speaks it u
 
 ![Novel Writer app icon](../assets/icons/novel.png ':size=40')
 
-This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow. First, the AI agent asks for the setting of the story, the characters, the genre, and the total number of words. The user can then provide the prompt, and the AI agent will continue the story based on that prompt.
+This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, genre, and target word count.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
 
 <details>
 <summary>novel_writer_app.rb</summary>
 
-![novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+[novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
@@ -159,7 +160,7 @@ Images are saved in the `Shared Folder` and also displayed in the chat.
 <details>
 <summary>image_generator_app.rb</summary>
 
-![image_generator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/image_generator/image_generator_app.rb ':include :type=code')
+[image_generator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/image_generator/image_generator_app.rb ':include :type=code')
 
 </details>
 
@@ -172,7 +173,7 @@ This application is for drafting emails in collaboration with the assistant. The
 <details>
 <summary>mail_composer_app.rb</summary>
 
-![mail_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mail_composer/mail_composer_app.rb ':include :type=code')
+[mail_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mail_composer/mail_composer_app.rb ':include :type=code')
 
 </details>
 
@@ -183,9 +184,9 @@ This application is for drafting emails in collaboration with the assistant. The
 This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for a flowchart and renders the image.
 
 <details>
-<summary>flowchart_grapher_app.rb</summary>
+<summary>mermaid_grapher_app.rb</summary>
 
-![flowchart_grapher_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mermaid_grapher/mermaid_grapher_app.rb ':include :type=code')
+[mermaid_grapher_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mermaid_grapher/mermaid_grapher_app.rb ':include :type=code')
 
 </details>
 
@@ -198,7 +199,7 @@ This application creates simple sheet music using [ABC notation](https://en.wiki
 <details>
 <summary>music_composer_app.rb</summary>
 
-![music_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/music_composer/music_composer_app.rb ':include :type=code')
+[music_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/music_composer/music_composer_app.rb ':include :type=code')
 
 </details>
 
@@ -206,12 +207,12 @@ This application creates simple sheet music using [ABC notation](https://en.wiki
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-This application helps you draft speeches. You can either asks the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate an MP3 file of the speech.
+This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate an MP3 file of the speech.
 
 <details>
 <summary>speech_draft_helper_app.rb</summary>
 
-![speech_draft_helper_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb ':include :type=code')
+[speech_draft_helper_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb ':include :type=code')
 
 </details>
 
@@ -221,16 +222,14 @@ This application helps you draft speeches. You can either asks the assistant to 
 
 ![Video Describer app icon](../assets/icons/video.png ':size=40')
 
-This is an application that analyzes video content and describes its content. The AI analyzes the video content and provides a detailed description of what is happening.
+This application analyzes video content and describes what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data, saving it as an MP3 file. Based on this information, the AI provides a description of the visual and audio content.
 
-The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data from the video, saving it as an MP3 file. Based on these, the AI provides an overall description of the visual and audio information contained in the video file.
-
-To use this app, users need to store the video file in the `Shared Folder` and provide the file name. Additionally, the frames per second (fps) for frame extraction must be specified. If the total number of frames exceeds 50, only 50 frames will be proportionally extracted from the video.
+To use this app, store the video file in the `Shared Folder` and provide the file name.  Specify the frames per second (fps) for frame extraction. If the total number of frames exceeds 50, only 50 frames will be proportionally extracted from the video.
 
 <details>
 <summary>video_describer_app.rb</summary>
 
-![video_describer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/video_describer/video_describer_app.rb ':include :type=code')
+[video_describer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/video_describer/video_describer_app.rb ':include :type=code')
 
 </details>
 
@@ -238,7 +237,7 @@ To use this app, users need to store the video file in the `Shared Folder` and p
 
 ![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
 
-This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by max_tokens, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
+This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
 
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
@@ -249,7 +248,7 @@ This application reads PDF files and allows the assistant to answer user questio
 <details>
 <summary>pdf_navigator_app.rb</summary>
 
-![pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
+[pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
 
 </details>
 
@@ -257,11 +256,11 @@ This application reads PDF files and allows the assistant to answer user questio
 
 ![Content Reader app icon](../assets/icons/document-reader.png ':size=40')
 
-This application features an AI chatbot that examines and explains the content of provided files or web URLs. The explanation is presented in a clear and beginner-friendly manner. Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves the content and seamlessly integrates it into the conversation with GPT.
+This application features an AI chatbot that examines and explains the content of provided files or web URLs in a clear, beginner-friendly manner.  Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves and integrates the content into the conversation with GPT.
 
-To specify a file you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
+To specify a file for the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, verify the file name and ensure it's accessible from the current code execution environment.
 
-Files in the following formats can be read from the `Shared Folder`:
+Supported file formats:
 
 - PDF
 - Microsoft Word (docx)
@@ -269,13 +268,15 @@ Files in the following formats can be read from the `Shared Folder`:
 - Microsoft Excel (xlsx)
 - CSV
 - Text (txt)
+- PNG
+- JPEG
+- MP3
 
-You can also load image files such as PNG and JPEG to have their content recognized and described. Additionally, audio files like MP3 can be loaded to transcribe their content into text.
 
 <details>
 <summary>content_reader_app.rb</summary>
 
-![content_reader_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/content_reader/content_reader_app.rb ':include :type=code')
+[content_reader_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/content_reader/content_reader_app.rb ':include :type=code')
 
 </details>
 
@@ -285,14 +286,12 @@ You can also load image files such as PNG and JPEG to have their content recogni
 
 ![Code Interpreter app icon](../assets/icons/code-interpreter.png ':size=40')
 
-This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.
-
-If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
+This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.  If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
 
 <details>
 <summary>code_interpreter_app.rb</summary>
 
-![code_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb ':include :type=code')
+[code_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb ':include :type=code')
 
 </details>
 
@@ -300,14 +299,14 @@ If you have a file (such as Python code or CSV data) that you want the AI to rea
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
 
-This is an application for writing computer program code. You can interact with an AI set up as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
+This application is designed for writing computer program code. You can interact with an AI configured as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
 
-?> While Code Interpreter executes the code, Coding Assistant is specialized in providing code snippets and advice. A long code snippet will be divided into multiple parts and the user will be asked if they want to proceed with the next part.
+> While Code Interpreter executes the code, Coding Assistant specializes in providing code snippets and advice. A long code snippet will be divided into multiple parts, and the user will be asked if they want to proceed with the next part.
 
 <details>
 <summary>coding_assistant_app.rb</summary>
 
-![coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
+[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
 
 </details>
 
@@ -315,14 +314,15 @@ This is an application for writing computer program code. You can interact with 
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-This application allows the AI to create Jupyter Notebooks and add cells and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
+This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
-?> You can start or stop the JupyterLab by asking the AI agent to do so. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
+> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/action-menu.png ':size=150')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>
 
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
+[jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
 
 </details>
+

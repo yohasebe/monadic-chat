@@ -2,16 +2,16 @@
 
 ## How to Add Containers
 
-To make a new Docker container available, create a new folder in `~/monadic/data/services` and place the following files inside it:
+To make a new Docker container available, create a new folder within `~/monadic/data/services` and place the following files inside the new folder:
 
 - `compose.yml`
 - `Dockerfile`
 
-To add a container, you need to rebuild Monadic Chat. During this process, a `docker-compose.yml` file will be automatically generated in the `~/monadic/data` directory. This file is also used to remove images and containers, so you should generally avoid manual changes or deletions.
+To add a container, you need to rebuild Monadic Chat. During this process, a `docker-compose.yml` file will be automatically generated in the `~/monadic/data` directory. This file is used to manage the containers, including starting and removing them.  Avoid manually modifying or deleting this file.
 
 ## Example of Necessary Files
 
-As a reference, here are the `compose.yml` and `Dockerfile` for the Python container that is included by default. In `compose.yml`, add the name of the new container under `services`. Files to be copied in the Dockerfile should be placed in the same directory as `compose.yml` and `Dockerfile`.
+As a reference, here are the `compose.yml` and `Dockerfile` for the Python container that is included by default.  In `compose.yml`, you'll add the name of your new container under `services` (e.g., `my_new_service`) and then provide the necessary configuration details below it.  Files to be copied within the `Dockerfile` should be placed in the same directory as the `compose.yml` and `Dockerfile`.
 
 ### compose.yml
 
@@ -24,7 +24,7 @@ As a reference, here are the `compose.yml` and `Dockerfile` for the Python conta
 
 ### Dockerfile
 
-In the `Dockerfile`, describe how to build the new container. 
+In the `Dockerfile`, describe how to build the new container.
 
 <details open="true">
 <summary>Dockerfile</summary>

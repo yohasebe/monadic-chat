@@ -56,7 +56,7 @@ AIエージェントに使わせる関数・ツールの中でOpenAIの言語モ
 <details open=true>
 <summary>ヘルパー・ファイル例（second_opinion_agent.rb）</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/lib/agents/second_opinion_agent.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/lib/monadic/helpers/agents/second_opinion_agent.rb ':include :type=code')
 
 </details>
 

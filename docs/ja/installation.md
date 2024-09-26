@@ -11,8 +11,8 @@ macOSの場合、以下の手順でMonadic Chatをインストールします。
 1. Docker Desktop for Macをインストールします。
 2. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.13-arm64.dmg) (0.8.13)
-- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.13.dmg) (0.8.13)
+- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.0-arm64.dmg) (0.9.0)
+- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.0.dmg) (0.9.0)
 
 ### **Windows**
 
@@ -22,7 +22,7 @@ Windowsの場合、以下の手順でMonadic Chatをインストールします�
 2. Docker Desktop for Windowsをインストールします。
 3. Monadic Chat のインストーラーをダウンロードしてインストールします。
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.8.13.exe) (0.8.13)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.9.0.exe) (0.9.0)
 
 ### **Linux**
 
@@ -34,8 +34,8 @@ Linux (Ubuntu/Debian) の場合、以下の手順でMonadic Chatをインスト�
 
 2. Monadic Chat のインストーラーをダウンロードします。
 
-- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.8.13_amd64.deb) (0.8.13)
-- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.8.13_arm64.deb) (0.8.13)
+- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.9.0_amd64.deb) (0.9.0)
+- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.9.0_arm64.deb) (0.9.0)
 
 3. ターミナルで以下のコマンドを実行します。
 
@@ -84,12 +84,12 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 次にPowerShell上で次のコマンドを実行します（最初の`>`はコマンドラインのプロンプトを表します）。
 
 ```shell
-> wsl --install
+> wsl --install -d Ubuntu
 ```
 
 <img src="./assets/images/win-wsl-install.png" width="800px"/>
 
-そしてコンピュータを再起動します。再起動後、WSL2とそのデフォルトのLinuxディストリビューションであるUbuntuがインストールされます。このプロセスの中で、Linux環境のユーザ名とパスワードを入力するよう求められます。任意のユーザ名とパスワードを入力してください。このユーザ名とパスワードは覚えておく必要があります。
+そしてコンピュータを再起動します。再起動後、WSL2とUbuntuがインストールされます。このプロセスの中で、Linux環境のユーザ名とパスワードを入力するよう求められます。任意のユーザ名とパスワードを入力してください。このユーザ名とパスワードは覚えておく必要があります。
 
 これでWSL2のインストールは完了です。Windows上でUbuntuが使えるようになりました。Windowsの検索ボックスで"Ubuntu"を検索し、Ubuntuのターミナルを開いてみてください。
 

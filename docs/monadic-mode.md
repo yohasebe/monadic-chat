@@ -1,12 +1,12 @@
 # Monadic Mode
 
-Monadic Mode is a feature that allows you to maintain context in conversations with AI agents. With Monadic Mode, you can maintain and update context in a defined format while exchanging messages, and you can refer to it during the conversation.
+Monadic Mode is a distinctive feature of Monadic Chat. In Monadic Mode, you can maintain and update the context of the conversation, referencing it as you chat.  This allows for more meaningful and coherent interactions with the AI agent.
 
 ![Monadic Chat Architecture](../assets/images/monadic-messaging.svg ':size=200')
 
 ## Basic Structure
 
-In Monadic Mode, the context is maintained by generating an object with the following structure in each query to the language model. The `message` in the object corresponds to the message returned by the AI agent in a regular chat. The `context` holds information accumulated from previous interactions or information that should be shared behind the scenes.
+In Monadic Mode, each query to the language model generates an object with the following structure. This structure allows the conversation's context to be preserved and updated throughout the interaction. The `message` field contains the AI agent's response, similar to a regular chat. The `context` field stores information accumulated from previous exchanges or information shared behind the scenes.
 
 ```json
 {
@@ -18,51 +18,50 @@ In Monadic Mode, the context is maintained by generating an object with the foll
 }
 ```
 
-In both human and computer conversations, it's not just about exchanging messages that are vocalized or written as language expressions. There is always context and purpose behind the conversation, and the discourse progresses by constantly referencing and updating them.
-
-In human-to-human conversations, this kind of context maintenance and reference happens naturally, but in conversations with AI agents, maintaining and referencing such context is also useful. By defining the format and structure of such "meta-information" in advance, it is expected that conversations with AI agents will become more purposeful.
+During a conversation, both computers and humans do more than just exchange vocalized or written messages.  There's an underlying context and purpose, constantly referenced and updated as the dialogue progresses.  While humans manage this context naturally, Monadic Mode provides a structured way to achieve this with AI agents. By predefining the format and structure of this "meta-information," conversations become more focused and purposeful.
 
 ## Specific Examples
 
 ### Example of Novel Writer
 
-For instance, in the Novel Writer app, you can write a novel using Monadic Mode. When writing a novel, it is important to maintain consistent information such as characters, locations, and plot flow from beginning to end. Therefore, the Novel Writer app maintains information like the following as an object, and the updated components are used as the context for the next statement.
+The Novel Writer app uses Monadic Mode to facilitate collaborative novel writing.  Maintaining consistency in characters, plot, setting, and other details is crucial throughout the writing process.  The Novel Writer app uses the following structure within the `context` object:
 
-- Message (string)
-- Context (hash)
-  - Overall plot (string)
-  - Target text length (int)
-  - Current text length (int)
-  - Language used (string)
-  - Summary of current content (string)
-  - Characters (array)
-  - Questions for the next development (string)
+* `message` (string): The generated text for the current step in the story.
+* `context` (hash):  Contains the following key-value pairs:
+    * `plot` (string): The overall plot of the story.
+    * `target_length` (int): The target word count for the novel.
+    * `current_length` (int): The current word count.
+    * `language` (string): The language being used.
+    * `summary` (string): A summary of the story so far.
+    * `characters` (array): An array of characters in the story.
+    * `question` (string): A question or prompt to guide the next step in the story.
 
-The conversation progresses through interactions between the user and the AI agent. The user gives instructions to the AI agent regarding the development of the novel. Based on those instructions, the AI agent returns a new piece of text as a message and updates the context. The user refers to the text returned by the AI agent and the "questions" embedded in the context to give the next instructions.
-
-In this way, Monadic Mode is characterized by maintaining "context" behind the exchange of messages between the user and the AI agent and making new statements while referencing it. By using Monadic Mode, it is possible to have a "discourse" that goes beyond a mere sequence of utterances.
+The conversation progresses through user prompts and AI responses. The user provides instructions about the story's development, and the AI agent generates text based on those instructions, updating the `message` and `context` fields accordingly. The user then uses the generated text and the `question` prompt to guide their next input.
 
 <details>
 <summary>Recipe File (novel_writer_app.rb)</summary>
 
-![novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
 ### Example of Language Practice Plus
 
-In language learning, practicing conversation in the target language is important. It is desirable for the content of the conversation to change according to the flow of the conversation at the moment rather than being predetermined. However, when having a conversation in a foreign language rather than in one's native language, it can be difficult to always use the optimal expressions. Therefore, if the AI agent can point out errors or suggest new expressions, more effective language practice becomes possible.
+Language learning benefits significantly from conversational practice.  Ideally, these conversations should flow naturally and adapt to the context. However, using a foreign language fluently can be challenging, and learners often make mistakes or struggle to find the right expressions.  The Language Practice Plus app uses Monadic Mode to provide linguistic feedback and suggestions during the conversation, making practice more effective.
 
-- Message (string)
-- Context (hash)
-  - Target language (string)
-  - Advice (array)
+The app maintains the following structure within its `context`:
 
-Here, "context" may differ slightly from the general meaning of context, but when considering the purpose of the conversation practice process, it is very beneficial to obtain information that is not just "responses." Monadic Mode is a feature that can link conversations with AI agents to a realistic purpose.
+* `message` (string): The AI's response in the target language.
+* `context` (hash): Contains the following:
+    * `target_language` (string): The language being practiced.
+    * `advice` (array): An array of linguistic advice and suggestions related to the user's input.
+
+While the `context` here might deviate slightly from the typical definition, it provides valuable information beyond simple exchanges, enhancing the learning process.  The AI agent can offer corrections, alternative expressions, and other helpful tips, directly within the context of the conversation.  This makes the interaction more purposeful and helps learners improve their language skills more efficiently.
+
 
 <details>
 <summary>Recipe File (language_practice_plus_app.rb)</summary>
 
-![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
 
 </details>

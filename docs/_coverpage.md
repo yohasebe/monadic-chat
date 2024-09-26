@@ -1,4 +1,4 @@
-<img src="https://github.com/yohasebe/monadic-chat/blob/main/docs/assets/images/favicon/favicon.png" width="100px" style="border-radius: 20%;"/>
+<img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/favicon/favicon.png" width="100px" style="border-radius: 20%;"/>
 
 # Monadic Chat <small>0.9.0</small>
 

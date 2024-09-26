@@ -12,7 +12,8 @@
     - [Language Models](/language-models.md)
 
 - **Docker Integration**
-    - [Access to Containers](/docker-access.md)
+    - [Basic Architecture](/basic-architecture.md)
+    - [Docker Containers](/docker-access.md)
     - [JupyterLab](/jupyterlab.md)
     - [Shared Folder](/shared-folder.md)
 

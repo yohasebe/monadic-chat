@@ -2,6 +2,8 @@
 
 Monadic Mode is a feature that allows you to maintain context in conversations with AI agents. With Monadic Mode, you can maintain and update context in a defined format while exchanging messages, and you can refer to it during the conversation.
 
+![Monadic Chat Architecture](../assets/images/monadic-messaging.svg ':size=200')
+
 ## Basic Structure
 
 In Monadic Mode, the context is maintained by generating an object with the following structure in each query to the language model. The `message` in the object corresponds to the message returned by the AI agent in a regular chat. The `context` holds information accumulated from previous interactions or information that should be shared behind the scenes.

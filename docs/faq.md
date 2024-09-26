@@ -25,7 +25,7 @@
 
 **A**: The roles of each button and icon are as follows:
 
-![](../assets/images/message-buttons.png ':size=600')
+![](/assets/images/message-buttons.png ':size=600')
 
 - **Copy**<br />Copies the message text to the clipboard.
 - **Play**<br />Plays the message text using speech synthesis.
@@ -54,7 +54,7 @@ The active/inactive status of a message changes depending on the context size an
 
 **A**: Each role has the following function:
 
-![](../assets/images/role-selector.png ':size=400')
+![](/assets/images/role-selector.png ':size=400')
 
 - **User**<br />Normally select this. Enter a message as a user and immediately send it to the AI agent for a response.
 - **User (to add to past messages)**<br />Enter a message as a user, but use it to add to past messages as part of the context. Do not request a direct response from the AI agent.

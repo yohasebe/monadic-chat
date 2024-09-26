@@ -12,7 +12,8 @@
     - [言語モデル](/ja/language-models.md)
 
 - **Docker連携**
-    - [コンテナへのアクセス](/ja/docker-access.md)
+    - [基本構造](/ja/basic-architecture.md)
+    - [Dockerコンテナ](/ja/docker-access.md)
     - [JupyterLabとの連携](/ja/jupyterlab.md)
     - [共有フォルダ](/ja/shared-folder.md)
 

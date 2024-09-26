@@ -88,31 +88,27 @@ The following modules are available for use in the recipe file:
 
 !> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed. Details of the specific error are recorded in a log file saved in the shared folder (`~/monadic/data/error.log`).
 
-## Settings
+### Settings
 
 There are required and optional settings. If the required settings are not specified, an error message will be displayed on the browser screen when the application starts. Here are the required settings:
 
 `app_name` (string, required)
-
 Specify the name of the application (required).
 
 `icon` (string, required)
-
 Specify the icon for the application (emoji or HTML).
 
 `description` (string, required)
-
 Describe the application.
 
 `initial_prompt` (string, required)
-
 Specify the text of the system prompt.
 
-There are many optional settings. See [Setting Items](ja/setting-items.md) for details.
+There are many optional settings. See [Setting Items](/setting-items.md) for details.
 
-### Using Functions and Tools in the App
+## Calling Functions in the App
 
-You can define functions and tools that the AI agent can use in the app. There are three ways to define functions and tools: 1) Define Ruby methods in the recipe file; 2) Execute commands or shell scripts; and 3) Execute program code in language other than Ruby.
+You can define functions and tools that the AI agent can use in the app. There are three ways to define functions and tools: 1) Define Ruby methods in the recipe file; 2) Execute commands or shell scripts; and 3) Execute program code in languages other than Ruby.
 
 ### Define Ruby Methods
 
@@ -133,31 +129,30 @@ The ways to specify the function name and arguments in `tools` are somewhat diff
 
 You can execute commands or shell scripts in the app. The `send_command` method is used to execute commands or shell scripts. The `send_command` method is defined in the `MonadicApp` module, which is the base class for all additional apps. Commands or shell scripts are executed with the shared folder (`/monadic/data`) as the current working directory in each container. Shell scripts saved in the `scripts` directory in the shared folder on the host computer are executable in the container, and you can execute them by specifying the script name.
 
-The `send_command` method ise used with the following arguments: the name of the command or shell script to execute (`command`), the container name (`container`), and the message to display when the command is executed successfully (`success`).
+The `send_command` method takes the following arguments: the name of the command or shell script to execute (`command`), the container name (`container`), and an optional message to display when the command is executed successfully (`success`). The `container` argument uses short string notation; for example, `python` represents `monadic-chat-python-container`.
 
 ```ruby
 send_command(command: "ls", container: "python", success: "Linux ls command executed successfully")
 ```
 
-As an example, the above command executes the `ls` command in the `python` container and displays the message "Linux ls command executed successfully" when the command is executed successfully. The `container` aregument is specified in a short string format, with `python` representing the `monadic-chat-python-container`. The `success` argument is optional, but by specifying an appropriate message, the AI agent can correctly interpret the command execution result. If the `success` argument is omitted, the message "Command executed successfully" is displayed.
+As an example, the above command executes the `ls` command in the `python` container and displays the message "Linux ls command executed successfully" when the command is executed successfully. If the `success` argument is omitted, the message "Command executed successfully" is displayed.
 
-?> It is possible to set up a recipe file so that the AI agent can use the `send_command` method directly. However, it is recommended to create a wrapper method in the recipe file and call the `send_command` method from there with the necessary procedures to handle errors and exceptions gracefully.
+?> It is possible to set up a recipe file so that the AI agent can use the `send_command` method directly. However, it is recommended to create a wrapper method in the recipe file and call the `send_command` method from there, implementing necessary error handling procedures. The `MonadicApp` class provides a wrapper method called `run_command` that works similarly to `send_command` but returns a specific message if any arguments are missing. It is recommended to use `run_command` instead of `send_command` directly in your recipe files.
+
 
 ### Execute Program Code
 
-If you want to execute program code in a language other than Ruby, you can use the `send_code` method. The `send_code` method is defined in the `MonadicApp` module, which is the base class for all additional apps.
+If you want to execute program code in a language other than Ruby, you can use the `send_code` method. The `send_code` method is defined in the `MonadicApp` module, which is the base class for all additional apps. Note that the `send_code` method only supports code execution in the Python container (`monadic-chat-python-container`).
 
-?> The `send_code` method only supports code execution in the Python container (`monadic-chat-python-container`).
-
-The `send_code` methods runs the given program code in the container by first saving the code to a file with the specified extension and then executing the file. It is used with the following arguments: the program code to execute (`code`), the command to run the code (such as `python`) (`command`), the extension of the file to save the code (`extension`), and the message to display when the code is executed successfully (`success`). The `success` argument is optional, but by specifying an appropriate message, the AI agent can correctly interpret the code execution result. If the `success` argument is omitted, the message "The code has been executed successfully." is displayed.
+The `send_code` method runs the given program code in the container by first saving the code to a temporary file with the specified extension and then executing the file. It takes the following arguments: the program code to execute (`code`), the command to run the code (such as `python`) (`command`), the extension of the file to save the code (`extension`), and an optional message to display when the code is executed successfully (`success`).
 
 ```ruby
 send_code(code: "print('Hello, world!')", command: "python", extension: "py", success: "Python code executed successfully")
 ```
 
-As an example, the above code runs the `print('Hello, world!')` code in the Python container and returns the result.
+As an example, the above code runs the `print('Hello, world!')` code in the Python container and returns the result.  If the `success` argument is omitted, the message "The code has been executed successfully." is displayed.
 
-The `send_code` method detects if new files have been created as a result of the code execution and if there are any new files, it returns the file names as part of the response along with the success message.
+The `send_code` method detects if new files have been created as a result of the code execution. If new files are present, it returns the file names as part of the response along with the success message.
 
 **Without new files created:**
 
@@ -173,18 +168,16 @@ The code has been executed successfully; File(s) generated: NEW_FILE; Output: OU
 
 With the correct information about the generated files, the AI agent can continue processing them further.
 
-
-?> If you set up the recipe file so that the AI agent can call `send_code` directly, an error will occur in the container if any of the required arguments are not specified. Therefore, when calling `send_command`, be sure to handle errors properly. The `MonadicApp` class provides a wrapper method called `run_command` that works the same way as `send_command`, but returns a message if any arguments are missing.
+?> If you set up the recipe file so that the AI agent can call `send_code` directly, an error will occur in the container if any of the required arguments are not specified. Therefore, it is recommended to create a wrapper method and handle errors appropriately.
 
 ## Using LLM in Functions and Tools
 
-In functions and tools called by the AI agent, you may want to make requests to the AI agent. In such cases, you can use `ask_openai` method available in the `MonadicApp` class.
+In functions and tools called by the AI agent, you may want to make requests to the AI agent. In such cases, you can use the `ask_openai` method available in the `MonadicApp` class.
 
-The `ask_openai` method is used to make requests to the AI agent from within functions and tools in the app. It takes a hash as an argument that specifies the request parameters available for the OpenAI Chat Completions API. 
+The `ask_openai` method is used to make requests to the AI agent from within functions and tools in the app. It takes a hash as an argument that specifies the request parameters available for the OpenAI Chat Completions API.  The parameter hash *must* include a `messages` key with an array of messages as its value. The `model` key specifies the language model to use (defaults to `gpt-4o-mini`). Other parameters available for the OpenAI Chat Completions API can also be used. See the [Chat Completions](https://platform.openai.com/docs/guides/chat-completions) API documentation for more information.
 
-The parameter hash must have a `messages` key and an array of messages as its value. The `model` key specifies the language model to use (defaults to `gpt-4o-mini`). Other parameters available for the OpenAI Chat Completions API can also be used. See the [Chat Completions](https://platform.openai.com/docs/guides/chat-completions) API documentation for more information.
 
-!> The `stream` parameter of the OpenAI Chat Completions API must be `false`. It is already set to `false` by default, so there is no need to change it. If you set `stream` to `true`, you will need to implement (unnecessary) procedures in the function or tool to handle the information exchange between the LLMs.
+!> The `stream` parameter of the OpenAI Chat Completions API must be `false`. It is already set to `false` by default, so there is no need to change it.  If you set `stream` to `true`, you will need to implement unnecessary procedures in the function or tool to handle the information exchange between the LLMs.
 
 The following is an example of using the `ask_openai` method:
 

@@ -10,7 +10,7 @@ To access a Docker container, use the `docker exec` command. For example, to acc
 docker exec -it monadic-chat-python-container bash
 ```
 
-When you click Start on the Monadic Chat console, all containers will start. Once the startup is complete, a command to access the container will be displayed, which you can copy and paste into the terminal to execute.
+When you click the Start button on the Monadic Chat console, all containers will start. Once the startup is complete, commands to access each container will be displayed. You can copy and paste these commands into the terminal to execute them.
 
 ![Start JupyterLab](../assets/images/docker-commands.png ':size=600')
 

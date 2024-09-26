@@ -11,8 +11,8 @@ For macOS, follow these steps to install Monadic Chat.
 1. Install Docker Desktop for Mac.
 2. Download and install the Monadic Chat installer.
 
-- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.13-arm64.dmg) (0.8.13)
-- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.8.13.dmg) (0.8.13)
+- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.0-arm64.dmg) (0.9.0)
+- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.0.dmg) (0.9.0)
 
 ### **Windows**
 
@@ -22,7 +22,7 @@ For Windows, follow these steps to install Monadic Chat.
 2. Install Docker Desktop for Windows.
 3. Download and install the Monadic Chat installer.
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.8.13.exe) (0.8.13)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.9.0.exe) (0.9.0)
 
 ### **Linux**
 
@@ -34,8 +34,8 @@ Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/insta
 
 2. Download the Monadic Chat installer.
 
-- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.8.13_amd64.deb) (0.8.13)
-- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.8.13_arm64.deb) (0.8.13)
+- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.9.0_amd64.deb) (0.9.0)
+- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.9.0_arm64.deb) (0.9.0)
 
 3. Run the following command in the terminal.
 
@@ -84,12 +84,12 @@ Open PowerShell in administrator mode. Search for PowerShell in the Windows sear
 Next, execute the following command in PowerShell (the initial `>` represents the command line prompt).
 
 ```shell
-> wsl --install
+> wsl --install -d Ubuntu 
 ```
 
 <img src="./assets/images/win-wsl-install.png" width="800px"/>
 
-Then restart your computer. After restarting, WSL2 and its default Linux distribution, Ubuntu, will be installed. During this process, you will be prompted to enter a username and password for the Linux environment. Enter any username and password. You will need to remember this username and password for later use.
+Then restart your computer. After restarting, WSL2 and Ubuntu will be installed. During this process, you will be prompted to enter a username and password for the Linux environment. Enter any username and password. You will need to remember this username and password for later use.
 
 This completes the installation of WSL2. Ubuntu is now available on Windows. Search for "Ubuntu" in the Windows search box and open the Ubuntu terminal.
 

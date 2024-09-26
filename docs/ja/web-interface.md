@@ -1,10 +1,10 @@
 # Monadic Chat Web インターフェース
 
-<img src="./assets/images/monadic-chat-web.png" width="700px"/>
+![](./assets/images/monadic-chat-web.png ':size=700')
 
 ## チャット設定画面
 
-<img src="./assets/images/chat-settings.png" width="700px"/>
+![](./assets/images/chat-settings.png ':size=700')
 
 **Base App** <br />
 Monadic Chatであらかじめ用意された基本アプリの中から1つを選択します。各アプリでは異なるデフォルト・パラメター値が設定されており、固有の初期プロンプトが与えられています。各アプリの特徴については [Base Apps](#base-apps)を参照してください。
@@ -60,7 +60,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 
 ## 基本情報パネル
 
-<img src="./assets/images/monadic-chat-info.png" width="400px"/>
+![](./assets/images/monadic-chat-info.png ':size=400')
 
 **Monadic Chat Info**<br />
 関連するウェブサイトへのリンクとMonadic Chatのバージョンが示されます。`API Usage`をクリックするとOpenAIのページにアクセスします。API Usageで示されるのはAPI使用量の全体であり、Monadic Chatによるものだけとは限らないことに注意してください。バージョン番号の後の括弧には、Monadic Chatを使用する様式に応じて、DockerもしくはLocalが表示されます。通常はDockerが表示されます。
@@ -70,7 +70,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 
 ### ステータスパネル
 
-<img src="./assets/images/monadic-chat-status.png" width="400px"/>
+![](./assets/images/monadic-chat-status.png ':size=400')
 
 **Monadic Chat Status**<br />
 
@@ -86,7 +86,7 @@ Monadic Chatの現在の状況を示します。
 
 ## セッション表示パネル
 
-<img src="./assets/images/monadic-chat-session.png" width="400px"/>
+![](./assets/images/monadic-chat-session.png ':size=400')
 
 **Reset**<br />
 `Reset`ボタンをクリックすると、現在の会話が破棄され、初期状態に戻ります。アプリの選択もデフォルトの`Chat`に戻ります。
@@ -102,7 +102,7 @@ Monadic Chatの現在の状況を示します。
 
 ## 音声設定パネル
 
-<img src="./assets/images/monadic-chat-tts.png" width="400px"/>
+![](./assets/images/monadic-chat-tts.png ':size=400')
 
 !> 音声機能を使用するにはGoogle ChromeまたはMicrosoft Edgeブラウザを使用する必要があります。
 
@@ -118,7 +118,7 @@ Monadic Chatの現在の状況を示します。
 
 ## PDFデータベース表示パネル
 
-<img src="./assets/images/monadic-chat-pdf-db.png" width="400px"/>
+![](./assets/images/monadic-chat-pdf-db.png ':size=400')
 
 ?> このパネルはPDF読み込み機能を備えたアプリを選択しているときだけ表示されます。
 

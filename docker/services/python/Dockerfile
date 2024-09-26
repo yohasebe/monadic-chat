@@ -2,9 +2,6 @@ FROM python:3.10.14-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
-ENV WORKSPACE /monadic
-WORKDIR $WORKSPACE
-
 # Install necessary packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -54,18 +51,18 @@ RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
 # Copy scripts and set permissions
-COPY scripts ${WORKSPACE}/scripts
-RUN chmod +x ${WORKSPACE}/scripts/*
-RUN mkdir -p ${WORKSPACE}/data/scripts
+COPY scripts /monadic/scripts
+RUN chmod +x /monadic/scripts/*
+RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables
-ENV PATH="${WORKSPACE}/data/scripts:${WORKSPACE}/scripts:${PATH}"
+ENV PATH="/monadic/data/scripts:/monadic/scripts:${PATH}"
 ENV PIP_ROOT_USER_ACTION=ignore
 
 # Copy Flask application
-COPY flask ${WORKSPACE}/flask
+COPY flask /monadic/flask
 
 # Create symbolic link for data directory
-RUN ln -s ${WORKSPACE}/data /data
+RUN ln -s /monadic/data /data
 
-COPY Dockerfile ${WORKSPACE}/Dockerfile
+COPY Dockerfile /monadic/Dockerfile

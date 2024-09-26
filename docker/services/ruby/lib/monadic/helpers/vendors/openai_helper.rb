@@ -106,11 +106,11 @@ module OpenAIHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["parallel_tool_calls"] = false
+      # body["parallel_tool_calls"] = false 
     else
       body.delete("tools")
       body.delete("tool_choice")
-      body.delete("parallel_tool_calls")
+      # body.delete("parallel_tool_calls")
     end
 
     # The context is added to the body

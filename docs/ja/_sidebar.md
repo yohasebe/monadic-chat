@@ -26,6 +26,6 @@
     - [Dockerコンテナの追加](/ja/adding-containers.md)
     - [Ollamaの利用](/ja/ollama.md)
 
-- [よくある質問](/ja/faq.md)
+- [**よくある質問**](/ja/faq.md)
 - [更新履歴](/ja/changelog.md)
 

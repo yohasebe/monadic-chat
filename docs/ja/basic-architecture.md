@@ -6,7 +6,7 @@ Dockerコンテ内にはユーザーとAIエージェントの両方がアクセ
 
 また、ホストコンピュータと個々のDockerコンテナとの間でデータを共有するための仕組みも提供しています。これにより、ユーザーは仮想環境とシームレスに連携でき、必要なファイルをAIエージェントに提供したり、AIエージェントにより生成されたファイルを取得したりすることができます。
 
-![Basic Architecture](../assets/images/basic-architecture.svg ':size=800')
+![Basic Architecture](/assets/images/basic-architecture.svg ':size=800')
 
 
 ## 標準コンテナ

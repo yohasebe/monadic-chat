@@ -12,7 +12,7 @@ For apps using OpenAI's language models, refer to the [Basic Apps](/basic-apps.m
 
 ## Anthropic
 
-![Anthropic apps icon](../assets/icons/a.png ':size=40')
+![Anthropic apps icon](/assets/icons/a.png ':size=40')
 
 By setting the Anthropic API key, you can use apps that utilize Claude. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
@@ -45,7 +45,7 @@ Chat with Claude is an application that accesses the Anthropic Claude API to ans
 
 ## Cohere
 
-![Cohere apps icon](../assets/icons/c.png ':size=40')
+![Cohere apps icon](/assets/icons/c.png ':size=40')
 
 By setting the Cohere API key, you can use apps that utilize Command R. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
@@ -72,7 +72,7 @@ Chat with Command R is an application that accesses the Cohere API to answer que
 
 ## Google
 
-![Google apps icon](../assets/icons/google.png ':size=40')
+![Google apps icon](/assets/icons/google.png ':size=40')
 
 By setting the Google Gemini API key, you can use apps that utilize Gemini. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
@@ -91,7 +91,7 @@ Chat with Gemini is an application that accesses the Google Gemini API to answer
 
 ## Mistral
 
-![Mistral apps icon](../assets/icons/m.png ':size=40')
+![Mistral apps icon](/assets/icons/m.png ':size=40')
 
 By setting the Mistral AI API key, you can use apps that utilize Mistral. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
@@ -118,7 +118,7 @@ Chat with Mistral is an application that accesses the Mistral AI API to answer q
 
 ## Ollama
 
-![Ollama apps icon](../assets/icons/ollama.png ':size=40')
+![Ollama apps icon](/assets/icons/ollama.png ':size=40')
 
 By introducing additional images and containers, you can use apps that utilize Ollama. [Ollama](https://ollama.com/) is a platform that allows you to use language models in a local environment on Docker. The following models are available:
 

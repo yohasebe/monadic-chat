@@ -2,7 +2,7 @@
 
 MonadicモードはMonadic Chatの特徴的な機能の一つです。Monadicモードでは、それまでのチャットでなされたやり取り、すなわち文脈を、定義された形式で随時更新しながら保持し、それを参照しながらチャットを行うことができます。
 
-![Monadic Chat Architecture](../assets/images/monadic-messaging.svg ':size=200')
+![Monadic Chat Architecture](/assets/images/monadic-messaging.svg ':size=200')
 
 ## 基本的な構造
 

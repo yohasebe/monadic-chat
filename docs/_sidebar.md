@@ -26,5 +26,5 @@
     - [Adding Docker Containers](/adding-containers.md)
     - [Using Ollama](/ollama.md)
 
-- [Frequently Asked Questions](/faq.md)
+- [**Frequently Asked Questions**](/faq.md)
 - [Changelog](/changelog.md)

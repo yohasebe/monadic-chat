@@ -17,7 +17,6 @@ When the checkmark is on, the text sent to the API (past interactions and new me
 
 Specify the maximum number of tokens to be sent to the API. This includes the number of tokens in the text sent as a prompt and the number of tokens in the text returned as a response. For information on how tokens are counted in OpenAI's API, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 
-
 **Context Size** <br />
 The maximum number of utterances to keep active in the ongoing chat. Only active utterances are sent to the API as context information. Inactive utterances can still be referenced on the screen and are also saved when exported.
 
@@ -36,14 +35,17 @@ Turn on to display or edit the text sent to the API as the initial prompt (also 
 **Show Initial Prompt for AI-User**<br />
 Displays the initial prompt given to the AI user when the AI User feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user.  Afterward, the AI will create messages on your behalf, based on the AI assistant's messages. You can edit or append to the messages entered in the text box by the AI user. The initial prompt for the AI user can be freely changed.
 
+**System Prompt Caching**<br />
+Specify whether to cache the system prompt sent to the API. Enabling caching allows the same system prompt to be reused on the API side, saving API usage and improving response time. At present, this feature is only available for Anthropic's Claude model. For more information, see [Prompt Caching with Claude](https://www.anthropic.com/news/prompt-caching).
+
 **Enable AI-User**<br />
 Specify whether to enable the AI User feature. This feature cannot be used together with the `Start from assistant` feature.
 
-**Chat Interaction Controls**<br />
-Options to configure Monadic Chat for conversations using voice input. For conversations with voice input, it is recommended to turn on all the following options (`Start from assistant`, `Auto speech`, `Easy submit`). You can turn all options on or off at once by clicking `check all` or `uncheck all`.
-
 **Start from assistant**<br />
 When on, the assistant makes the first utterance when starting a conversation.
+
+**Chat Interaction Controls**<br />
+Options to configure Monadic Chat for conversations using voice input. For conversations with voice input, it is recommended to turn on all the following options (`Start from assistant`, `Auto speech`, `Easy submit`). You can turn all options on or off at once by clicking `check all` or `uncheck all`.
 
 **Auto speech**<br />
 When on, the assistant's response is automatically read aloud using synthesized speech when it is returned. You can select the voice, speaking speed, and language (automatic or specified) for synthesized speech on the web interface.

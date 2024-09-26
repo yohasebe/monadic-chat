@@ -25,21 +25,21 @@ Chat with Claude is an application that accesses the Anthropic Claude API to ans
 <details>
 <summary>chat_with_claude_app.rb</summary>
 
-![chat_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_claude/chat_with_claude_app.rb ':include :type=code')
+![chat_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_claude/chat_with_claude_app.rb ':include :type=code')
 
 </details>
 
 <details>
 <summary>code_with_claude_app.rb</summary>
 
-![code_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_claude/code_with_claude_app.rb ':include :type=code')
+![code_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_claude/code_with_claude_app.rb ':include :type=code')
 
 </details>
 
 <details>
 <summary>jupyter_with_claude_app.rb</summary>
 
-![jupyter_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
+![jupyter_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
 
 </details>
 
@@ -58,14 +58,14 @@ Chat with Command R is an application that accesses the Cohere API to answer que
 <details>
 <summary>chat_with_command_r_app.rb</summary>
 
-![chat_with_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_cohere/chat_with_command_r_app.rb ':include :type=code')
+![chat_with_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_cohere/chat_with_command_r_app.rb ':include :type=code')
 
 </details>
 
 <details>
 <summary>code_with_command_r_app.rb</summary>
 
-![code_with_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_cohere/code_with_command_r_app.rb ':include :type=code')
+![code_with_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_cohere/code_with_command_r_app.rb ':include :type=code')
 
 </details>
 
@@ -84,7 +84,7 @@ Chat with Gemini is an application that accesses the Google Gemini API to answer
 <details>
 <summary>chat_with_gemini_app.rb</summary>
 
-![chat_with_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_gemini/chat_with_gemini_app.rb ':include :type=code')
+![chat_with_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_gemini/chat_with_gemini_app.rb ':include :type=code')
 
 </details>
 
@@ -103,14 +103,14 @@ Chat with Mistral is an application that accesses the Mistral AI API to answer q
 <details>
 <summary>chat_with_mistral_app.rb</summary>
 
-![chat_with_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_mistral/chat_with_mistral_app.rb ':include :type=code')
+![chat_with_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_mistral/chat_with_mistral_app.rb ':include :type=code')
 
 </details>
 
 <details>
 <summary>code_with_mistral_app.rb</summary>
 
-![code_with_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/apps/talk_to_mistral/code_with_mistral_app.rb ':include :type=code')
+![code_with_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/talk_to_mistral/code_with_mistral_app.rb ':include :type=code')
 
 </details>
 

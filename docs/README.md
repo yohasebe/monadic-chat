@@ -55,7 +55,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
 - 🎧 Save AI assistant's spoken responses as **MP3 audio** files
 
-### Image and Video Recognition and Generation
+### Image/Video Recognition and Generation
 
 - 🖼️ **Image generation** using DALL·E 3 API
 - 👀 Recognition and description of **uploaded images**

@@ -37,15 +37,17 @@ Monadic Chatであらかじめ用意された基本アプリの中から1つを�
 **Show Initial Prompt for AI-User**<br />
 AIユーザー機能を有効にしたときAIユーザーに与えられる初期プロンプトを表示します。AIユーザーが有効なとき、最初のメッセージは（AIでない）ユーザー自身が作成する必要があります。それ以降はAIアシスタントからのメッセージの内容に応じて、AIが「ユーザーになりきって」メッセージを代わりに作成してくれます。テキストボックスに入力されたAIユーザーによるメッセージをユーザー自身が編集したり、追記したりすることができます。
 
+**System Prompt Caching**<br />
+APIに送信されるシステムプロンプトをキャッシュするかどうかを指定します。キャッシュを有効にすると、API側で同じシステムプロンプトが再利用されるため、APIの使用量を節約できます。またレスポンスタイムも向上します。現時点ではAnthropicのClaudeモデルにのみ対応しています。詳しくは[Prompt Caching with Claude](https://www.anthropic.com/news/prompt-caching)を参照してください。
+
 **Enable AI-User**<br />
 AIユーザー機能を有効にするかどうかを指定します。`Start from assistant`機能と併用することはできません。
 
+**Start from assistant**<br />
+オンにすると、会話を始める時にアシスタント側が最初の発話を行います。
+
 **Chat Interaction Controls**<br />
 Monadic Chatを音声入力による会話に適した形に設定するためのオプションです。音声入力による会話を行う場合には、以下のオプション（`Start from assistant`, `Auto speech`, `Easy submit`）をすべてオンにするとよいでしょう。`check all` または `uncheck all` をクリックすることで、すべてのオプションを一括でオンまたはオフにすることができます。
-
-**Start from assistant**<br />
-
-オンにすると、会話を始める時にアシスタント側が最初の発話を行います。
 
 **Auto speech**<br />
 

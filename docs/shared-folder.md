@@ -4,7 +4,7 @@ When you first start Monadic Chat, a `~/monadic/data` directory is created. This
 
 Clicking the `Shared Folder` button in the Monadic Chat console will launch the OS's standard file manager and open the Shared Folder.
 
-![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
+![Monadic Chat Console](/assets/images/monadic-chat-console.png ':size=700')
 
 By placing files in this directory, you can access those files within Monadic Chat's Docker containers. The path to the Shared Folder within each Docker container is `/monadic/data`, while the path on your local machine is `~/monadic/data`.
 

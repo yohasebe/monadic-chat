@@ -2,7 +2,7 @@
 
 ## Console Button Items
 
-![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
+![Monadic Chat Console](/assets/images/monadic-chat-console.png ':size=700')
 
 **Start** Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
@@ -18,9 +18,9 @@
 
 ## Console Menu Items
 
-![Console Menu](../assets/images/console-menu.png ':size=300')
+![Console Menu](/assets/images/console-menu.png ':size=300')
 
-![Action Menu](../assets/images/action-menu-en.png ':size=150')
+![Action Menu](/assets/images/action-menu-en.png ':size=150')
 
 **Rebuild** Rebuild the Docker images and containers for Monadic Chat.
 
@@ -36,7 +36,7 @@
 
 ## API Token Settings Panel
 
-![Settings Panel](../assets/images/settings-panel.png ':size=600')
+![Settings Panel](/assets/images/settings-panel.png ':size=600')
 
 All settings here are saved in the `~/monadic/data/.env` file.
 

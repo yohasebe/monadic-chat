@@ -12,7 +12,7 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 
 ## Anthropic
 
-![Anthropic apps icon](../assets/icons/a.png ':size=40')
+![Anthropic apps icon](/assets/icons/a.png ':size=40')
 
  ANthropicのAPIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -45,7 +45,7 @@ Chat with Claudeは、Anthropic Claude APIにアクセスして、幅広いト�
 
 ## Cohere
 
-![Cohere apps icon](../assets/icons/c.png ':size=40')
+![Cohere apps icon](/assets/icons/c.png ':size=40')
 
 
  CohereのAPIキーを設定すると、Command Rを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
@@ -71,7 +71,7 @@ Chat with Command Rは、Cohere APIにアクセスして、幅広いトピック
 
 ## Google
 
-![Google apps icon](../assets/icons/google.png ':size=40')
+![Google apps icon](/assets/icons/google.png ':size=40')
 
 Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -91,7 +91,7 @@ Chat with Geminiは、Google Gemini APIにアクセスして、幅広いトピ�
 
 ## Mistral
 
-![Mistral apps icon](../assets/icons/m.png ':size=40')
+![Mistral apps icon](/assets/icons/m.png ':size=40')
 
 Mistral AI APIキーを設定すると、Mistralを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -117,7 +117,7 @@ Chat with Mistralは、Mistral AI APIにアクセスして、幅広いトピッ�
 
 ## Ollama
 
-![Ollama apps icon](../assets/icons/ollama.png ':size=40')
+![Ollama apps icon](/assets/icons/ollama.png ':size=40')
 
 追加のイメージとコンテナを導入することで、Ollamaを用いたアプリを使用することができます。[Ollama](https://ollama.com/)を使うと、下記のようなLLMをローカルのDocker環境で使用することができます。
 

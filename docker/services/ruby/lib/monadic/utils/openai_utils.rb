@@ -40,10 +40,10 @@ module OpenAIUtils
         end.reverse[0..20].map do |item|
           item["id"]
         end.filter do |item|
-          (item.include?("gpt") || item.include?("o1-")) &&
-            !item.include?("vision") &&
-            !item.include?("instruct") &&
-            !item.include?("gpt-3.5")
+          item.include?("gpt") &&
+          !item.include?("vision") &&
+          !item.include?("instruct") &&
+          !item.include?("gpt-3.5")
         end
         { "type" => "models", "content" => "API token verified", "models" => models }
       else

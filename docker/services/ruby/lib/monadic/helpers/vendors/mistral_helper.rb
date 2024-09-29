@@ -116,7 +116,6 @@ module MistralHelper
 
     body["max_tokens"] = max_tokens if max_tokens
 
-    messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       { "role" => msg["role"], "content" => msg["text"] }
     end
@@ -125,11 +124,6 @@ module MistralHelper
       body["messages"] += obj["function_returns"]
     elsif role == "user"
       body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
-    end
-
-    if messages_containing_img
-      body["model"] = "gpt-4o-mini"
-      body.delete("stop")
     end
 
     target_uri = "#{API_ENDPOINT}/chat/completions"

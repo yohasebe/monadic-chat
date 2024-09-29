@@ -31,6 +31,7 @@ module OpenAIHelper
 
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
+
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f
@@ -119,6 +120,7 @@ module OpenAIHelper
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
       if msg["images"] && role == "user"
         msg["images"].each do |img|
+          messages_containing_img = true
           message["content"] << {
             "type" => "image_url",
             "image_url" => {
@@ -127,7 +129,6 @@ module OpenAIHelper
             }
           }
         end
-        messages_containing_img = true
       end
       message
     end

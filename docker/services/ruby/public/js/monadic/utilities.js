@@ -33,7 +33,11 @@ function getCookie(name) {
 function listModels(models) {
   let modelList = "";
   for (let model of models) {
-    modelList += `<option value="${model}">${model}</option>`;
+    if (model.startsWith("o1-")) {
+      modelList += `<option value="${model}">[beta] ${model}</option>`;
+    } else {
+      modelList += `<option value="${model}">${model}</option>`;
+    }
   }
   return modelList;
 }

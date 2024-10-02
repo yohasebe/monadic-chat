@@ -539,9 +539,15 @@ function connect_websocket(callback) {
         $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
 
         if (!verified) {
-          model_options = data['models'].map(
-            model => `<option value="${model}">${model}</option>`
+          model_options = data['models'].map( model => {
+              if (model.startsWith("o1-")) {
+                return `<option value="${model}">[beta] ${model}</option>`;
+              }
+              return `<option value="${model}">${model}</option>`;
+            }
           );
+
+
           $("#model").html(model_options);
           $("#model").val("gpt-4o-mini");
           $("#model-selected").text("gpt-4o-mini");

@@ -87,31 +87,43 @@ module OpenAIHelper
     # Set the body for the API request
     body = {
       "model" => model,
-      "n" => 1,
-      "stream" => true,
     }
 
-    body["temperature"] = temperature if temperature
-    body["top_p"] = top_p if top_p
-    body["presence_penalty"] = presence_penalty if presence_penalty
-    body["frequency_penalty"] = frequency_penalty if frequency_penalty
-    body["max_tokens"] = max_tokens if max_tokens
-
-    if obj["response_format"]
-      body["response_format"] = APPS[app].settings["response_format"]
-    end
-
-    if obj["monadic"] || obj["json"]
-      body["response_format"] ||= { "type" => "json_object" }
-    end
-
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings["tools"]
-      # body["parallel_tool_calls"] = false 
-    else
+    beta_model = false
+    # Check if the model name includes "o1-", which means beta
+    if model.include?("o1-")
+      beta_model = true
+      body.delete("stream")
+      body.delete("temperature")
+      body.delete("frequency_penalty")
+      body.delete("presence_penalty")
+      body.delete("top_p")
+      body.delete("max_tokens")
       body.delete("tools")
-      body.delete("tool_choice")
-      # body.delete("parallel_tool_calls")
+      body.delete("response_format")
+    else
+      body["stream"] = true
+      body["n"] = 1
+      body["temperature"] = temperature if temperature
+      body["top_p"] = top_p if top_p
+      body["presence_penalty"] = presence_penalty if presence_penalty
+      body["frequency_penalty"] = frequency_penalty if frequency_penalty
+      body["max_tokens"] = max_tokens if max_tokens
+
+      if obj["response_format"]
+        body["response_format"] = APPS[app].settings["response_format"]
+      end
+
+      if obj["monadic"] || obj["json"]
+        body["response_format"] ||= { "type" => "json_object" }
+      end
+
+      if obj["tools"] && !obj["tools"].empty?
+        body["tools"] = APPS[app].settings["tools"]
+      else
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
     end
 
     # The context is added to the body
@@ -131,6 +143,11 @@ module OpenAIHelper
         end
       end
       message
+    end
+
+    # Remove messages with role "system" if model includes "o1-"
+    if beta_model
+      body["messages"].reject! { |msg| msg["role"] == "system" }
     end
 
     if role == "tool"
@@ -204,7 +221,15 @@ module OpenAIHelper
     end
 
     # return Array
-    process_json_data(app, session, res.body, call_depth, &block)
+    if beta_model
+      obj = JSON.parse(res.body)
+      frag = obj.dig("choices", 0, "message", "content")
+      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+      [obj]
+    else
+      process_json_data(app, session, res.body, call_depth, &block)
+    end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

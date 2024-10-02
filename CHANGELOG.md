@@ -1,6 +1,7 @@
 ### Change Log
 
-  - [Sep, 2024] 0.9.1
+  - [Sep, 2024] 0.9.2
+      - Beta models (`o1-preview`, `o1-mini`) supported
       - Documentation renewed
       - Stability improvement
       - Better app development support

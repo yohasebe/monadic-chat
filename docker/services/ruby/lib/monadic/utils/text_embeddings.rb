@@ -15,7 +15,7 @@ class TextEmbeddings
   # Set up PostgreSQL connection
   def self.connect_to_db(db_name, recreate_db: false)
     conn = nil
-    retries = 5
+    retries = 15
     retries.times do |i|
       begin
         conn = if IN_CONTAINER

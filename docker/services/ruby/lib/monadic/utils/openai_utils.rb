@@ -2,12 +2,12 @@ module OpenAIUtils
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
 
-  OPEN_TIMEOUT = 5 # Timeout for opening a connection (seconds)
+  OPEN_TIMEOUT = 10 # Timeout for opening a connection (seconds)
   READ_TIMEOUT = 60 # Timeout for reading data (seconds)
   WRITE_TIMEOUT = 60 # Timeout for writing data (seconds)
 
   # Number of retries for API requests
-  MAX_RETRIES = 5
+  MAX_RETRIES = 10
   # Delay between retries (seconds)
   RETRY_DELAY = 2
 

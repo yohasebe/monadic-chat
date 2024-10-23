@@ -68,8 +68,9 @@ class JupyterWithClaude < MonadicApp
     image: true,
     toggle: true,
     jupyter: true,
-    model: "claude-3-5-sonnet-20240620",
+    model: "claude-3-5-sonnet-20241022",
     models: [
+      "claude-3-5-sonnet-20241022",
       "claude-3-5-sonnet-20240620",
       "claude-3-opus-20240229"
     ],

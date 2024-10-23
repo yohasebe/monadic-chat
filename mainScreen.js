@@ -81,7 +81,7 @@ function updateMonadicChatStatusUI(status) {
     statusElement.textContent = "Final Steps";
     statusElement.classList.add('inactive');
     buttons.start.disabled = true;
-    buttons.stop.disabled = true;
+    buttons.stop.disabled = false;
     buttons.restart.disabled = false;
     buttons.browser.disabled = true;
     buttons.folder.disabled = false;

@@ -20,23 +20,21 @@ class CodeWithClaude < MonadicApp
 
     The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
-    If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
-
     If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
+
+    If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
     If you need to run a Python code, follow the instructions below:
 
     ### Basic Procedure:
 
-    To execute the code, use the `run_code` function with the `command` name such as `python` or `ruby`, your program `code` to be executed with the command, and the file `extension` with which the code is stored in a temporary local file. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
-    If you need to check the availability of a certain file or command in the bash command, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
+    If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
     If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it.
 
-    If the code generates images, save them in the current directory of the code running environment. Use a descriptive file name without any preceding path for this purpose. When there are multiple image file types available, SVG is preferred.
-
-    The code contained your function calling command is not directly shown to the user, so please make sure you include the same code to the regular text response inside a markdown code block.
+    If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
     ### Error Handling:
 
@@ -78,10 +76,6 @@ class CodeWithClaude < MonadicApp
       ---
 
       Always remember to check you have generated the image file before displaying it to the user.
-
-      It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
-
-      ---
 
     ### Request/Response Example 2:
 
@@ -152,6 +146,8 @@ class CodeWithClaude < MonadicApp
 
       <div><a href="/data/FILE_NAME" target="_blank">Result</a></div>
 
+      It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
+
     ### Request/Response Example 4:
 
     - The following is a simple example to illustrate how you might respond to a user's request to show an audio/video clip.
@@ -165,7 +161,7 @@ class CodeWithClaude < MonadicApp
 
       <video controls src="/data/FILE_NAME"></video>
 
-    [IMPORTANT]: Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag.
+    Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag. Needless to say, only existing files should be displayed.
   TEXT
 
   @settings = {
@@ -178,7 +174,7 @@ class CodeWithClaude < MonadicApp
     sourcecode: true,
     easy_submit: false,
     auto_speech: false,
-    mathjax: true,
+    mathjax: false,
     app_name: "▹ Anthropic Claude (Code)",
     description: description,
     icon: icon,

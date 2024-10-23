@@ -121,7 +121,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31",
+      "anthropic-beta" => "computer-use-2024-10-22",
       "x-api-key" => api_key
     }
 

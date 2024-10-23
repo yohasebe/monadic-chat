@@ -242,7 +242,7 @@ class DockerManager {
               } else if (lines[i].trim() === "[SERVER STARTED]") {
                 if (!fetchWithRetryCalled) {
                   fetchWithRetryCalled = true;
-                  writeToScreen('[HTML]: <p>Monadic Chat server is starting . . .</p>');
+                  writeToScreen('[HTML]: <p><b>Monadic Chat server is starting</b> . . .</p>');
                   fetchWithRetry('http://localhost:4567')
                     .then(() => {
                       updateContextMenu(false);

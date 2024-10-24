@@ -28,6 +28,10 @@ class CodeWithClaude < MonadicApp
 
     ### Basic Procedure:
 
+    First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available by checking the Dockerfile with the `get_dockerfile` function.
+
+    If the required library is not available, you can install it using the `lib_installer` function. The function takes the library name and the package manager as parameters. The package manager can be pip or apt. Check the availability of the library before installing it.
+
     To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
@@ -164,12 +168,17 @@ class CodeWithClaude < MonadicApp
     Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag. Needless to say, only existing files should be displayed.
   TEXT
 
+  prompt_suffix = <<~TEXT
+  Please make sure to follow the instructions provided in the system prompt, especially when running code.
+  TEXT
+
   @settings = {
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
     temperature: 0.0,
     presence_penalty: 0.2,
     top_p: 0.0,
     initial_prompt: initial_prompt,
+    prompt_suffix: prompt_suffix,
     image_generation: true,
     sourcecode: true,
     easy_submit: false,

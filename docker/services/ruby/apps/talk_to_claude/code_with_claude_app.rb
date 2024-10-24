@@ -169,7 +169,7 @@ class CodeWithClaude < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-  Please make sure to follow the instructions provided in the system prompt, especially when running code.
+    Follow the instructions in the system prompt, especially when executing the code. If the user requires a chart or plot, make sure you have successfully run the code and have the resulting file before replying to the user.
   TEXT
 
   @settings = {

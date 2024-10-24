@@ -121,8 +121,9 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31",
-      "x-api-key" => api_key
+      "anthropic-beta" => "computer-use-2024-10-22",
+      "anthropic-dangerous-direct-browser-access": "true",
+      "x-api-key" => api_key,
     }
 
     # Set the body for the API request
@@ -474,7 +475,8 @@ module ClaudeHelper
       tool_return = APPS[app].send(tool_name.to_sym, **argument_hash)
 
       unless tool_return
-        return [{ "type" => "error", "content" => "ERROR: Tool '#{tool_name}' failed" }]
+        # return [{ "type" => "error", "content" => "ERROR: Tool '#{tool_name}' failed" }]
+        tool_return = "Empty result"
       end
 
       content << {

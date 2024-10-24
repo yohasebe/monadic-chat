@@ -232,52 +232,64 @@ class MonadicApp
     "Error occurred: #{e.message}"
   end
 
-  def send_code(code:, command:, extension:, success: "The code has been executed successfully")
-    if IN_CONTAINER
-      data_dir = SHARED_VOL
-    else
-      data_dir = LOCAL_SHARED_VOL
-    end
+  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 2)
+    retries = 0
 
-    container = "monadic-chat-python-container"
-
-    # create a temporary file inside the data directory
-    temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
-
-    temp_file.write(code)
-    temp_file.close
-    docker_command = <<~DOCKER
-      docker cp #{temp_file.path} #{container}:#{SHARED_VOL}
-    DOCKER
-    stdout, stderr, status = Open3.capture3(docker_command)
-    unless status.success?
-      return "Error occurred: #{stderr}"
-    end
-
-    local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
-
-    docker_command = <<~DOCKER
-      docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
-    DOCKER
-
-    stdout, stderr, status = Open3.capture3(docker_command)
-
-    if status.success?
-      local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
-      new_files = local_files2 - local_files1
-      if !new_files.empty?
-        new_files = new_files.map { |file| "/data/" + File.basename(file) }
-        output = "#{success}; File(s) generated: #{new_files.join(", ")}"
-        output += "; Output: #{stdout}" if stdout.strip.length.positive?
+    begin
+      if IN_CONTAINER
+        data_dir = SHARED_VOL
       else
-        output = "#{success}; Output: #{stdout}" if stdout.strip.length.positive?
+        data_dir = LOCAL_SHARED_VOL
       end
-      output
-    else
-      "Error occurred: #{stderr}"
+
+      container = "monadic-chat-python-container"
+
+      # create a temporary file inside the data directory
+      temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
+
+      temp_file.write(code)
+      temp_file.close
+      docker_command = <<~DOCKER
+        docker cp #{temp_file.path} #{container}:#{SHARED_VOL}
+      DOCKER
+      stdout, stderr, status = Open3.capture3(docker_command)
+      unless status.success?
+        raise "Error occurred: #{stderr}"
+      end
+
+      local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+
+      docker_command = <<~DOCKER
+        docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
+      DOCKER
+
+      stdout, stderr, status = Open3.capture3(docker_command)
+
+      if status.success?
+        local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+        new_files = local_files2 - local_files1
+        if !new_files.empty?
+          new_files = new_files.map { |file| "/data/" + File.basename(file) }
+          output = "#{success}; File(s) generated: #{new_files.join(", ")}"
+          output += "; Output: #{stdout}" if stdout.strip.length.positive?
+        else
+          output = "#{success}; Output: #{stdout}" if stdout.strip.length.positive?
+        end
+        output
+      else
+        raise "Error occurred: #{stderr}"
+      end
+    rescue StandardError => e
+      if retries < max_retries
+        retries += 1
+        sleep(retry_delay)
+        retry
+      else
+        "Error occurred after #{max_retries} attempts: #{e.message}"
+      end
+    ensure
+      temp_file.unlink if temp_file
     end
-  rescue StandardError
-    "Error occurred: The code could not be executed."
   end
 
   def run_code(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")

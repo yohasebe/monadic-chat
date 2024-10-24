@@ -2,7 +2,7 @@
 
   - [Oct, 2024] 0.9.3
       - Anthropic's new sonnet model supported
-      - Stability improvement
+      - Stability of code running and chart generation improved
   - [Sep, 2024] 0.9.2
       - Beta models (`o1-preview`, `o1-mini`) supported
       - Documentation renewed

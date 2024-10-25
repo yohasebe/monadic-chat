@@ -7,7 +7,7 @@ services:
       args:
         PROJECT_TAG: "monadic-chat"
     ports:
-      - "8888:8888"
+      - "8889:8889"
       - "5070:5070"
     container_name: monadic-chat-python-container
     volumes:

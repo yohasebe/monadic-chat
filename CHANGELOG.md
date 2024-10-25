@@ -1,6 +1,6 @@
 ### Change Log
 
-  - [Oct, 2024] 0.9.4
+  - [Oct, 2024] 0.9.5
       - Anthropic's new sonnet model supported
       - Stability of code running and chart generation improved
   - [Sep, 2024] 0.9.2

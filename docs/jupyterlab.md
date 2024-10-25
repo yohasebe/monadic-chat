@@ -4,7 +4,7 @@ Monadic Chat has a feature to launch JupyterLab. JupyterLab is an integrated dev
 
 ## Launching JupyterLab
 
-Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab. JupyterLab can be accessed at `http://localhost:8888`.
+Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab. JupyterLab can be accessed at `http://localhost:8889`.
 
 ![Action menu](/assets/images/action-menu.png ':size=150')
 

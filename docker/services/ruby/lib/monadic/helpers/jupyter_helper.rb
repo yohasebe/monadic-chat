@@ -74,6 +74,6 @@ module MonadicHelper
               end
     send_command(command: command,
                  container: "python",
-                 success: "Success: Access Jupter Lab at 127.0.0.1:8888/lab\n")
+                 success: "Success: Access Jupter Lab at 127.0.0.1:8889/lab\n")
   end
 end

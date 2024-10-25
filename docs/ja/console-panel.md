@@ -35,7 +35,7 @@ Monadic ChatのDockerイメージおよびコンテナを再構築します。
 Monadic ChatのDockerイメージおよびコンテナを削除します。
 
 **Start JupyterLab** <br />
-JupyterLabを起動します。JupyterLabは`http://localhost:8888`でアクセスできます。
+JupyterLabを起動します。JupyterLabは`http://localhost:8889`でアクセスできます。
 
 **Stop JupyterLab** <br />
 JupyterLabを停止します。

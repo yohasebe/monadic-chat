@@ -26,7 +26,7 @@
 
 **Uninstall Images and Containers** Remove the Docker images and containers for Monadic Chat.
 
-**Start JupyterLab** Launch JupyterLab. It can be accessed at `http://localhost:8888`.
+**Start JupyterLab** Launch JupyterLab. It can be accessed at `http://localhost:8889`.
 
 **Stop JupyterLab** Stop JupyterLab.
 

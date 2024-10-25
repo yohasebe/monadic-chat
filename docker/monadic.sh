@@ -303,7 +303,7 @@ run_jupyter() {
 
   if [ $? -eq 0 ]; then
     if [ "${command}" == "run" ]; then
-      echo "[HTML]: <p>JupyterLab is running. <a href='http://localhost:8888/lab/tree/data' target='_blank'>Click here to open JupyterLab</a></p><hr />"
+      echo "[HTML]: <p>JupyterLab is running. <a href='http://localhost:8889/lab/tree/data' target='_blank'>Click here to open JupyterLab</a></p><hr />"
     else
       echo "[HTML]: <p>JupyterLab has been stopped.</p><hr />"
     fi

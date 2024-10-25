@@ -312,14 +312,14 @@ get "/data/:file_name" do
 end
 
 get "/lab/?" do
-  url = "http://127.0.0.1:8888/lab/"
+  url = "http://127.0.0.1:8889/lab/"
   result = HTTParty.get(url)
   status result.code
   result.body
 end
 
 get "/lab/*" do
-  url = "http://127.0.0.1:8888/lab/#{params["splat"].first}"
+  url = "http://127.0.0.1:8889/lab/#{params["splat"].first}"
   result = HTTParty.get(url)
   status result.code
   result.body

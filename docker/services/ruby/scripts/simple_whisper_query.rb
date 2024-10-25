@@ -6,7 +6,7 @@ require "http"
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 10
-READ_TIMEOUT = 60
+READ_TIMEOUT = 180
 WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1

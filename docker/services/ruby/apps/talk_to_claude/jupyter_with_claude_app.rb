@@ -63,7 +63,7 @@ class JupyterWithClaude < MonadicApp
     auto_speech: false,
     mathjax: true,
     app_name: "▹ Anthropic Claude (Jupyter)",
-    initiate_from_assistant: false,
+    initiate_from_assistant: true,
     pdf: false,
     image: true,
     toggle: true,

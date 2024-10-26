@@ -153,16 +153,29 @@ module ClaudeHelper
       { "role" => msg["role"], "content" => [content] }
     end
 
+    # The following code commented out is unnecessary thanks to the Oct 8, 2024 API update 
+    # if messages.empty?
+    #   # raise error
+    #   res = {
+    #     "type" => "error",
+    #     "content" => "Please disable \"start from assistant\ option. Anthropic Claude models require a context of at least one user message."
+    #   }
+    #   block&.call res
+    # end
+
     if messages.empty?
-      # raise error
-      res = {
-        "type" => "error",
-        "content" => "Please disable \"start from assistant\ option. Anthropic Claude models require a context of at least one user message."
+      messages << {
+        "role" => "user",
+        "content" => [
+          {
+            "type" => "text",
+            "text" => "Hello."
+          }
+        ]
       }
-      block&.call res
     end
 
-    if messages.last["role"] == "user" && obj["images"]
+    if !messages.empty? && messages.last["role"] == "user" && obj["images"]
       obj["images"].each do |img|
         messages.last["content"] << {
           "type" => "image",

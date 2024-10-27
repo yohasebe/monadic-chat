@@ -1,6 +1,7 @@
 ### Change Log
 
-  - [Oct, 2024] 0.9.5
+  - [Oct, 2024] 0.9.6
+      - PyMuPDF4LLM integration
       - Anthropic's new sonnet model supported
       - Stability of code running and chart generation improved
   - [Sep, 2024] 0.9.2

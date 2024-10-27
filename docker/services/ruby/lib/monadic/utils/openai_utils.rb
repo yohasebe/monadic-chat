@@ -43,7 +43,9 @@ module OpenAIUtils
           (item.include?("gpt") || item.include?("o1-")) &&
           !item.include?("vision") &&
           !item.include?("instruct") &&
-          !item.include?("gpt-3.5")
+          !item.include?("gpt-3.5") &&
+          !item.include?("realtime") &&
+          !item.include?("audio")
         end
         { "type" => "models", "content" => "API token verified", "models" => models }
       else

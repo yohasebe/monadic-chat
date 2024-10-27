@@ -13,7 +13,7 @@ module MonadicHelper
 
   def fetch_text_from_pdf(pdf: "")
     command = <<~CMD
-      bash -c 'pdf2txt.py "#{pdf}" --format text'
+      bash -c 'pdf2txt.py "#{pdf}" --format md'
     CMD
     res = send_command(command: command, container: "python")
     if res.to_s == ""

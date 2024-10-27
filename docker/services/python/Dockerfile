@@ -25,6 +25,7 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     gunicorn \
     tiktoken \
     pymupdf \
+    pymupdf4llm \
     selenium \
     statsmodels \
     japanize-matplotlib \

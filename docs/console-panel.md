@@ -20,7 +20,7 @@
 
 ![Console Menu](/assets/images/console-menu.png ':size=300')
 
-![Action Menu](/assets/images/action-menu-en.png ':size=150')
+![Action Menu](/assets/images/action-menu.png ':size=150')
 
 **Rebuild** Rebuild the Docker images and containers for Monadic Chat.
 

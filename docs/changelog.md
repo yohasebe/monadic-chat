@@ -1,3 +1,3 @@
 # Changelog
 
-- 2024-09-26: Documentation using Docsify released
+![](//https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/CHANGELOG.md ':include :type=md')

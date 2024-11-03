@@ -35,8 +35,8 @@ Turn on to display or edit the text sent to the API as the initial prompt (also 
 **Show Initial Prompt for AI-User**<br />
 Displays the initial prompt given to the AI user when the AI User feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user.  Afterward, the AI will create messages on your behalf, based on the AI assistant's messages. You can edit or append to the messages entered in the text box by the AI user. The initial prompt for the AI user can be freely changed.
 
-**System Prompt Caching**<br />
-Specify whether to cache the system prompt sent to the API. Enabling caching allows the same system prompt to be reused on the API side, saving API usage and improving response time. At present, this feature is only available for Anthropic's Claude model. For more information, see [Prompt Caching with Claude](https://www.anthropic.com/news/prompt-caching).
+**Prompt Caching**<br />
+Specify whether to cache the system prompt sent to the API. Enabling caching allows the same system prompt to be reused on the API side, saving API usage and improving response time. At present, this feature is only available for Anthropic's Claude model and is limited to system prompts, images, and PDFs.
 
 **Enable AI-User**<br />
 Specify whether to enable the AI User feature. This feature cannot be used together with the `Start from assistant` feature.

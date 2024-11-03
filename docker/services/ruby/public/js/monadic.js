@@ -329,17 +329,28 @@ $(function () {
       $("#select-role").val("").trigger("change");
     } else {
       reconnect_websocket(ws, function (ws) {
-        // check if #image-used has any children img elements
-        if (images.length > 0) {
-          params.images = images;
+        // Create a copy of the current images array to preserve the state
+        let currentImages = [...images];
+
+        // Add PDF to the array if it exists and isn't already included
+        if (currentPdfData && !images.some(img => img.type === 'application/pdf')) {
+          currentImages.push(currentPdfData);
+        }
+
+        // Set the images parameter for the request
+        if (currentImages.length > 0) {
+          params.images = currentImages;
         } else {
           params.images = [];
         }
+
         ws.send(JSON.stringify(params));
-        images = []; // Clear images after sending
+        $("#message").css("height", "96px").val("");
+
+        // Update images array and display to maintain PDF attachment
+        images = currentPdfData ? [currentPdfData] : [];
+        updateFileDisplay(images);
       });
-      $("#message").css("height", "96px").val("");
-      $("#image-used").html("");
     }
     $("#select-role").val("user");
     $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");

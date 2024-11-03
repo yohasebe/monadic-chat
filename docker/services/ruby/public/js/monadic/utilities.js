@@ -12,6 +12,8 @@ const textStats = $("#stats-message")
 const DEFAULT_MAX_TOKENS = 4000;
 const DEFAULT_CONTEXT_SIZE = 100;
 
+let currentPdfData = null;
+
 function setCookie(name, value, days) {
   const date = new Date();
   date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
@@ -45,130 +47,130 @@ function listModels(models) {
 // convert an object to HTML changing snake_case to space case in the keys
 //////////////////////////////
 
-function formatInfo(info) {
-  let noValue = true;
-  let textRows = "";
-  let numRows = "";
+  function formatInfo(info) {
+    let noValue = true;
+    let textRows = "";
+    let numRows = "";
 
-  for (const [key, value] of Object.entries(info)) {
-    if (value && value !== 0) {
-      let label = "";
-      switch (key) {
-        case "count_messages":
-          noValue = false;
-          label = "Number of all messages";
-          break;
-        case "count_active_messages":
-          noValue = false;
-          label = "Number of active messages";
-          break;
-        case "count_all_tokens":
-          noValue = false;
-          label = "Tokens in all messages";
-          break;
-        case "count_total_system_tokens":
-          noValue = false;
-          label = "Tokens in all system prompts";
-          break;
-        case "count_total_input_tokens":
-          noValue = false;
-          label = "Tokens in all user messages";
-          break;
-        case "count_total_output_tokens":
-          noValue = false;
-          label = "Tokens in all assistant messages";
-          break;
-        case "count_total_active_tokens":
-          noValue = false;
-          label = "Tokens in all active messages";
-          break;
-        case "encoding_name":
-          // skip and go to next iteration
-          continue;
-      }
+    for (const [key, value] of Object.entries(info)) {
+      if (value && value !== 0) {
+        let label = "";
+        switch (key) {
+          case "count_messages":
+            noValue = false;
+            label = "Number of all messages";
+            break;
+          case "count_active_messages":
+            noValue = false;
+            label = "Number of active messages";
+            break;
+          case "count_all_tokens":
+            noValue = false;
+            label = "Tokens in all messages";
+            break;
+          case "count_total_system_tokens":
+            noValue = false;
+            label = "Tokens in all system prompts";
+            break;
+          case "count_total_input_tokens":
+            noValue = false;
+            label = "Tokens in all user messages";
+            break;
+          case "count_total_output_tokens":
+            noValue = false;
+            label = "Tokens in all assistant messages";
+            break;
+          case "count_total_active_tokens":
+            noValue = false;
+            label = "Tokens in all active messages";
+            break;
+          case "encoding_name":
+            // skip and go to next iteration
+            continue;
+        }
 
-      if (value && !isNaN(value) && label) {
-        numRows += `
+        if (value && !isNaN(value) && label) {
+          numRows += `
             <tr>
-              <td>${label}</td>
-              <td align="right">${parseInt(value).toLocaleString('en')}</td>
+            <td>${label}</td>
+            <td align="right">${parseInt(value).toLocaleString('en')}</td>
             </tr>
-          `;
-      } else if (!noValue && label) {
-        textRows += `
+            `;
+        } else if (!noValue && label) {
+          textRows += `
             <tr>
-              <td>${label}</td>
-              <td align="right">${value}</td>
+            <td>${label}</td>
+            <td align="right">${value}</td>
             </tr>
-          `;
+            `;
+        }
       }
     }
+
+    if (noValue) {
+      return "";
+    }
+
+    return `
+      <div class="json-item" data-key="stats" data-depth="0">
+      <div class="json-toggle" onclick="toggleItem(this)">
+      <i class="fas fa-chevron-right"></i> <span class="toggle-text">Open</span>
+      </div>
+      <div class="json-content" style="display: none;">
+      <table class="table table-sm mt-2 mb-0">
+      <tbody>
+      ${textRows}
+    ${numRows}
+      </tbody>
+      </table>
+      </div>
+      </div>
+      `;
   }
 
-  if (noValue) {
-    return "";
+//////////////////////////////
+  // save the javascript object to a json file
+//////////////////////////////
+
+  function saveObjToJson(obj, fileName) {
+    const objToSave = Object.assign({}, obj);
+    delete objToSave["parameters"]["message"];
+    delete objToSave["parameters"]["pdf"];
+    delete objToSave["parameters"]["tts_voice"];
+    delete objToSave["parameters"]["tts_speed"];
+    const data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objToSave));
+    const downloadLink = $('<a></a>')
+      .attr('href', 'data:' + data)
+      .attr('download', fileName)
+      .appendTo('body');
+    downloadLink[0].click();
+    downloadLink.remove();
   }
 
-  return `
-     <div class="json-item" data-key="stats" data-depth="0">
-       <div class="json-toggle" onclick="toggleItem(this)">
-         <i class="fas fa-chevron-right"></i> <span class="toggle-text">Open</span>
-       </div>
-       <div class="json-content" style="display: none;">
-         <table class="table table-sm mt-2 mb-0">
-           <tbody>
-             ${textRows}
-             ${numRows}
-           </tbody>
-         </table>
-       </div>
-     </div>
-   `;
-}
-
 //////////////////////////////
-// save the javascript object to a json file
-//////////////////////////////
-
-function saveObjToJson(obj, fileName) {
-  const objToSave = Object.assign({}, obj);
-  delete objToSave["parameters"]["message"];
-  delete objToSave["parameters"]["pdf"];
-  delete objToSave["parameters"]["tts_voice"];
-  delete objToSave["parameters"]["tts_speed"];
-  const data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objToSave));
-  const downloadLink = $('<a></a>')
-    .attr('href', 'data:' + data)
-    .attr('download', fileName)
-    .appendTo('body');
-  downloadLink[0].click();
-  downloadLink.remove();
-}
-
-//////////////////////////////
-// set focus on the start button if it is visible
+  // set focus on the start button if it is visible
 // if start button is not visible but voice button is,
-// set focus on the voice button only if easy_submit and auto_speech are both enabled
+  // set focus on the voice button only if easy_submit and auto_speech are both enabled
 // otherwise set focus on the message input
 //////////////////////////////
 
-function setInputFocus() {
-  if ($("#start").is(":visible")) {
-    $("#start").focus();
-  } else if ($("#check-easy-submit").is(":checked") && $("#check-auto-speech").is(":checked")) {
-    $("#voice").focus();
-  } else {
-    $("#message").focus();
+  function setInputFocus() {
+    if ($("#start").is(":visible")) {
+      $("#start").focus();
+    } else if ($("#check-easy-submit").is(":checked") && $("#check-auto-speech").is(":checked")) {
+      $("#voice").focus();
+    } else {
+      $("#message").focus();
+    }
   }
-}
 
 //////////////////////////////
-// format a message to show in the chat
+  // format a message to show in the chat
 //////////////////////////////
 
-function removeCode(text) {
-  return text.replace(/```[\s\S]+?```|\<(script|style)[\s\S]+?<\/\1>|\<img [\s\S]+?\/>/g, " ");
-}
+  function removeCode(text) {
+    return text.replace(/```[\s\S]+?```|\<(script|style)[\s\S]+?<\/\1>|\<img [\s\S]+?\/>/g, " ");
+  }
 
 function removeMarkdown(text) {
   return text.replace(/(\*\*|__|[\*_`])/g, "");
@@ -231,22 +233,22 @@ function deleteMessage(mid) {
 }
 
 //////////////////////////////
-// convert a string to show in the parameter panel
+  // convert a string to show in the parameter panel
 // e.g. "initial_prompt" -> "Initial Prompt"
 //////////////////////////////
 
-function convertString(str) {
-  return str
-    .split("_")
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(" ");
-}
+  function convertString(str) {
+    return str
+      .split("_")
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(" ");
+  }
 
 //////////////////////////////
-// Functions to load/reset/set parameters
+  // Functions to load/reset/set parameters
 //////////////////////////////
 
-let stop_apps_trigger = false;
+  let stop_apps_trigger = false;
 
 function loadParams(params, calledFor = "loadParams") {
   stop_apps_trigger = false;
@@ -302,7 +304,7 @@ function loadParams(params, calledFor = "loadParams") {
     $("#temperature").val("0.3");
     $("#temperature-value").text("0.3");
   }
-  
+
   const top_p = parseFloat(params["top_p"])
   if (!isNaN(top_p)) {
     $("#top-p").val(top_p);
@@ -449,7 +451,10 @@ function resetEvent(event) {
     event.preventDefault();
     ws.send(JSON.stringify({ "message": "RESET" }));
     ws.send(JSON.stringify({ "message": "LOAD" }));
+
+    currentPdfData = null;
     resetParams();
+
     $("#model").html(model_options);
     $("#model").val("gpt-4o-mini");
     $("#model-selected").text($("#model option:selected").text());

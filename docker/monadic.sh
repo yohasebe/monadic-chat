@@ -388,7 +388,7 @@ stop)
   if ${DOCKER} info >/dev/null 2>&1; then
     stop_docker_compose &&
     echo "[SERVER STOPPED]" &&
-    echo "[HTML]: <p>Monadic Chat has been stopped.</p>"
+    echo "[HTML]: <p><b>Monadic Chat has been stopped.</b></p>"
   else
     echo "[HTML]: <p>Docker Desktop is not running, skipping stop operation.</p>"
   fi
@@ -418,7 +418,7 @@ update)
   ;;
 down)
   down_docker_compose &&
-  echo "[HTML]: <p>Monadic Chat has been stopped and containers have been removed</p>"
+  echo "[HTML]: <p><b>Monadic Chat has been stopped and containers have been removed</b></p>"
   ;;
 remove)
   remove_containers &&

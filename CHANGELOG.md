@@ -1,5 +1,7 @@
 ### Change Log
 
+  - [Nov, 2024] 0.9.7
+      - PDF recognition feature added for Claude apps
   - [Oct, 2024] 0.9.6
       - PyMuPDF4LLM integration
       - Anthropic's new sonnet model supported

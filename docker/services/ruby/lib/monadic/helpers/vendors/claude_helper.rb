@@ -121,7 +121,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "computer-use-2024-10-22",
+      "anthropic-beta" => "prompt-caching-2024-07-31,computer-use-2024-10-22,pdfs-2024-09-25",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }
@@ -175,18 +175,37 @@ module ClaudeHelper
       }
     end
 
-    if !messages.empty? && messages.last["role"] == "user" && obj["images"]
-      obj["images"].each do |img|
-        messages.last["content"] << {
-          "type" => "image",
-          "source" => {
-            "type" => "base64",
-            "media_type" => img["type"],
-            "data" => img["data"].split(",")[1]
-          }
-        }
+    if !messages.empty? && messages.last["role"] == "user"
+      content = messages.last["content"]
+
+      # Handle PDFs first if present
+      if obj["images"]
+        obj["images"].each do |file|
+          if file["type"] == "application/pdf"
+            content.unshift({
+              "type" => "document",
+              "source" => {
+                "type" => "base64",
+                "media_type" => "application/pdf",
+                "data" => file["data"].split(",")[1]
+              }
+            })
+          else
+            # Handle images as before
+            content << {
+              "type" => "image",
+              "source" => {
+                "type" => "base64",
+                "media_type" => file["type"],
+                "data" => file["data"].split(",")[1]
+              }
+            }
+          end
+        end
       end
     end
+
+    pp messages.last
 
     # The following code commented out is unnecessary thanks to the Oct 8, 2024 API update 
     # https://docs.anthropic.com/en/release-notes/api#october-8th-2024

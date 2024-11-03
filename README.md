@@ -9,6 +9,7 @@
 **Links**
 
 - [Documentation](https://yohasebe.github.io/monadic-chat)
+- [Installation](https://yohasebe.github.io/monadic-chat/#/installation)
 - [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
 
 **Latest Changes**

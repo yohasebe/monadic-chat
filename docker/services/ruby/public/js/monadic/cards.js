@@ -17,9 +17,18 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
   }
 
   let image_data = "";
-  if (images.length > 0) {
+  if (images && images.length > 0) {
     image_data = images.map((image) => {
-      return `<img class='base64-image' src='${image.data}' style='margin-right: 10px;' />`;
+      if (image.type === 'application/pdf') {
+        return `
+          <div class="pdf-preview mb-3">
+          <i class="fas fa-file-pdf text-danger"></i>
+          <span class="ms-2">${image.title}</span>
+          </div>
+          `;
+      } else {
+        return `<img class='base64-image mb-3' src='${image.data}' alt='${image.title}' style='max-width: 100%; height: auto;' />`;
+      }
     }).join("");
   }
 

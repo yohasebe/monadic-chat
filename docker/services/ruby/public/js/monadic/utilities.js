@@ -416,6 +416,24 @@ function checkParams() {
   return true;
 }
 
+function adjustImageUploadButton(selectedModel) {
+  // Update image/PDF upload UI based on model
+  const isPdfEnabled = selectedModel.includes("sonnet");
+  const imageFileBtn = $("#image-file");
+  const imageFileInput = $('#imageFile');
+
+  if (isPdfEnabled) {
+    imageFileBtn.html('<i class="fas fa-file"></i> Upload Image/PDF');
+    imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
+  } else {
+    imageFileBtn.html('<i class="fas fa-image"></i> Upload Image');
+    imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif');
+    // Remove any PDF files from images array when switching to non-PDF model
+    images = images.filter(img => !img.type.includes('pdf'));
+    updateFileDisplay(images);
+  }
+}
+
 function resetEvent(event) {
   audioInit();
 
@@ -476,6 +494,8 @@ function resetEvent(event) {
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     setStats("−");
+
+    adjustImageUploadButton($("#model").val());
 
     if (ws) {
       reconnect_websocket(ws);

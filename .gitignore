@@ -66,3 +66,6 @@ rsync.sh
 *.pid
 *.log
 *.ipynb
+
+/icons/menu_icons/
+/icons/app_icons/

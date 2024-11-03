@@ -53,7 +53,7 @@ if (app.ispackaged) {
   dotenv = require('dotenv');
 }
 
-const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'menu_icons') : path.join(__dirname, 'menu_icons');
+const iconDir = path.isPackaged ? path.join(process.resourcesPath, 'icons') : path.join(__dirname, 'icons');
 
 let monadicScriptPath = path.join(__dirname, 'docker', 'monadic.sh')
   .replace('app.asar', 'app')
@@ -178,7 +178,7 @@ class DockerManager {
           title: 'API Key Required',
           message: 'OpenAI API key is not set',
           detail: 'Please set it in the Settings before starting the system.',
-          icon: path.join(iconDir, 'monadic-chat.png')
+          icon: path.join(iconDir, 'app-icon.png')
         });
         writeToScreen('[HTML]: <p>OpenAI API Key is not set. Please set it in the Settings before starting the system.</p><hr />');
         return;
@@ -229,7 +229,7 @@ class DockerManager {
                     buttons: ['OK'],
                     title: 'Update Available',
                     message: `A new version of the app is available. Please update to the latest version.`,
-                    icon: path.join(iconDir, 'monadic-chat.png')
+                    icon: path.join(iconDir, 'app-icon.png')
                   });
                 }
                 // Check if the image is not found and update the status accordingly
@@ -342,7 +342,7 @@ function checkForUpdates() {
             buttons: ['OK'],
             title: 'Update Available',
             message: `A new version (${latestVersion}) of the app is available. Please update to the latest version.`,
-            icon: path.join(iconDir, 'monadic-chat.png')
+            icon: path.join(iconDir, 'app-icon.png')
           });
         } else {
           dialog.showMessageBox(mainWindow, {
@@ -350,7 +350,7 @@ function checkForUpdates() {
             buttons: ['OK'],
             title: 'Up to Date',
             message: `You are already using the latest version of the app.`,
-            icon: path.join(iconDir, 'monadic-chat.png')
+            icon: path.join(iconDir, 'app-icon.png')
           });
         }
       } else {
@@ -370,7 +370,7 @@ function uninstall() {
     defaultId: 1,
     title: 'Confirm Uninstall',
     message: 'This will remove all the Monadic Chat images and containers. Do you want to continue?',
-    icon: path.join(iconDir, 'monadic-chat.png')
+    icon: path.join(iconDir, 'app-icon.png')
   };
 
   dialog.showMessageBox(null, options).then((result) => {
@@ -401,7 +401,7 @@ async function quitApp() {
     title: 'Confirm Quit',
     message: 'Quit Monadic Chat Console?',
     detail: 'This will stop all running processes and close the application.',
-    icon: path.join(iconDir, 'monadic-chat.png')
+    icon: path.join(iconDir, 'app-icon.png')
   };
 
   try {

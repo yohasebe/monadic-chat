@@ -539,3 +539,7 @@ legend {
   color: white;
 }
 
+.modal-footer {
+  justify-content: space-between
+}
+

@@ -1,61 +1,58 @@
-### Change Log
-
-  - [Nov, 2024] 0.9.7
-      - PDF recognition feature added for Claude apps
-  - [Oct, 2024] 0.9.6
-      - PyMuPDF4LLM integration
-      - Anthropic's new sonnet model supported
-      - Stability of code running and chart generation improved
-  - [Sep, 2024] 0.9.2
-      - Beta models (`o1-preview`, `o1-mini`) supported
-      - Documentation renewed
-      - Stability improvement
-      - Better app development support
-  - [Sep, 2024] 0.8.14
-      - Many under-the-hood improvements
-  - [Aug, 2024] 0.8.11
-      - App authoring format changed
-      - Claude Jupyter Notebook app added
-      - Math rendering improved
-      - Second Opinion app added
-      - PDF Document import/export feature
-  - [Jul, 2024]
-      - Mistral AI (Chat and Code Interpreter) app added
-      - Multiple images can be uploaded for image recognition
-      - Continue button introduced
-      - Jupyter Notebook app added
-      - Browser auto open
-  - [Jun, 2024]
-      - Linux (Ubuntu/Debian) installer released
-      - App file name changed from monadic-chat to Monadic Chat
-      - Settings menu added
-- [Jun, 2024] Speech Draft Helper app added (with TTS audio file generation)
-- [Jun, 2024] Menu bar items added; Shared Folder asccessible on Windows
-- [Jun, 2024] Better uninstallation of containers
-- [Jun, 2024] Monadic Chat Console UI improved
-- [Jun, 2024] AI-User feature introduced
-- [Jun, 2024] Automatic Docker image rebuild feature
-- [Jun, 2024] Source code block copy button added
-- [Jun, 2024] Video Describer app added
+- [Nov, 2024] 0.9.7
+  - PDF recognition feature added for Claude apps
+- [Oct, 2024] 0.9.6
+  - PyMuPDF4LLM integration
+  - Anthropic's new sonnet model supported
+  - Stability of code running and chart generation improved
+- [Sep, 2024] 0.9.2
+  - Beta models (`o1-preview`, `o1-mini`) supported
+  - Documentation renewed
+  - Stability improvement
+  - Better app development support
+  - Many under-the-hood improvements
+  - Documentation using Docsify released
+- [Aug, 2024] 0.8.11
+  - App authoring format changed
+  - Claude Jupyter Notebook app added
+  - Math rendering improved
+  - Second Opinion app added
+  - PDF Document import/export feature
+- [Jul, 2024] 
+  - Mistral AI (Chat and Code Interpreter) app added
+  - Multiple images can be uploaded for image recognition
+  - Continue button introduced
+  - Jupyter Notebook app added
+  - Browser auto open
+- [Jun, 2024] 
+  - Linux (Ubuntu/Debian) installer released
+  - App file name changed from monadic-chat to Monadic Chat
+  - Settings menu added
+  - Speech Draft Helper app added (with TTS audio file generation)
+  - Menu bar items added; Shared Folder asccessible on Windows
+  - Better uninstallation of containers
+  - Monadic Chat Console UI improved
+  - AI-User feature introduced
+  - Automatic Docker image rebuild feature
+  - Source code block copy button added
+  - Video Describer app added
 - [May, 2024] Talk to Claude/Command R/Gemini apps added
-- [May, 2024] Ruby/Python/PGVector/Selenium containers structure introduced
+  - Ruby/Python/PGVector/Selenium containers structure introduced
 - [Feb, 2024] Mermaid diagram support
-- [Feb, 2024] File reading feature
-- [Feb, 2024] Stability improvement with several apps modified
+  - File reading feature
+  - Stability improvement with several apps modified
 - [Jan, 2024] Default model set to `gpt-3.5-turbo-1106`
-- [Jan, 2024] OpenAI's January 2024 models supported
-- [Jan, 2024] Mac/Win Monadic Chat Console UI improved
-- [Jan, 2024] Image understanging feature
-- [Dec, 2023] Voice Interpreter app added
-- [Dec, 2023] More responsive text-to-speech in auto-speech mode
-- [Dec, 2023] Language Practice Plus app updated
+  - OpenAI's January 2024 models supported
+  - Mac/Win Monadic Chat Console UI improved
+  - Image understanging feature
+  - Voice Interpreter app added
+  - More responsive text-to-speech in auto-speech mode
+  - Language Practice Plus app updated
 - [Nov, 2023] Image generator app updated to support dall-e-3.
-- [Nov, 2023] Whisper voice input is supported for Chrome/Edge/Safari.
-- [Nov, 2023] Natural voice stream playback using OpenAI's text-to-speech API supported.
-- [Nov, 2023] OpenAI's new models supported (0.3.0)
+  - Whisper voice input is supported for Chrome/Edge/Safari.
+  - Natural voice stream playback using OpenAI's text-to-speech API supported.
+  - OpenAI's new models supported (0.3.0)
 - [Sep, 2023] Stability improvement with several apps modified
 - [Jul, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
-- [Jul, 2023] Image generation feature added.
-- [Jul, 2023] The initial version of Monadic Chat (1.0.0) has been released.
-- [Jul, 2023] The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.
-
+  - Image generation feature added.
+  - The initial version of Monadic Chat (1.0.0) has been released.
+  - The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.

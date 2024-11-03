@@ -1,17 +1,35 @@
 //////////////////////////////
-  // Read image/PDF file contents 
+// Read image/PDF file contents 
 //////////////////////////////
 
-  // Notice that PDF is only for Anthropic Claude models (Nov 2024)
+// Notice that PDF is only for Anthropic Claude models (Nov 2024)
 
+const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
 const selectFileButton = $("#image-file");
-
 let images = []; // Store multiple images/PDFs
 
+// Modal event listener for cleanup when hidden
+$("#imageModal").on("hidden.bs.modal", function () {
+  $('#imageFile').val('');
+  $('#uploadImage').prop('disabled', true);
+  $(this).find(".size-error").html("");
+});
+
+// File selection event listener
+$("#imageFile").on("change", function() {
+  // Clear any existing error message
+  $("#select_image_error").html("");
+  
+  const file = this.files[0];
+  $('#uploadImage').prop('disabled', !file);
+});
+
+// File selection button click handler
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
   const isPdfEnabled = selectedModel.includes("sonnet");
 
+  // Update modal UI based on model capabilities
   if (isPdfEnabled) {
     $("#imageModalLabel").html('<i class="fas fa-file"></i> Select Image or PDF File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
@@ -23,81 +41,77 @@ selectFileButton.on("click", function () {
   }
 
   $("#imageModal").modal("show");
-
-  const fileImage = $('#imageFile');
-  const imageButton = $('#uploadImage');
-
-  $("#imageModal").on("hidden.bs.modal", function () {
-    fileImage.val('');
-    imageButton.prop('disabled', true);
-  });
-
-  // Update accept attribute to include PDFs
-  fileImage.attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
-
-  fileImage.on('change', function () {
-    if (fileImage[0].files.length > 0) {
-      imageButton.prop('disabled', false);
-    }
-  });
-
-  // File upload button click handler
-  $("#uploadImage").off("click").on("click", function () {
-    const fileInput = fileImage[0];
-    const file = fileInput.files[0];
-    const selectedModel = $("#model").val();
-    const isPdfEnabled = selectedModel.includes("sonnet");
-
-    if (file) {
-      // Validate PDF compatibility with selected model
-      if (file.type === 'application/pdf' && !isPdfEnabled) {
-        setAlert("PDF files can only be uploaded when using a Sonnet model.", "error");
-        $("#imageModal").modal("hide");
-        return;
-      }
-
-      $("#imageModal button").prop("disabled", true);
-
-      try {
-        if (file.type === 'application/pdf') {
-          // Process PDF file
-          fileToBase64(file, function(base64) {
-            const fileData = {
-              title: file.name,
-              data: `data:${file.type};base64,${base64}`,
-              type: file.type
-            };
-            currentPdfData = fileData; // Store PDF data globally
-            images.push(fileData);
-            updateFileDisplay(images);
-            $("#imageModal").modal("hide");
-            $("#imageModal button").prop("disabled", false);
-          });
-        } else {
-          // Process image file
-          imageToBase64(file, function(base64) {
-            const imageData = {
-              title: file.name,
-              data: `data:${file.type};base64,${base64}`,
-              type: file.type
-            };
-            images.push(imageData);
-            updateFileDisplay(images);
-            $("#imageModal").modal("hide");
-            $("#imageModal button").prop("disabled", false);
-          });
-        }
-      } catch (error) {
-        $("#imageModal button").prop("disabled", false);
-        $("#imageModal").modal("hide");
-        setAlert(`Error uploading file: ${error}`, "error");
-        return;
-      }
-    }
-  });
 });
 
-// New function to handle PDF files
+// Upload button click handler
+$("#uploadImage").on("click", function () {
+  const fileInput = $('#imageFile')[0];
+  const file = fileInput.files[0];
+  const selectedModel = $("#model").val();
+  const isPdfEnabled = selectedModel.includes("sonnet");
+
+  if (file) {
+    // Check file size for PDF files (35MB limit)
+    if (file.type === 'application/pdf') {
+      const fileSizeInMB = file.size / (1024 * 1024);
+      if (fileSizeInMB > MAX_PDF_SIZE) {
+        $("#select_image_error").html(`
+            <i class="fas fa-exclamation-circle"></i> 
+            PDF file size must be less than ${MAX_PDF_SIZE}MB.<br />
+            Current size: ${fileSizeInMB.toFixed(1)}MB
+        `);
+        return;
+      }
+    }
+
+    // Validate PDF compatibility with selected model
+    if (file.type === 'application/pdf' && !isPdfEnabled) {
+      setAlert("PDF files can only be uploaded when using a Sonnet model.", "error");
+      $("#imageModal").modal("hide");
+      return;
+    }
+
+    $("#imageModal button").prop("disabled", true);
+
+    try {
+      if (file.type === 'application/pdf') {
+        // Process PDF file
+        fileToBase64(file, function(base64) {
+          const fileData = {
+            title: file.name,
+            data: `data:${file.type};base64,${base64}`,
+            type: file.type
+          };
+          currentPdfData = fileData; // Store PDF data globally
+          images = [fileData]; // Replace existing images with PDF
+          updateFileDisplay(images);
+          $("#imageModal").modal("hide");
+          $("#imageModal button").prop("disabled", false);
+        });
+      } else {
+        // Process image file
+        imageToBase64(file, function(base64) {
+          const imageData = {
+            title: file.name,
+            data: `data:${file.type};base64,${base64}`,
+            type: file.type
+          };
+          images.push(imageData);
+          updateFileDisplay(images);
+          $("#imageModal").modal("hide");
+          $("#imageModal button").prop("disabled", false);
+        });
+      }
+    } catch (error) {
+      $("#imageModal button").prop("disabled", false);
+      $("#imageModal").modal("hide");
+      setAlert(`Error uploading file: ${error}`, "error");
+      return;
+    }
+  }
+});
+
+// Convert file to base64
 function fileToBase64(blob, callback) {
   const reader = new FileReader();
   reader.onload = function() {
@@ -107,43 +121,42 @@ function fileToBase64(blob, callback) {
   reader.readAsDataURL(blob);
 }
 
-// Update display function to handle both images and PDFs
-// Function to update the display of attached files
+// Update display for both images and PDFs
 function updateFileDisplay(files) {
   $("#image-used").html(""); // Clear current display
 
-  // Iterate through each file and create appropriate display elements
+  // Create display elements for each file
   files.forEach((file, index) => {
     if (file.type === 'application/pdf') {
       // Display PDF file with icon and title
       $("#image-used").append(`
         <div class="file-container">
-        <i class="fas fa-file-pdf"></i> ${file.title}
-        <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
-        <i class="fas fa-times"></i>
-        </button>
+          <i class="fas fa-file-pdf"></i> ${file.title}
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
-        `);
+      `);
     } else {
       // Display image with thumbnail
       $("#image-used").append(`
         <div class="image-container">
-        <img class='base64-image' alt='${file.title}' src='${file.data}' data-type='${file.type}' />
-        <button class='btn btn-secondary btn-sm remove-image' data-index='${index}' tabindex="99">
-        <i class="fas fa-times"></i>
-        </button>
+          <img class='base64-image' alt='${file.title}' src='${file.data}' data-type='${file.type}' />
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
-        `);
+      `);
     }
   });
 
-  // Add event listeners for file removal buttons
-  $(".remove-image, .remove-file").on("click", function () {
+  // Add event listeners for file removal
+  $(".remove-file").on("click", function () {
     const index = $(this).data("index");
     const removedFile = images[index];
 
     if (removedFile.type === 'application/pdf') {
-      // Clear all PDF-related data when removing a PDF
+      // Clear all PDF-related data
       currentPdfData = null;
       images = [];
     } else {
@@ -154,6 +167,7 @@ function updateFileDisplay(files) {
   });
 }
 
+// Convert and resize image to base64
 function imageToBase64(blob, callback) {
   const reader = new FileReader();
   reader.onload = function (e) {
@@ -177,7 +191,7 @@ function imageToBase64(blob, callback) {
         width = width * scale;
         height = height * scale;
 
-        // Resize the image with a canvas
+        // Resize the image using canvas
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
@@ -187,7 +201,7 @@ function imageToBase64(blob, callback) {
         const base64 = resizedDataUrl.split(',')[1];
         callback(base64);
       } else {
-        // No resizing necessary, use original base64
+        // Use original base64 if no resizing needed
         const base64 = dataUrl.split(',')[1];
         callback(base64);
       }
@@ -195,24 +209,4 @@ function imageToBase64(blob, callback) {
     image.src = dataUrl;
   };
   reader.readAsDataURL(blob);
-}
-
-// Function to update the image display
-function updateImageDisplay(images) {
-  $("#image-used").html(""); // Clear previous images
-  images.forEach((image, index) => {
-    $("#image-used").append(`
-      <div class="image-container">
-      <img class='base64-image' alt='${image.title}' src='${image.data}' data-type='${image.type}' />
-      <button class='btn btn-secondary btn-sm remove-image' data-index='${index}' tabindex="99"><i class="fas fa-times"></i></button>
-      </div>
-      `);
-  });
-
-  // Add event listener for removing images
-  $(".remove-image").on("click", function () {
-    const index = $(this).data("index");
-    images.splice(index, 1); // Remove the image from the array
-    updateImageDisplay(images); // Update the display
-  });
 }

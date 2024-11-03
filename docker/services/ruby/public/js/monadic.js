@@ -112,7 +112,7 @@ $(function () {
     }
 
     if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
-      let models_text = apps[$(this).val()]["models"]
+      let models_text = apps[$(this).val()]["models"];
       let models = JSON.parse(models_text);
       let modelList = listModels(models);
       $("#model").html(modelList);
@@ -123,6 +123,9 @@ $(function () {
 
       $("#model-selected").text(model);
       $("#model").val(model);
+
+      // Manually trigger the change event
+      $("#model").trigger("change");
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
@@ -132,6 +135,9 @@ $(function () {
       $("#model-selected").text(params["model"]);
       $("#model_and_file").show();
       $("#model_parameters").show();
+
+      // Manually trigger the change event
+      $("#model").trigger("change");
     }
 
     if (apps[$(this).val()]["max_tokens"]) {
@@ -595,8 +601,12 @@ $(function () {
   });
 
   // if #model value is changed, update the value #model-selected
-  $("#model").on("change", function () {
-    $("#model-selected").text($("#model option:selected").val());
+  $("#model").on("change", function() {
+    const selectedModel = $("#model").val();
+    $("#model-selected").text(selectedModel);
+
+    adjustImageUploadButton(selectedModel);
+    
   });
 
   $("#discourse").tooltip({

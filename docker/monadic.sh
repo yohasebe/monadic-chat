@@ -4,7 +4,7 @@
 export PATH=${PATH}:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.9.6
+export MONADIC_VERSION=0.9.7
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -373,7 +373,7 @@ build)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
   else
-    echo "[HTML]: <p>Monadic Chat has failed to build. </p><p>Please clear the shared folder first and then try <b>rebuild</b>.</p>"
+  echo "[HTML]: <p>Monadic Chat has failed to build.</p><p>Please try <b>restart</b> first. If that doesn't work, then try <b>rebuild</b>.</p><p>If you are developing a custom application, please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
   fi
   ;;
 check)

@@ -11,13 +11,13 @@ RUN apt update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV WORKSPACE /monadic
+ENV WORKSPACE=/monadic
 WORKDIR $WORKSPACE
 
 COPY Gemfile monadic.gemspec $WORKSPACE/
 COPY config.ru $WORKSPACE/
 
-ENV BUNDLER_WITHOUT development test
+ENV BUNDLER_WITHOUT="development test"
 RUN bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
 
@@ -46,7 +46,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-ENV WORKSPACE /monadic
+ENV WORKSPACE=/monadic
 WORKDIR $WORKSPACE
 
 COPY --from=build /usr/local/bundle /usr/local/bundle

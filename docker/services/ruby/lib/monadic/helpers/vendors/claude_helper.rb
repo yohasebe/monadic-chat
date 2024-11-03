@@ -68,7 +68,7 @@ module ClaudeHelper
       end
 
       sp = { type: "text", text: msg["text"] }
-      if obj["prompt_caching"] && msg["tokens"] > 1024
+      if obj["prompt_caching"] && msg["tokens"]
         sp["cache_control"] = { "type" => "ephemeral" }
       end
 
@@ -182,17 +182,19 @@ module ClaudeHelper
       if obj["images"]
         obj["images"].each do |file|
           if file["type"] == "application/pdf"
-            content.unshift({
+            doc = {
               "type" => "document",
               "source" => {
                 "type" => "base64",
                 "media_type" => "application/pdf",
                 "data" => file["data"].split(",")[1]
               }
-            })
+            }
+            doc["cache_control"] = { "type" => "ephemeral" } if obj["prompt_caching"]
+            content.unshift(doc)
           else
             # Handle images as before
-            content << {
+            img ={
               "type" => "image",
               "source" => {
                 "type" => "base64",
@@ -200,6 +202,8 @@ module ClaudeHelper
                 "data" => file["data"].split(",")[1]
               }
             }
+            img["cache_control"] = { "type" => "ephemeral" } if obj["prompt_caching"]
+            content << img
           end
         end
       end

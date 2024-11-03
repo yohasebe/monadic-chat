@@ -209,7 +209,7 @@ module WebSocketHelper
           parameters_modified["message"] = message_text
 
           # code to use the OpenAI mode for AI User
-          api_request = method(:openai_api_request)
+          api_request = APPS[session["parameters"]["app_name"]].method(:api_request)
           parameters_modified["model"] = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
 
           mini_session = {

@@ -1,5 +1,7 @@
 # Recipe File Examples
 
+?> The program examples shown on this page directly reference the code in the [monadic-chat](https//github.com/yohasebe/monadic-chat) repository (`nightly` branch) on GitHub. If you find any issues, please submit a pull request.
+
 ## Simple Apps
 
 For how to develop simple apps, refer to [Adding Simple Apps](/develop_apps.md#how-to-add-a-simple-app).

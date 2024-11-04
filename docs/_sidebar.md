@@ -8,6 +8,7 @@
 
     - [Console Panel](/console-panel.md)
     - [Web Interface](/web-interface.md)
+    - [Message Input](/message-input.md)
     - [Basic Apps](/basic-apps.md)
     - [Language Models](/language-models.md)
 

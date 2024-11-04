@@ -232,7 +232,7 @@ class MonadicApp
     "Error occurred: #{e.message}"
   end
 
-  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 2)
+  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5)
     retries = 0
 
     begin

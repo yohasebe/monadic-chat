@@ -1,5 +1,7 @@
 # レシピ・ファイルの例
 
+?> このページで示すプログラム例は、GitHubの [monadic-chat](https//github.com/yohasebe/monadic-chat) レポジトリ（`nightly`ブランチ）のコードを直接参照しています。不具合をみつけた場合は pull request を送ってください。
+
 ## シンプルなアプリ
 
 シンプルなアプリを開発する方法については、[シンプルなアプリの追加方法](http://localhost:3000/#/ja/develop_apps?id=シンプルなアプリの追加方法)を参照してください。

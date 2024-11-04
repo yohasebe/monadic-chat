@@ -21,3 +21,15 @@
   - PyMuPDF4LLM integration
   - Anthropic's new sonnet model supported
   - Stability of code running and chart generation improved
+
+**Contributing**
+
+Contributions are welcome! Here's how to help:
+
+1. **Fork & Clone**: Fork the repository and clone it to your local machine.
+2. **Create a Branch**: Use a descriptive name for your branch (e.g., `feature/new-feature`).
+3. **Make Changes**: Implement changes and ensure they are well-tested.
+4. **Commit**: Write clear, concise commit messages.
+5. **Push & PR**: Push the branch and open a pull request.
+
+Thank you for your interest in improving the project!

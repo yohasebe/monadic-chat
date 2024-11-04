@@ -92,16 +92,6 @@ You can also click the `Voice Input` button to use voice input. Voice input uses
 
 ---
 
-**Q**: PDFの内容について AI エージェントに質問することはできますか？
-
-**A**: はい、いくつかのやり方があります。[`PDF Navigator`](./ja/basic-apps?id=pdf-navigator) アプリでは、提供された PDF の単語埋め込みを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](.ja/basic-apps?id=code-intepreter) や [`Content Reader`](.ja/basic-apps?id=content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
-
-上記はいずれも OpenAIの GPT-4 系列モデルを使用しています。その他のモデルを使用する場合は、`Code` 対応のアプリ（`Anthropic Claude (Code)` など）の場合、`Code Interpreter` と同様の仕組みで PDF ファイルを読み込ませることができます。
-
-また、Anthropic Claude を用いたアプリでは、テキスト入力ボックスの下にある `Import Image/PDF` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。詳しくは [PDF のアップロード](./ja/message-input?id=pdf-のアップロード)を参照してください。
-
----
-
 **Q**: Can I ask the AI agent about the contents of a PDF?
 
 **A**: Yes, there are several ways to do this. In the [`PDF Navigator`](./basic-apps?id=pdf-navigator) app, you can store the word embeddings of the provided PDF in the PGVector database and have the AI answer using the RAG (Retrieval-Augmented Generation) method. In the [`Code Interpreter`](./basic-apps?id=code-interpreter) and [`Content Reader`](./basic-apps?id=content-reader) apps, you can convert the PDF file to Markdown format using MuPDF4LLM on the Python container and have the AI agent read the content so you can ask questions about it.

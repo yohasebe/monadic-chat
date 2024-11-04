@@ -35,29 +35,29 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
   // Create the card element with the mid attribute
   const card = $(`
     <div class="card mt-3" id="${mid}"> 
-      <div class="card-header p-2 ps-3 d-flex justify-content-between">
-        <div class="fs-5 card-title mb-0">${badge}</div>
-        ${runningOnFirefox ? `
-          <div class="me-1 text-secondary d-flex align-items-center">
-            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-            <span class="status ${status_class}"></span>
-          </div>
+    <div class="card-header p-2 ps-3 d-flex justify-content-between">
+    <div class="fs-5 card-title mb-0">${badge}</div>
+    ${runningOnFirefox ? `
+        <div class="me-1 text-secondary d-flex align-items-center">
+        <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+        <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+        <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+        <span class="status ${status_class}"></span>
+        </div>
         ` : `
-          <div class="me-1 text-secondary d-flex align-items-center">
-            <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
-            <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
-            <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
-            <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
-            <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-            <span class="status ${status_class}"></span>
-          </div>
+        <div class="me-1 text-secondary d-flex align-items-center">
+        <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
+        <span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>
+        <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
+        <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
+        <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+        <span class="status ${status_class}"></span>
+        </div>
         `}
-      </div>
-      <div class="card-body ${className} pb-1">
-        <div class="card-text">${replaced_html}${image_data}</div>
-      </div>
+    </div>
+    <div class="card-body ${className} pb-1">
+    <div class="card-text">${replaced_html}${image_data}</div>
+    </div>
     </div>
     `);
 
@@ -120,13 +120,20 @@ function attachEventListeners($card) {
     $(this).tooltip('hide');
     const $this = $(this);
     const mid = $card.attr('id');
-    const text = messages.find((m) => m.mid === mid).text;
-    $card.find("img").each((_i, img) => {
-      const src = $(img).attr("src");
-      const title = $(img).attr("title");
-      const type = $(img).attr("type");
-      images.push({ title: title, data: src, type: type });
-    });
+    const messageIndex = messages.findIndex((m) => m.mid === mid);
+    const currentMessage = messages[messageIndex];
+
+    // Get text content
+    const text = currentMessage.text;
+
+    // Handle attached files
+    if (currentMessage.images) {
+      images = [...currentMessage.images];
+      updateFileDisplay(images);
+    } else {
+      images = [];
+      $("#image-used").empty();
+    }
 
     let json = false;
     try {
@@ -144,42 +151,53 @@ function attachEventListeners($card) {
     if (confirmed) {
       $this.find("i").removeClass("fa-square-pen").addClass("fa-check").css("color", "#DC4C64");
       $("#message").val(text).trigger("input").focus();
-      let role = messages.find((m) => m.mid === mid).role;
+
+      let role = currentMessage.role;
       if (role !== "user") {
         role = "sample-" + role;
       }
       $("#select-role").val(role).trigger("change");
 
-      if (images && images.length > 0) {
-        updateImageDisplay(images);
-      }
-
-      const index = messages.findIndex((m) => m.mid === mid);
-      const following = messages.splice(index, messages.length - index);
-      following.forEach((m) => {
+      // Delete all subsequent messages
+      const subsequentMessages = messages.slice(messageIndex + 1);
+      subsequentMessages.forEach((m) => {
         $(`#${m.mid}`).remove();
         ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
+        mids.delete(m.mid);
       });
+
+      // Delete current message
+      messages.splice(messageIndex);
       $card.remove();
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+      mids.delete(mid);
     }
   });
 
   $card.on("click", ".func-delete", function () {
-    const text = $card.find(".card-text").text();
     const mid = $card.attr('id');
+    const messageIndex = messages.findIndex((m) => m.mid === mid);
+    const text = messages[messageIndex].text;
 
     ttsStop();
 
     const confirmed = confirm(`Are you sure to delete the message "${text}"?`);
     if (confirmed) {
       $(this).tooltip('hide');
+
+      // Delete all subsequent messages
+      const subsequentMessages = messages.slice(messageIndex + 1);
+      subsequentMessages.forEach((m) => {
+        $(`#${m.mid}`).remove();
+        ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
+        mids.delete(m.mid);
+      });
+
+      // Delete current message
+      messages.splice(messageIndex);
       $card.remove();
-      const index = messages.findIndex((m) => m.mid === mid);
-      // remove this message from the messages array destructively
-      messages.splice(index, 1);
-      mids.delete(mid);
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+      mids.delete(mid);
     }
   });
 

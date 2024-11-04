@@ -14,7 +14,7 @@
 
 **Latest Changes**
 
-- [Nov, 2024] 0.9.9
+- [Nov, 2024] 0.9.10
   - PDF recognition feature added for Claude apps
   - AI user feature improved
 - [Oct, 2024] 0.9.6

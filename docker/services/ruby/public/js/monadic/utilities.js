@@ -425,7 +425,7 @@ function adjustImageUploadButton(selectedModel) {
   const imageFileInput = $('#imageFile');
 
   if (isPdfEnabled) {
-    imageFileBtn.html('<i class="fas fa-file"></i> Upload Image/PDF');
+    imageFileBtn.html('<i class="fas fa-image"></i> Upload Image/PDF');
     imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
   } else {
     imageFileBtn.html('<i class="fas fa-image"></i> Upload Image');

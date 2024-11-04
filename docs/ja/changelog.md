@@ -1,3 +1,3 @@
 # 更新履歴
 
-- 2024-09-26: Docsifyによるドキュメント公開
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/CHANGELOG.md ':include :type=md')

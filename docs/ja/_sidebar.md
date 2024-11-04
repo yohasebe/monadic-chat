@@ -8,6 +8,7 @@
 
     - [コンソールパネル](/ja/console-panel.md)
     - [Webインターフェイス](/ja/web-interface.md)
+    - [メッセージ入力](/ja/message-input.md)
     - [基本アプリ](/ja/basic-apps.md)
     - [言語モデル](/ja/language-models.md)
 

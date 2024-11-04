@@ -1,5 +1,7 @@
 # Dockerコンテナの追加
 
+?> このページで示すプログラム例は、GitHubの [monadic-chat](https//github.com/yohasebe/monadic-chat) レポジトリ（`nightly`ブランチ）のコードを直接参照しています。不具合をみつけた場合は pull request を送ってください。
+
 ## コンテナ追加の方法
 
 新たなDockerコンテナを利用可能にするには、`~/monadic/data/services`に新しいフォルダを作成してその中に下記のファイルを配置します。

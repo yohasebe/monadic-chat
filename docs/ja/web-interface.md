@@ -70,7 +70,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 **Current Base App**<br />
 現在選択している基本アプリの名前と説明が表示されます。Monadic Chatの起動時にはデフォルトのアプリである`Chat`に関する情報が表示されます。
 
-### ステータスパネル
+## ステータスパネル
 
 ![](./assets/images/monadic-chat-status.png ':size=400')
 

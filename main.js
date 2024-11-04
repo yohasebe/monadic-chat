@@ -773,7 +773,7 @@ function updateApplicationMenu() {
               message: `Monadic Chat\nVersion: ${app.getVersion()}`,
               detail: 'Grounding AI Chatbots with Full Linux Environment on Docker\n\n© 2024 Yoichiro Hasebe',
               buttons: ['OK'],
-              icon: path.join(iconDir, 'monadic-chat.png')
+              icon: path.join(iconDir, 'app-icon.png')
             });
           }
         },

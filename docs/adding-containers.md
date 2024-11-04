@@ -1,5 +1,7 @@
 # Adding Docker Containers
 
+?> The program examples shown on this page directly reference the code in the [monadic-chat](https//github.com/yohasebe/monadic-chat) repository (`nightly` branch) on GitHub. If you find any issues, please submit a pull request.
+
 ## How to Add Containers
 
 To make a new Docker container available, create a new folder within `~/monadic/data/services` and place the following files inside the new folder:

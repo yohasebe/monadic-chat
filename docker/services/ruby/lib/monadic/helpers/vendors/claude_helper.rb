@@ -121,7 +121,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31,computer-use-2024-10-22,pdfs-2024-09-25",
+      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }

@@ -239,6 +239,8 @@ To use this app, store the video file in the `Shared Folder` and provide the fil
 
 This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
 
+?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database.
+
 ![PDF button](/assets/images/app-pdf.png ':size=700')
 
 ![Import PDF](/assets/images/import-pdf.png ':size=400')

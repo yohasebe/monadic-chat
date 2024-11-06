@@ -41,6 +41,9 @@ module OpenAIHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
+    message = nil
+    data = nil
+
     if role != "tool"
       message = obj["message"].to_s
 
@@ -55,6 +58,7 @@ module OpenAIHelper
       html = markdown_to_html(message, mathjax: obj["mathjax"])
 
       if message != "" && role == "user"
+
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
@@ -154,10 +158,17 @@ module OpenAIHelper
       body["messages"] += obj["function_returns"]
     end
 
+    last_text = context.last["text"]
+
+    # Split the last message if it matches /\^__DATA__$/
+    if last_text.match?(/\^\s*__DATA__\s*$/m)
+      last_text, data = last_text.split("__DATA__")
+      # set last_text to the last message in the context
+      context.last["text"] = last_text
+    end
+
     # Decorate the last message in the context with the message with the snippet
     # and the prompt suffix
-
-    last_text = context.last["text"]
     last_text = message_with_snippet if message_with_snippet.to_s != ""
 
     if last_text != "" && prompt_suffix.to_s != ""
@@ -169,6 +180,17 @@ module OpenAIHelper
           end
         end
       end
+    end
+
+    if data
+      body["messages"] << {
+        "role" => "user",
+        "content" => data.strip
+      }
+      body["prediction"] = {
+        "type" => "content",
+        "content" => data.strip
+      }
     end
 
     # initial prompt in the body is appended with the settings["initial_prompt_suffix"

@@ -10,6 +10,8 @@ OPENAI_API_KEY=api_key
 
 For apps using OpenAI's language models, refer to the [Basic Apps](/basic-apps.md) section.
 
+?> For apps using OpenAI's GPT-4o series and GPT-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
+
 ## Anthropic
 
 ![Anthropic apps icon](/assets/icons/a.png ':size=40')
@@ -19,6 +21,8 @@ By setting the Anthropic API key, you can use apps that utilize Claude. Once set
 ```
 ANTHROPIC_API_KEY=api_key
 ```
+
+?> For apps using Anthropic Claude's Sonnet series models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [PDF recognition](./message-input?id=uploading-pdfs))
 
 Chat with Claude is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code with Claude assists in creating program code. Claude (Code Interpreter) integrates with JupyterLab to actually execute program code.
 

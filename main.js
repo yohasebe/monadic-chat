@@ -446,7 +446,7 @@ function cleanupAndQuit() {
     }
 
     app.exit(0);
-  }, 5000);
+  }, 3000);
 }
 
 // Update the app's quit handler

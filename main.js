@@ -390,7 +390,7 @@ let settingsWindow = null;
 let isQuittingDialogShown = false;
 
 async function quitApp() {
-  if (isQuittingDialogShown) return; // Do nothing if the quit dialog is already shown
+  if (isQuittingDialogShown || forceQuit) return; // Add forceQuit check
 
   isQuittingDialogShown = true;
 
@@ -451,7 +451,7 @@ function cleanupAndQuit() {
 
 // Update the app's quit handler
 app.on('before-quit', (event) => {
-  if (!isQuittingDialogShown) {
+  if (!isQuittingDialogShown && !forceQuit) {
     event.preventDefault();
     quitApp();
   }
@@ -553,8 +553,56 @@ const menuItems = [
   }
 ];
 
+let updateMessage = '';
+let forceQuit = false;
+
 function initializeApp() {
   app.whenReady().then(async () => {
+    // Check internet connection
+    try {
+      const response = await fetch('https://api.github.com', { timeout: 5000 });
+      if (!response.ok) {
+        throw new Error('Internet connection test failed');
+      }
+      
+      // If internet connection is available, check for updates
+      try {
+        const versionResponse = await fetch('https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb');
+        if (versionResponse.ok) {
+          const versionData = await versionResponse.text();
+          const versionRegex = /VERSION = "(.*?)"/;
+          const match = versionData.match(versionRegex);
+          
+          if (match && match[1]) {
+            const latestVersion = match[1];
+            const currentVersion = app.getVersion();
+            
+            if (compareVersions(latestVersion, currentVersion) > 0) {
+              updateMessage = `<p><i class="fa-solid fa-circle-exclamation"></i>A new version (${latestVersion}) is available. Please update to the latest version.</p>`;
+            } else {
+              updateMessage = `<p><i class="fa-solid fa-circle-check"></i>You are using the latest version (${currentVersion}).</p>`;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Failed to check for updates:', error);
+        // Continue without update check if GitHub is not accessible
+      }
+      
+    } catch (error) {
+      forceQuit = true;
+      dialog.showMessageBox(null, {
+        type: 'error',
+        title: 'Connection Error',
+        message: 'No internet connection available',
+        detail: 'Please check your internet connection and try again.',
+        buttons: ['OK']
+      }).then(() => {
+        cleanupAndQuit();
+      });
+      return;
+    }
+
     app.name = 'Monadic Chat';
 
     setInterval(updateDockerStatus, 2000);
@@ -1001,6 +1049,7 @@ function createMainWindow() {
     openingText = `
       [HTML]: 
       <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
+      ${updateMessage}
       <p><i class="fa-solid fa-circle-exclamation"></i>Please make sure Docker Desktop is running while using Monadic Chat.</p>
       <p>Press <b>start</b> button to initialize the server.</p>
       <hr />`

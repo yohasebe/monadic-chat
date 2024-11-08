@@ -29,15 +29,15 @@
 
 **Web Interface**
 
-<div align="center"><img src="./docs/assets/images/monadic-chat-web.png" width="800px"/></div>
+<div><img src="./docs/assets/images/monadic-chat-web.png" width="800px"/></div><br />
 
 **Chat Window**
 
-<div align="center"><img src="./docs/assets/images/monadic-chat-chat-about-pdf.png" width="700px"/></div>
+<div><img src="./docs/assets/images/monadic-chat-chat-about-pdf.png" width="700px"/></div><br />
 
 **Console Window**
 
-<div align="center"><img src="./docs/assets/images/monadic-chat-console.png" width="700px"/></div>
+<div><img src="./docs/assets/images/monadic-chat-console.png" width="700px"/></div><br />
 
 ## Contributing
 

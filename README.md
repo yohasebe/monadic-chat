@@ -6,6 +6,8 @@
 
 🤖 + 🐳 + 🐧 [Monadic Chat](https://yohasebe.github.io/monadic-chat) is a locally hosted web application designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT-4 and other LLMs, it allows the execution of advanced tasks that require external tools. It also supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for using AI but also for developing and researching various applications.
 
+Available for Mac, Windows, and Linux with easy-to-use installers.
+
 ## Getting Started
 
 - [Documentation](https://yohasebe.github.io/monadic-chat)

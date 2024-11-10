@@ -22,6 +22,7 @@ services:
       retries: 20
     networks:
       - monadic-chat-network
+    restart: always
 
 volumes:
   monadic-chat-pgvector-data:

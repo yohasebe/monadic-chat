@@ -15,7 +15,7 @@ Available for Mac, Windows, and Linux with easy-to-use installers.
 
 ## Latest Changes
 
-- [Nov, 2024] 0.9.10
+- [Nov, 2024] 0.9.11
   - Check for updates when starting the app
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
   - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models

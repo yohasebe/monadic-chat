@@ -318,6 +318,10 @@ $(function () {
     params["message"] = $("#message").val();
 
     $("#cancel_query").css("opacity", "1");
+    
+    // Hide message input and show spinner
+    $("#message").hide();
+    $("#monadic-spinner").show();
 
     if ($("#select-role").val() !== "user") {
       reconnect_websocket(ws, function (ws) {

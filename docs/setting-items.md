@@ -25,10 +25,10 @@ Specify the default model. If not specified, the default model provided by the i
 Specify the default temperature.
 
 `presence_penalty` (float)
-Specify the default `presence_penalty`. It is ignored if the model does not support it.
+Specify the default `presence_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
 
 `frequency_penalty` (float)
-Specify the default `frequency_penalty`. It is ignored if the model does not support it.
+Specify the default `frequency_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
 
 `top_p` (float)
 Specify the default `top_p`. It is ignored if the model does not support it.

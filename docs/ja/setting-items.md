@@ -33,11 +33,11 @@
 
 `presence_penalty` (float)
 
-デフォルトの`presence_penalty`を指定します。モデルが対応していない場合は無視されます。
+デフォルトの`presence_penalty`を指定します。OpenAI と Mistral AI のモデルで利用可能です。モデルが対応していない場合は無視されます。
 
 `frequency_penalty` (float)
 
-デフォルトの`frequency_penalty`を指定します。モデルが対応していない場合は無視されます。
+デフォルトの`frequency_penalty`を指定します。OpenAI と Mistral AI のモデルで利用可能です。モデルが対応していない場合は無視されます。
 
 `top_p` (float)
 

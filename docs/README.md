@@ -6,6 +6,8 @@
 
 **Monadic Chat** is a locally hosted web application designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT-4 and other LLMs, it allows the execution of advanced tasks that require external tools. It supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for various AI applications but also for developing and researching AI-powered applications.
 
+Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-use installers.
+
 ## What is Grounding?
 
 Monadic Chat is an AI framework grounded in the real world. The term **grounding** here has two meanings.

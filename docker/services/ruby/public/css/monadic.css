@@ -485,12 +485,13 @@ legend {
   z-index: 1000;
   background-color: #777;
   color: white;
-  padding: 20px;
-  border-radius: 10px;
+  opacity: 0.7;
+  padding: 12px 12px 8px 12px;
+  border-radius: 8px;
 }
 
 #monadic-spinner i {
-  font-size: 2em;
+  font-size: 1.8em;
   color: #ffc107;
 }
 

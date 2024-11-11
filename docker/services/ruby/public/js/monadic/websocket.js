@@ -497,6 +497,7 @@ function connect_websocket(callback) {
         setAlert(data["content"], "warning");
         break;
       }
+
       case "audio": {
         $("#monadic-spinner").hide();
 
@@ -505,34 +506,35 @@ function connect_websocket(callback) {
         processAudioDataQueue();
         break;
       }
+
       case "pong": {
         // console.log("Received PONG");
         break;
       }
+
       case "error": {
         $("#send, #clear, #voice").prop("disabled", false);
-        // $("#chat").html(""); // Removed clearing the chat history
         $("#alert-message").html("Input a message.");
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
         $("#cancel_query").css("opacity", "0.0");
+        
+        // Show message input and hide spinner
+        $("#message").show();
+        $("#monadic-spinner").hide();
 
-        // check if $("#discourse .card").last() is a user card
         const lastCard = $("#discourse .card").last();
         if (lastCard.find(".user-color").length !== 0) {
           deleteMessage(lastCard.attr('id'));
         }
 
         $("#message").val(params["message"]);
-
-        // Display the error message using the helper function
         displayErrorMessage(data["content"]);
-
         setInputFocus();
-
         break;
       }
+
       case "token_verified": {
         $("#api-token").val(data["token"]);
 
@@ -828,14 +830,18 @@ function connect_websocket(callback) {
         setInputFocus();
         break;
       }
+
       case "html": {
         responseStarted = false;
         callingFunction = false;
         messages.push(data["content"]);
 
         if (data["content"]["role"] === "assistant") {
-          // Use the appendCard helper function
           appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+
+          // Show message input and hide spinner
+          $("#message").show();
+          $("#monadic-spinner").hide();
 
           if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
             $("#message").attr("placeholder", "Waiting for AI-user input . . .");
@@ -902,15 +908,22 @@ function connect_websocket(callback) {
         $("#cancel_query").css("opacity", "1");
         break;
       }
+
       case "cancel": {
         $("#message").val("");
         $("#message").attr("placeholder", "Type your message...");
         $("#message").prop("disabled", false);
         $("#alert-message").html("Input a message.");
         $("#cancel_query").css("opacity", "0.0");
+        
+        // Show message input and hide spinner
+        $("#message").show();
+        $("#monadic-spinner").hide();
+        
         setInputFocus();
         break;
       }
+
       default: {
         if (!responseStarted || callingFunction) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");

@@ -61,6 +61,8 @@ module MistralHelper
 
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
+    presence_penalty = obj["presence_penalty"].to_f
+    frequency_penalty = obj["frequency_penalty"].to_f
     top_p = obj["top_p"].to_f
     top_p = 0.01 if top_p == 0.0
     context_size = obj["context_size"].to_i
@@ -105,6 +107,8 @@ module MistralHelper
       "model" => obj["model"],
       "temperature" => temperature,
       "top_p" => top_p,
+      "presence_penalty" => presence_penalty,
+      "frequency_penalty" => frequency_penalty,
       "safe_prompt" => false,
       "stream" => true,
       "tool_choice" => "auto"

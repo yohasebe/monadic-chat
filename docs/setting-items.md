@@ -18,6 +18,10 @@ Specify the text of the system prompt.
 
 ## Optional Settings
 
+`group` (string)
+
+Specify the group name for grouping the app on the Base App selector on the web settings screen. When adding custom apps, it is recommended to specify some group name to distinguish them from the base apps.
+
 `model` (string)
 Specify the default model. If not specified, the default model provided by the included helper module (e.g., `gpt-4o-mini` for `OpenAIHelper`) is used.
 

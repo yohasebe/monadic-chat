@@ -173,6 +173,7 @@ class CodeWithClaude < MonadicApp
   TEXT
 
   @settings = {
+    group: "Anthropic",
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
     temperature: 0.0,
     presence_penalty: 0.2,
@@ -184,7 +185,7 @@ class CodeWithClaude < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "▹ Anthropic Claude (Code)",
+    app_name: "Anthropic Claude (Code)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

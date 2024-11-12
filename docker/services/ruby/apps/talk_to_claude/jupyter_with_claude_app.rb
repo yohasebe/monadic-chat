@@ -49,6 +49,7 @@ class JupyterWithClaude < MonadicApp
   TEXT
 
   @settings = {
+    group: "Anthropic",
     icon: icon,
     description: description,
     initial_prompt: initial_prompt,
@@ -62,7 +63,7 @@ class JupyterWithClaude < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "▹ Anthropic Claude (Jupyter)",
+    app_name: "Anthropic Claude (Jupyter)",
     initiate_from_assistant: true,
     pdf: false,
     image: true,

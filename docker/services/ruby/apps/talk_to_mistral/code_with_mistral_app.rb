@@ -173,6 +173,7 @@ class CodeWithMistral < MonadicApp
   TEXT
 
   @settings = {
+    group: "Mistral",
     disabled: !CONFIG["MISTRAL_API_KEY"],
     temperature: 0.0,  # Adjusted temperature
     top_p: 1.0,        # Adjusted top_p
@@ -183,7 +184,7 @@ class CodeWithMistral < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "	 Mistral AI (Code)",
+    app_name: "Mistral AI (Code)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

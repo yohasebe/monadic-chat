@@ -16,8 +16,9 @@ class ChatWithClaude < MonadicApp
   TEXT
 
   @settings = {
+    group: "Anthropic",
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
-    app_name: "▹ Anthropic Claude (Chat)",
+    app_name: "Anthropic Claude (Chat)",
     context_size: 100,
     initial_prompt: initial_prompt,
     description: description,

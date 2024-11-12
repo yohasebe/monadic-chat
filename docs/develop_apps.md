@@ -104,6 +104,10 @@ Describe the application.
 `initial_prompt` (string, required)
 Specify the text of the system prompt.
 
+`group` (string)
+
+Specify the group name for grouping the app on the Base App selector on the web settings screen. Though optional, it is recommended to specify some group name to distinguish custom apps from the base apps.
+
 There are many optional settings. See [Setting Items](/setting-items.md) for details.
 
 ## Calling Functions in the App

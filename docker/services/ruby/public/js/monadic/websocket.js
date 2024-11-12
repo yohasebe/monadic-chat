@@ -578,15 +578,61 @@ function connect_websocket(callback) {
         break;
       }
       case "apps": {
-        // console.log("Apps loaded");
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);
+        
         if (Object.keys(apps).length === 0) {
+          // Prepare arrays for app classification
+          let regularApps = [];
+          let specialApps = {};
+
+          // Classify apps into regular and special groups
           for (const [key, value] of Object.entries(data["content"])) {
+            const group = value["group"];
+            
+            // Check if app belongs to special group
+            if (group && 
+                group.trim() !== "" && 
+                !["Regular", "OpenAI"].includes(group.trim())) {
+              // Create group array if it doesn't exist
+              if (!specialApps[group]) {
+                specialApps[group] = [];
+              }
+              specialApps[group].push([key, value]);
+            } else {
+              // Add to regular apps if no special group or belongs to Regular/OpenAI
+              regularApps.push([key, value]);
+            }
+          }
+
+          // Sort regular apps alphabetically
+          regularApps.sort((a, b) => a[1]["app_name"].localeCompare(b[1]["app_name"]));
+
+          // Sort apps within each special group alphabetically
+          for (const group of Object.keys(specialApps)) {
+            specialApps[group].sort((a, b) => a[1]["app_name"].localeCompare(b[1]["app_name"]));
+          }
+
+          // Add apps to selector
+          // First add the OpenAI Apps label and regular apps
+          $("#apps").append('<option disabled>──OpenAI──</option>');
+          for (const [key, value] of regularApps) {
             apps[key] = value;
             $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
           }
+
+          // Add special groups with their labels
+          for (const group of Object.keys(specialApps)) {
+            if (specialApps[group].length > 0) {
+              $("#apps").append(`<option disabled>──${group}──</option>`);
+              for (const [key, value] of specialApps[group]) {
+                apps[key] = value;
+                $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
+              }
+            }
+          }
+
           $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
 
           if (apps[$("#apps").val()]["monadic"]) {

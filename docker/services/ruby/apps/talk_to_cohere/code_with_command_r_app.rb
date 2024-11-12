@@ -176,6 +176,7 @@ class CodeWithCommandR < MonadicApp
 
 
   @settings = {
+    group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"],
     temperature: 0.0,
     presence_penalty: 0.2,
@@ -187,7 +188,7 @@ class CodeWithCommandR < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "	 Cohere Command R (Code)",
+    app_name: "Cohere Command R (Code)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

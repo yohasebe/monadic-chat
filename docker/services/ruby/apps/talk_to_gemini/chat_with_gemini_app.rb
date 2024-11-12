@@ -20,8 +20,9 @@ class ChatWithGemini < MonadicApp
   TEXT
 
   @settings = {
+    group: "Google",
     disabled: !CONFIG["GEMINI_API_KEY"],
-    app_name: "▹ Google Gemini (Chat)",
+    app_name: "Google Gemini (Chat)",
     initial_prompt: initial_prompt,
     description: description,
     icon: icon,

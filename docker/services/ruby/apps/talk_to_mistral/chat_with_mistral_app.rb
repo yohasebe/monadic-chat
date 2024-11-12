@@ -20,6 +20,7 @@ class ChatWithMistral < MonadicApp
   TEXT
 
   @settings = {
+    group: "Mistral",
     disabled: !CONFIG["MISTRAL_API_KEY"],
     temperature: 0.7,  # Adjusted temperature
     top_p: 1.0,        # Adjusted top_p
@@ -30,7 +31,7 @@ class ChatWithMistral < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "	 Mistral AI (Chat)",
+    app_name: "Mistral AI (Chat)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

@@ -382,7 +382,7 @@ $(function () {
   });
 
 
-  $("#reset, .navbar-brand").on("click", function (event) {
+  $("#reset, .reset-area").on("click", function (event) {
     ttsStop();
     audioInit();
     resetEvent(event);

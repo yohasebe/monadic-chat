@@ -187,7 +187,7 @@ class CodeWithCommandR < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "▹ Cohere Command R (Code)",
+    app_name: "	 Cohere Command R (Code)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

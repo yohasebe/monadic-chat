@@ -27,7 +27,7 @@
 
 Web 設定画面の Base App セレクタ上でアプリをグループ化するためのグループ名を指定します。独自のアプリを追加する場合には、基本アプリと区別するために何らかのグループ名を指定することが推奨されます。
 
-![](/assets/images/groups.png ':size=200')
+![](/assets/images/groups.png ':size=300')
 
 `model` (string)
 

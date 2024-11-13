@@ -537,18 +537,39 @@ function connect_websocket(callback) {
 
       case "token_verified": {
         $("#api-token").val(data["token"]);
-
         $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
 
         if (!verified) {
-          model_options = data['models'].map( model => {
-              if (model.startsWith("o1-")) {
-                return `<option value="${model}">[beta] ${model}</option>`;
-              }
-              return `<option value="${model}">${model}</option>`;
-            }
-          );
+          // Array of strings to identify beta models
+          const betaModelPatterns = ["o1", "claude-3"]; // Multiple patterns can be set
 
+          // Separate regular models and beta models
+          const regularModels = [];
+          const betaModels = [];
+
+          data['models'].forEach(model => {
+            // Check if any pattern is included in the model name
+            const isBetaModel = betaModelPatterns.some(pattern => 
+              model.includes(pattern)
+            );
+
+            if (isBetaModel) {
+              betaModels.push(model);
+            } else {
+              regularModels.push(model);
+            }
+          });
+
+          // Combine regular models and beta models to generate options
+          model_options = [
+            ...regularModels.map(model => 
+              `<option value="${model}">${model}</option>`
+            ),
+            '<option disabled>──Beta Models──</option>',
+            ...betaModels.map(model => 
+              `<option value="${model}">${model}</option>`
+            )
+          ];
 
           $("#model").html(model_options);
           $("#model").val("gpt-4o-mini");

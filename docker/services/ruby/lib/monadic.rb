@@ -132,20 +132,20 @@ def init_apps
 
     app_name = app.settings["app_name"]
 
-    initial_prompt_suffix = ""
+    system_prompt_suffix = ""
     prompt_suffix = ""
     response_suffix = ""
 
     if app.settings["mathjax"]
       # the blank line at the beginning is important!
-      initial_prompt_suffix << <<~INITIAL
+      system_prompt_suffix << <<~SYSPSUFFIX
 
         You use the MathJax notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
-      INITIAL
+      SYSPSUFFIX
 
       if app.settings["monadic"] || app.settings["jupyter"]
         # the blank line at the beginning is important!
-        initial_prompt_suffix << <<~INITIAL
+        system_prompt_suffix << <<~SYSPSUFFIX
 
         Make sure to escape properly in the MathJax expressions.
 
@@ -160,10 +160,10 @@ def init_apps
         - `$$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
         - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
         - `$$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$$`
-        INITIAL
+        SYSPSUFFIX
       else
         # the blank line at the beginning is important!
-        initial_prompt_suffix << <<~INITIAL
+        system_prompt_suffix << <<~SYSPSUFFIX
 
         Good examples of inline MathJax expressions:
         - `$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$`
@@ -179,25 +179,25 @@ def init_apps
 
         Remember that the following are not available in MathJax:
         - `\begin{itemize}` and `\end{itemize}`
-        INITIAL
+        SYSPSUFFIX
       end
 
-      prompt_suffix << <<~SUFFIX
+      prompt_suffix << <<~PSUFFIX
       Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
-      SUFFIX
+      PSUFFIX
     end
 
     if app.settings["tools"]
       # the blank line at the beginning is important!
-      initial_prompt_suffix << <<~INITIAL
+      system_prompt_suffix << <<~SYSPSUFFIX
 
         You should NEVER invent or use functions not defined or not listed HERE. If you need to call multiple functions, you will call them one at a time.
-      INITIAL
+      SYSPSUFFIX
     end
 
     if app.settings["image_generation"]
       # the blank line at the beginning is important!
-      response_suffix << <<~INITIAL
+      response_suffix << <<~RSUFFIX
 
         <script>
           document.querySelectorAll('.generated_image img').forEach((img) => {
@@ -209,7 +209,7 @@ def init_apps
             img.style.cursor = 'pointer';
           });
         </script>
-      INITIAL
+      RSUFFIX
     end
 
     if app.settings["pdf"]
@@ -218,27 +218,32 @@ def init_apps
 
     if app.settings["mermaid"]
       # the blank line at the beginning is important!
-      prompt_suffix << <<~INITIAL
+      prompt_suffix << <<~PSUFFIX
 
         Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
-      INITIAL
+      PSUFFIX
     end
 
     # the blank line at the beginning is important!
-    prompt_suffix = <<~SUFFIX
+    prompt_suffix = <<~PSUFFIX
 
       Return your response in the same language as the prompt. If you need to switch to another language, please inform the user.
-    SUFFIX
+    PSUFFIX
 
-    if !initial_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?
-      initial_prompt_suffix = "\n\n" + initial_prompt_suffix.strip unless initial_prompt_suffix.empty?
+    system_prompt_suffix << <<~SYSPSUFFIX
+
+      When using Markdown code blocks, always insert a blank line before the opening tag. Otherwise, the code block will not display correctly.
+    SYSPSUFFIX
+
+    if !system_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?
+      system_prompt_suffix = "\n\n" + system_prompt_suffix.strip unless system_prompt_suffix.empty?
       prompt_suffix = "\n\n" + prompt_suffix.strip unless prompt_suffix.empty?
       response_suffix = "\n\n" + response_suffix.strip unless response_suffix.empty?
 
       new_settings = app.settings.dup
       new_settings.merge!(
         {
-          "initial_prompt" => "#{new_settings["initial_prompt"]}#{initial_prompt_suffix}".strip,
+          "initial_prompt" => "#{new_settings["initial_prompt"]}#{system_prompt_suffix}".strip,
           "prompt_suffix" => "#{new_settings["prompt_suffix"]}#{prompt_suffix}".strip,
           "response_suffix" => "#{new_settings["response_suffix"]}#{response_suffix}".strip
         }

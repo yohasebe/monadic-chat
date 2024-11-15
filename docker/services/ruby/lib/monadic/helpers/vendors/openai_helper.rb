@@ -193,9 +193,9 @@ module OpenAIHelper
       }
     end
 
-    # initial prompt in the body is appended with the settings["initial_prompt_suffix"
-    if initial_prompt != "" && obj["initial_prompt_suffix"].to_s != ""
-      new_text = initial_prompt + "\n\n" + obj["initial_prompt_suffix"].strip
+    # initial prompt in the body is appended with the settings["system_prompt_suffix"
+    if initial_prompt != "" && obj["system_prompt_suffix"].to_s != ""
+      new_text = initial_prompt + "\n\n" + obj["system_prompt_suffix"].strip
       body["messages"].first["content"].each do |content_item|
         if content_item["type"] == "text"
           content_item["text"] = new_text

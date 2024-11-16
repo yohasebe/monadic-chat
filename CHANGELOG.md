@@ -1,4 +1,5 @@
 - [Nov, 2024] 0.9.14
+  - Syntax highlighting theme option added
   - App settings convention enhanced
   - Check for updates when starting the app
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models

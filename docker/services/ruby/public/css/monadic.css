@@ -43,9 +43,8 @@ div.sourcecode pre,
 div.highlight pre,
 pre {
   padding: 0.8em;
-  margin-bottom: 1em;
-  background-color: #fff;
   margin: 0;
+  margin-bottom: 1em;
   border: none;
   white-space: pre;
   overflow: auto;

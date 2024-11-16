@@ -8,8 +8,9 @@ RUN apt-get update && \
     build-essential wget curl git gnupg \
     pandoc graphviz ffmpeg fonts-noto-cjk \
     imagemagick libmagickwand-dev \
-    mecab libmecab-dev mecab-utils \
+    mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
     ruby ruby-dev\
+    && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

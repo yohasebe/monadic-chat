@@ -1,4 +1,4 @@
-- [Nov, 2024] 0.9.15
+- [Nov, 2024] 0.9.16
   - Syntax highlighting theme option added
   - App settings convention enhanced
   - Check for updates when starting the app

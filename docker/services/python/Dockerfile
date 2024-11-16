@@ -12,7 +12,8 @@ RUN apt-get update && \
     ruby ruby-dev\
     && apt-get autoremove -y \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /etc/mecabrc /usr/local/etc/mecabrc
 
 # Install Python packages
 RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
@@ -42,7 +43,8 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     librosa \
     mecab-python3 \
     wordcloud \
-    gensim
+    gensim\
+    scikit-learn
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -59,7 +61,11 @@ RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables
 ENV PATH="/monadic/data/scripts:/monadic/scripts:${PATH}"
+ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
+
+RUN echo "matplotlib.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']" >> /root/.config/matplotlib/matplotlibrc && \
+    echo "matplotlib.rcParams['axes.unicode_minus'] = False" >> /root/.config/matplotlib/matplotlibrc
 
 # Copy Flask application
 COPY flask /monadic/flask

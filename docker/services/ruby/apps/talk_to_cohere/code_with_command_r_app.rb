@@ -22,6 +22,8 @@ class CodeWithCommandR < MonadicApp
 
     If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
 
+    Use the font `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc` to display text in the plots.
+
     If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
 
     If you need to run a Python code, follow the instructions below:
@@ -30,13 +32,11 @@ class CodeWithCommandR < MonadicApp
 
     First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available by checking the Dockerfile with the `get_dockerfile` function.
 
-    If the required library is not available, you can install it using the `lib_installer` function. The function takes the library name and the package manager as parameters. The package manager can be pip or apt. Check the availability of the library before installing it.
-
     To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
-    If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it.
+    If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it and ask the user for confirmation before proceeding with the installation.
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 

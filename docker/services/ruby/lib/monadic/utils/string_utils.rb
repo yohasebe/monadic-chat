@@ -54,15 +54,49 @@ module StringUtils
       inline_mathjax.each_with_index do |code, index|
         html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "$#{code}$")
       end
-
-      html
     else
-      Kramdown::Document.new(text,
-                             syntax_highlighter: :rouge,
-                             input: "GFM",
-                             syntax_highlighter_ops: {
-                               guess_lang: true
-                             }).to_html
+      html = Kramdown::Document.new(text,
+                                    syntax_highlighter: :rouge,
+                                    input: "GFM",
+                                    syntax_highlighter_ops: {
+                                      guess_lang: true
+                                    }).to_html
+
     end
+
+    theme_mapping = {
+      "base16" => "Base16",
+      "bw" => "BlackWhiteTheme",
+      "monokai_sublime" => "MonokaiSublime",
+      "igor_pro" => "IgorPro",
+      "thankful_eyes" => "ThankfulEyes"
+    }
+
+    theme_mode = CONFIG["ROUGE_THEME"]
+
+    theme, mode = theme_mode.split(":")
+    mode = mode || "light"
+
+    theme_class = theme_mapping[theme] || theme.capitalize
+
+    case theme
+    when "base16", "github", "gruvbox"
+      if mode == "dark"
+        Rouge::Themes.const_get(theme_class).dark!
+      else
+        Rouge::Themes.const_get(theme_class).light!
+      end
+    end
+
+
+    formatter = Rouge::Formatters::HTML.new(css_class: "highlight", inline_theme: theme)
+    css = Rouge::Themes.const_get(theme_class).render(scope: ".highlight")
+
+    <<~HTML
+    <style>
+    #{css}
+    </style>
+    #{html}
+    HTML
   end
 end

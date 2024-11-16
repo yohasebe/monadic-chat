@@ -32,6 +32,8 @@ class JupyterWithClaude < MonadicApp
 
     If the user just wants to have some information, just respond to the user's request. If the user wants addition of cells to the existing notebook, call the `add_jupyter_cells` function as part of the "tool calls" providing the filename of the existing notebook and the structured data of the cells.
 
+    Use the font `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc` to display text in the plots.
+
     If the user's request is rather complex, break it down into smaller steps and ask the user for confirmation at each step.
 
     If the user wants to stop the JupyterLab server, use the `run_jupyter` function with the `stop` command to stop the JupyterLab server.

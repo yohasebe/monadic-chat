@@ -15,7 +15,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Nov, 2024] 0.9.14
+- [Nov, 2024] 0.9.15
   - Syntax highlighting theme option added
   - App settings convention enhanced
   - Check for updates when starting the app

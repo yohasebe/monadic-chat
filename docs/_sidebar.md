@@ -11,6 +11,7 @@
     - [Message Input](/message-input.md)
     - [Basic Apps](/basic-apps.md)
     - [Language Models](/language-models.md)
+    - [Syntax Highlighting](/syntax-highlighting.md)
 
 - **Docker Integration**
     - [Basic Architecture](/basic-architecture.md)

@@ -42,6 +42,8 @@ All settings here are saved in the `~/monadic/data/.env` file.
 
 **OPENAI_API_KEY** (Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Whisper speech recognition API, and speech synthesis API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
+**SYNTAX HILIGHTING THEME** Select the theme for code syntax highlighting. The default is `monokai`.
+
 **VISION_MODEL** Select the model used for image and video recognition. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
 **AI_USER_MODEL** Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.

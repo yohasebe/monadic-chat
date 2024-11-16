@@ -119,6 +119,29 @@
         <label for="openai-api-key">OPENAI_API_KEY (Required)</label>
         <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false">
 
+        <label for="rouge-theme">Syntax Highlighting Theme</label>
+        <select id="rouge-theme" name="rouge-theme">
+          <option disabled>──Dark Themes──</option>
+          <option value="base16:dark">base16-dark</option>
+          <option value="github:dark">github-dark</option>
+          <option value="gruvbox:dark">gruvbox-dark</option>
+          <option value="colorful:dark">colorful</option>
+          <option value="molokai:dark">molokai</option>
+          <option value="monokai:dark">monokai</option>
+          <option value="monokai_sublime:dark">monokai_sublime</option>
+          <option value="tulip:dark">tulip</option>
+          <option value="thankful_eyes:light">thankful_eyes</option>
+
+          <option disabled>──Light Themes──</option>
+          <option value="base16:light">base16-light</option>
+          <option value="github:light">github-light</option>
+          <option value="gruvbox:light">gruvbox-light</option>
+          <option value="bw:light">bw</option>
+          <option value="igor_pro:light">igor_pro</option>
+          <option value="magritte:light">magritte</option>
+          <option value="pastie:light" selected>pastie</option>
+        </select>
+
         <label for="vision-model">VISION_MODEL</label>
         <select id="vision-model" name="vision-model">
           <option value="gpt-4o-mini">gpt-4o-mini</option>
@@ -165,6 +188,7 @@
           COHERE_API_KEY: document.getElementById('cohere-api-key').value,
           GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
           MISTRAL_API_KEY: document.getElementById('mistral-api-key').value,
+          ROUGE_THEME: document.getElementById('rouge-theme').value,
           VISION_MODEL: document.getElementById('vision-model').value,
           AI_USER_MODEL: document.getElementById('ai-user-model').value
         };
@@ -196,6 +220,7 @@
         document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
         document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
         document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
+        document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai';
         document.getElementById('vision-model').value = data.VISION_MODEL || 'gpt-4o-mini';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';
       });

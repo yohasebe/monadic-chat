@@ -127,7 +127,7 @@
           <option value="gruvbox:dark">gruvbox-dark</option>
           <option value="colorful:dark">colorful</option>
           <option value="molokai:dark">molokai</option>
-          <option value="monokai:dark" selected>monokai</option>
+          <option value="monokai:dark">monokai</option>
           <option value="monokai_sublime:dark">monokai_sublime</option>
           <option value="tulip:dark">tulip</option>
           <option value="thankful_eyes:light">thankful_eyes</option>
@@ -220,7 +220,7 @@
         document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
         document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
         document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
-        document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai';
+        document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
         document.getElementById('vision-model').value = data.VISION_MODEL || 'gpt-4o-mini';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';
       });

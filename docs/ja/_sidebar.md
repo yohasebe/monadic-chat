@@ -11,6 +11,7 @@
     - [メッセージ入力](/ja/message-input.md)
     - [基本アプリ](/ja/basic-apps.md)
     - [言語モデル](/ja/language-models.md)
+    - [シンタックスハイライト](/ja/syntax-highlighting.md)
 
 - **Docker連携**
     - [基本構造](/ja/basic-architecture.md)

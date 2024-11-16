@@ -72,10 +72,10 @@ module StringUtils
       "thankful_eyes" => "ThankfulEyes"
     }
 
-    theme_mode = CONFIG["ROUGE_THEME"]
+    theme_mode = CONFIG["ROUGE_THEME"] || "monokai:dark"
 
     theme, mode = theme_mode.split(":")
-    mode = mode || "light"
+    mode = mode || "dark"
 
     theme_class = theme_mapping[theme] || theme.capitalize
 

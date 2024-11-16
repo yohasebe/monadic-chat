@@ -1242,7 +1242,10 @@ function checkAndUpdateEnvFile() {
 
   let envConfig = readEnvFile(envPath);
 
-  // VISION_MODEL and AI_USER_MODEL are set with default values if not present
+  // ROUGE_THEME, VISION_MODEL, AI_USER_MODEL are set with default values if not present
+  if (!envConfig.ROUGE_THEME) {
+    envConfig.ROUGE_THEME = 'monokai:dark';
+  }
   if (!envConfig.VISION_MODEL) {
     envConfig.VISION_MODEL = 'gpt-4o-mini';
   }

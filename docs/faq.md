@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
----
+## Setup
 
 **Q**: Do I need an OpenAI API token to use Monadic Chat?
 
@@ -12,14 +12,7 @@
 
 **A**: If you are developing additional apps or modifying existing apps, check the contents of `monadic.log` in the shared folder. If an error message is displayed, correct the app code based on the error message.  If you are not developing or modifying apps and no error message is displayed in the log, temporarily move the subfolders (`apps`, `services`, etc.) of the shared folder to another location and rebuild.
 
----
-
-**Q**: I installed the Ollama plugin and downloaded a model, but it is not reflected in the web interface. What should I do?
-
-**A**: It may take some time for the model downloaded to the Ollama container to be loaded and become available. Wait a while and then reload the web interface. If the downloaded model still does not appear, access the Ollama container from the terminal and run the `ollama list` command to check if the downloaded model is displayed in the list. If it is not displayed, run the `ollama reload` command to reload the Ollama plugin.
-
-
----
+## User Interface
 
 **Q**: Please explain the roles of the buttons and icons at the top right of each message on the web interface.
 
@@ -44,12 +37,6 @@ The active/inactive status of a message changes depending on the context size an
 
 ---
 
-**Q**: Sometimes the text is played back in a different language than the actual language during speech synthesis. What should I do?
-
-**A**: The `Automatic-Speech-Recognition (ASR) Language` selector on the web interface is set to `Automatic` by default. By setting it to a specific language, the text will be played back in the specified language during speech synthesis.
-
----
-
 **Q**: What is the role of the `Role` selector above the message input box?
 
 **A**: Each role has the following function:
@@ -61,11 +48,11 @@ The active/inactive status of a message changes depending on the context size an
 - **Assistant (to add to past messages)**<br />Add text as a message from the AI assistant. Use it to add to past messages as part of the context.
 - **System (to provide additional direction)**<br />Use this to provide additional system prompts.
 
----
+## Sending Media Files
 
 **Q**: Can I send data other than text to the AI agent?
 
-**A**: Yes, if the selected model supports it, you can upload images by clicking the `Use Image` button. You can also upload multiple images by repeating this process.
+**A**: Yes, if the selected model supports it, you can upload images by clicking the `Use Image` button. You can also upload multiple images by repeating this process. If you are using Anthropic Claude, you can upload PDF files in addition to images.
 
 For other media, place the file in the shared folder and specify the file name (no path required) in the message box to inform the AI agent. If the selected app supports it, the AI agent will read and process the file.
 
@@ -80,6 +67,22 @@ You can also click the `Voice Input` button to use voice input. Voice input uses
 
 ---
 
+**Q**: Can I ask the AI agent about the contents of a PDF?
+
+**A**: Yes, there are several ways to do this. In the [`PDF Navigator`](./basic-apps?id=pdf-navigator) app, you can store the word embeddings of the provided PDF in the PGVector database and have the AI answer using the RAG (Retrieval-Augmented Generation) method. In the [`Code Interpreter`](./basic-apps?id=code-interpreter) and [`Content Reader`](./basic-apps?id=content-reader) apps, you can convert the PDF file to Markdown format using MuPDF4LLM on the Python container and have the AI agent read the content so you can ask questions about it.
+
+All of the above use OpenAI's GPT-4 series models. If you use other models, you can load PDF files in the same way as the `Code Interpreter` in apps that support `Code` (`Anthropic Claude [Code]`, `Cohere Command R [Code]`, and `Mistral AI [Code]`).
+
+In apps that use Anthropic Claude, you can click the `Import Image/PDF` button below the text input box to upload a PDF file directly and ask the AI agent about its contents. For more information, see [Uploading PDFs](./message-input?id=uploading-pdfs).
+
+## Voice Interaction
+
+**Q**: Sometimes the text is played back in a different language than the actual language during speech synthesis. What should I do?
+
+**A**: The `Automatic-Speech-Recognition (ASR) Language` selector on the web interface is set to `Automatic` by default. By setting it to a specific language, the text will be played back in the specified language during speech synthesis.
+
+---
+
 **Q**: Can I save the input text as an MP3 file by synthesizing speech?
 
 **A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an MP3 file.
@@ -90,12 +93,10 @@ You can also click the `Voice Input` button to use voice input. Voice input uses
 
 **A**: Yes, you can. Enable both `Auto speech` and `Easy submit` in the `Chat Interaction Controls` on the web interface. You can start and complete voice message input by pressing the Enter key (without clicking a button). Also, when the input is complete, the message is automatically sent, and the synthesized voice of the response from the AI agent is played. In other words, you can have a voice conversation with the AI agent just by pressing the Enter key at the right time.
 
----
+## Adding Apps and Containers
 
-**Q**: Can I ask the AI agent about the contents of a PDF?
+**Q**: I installed the Ollama plugin and downloaded a model, but it is not reflected in the web interface. What should I do?
 
-**A**: Yes, there are several ways to do this. In the [`PDF Navigator`](./basic-apps?id=pdf-navigator) app, you can store the word embeddings of the provided PDF in the PGVector database and have the AI answer using the RAG (Retrieval-Augmented Generation) method. In the [`Code Interpreter`](./basic-apps?id=code-interpreter) and [`Content Reader`](./basic-apps?id=content-reader) apps, you can convert the PDF file to Markdown format using MuPDF4LLM on the Python container and have the AI agent read the content so you can ask questions about it.
+**A**: It may take some time for the model downloaded to the Ollama container to be loaded and become available. Wait a while and then reload the web interface. If the downloaded model still does not appear, access the Ollama container from the terminal and run the `ollama list` command to check if the downloaded model is displayed in the list. If it is not displayed, run the `ollama reload` command to reload the Ollama plugin.
 
-All of the above use OpenAI's GPT-4 series models. If you use other models, you can load PDF files in the same way as the `Code Interpreter` in apps that support `Code` (`Anthropic Claude [Code]`, `Cohere Command R [Code]`, and `Mistral AI [Code]`).
 
-In apps that use Anthropic Claude, you can click the `Import Image/PDF` button below the text input box to upload a PDF file directly and ask the AI agent about its contents. For more information, see [Uploading PDFs](./message-input?id=uploading-pdfs).

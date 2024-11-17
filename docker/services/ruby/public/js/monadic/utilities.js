@@ -211,7 +211,7 @@ function setAlert(text = "", alertType = "success") {
     const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p>Something went wrong. Please try again.</p><pre style='white-space: pre-wrap;'>" + msg + "</pre>");
     $("#discourse").append(errorCard);
   } else {
-    textAlert.html(`${text}`);
+    textAlert.html(`<b>${text}</b>`);
     setAlertClass(alertType);
     if ($("#show-notification").is(":checked")) {
       elemAlert.show();

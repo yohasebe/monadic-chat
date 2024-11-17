@@ -18,6 +18,7 @@
     - [Docker Containers](/docker-access.md)
     - [JupyterLab](/jupyterlab.md)
     - [Shared Folder](/shared-folder.md)
+    - [Standard Python Container](/python-container.md)
 
 - **Advanced Topics**
 

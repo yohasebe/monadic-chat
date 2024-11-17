@@ -28,8 +28,6 @@ class JupyterNotebook < MonadicApp
 
     The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. If the function finishes successfully, provide the user with the URL or tell the user to refresh the page to see the output if the URL has already been provided.
 
-    Use the font `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc` to display text in the plots.
-
     If the user just wants to have some information, just respond to the user's request. If the user wants addition of cells to the existing notebook, call the `add_jupyter_cells` function as part of the "tool calls" providing the filename of the existing notebook and the structured data of the cells.
 
     If the user's request is rather complex, break it down into smaller steps and ask the user for confirmation at each step.

@@ -22,8 +22,6 @@ class CodeWithClaude < MonadicApp
 
     If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment.
 
-    Use the font `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc` to display text in the plots.
-
     If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
     If you need to run a Python code, follow the instructions below:

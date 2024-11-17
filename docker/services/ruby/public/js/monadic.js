@@ -291,7 +291,7 @@ $(function () {
   });
 
   $("#cancel_query").on("click", function () {
-    setAlert("Ready to start.", "success");
+    setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
     ttsStop();
 
     responseStarted = false;
@@ -459,7 +459,7 @@ $(function () {
           $("#fileModal button").prop('disabled', false);
           $("#fileModal").modal("hide");
           ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-          setAlert(`File uploaded successfully.<br />`, "success");
+          setAlert("<i class='fa-solid fa-circle-check'></i> File uploaded successfully", "success");
         }).fail(function (error) {
           $("#file-spinner").hide();
           $("#fileModal button").prop("disabled", false);

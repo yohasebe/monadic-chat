@@ -16,8 +16,9 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Nov, 2024] 0.9.16
+  - CJK font issue on code apps addressed
   - Syntax highlighting theme option added
-  - App settings convention enhanced
+  - App settings convention enhanced with "group" attribute
   - Check for updates when starting the app
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
   - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models

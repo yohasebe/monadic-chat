@@ -18,6 +18,7 @@
     - [Dockerコンテナ](/ja/docker-access.md)
     - [JupyterLabとの連携](/ja/jupyterlab.md)
     - [共有フォルダ](/ja/shared-folder.md)
+    - [標準Pythonコンテナ](/ja/python-container.md)
 
 - **機能追加**
 

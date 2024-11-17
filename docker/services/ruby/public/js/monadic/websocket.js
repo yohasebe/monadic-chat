@@ -494,7 +494,7 @@ function connect_websocket(callback) {
     switch (data["type"]) {
       case "wait": {
         callingFunction = true;
-        setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${data["content"]}`, "warning");
+        setAlert(data["content"], "warning");
         break;
       }
 

@@ -41,7 +41,6 @@ class JupyterNotebook < MonadicApp
     If you need to install a library that is not available in the current environment, first ask the user to do so themselves. If the user is unable to do so, you can use the `lib_installer` function to install the library using the package manager. The package manager can be either `pip` or `apt`. The command is the name of the library to be installed.
 
     Please make sure the following important points are respected:
-    - Include `import japanize-matplotlib` to display Japanese characters in the plots.
     - In case you get error, let the user know the exact error message and terminate the process.
     - When you call a function, make sure to provide the correct parameters as described in the function description.
     - Do not add a cell with the same content as the last cell in the notebook.

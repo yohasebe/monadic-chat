@@ -543,3 +543,36 @@ legend {
   justify-content: space-between
 }
 
+.highlighter-rouge {
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  overflow: hidden;
+  margin: 1em 0;
+  background-color: #f8f8f8;
+}
+
+.highlighter-rouge .highlight {
+  margin: 0;
+  padding: 1em;
+}
+
+.highlighter-rouge pre.highlight {
+  margin: 0;
+}
+.card-text img {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+}
+
+.card-text img:not([src]) {
+  visibility: hidden;
+}
+
+.card-text img[src=""] {
+  visibility: hidden;
+}
+
+.generated_image {
+    margin-bottom: 16px;
+}
+

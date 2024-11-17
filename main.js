@@ -578,9 +578,9 @@ function initializeApp() {
             const currentVersion = app.getVersion();
             
             if (compareVersions(latestVersion, currentVersion) > 0) {
-              updateMessage = `<p><i class="fa-solid fa-circle-exclamation"></i>A new version (${latestVersion}) is available. Please update to the latest version.</p>`;
+              updateMessage = `<p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i>A new version (${latestVersion}) is available. Please update to the latest version.</p>`;
             } else {
-              updateMessage = `<p><i class="fa-solid fa-circle-check"></i>You are using the latest version (${currentVersion}).</p>`;
+              updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: limegreen;"></i>You are using the latest version (${currentVersion}).</p>`;
             }
           }
         }
@@ -1048,9 +1048,9 @@ function createMainWindow() {
   if (justLaunched) {
     openingText = `
       [HTML]: 
-      <p><i><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></i></p>
+      <p><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></p>
       ${updateMessage}
-      <p><i class="fa-solid fa-circle-exclamation"></i>Please make sure Docker Desktop is running while using Monadic Chat.</p>
+      <p><i class="fa-solid fa-circle-info"></i>Please make sure Docker Desktop is running while using Monadic Chat.</p>
       <p>Press <b>start</b> button to initialize the server.</p>
       <hr />`
     justLaunched = false;

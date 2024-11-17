@@ -66,7 +66,7 @@ $("#uploadImage").on("click", function () {
 
     // Validate PDF compatibility with selected model
     if (file.type === 'application/pdf' && !isPdfEnabled) {
-      setAlert("PDF files can only be uploaded when using a Sonnet model.", "error");
+      setAlert("PDF files can only be uploaded when using a Sonnet model", "error");
       $("#imageModal").modal("hide");
       return;
     }

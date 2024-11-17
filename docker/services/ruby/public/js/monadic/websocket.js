@@ -409,7 +409,7 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     // console.log('WebSocket connected');
-    setAlert("<p>Verifying token . . .</p>", "warning");
+    setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
     ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
     if (!mediaSource) {
@@ -494,7 +494,7 @@ function connect_websocket(callback) {
     switch (data["type"]) {
       case "wait": {
         callingFunction = true;
-        setAlert(data["content"], "warning");
+        setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${data["content"]}`, "warning");
         break;
       }
 
@@ -577,7 +577,7 @@ function connect_websocket(callback) {
         }
 
         verified = true;
-        setAlert("Ready to start", "success");
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         $("#start").prop("disabled", false);
         $("#send, #clear, #voice").prop("disabled", false);
@@ -687,7 +687,7 @@ function connect_websocket(callback) {
       }
       case "parameters": {
         loadedApp = data["content"]["app_name"];
-        setAlert("Please wait . . .", "secondary");
+        setAlert("<i class='fa-solid fa-hourglass-half'></i> Please wait . . .", "warning");
         loadParams(data["content"], "loadParams");
         const currentApp = apps[$("#apps").val()] || apps[defaultApp];
 
@@ -730,7 +730,7 @@ function connect_websocket(callback) {
         if ($("#check-easy-submit").is(":checked")) {
           $("#send").click();
         }
-        setAlert("<i class='fa-solid fa-check'></i> Voice recognition finished", "secondary");
+        setAlert("<i class='fa-solid fa-circle-check'></i> Voice recognition finished", "secondary");
         setInputFocus()
         break;
       }
@@ -739,7 +739,7 @@ function connect_websocket(callback) {
         if (infoHtml !== "") {
           setStats(infoHtml);
         }
-        setAlert("Ready to start", "success");
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         $("#monadic-spinner").hide();
         break;
       }
@@ -767,7 +767,7 @@ function connect_websocket(callback) {
       }
       case "pdf_deleted": {
         if (data["res"] === "success") {
-          setAlert(data["content"], "info");
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${data["content"]}`, "info");
         } else {
           setAlert(data["content"], "error");
         }
@@ -1016,7 +1016,7 @@ function connect_websocket(callback) {
   ws.onerror = function (err) {
     console.error('Socket encountered error: ', err.message, 'Closing socket');
     // set a message in the alert box
-    setAlert("<p>Connection terminated.</p>", "danger");
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection terminated.", "danger");
     ws.close();
   }
   return ws;

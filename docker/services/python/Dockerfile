@@ -1,4 +1,4 @@
-FROM python:3.10.14-slim-bookworm
+FROM python:3.11-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
@@ -30,7 +30,6 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     pymupdf4llm \
     selenium \
     statsmodels \
-    japanize-matplotlib \
     graphviz \
     pydotplus \
     openpyxl \
@@ -59,13 +58,10 @@ COPY scripts /monadic/scripts
 RUN chmod +x /monadic/scripts/*
 RUN mkdir -p /monadic/data/scripts
 
-# Set environment variables
+# Set environment variables (visible to LLM)
 ENV PATH="/monadic/data/scripts:/monadic/scripts:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
-
-RUN echo "matplotlib.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']" >> /root/.config/matplotlib/matplotlibrc && \
-    echo "matplotlib.rcParams['axes.unicode_minus'] = False" >> /root/.config/matplotlib/matplotlibrc
 
 # Copy Flask application
 COPY flask /monadic/flask

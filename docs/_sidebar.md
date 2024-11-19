@@ -30,4 +30,5 @@
     - [Using Ollama](/ollama.md)
 
 - [**Frequently Asked Questions**](/faq.md)
+
 - [Changelog](/changelog.md)

@@ -541,7 +541,7 @@ function connect_websocket(callback) {
 
         if (!verified) {
           // Array of strings to identify beta models
-          const betaModelPatterns = ["o1", "claude-3"]; // Multiple patterns can be set
+          const betaModelPatterns = ["o1-"]; // Multiple patterns can be set
 
           // Separate regular models and beta models
           const regularModels = [];

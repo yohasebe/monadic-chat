@@ -1,5 +1,5 @@
 # Stage 1: Build environment
-FROM ruby:3.3-slim-bookworm AS build
+FROM ruby:3.3.6-slim-bookworm AS build
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
@@ -22,7 +22,7 @@ RUN bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
 
 # Stage 2: Runtime environment
-FROM ruby:3.3.1-slim-bookworm
+FROM ruby:3.3.6-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
@@ -46,7 +46,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-ENV WORKSPACE=/monadic
+ENV WORKSPACE="/monadic"
 WORKDIR $WORKSPACE
 
 COPY --from=build /usr/local/bundle /usr/local/bundle

@@ -1,4 +1,5 @@
 - [Nov, 2024] 0.9.17
+  - Streaming supported for OpenAI's o1 models
   - CJK font issue on code apps addressed
   - Syntax highlighting theme option added
   - App settings convention enhanced with "group" attribute

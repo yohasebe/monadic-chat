@@ -94,13 +94,10 @@ module OpenAIHelper
     }
 
 
-    # beta models do not support streaming
-    
     beta_model = false
 
-    # o1 models support streaming
     if model.include?("o1-")
-      # beta_model = true
+      beta_model = true
       # body.delete("stream")
       body["stream"] = true
       body.delete("temperature")
@@ -248,7 +245,7 @@ module OpenAIHelper
     end
 
     # return Array
-    if beta_model
+    if !body["stream"]
       obj = JSON.parse(res.body)
       frag = obj.dig("choices", 0, "message", "content")
       block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })

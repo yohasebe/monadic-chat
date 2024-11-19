@@ -15,7 +15,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Nov, 2024] 0.9.16
+- [Nov, 2024] 0.9.17
   - CJK font issue on code apps addressed
   - Syntax highlighting theme option added
   - App settings convention enhanced with "group" attribute

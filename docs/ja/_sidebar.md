@@ -30,5 +30,6 @@
     - [Ollamaの利用](/ja/ollama.md)
 
 - [**よくある質問**](/ja/faq.md)
+
 - [更新履歴](/ja/changelog.md)
 

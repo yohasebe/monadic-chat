@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/favicon/favicon.png" width="100px" style="border-radius: 20%;"/>
 
-# Monadic Chat <small>0.9.16</small>
+# <b>Monadic Chat<b> <small><b>0.9.17</b></small>
 
 > AI Framework Grounded in the Real World<br />with Docker Linux Environment
 

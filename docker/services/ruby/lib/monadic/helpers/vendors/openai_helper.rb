@@ -93,11 +93,16 @@ module OpenAIHelper
       "model" => model,
     }
 
+
+    # beta models do not support streaming
+    
     beta_model = false
-    # Check if the model name includes "o1-", which means beta
+
+    # o1 models support streaming
     if model.include?("o1-")
-      beta_model = true
-      body.delete("stream")
+      # beta_model = true
+      # body.delete("stream")
+      body["stream"] = true
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")

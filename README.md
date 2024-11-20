@@ -15,7 +15,8 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Nov, 2024] 0.9.17
+- [Nov, 2024] 0.9.18
+  - Jupyter Notebook app usability improved
   - Streaming supported for OpenAI's o1 models
   - CJK font issue on code apps addressed
   - Syntax highlighting theme option added

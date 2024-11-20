@@ -115,8 +115,8 @@ class MonadicApp
     snake
   end
 
+
   def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
-    # if hash is not a hash, return the string representation
     return hash.to_s unless hash.is_a?(Hash)
 
     iteration += 1
@@ -146,17 +146,27 @@ class MonadicApp
         output += "</div></div>"
       else
         case value
-        when Hash, Array
+        when Hash
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<div class='json-header' onclick='toggleItem(this)'>"
           output += "<span>#{key}</span>"
           output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
           output += "</div>"
           output += "<div class='json-content' style='margin-left:1em'>"
-
-          if value.is_a?(Hash)
-            output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
-          else # Array
+          output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
+          output += "</div></div>"
+        when Array
+          if value.all? { |v| v.is_a?(String) }
+            output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+            output += "<span>#{key}: [#{value.join(', ')}]</span>"
+            output += "</div>"
+          else
+            output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+            output += "<div class='json-header' onclick='toggleItem(this)'>"
+            output += "<span>#{key}</span>"
+            output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
+            output += "</div>"
+            output += "<div class='json-content' style='margin-left:1em'>"
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
@@ -167,15 +177,22 @@ class MonadicApp
                         end
             end
             output += "</ul>"
+            output += "</div></div>"
           end
-
-          output += "</div></div>"
         else
-          output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
-          output += "<span>#{key}: </span>"
-          value = StringUtils.markdown_to_html(value, mathjax: mathjax)
-          output += "<span>#{value}</span>"
-          output += "</div>"
+          # Check if the value is a single paragraph
+          if value.is_a?(String) && !value.include?("\n")
+            output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+            output += "<span>#{key}: </span>"
+            output += "<span style='font-family: monospace;'>#{value}</span>"
+            output += "</div>"
+          else
+            output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+            output += "<span>#{key}: </span>"
+            value = StringUtils.markdown_to_html(value, mathjax: mathjax)
+            output += "<span style='font-family: monospace;'>#{value}</span>"
+            output += "</div>"
+          end
         end
       end
     end

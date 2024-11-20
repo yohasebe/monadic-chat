@@ -1,5 +1,8 @@
 module MonadicHelper
   def add_jupyter_cells(filename: "", cells: "")
+    pp filename
+    pp cells
+
     return "Error: Filename is required." if filename == ""
     return "Error: Proper cell data is required; Probably the structure is ill-formated." if cells == ""
 

@@ -576,3 +576,6 @@ legend {
     margin-bottom: 16px;
 }
 
+.json-content li p {
+  margin: 0;
+}

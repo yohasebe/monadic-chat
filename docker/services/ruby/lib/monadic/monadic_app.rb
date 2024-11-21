@@ -139,7 +139,7 @@ class MonadicApp
         output += "<div class='json-item context' data-depth='#{iteration}' data-key='context'>"
         output += "<div class='json-header' onclick='toggleItem(this)'>"
         output += "<span>Context</span>"
-        output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
+        output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to close</span>"
         output += "</div>"
         output += "<div class='json-content' style='margin-left:1em'>"
         output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
@@ -184,13 +184,13 @@ class MonadicApp
           if value.is_a?(String) && !value.include?("\n")
             output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
             output += "<span>#{key}: </span>"
-            output += "<span style='font-family: monospace;'>#{value}</span>"
+            output += "<span>#{value}</span>"
             output += "</div>"
           else
             output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
             output += "<span>#{key}: </span>"
             value = StringUtils.markdown_to_html(value, mathjax: mathjax)
-            output += "<span style='font-family: monospace;'>#{value}</span>"
+            output += "<span>#{value}</span>"
             output += "</div>"
           end
         end

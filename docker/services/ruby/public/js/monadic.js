@@ -35,7 +35,17 @@ $(function () {
 
     // Event delegation for dynamically added elements
     $document.on("click", ".contBtn", function () {
-      $("#message").val("continue");
+      $("#message").val("Continue");
+      $("#send").trigger("click");
+    });
+
+    $document.on("click", ".yesBtn", function () {
+      $("#message").val("Yes");
+      $("#send").trigger("click");
+    });
+
+    $document.on("click", ".noBtn", function () {
+      $("#message").val("No");
       $("#send").trigger("click");
     });
 

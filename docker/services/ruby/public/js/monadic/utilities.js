@@ -114,7 +114,7 @@ function listModels(models) {
     return `
       <div class="json-item" data-key="stats" data-depth="0">
       <div class="json-toggle" onclick="toggleItem(this)">
-      <i class="fas fa-chevron-right"></i> <span class="toggle-text">Open</span>
+      <i class="fas fa-chevron-right"></i> <span class="toggle-text">click to open</span>
       </div>
       <div class="json-content" style="display: none;">
       <table class="table table-sm mt-2 mb-0">
@@ -528,7 +528,7 @@ function toggleItem(element) {
   }
 
   const isOpening = content.style.display === 'none';
-  toggleText.textContent = isOpening ? 'Close' : 'Open';
+  toggleText.textContent = isOpening ? 'click to close' : 'click to open';
 
   if (isOpening) {
     content.style.display = 'block';

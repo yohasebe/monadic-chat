@@ -40,7 +40,7 @@ class PDFNavigator < MonadicApp
   TEXT
 
   @settings = {
-    model: "gpt-4o-2024-08-06",
+    model: "gpt-4o-2024-11-20",
     temperature: 0.0,
     top_p: 0.0,
     max_tokens: 4000,

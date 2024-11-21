@@ -576,6 +576,13 @@ legend {
     margin-bottom: 16px;
 }
 
+.json-content {
+  font-family: var(--bs-font-sans-serif);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
 .json-content li p {
   margin: 0;
 }

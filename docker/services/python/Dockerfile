@@ -70,3 +70,9 @@ COPY flask /monadic/flask
 RUN ln -s /monadic/data /data
 
 COPY Dockerfile /monadic/Dockerfile
+
+# copy `pysetup.sh` to `/monadic` and run it
+COPY pysetup.sh /monadic/pysetup.sh
+RUN chmod +x /monadic/pysetup.sh
+RUN /monadic/pysetup.sh
+

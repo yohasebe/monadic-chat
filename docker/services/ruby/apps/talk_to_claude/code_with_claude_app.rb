@@ -20,7 +20,7 @@ class CodeWithClaude < MonadicApp
 
     The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
-    If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment. It is useful for checking the availability of certain libraries, tools, and fonts.
+    Before you suggest code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and a shellscript used therein. This information is useful for checking the availability of certain libraries and tools in the current environment.
 
     Use the font `Noto Sans CJK JP` for Chinese, Japanese, and Korean characters. The matplotlibrc file is configured to use this font for these characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).
 
@@ -30,7 +30,7 @@ class CodeWithClaude < MonadicApp
 
     ### Basic Procedure:
 
-    First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available by checking the Dockerfile with the `get_dockerfile` function.
+    First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available using the `check_environment` function.
 
     To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
@@ -309,8 +309,8 @@ class CodeWithClaude < MonadicApp
         }
       },
       {
-        name: "get_dockerfile",
-        description: "Get the content of the Dockerfile used to build the current environment.",
+        name: "check_environment",
+        description: "Get the contents of the Dockerfile and the shell script used in the Python container.",
         input_schema: {
           type: "object",
           properties: {},

@@ -19,6 +19,8 @@ end
 
 # task to build win/mac x64/mac arm64 packages
 task :build do
+  # remove /docker/services/python/pysetup.py
+  FileUtils.rm_f("docker/services/python/pysetup.py")
   home_directory_path = File.join(File.dirname(__FILE__), "docker")
   Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
   Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }

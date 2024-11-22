@@ -32,7 +32,9 @@ class JupyterNotebook < MonadicApp
 
     Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type.
 
-    Before you suggest your Jupyter code, check what libraries and tools are available in the current environment using the `get_dockerfile` function. Also before adding the cells, read the whole notebook contents usint the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells.
+    Before you suggest your Jupyter code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and a shellscript used therein. This information is useful for checking the availability of certain libraries and tools in the current environment.
+
+    Also before adding the cells, read the whole notebook contents usint the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells.
 
     In your Python code in the notebook cells, you need to import a module before use it. Once you have imported it in a previous cell, you can use it in the cells that follow.
     
@@ -50,13 +52,11 @@ class JupyterNotebook < MonadicApp
 
     If the user's request is rather complex, break it down into smaller steps and ask the user for confirmation at each step.
 
-    If you need to know about your current environment, you can check the Dockerfile with which the current environment was built using the `get_dockerfile` function. This function returns the content of the Dockerfile used to build the current environment. It is useful for checking the availability of certain libraries, tools, and fonts.
-
     If the user wants to stop the JupyterLab server, use the `run_jupyter` function with the `stop` command to stop the JupyterLab server.
 
-    If you need to install a library that is not available in the current environment, first ask the user to do so themselves.
+    If your code need a Python module (or a Debian apt package) that is not available in the current environment, first ask the user to install it themselves. They can do so in the Jupyter Notebook by running `!pip install MODULE_NAME` in a cell. Once the installation is done, the user can save the notebook. Before proceeding, make sure the user has installed the required module. Once the confirmation is received, keep track of the installed module in the JSON response object and proceed with the code execution.
 
-    If the user asks for it, you can use the `lib_installer` function to install the library using the package manager. The package manager can be either `pip` or `apt`. The command is the name of the library to be installed.
+    Some Python modules require additional data to be downloaded after the installation of the module. For example, when using NLTK for syntactic analysis, you need to download data using commands like `nltk.download('punkt')` or `nltk.download('punkt_tab')`. In such cases, inform the user accordingly and instruct them to download the data.
 
     In case you get error, let the user know the exact error message and terminate the process.
     
@@ -66,7 +66,8 @@ class JupyterNotebook < MonadicApp
 
     - "message": Your response to the user
     - "context": An object containing the following properties:
-      - "Link": The jupyterlab notebook URL with the anker tags (e.g. <a href="http://127.0.0.1:8889/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb)
+      - "link": The jupyterlab notebook URL with the anker tags (e.g. <a href="http://127.0.0.1:8889/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb)
+      - "modules": A list of Python modules used in the Jupyterlab notebook cells in the current session
       - "variables": A list of variable names ever defined and updated in the Jupyterlabe notebook cells in the whole session 
 
     The above JSON object should contain the latest URL of the Jupyter Notebook and the variables defined and updated in the whole session. The variables should be updated as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
@@ -116,31 +117,6 @@ class JupyterNotebook < MonadicApp
               }
             },
             required: ["command", "code", "extension"],
-            additionalProperties: false
-          }
-        },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
-        {
-          name: "lib_installer",
-          description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
-          parameters: {
-            type: "object",
-            properties: {
-              command: {
-                type: "string",
-                description: "Library name to be installed."
-              },
-              packager: {
-                type: "string",
-                enum: ["pip", "apt"],
-                description: "Package manager to be used for installation."
-              }
-            },
-            required: ["command", "packager"],
             additionalProperties: false
           }
         },
@@ -298,8 +274,8 @@ class JupyterNotebook < MonadicApp
         type: "function",
         function:
         {
-          name: "get_dockerfile",
-          description: "Get the content of the Dockerfile used to build the current environment.",
+          name: "check_environment",
+          description: "Get the contents of the Dockerfile and the shellscript used to build the current environment.",
         },
         strict: true
       },

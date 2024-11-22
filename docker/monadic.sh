@@ -4,7 +4,7 @@
 export PATH=${PATH}:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.9.18
+export MONADIC_VERSION=0.9.19
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -80,6 +80,8 @@ ensure_data_dir() {
   fi
   mkdir -p "${data_dir}"
   touch "${data_dir}/.env"
+  touch "${data_dir}/pysetup.sh"
+  cp -f "${data_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
 }
 
 # Function to start Docker based on OS
@@ -369,6 +371,8 @@ build)
   done
 
   build_docker_compose
+
+  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"

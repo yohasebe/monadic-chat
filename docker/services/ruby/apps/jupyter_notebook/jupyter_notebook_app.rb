@@ -68,6 +68,7 @@ class JupyterNotebook < MonadicApp
     - "context": An object containing the following properties:
       - "link": The jupyterlab notebook URL with the anker tags (e.g. <a href="http://127.0.0.1:8889/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb)
       - "modules": A list of Python modules used in the Jupyterlab notebook cells in the current session
+      - "functions": A list of Python functions used in the Jupyterlab notebook cells in the current session with the function names and their arguments (e.g. `function_name(arg1, arg2)`)
       - "variables": A list of variable names ever defined and updated in the Jupyterlabe notebook cells in the whole session 
 
     The above JSON object should contain the latest URL of the Jupyter Notebook and the variables defined and updated in the whole session. The variables should be updated as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.

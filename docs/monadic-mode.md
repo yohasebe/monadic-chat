@@ -22,7 +22,32 @@ During a conversation, both computers and humans do more than just exchange voca
 
 ## Specific Examples
 
-### Example of Novel Writer
+### Example of Jupyter Notebook app
+
+One of the unique features of Monadic Chat is the ability to access a Linux environment on Docker, enabling file sharing with the host computer. This capability is leveraged in the Jupyter Notebook app, where the AI agent can suggest Python code to the user. Users can provide data through a shared folder and receive result files from executing the code.
+
+In Jupyter Notebook, code is executed cell by cell, and variables or functions defined in one cell can be referenced in subsequent cells. Therefore, when requesting code suggestions from the AI agent, it's essential to reference previously defined variables and functions while proposing new code. It's also crucial to know which libraries or modules are currently imported. Additionally, the notebook's filename (URL) must be stored.
+
+The Jupyter Notebook app maintains the following information as an object, updating the components to use as the context for the next response:
+
+* `message` (string)
+* `context` (hash)
+    * `link` (the url of the notebook, string)
+    * `modules` (the imported libraries, array)
+    * `functions` (the functions defined with the function name and arguments, array)
+    * `variables` (the variables defined, array)
+
+If more detailed information about defined variables or functions is needed, the source code of the notebook is read. The AI agent can also verify which programs or libraries are available in the current execution environment.
+
+<details>
+<summary>Recipe File (jupyter_notebook_app.rb)</summary>
+
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
+
+</details>
+
+
+### Example of Novel Writer app
 
 The Novel Writer app uses Monadic Mode to facilitate collaborative novel writing.  Maintaining consistency in characters, plot, setting, and other details is crucial throughout the writing process.  The Novel Writer app uses the following structure within the `context` object:
 
@@ -45,7 +70,7 @@ The conversation progresses through user prompts and AI responses. The user prov
 
 </details>
 
-### Example of Language Practice Plus
+### Example of Language Practice Plus app
 
 Language learning benefits significantly from conversational practice.  Ideally, these conversations should flow naturally and adapt to the context. However, using a foreign language fluently can be challenging, and learners often make mistakes or struggle to find the right expressions.  The Language Practice Plus app uses Monadic Mode to provide linguistic feedback and suggestions during the conversation, making practice more effective.
 

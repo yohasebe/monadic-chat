@@ -518,7 +518,7 @@ function connect_websocket(callback) {
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
-        $("#cancel_query").css("opacity", "0.0");
+        $("#cancel_query").hide();
         
         // Show message input and hide spinner
         $("#message").show();
@@ -887,7 +887,7 @@ function connect_websocket(callback) {
         $("#message").attr("placeholder", "Type your message . . .");
         $("#message").prop("disabled", false);
         autoResize($("#message"));
-        $("#cancel_query").css("opacity", "0.0");
+        $("#cancel_query").hide();
         $("#send, #clear, #image-file, #voice").prop("disabled", false);
 
         if (!isElementInViewport(mainPanel)) {
@@ -926,7 +926,7 @@ function connect_websocket(callback) {
             $("#send, #clear, #image-file, #voice").prop("disabled", true);
             ws.send(JSON.stringify(ai_user_query));
           } else {
-            $("#cancel_query").css("opacity", "0.0");
+            $("#cancel_query").hide();
           }
 
         } else if (data["content"]["role"] === "user") {
@@ -972,7 +972,7 @@ function connect_websocket(callback) {
         $("#temp-card .status").hide();
         $("#indicator").show();
         $("#user-panel").hide();
-        $("#cancel_query").css("opacity", "1");
+        $("#cancel_query").show();
         break;
       }
 
@@ -981,7 +981,7 @@ function connect_websocket(callback) {
         $("#message").attr("placeholder", "Type your message...");
         $("#message").prop("disabled", false);
         $("#alert-message").html("Input a message.");
-        $("#cancel_query").css("opacity", "0.0");
+        $("#cancel_query").hide();
         
         // Show message input and hide spinner
         $("#message").show();

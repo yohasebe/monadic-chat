@@ -29,7 +29,12 @@
     - [Dockerコンテナの追加](/ja/adding-containers.md)
     - [Ollamaの利用](/ja/ollama.md)
 
-- [**よくある質問**](/ja/faq.md)
+- **よくある質問**
+    - [初期設定](/ja/faq-settings.md)
+    - [ユーザー・インターフェイス](/ja/faq-user-interface.md)
+    - [メディアファイルの送信](/ja/faq-media-files.md)
+    - [音声インタラクション](/ja/faq-voice-interaction.md)
+    - [アプリとコンテナの追加](/ja/faq-apps-and-containers.md)
 
 - [更新履歴](/ja/changelog.md)
 

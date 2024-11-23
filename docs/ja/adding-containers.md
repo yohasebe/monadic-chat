@@ -1,6 +1,6 @@
 # Dockerコンテナの追加
 
-?> このページで示すプログラム例は、GitHubの [monadic-chat](https//github.com/yohasebe/monadic-chat) レポジトリ（`nightly`ブランチ）のコードを直接参照しています。不具合をみつけた場合は pull request を送ってください。
+?> このページで示すプログラム例は、GitHubの [monadic-chat](https//github.com/yohasebe/monadic-chat) レポジトリ（`main`ブランチ）のコードを直接参照しています。不具合をみつけた場合は pull request を送ってください。
 
 ## コンテナ追加の方法
 
@@ -20,7 +20,7 @@
 <details open="true">
 <summary>compose.yml</summary>
 
-[compose.yml](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/python/compose.yml ':include :type=code')
+[compose.yml](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/compose.yml ':include :type=code')
 
 </details>
 
@@ -31,7 +31,7 @@
 <details open="true">
 <summary>Dockerfile</summary>
 
-[Dockerfile](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/python/Dockerfile ':include :type=code dockerfile')
+[Dockerfile](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
 </details>
 

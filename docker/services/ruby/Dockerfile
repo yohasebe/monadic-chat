@@ -71,3 +71,8 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Give execute permission to the script
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# copy `rbsetup.sh` to `/monadic` and run it
+COPY rbsetup.sh /monadic/rbsetup.sh
+RUN chmod +x /monadic/rbsetup.sh
+RUN /monadic/rbsetup.sh

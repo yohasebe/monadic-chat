@@ -80,6 +80,8 @@ ensure_data_dir() {
   fi
   mkdir -p "${data_dir}"
   touch "${data_dir}/.env"
+  touch "${data_dir}/rbsetup.sh"
+  cp -f "${data_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
   touch "${data_dir}/pysetup.sh"
   cp -f "${data_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
 }
@@ -117,7 +119,17 @@ start_docker() {
 build_docker_compose() {
   set_docker_compose
   remove_containers
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" build --no-cache
+  
+  # Create timestamp for log file
+  local timestamp=$(date +%Y%m%d)
+  # local log_file="${HOME_DIR}/monadic/data/docker_build_${timestamp}.log"
+  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  
+  # Create directory if it doesn't exist
+  mkdir -p "$(dirname "${log_file}")"
+  
+  # Execute docker compose build and redirect output to log file
+  ${DOCKER} compose -f "${COMPOSE_MAIN}" build --no-cache 2>&1 | tee "${log_file}"
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   remove_project_dangling_images
 }
@@ -372,6 +384,7 @@ build)
 
   build_docker_compose
 
+  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then

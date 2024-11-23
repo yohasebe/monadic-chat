@@ -19,6 +19,7 @@ When you use the `Actions/Start JupyterLab` menu in the Monadic Chat console to 
 ### System-Related Files
 
 - `monadic.log`: Monadic Chat server log file
+- `pysetup.log`: Python container library installation log file
 - `compose.yml`: Automatically generated file required for creating and starting additional containers
 
 These files are automatically generated and updated. It is recommended not to delete them.

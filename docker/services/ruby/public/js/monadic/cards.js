@@ -37,7 +37,7 @@ function createCard(role, badge, html, lang = "en", mid = "", status = true, ima
     <div class="card mt-3" id="${mid}"> 
     <div class="card-header p-2 ps-3 d-flex justify-content-between">
     <div class="fs-5 card-title mb-0">${badge}</div>
-    ${runningOnFirefox ? `
+    ${(!runningOnChrome && !runningOnEdge) ? `
         <div class="me-1 text-secondary d-flex align-items-center">
         <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
         <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
@@ -82,7 +82,8 @@ function attachEventListeners($card) {
     const content = $card.find(".card-text");
     let text;
     try {
-      text = content.html().replace(/<script[\s\S]*?<\/script>/g, "");
+      text = content.html().replace(/<style>[\s\S]*?<\/style>/g, "");
+      text = text.replace(/<script>[\s\S]*?<\/script>/g, "");
       text = $(text.split(/<hr\s*\/?>/, 1)[0]).text()
     } catch (e) {
       text = content.text()
@@ -90,6 +91,7 @@ function attachEventListeners($card) {
     text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);
+    console.log(text);
     ttsSpeak(text, true);
   });
 

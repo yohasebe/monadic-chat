@@ -2,7 +2,7 @@
 
 Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file. For information on how to develop your own apps, refer to the [App Development](/develop_apps.md) section.
 
-> Click the dropdown to see the recipe file of each app. The files are the same as the ones in the `nightly` branch of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
+> Click the dropdown to see the recipe file of each app. The files are the same as the ones in the `main` branch of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
 
 ## Assistant
 
@@ -15,7 +15,7 @@ This is a standard chat application. The AI responds to the text input by the us
 <details>
 <summary>chat_app.rb</summary>
 
-[chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/chat/chat_app.rb ':include :type=code')
+[chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/chat/chat_app.rb ':include :type=code')
 
 </details>
 
@@ -34,7 +34,7 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 <details>
 <summary>voice_chat_app.rb</summary>
 
-[voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
+[voice_chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/voice_chat/voice_chat_app.rb ':include :type=code')
 
 </details>
 
@@ -47,7 +47,7 @@ This is basically the same as Chat, but for questions about events that occurred
 <details>
 <summary>wikipedia_app.rb</summary>
 
-[wikipedia_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
+[wikipedia_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/wikipedia/wikipedia_app.rb ':include :type=code')
 
 </details>
 
@@ -62,7 +62,7 @@ This application responds using mathematical notation with [MathJax](https://www
 <details>
 <summary>math_tutor_app.rb</summary>
 
-[math_tutor_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
+[math_tutor_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/math_tutor/math_tutor_app.rb ':include :type=code')
 
 </details>
 
@@ -75,7 +75,7 @@ This app generates an answer to your question. To verify the validity of that an
 <details>
 <summary>second_opinion_app.rb</summary>
 
-[second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
+[second_opinion_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/second_opinion/second_opinion_app.rb ':include :type=code')
 
 </details>
 
@@ -90,7 +90,7 @@ This is a language learning application where the conversation starts with the a
 <details>
 <summary>language_practice_app.rb</summary>
 
-[language_practice_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice/language_practice_app.rb ':include :type=code')
+[language_practice_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/language_practice/language_practice_app.rb ':include :type=code')
 
 </details>
 
@@ -104,7 +104,7 @@ This is a language learning application where the conversation starts with the a
 <details>
 <summary>language_practice_plus_app.rb</summary>
 
-[language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+[language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
 
 </details>
 
@@ -117,7 +117,7 @@ This app translates the user's input text into another language. First, the assi
 <details>
 <summary>translate_app.rb</summary>
 
-[translate_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/translate/translate_app.rb ':include :type=code')
+[translate_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/translate/translate_app.rb ':include :type=code')
 
 </details>
 
@@ -130,7 +130,7 @@ This app translates the user's voice input into another language and speaks the 
 <details>
 <summary>voice_interpreter_app.rb</summary>
 
-[voice_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb ':include :type=code')
+[voice_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/voice_interpreter/voice_interpreter_app.rb ':include :type=code')
 
 </details>
 
@@ -145,7 +145,7 @@ This application is for co-writing novels with the assistant. The story unfolds 
 <details>
 <summary>novel_writer_app.rb</summary>
 
-[novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+[novel_writer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
@@ -160,7 +160,7 @@ Images are saved in the `Shared Folder` and also displayed in the chat.
 <details>
 <summary>image_generator_app.rb</summary>
 
-[image_generator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/image_generator/image_generator_app.rb ':include :type=code')
+[image_generator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/image_generator/image_generator_app.rb ':include :type=code')
 
 </details>
 
@@ -173,7 +173,7 @@ This application is for drafting emails in collaboration with the assistant. The
 <details>
 <summary>mail_composer_app.rb</summary>
 
-[mail_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mail_composer/mail_composer_app.rb ':include :type=code')
+[mail_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/mail_composer/mail_composer_app.rb ':include :type=code')
 
 </details>
 
@@ -186,7 +186,7 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 <details>
 <summary>mermaid_grapher_app.rb</summary>
 
-[mermaid_grapher_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/mermaid_grapher/mermaid_grapher_app.rb ':include :type=code')
+[mermaid_grapher_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/mermaid_grapher/mermaid_grapher_app.rb ':include :type=code')
 
 </details>
 
@@ -199,7 +199,7 @@ This application creates simple sheet music using [ABC notation](https://en.wiki
 <details>
 <summary>music_composer_app.rb</summary>
 
-[music_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/music_composer/music_composer_app.rb ':include :type=code')
+[music_composer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/music_composer/music_composer_app.rb ':include :type=code')
 
 </details>
 
@@ -212,7 +212,7 @@ This application helps you draft speeches. You can ask the assistant to draft a 
 <details>
 <summary>speech_draft_helper_app.rb</summary>
 
-[speech_draft_helper_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb ':include :type=code')
+[speech_draft_helper_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/speech_draft_helper/speech_draft_helper_app.rb ':include :type=code')
 
 </details>
 
@@ -229,7 +229,7 @@ To use this app, store the video file in the `Shared Folder` and provide the fil
 <details>
 <summary>video_describer_app.rb</summary>
 
-[video_describer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/video_describer/video_describer_app.rb ':include :type=code')
+[video_describer_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/video_describer/video_describer_app.rb ':include :type=code')
 
 </details>
 
@@ -250,7 +250,7 @@ This application reads PDF files and allows the assistant to answer user questio
 <details>
 <summary>pdf_navigator_app.rb</summary>
 
-[pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
+[pdf_navigator_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/pdf_navigator/pdf_navigator_app.rb ':include :type=code')
 
 </details>
 
@@ -278,7 +278,7 @@ Supported file formats:
 <details>
 <summary>content_reader_app.rb</summary>
 
-[content_reader_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/content_reader/content_reader_app.rb ':include :type=code')
+[content_reader_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/content_reader/content_reader_app.rb ':include :type=code')
 
 </details>
 
@@ -293,7 +293,7 @@ This application allows the AI to create and execute program code. The execution
 <details>
 <summary>code_interpreter_app.rb</summary>
 
-[code_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb ':include :type=code')
+[code_interpreter_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/code_interpreter/code_interpreter_app.rb ':include :type=code')
 
 </details>
 
@@ -308,7 +308,7 @@ This application is designed for writing computer program code. You can interact
 <details>
 <summary>coding_assistant_app.rb</summary>
 
-[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
+[coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
 
 </details>
 
@@ -324,7 +324,7 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 <details>
 <summary>jupyter_notebook_app.rb</summary>
 
-[jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
+[jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
 
 </details>
 

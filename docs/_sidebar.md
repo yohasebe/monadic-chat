@@ -29,6 +29,11 @@
     - [Adding Docker Containers](/adding-containers.md)
     - [Using Ollama](/ollama.md)
 
-- [**Frequently Asked Questions**](/faq.md)
+- **Frequently Asked Questions**
+    - [Setup and Settings](/faq-settings.md)
+    - [User Interface](/faq-user-interface.md)
+    - [Sending Media Files](/faq-media-files.md)
+    - [Voice Interaction](/faq-voice-interaction.md)
+    - [Apps and Containers](/faq-apps-and-containers.md)
 
 - [Changelog](/changelog.md)

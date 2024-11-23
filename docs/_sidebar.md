@@ -34,6 +34,6 @@
     - [User Interface](/faq-user-interface.md)
     - [Sending Media Files](/faq-media-files.md)
     - [Voice Interaction](/faq-voice-interaction.md)
-    - [Apps and Containers](/faq-apps-and-containers.md)
+    - [Adding New Features](/faq-extra-features.md)
 
 - [Changelog](/changelog.md)

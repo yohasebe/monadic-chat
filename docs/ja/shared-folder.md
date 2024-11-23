@@ -19,6 +19,7 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 ### システム関連のファイル
 
 - `monadic.log`：Monadic Chatサーバーのログファイル
+- `pysetup.log`：Pythonコンテナのライブラリインストールログファイル
 - `compose.yml`：追加コンテナ作成・起動時に必要な自動生成ファイル
 
 これらのファイルは自動で生成・更新されます。削除しないことをお勧めします。

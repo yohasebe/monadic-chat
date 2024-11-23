@@ -6,17 +6,15 @@ LABEL project=$PROJECT_TAG
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential wget curl git gnupg \
-    pandoc graphviz ffmpeg fonts-noto-cjk \
+    pandoc ffmpeg fonts-noto-cjk \
     imagemagick libmagickwand-dev \
-    mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
-    ruby ruby-dev\
     && apt-get autoremove -y \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -s /etc/mecabrc /usr/local/etc/mecabrc
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
-RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
+RUN pip install -U pip && \
+    pip install --no-cache-dir --default-timeout=1000 \
     setuptools \
     wheel \
     numpy \
@@ -30,20 +28,13 @@ RUN pip install -U pip && pip install --no-cache-dir --default-timeout=1000 \
     pymupdf4llm \
     selenium \
     statsmodels \
-    graphviz \
-    pydotplus \
     openpyxl \
     python-docx \
     python-pptx \
     html2text \
     flask \
     opencv-python \
-    moviepy \
-    librosa \
-    mecab-python3 \
-    wordcloud \
-    gensim\
-    scikit-learn
+    moviepy
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -75,4 +66,3 @@ COPY Dockerfile /monadic/Dockerfile
 COPY pysetup.sh /monadic/pysetup.sh
 RUN chmod +x /monadic/pysetup.sh
 RUN /monadic/pysetup.sh
-

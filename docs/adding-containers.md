@@ -1,6 +1,6 @@
 # Adding Docker Containers
 
-?> The program examples shown on this page directly reference the code in the [monadic-chat](https//github.com/yohasebe/monadic-chat) repository (`nightly` branch) on GitHub. If you find any issues, please submit a pull request.
+?> The program examples shown on this page directly reference the code in the [monadic-chat](https//github.com/yohasebe/monadic-chat) repository (`main` branch) on GitHub. If you find any issues, please submit a pull request.
 
 ## How to Add Containers
 
@@ -20,7 +20,7 @@ As a reference, here are the `compose.yml` and `Dockerfile` for the Python conta
 <details open="true">
 <summary>compose.yml</summary>
 
-[compose.yml](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/python/compose.yml ':include :type=code')
+[compose.yml](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/compose.yml ':include :type=code')
 
 </details>
 
@@ -31,6 +31,6 @@ In the `Dockerfile`, describe how to build the new container.
 <details open="true">
 <summary>Dockerfile</summary>
 
-[Dockerfile](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/python/Dockerfile ':include :type=code dockerfile')
+[Dockerfile](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
 </details>

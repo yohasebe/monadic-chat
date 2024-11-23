@@ -4,13 +4,64 @@ Monadic Chat allows you to run Python code using Python containers. The standard
 
 The standard Python container is built with the following Dockerfile.
 
-?> The Dockerfile shown on this page directly reference the code in the [monadic-chat](https//github.com/yohasebe/monadic-chat) repository (`nightly` branch).
+?> The Dockerfile shown on this page directly reference the code in the [monadic-chat](https//github.com/yohasebe/monadic-chat) repository (`main` branch).
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/python/Dockerfile ':include :type=code dockerfile')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
 If you want to install additional libraries, you can do one of the following:
 
-1. Refer to [Docker Container Access](/docker-access) to log in to the Python container and install the library after setting up the Monadic Chat environment.
-2. Refer to [Adding Containers](/ja/adding-containers) to add a customized Python container.
-3. Submit a request via [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues).
+- Add an installation script to `pysetup.sh` in the shared folder to install the library during Monadic Chat environment setup (see the example below).
+- Refer to [Docker Container Access](/docker-access) to log in to the Python container and install the library after setting up the Monadic Chat environment.
+- Refer to [Adding Containers](/ja/adding-containers) to add a customized Python container.
+- Submit a request via [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues).
+
+## Usage of `pysetup.sh`
+
+To install additional libraries in the Python container, add an installation script to `pysetup.sh`. `pysetup.sh` is automatically created in the shared folder during the Monadic Chat build process. By adding an installation script, the script is executed at the end of the `Dockerfile` during the Monadic Chat build process, and the library is installed. The following are examples of scripts.
+
+### Installing GraphViz and `pydotplus` Module
+
+```sh
+# Install graphviz
+apt-get update && apt-get install -y --no-install-recommends \
+    graphviz \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+# Install pydotplus
+pip install --no-cache-dir --default-timeout=1000 \
+    graphviz \
+    pydotplus
+```
+
+### Installing Natural Language Processing Libraries
+
+```sh
+# Install NLP libraries, data, and models
+pip install --no-cache-dir --default-timeout=1000 \
+    scikit-learn \
+    gensim\
+    librosa \
+    wordcloud \
+    spacy \
+    nltk \
+    textblob
+# Download NLTK data
+python -m nltk.downloader all
+# Download spaCy models
+python -m spacy download en_core_web_lg
+```
+
+### Installing Japanese Morphological Analysis Libraries
+
+```sh
+# Install MeCab
+apt-get update && apt-get install -y --no-install-recommends \
+    mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+# Install mecab-python3
+pip install --no-cache-dir --default-timeout=1000 mecab-python3
+```
 

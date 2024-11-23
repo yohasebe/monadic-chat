@@ -41,7 +41,7 @@ The conversation progresses through user prompts and AI responses. The user prov
 <details>
 <summary>Recipe File (novel_writer_app.rb)</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
 
 </details>
 
@@ -62,6 +62,6 @@ While the `context` here might deviate slightly from the typical definition, it 
 <details>
 <summary>Recipe File (language_practice_plus_app.rb)</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/nightly/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
 
 </details>

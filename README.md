@@ -16,7 +16,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Nov, 2024] 0.9.19
-  - `pysetup.sh` and `rbsetup.sh` extra installation scripts supported
+  - `pysetup.sh` extra installation script supported
   - Jupyter Notebook app usability improved
   - Streaming supported for OpenAI's o1 models
   - CJK font issue on code apps addressed

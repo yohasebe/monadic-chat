@@ -262,13 +262,73 @@ h5 i,
   color: #ffc107;
 }
 
+#cancel_query {
+  opacity: 0.0;
+  position: fixed;
+  right: 65px;
+  top: 20px;
+  z-index: 1050;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  pointer-events: auto;
+  opacity: 0.65;
+  display: none;
+}
+
+#cancel_query a:hover {
+  background-color: #777;
+  text-decoration: none;
+}
+
+#cancel_query a {
+  color: #fff;
+  background-color: #666;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
 #toggle-menu {
-  padding: 0.25rem 0.75rem;
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  z-index: 1100;
   font-size: 1.25rem;
-  line-height: 1;
-  background-color: transparent;
+  line-height: 1.25;
+  background-color: #777;
   border: 1px solid rgba(0, 0, 0, .1);
   border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  height: 40px;
+  width: 40px;
+  box-sizing: border-box;
+  background-color: #666;
+  opacity: 0.65;
+}
+
+#toggle-menu .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: middle;
+}
+
+#toggle-menu:hover {
+  background-color: #777;
+}
+
+#toggle-menu:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 #main {
@@ -610,6 +670,10 @@ legend {
   .navbar-container {
     padding-bottom: 20px;
     margin-bottom: -20px;
+  }
+
+  #toggle-menu {
+    right: 10px; /* 画面が小さい時は右端との距離を調整 */
   }
 }
 

@@ -313,7 +313,7 @@ $(function () {
     $("#chat").html("");
     $("#temp-card").hide();
     $("#user-panel").show();
-    $("#cancel_query").css("opacity", "0.0");
+    $("#cancel_query").hide();
     setInputFocus();
   });
 
@@ -327,7 +327,7 @@ $(function () {
     params = setParams();
     params["message"] = $("#message").val();
 
-    $("#cancel_query").css("opacity", "1");
+    $("#cancel_query").show();
     
     // Hide message input and show spinner
     $("#message").hide();
@@ -576,7 +576,7 @@ $(function () {
     }
   });
 
-  if (!runningOnChrome && !runningOnEdge && !runningOnSafari && !runningOnFirefox) {
+  if (!runningOnChrome && !runningOnEdge) {
     voiceButton.hide();
     $("#auto-speech").hide();
     $("#auto-speech-form").hide();

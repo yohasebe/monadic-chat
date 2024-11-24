@@ -5,7 +5,7 @@ class Wikipedia < MonadicApp
   icon = "<i class='fab fa-wikipedia-w'></i>"
 
   description = <<~TEXT
-    This is essentially the same as Chat, but for questions that GPT cannot answer, such as questions about events that occurred after the language model cutoff time, it searches Wikipedia to answer them.
+  This is essentially the same as Chat, but for questions that GPT cannot answer, such as questions about events that occurred after the language model cutoff time, it searches Wikipedia to answer them. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=wikipedia" target="_blank">Learn more</a>.
   TEXT
 
   initial_prompt = <<~TEXT

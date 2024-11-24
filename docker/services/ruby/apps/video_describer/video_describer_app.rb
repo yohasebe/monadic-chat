@@ -4,11 +4,11 @@ class VideoDescriber < MonadicApp
   icon = "<i class='fas fa-video'></i>"
 
   description = <<~TEXT
-    This application analyzes video content and describes the video.
+  This application analyzes video content and describes the video. The user provides a video file and the frames per second (fps) to extract frames from the video. The description includes the original video, a description of the video content, and the transcription of the audio content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=video-describer" target="_blank">Learn more</a>.
   TEXT
 
   prompt_suffix = <<~TEXT
-    If this is a follow-up conversation, you do not need to show the video description again.
+  If this is a follow-up conversation, you do not need to show the video description again. 
   TEXT
 
   initial_prompt = <<~TEXT

@@ -4,7 +4,7 @@ class CodeInterpreter < MonadicApp
   icon = "<i class='fab fa-python'></i>"
 
   description = <<~TEXT
-  This is an application that allows you to run Python code. You can also install libraries, run bash commands, fetch text from files, and generate charts. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
+  This is an application that allows you to run Python code. You can also install libraries, run bash commands, fetch text from files, and generate charts. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

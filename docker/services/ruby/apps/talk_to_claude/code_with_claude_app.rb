@@ -6,7 +6,7 @@ class CodeWithClaude < MonadicApp
   icon = "<i class='fa-solid fa-a'></i>"
 
   description = <<~TEXT
-  This is an application that allows you to run Python code with Anthropic Claude. You can write and execute Python code, install libraries, fetch text from files, and fetch web content. Claude will help you run the code and display the output, including generated images and text data. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=anthropic" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
+  This is an application that allows you to run Python code with Anthropic Claude. You can write and execute Python code, install libraries, fetch text from files, and fetch web content. Claude will help you run the code and display the output, including generated images and text data. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=anthropic" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

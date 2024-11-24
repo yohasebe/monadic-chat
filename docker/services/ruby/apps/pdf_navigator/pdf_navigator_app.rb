@@ -4,7 +4,7 @@ class PDFNavigator < MonadicApp
   icon = "<i class='fas fa-file-pdf'></i>"
 
   description = <<~TEXT
-  This is an application that reads PDF files, and the assistant answers the user's questions based on their contents. Click on the "Upload PDF" button and specify the file. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=pdf-navigator' target='_blank'><i class="fa-solid fa-circle-info"></i></a>.
+  This is an application that reads PDF files, and the assistant answers the user's questions based on their contents. Click on the "Upload PDF" button and specify the file. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=pdf-navigator' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

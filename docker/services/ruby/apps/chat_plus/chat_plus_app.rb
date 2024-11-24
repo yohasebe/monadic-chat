@@ -5,7 +5,7 @@ class ChatPlus < MonadicApp
 
   description = <<~TEXT
     This is a chat application that presents the reasoning behind the AI's responses. The AI also
-    keeps track of topics, people, and notes mentioned in the conversation. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=chat-plus" target="_blank">Learn more</a>.
+    keeps track of topics, people, and notes mentioned in the conversation. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
   TEXT
 
   initial_prompt = <<~TEXT

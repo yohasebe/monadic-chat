@@ -4,7 +4,7 @@ class Chat < MonadicApp
   icon = "<i class='fas fa-comments'></i>"
 
   description = <<~TEXT
-  This is the standard application for monadic chat. It can be used in basically the same way as ChatGPT. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=chat" target="_blank">Learn more</a>.
+  This is the standard application for monadic chat. It can be used in basically the same way as ChatGPT. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
   TEXT
 
   initial_prompt = <<~TEXT

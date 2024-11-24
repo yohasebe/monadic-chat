@@ -4,7 +4,7 @@ class VideoDescriber < MonadicApp
   icon = "<i class='fas fa-video'></i>"
 
   description = <<~TEXT
-  This application analyzes video content and describes the video. The user provides a video file and the frames per second (fps) to extract frames from the video. The description includes the original video, a description of the video content, and the transcription of the audio content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
+  This application analyzes video content and describes the video. The user provides a video file and the frames per second (fps) to extract frames from the video. The description includes the original video, a description of the video content, and the transcription of the audio content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   prompt_suffix = <<~TEXT

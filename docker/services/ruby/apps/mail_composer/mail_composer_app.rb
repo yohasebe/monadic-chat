@@ -4,7 +4,7 @@ class MailComposer < MonadicApp
   icon = "<i class='fa-solid fa-at'></i>"
 
   description = <<~TEXT
-  This is an application for writing draft novels of email messages in collaboration with an assistant. The assistant writes the email draft according to the user's requests and specifications or suggests improvements to the user's draft. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
+  This is an application for writing draft novels of email messages in collaboration with an assistant. The assistant writes the email draft according to the user's requests and specifications or suggests improvements to the user's draft. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

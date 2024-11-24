@@ -21,7 +21,7 @@ This is a standard chat application. The AI responds to the text input by the us
 
 ### Chat Plus
 
-![Chat Plus app icon](/assets/icons/chat-plus.png ':size=40')
+![Chat app icon](/assets/icons/chat.png ':size=40')
 
 This is a chat application that is "monadic" and has additional features compared to the standard chat application. The AI responds to the user's text input and while doing so, it also provides additional information as follows:
 

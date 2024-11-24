@@ -1,4 +1,4 @@
-- [Nov, 2024] 0.9.20
+- [Nov, 2024] 0.9.21
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook app usability improved
   - Streaming supported for OpenAI's o1 models

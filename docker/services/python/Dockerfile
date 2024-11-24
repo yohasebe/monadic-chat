@@ -6,6 +6,8 @@ LABEL project=$PROJECT_TAG
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential wget curl git gnupg \
+    python3-dev graphviz libgraphviz-dev pkg-config \
+    libxml2-dev libxslt-dev \
     pandoc ffmpeg fonts-noto-cjk \
     imagemagick libmagickwand-dev \
     && apt-get autoremove -y \
@@ -17,24 +19,17 @@ RUN pip install -U pip && \
     pip install --no-cache-dir --default-timeout=1000 \
     setuptools \
     wheel \
-    numpy \
-    pandas \
-    matplotlib \
-    seaborn \
     jupyterlab \
-    gunicorn \
-    tiktoken \
-    pymupdf \
-    pymupdf4llm \
-    selenium \
-    statsmodels \
-    openpyxl \
-    python-docx \
-    python-pptx \
-    html2text \
-    flask \
-    opencv-python \
-    moviepy
+    numpy  pandas statsmodels \
+    matplotlib seaborn \
+    gunicorn tiktoken flask \
+    pymupdf pymupdf4llm \
+    selenium html2text \
+    openpyxl python-docx python-pptx \
+    opencv-python moviepy \
+    requests beautifulsoup4 \
+    lxml pygraphviz pydot networkx \
+    svgwrite cairosvg tinycss cssselect pygal
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

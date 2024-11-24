@@ -84,6 +84,16 @@ module ClaudeHelper
 
     message = obj["message"].to_s
 
+    if role != "tool"
+      # Apply monadic transformation if monadic mode is enabled
+      if obj["monadic"].to_s == "true" && message != ""
+        if message != ""
+          APPS[app].methods
+          message = APPS[app].monadic_unit(message)
+        end
+      end
+    end
+
     if message != "" && role == "user"
       @thinking.clear
       res = { "type" => "user",
@@ -101,8 +111,8 @@ module ClaudeHelper
       session[:messages] << res["content"]
     end
 
-    # Old messages in the session are set to inactive
-    # and set active messages are added to the context
+    # Set old messages in the session to inactive
+    # and add active messages to the context
     begin
       session[:messages].each { |msg| msg["active"] = false }
 
@@ -147,7 +157,7 @@ module ClaudeHelper
       body.delete("tool_choice")
     end
 
-    # The context is added to the body
+    # Add the context to the body
     messages = context.compact.map do |msg|
       content = { "type" => "text", "text" => msg["text"] }
       { "role" => msg["role"], "content" => [content] }
@@ -168,7 +178,7 @@ module ClaudeHelper
     if !messages.empty? && messages.last["role"] == "user"
       content = messages.last["content"]
 
-      # Handle PDFs first if present
+      # Handle PDFs and images if present
       if obj["images"]
         obj["images"].each do |file|
           if file["type"] == "application/pdf"
@@ -183,8 +193,8 @@ module ClaudeHelper
             doc["cache_control"] = { "type" => "ephemeral" } if obj["prompt_caching"]
             content.unshift(doc)
           else
-            # Handle images as before
-            img ={
+            # Handle images
+            img = {
               "type" => "image",
               "source" => {
                 "type" => "base64",
@@ -250,27 +260,28 @@ module ClaudeHelper
   end
 
   def process_json_data(app, session, body, call_depth, &block)
+    obj = session[:parameters]
     buffer = String.new
     texts = []
     tool_calls = []
     finish_reason = nil
     content_type = "text"
+    last_processed = 0  # Track the last processed position in the buffer
 
     if body.respond_to?(:each)
       body.each do |chunk|
         break if /\Rdata: [DONE]\R/ =~ chunk
 
         buffer << chunk
-        scanner = StringScanner.new(buffer)
+        scanner = StringScanner.new(buffer[last_processed..-1])  # Scan from last processed position
         pattern = /data: (\{.*?\})(?=\n|\z)/
 
-        until scanner.eos?
-          matched = scanner.scan_until(pattern)
-          if matched
+          while matched = scanner.scan_until(pattern)
             json_data = matched.match(pattern)[1]
-            begin
+            # begin
               json = JSON.parse(json_data)
 
+              # Handle content type changes
               new_content_type = json.dig("content_block", "type")
               if new_content_type == "tool_use"
                 json["content_block"]["input"] = ""
@@ -285,18 +296,17 @@ module ClaudeHelper
 
                   tool_calls.last["input"] << fragment
                 end
-
                 if json.dig("delta", "stop_reason")
                   stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
                   when "tool_use"
                     fragment = <<~FRAG
-                      <div class='toggle'><pre>
-                      #{JSON.pretty_generate(tool_calls.last)}
-                      </pre></div>
+                    <div class='toggle'><pre>
+                    #{JSON.pretty_generate(tool_calls.last)}
+                    </pre></div>
                     FRAG
 
-                    texts << "\n" + fragment.strip
+                    # texts << "\n" + fragment.strip
 
                     finish_reason = "tool_use"
                     res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
@@ -304,6 +314,7 @@ module ClaudeHelper
                   end
                 end
               else
+                # Handle text content
                 if json.dig("delta", "text")
                   fragment = json.dig("delta", "text").to_s
                   next if !fragment || fragment == ""
@@ -317,6 +328,7 @@ module ClaudeHelper
                   block&.call res
                 end
 
+                # Handle stop reasons
                 if json.dig("delta", "stop_reason")
                   stop_reason = json.dig("delta", "stop_reason")
                   case stop_reason
@@ -327,16 +339,14 @@ module ClaudeHelper
                   end
                 end
               end
-            rescue JSON::ParserError
-              # if the JSON parsing fails, the next chunk should be appended to the buffer
-              # and the loop should continue to the next iteration
-            end
-
-          else
-            buffer = scanner.rest
-            break
+            # rescue JSON::ParserError
+            #   # If JSON parsing fails, wait for the next chunk
+            #   break
+            # end
           end
-        end
+
+        # Update the last processed position
+        last_processed = buffer.length - scanner.rest.length
       rescue StandardError => e
         pp e.message
         pp e.backtrace
@@ -344,35 +354,41 @@ module ClaudeHelper
       end
     end
 
+    # Combine all text fragments
     result = if texts.empty?
                nil
              else
                texts.join("")
              end
 
+    # Process tool calls if any exist
     if tool_calls.any?
       get_thinking_text(result)
 
       call_depth += 1
 
+      # Check for maximum function call depth
       if call_depth > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
-      context = []
-      context << {
-        "role" => "assistant",
-        "content" => []
-      }
-
-      if result
-        context.last["content"] << {
-          "type" => "text",
-          "text" => result
+      # Process each tool call individually
+      responses = tool_calls.map do |tool_call|
+        context = []
+        context << {
+          "role" => "assistant",
+          "content" => []
         }
-      end
 
-      tool_calls.each do |tool_call|
+        # Add the current result to context if it exists
+        if result
+          context.last["content"] << {
+            "type" => "text",
+            "text" => result
+          }
+        end
+
+        # Parse tool call input
         begin
           input_hash = JSON.parse(tool_call["input"])
         rescue JSON::ParserError
@@ -386,12 +402,17 @@ module ClaudeHelper
           "name" => tool_call["name"],
           "input" => tool_call["input"]
         }
+
+        # Process single tool call
+        process_functions(app, session, [tool_call], context, call_depth, &block)
       end
 
-      process_functions(app, session, tool_calls, context, call_depth, &block)
+      # Return the last response
+      responses.last
 
+      # Process regular text response
     elsif result
-
+      # Handle different model types
       case session[:parameters]["model"]
       when /opus/
         result = add_replacements(result)
@@ -405,8 +426,28 @@ module ClaudeHelper
       end
       @leftover.clear
 
+      # Apply monadic transformation if enabled
+      if result && obj["monadic"]
+        begin
+          # Check if result is valid JSON
+          JSON.parse(result)
+          # If it's already JSON, apply monadic_map directly
+          result = APPS[app].monadic_map(result)
+        rescue JSON::ParserError
+          # If not JSON, wrap it in the proper format before applying monadic_map
+          wrapped = JSON.pretty_generate({
+            "message" => result,
+            "context" => {}
+          })
+          result = APPS[app].monadic_map(wrapped)
+        end
+      end
+
+      # Send completion message
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
+
+      # Return final response
       [
         {
           "choices" => [
@@ -448,10 +489,12 @@ module ClaudeHelper
         memo
       end
 
-      tool_return = APPS[app].send(tool_name.to_sym, **argument_hash)
+      # wait for the app instance is ready up to 10 seconds
+      app_instance = APPS[app]
+
+      tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
 
       unless tool_return
-        # return [{ "type" => "error", "content" => "ERROR: Tool '#{tool_name}' failed" }]
         tool_return = "Empty result"
       end
 
@@ -469,7 +512,72 @@ module ClaudeHelper
 
     obj["function_returns"] = context
 
-    # return Array
+    # Return Array
     api_request("tool", session, call_depth: call_depth, &block)
+  end
+
+  def monadic_unit(message)
+    begin
+      # If message is already JSON, parse and reconstruct
+      json = JSON.parse(message)
+      res = {
+        "message" => json["message"] || message,
+        "context" => json["context"] || @context
+      }
+    rescue JSON::ParserError
+      # If not JSON, create the structure
+      res = {
+        "message" => message,
+        "context" => @context
+      }
+    end
+    res.to_json
+  end
+
+  def monadic_map(monad)
+    begin
+      obj = monadic_unwrap(monad)
+      # Process the message part
+      message = obj["message"].is_a?(String) ? obj["message"] : obj["message"].to_s
+      # Update context if block is given
+      @context = block_given? ? yield(obj["context"]) : obj["context"]
+      # Create the result structure
+      result = {
+        "message" => message,
+        "context" => @context
+      }
+      JSON.pretty_generate(sanitize_data(result))
+    rescue JSON::ParserError
+      # Handle invalid JSON input
+      result = {
+        "message" => monad.to_s,
+        "context" => @context
+      }
+      JSON.pretty_generate(sanitize_data(result))
+    end
+  end
+
+  def monadic_unwrap(monad)
+    JSON.parse(monad)
+  rescue JSON::ParserError
+    { "message" => monad.to_s, "context" => @context }
+  end
+
+  def sanitize_data(data)
+    if data.is_a? String
+      return data.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    end
+
+    if data.is_a? Hash
+      data.each do |key, value|
+        data[key] = sanitize_data(value)
+      end
+    elsif data.is_a? Array
+      data.map! do |value|
+        sanitize_data(value)
+      end
+    end
+
+    data
   end
 end

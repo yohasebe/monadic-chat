@@ -1,0 +1,12 @@
+true
+[{"type"=>"code", "content"=>"# MeCabを使用した日本語の形態素解析\nimport MeCab\n\ndef parse_japanese_text(text):\n    # MeCabのTaggerを初期化\n    tagger = MeCab.Tagger()\n    # 形態素解析を実行\n    parsed = tagger.parse(text)\n    return parsed\n\n# サンプルテキスト\nsample_text = \"私はAIアシスタントです。日本語の形態素解析を行います。\"\nresult = parse_japanese_text(sample_text)\nprint(result)"}]
+
+true
+[{"type"=>"code", "content"=>"from wordcloud import WordCloud\nimport matplotlib.pyplot as plt\nfrom collections import Counter\n\n# 形態素解析の結果から単語を抽出\ndef generate_wordcloud(parsed_result):\n    words = [word for word, pos in parsed_result if pos not in ['記号', '助詞', '助動詞']]\n    word_freq = Counter(words)\n\n    # ワードクラウドの生成\n    wordcloud = WordCloud(font_path=\"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc\", \n                           background_color=\"white\", \n                           width=800, \n                           height=400).generate_from_frequencies(word_freq)\n\n    # ワードクラウドの表示\n    plt.figure(figsize=(10, 5))\n    plt.imshow(wordcloud, interpolation=\"bilinear\")\n    plt.axis(\"off\")\n    plt.show()\n\n# サンプルデータを使用してワードクラウドを生成\ngenerate_wordcloud(result)"}]
+
+true
+[{"type"=>"code", "content"=>"# 修正された形態素解析結果の処理\nimport re\nfrom collections import Counter\n\ndef parse_japanese_text_fixed(text):\n    tagger = MeCab.Tagger()\n    parsed = tagger.parse(text)\n    lines = parsed.split(\"\\n\")\n    words = []\n    for line in lines:\n        if line == \"EOS\" or line == \"\":\n            continue\n        parts = re.split('[\\t,]', line)\n        if len(parts) > 1:\n            words.append((parts[0], parts[1]))  # (単語, 品詞)\n    return words\n\n# 修正された形態素解析を実行\nresult_fixed = parse_japanese_text_fixed(sample_text)\nprint(result_fixed)"}]
+
+true
+[{"type"=>"markdown", "content"=>"# 日本語形態素解析\n\nJanomeを使用して日本語テキストの形態素解析を行います。まず、Janomeをインストールします。"}, {"type"=>"code", "content"=>"!pip install janome"}, {"type"=>"markdown", "content"=>"## 基本的な形態素解析\n\nJanomeの`Tokenizer`を使用して、テキストを形態素（単語）に分割し、各形態素の品詞などの情報を取得します。"}, {"type"=>"code", "content"=>"from janome.tokenizer import Tokenizer\n\n# トークナイザーの初期化\nt = Tokenizer()\n\n# 分析するテキスト\ntext = '私は東京で働いています。'\n\n# 形態素解析を実行\ntokens = t.tokenize(text)\n\n# 結果を表示\nprint('形態素解析の結果:')\nprint('\\n{:<10}\\t{:<10}\\t{:<10}\\t{:<10}'.format('表層形', '品詞', '品詞細分類1', '基本形'))\nprint('-' * 60)\nfor token in tokens:\n    print('{:<10}\\t{:<10}\\t{:<10}\\t{:<10}'.format(\n        token.surface,\n        token.part_of_speech.split(',')[0],\n        token.part_of_speech.split(',')[1],\n        token.base_form\n    ))"}]
+

@@ -18,7 +18,7 @@ class JupyterNotebook < MonadicApp
 
       "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
 
-    Use the above special string at the end of your message whenever you ask the user for a yes or no response, not only in this initial prompt but also in the subsequent conversation.
+    Use the above special string at the end of your message when you ask the user a "yes/no" question, not only in this initial prompt but also in the subsequent conversation. Do not use the special string when you ask the user for a different type of response, however.
 
       If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
 

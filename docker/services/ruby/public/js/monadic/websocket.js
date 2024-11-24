@@ -279,6 +279,7 @@ function applyToggle(element, nl2br = false) {
     const toggleElement = $(this);
     toggleElement.addClass("sourcecode");
     toggleElement.find("pre").addClass("sourcecode");
+
     if (nl2br) {
       let toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
       toggleElement.find("pre").text(toggleText);
@@ -287,7 +288,7 @@ function applyToggle(element, nl2br = false) {
   });
 }
 
-function addToggleSourceCode(element, title = "Toggle Source Code") {
+function addToggleSourceCode(element, title = "Toggle Show/Hide") {
   // if element has data-title attribute, use that as the title
   if (element.data("title")) {
     title = element.data("title");

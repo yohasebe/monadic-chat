@@ -51,6 +51,10 @@ pre {
   scrollbar-width: thin;
 }
 
+div.sourcecode-toggle {
+  color: #777;
+}
+
 .list-group-item {
   color: #777;
 }
@@ -89,7 +93,6 @@ div.card-body.role-system {
   background-color: #f7fff6;
 }
 
-#cancel_query,
 #back_to_top,
 #back_to_bottom {
   opacity: 0.0;
@@ -100,7 +103,6 @@ div.card-body.role-system {
   float: right;
 }
 
-#cancel_query a,
 #back_to_top a,
 #back_to_bottom a {
   color: #fff;
@@ -110,7 +112,6 @@ div.card-body.role-system {
   border-radius: 4px;
 }
 
-#cancel_query a:hover,
 #back_to_top a:hover,
 #back_to_bottom a:hover {
   background-color: #777;
@@ -262,35 +263,29 @@ h5 i,
   color: #ffc107;
 }
 
-#cancel_query {
-  opacity: 0.0;
-  position: fixed;
-  right: 65px;
-  top: 20px;
-  z-index: 1050;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-  pointer-events: auto;
-  opacity: 0.65;
-  display: none;
-}
-
-#cancel_query a:hover {
+#cancel_query:hover {
   background-color: #777;
   text-decoration: none;
 }
 
-#cancel_query a {
-  color: #fff;
-  background-color: #666;
-  text-align: center;
-  padding: 8px 12px;
-  border-radius: 4px;
-  display: inline-flex;
+#cancel_query {
   align-items: center;
-  height: 40px;
+  background-color: #666;
+  border-radius: 4px;
   box-sizing: border-box;
+  color: #fff;
+  cursor: pointer;
+  display: none;
+  height: 40px;
+  opacity: 0.65;
+  padding: 6px 12px;
+  position: fixed;
+  right: 70px;
+  text-align: center;
   text-decoration: none;
+  top: 20px;
+  transition: opacity 0.3s ease;
+  z-index: 1050;
 }
 
 #toggle-menu {
@@ -370,6 +365,15 @@ blockquote {
 
 blockquote p:last-child {
   margin-bottom: 0;
+}
+
+#alert-message {
+  font-weight: 600;
+  background: rgba(119,119,119,.15);
+  padding: 0.8em;
+  text-shadow: 
+ 0 0 1px rgba(255,255,255,0.7),
+ 0 0 2px rgba(255,255,255,0.5);
 }
 
 #alert-message.message-success {
@@ -673,7 +677,7 @@ legend {
   }
 
   #toggle-menu {
-    right: 10px; /* 画面が小さい時は右端との距離を調整 */
+    right: 10px;
   }
 }
 

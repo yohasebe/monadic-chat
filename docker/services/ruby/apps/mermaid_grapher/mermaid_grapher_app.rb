@@ -4,7 +4,7 @@ class MermaidGrapher < MonadicApp
   icon = "<i class='fas fa-project-diagram'></i>"
 
   description = <<~TEXT
-    This application hep you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram.
+    This application hep you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=mermaid-grapher' target='_blank'>Learn more</a>.
   TEXT
 
   initial_prompt = <<~TEXT

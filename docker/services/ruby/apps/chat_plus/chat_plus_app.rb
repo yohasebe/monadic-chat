@@ -4,7 +4,8 @@ class ChatPlus < MonadicApp
   icon = "<i class='fas fa-comments'></i>"
 
   description = <<~TEXT
-    This is a chat application that keeps track of topics, people, and notes mentioned in the conversation.
+    This is a chat application that presents the reasoning behind the AI's responses. The AI also
+    keeps track of topics, people, and notes mentioned in the conversation. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=chat-plus" target="_blank">Learn more</a>.
   TEXT
 
   initial_prompt = <<~TEXT
@@ -15,9 +16,10 @@ class ChatPlus < MonadicApp
     Your response should be contained in a JSON object with the following structure:
     - "message": Your response to the user
     - "context": An object containing the following properties:
+      - "reasoning": The reasoning and thought process behind your response
       - "topics": A list of topics ever discussed in the whole conversation
       - "people": A list of people and their relationships ever mentioned in the whole conversation
-      - "notes": A list of the user's preferences and other important information including important dates, locations, and events ever mentioned in the whole conversation
+      - "notes": A list of the user's preferences and other important information including important dates, locations, and events ever mentioned in the whole conversation and should be remembered throughout the conversation
 
     You should update the "summary", "topics", "people", and "preferences" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
 

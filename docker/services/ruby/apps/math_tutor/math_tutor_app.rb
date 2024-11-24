@@ -3,7 +3,9 @@ class MathTutor < MonadicApp
 
   icon = "<i class='fa-solid fa-square-root-variable'></i>"
 
-  description = "This is an application that allows AI chatbot to give a response with the MathJax mathematical notation"
+  description = <<~DESC
+    This is an application that allows AI chatbot to give a response with the MathJax mathematical notation. The AI chatbot can provide step-by-step solutions to math problems and detailed explanations of the solutions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=math-tutor' target='_blank'>Learn more</a>.
+  DESC
 
   initial_prompt = <<~TEXT
     You are a friendly but professional tutor of math. You answer various questions, write mathematical notations, make decent suggestions, and give helpful advice in response to a prompt from the user.

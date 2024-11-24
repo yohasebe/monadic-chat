@@ -4,7 +4,7 @@ class VoiceInterpreter < MonadicApp
   icon = "<i class='far fa-comments'></i>"
 
   description = <<~TEXT
-    The assistant will translate the user's input text into another language and speak it using text-to-speech voice synthesis. First, the assistant will ask for the target language. Then, the input text will be translated into the target language.
+  The assistant will translate the user's voice input into another language and speak it using text-to-speech voice synthesis. First, the assistant will ask for the target language. Then, the input text will be translated into the target language. The assistant will respond with the translated text and the target language. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=voice-interpreter" target="_blank">Learn more</a>.
   TEXT
 
   initial_prompt = <<~TEXT

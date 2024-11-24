@@ -4,7 +4,7 @@ class PDFNavigator < MonadicApp
   icon = "<i class='fas fa-file-pdf'></i>"
 
   description = <<~TEXT
-    This is an application that reads PDF files, and the assistant answers the user's questions based on their contents. First, click on the "Upload PDF" button and specify the file. The content of the file will be divided into segments and the text embedding will be calculated for each segment. When input is received from the user, the text segment closest to the text embedding value of the input text is given to GPT along with the user's input value, and an answer is generated based on that content.
+  This is an application that reads PDF files, and the assistant answers the user's questions based on their contents. Click on the "Upload PDF" button and specify the file. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=pdf-navigator' target='_blank'>Learn more</a>.
   TEXT
 
   initial_prompt = <<~TEXT

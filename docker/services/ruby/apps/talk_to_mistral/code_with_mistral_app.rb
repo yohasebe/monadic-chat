@@ -5,7 +5,9 @@ class CodeWithMistral < MonadicApp
 
   icon = "<i class='fa-solid fa-m'></i>"
 
-  description = "This is an application that allows you to run Python code with Mistral AI"
+  description =<<~DESC
+    This is an application that allows you to run Python code with Mistral AI. The AI model can execute Python code, install libraries, and fetch text from various file formats. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=mistral" target="_blank">Learn more</a>.
+  DESC
 
   initial_prompt = <<~TEXT
     You are an assistant designed to help users write and run code and visualize data upon their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.

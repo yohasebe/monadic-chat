@@ -19,6 +19,24 @@
 
 </details>
 
+### Chat Plus
+
+![Chat app icon](/assets/icons/chat.png ':size=40')
+
+Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの回答の背後で下記の情報を保持し、随時更新します。
+
+- reasoning: 回答の作成における動機づけと根拠など
+- topics: ここまでの会話で取り上げられたトピック
+- people: 会話に関連する人物
+- notes: 会話で取り上げられた重要なポイント
+
+<details>
+<summary>chat_plus_app.rb</summary>
+
+[chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/chat_plus/chat_plus_app.rb ':include :type=code')
+
+</details>
+
 ### Voice Chat
 
 ![Voice Chat app icon](/assets/icons/voice-chat.png ':size=40')

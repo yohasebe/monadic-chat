@@ -4,7 +4,7 @@ class Translate < MonadicApp
   icon = "<i class='fas fa-language'></i>"
 
   description = <<~TEXT
-  The assistant will translate the user's input text into another language. First, the assistant will ask for the target language. Then, the input text will be translated into the target language. If you want the assistant to use a specific translation, please put parentheses after the relevant part of the input text and specify the translation in the parentheses. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=translate" target="_blank">Learn more</a>.
+  The assistant will translate the user's input text into another language. First, the assistant will ask for the target language. Then, the input text will be translated into the target language. If you want the assistant to use a specific translation, please put parentheses after the relevant part of the input text and specify the translation in the parentheses. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
   TEXT
 
   initial_prompt = <<~TEXT

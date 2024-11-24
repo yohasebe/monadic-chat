@@ -4,7 +4,7 @@ class MusicComposer < MonadicApp
   icon = "<i class='fas fa-music'></i>"
 
   description = <<~TEXT
-  This is an app that writes sheet music and plays it in Midi. Specify the instrument you want to use and the genre or style of music. The app will generate music scores in ABC music notation. [experimental] <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=music-composer" target="_blank">Learn more</a>.
+  This is an app that writes sheet music and plays it in Midi. Specify the instrument you want to use and the genre or style of music. The app will generate music scores in ABC music notation. [experimental] <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=music-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>.
   TEXT
 
   initial_prompt = <<~TEXT

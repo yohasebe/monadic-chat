@@ -40,13 +40,6 @@ Chat with Claude is an application that accesses the Anthropic Claude API to ans
 
 </details>
 
-<details>
-<summary>jupyter_with_claude_app.rb</summary>
-
-[jupyter_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
-
-</details>
-
 ## Cohere
 
 ![Cohere apps icon](/assets/icons/c.png ':size=40')

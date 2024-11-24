@@ -4,7 +4,7 @@ class ContentReader < MonadicApp
   icon = "<i class='fab fa-leanpub'></i>"
 
   description = <<~TEXT
-    This application features an AI chatbot designed to examine and elucidate the contents of any imported file or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users can easily upload files or URLs encompassing a wide array of text data, including programming code. When URLs are mentioned in your prompt messages, the app automatically retrieves the content, seamlessly integrating it into the conversation with GPT."
+  This application features an AI chatbot designed to examine and elucidate the contents of any imported file or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users can easily upload files or URLs encompassing a wide array of text data, including programming code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=content-reader" target="_blank">Learn more</a>.
   TEXT
 
   initial_prompt = <<~TEXT

@@ -19,6 +19,24 @@ This is a standard chat application. The AI responds to the text input by the us
 
 </details>
 
+### Chat Plus
+
+![Chat Plus app icon](/assets/icons/chat-plus.png ':size=40')
+
+This is a chat application that is "monadic" and has additional features compared to the standard chat application. The AI responds to the user's text input and while doing so, it also provides additional information as follows:
+
+- reasoning: The reasoning and thought process behind its response.
+- topics: The list of topics discussed in the conversation so far.
+- people: The list of people mentioned in the conversation so far.
+- notes: The list of notes that should be remembered during the conversation.
+
+<details>
+<summary>chat_plus_app.rb</summary>
+
+[chat_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/chat_plus/chat_plus_app.rb ':include :type=code')
+
+</details>
+
 ### Voice Chat
 
 ![Voice Chat app icon](/assets/icons/voice-chat.png ':size=40')
@@ -57,7 +75,7 @@ This is basically the same as Chat, but for questions about events that occurred
 
 This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
 
-!> **Warning:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
+?> Caution: LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
 
 <details>
 <summary>math_tutor_app.rb</summary>

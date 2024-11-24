@@ -509,10 +509,20 @@ $(function () {
     const $main = $("#main");
     const scrollTop = $main.scrollTop();
     const scrollHeight = $main.prop("scrollHeight");
-    const height = $main.height();
+    const clientHeight = $main.height();
 
-    backToTop.css("opacity", scrollTop > 200 ? "0.5" : "0.0");
-    backToBottom.css("opacity", scrollTop < scrollHeight - height - 200 ? "0.5" : "0.0");
+    // Check if content is actually scrollable
+    const isScrollable = scrollHeight > clientHeight;
+
+    // Only show buttons if content is scrollable
+    if (isScrollable) {
+      $("#back_to_top").css("opacity", scrollTop > 200 ? "0.5" : "0.0");
+      $("#back_to_bottom").css("opacity", 
+        scrollTop < scrollHeight - clientHeight - 200 ? "0.5" : "0.0");
+    } else {
+      // Hide both buttons if content is not scrollable
+      $("#back_to_top, #back_to_bottom").css("opacity", "0.0");
+    }
   }
 
   backToTop.click(function (e) {

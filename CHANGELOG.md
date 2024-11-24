@@ -1,6 +1,6 @@
 - [Nov, 2024] 0.9.21
   - `pysetup.sh` extra installation script supported
-  - Jupyter Notebook app usability improved
+  - Jupyter Notebook apps (for GPT and Claude) improved
   - Streaming supported for OpenAI's o1 models
   - CJK font issue on code apps addressed
   - Syntax highlighting theme option added

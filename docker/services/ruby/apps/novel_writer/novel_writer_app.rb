@@ -4,7 +4,7 @@ class NovelWriter < MonadicApp
   icon = "<i class='fas fa-book'></i>"
 
   description = <<~TEXT
-    Craft a novel with engaging characters, vivid descriptions, and compelling plots. Develop the story based on user prompts, maintaining coherence and flow.
+  Craft a novel with engaging characters, vivid descriptions, and compelling plots. Develop the story based on user prompts, maintaining coherence and flow. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=novel-writer" target="_blank">Learn more</a>.
   TEXT
 
   prompt_suffix = <<~TEXT

@@ -21,21 +21,6 @@ If you want to install additional programs and libraries, you can do one of the 
 
 To install additional libraries in the Python container, add an installation script to `pysetup.sh`. `pysetup.sh` is automatically created in the shared folder during the Monadic Chat build process. By adding an installation script, the script is executed at the end of the `Dockerfile` during the Monadic Chat build process, and the library is installed. The following are examples of scripts.
 
-### Installing GraphViz and `pydotplus` Module
-
-```sh
-# Install graphviz
-apt-get update && apt-get install -y --no-install-recommends \
-    graphviz \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-# Install pydotplus
-pip install --no-cache-dir --default-timeout=1000 \
-    graphviz \
-    pydotplus
-```
-
 ### Installing Natural Language Processing Libraries
 
 ```sh

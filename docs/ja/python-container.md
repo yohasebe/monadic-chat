@@ -22,21 +22,6 @@ Monadic Chat では、Python コンテナを使用して Python のコードを�
 Python コンテナに追加のライブラリをインストールする場合、`pysetup.sh` にインストールスクリプトを追加してください。`pysetup.sh` は Monadic Chat のビルド時に自動的に共有フォルダい内に作成されます。インストールスクリプトを追加して、Monadic Chatのメニュー項目から `Rebuild` を実行すると、上記の`Dockerfile`の最後に追加されたスクリプトが実行され、ライブラリがインストールされます。スクリプトの例を以下に示します。
 
 
-### GraphViz と pydotplus モジュールのインストール
-
-```sh
-# Install graphviz
-apt-get update && apt-get install -y --no-install-recommends \
-    graphviz \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-# Install pydotplus
-pip install --no-cache-dir --default-timeout=1000 \
-    graphviz \
-    pydotplus
-```
-
 ### 自然言語処理ライブラリのインストール
 
 ```sh

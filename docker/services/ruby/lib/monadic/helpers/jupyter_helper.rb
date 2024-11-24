@@ -1,7 +1,38 @@
 module MonadicHelper
-  def add_jupyter_cells(filename: "", cells: "")
-    # pp filename
-    # pp cells
+
+  def unescape(text)
+    text.gsub(/\\n/) { "\n" }
+      .gsub!(/\\'/) { "'" }
+      .gsub!(/\\"/) { '"' }
+      .gsub!(/\\\\/) { "\\" }
+  end
+
+  def add_jupyter_cells(filename: "", cells: "", escaped: false, retrial: false)
+    original_cells = cells.dup
+
+    # f = File.open("check.txt", "a")
+    # f.write cells.is_a?(Array).to_s + "\n"
+    # f.write cells.to_s + "\n\n"
+    # f.close
+
+    # remove escape characters from the cells
+    if escaped
+      if cells.is_a?(Array)
+        cells.each do |cell|
+          if cell.is_a?(Hash)
+            begin
+              content = cell["content"] || cell[:content]
+              content = unescape(content)
+              cell["content"] = content
+            rescue StandardError
+              cell["content"] = content
+            end
+          else
+            cell = unescape(cell)
+          end
+        end
+      end
+    end
 
     return "Error: Filename is required." if filename == ""
     return "Error: Proper cell data is required; Probably the structure is ill-formated." if cells == ""
@@ -9,7 +40,14 @@ module MonadicHelper
     begin
       cells_in_json = cells.to_json
     rescue StandardError => e
-      return "Error: The cells data could not be converted to JSON. #{e.message}"
+      unless retrial
+        return add_jupyter_cells(filename: filename,
+                                 cells: original_cells,
+                                 escaped: !escaped,
+                                 retrial: true)
+      else
+        return "Error: The cells data could not be converted to JSON. #{e.message}"
+      end
     end
 
     tempfile = Time.now.to_i.to_s

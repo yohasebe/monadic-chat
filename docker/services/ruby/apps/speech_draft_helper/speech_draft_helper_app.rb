@@ -4,7 +4,7 @@ class SpeechDraftHelper < MonadicApp
   icon = "<i class='fas fa-user-tie'></i>"
 
   description = <<~TEXT
-  This app allows the user to submit a speech draft in the form of just a text string, a Word file, or a PDF file. The app will then analyze it and return a revised version. The app will also provide suggestions for improvement and tips on how to make the speech more engaging and effective if the user needs them. It can also provide an mp3 file of the speech. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=speech-draft-helper' target='_blank'>Learn more</a>.
+  This app allows the user to submit a speech draft in the form of just a text string, a Word file, or a PDF file. The app will then analyze it and return a revised version. The app will also provide suggestions for improvement and tips on how to make the speech more engaging and effective if the user needs them. It can also provide an mp3 file of the speech. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=speech-draft-helper' target='_blank'><i class="fa-solid fa-circle-info"></i></a>.
   TEXT
 
   initial_prompt = <<~TEXT

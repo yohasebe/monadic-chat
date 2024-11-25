@@ -28,8 +28,17 @@ Monadic Chat Consoleを終了します。
 
 ![Action Menu](/assets/images/action-menu.png ':size=150')
 
-**Rebuild** <br />
-Monadic ChatのDockerイメージおよびコンテナを再構築します。
+**Rebuild All** <br />
+Monadic ChatのすべてのDockerイメージおよびコンテナを再構築します。
+
+**Rebuild Ruby Container** <br />
+Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を再構築します。
+
+**Rebuild Python Container** <br />
+AIエージェントが利用するDockerイメージおよびコンテナ（`monadic-chat-python-container`）を再構築します。
+
+**Rebuild User Containers** <br />
+ユーザーが定義したDockerイメージおよびコンテナを再構築します。
 
 **Uninstall Images and Containers** <br />
 Monadic ChatのDockerイメージおよびコンテナを削除します。

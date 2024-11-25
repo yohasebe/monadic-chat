@@ -346,3 +346,12 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 </details>
 
+The above is a Jupyter Notebook app using OpenAI's model. A Jupyter Notebook app using Anthropic's Claude model is also available.
+
+<details>
+
+<summary>jupyter_with_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
+
+</details>

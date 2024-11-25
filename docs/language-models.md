@@ -24,7 +24,7 @@ ANTHROPIC_API_KEY=api_key
 
 ?> For apps using Anthropic Claude's Sonnet series models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [PDF recognition](./message-input?id=uploading-pdfs))
 
-Chat with Claude is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code with Claude assists in creating program code. Claude (Code Interpreter) integrates with JupyterLab to actually execute program code.
+Chat with Claude is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code with Claude assists in creating program code. Claude (Code Interpreter) integrates with JupyterLab to actually execute program code. Jupyter with Claude assists in writing and executing Jupyter Notebook cells.
 
 <details>
 <summary>chat_with_claude_app.rb</summary>
@@ -37,6 +37,14 @@ Chat with Claude is an application that accesses the Anthropic Claude API to ans
 <summary>code_with_claude_app.rb</summary>
 
 [code_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_with_claude_app.rb ':include :type=code')
+
+</details>
+
+<details>
+
+<summary>jupyter_with_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
 
 </details>
 

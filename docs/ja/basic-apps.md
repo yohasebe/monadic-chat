@@ -347,3 +347,14 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 ![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
 
 </details>
+
+上記はOpenAIのモデルを使用したJupyter Notebookアプリですが、Anthropic のClaudeモデルを使用したJupyter Notebookアプリも利用可能です。
+
+
+<details>
+
+<summary>jupyter_with_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
+
+</details>

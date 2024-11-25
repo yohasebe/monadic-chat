@@ -64,7 +64,7 @@ Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート
 **OPENAI_API_KEY** （必須）<br />
 OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、Whisper 音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
 
-**SYNTAX HILIGHTING THEME**<br />
+**Syntax Highlighting Theme**<br />
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
 
 **VISION_MODEL**<br />

@@ -15,7 +15,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Nov, 2024] 0.9.21
+- [Nov, 2024] 0.9.22
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved
   - Streaming supported for OpenAI's o1 models

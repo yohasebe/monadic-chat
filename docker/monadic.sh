@@ -9,6 +9,7 @@ export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
 RETRY_COUNT=24
+DOCKER_CHECK_INTERVAL=2
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")

@@ -1,6 +1,6 @@
 # Language Models
 
-## OpenAI
+## OpenAI Models
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, you must set an OpenAI API key, even if the model you primarily want to use for chat isn't an OpenAI model.  These other features rely on OpenAI services. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
 
@@ -12,7 +12,7 @@ For apps using OpenAI's language models, refer to the [Basic Apps](/basic-apps.m
 
 ?> For apps using OpenAI's GPT-4o series and GPT-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
 
-## Anthropic
+## Anthropic Models
 
 ![Anthropic apps icon](/assets/icons/a.png ':size=40')
 
@@ -48,7 +48,7 @@ Chat with Claude is an application that accesses the Anthropic Claude API to ans
 
 </details>
 
-## Cohere
+## Cohere Models
 
 ![Cohere apps icon](/assets/icons/c.png ':size=40')
 
@@ -75,7 +75,7 @@ Chat with Command R is an application that accesses the Cohere API to answer que
 
 </details>
 
-## Google
+## Google Models
 
 ![Google apps icon](/assets/icons/google.png ':size=40')
 
@@ -94,7 +94,7 @@ Chat with Gemini is an application that accesses the Google Gemini API to answer
 
 </details>
 
-## Mistral
+## Mistral Models
 
 ![Mistral apps icon](/assets/icons/m.png ':size=40')
 
@@ -121,7 +121,7 @@ Chat with Mistral is an application that accesses the Mistral AI API to answer q
 </details>
 
 
-## Ollama
+## Ollama Models
 
 ![Ollama apps icon](/assets/icons/ollama.png ':size=40')
 

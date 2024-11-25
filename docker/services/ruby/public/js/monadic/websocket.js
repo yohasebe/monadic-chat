@@ -5,6 +5,8 @@
 let ws = connect_websocket();
 let verified = false;
 let model_options;
+let initialLoadComplete = false; // Flag to track initial load
+
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -431,10 +433,18 @@ function connect_websocket(callback) {
       audio.src = URL.createObjectURL(mediaSource);
     }
 
+    if (!verified) {
+      setAlert("<i class='fa-solid fa-bolt'></i> Verifying token ...", "warning");
+      ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
+    }
+
     // check verified at a regular interval
     let verificationCheckTimer = setInterval(function () {
       if (verified) {
-        ws.send(JSON.stringify({ "message": "LOAD" }));
+        if (!initialLoadComplete) {  // Only send LOAD on initial connection
+          ws.send(JSON.stringify({ "message": "LOAD" }));
+          initialLoadComplete = true; // Set the flag after the initial load
+        }
         startPing();
         if (callback) {
           callback(ws);
@@ -792,7 +802,13 @@ function connect_websocket(callback) {
       }
       case "past_messages": {
         messages.length = 0;
+        $("#discourse").empty();
+
         data["content"].forEach((msg, index) => {
+          if (mids.has(msg["mid"])) {
+            return;
+          }
+
           messages.push(msg);
 
           if (index === 0 && msg["role"] === "system") {
@@ -855,6 +871,8 @@ function connect_websocket(callback) {
               break;
             }
           }
+
+          mids.add(msg["mid"]);
         });
         setStats(formatInfo(data["content"]), "info");
 
@@ -864,6 +882,8 @@ function connect_websocket(callback) {
           $("#start-label").text("Start Session");
         }
 
+        // After loading past messages, set initialLoadComplete to true
+        initialLoadComplete = true;
         break;
       }
       case "message": {
@@ -1011,6 +1031,7 @@ function connect_websocket(callback) {
 
   ws.onclose = function (_e) {
     // console.log(`Socket is closed. Reconnect will be attempted in ${reconnectDelay} second.`, e.reason);
+    initialLoadComplete = false;
     reconnect_websocket(ws);
   }
 
@@ -1026,23 +1047,19 @@ function connect_websocket(callback) {
 function reconnect_websocket(ws, callback) {
   switch (ws.readyState) {
     case WebSocket.CLOSED:
-      // console.log('WebSocket is closed.');
       ws = connect_websocket(callback);
       break;
     case WebSocket.CLOSING:
-      // console.log('WebSocket is closing.');
       setTimeout(() => {
         reconnect_websocket(ws, callback);
       }, reconnectDelay);
       break;
     case WebSocket.CONNECTING:
-      // console.log('WebSocket is connecting.');
       setTimeout(() => {
         reconnect_websocket(ws, callback);
-      }, reconnectDelay); // Introduce a delay here
+      }, reconnectDelay);
       break;
     case WebSocket.OPEN:
-      // console.log('WebSocket is open.');
       if (callback) {
         callback(ws);
       }
@@ -1050,3 +1067,15 @@ function reconnect_websocket(ws, callback) {
   }
 }
 
+function handleVisibilityChange() {
+  if (!document.hidden) {
+    if (ws.readyState === WebSocket.CLOSED) {
+      ws = connect_websocket(() => {
+        // 再接続後に過去のメッセージを再取得
+        ws.send(JSON.stringify({ message: "LOAD" }));
+      });
+    }
+  }
+}
+
+document.addEventListener('visibilitychange', handleVisibilityChange);

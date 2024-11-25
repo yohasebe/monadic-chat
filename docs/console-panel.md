@@ -22,7 +22,13 @@
 
 ![Action Menu](/assets/images/action-menu.png ':size=150')
 
-**Rebuild** Rebuild the Docker images and containers for Monadic Chat.
+**Rebuild All** Rebuild all Docker images and containers for Monadic Chat.
+
+**Rebuild Ruby Container** Rebuild the Docker image and container (`monadic-chat-ruby-container`) that powers Monadic Chat.
+
+**Rebuild Python Container** Rebuild the Docker image and container (`monadic-chat-python-container`) used by the AI agents.
+
+**Rebuild User Containers** Rebuild the Docker images and containers defined by the user.
 
 **Uninstall Images and Containers** Remove the Docker images and containers for Monadic Chat.
 

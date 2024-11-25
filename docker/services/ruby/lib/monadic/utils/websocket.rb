@@ -188,17 +188,28 @@ module WebSocketHelper
 
           aiu_buffer = []
 
-          reversed_messages = session[:messages].map do |m|
-            m["role"] = m["role"] == "assistant" ? "user" : "assistant"
+          reversed_messages = []
+
+          session[:messages].each do |m|
+            r = m.dup
+            case m["role"]
+            when "assistant"
+              r["role"] = "user"
+            when "user"
+              r["role"] = "assistant"
+            when "system"
+              next
+            end
+
             if obj["contents"]["params"]["monadic"].to_s == "true"
               begin
-                parsed = JSON.parse(m["text"])
-                m["text"] = parsed["message"] || parsed["response"]
+                parsed = JSON.parse(r["text"])
+                r["text"] = parsed["message"] || parsed["response"]
               rescue JSON::ParserError
                 # do nothing
               end
             end
-            m
+            reversed_messages << r
           end
 
           # copy obj["contents"]["params"] to parameters_modified
@@ -219,6 +230,15 @@ module WebSocketHelper
 
           mini_session[:parameters]["initial_prompt"] = mini_session[:parameters]["ai_user_initial_prompt"]
           mini_session[:parameters]["monadic"] = false
+          mini_session[:parameters]["temperature"] = 0.0
+          mini_session[:parameters]["presence_penalty"] = 1.0
+          mini_session[:parameters]["frequency_penalty"] = 1.0
+          mini_session[:parameters].delete("prompt_suffix")
+
+          f = File.open("log.txt", "w")
+          f.write mini_session.to_json
+          f.close
+
 
           responses = api_request.call("user", mini_session) do |fragment|
             if fragment["type"] == "error"

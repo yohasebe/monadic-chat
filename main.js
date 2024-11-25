@@ -912,11 +912,47 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
-          label: 'Rebuild',
+          label: 'Rebuild All',
           click: () => {
             openMainWindow();
             dockerManager.runCommand('build',
               '[HTML]: <p>Building Monadic Chat . . .</p>',
+              'Building',
+              'Stopped',
+              false);
+          },
+          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+        },
+        {
+          label: 'Rebuild Ruby Container',
+          click: () => {
+            openMainWindow();
+            dockerManager.runCommand('build_ruby_container',
+              '[HTML]: <p>Rebuilding Ruby container . . .</p>',
+              'Building',
+              'Stopped',
+              false);
+          },
+          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+        },
+        {
+          label: 'Rebuild Python Container',
+          click: () => {
+            openMainWindow();
+            dockerManager.runCommand('build_python_container',
+              '[HTML]: <p>Rebuilding Python container . . .)</p>',
+              'Building',
+              'Stopped',
+              false);
+          },
+          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+        },
+        {
+          label: 'Rebuild User Containers',
+          click: () => {
+            openMainWindow();
+            dockerManager.runCommand('build_user_containers',
+              '[HTML]: <p>Building user containers . . .</p>',
               'Building',
               'Stopped',
               false);

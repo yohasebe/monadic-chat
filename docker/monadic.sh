@@ -115,14 +115,98 @@ start_docker() {
 
 }
 
+# Function to build Ruby container only
+build_ruby_container() {
+  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  
+  # Create directory if it doesn't exist
+  mkdir -p "$(dirname "${log_file}")"
+
+  cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+include:
+  - ${ROOT_DIR}/services/ruby/compose.yml
+
+networks:
+  monadic-chat-network:
+    driver: bridge
+
+volumes:
+  data:
+EOF
+
+  local compose="${HOME_DIR}/monadic/data/compose.yml"
+  
+  # Execute docker compose build and redirect output to log file
+  ${DOCKER} compose -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+}
+
+# Function to build Python container only
+build_python_container() {
+  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  
+  # Create directory if it doesn't exist
+  mkdir -p "$(dirname "${log_file}")"
+
+  cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+include:
+  - ${ROOT_DIR}/services/python/compose.yml
+
+networks:
+  monadic-chat-network:
+    driver: bridge
+
+volumes:
+  data:
+EOF
+
+  local compose="${HOME_DIR}/monadic/data/compose.yml"
+  # Execute docker compose build and redirect output to log file
+  ${DOCKER} compose -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+}
+
+# Function to build user containers
+build_user_containers() {
+  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
+  for i in "${!home_paths[@]}"; do
+    home_paths[$i]=$(eval echo "${home_paths[$i]}")
+  done
+
+  # Remove non-existent paths and empty strings
+  home_paths=($(printf "%s\n" "${home_paths[@]}" | sort -u | grep -v '^$'))
+
+  local compose_user=""
+  for home_path in "${home_paths[@]}"; do
+    compose_user+=$(find "${home_path}" -name "compose.yml" 2>/dev/null | awk '{print "  - "$1}')
+  done
+
+  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  
+  # Create directory if it doesn't exist
+  mkdir -p "$(dirname "${log_file}")"
+
+  cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+include:
+${compose_user}
+
+networks:
+  monadic-chat-network:
+    driver: bridge
+
+volumes:
+  data:
+EOF
+
+  local compose="${HOME_DIR}/monadic/data/compose.yml"
+  # Execute docker compose build and redirect output to log file
+  ${DOCKER} compose -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+}
+
 # Function to build Docker Compose
 build_docker_compose() {
   set_docker_compose
   remove_containers
   
   # Create timestamp for log file
-  local timestamp=$(date +%Y%m%d)
-  # local log_file="${HOME_DIR}/monadic/data/docker_build_${timestamp}.log"
   local log_file="${HOME_DIR}/monadic/data/docker_build.log"
   
   # Create directory if it doesn't exist
@@ -375,6 +459,60 @@ import_db() {
 
 # Parse the user command
 case "$1" in
+build_ruby_container)
+  ensure_data_dir &&
+
+  while ! ${DOCKER} info > /dev/null 2>&1; do
+    sleep ${DOCKER_CHECK_INTERVAL}
+  done
+
+  build_ruby_container
+
+  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
+  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
+
+  if ${DOCKER} images | grep -q "monadic-chat"; then
+    echo "[HTML]: <p>Ruby container has been built successfully!</p><hr />"
+  else
+  echo "[HTML]: <p>Ruby container failed to build.</p><p>Please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  fi
+  ;;
+build_python_container)
+  ensure_data_dir &&
+
+  while ! ${DOCKER} info > /dev/null 2>&1; do
+    sleep ${DOCKER_CHECK_INTERVAL}
+  done
+
+  build_python_container
+
+  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
+  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
+
+  if ${DOCKER} images | grep -q "monadic-chat"; then
+    echo "[HTML]: <p>Python container has been built successfully!</p><hr />"
+  else
+  echo "[HTML]: <p>Python container failed to build.</p><p>Please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  fi
+  ;;
+build_user_containers)
+  ensure_data_dir &&
+
+  while ! ${DOCKER} info > /dev/null 2>&1; do
+    sleep ${DOCKER_CHECK_INTERVAL}
+  done
+
+  build_user_containers
+
+  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
+  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
+
+  if ${DOCKER} images | grep -q "monadic-chat"; then
+    echo "[HTML]: <p>User containers have been built successfully!</p><hr />"
+  else
+  echo "[HTML]: <p>User containers failed to build.</p><p>Please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  fi
+  ;;
 build)
   ensure_data_dir &&
 

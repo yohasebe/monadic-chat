@@ -1,6 +1,6 @@
 # 言語モデル
 
-## OpenAI
+## OpenAI Models
 
 Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのため（チャットで使いたいモデルがOpenAIのモデルでない場合も）必ずOpenAIのAPIキーを設定する必要があります。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -12,7 +12,7 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 
 ?> OpenAI の GPT-4o 系列および GPT-4o-mini 系列のモデルを用いたアプリでは、"Predicted Outputs" の機能が利用可能です。プロンプトの中で `__DATA__` をセパレーターとして、AI エージェントへの指示と、AI エージェントに修正・加工してもらいたいデータを区別して示すことで、AIからのレスポンスを高速化するとともにトークン数を削減することができます（参考：OpenAI: [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)）。
 
-## Anthropic
+## Anthropic Models
 
 ![Anthropic apps icon](/assets/icons/a.png ':size=40')
 
@@ -48,7 +48,7 @@ Chat with Claudeは、Anthropic Claude APIにアクセスして、幅広いト�
 
 </details>
 
-## Cohere
+## Cohere Models
 
 ![Cohere apps icon](/assets/icons/c.png ':size=40')
 
@@ -74,7 +74,7 @@ Chat with Command Rは、Cohere APIにアクセスして、幅広いトピック
 
 </details>
 
-## Google
+## Google Models
 
 ![Google apps icon](/assets/icons/google.png ':size=40')
 
@@ -94,7 +94,7 @@ Chat with Geminiは、Google Gemini APIにアクセスして、幅広いトピ�
 
 </details>
 
-## Mistral
+## Mistral Models
 
 ![Mistral apps icon](/assets/icons/m.png ':size=40')
 
@@ -120,7 +120,7 @@ Chat with Mistralは、Mistral AI APIにアクセスして、幅広いトピッ�
 
 </details>
 
-## Ollama
+## Ollama Models
 
 ![Ollama apps icon](/assets/icons/ollama.png ':size=40')
 

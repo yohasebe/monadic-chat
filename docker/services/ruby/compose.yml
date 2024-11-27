@@ -25,8 +25,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:4567/"]
       interval: 5s
       retries: 10
-    # depends_on:
-    #   pgvector_service:
-    #     condition: service_healthy
-    #   python_service:
-    #     condition: service_started
+    depends_on:
+      pgvector_service:
+        condition: service_healthy
+      python_service:
+        condition: service_started

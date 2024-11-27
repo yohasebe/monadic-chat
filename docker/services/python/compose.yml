@@ -16,5 +16,5 @@ services:
     command: /bin/sh -c "cd /monadic/flask && gunicorn --timeout 300 -b 0.0.0.0:5070 app:app"
     networks:
       - monadic-chat-network
-    # depends_on:
-      # - selenium_service
+    depends_on:
+      - selenium_service

@@ -940,7 +940,7 @@ function updateApplicationMenu() {
           click: () => {
             openMainWindow();
             dockerManager.runCommand('build_python_container',
-              '[HTML]: <p>Rebuilding Python container . . .)</p>',
+              '[HTML]: <p>Rebuilding Python container . . .</p>',
               'Building',
               'Stopped',
               false);

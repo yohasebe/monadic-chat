@@ -123,7 +123,9 @@ build_ruby_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+  local compose_ruby="${HOME_DIR}/monadic/data/compose_ruby.yml"
+
+  cat <<EOF >"${compose_ruby}"
 include:
   - ${ROOT_DIR}/services/ruby/compose.yml
 
@@ -135,10 +137,12 @@ volumes:
   data:
 EOF
 
-  local compose="${HOME_DIR}/monadic/data/compose.yml"
-  
   # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+  ${DOCKER} compose -f "${compose_ruby}" build --no-cache 2>&1 | tee "${log_file}"
+  # Build Docker images and containers with cache
+  build_docker_compose
+  # remove compose_ruby.yml
+  rm -f "${compose_ruby}"
 }
 
 # Function to build Python container only
@@ -148,7 +152,9 @@ build_python_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+  local compose_python="${HOME_DIR}/monadic/data/compose_python.yml"
+
+  cat <<EOF >"${compose_python}"
 include:
   - ${ROOT_DIR}/services/python/compose.yml
 
@@ -160,9 +166,12 @@ volumes:
   data:
 EOF
 
-  local compose="${HOME_DIR}/monadic/data/compose.yml"
   # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+  ${DOCKER} compose -f "${compose_python}" build --no-cache 2>&1 | tee "${log_file}"
+  # Build Docker images and containers with cache
+  build_docker_compose
+  # remove compose_python.yml
+  rm -f "${compose_python}"
 }
 
 # Function to build user containers
@@ -185,7 +194,9 @@ build_user_containers() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+  local compose_user="${HOME_DIR}/monadic/data/compose_user.yml"
+
+  cat <<EOF >"${compose_user}"
 include:
 ${compose_user}
 
@@ -199,11 +210,22 @@ EOF
 
   local compose="${HOME_DIR}/monadic/data/compose.yml"
   # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+  ${DOCKER} compose -f "${compose_user}" build --no-cache 2>&1 | tee "${log_file}"
+  # Build Docker images and containers with cache
+  build_docker_compose
+  # remove compose_user.yml
+  rm -f "${compose_user}"
 }
 
-# Function to build Docker Compose
+# Function to build Docker Compose with the option whether to use cache or not
 build_docker_compose() {
+  # use or not use cache
+  if [[ "$1" == "no-cache" ]]; then
+    use_cache="--no-cache"
+  else
+    use_cache=""
+  fi
+
   set_docker_compose
   remove_containers
   
@@ -213,8 +235,8 @@ build_docker_compose() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
   
-  # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" build --no-cache 2>&1 | tee "${log_file}"
+  # Execute docker compose build and redirect output to log file with or without cache
+  ${DOCKER} compose -f "${COMPOSE_MAIN}" build ${use_cache} 2>&1 | tee "${log_file}"
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   remove_project_dangling_images
 }
@@ -253,7 +275,7 @@ start_docker_compose() {
     remove_containers
     echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
     ${DOCKER} compose -f "${COMPOSE_MAIN}" down
-    build_docker_compose
+    build_docker_compose "no-cache"
   elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>Monadic Chat image is up-to-date. Moving on . . .</p>"
   fi
@@ -261,7 +283,7 @@ start_docker_compose() {
   if ! ${DOCKER} images | grep -q "yohasebe/monadic-chat"; then
     echo "[IMAGE NOT FOUND]"
     echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
-    build_docker_compose
+    build_docker_compose "no-cache"
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
     fi
@@ -521,7 +543,7 @@ build)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
-  build_docker_compose
+  build_docker_compose "no-cache"
 
   rm -f "${ROOT_DIR}/services/ruby/setup.sh"
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"

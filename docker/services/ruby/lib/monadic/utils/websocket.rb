@@ -15,14 +15,14 @@ module WebSocketHelper
     tokenizer_available = true
 
     # gpt-4o => o200k_base;
-    model_name = /gpt-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
-
-    encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
+    # model_name = /gpt-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
+    # encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
+    encoding_name = "o200k_base"
 
     begin
       # Calculate token count for each message and mark as active if not already calculated
       messages.each do |m|
-        m["tokens"] ||= MonadicApp::TOKENIZER.count_tokens(m["text"], model_name)
+        m["tokens"] ||= MonadicApp::TOKENIZER.count_tokens(m["text"], encoding_name)
         m["active"] = true
       end
 

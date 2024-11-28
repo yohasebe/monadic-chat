@@ -39,7 +39,12 @@ def count_tokens():
     data = request.json
     text = data.get('text', '')
     model_name = data.get('model_name', default_model)
-    encoding_name = model_to_encoding_map[model_name]
+    encoding_name = data.get('encoding_name', "o200k_base")
+
+    # if enconding_name is not provided, get the encoding name from the model name
+    if encoding_name == "":
+        encoding_name = model_to_encoding_map[model_name]
+
     encoding = get_encoding(encoding_name)
     tokens = encoding.encode(text)
     return jsonify({'number_of_tokens': len(tokens)})

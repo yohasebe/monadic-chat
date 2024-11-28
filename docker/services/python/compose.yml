@@ -17,4 +17,5 @@ services:
     networks:
       - monadic-chat-network
     depends_on:
-      - selenium_service
+      selenium_service:
+        condition: service_started

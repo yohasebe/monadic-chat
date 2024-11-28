@@ -28,7 +28,7 @@ RUN pip install -U pip && \
     openpyxl python-docx python-pptx \
     opencv-python moviepy \
     requests beautifulsoup4 \
-    lxml pygraphviz pydot networkx \
+    lxml pygraphviz pydot networkx pyvis \
     svgwrite cairosvg tinycss cssselect pygal
 
 # Set up JupyterLab user settings

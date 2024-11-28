@@ -123,26 +123,11 @@ build_ruby_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  local compose_ruby="${HOME_DIR}/monadic/data/compose_ruby.yml"
+  # build Ruby image only
+  local dockerfile="${ROOT_DIR}/services/ruby/Dockerfile"
+  ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
 
-  cat <<EOF >"${compose_ruby}"
-include:
-  - ${ROOT_DIR}/services/ruby/compose.yml
-
-networks:
-  monadic-chat-network:
-    driver: bridge
-
-volumes:
-  data:
-EOF
-
-  # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${compose_ruby}" build --no-cache 2>&1 | tee "${log_file}"
-  # Build Docker images and containers with cache
   build_docker_compose
-  # remove compose_ruby.yml
-  rm -f "${compose_ruby}"
 }
 
 # Function to build Python container only
@@ -152,26 +137,11 @@ build_python_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  local compose_python="${HOME_DIR}/monadic/data/compose_python.yml"
+  # build Python image only
+  local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
+  ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/python" 2>&1 | tee "${log_file}"
 
-  cat <<EOF >"${compose_python}"
-include:
-  - ${ROOT_DIR}/services/python/compose.yml
-
-networks:
-  monadic-chat-network:
-    driver: bridge
-
-volumes:
-  data:
-EOF
-
-  # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${compose_python}" build --no-cache 2>&1 | tee "${log_file}"
-  # Build Docker images and containers with cache
   build_docker_compose
-  # remove compose_python.yml
-  rm -f "${compose_python}"
 }
 
 # Function to build user containers
@@ -209,10 +179,11 @@ volumes:
 EOF
 
   local compose="${HOME_DIR}/monadic/data/compose.yml"
+
+  start_monadic_chat_container
+
   # Execute docker compose build and redirect output to log file
   ${DOCKER} compose -f "${compose_user}" build --no-cache 2>&1 | tee "${log_file}"
-  # Build Docker images and containers with cache
-  build_docker_compose
   # remove compose_user.yml
   rm -f "${compose_user}"
 }

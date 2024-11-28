@@ -9,6 +9,8 @@ class JupyterNotebook < MonadicApp
 
   prompt_suffix = <<~TEXT
     The function `add_jupyter_cells` needs parameters `filename` and `cells`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly.
+
+    Check the environment using `check_environment` before adding cells to the Jupyter Notebook. 
   TEXT
 
   initial_prompt = <<~TEXT
@@ -32,7 +34,7 @@ class JupyterNotebook < MonadicApp
 
     Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type.
 
-    Before you suggest your Jupyter code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment.
+    Before you suggest your Jupyter code, check what libraries, tools, and models are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment.
 
     Also before adding the cells, read the whole notebook contents usint the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells.
 

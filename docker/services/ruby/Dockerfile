@@ -76,3 +76,4 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 COPY rbsetup.sh /monadic/rbsetup.sh
 RUN chmod +x /monadic/rbsetup.sh
 RUN /monadic/rbsetup.sh
+

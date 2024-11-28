@@ -54,3 +54,17 @@ apt-get update && apt-get install -y --no-install-recommends \
 pip install --no-cache-dir --default-timeout=1000 \
     mecab-python3
 ```
+
+### spaCy の日本語モデルのインストール
+
+```sh
+# Install Rust so that spaCy can handle Japanese
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+export PATH="$HOME/.cargo/bin:$PATH"
+pip install setuptools-rust
+pip install sudachipy==0.6.8
+
+# Download spaCy models
+python -m spacy download ja_core_news_md
+```

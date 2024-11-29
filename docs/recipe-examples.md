@@ -4,7 +4,7 @@
 
 ## Simple Apps
 
-For how to develop simple apps, refer to [Adding Simple Apps](/develop_apps.md#how-to-add-a-simple-app).
+For how to develop simple apps, refer to [Adding Simple Apps](./develop_apps.md#how-to-add-a-simple-app).
 
 <details open>
 <summary>Recipe Example (math_tutor_app.rb)</summary>
@@ -15,7 +15,7 @@ For how to develop simple apps, refer to [Adding Simple Apps](/develop_apps.md#h
 
 ## Apps with Function Definitions
 
-For how to use functions and tools in an app, refer to [Calling Functions in the App](/develop_apps.md#calling-functions-in-the-app).
+For how to use functions and tools in an app, refer to [Calling Functions in the App](./develop_apps.md#calling-functions-in-the-app).
 
 <details open>
 <summary>Recipe Example (wikipedia_app.rb)</summary>
@@ -33,7 +33,7 @@ For how to use functions and tools in an app, refer to [Calling Functions in the
 
 ## Apps with Output Format Specification
 
-Monadic Chat has a special mode (called `monadic` mode) for outputting in JSON format. For details, refer to [Monadic Mode](/monadic-mode.md).
+Monadic Chat has a special mode (called `monadic` mode) for outputting in JSON format. For details, refer to [Monadic Mode](./monadic-mode.md).
 
 For some OpenAI models (such as `gpt-4o`), you can specify `response_format` to ensure that the response is in JSON format. For the specification method, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
 
@@ -46,7 +46,7 @@ For some OpenAI models (such as `gpt-4o`), you can specify `response_format` to 
 
 ## AI Agents Using LLMs within Apps
 
-This section provides examples of apps where the AI agent accesses the OpenAI language model within the functions and tools it uses. Refer to [Using LLM in Functions and Tools](/develop_apps.md#using-llm-in-functions-and-tools).
+This section provides examples of apps where the AI agent accesses the OpenAI language model within the functions and tools it uses. Refer to [Using LLM in Functions and Tools](./develop_apps.md#using-llm-in-functions-and-tools).
 
 <details open>
 <summary>Recipe Example (second_opinion_app.rb)</summary>
@@ -64,4 +64,4 @@ This section provides examples of apps where the AI agent accesses the OpenAI la
 
 ## Apps Using a Custom Container
 
-Refer to the section on [Adding Docker Containers](/adding-containers.md) for information on how to create and use custom containers with your apps. This allows you to extend Monadic Chat's functionality by adding new services and tools.
+Refer to the section on [Adding Docker Containers](./adding-containers.md) for information on how to create and use custom containers with your apps. This allows you to extend Monadic Chat's functionality by adding new services and tools.

@@ -34,7 +34,7 @@
     - [ユーザー・インターフェイス](/ja/faq-user-interface.md)
     - [メディアファイルの送信](/ja/faq-media-files.md)
     - [音声インタラクション](/ja/faq-voice-interaction.md)
-    - [機能の追加](/ja/extra-features.md)
+    - [機能の追加](/ja/faq-extra-features.md)
 
 - [更新履歴](/ja/changelog.md)
 

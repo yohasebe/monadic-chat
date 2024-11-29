@@ -2,7 +2,7 @@
 
 Monadic Mode is a distinctive feature of Monadic Chat. In Monadic Mode, you can maintain and update the context of the conversation, referencing it as you chat.  This allows for more meaningful and coherent interactions with the AI agent.
 
-![Monadic Chat Architecture](/assets/images/monadic-messaging.svg ':size=200')
+![Monadic Chat Architecture](./assets/images/monadic-messaging.svg ':size=200')
 
 ## Basic Structure
 

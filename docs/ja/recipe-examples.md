@@ -4,7 +4,7 @@
 
 ## シンプルなアプリ
 
-シンプルなアプリを開発する方法については、[シンプルなアプリの追加方法](http://localhost:3000/#/ja/develop_apps?id=シンプルなアプリの追加方法)を参照してください。
+シンプルなアプリを開発する方法については、[シンプルなアプリの追加方法](./develop_apps?id=シンプルなアプリの追加方法)を参照してください。
 
 <details open=true>
 <summary>レシピ・ファイル例（math_tutor.rb）</summary>
@@ -15,7 +15,7 @@
 
 ## 関数・ツールの定義を含むアプリ
 
-アプリ内でAIエージェントに関数やツールを使用させる方法については、[関数・ツールの呼び出し](http://localhost:3000/#/ja/develop_apps?id=関数・ツールの呼び出し)を参照してください。
+アプリ内でAIエージェントに関数やツールを使用させる方法については、[関数・ツールの呼び出し](./develop_apps?id=関数・ツールの呼び出し)を参照してください。
 
 <details open=true>
 <summary>レシピ・ファイル例（wikipedia.rb）</summary>
@@ -33,7 +33,7 @@
 
 ## 出力形式の指定を含むアプリ
 
-Monadic ChatではJSON形式で出力する場合の特別なモード（`monadic`モード）があります。詳細については[Monadicモード](/ja/monadic-mode)も参照してください。
+Monadic ChatではJSON形式で出力する場合の特別なモード（`monadic`モード）があります。詳細については[Monadicモード](./monadic-mode)も参照してください。
 
 OpenAIの一部のモデル（`gpt-4o`など）では、レスポンスをJSON形式で行うこと確実にするために、`response_format`を指定することができます。指定方法については[OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs)を参照してください。
 
@@ -46,7 +46,7 @@ OpenAIの一部のモデル（`gpt-4o`など）では、レスポンスをJSON�
 
 ## AIエージェントがLLMを使用するアプリ
 
-AIエージェントに使わせる関数・ツールの中でOpenAIの言語モデルにアクセスするアプリの例です。[関数・ツール内でのLLMの使用](http://localhost:3000/#/ja/develop_apps?id=関数・ツール内でのLLMの使用)を参照してください。
+AIエージェントに使わせる関数・ツールの中でOpenAIの言語モデルにアクセスするアプリの例です。[関数・ツール内でのLLMの使用](./develop_apps?id=関数・ツール内でのLLMの使用)を参照してください。
 
 <details open=true>
 <summary>レシピ・ファイル例（second_opinion_app.rb）</summary>

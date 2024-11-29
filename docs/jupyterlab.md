@@ -6,11 +6,11 @@ Monadic Chat has a feature to launch JupyterLab. JupyterLab is an integrated dev
 
 Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab. JupyterLab can be accessed at `http://localhost:8889`.
 
-![Action menu](/assets/images/action-menu.png ':size=150')
+![Action menu](./assets/images/action-menu.png ':size=150')
 
 When JupyterLab is launched, it starts with `/monadic/data` as its home directory and current working directory. This allows you to access files in the shared folder within JupyterLab.
 
-![JupyterLab Terminal](/assets/images/jupyterlab-terminal.png ':size=600')
+![JupyterLab Terminal](./assets/images/jupyterlab-terminal.png ':size=600')
 
 ## Stopping JupyterLab
 

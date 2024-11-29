@@ -8,4 +8,4 @@
 
 **Q**: Python コンテナに新たなプログラムやライブラリを追加するにはどうすればいいですか？
 
-**A**: いくつかの方法がありますが、共有フォルダ内の `pysetup.sh` にインストールスクリプトを追加して、Monadic Chat の環境構築時にライブラリをインストールする方法が便利です。[ライブラリの追加](/ja/python-container?id=%e3%83%a9%e3%82%a4%e3%83%96%e3%83%a9%e3%83%aa%e3%81%ae%e8%bf%bd%e5%8a%a0) および [pysetup.sh の利用](/ja/python-container?id=pysetupsh-%e3%81%ae%e5%88%a9%e7%94%a8) を参照してください。
+**A**: いくつかの方法がありますが、共有フォルダ内の `pysetup.sh` にインストールスクリプトを追加して、Monadic Chat の環境構築時にライブラリをインストールする方法が便利です。[ライブラリの追加](./python-container?id=ライブラリの追加) および [pysetup.sh の利用](./python-container?id=pysetupsh-の利用) を参照してください。

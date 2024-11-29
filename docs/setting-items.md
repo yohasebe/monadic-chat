@@ -22,7 +22,7 @@ Specify the text of the system prompt.
 
 Specify the group name for grouping the app on the Base App selector on the web settings screen. When adding custom apps, it is recommended to specify some group name to distinguish them from the base apps.
 
-![](/assets/images/groups.png ':size=300')
+![](./assets/images/groups.png ':size=300')
 
 `model` (string)
 Specify the default model. If not specified, the default model provided by the included helper module (e.g., `gpt-4o-mini` for `OpenAIHelper`) is used.
@@ -70,7 +70,7 @@ Specify whether to enable rendering of mathematical expressions using [MathJax](
 Specify `true` when integrating with Jupyter Notebook (optimizes MathJax display).
 
 `monadic` (bool)
-Specify the app to run in Monadic mode. For Monadic mode, refer to [Monadic Mode](/monadic-mode.md).
+Specify the app to run in Monadic mode. For Monadic mode, refer to [Monadic Mode](./monadic-mode.md).
 
 `prompt_suffix` (string)
 Specify a text string to be added to every message from the user before sending it to the AI agent. This is useful for adding a reminder to the AI agent about highly important information (often specified in the system prompt) to ensure it is considered when preparing the response.

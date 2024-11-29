@@ -8,7 +8,7 @@ Enter a message in the text area and click the `Send` button to send the message
 
 ?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the web settings. These are enabled by default in the [Voice Chat](./basic-apps?id=voice-chat) app.
 
-?> The `Role` selector is used to select the role of the message. Normally, select `User`, but by selecting `Assistant` or `System`, you can add or modify the context of the chat. For more information, see the [FAQ](./faq).
+?> The `Role` selector is used to select the role of the message. Normally, select `User`, but by selecting `Assistant` or `System`, you can add or modify the context of the chat. For more information, see the [FAQ](./faq-user-interface).
 
 # Uploading Images
 

@@ -13,8 +13,8 @@ The standard Python container is built with the following Dockerfile.
 If you want to install additional programs and libraries, you can do one of the following:
 
 - Add an installation script to `pysetup.sh` in the shared folder to install the library during Monadic Chat environment setup (see the example below).
-- Refer to [Docker Container Access](/docker-access) to log in to the Python container and install the library after setting up the Monadic Chat environment.
-- Refer to [Adding Containers](/ja/adding-containers) to add a customized Python container.
+- Refer to [Docker Container Access](./docker-access) to log in to the Python container and install the library after setting up the Monadic Chat environment.
+- Refer to [Adding Containers](./adding-containers) to add a customized Python container.
 - Submit a request via [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues).
 
 ## Usage of `pysetup.sh`

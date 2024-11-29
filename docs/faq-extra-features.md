@@ -6,5 +6,5 @@
 
 **Q**: How can I add new programs or libraries to the Python container?
 
-**A**: There are several ways to do this, but it is convenient to add an installation script to the `pysetup.sh` in the shared folder to install libraries during the Monadic Chat environment setup. See [Adding Libraries](/python-container?id=adding-programs-and-libraries) and [Using pysetup.sh](/python-container?id=usage-of-pysetupsh) for more information.
+**A**: There are several ways to do this, but it is convenient to add an installation script to the `pysetup.sh` in the shared folder to install libraries during the Monadic Chat environment setup. See [Adding Libraries](./python-container?id=adding-programs-and-libraries) and [Using pysetup.sh](./python-container?id=usage-of-pysetupsh) for more information.
 

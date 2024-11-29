@@ -13,8 +13,8 @@ Monadic Chat では、Python コンテナを使用して Python のコードを�
 追加のライブラリをインストールする場合は、下記のいずれかを行なってください。
 
 - 共有フォルダの `pysetup.sh` にインストールスクリプトを追加して、Monadic Chat の環境構築時にライブラリをインストール（下記の例を参照）
-- [Dockerコンテナへのアクセス](/ja/docker-access)を参照して、Monadic Chat の環境構築後に Python コンテナにログインしてライブラリをインストール
-- [Dockerコンテナの追加](/ja/adding-containers)を参照して、カスタマイズした Python コンテナを追加
+- [Dockerコンテナへのアクセス](./docker-access)を参照して、Monadic Chat の環境構築後に Python コンテナにログインしてライブラリをインストール
+- [Dockerコンテナの追加](./adding-containers)を参照して、カスタマイズした Python コンテナを追加
 - [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues) でリクエストを送信
 
 ## `pysetup.sh` の利用

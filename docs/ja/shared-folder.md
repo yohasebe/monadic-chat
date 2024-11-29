@@ -4,7 +4,7 @@ Monadic Chatを最初に起動すると、`~/monadic/data`ディレクトリが�
 
 Monadic Chatコンソールの`Shared Folder`ボタンをクリックすると、OS標準のファイルマネージャが起動し、共有フォルダを開くことができます。
 
-![Monadic Chat Console](/assets/images/monadic-chat-console.png ':size=700')
+![Monadic Chat Console](./assets/images/monadic-chat-console.png ':size=700')
 
 このディレクトリにファイルを配置すると、Monadic ChatのDockerコンテナ内でそのファイルにアクセスできます。ローカルでの共有フォルダのパスは`~/monadic/data`ですが、各Dockerコンテナ内での共有フォルダのパスは、`/monadic/data`です。
 
@@ -37,7 +37,7 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 
 ## 共有フォルダ内の構成
 
-基本アプリ以外のアプリを開発したり追加したりするときには、共有フォルダ内で適切に必要なファイルやフォルダを配置する必要があります。以下は、共有フォルダ内に自動的に作成されるサブフォルダです。追加アプリの開発方法については、[追加アプリの開発](/ja/developing-apps.md)を参照してください。
+基本アプリ以外のアプリを開発したり追加したりするときには、共有フォルダ内で適切に必要なファイルやフォルダを配置する必要があります。以下は、共有フォルダ内に自動的に作成されるサブフォルダです。追加アプリの開発方法については、[追加アプリの開発](./developing-apps.md)を参照してください。
 
 **`apps`**
 

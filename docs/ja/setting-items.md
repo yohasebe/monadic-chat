@@ -27,7 +27,7 @@
 
 Web 設定画面の Base App セレクタ上でアプリをグループ化するためのグループ名を指定します。独自のアプリを追加する場合には、基本アプリと区別するために何らかのグループ名を指定することが推奨されます。
 
-![](/assets/images/groups.png ':size=300')
+![](./assets/images/groups.png ':size=300')
 
 `model` (string)
 
@@ -91,7 +91,7 @@ Jupyter Notebookと連携する場合に`true`を指定します（MathJaxの表
 
 `monadic` (bool)
 
-アプリをMonadicモードに指定します。Monadicモードについては[Monadicモード](/ja/monadic-mode)を参照してください。
+アプリをMonadicモードに指定します。Monadicモードについては[Monadicモード](./monadic-mode)を参照してください。
 
 `prompt_suffix` (string)
 

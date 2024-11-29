@@ -19,9 +19,9 @@
 
 **Q**: PDFの内容について AI エージェントに質問することはできますか？
 
-**A**: はい、いくつかのやり方があります。[`PDF Navigator`](./ja/basic-apps?id=pdf-navigator) アプリでは、提供された PDF の単語埋め込みを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](.ja/basic-apps?id=code-interpreter) や [`Content Reader`](.ja/basic-apps?id=content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
+**A**: はい、いくつかのやり方があります。[`PDF Navigator`](./basic-apps?id=pdf-navigator) アプリでは、提供された PDF の単語埋め込みを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](./basic-apps?id=code-interpreter) や [`Content Reader`](./basic-apps?id=content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 
 上記はいずれも OpenAIの GPT-4 系列モデルを使用しています。その他のモデルを使用する場合は、`Code` 対応のアプリ（`Anthropic Claude (Code)` など）の場合、`Code Interpreter` と同様の仕組みで PDF ファイルを読み込ませることができます。
 
-また、Anthropic Claude を用いたアプリでは、テキスト入力ボックスの下にある `Import Image/PDF` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。詳しくは [PDF のアップロード](./ja/message-input?id=pdf-のアップロード)を参照してください。
+また、Anthropic Claude を用いたアプリでは、テキスト入力ボックスの下にある `Import Image/PDF` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。詳しくは [PDF のアップロード](./message-input?id=pdf-のアップロード)を参照してください。
 

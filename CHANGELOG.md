@@ -1,4 +1,4 @@
-- [Nov, 2024] 0.9.23
+- [Nov, 2024] 0.9.22
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved

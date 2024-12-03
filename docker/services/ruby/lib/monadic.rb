@@ -136,6 +136,19 @@ def init_apps
     prompt_suffix = ""
     response_suffix = ""
 
+
+    if app.settings["sourcecode"]
+      system_prompt_suffix << <<~SYSPSUFFIX
+
+      When outputting the contents of a Markdown file, output it in the following format, not in a Markdown code block. This will ensure that the content is displayed correctly in the browser:
+
+      <div class="language-markdown highlighter-rouge”><pre class=“highlight”><code>
+      Markdown content here
+      </code></pre></div>
+
+      SYSPSUFFIX
+    end
+
     if app.settings["mathjax"]
       # the blank line at the beginning is important!
       system_prompt_suffix << <<~SYSPSUFFIX

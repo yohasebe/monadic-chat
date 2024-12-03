@@ -30,6 +30,7 @@ class CodingAssistant < MonadicApp
     initiate_from_assistant: true,
     image: true,
     pdf: false,
+    sourcecode: true,
     mathjax: false
   }
 end

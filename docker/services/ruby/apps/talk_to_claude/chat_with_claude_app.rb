@@ -28,6 +28,7 @@ class ChatWithClaude < MonadicApp
     initiate_from_assistant: false,
     toggle: true,
     image: true,
+    sourcecode: true,
     model: "claude-3-5-sonnet-20241022",
     models: [
       "claude-3-5-sonnet-20241022",

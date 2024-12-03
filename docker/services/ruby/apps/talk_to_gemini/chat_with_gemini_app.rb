@@ -32,6 +32,7 @@ class ChatWithGemini < MonadicApp
     initiate_from_assistant: false,
     image: true,
     models: GeminiHelper.list_models,
-    model: "gemini-1.5-flash"
+    model: "gemini-1.5-flash",
+    sourcecode: true
   }
 end

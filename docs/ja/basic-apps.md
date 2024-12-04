@@ -316,6 +316,17 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 </details>
 
+Anthropic のClaudeモデルを使用したCode Interpreterアプリも利用可能です。
+
+<details>
+
+<summary>jupyter_with_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
+
+</details>
+
+
 ### Coding Assistant
 
 ![Coding Assistant app icon](./assets/icons/coding-assistant.png ':size=40')
@@ -328,6 +339,16 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 <summary>coding_assistant_app.rb</summary>
 
 [coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
+
+</details>
+
+Anthropic のClaudeモデルを使用したCoding Assistantアプリも利用可能です。
+
+<details>
+
+<summary>jupyter_with_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
 
 </details>
 
@@ -348,8 +369,7 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 </details>
 
-上記はOpenAIのモデルを使用したJupyter Notebookアプリですが、Anthropic のClaudeモデルを使用したJupyter Notebookアプリも利用可能です。
-
+Anthropic のClaudeモデルを使用したJupyter Notebookアプリも利用可能です。
 
 <details>
 

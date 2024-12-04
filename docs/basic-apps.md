@@ -315,6 +315,16 @@ This application allows the AI to create and execute program code. The execution
 
 </details>
 
+A code interpreter app using Anthropic's Claude model is also available.
+
+<details>
+
+<summary>code_interpreter_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
+
+</details>
+
 ### Coding Assistant
 
 ![Coding Assistant app icon](./assets/icons/coding-assistant.png ':size=40')
@@ -327,6 +337,16 @@ This application is designed for writing computer program code. You can interact
 <summary>coding_assistant_app.rb</summary>
 
 [coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
+
+A coding assistant app using Anthropic's Claude model is also available.
+
+<details>
+
+<summary>coding_assistant_claude_app.rb</summary>
+
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
+
+</details>
 
 </details>
 
@@ -346,7 +366,7 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 </details>
 
-The above is a Jupyter Notebook app using OpenAI's model. A Jupyter Notebook app using Anthropic's Claude model is also available.
+A Jupyter Notebook app using Anthropic's Claude model is also available.
 
 <details>
 

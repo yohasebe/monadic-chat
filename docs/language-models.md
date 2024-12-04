@@ -49,9 +49,9 @@ Chat with Claude is an application that accesses the Anthropic Claude API to ans
 
 <details>
 
-<summary>jupyter_with_claude_app.rb</summary>
+<summary>jupyter_notebook_claude_app.rb</summary>
 
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
+![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
 
 </details>
 

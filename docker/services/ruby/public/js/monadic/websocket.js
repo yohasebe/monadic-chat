@@ -948,6 +948,7 @@ function connect_websocket(callback) {
             ws.send(JSON.stringify(ai_user_query));
           } else {
             $("#cancel_query").hide();
+            setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
           }
 
         } else if (data["content"]["role"] === "user") {
@@ -958,9 +959,17 @@ function connect_websocket(callback) {
           }
           // Use the appendCard helper function
           appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
+          $("#message").show();
+          $("#monadic-spinner").hide();
+          $("#cancel_query").hide();
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         } else if (data["content"]["role"] === "system") {
           // Use the appendCard helper function
           appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+          $("#message").show();
+          $("#monadic-spinner").hide();
+          $("#cancel_query").hide();
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         }
 
         $("#chat").html("");

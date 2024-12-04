@@ -693,3 +693,7 @@ legend {
 ::-webkit-scrollbar-track {
   background-color: #DCDCDC;
 }
+
+.language-markdown .highlight code {
+  white-space: pre-wrap;
+}

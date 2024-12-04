@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class JupyterWithClaude < MonadicApp
+class JupyterNotebookClaude < MonadicApp
   include ClaudeHelper
 
   icon = "<i class='fa-solid fa-a'></i>"
@@ -102,7 +102,7 @@ class JupyterWithClaude < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "Anthropic Claude (Jupyter)",
+    app_name: "Jupyter Notebook (Claude)",
     initiate_from_assistant: true,
     pdf: false,
     image: true,

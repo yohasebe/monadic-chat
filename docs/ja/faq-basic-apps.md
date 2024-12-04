@@ -1,4 +1,4 @@
-# FAQ: Particular Applications
+# FAQ: 基本アプリ
 
 **Q**: `Code Interpreter`アプリと`Coding Assistant`と`Jupyter Notebook`アプリの違いは何ですか？
 

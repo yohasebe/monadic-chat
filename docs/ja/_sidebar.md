@@ -32,7 +32,7 @@
 - **よくある質問**
     - [初期設定](/ja/faq-settings.md)
     - [ユーザー・インターフェイス](/ja/faq-user-interface.md)
-    - [基本アプリ](/ja/faq-particular-apps.md)
+    - [基本アプリ](/ja/faq-basic-apps.md)
     - [メディアファイルの送信](/ja/faq-media-files.md)
     - [音声インタラクション](/ja/faq-voice-interaction.md)
     - [機能の追加](/ja/faq-extra-features.md)

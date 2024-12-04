@@ -1,4 +1,4 @@
-# FAQ: Particular Applications
+# FAQ: Basic Applications
 
 **Q**: What is the difference between the `Code Interpreter` app and the `Coding Assistant` and `Jupyter Notebook` apps?
 

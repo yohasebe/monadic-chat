@@ -338,6 +338,8 @@ This application is designed for writing computer program code. You can interact
 
 [coding_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/coding_assistant/coding_assistant_app.rb ':include :type=code')
 
+</details>
+
 A coding assistant app using Anthropic's Claude model is also available.
 
 <details>
@@ -345,8 +347,6 @@ A coding assistant app using Anthropic's Claude model is also available.
 <summary>coding_assistant_claude_app.rb</summary>
 
 ![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
-
-</details>
 
 </details>
 

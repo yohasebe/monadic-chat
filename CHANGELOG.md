@@ -1,4 +1,5 @@
 - [Nov, 2024] 0.9.23
+  - Role selection issue fixed
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved

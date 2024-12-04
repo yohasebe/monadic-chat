@@ -27,20 +27,25 @@ ANTHROPIC_API_KEY=api_key
 Chat with Claudeは、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code with Claudeは、プログラム・コードの作成補助を行います。Jupyter with Claudeは、Jupyter Notebookのセルを記述・実行する補助を行います。
 
 <details>
-<summary>chat_with_claude_app.rb</summary>
+<summary>chat_claude_app.rb</summary>
 
-![chat_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/chat_with_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_with_claude_app.rb</summary>
-
-![code_with_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_with_claude_app.rb ':include :type=code')
+[chat_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/chat_claude_app.rb ':include :type=code')
 
 </details>
 
 <details>
+<summary>code_interpreter_claude_app.rb</summary>
+
+[code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>coding_assistant_claude_app.rb</summary>
+
+[code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
+
+</details>
 
 <summary>jupyter_with_claude_app.rb</summary>
 

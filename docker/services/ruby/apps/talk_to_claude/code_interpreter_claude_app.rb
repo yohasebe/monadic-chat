@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CodeWithClaude < MonadicApp
+class CodeInterpreterClaude < MonadicApp
   include ClaudeHelper
 
   icon = "<i class='fa-solid fa-a'></i>"
@@ -184,7 +184,7 @@ class CodeWithClaude < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "Anthropic Claude (Code)",
+    app_name: "Code Interpreter (Claude)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

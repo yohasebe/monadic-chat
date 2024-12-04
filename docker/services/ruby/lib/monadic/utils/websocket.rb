@@ -324,10 +324,13 @@ module WebSocketHelper
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => obj["role"],
                        "text" => text,
-                       "html" => markdown_to_html(text),
-                       "lang" => detect_language(text),
                        "active" => true }
           new_data["images"] = images if images
+          if obj["role"] == "assistant"
+            new_data["html"] = markdown_to_html(text)
+          else
+            new_data["html"] = text
+          end
 
           @channel.push({ "type" => "html", "content" => new_data }.to_json)
           session[:messages] << new_data

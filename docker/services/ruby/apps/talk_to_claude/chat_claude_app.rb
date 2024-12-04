@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ChatWithClaude < MonadicApp
+class ChatClaude < MonadicApp
   include ClaudeHelper
 
   icon = "<i class='fa-solid fa-a'></i>"
@@ -18,7 +18,7 @@ class ChatWithClaude < MonadicApp
   @settings = {
     group: "Anthropic",
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
-    app_name: "Anthropic Claude (Chat)",
+    app_name: "Chat (Claude)",
     context_size: 100,
     initial_prompt: initial_prompt,
     description: description,

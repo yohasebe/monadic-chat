@@ -10,6 +10,9 @@ Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 
 DEFAULT_PORT = 4567
 
+# kill all processs using 4567 port
+system("lsof -i:4567 | awk 'NR!=1 {print $2}' | xargs kill -9")
+
 PID_FILE = __dir__ + "/thin.pid"
 
 # Set the data directory $HOME/monadic/data

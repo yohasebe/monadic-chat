@@ -321,7 +321,7 @@ A code interpreter app using Anthropic's Claude model is also available.
 
 <summary>code_interpreter_claude_app.rb</summary>
 
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
+![code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
 
 </details>
 
@@ -346,7 +346,7 @@ A coding assistant app using Anthropic's Claude model is also available.
 
 <summary>coding_assistant_claude_app.rb</summary>
 
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
+![coding_asistant_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
 
 </details>
 
@@ -370,8 +370,8 @@ A Jupyter Notebook app using Anthropic's Claude model is also available.
 
 <details>
 
-<summary>jupyter_with_claude_app.rb</summary>
+<summary>jupyter_notebook_claude_app.rb</summary>
 
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_with_claude_app.rb ':include :type=code')
+![jupyter_notebook_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
 
 </details>

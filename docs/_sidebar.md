@@ -30,6 +30,7 @@
     - [Using Ollama](/ollama.md)
 
 - **Frequently Asked Questions**
+
     - [Setup and Settings](/faq-settings.md)
     - [User Interface](/faq-user-interface.md)
     - [Particular Applications](/faq-particular-apps.md)

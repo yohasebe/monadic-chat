@@ -140,7 +140,7 @@ def init_apps
     if app.settings["sourcecode"]
       system_prompt_suffix << <<~SYSPSUFFIX
 
-      When outputting the contents of a Markdown file, output it in the following format, not in a Markdown code block. This will ensure that the content is displayed correctly in the browser:
+      It is import to avoid nesting Markdown code blocks. When embedding the content of a Markdown  file within your response, use the following format. This will ensure that the content is displayed correctly in the browser. 
 
       <div class="language-markdown highlighter-rouge”><pre class=“highlight”><code>
       Markdown content here

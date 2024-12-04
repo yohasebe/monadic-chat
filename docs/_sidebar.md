@@ -33,7 +33,7 @@
 
     - [Setup and Settings](/faq-settings.md)
     - [User Interface](/faq-user-interface.md)
-    - [Particular Applications](/faq-particular-apps.md)
+    - [Basic Apps](/faq-basic-apps.md)
     - [Sending Media Files](/faq-media-files.md)
     - [Voice Interaction](/faq-voice-interaction.md)
     - [Adding New Features](/faq-extra-features.md)

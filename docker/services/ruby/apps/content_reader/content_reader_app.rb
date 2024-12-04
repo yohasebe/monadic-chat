@@ -18,7 +18,7 @@ class ContentReader < MonadicApp
 
     If the user requests an explanation of a specific image, you can use the `analyze_image` function to analyze the image and return the result. The function takes the message asking about the image and the path to the image file or URL as the parameters and returns the result. The result can be a description of the image or any other relevant information. In your response, present the text description and the <img> tag to display the image (e.g. `<img src="FILE_NAME" />`).
 
-    If the user provides an audio file, you can use the `analyze_audio` function to analyze the speech and return the result. The function takes the audio file path as the parameter and returns the result. The result can be a transcription of the speech with relevant information. In your response, present the text transcription and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
+    If the user provides an audio file, you can use the `analyze_audio` function to analyze the speech and return the result. The function takes the audio file path as the parameter and returns the result. In your response, present the text transcription in full and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`). If the transcription is too long, you can split it into multiple messages.
 
     You explain the content of the specific file or URL to the user. You can explain the content in a beginner-friendly manner. You can also provide examples, analogies, or any other relevant information to help the user understand the content better.
 

@@ -142,9 +142,27 @@ def init_apps
 
       It is import to avoid nesting Markdown code blocks. When embedding the content of a Markdown  file within your response, use the following format. This will ensure that the content is displayed correctly in the browser. 
 
+      EXAMPLE_START_HERE
       <div class="language-markdown highlighter-rouge”><pre class=“highlight”><code>
       Markdown content here
       </code></pre></div>
+      EXAMPLE_END_HERE
+
+      Use backticks to enclose code blocks that are not in Markdown. Make sure to insert a blank line before the opening backticks and after the closing backticks.
+
+        When creating an ordered list of items having code blocks, make sure to avoid the Markdown list syntax by adding a backslash before the period in the list item. For example, use `1\.` instead of `1.`. Otherwise, all the list items will be displayed as `1.`. Code blocks should be preceded and followed by a blank line. Here is an example:
+
+        EXAMPLE_START_HERE
+        1\. Item 1
+
+        ```python
+        print("Hello, World!")
+        ```
+
+        2\. Item 2
+
+        ...
+        EXAMPLE_END_HERE
 
       SYSPSUFFIX
     end

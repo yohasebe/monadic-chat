@@ -4,12 +4,15 @@
 export PATH=${PATH}:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.9.24
+export MONADIC_VERSION=0.9.25
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
 RETRY_COUNT=24
 DOCKER_CHECK_INTERVAL=2
+
+# REPORTING=--verbose
+REPORTING=
 
 # Define the path to the root directory
 ROOT_DIR=$(dirname "$0")
@@ -127,7 +130,11 @@ build_ruby_container() {
   local dockerfile="${ROOT_DIR}/services/ruby/Dockerfile"
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
 
+  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   build_docker_compose
+
+  remove_older_images yohasebe/monadic-chat
+  remove_project_dangling_images
 }
 
 # Function to build Python container only
@@ -141,7 +148,11 @@ build_python_container() {
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/python" 2>&1 | tee "${log_file}"
 
+  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   build_docker_compose
+
+  remove_older_images yohasebe/monadic-chat
+  remove_project_dangling_images
 }
 
 # Function to build user containers
@@ -183,9 +194,14 @@ EOF
   start_monadic_chat_container
 
   # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose -f "${compose_user}" build --no-cache 2>&1 | tee "${log_file}"
+  ${DOCKER} compose ${REPORTING} -f "${compose_user}" build --no-cache 2>&1 | tee "${log_file}"
+
+  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   # remove compose_user.yml
   rm -f "${compose_user}"
+
+  remove_older_images yohasebe/monadic-chat
+  remove_project_dangling_images
 }
 
 # Function to build Docker Compose with the option whether to use cache or not
@@ -207,8 +223,11 @@ build_docker_compose() {
   mkdir -p "$(dirname "${log_file}")"
   
   # Execute docker compose build and redirect output to log file with or without cache
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" build ${use_cache} 2>&1 | tee "${log_file}"
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" build ${use_cache} 2>&1 | tee "${log_file}"
+
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
+
+  remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
 }
 
@@ -245,7 +264,7 @@ start_docker_compose() {
   if [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
     remove_containers
     echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
-    ${DOCKER} compose -f "${COMPOSE_MAIN}" down
+    ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
     build_docker_compose "no-cache"
   elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>Monadic Chat image is up-to-date. Moving on . . .</p>"
@@ -263,7 +282,7 @@ start_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
   
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" -p "monadic-chat-container" up -d 
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat-container" up -d 
 
   local containers=$(${DOCKER} ps --filter "label=project=monadic-chat" --format "{{.Names}}")
 
@@ -281,7 +300,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" down --remove-orphans
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
 }
 
 # Define a function to stop Docker Compose
@@ -310,20 +329,20 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop the Docker Compose services
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" down --remove-orphans
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build and start the Docker Compose services
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" build --no-cache
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" build --no-cache
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
   # Stop the Docker Compose services
-  ${DOCKER} compose -f "${COMPOSE_MAIN}" down --remove-orphans
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
 
   local images=$(${DOCKER} images --filter "label=project=monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "label=project=monadic-chat" --format "{{.Names}}")

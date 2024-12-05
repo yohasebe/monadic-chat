@@ -311,8 +311,6 @@ module WebSocketHelper
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => "system",
                        "text" => text,
-                       "html" => markdown_to_html(text),
-                       "lang" => detect_language(text), # detect_language is called only once here
                        "active" => true }
           # Initial prompt is added to messages but not shown as the first message
           # @channel.push({ "type" => "html", "content" => new_data }.to_json)

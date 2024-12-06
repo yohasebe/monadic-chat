@@ -239,20 +239,21 @@ class DockerManager {
                 updateTrayImage(currentStatus);
                 updateStatusIndicator(currentStatus);
                 // Check if the server has started and attempt to connect to it
-              } else if (lines[i].trim() === "[SERVER STARTED]") {
-                if (!fetchWithRetryCalled) {
-                  fetchWithRetryCalled = true;
-                  writeToScreen('[HTML]: <p><b>Monadic Chat server is starting</b> . . .</p>');
-                  fetchWithRetry('http://localhost:4567')
-                    .then(() => {
-                      updateContextMenu(false);
-                      updateStatusIndicator("Ready");
-                      writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
-                      mainWindow.webContents.send('server-ready');
-                      writeToScreen(lines[i]);
-                      openBrowser('http://localhost:4567');
-                    })
-                    .catch(error => {
+              } else 
+                if (lines[i].trim() === "[SERVER STARTED]") {
+                  if (!fetchWithRetryCalled) {
+                    fetchWithRetryCalled = true;
+                    writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-info"></i>Monadic Chat server is starting . . .</p>');
+                    fetchWithRetry('http://localhost:4567')
+                      .then(() => {
+                        updateContextMenu(false);
+                        updateStatusIndicator("Ready");
+                        writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
+                        mainWindow.webContents.send('server-ready');
+                        writeToScreen(lines[i]);
+                        openBrowser('http://localhost:4567');
+                      })
+                      .catch(error => {
                       writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please check out <b>monadic.log</b> in the shared folder and start the server again. Rebuild the image ("Menu" → "Action" → "Rebuild"), if necessary.</p><hr />');
                       console.error('Fetch operation failed after retries:', error);
                       currentStatus = 'Stopped';
@@ -580,7 +581,7 @@ function initializeApp() {
             if (compareVersions(latestVersion, currentVersion) > 0) {
               updateMessage = `<p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i>A new version (${latestVersion}) is available. Please update to the latest version.</p>`;
             } else {
-              updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: limegreen;"></i>You are using the latest version (${currentVersion}).</p>`;
+              updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: green;"></i>You are using the latest version (${currentVersion}).</p>`;
             }
           }
         }
@@ -1184,7 +1185,7 @@ function openBrowser(url, outside = false) {
     isPortTaken(4567, (taken) => {
       if (taken) {
         clearInterval(timer);
-        writeToScreen("[HTML]: <p>The server is running on port 4567. Opening the browser.</p>");
+        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>The server is running on port 4567. Opening the browser.</p>");
         spawn(...openCommands[platform]);
       } else {
         if (time == 0) {
@@ -1193,7 +1194,7 @@ function openBrowser(url, outside = false) {
         time += interval;
         if (time >= timeout) {
           clearInterval(timer);
-          dialog.showErrorBox('Error', 'Failed to start the server. Please try again.');
+          dialog.showErrorBox('Error', "<i class='fa-solid fa-circle-exclamation' style='color: green;'>Failed to start the server. Please try again.");
         }
       }
     });

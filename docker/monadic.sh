@@ -38,6 +38,44 @@ check_if_docker_desktop_is_running() {
   fi
 }
 
+# Function to log Docker container startup status
+docker_start_log() {
+  local log_file="${HOME_DIR}/monadic/data/docker_startup.log"
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
+
+  mkdir -p "$(dirname "${log_file}")"
+
+  echo "=== Monadic Chat Container Startup Log ===" > "${log_file}"
+  echo "Timestamp: ${timestamp}" >> "${log_file}"
+  echo "Monadic Chat Version: ${MONADIC_VERSION}" >> "${log_file}"
+  echo "----------------------------------------" >> "${log_file}"
+
+  local all_containers_running=true
+  for container in ${containers}; do
+    local status=$(${DOCKER} inspect --format='{{.State.Status}}' "${container}")
+    local health_status=$(${DOCKER} inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' "${container}")
+    local uptime=$(${DOCKER} inspect --format='{{.State.StartedAt}}' "${container}")
+
+    echo "Container: ${container}" >> "${log_file}"
+    echo "Status: ${status}" >> "${log_file}"
+    echo "Health: ${health_status}" >> "${log_file}"
+    echo "Started At: ${uptime}" >> "${log_file}"
+    echo "----------------------------------------" >> "${log_file}"
+
+    if [[ "${status}" != "running" ]]; then
+      all_containers_running=false
+    fi
+  done
+
+  if ${all_containers_running}; then
+    echo "Summary: All containers started successfully" >> "${log_file}"
+  else
+    echo "Summary: Some containers failed to start" >> "${log_file}"
+    echo "[HTML]: <p><i class='fas fa-exclamation-circle'></i> Warning: Some containers failed to start. Check docker_startup.log for details.</p>"
+  fi
+}
+
 set_docker_compose() {
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
   for i in "${!home_paths[@]}"; do
@@ -485,9 +523,9 @@ build_ruby_container)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p>Ruby container has been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>Ruby container has been built successfully!</p><hr />"
   else
-  echo "[HTML]: <p>Ruby container failed to build.</p><p>Please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 build_python_container)
@@ -503,9 +541,9 @@ build_python_container)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p>Python container has been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>Python container has been built successfully!</p><hr />"
   else
-  echo "[HTML]: <p>Python container failed to build.</p><p>Please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 build_user_containers)
@@ -521,9 +559,9 @@ build_user_containers)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p>User containers have been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>User containers have been built successfully!</p><hr />"
   else
-  echo "[HTML]: <p>User containers failed to build.</p><p>Please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 build)
@@ -539,9 +577,9 @@ build)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
   else
-  echo "[HTML]: <p>Monadic Chat has failed to build.</p><p>Please try <b>restart</b> first. If that doesn't work, then try <b>rebuild</b>.</p><p>If you are developing a custom application, please check for errors in the code within the shared folder. Note that `monadic.log` might help.</p>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 check)
@@ -550,7 +588,8 @@ check)
 start)
   ensure_data_dir &&
   start_docker_compose &&
-  echo "[SERVER STARTED]"
+  echo "[SERVER STARTED]" &&
+  docker_start_log "silent"
   ;;
 stop)
   if ${DOCKER} info >/dev/null 2>&1; then
@@ -565,7 +604,8 @@ restart)
   stop_docker_compose &&
   echo "[SERVER STOPPED]" &&
   start_docker_compose &&
-  echo "[SERVER STARTED]"
+  echo "[SERVER STARTED]" &&
+  docker_start_log "silent"
   ;;
 import)
   stop_docker_compose &&

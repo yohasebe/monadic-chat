@@ -114,7 +114,7 @@
 
             <div class="my-1">
               <label for="tts-voice" class="div-label my-2">Text-to-Speech (TTS) Voice</label>
-              <select class="form-select" id="tts-voice">
+              <select class="form-select form-select-sm" id="tts-voice">
                 <option value="alloy">Alloy</option>
                 <option value="echo">Echo</option>
                 <option value="fable">Fable</option>
@@ -131,7 +131,7 @@
 
             <div class="my-1">
               <label for="asr-lang" class="div-label my-2">Automatic-Speech-Recognition (ASR) Language</label>
-              <select class="form-select" id="asr-lang">
+              <select class="form-select form-select-sm" id="asr-lang">
                 <option value="auto">Automatic</option>
                 <hr />
                 <option value="en">English</option>
@@ -209,30 +209,30 @@
             <h5 class="pb-0" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> Chat Settings</span></h5>
 
             <form class="row my-2">
-              <div class="col-5">
+              <div class="col-4">
                 <label class="form-label" for="apps">Base App</label>
-                <select class="form-select me-3" id="apps" ></select>
+                <select class="form-select form-select-sm me-3" id="apps" ></select>
               </div>
-              <div class="col-2 ms-2">
+              <div class="col-3 ms-2">
                 <label class="form-label text-nowrap" for="context-size-toggle">Max Context Size</label>
                 <input class="form-check-input" type="checkbox" id="context-size-toggle" checked="">
-                <input type="number" id="context-size" min="1" max="9999" stop="1" value="100" class="form-control" />
+                <input type="number" id="context-size" min="1" max="9999" stop="1" value="100" class="form-control form-control-sm" />
               </div>
 
-              <div class="col-2 ms-2">
+              <div class="col-3 ms-2">
                 <label class="form-label text-nowrap" for="max-tokens-toggle">Max Completion Tokens</label>
                 <input class="form-check-input" type="checkbox" id="max-tokens-toggle" checked="checked">
-                <input type="number" id="max-tokens" stop="1" min="100" max="99999" value="4000" class="form-control" />
+                <input type="number" id="max-tokens" stop="1" min="100" max="99999" value="4000" class="form-control form-control-sm" />
               </div>
             </form>
 
             <form class="row my-3" id="model_and_file">
-              <div class="col-5">
+              <div class="col-4">
                 <label for="model" class="form-label text-nowrap">Model</label>
-                <select class="form-select me-3" id="model" ></select>
+                <select class="form-select form-select-sm me-3" id="model" ></select>
               </div>
 
-              <div class="col-2 ms-2" id="file-div" style="display: none;">
+              <div class="col-3 ms-2" id="file-div" style="display: none;">
                 <div class="row">
                   <div class="col-auto">
                     <label class="form-label" for="file" style="color: transparent;">□</label>
@@ -364,7 +364,7 @@
               </div>
             </div>
 
-            <div id="user-panel" class="mt-3">
+            <div id="user-panel" class="mt-1">
 
               <div class="row">
                 <div class="col-auto d-flex align-items-center mt-3">
@@ -375,7 +375,7 @@
                   </div>
                   &nbsp;
                   &nbsp;
-                  <select id="select-role" class="form-select me-3">
+                  <select id="select-role" class="form-select form-select-sm me-3">
                     <option value="user">User</option>
                     <option value="sample-user">User (to add to past messages)</option>
                     <option value="sample-assistant">Assistant (to add to past messages)</option>

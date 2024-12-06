@@ -72,8 +72,8 @@ docker_start_log() {
     echo "Summary: All containers started successfully" >> "${log_file}"
   else
     echo "Summary: Some containers failed to start" >> "${log_file}"
-    echo "[HTML]: <p><i class='fas fa-exclamation-circle'></i> Warning: Some containers failed to start. Check docker_startup.log for details.</p>"
-  fi
+    echo "[HTML]: <p style='color: red;'><i class='fas fa-exclamation-circle'></i> Warning: Some containers failed to start. Check docker_startup.log for details.</p>"
+    fi
 }
 
 set_docker_compose() {
@@ -523,9 +523,9 @@ build_ruby_container)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>Ruby container has been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Ruby container has been built successfully!</p><hr />"
   else
-  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 build_python_container)
@@ -541,9 +541,9 @@ build_python_container)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>Python container has been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Python container has been built successfully!</p><hr />"
   else
-  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 build_user_containers)
@@ -559,9 +559,9 @@ build_user_containers)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>User containers have been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> User containers have been built successfully!</p><hr />"
   else
-  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 build)
@@ -577,9 +577,9 @@ build)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'>Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
   else
-  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li>`docker_build.log`</li><li>`docker_start.log`</li><li>`monadic.log`</li></ul>"
   fi
   ;;
 check)

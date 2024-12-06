@@ -85,7 +85,7 @@ div.card-body.role-user {
   background-color: #f6f8ff;
 }
 
-div.card-body.role-user .card-text p {
+div.card-body.role-user .card-text p, div.card-body.role-system .card-text  {
   white-space: pre-wrap;
 }
 

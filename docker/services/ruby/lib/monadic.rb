@@ -394,7 +394,7 @@ post "/load" do
           html = APPS[json_data["parameters"]["app_name"]].monadic_html(msg["text"])
         else
           text = msg["text"]
-          html = markdown_to_html(text)
+          html = text
         end
         message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
         message_obj["images"] = msg["images"] if msg["images"]

@@ -16,7 +16,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Nov, 2024] 0.9.25
-  - Many under-the-hood improvements
+  - Many UI and under-the-hood improvements
   - Role selection issue fixed
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported

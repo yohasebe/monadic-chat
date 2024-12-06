@@ -12,6 +12,7 @@ body {
   line-height: 1.8;
   height: 100%;
   margin: 0;
+  font-size: 0.95em;
 }
 
 .card {
@@ -697,3 +698,4 @@ legend {
 .language-markdown .highlight code {
   white-space: pre-wrap;
 }
+

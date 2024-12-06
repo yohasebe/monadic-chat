@@ -295,7 +295,7 @@ start_docker_compose() {
   fi
 
   if [[ "$1" != "silent" ]]; then
-    echo "[HTML]: <p>Monadic Chat app v.${MONADIC_VERSION} <=> Monadic Chat image v.${MONADIC_CHAT_IMAGE_TAG}</p>"
+    echo "[HTML]: <p>Monadic Chat app v.${MONADIC_VERSION} <i class='fa-solid fa-arrow-right-arrow-left'></i>Monadic Chat image v.${MONADIC_CHAT_IMAGE_TAG}</p>"
   fi
 
   # check if MONADIC_CHAT_IMAGE_TAG includes the same as MONADIC_VERSION

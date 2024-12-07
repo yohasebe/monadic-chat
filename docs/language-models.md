@@ -102,9 +102,9 @@ Chat (Gemini) is an application that accesses the Google Gemini API to answer qu
 </details>
 
 <details>
-<summary>code_interpreter_gemini_app.rb</summary>
+<summary>coding_assistant_gemini_app.rb</summary>
 
-![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
+![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/coding_assistant_gemini_app.rb ':include :type=code')
 
 </details>
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ChatWithGemini < MonadicApp
+class ChatGemini < MonadicApp
   include GeminiHelper
 
   icon = "<i class='fab fa-google'></i>"
@@ -23,7 +23,7 @@ class ChatWithGemini < MonadicApp
   @settings = {
     group: "Google",
     disabled: !CONFIG["GEMINI_API_KEY"],
-    app_name: "Google Gemini (Chat)",
+    app_name: "Chat (Google Gemini)",
     initial_prompt: initial_prompt,
     description: description,
     icon: icon,

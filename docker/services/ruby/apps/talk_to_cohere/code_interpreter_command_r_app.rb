@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CodeWithCommandR < MonadicApp
+class CodeInterpreterCommandR < MonadicApp
   include CommandRHelper
 
   icon = "<i class='fa-solid fa-c'></i>"
@@ -187,7 +187,7 @@ class CodeWithCommandR < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "Cohere Command R (Code)",
+    app_name: "Code Interpreter (Cohere Command R)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

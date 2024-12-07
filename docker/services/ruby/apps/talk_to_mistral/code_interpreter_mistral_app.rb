@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CodeWithMistral < MonadicApp
+class CodeInterpreterMistral < MonadicApp
   include MistralHelper
 
   icon = "<i class='fa-solid fa-m'></i>"
@@ -183,7 +183,7 @@ class CodeWithMistral < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "Mistral AI (Code)",
+    app_name: "Code Interpreter (Mistral AI)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

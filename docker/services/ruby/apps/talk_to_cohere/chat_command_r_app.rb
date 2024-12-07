@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ChatWithCommandR < MonadicApp
+class ChatCommandR < MonadicApp
   include CommandRHelper
 
   icon = "<i class='fa-solid fa-c'></i>"
@@ -22,7 +22,7 @@ class ChatWithCommandR < MonadicApp
   @settings = {
     group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"],
-    app_name: "Cohere Command R (Chat)",
+    app_name: "Chat (Cohere Command R)",
     initial_prompt: initial_prompt,
     description: description,
     icon: icon,

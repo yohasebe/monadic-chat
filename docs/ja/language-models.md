@@ -47,6 +47,7 @@ Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピ�
 
 </details>
 
+<details>
 <summary>jupyter_notebook_claude_app.rb</summary>
 
 ![jupyter_notebook_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')

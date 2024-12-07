@@ -24,7 +24,7 @@ ANTHROPIC_API_KEY=api_key
 
 ?> For apps using Anthropic Claude's Sonnet series models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [PDF recognition](./message-input?id=uploading-pdfs))
 
-Chat with Claude is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code with Claude assists in creating program code. Claude (Code Interpreter) integrates with JupyterLab to actually execute program code. Jupyter with Claude assists in writing and executing Jupyter Notebook cells.
+Chat (Claude) is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code Interpreter (Claude) assists in creating program code. Jupyter Notebook (Claude) assists in writing and executing Jupyter Notebook cells.
 
 <details>
 <summary>chat_claude_app.rb</summary>
@@ -65,20 +65,20 @@ By setting the Cohere API key, you can use apps that utilize Command R. Once set
 COHERE_API_KEY=api_key
 ```
 
-Chat with Command R is an application that accesses the Cohere API to answer questions on a wide range of topics. Code with Command R assists in creating program code.  Jupyter with Command R allows you to use Command R within JupyterLab.
+Chat (Command R) is an application that accesses the Cohere API to answer questions on a wide range of topics. Code Interpreter (Command R) assists in creating program code.
 
 
 <details>
-<summary>chat_with_command_r_app.rb</summary>
+<summary>chat_command_r_app.rb</summary>
 
-[chat_with_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_with_command_r_app.rb ':include :type=code')
+[chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
 
 </details>
 
 <details>
-<summary>code_with_command_r_app.rb</summary>
+<summary>code_interpreter_command_r_app.rb</summary>
 
-[code_with_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_with_command_r_app.rb ':include :type=code')
+[code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
 
 </details>
 
@@ -92,12 +92,19 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini. Once
 GEMINI_API_KEY=api_key
 ```
 
-Chat with Gemini is an application that accesses the Google Gemini API to answer questions on a wide range of topics.
+Chat (Gemini) is an application that accesses the Google Gemini API to answer questions on a wide range of topics. Code Interpreter (Gemini) assists in creating program code.
 
 <details>
-<summary>chat_with_gemini_app.rb</summary>
+<summary>chat_gemini_app.rb</summary>
 
-[chat_with_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/chat_with_gemini_app.rb ':include :type=code')
+[chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/chat_gemini_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>code_interpreter_gemini_app.rb</summary>
+
+![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
 
 </details>
 
@@ -111,19 +118,19 @@ By setting the Mistral AI API key, you can use apps that utilize Mistral. Once s
 MISTRAL_API_KEY=api_key
 ```
 
-Chat with Mistral is an application that accesses the Mistral AI API to answer questions on a wide range of topics. Code with Mistral assists in creating program code.
+Chat (Mistral) is an application that accesses the Mistral AI API to answer questions on a wide range of topics. Code Interpreter (Mistral) assists in creating program code.
 
 <details>
-<summary>chat_with_mistral_app.rb</summary>
+<summary>chat_mistral_app.rb</summary>
 
-[chat_with_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/chat_with_mistral_app.rb ':include :type=code')
+[chat_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/chat_mistral_app.rb ':include :type=code')
 
 </details>
 
 <details>
-<summary>code_with_mistral_app.rb</summary>
+<summary>code_interpreter_mistral_app.rb</summary>
 
-[code_with_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/code_with_mistral_app.rb ':include :type=code')
+[code_interpreter_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/code_interpreter_mistral_app.rb ':include :type=code')
 
 </details>
 

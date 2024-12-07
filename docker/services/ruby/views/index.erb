@@ -211,18 +211,22 @@
             <form class="row my-2">
               <div class="col-4">
                 <label class="form-label" for="apps">Base App</label>
-                <select class="form-select form-select-sm me-3" id="apps" ></select>
+                <select class="form-select form-select-sm me-3" id="apps"></select>
               </div>
               <div class="col-3 ms-2">
                 <label class="form-label text-nowrap" for="context-size-toggle">Max Context Size</label>
-                <input class="form-check-input" type="checkbox" id="context-size-toggle" checked="">
-                <input type="number" id="context-size" min="1" max="9999" stop="1" value="100" class="form-control form-control-sm" />
+                <div class="d-flex align-items-center gap-2">
+                  <input class="form-check-input mt-0" type="checkbox" id="context-size-toggle" checked="">
+                  <input type="number" id="context-size" min="1" max="9999" stop="1" value="100" class="form-control form-control-sm" />
+                </div>
               </div>
 
               <div class="col-3 ms-2">
                 <label class="form-label text-nowrap" for="max-tokens-toggle">Max Completion Tokens</label>
-                <input class="form-check-input" type="checkbox" id="max-tokens-toggle" checked="checked">
-                <input type="number" id="max-tokens" stop="1" min="100" max="99999" value="4000" class="form-control form-control-sm" />
+                <div class="d-flex align-items-center gap-2">
+                  <input class="form-check-input mt-0" type="checkbox" id="max-tokens-toggle" checked="checked">
+                  <input type="number" id="max-tokens" stop="1" min="100" max="99999" value="4000" class="form-control form-control-sm" />
+                </div>
               </div>
             </form>
 
@@ -244,22 +248,22 @@
 
             <form class="row my-3" id="model_parameters">
               <div class="col-3">
-                <label for="temperature" class="div-label my-2">Temperature (<span id="temperature-value">0.3</span>)</label><br />
+                <label for="temperature" class="div-label my-2">Temperature <small><span id="temperature-value">0.3</span></small></label><br />
                 <input type="range" class="div-range" min="0.0" max="1.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="top-p" class="div-label my-2">Top P (<span id="top-p-value">0.0</span>)</label><br />
+                <label for="top-p" class="div-label my-2">Top P <small><span id="top-p-value">0.0</span></small></label><br />
                 <input type="range" class="div-range" min="0.0" max="1.0" step="0.1" value="0.0" id="top-p" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="presence-penalty" class="div-label my-2">Presence Penalty (<span id="presence-penalty-value">0.0</span>)</label><br />
+                <label for="presence-penalty" class="div-label my-2">Presence Penalty <small><span id="presence-penalty-value">0.0</span></small></label><br />
                 <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="presence-penalty" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="frequency-penalty" class="div-label my-2">Frequency Penalty (<span id="frequency-penalty-value">0.0</span>)</label><br />
+                <label for="frequency-penalty" class="div-label my-2">Frequency Penalty <small><span id="frequency-penalty-value">0.0</span></small></label><br />
                 <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="frequency-penalty" style="max-width: 100%;">
               </div>
             </form>

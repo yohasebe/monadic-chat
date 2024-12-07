@@ -99,9 +99,9 @@ Chat with Geminiは、Google Gemini APIにアクセスして、幅広いトピ�
 </details>
 
 <details>
-<summary>code_interpreter_gemini_app.rb</summary>
+<summary>coding_assistant_gemini_app.rb</summary>
 
-![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
+![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/coding_assistant_gemini_app.rb ':include :type=code')
 
 </details>
 

@@ -699,3 +699,6 @@ legend {
   white-space: pre-wrap;
 }
 
+#max-tokens, #context-size {
+  width: 100px;
+}

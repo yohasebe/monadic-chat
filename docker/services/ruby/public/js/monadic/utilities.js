@@ -305,8 +305,11 @@ function loadParams(params, calledFor = "loadParams") {
     $("#temperature-value").text("0.3");
   }
 
-  const top_p = parseFloat(params["top_p"])
+  let top_p = parseFloat(params["top_p"])
   if (!isNaN(top_p)) {
+    if (Number.isInteger(top_p)) {
+      top_p = top_p.toFixed(1);
+    }
     $("#top-p").val(top_p);
     $("#top-p-value").text(top_p);
   } else {

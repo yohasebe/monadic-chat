@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ChatWithMistral < MonadicApp
+class ChatMistral < MonadicApp
   include MistralHelper
 
   icon = "<i class='fa-solid fa-m'></i>"
@@ -32,7 +32,7 @@ class ChatWithMistral < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "Mistral AI (Chat)",
+    app_name: "Chat (Mistral AI)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

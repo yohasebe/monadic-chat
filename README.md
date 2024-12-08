@@ -15,9 +15,11 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Nov, 2024] 0.9.25
+- [Dec, 2024] 0.9.26
   - Many UI and under-the-hood improvements
+  - User container rebuild feature fixed
   - Role selection issue fixed
+- [Nov, 2024] 0.9.22
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved
@@ -29,10 +31,6 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
   - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models
   - AI user feature improved
-- [Oct, 2024] 0.9.6
-  - PyMuPDF4LLM integration
-  - Anthropic's new sonnet model supported
-  - Stability of code running and chart generation improved
 
 - [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
 

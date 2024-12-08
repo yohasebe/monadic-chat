@@ -4,7 +4,7 @@
 export PATH=${PATH}:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.9.25
+export MONADIC_VERSION=0.9.26
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -29,6 +29,11 @@ fi
 
 # Define the paths to the support scripts
 SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
+
+normalize_path() {
+  local path="$1"
+  echo "${path}" | sed 's|//|/|g'
+}
 
 check_if_docker_desktop_is_running() {
   if ${DOCKER} info >/dev/null 2>&1; then
@@ -80,6 +85,7 @@ set_docker_compose() {
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
+    home_paths[$i]=$(normalize_path "${home_paths[$i]}")
   done
 
   # Remove non-existent paths and empty strings
@@ -87,7 +93,12 @@ set_docker_compose() {
 
   local compose_user=""
   for home_path in "${home_paths[@]}"; do
-    compose_user+=$(find "${home_path}" -name "compose.yml" 2>/dev/null | awk '{print "  - "$1}')
+    while IFS= read -r file; do
+      if [ ! -z "$file" ]; then
+        file=$(normalize_path "$file")
+        compose_user+="  - ${file}"$'\n'
+      fi
+    done < <(find "${home_path}" -name "compose.yml" 2>/dev/null)
   done
 
   if [[ -z "${compose_user}" ]]; then
@@ -198,24 +209,36 @@ build_user_containers() {
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
+    home_paths[$i]=$(normalize_path "${home_paths[$i]}")
   done
 
   # Remove non-existent paths and empty strings
   home_paths=($(printf "%s\n" "${home_paths[@]}" | sort -u | grep -v '^$'))
 
+  local compose="${HOME_DIR}/monadic/data/compose_user.yml"
+  local found_compose_files=false
+
   local compose_user=""
   for home_path in "${home_paths[@]}"; do
-    compose_user+=$(find "${home_path}" -name "compose.yml" 2>/dev/null | awk '{print "  - "$1}')
+    while IFS= read -r file; do
+      if [ ! -z "$file" ]; then
+        file=$(normalize_path "$file")
+        compose_user+="  - ${file}"$'\n'
+        found_compose_files=true
+      fi
+    done < <(find "${home_path}" -name "compose.yml" 2>/dev/null)
   done
+
+  if [ "$found_compose_files" = false ]; then
+    return 2  # Special return code for "no user containers found"
+  fi
 
   local log_file="${HOME_DIR}/monadic/data/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  local compose_user="${HOME_DIR}/monadic/data/compose_user.yml"
-
-  cat <<EOF >"${compose_user}"
+  cat <<EOF >"${compose}"
 include:
 ${compose_user}
 
@@ -227,16 +250,12 @@ volumes:
   data:
 EOF
 
-  local compose="${HOME_DIR}/monadic/data/compose.yml"
-
-  start_monadic_chat_container
-
   # Execute docker compose build and redirect output to log file
-  ${DOCKER} compose ${REPORTING} -f "${compose_user}" build --no-cache 2>&1 | tee "${log_file}"
+  ${DOCKER} compose ${REPORTING} -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
 
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   # remove compose_user.yml
-  rm -f "${compose_user}"
+  rm -f "${compose}"
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -553,12 +572,17 @@ build_user_containers)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  # Call build_user_containers and store the return value
   build_user_containers
+  BUILD_RESULT=$?
 
   rm -f "${ROOT_DIR}/services/ruby/setup.sh"
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
-  if ${DOCKER} images | grep -q "monadic-chat"; then
+  if [ ${BUILD_RESULT} -eq 2 ]; then
+    # No user containers found (special return code)
+    echo "[HTML]: <p><i class='fa-solid fa-info-circle'></i> No user containers to build.</p><hr />"
+  elif ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> User containers have been built successfully!</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"

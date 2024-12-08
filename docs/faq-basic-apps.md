@@ -1,5 +1,11 @@
 # FAQ: Basic Applications
 
+**Q**: Is there an easy way to extend the basic apps without programming?
+
+**A**: Yes, after selecting an appropriate basic app, you can freely change settings such as system prompts on the Web UI. You can also export the session in the modified state and call the same state when needed.
+
+![](./assets/images/monadic-chat-session.png ':size=400')
+
 **Q**: What is the difference between the `Code Interpreter` app and the `Coding Assistant` and `Jupyter Notebook` apps?
 
 **A**: The `Code Interpreter` app is an application that runs Python scripts using the Python interpreter on the Python container. You can not only ask the AI agent to write Python code but also actually run it and get the results. In addition to Python scripts, you can also read and process CSV files, Microsoft Office files, and audio files (MP3, WAV).

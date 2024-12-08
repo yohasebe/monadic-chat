@@ -1,5 +1,11 @@
 # FAQ: 基本アプリ
 
+**Q**: プログラミングなしで、簡単に基本アプリを拡張する方法はありますか？
+
+**A**: はい、適当な基本アプリを選択した後、Web UI上でシステムプロンプトなどの設定を自由に変更することができます。また、変更した状態でセッションをエクスポートすることで、必要な時に同じ状態を呼び出すことができます。
+
+![](./assets/images/monadic-chat-session.png ':size=400')
+
 **Q**: `Code Interpreter`アプリと`Coding Assistant`と`Jupyter Notebook`アプリの違いは何ですか？
 
 **A**: `Code Interpreter`アプリは、Pythonコンテナ上のPython処理系を利用してPythonスクリプトを実行するアプリです。AIエージェントにPythonコードを書いてもらうだけでなく、実際に実行して結果を得ることができます。また、Pythonスクリプト以外にも、CSVファイル、Microsoft Officeファイル、オーディオファイル（MP3, WAV）を読み込んで処理することができます。

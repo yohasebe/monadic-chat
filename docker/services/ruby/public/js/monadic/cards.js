@@ -1,11 +1,26 @@
 // Use a Set for faster searching
 const mids = new Set();
 
+function escapeHtml(unsafe)
+{
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+ }
+
 function createCard(role, badge, html, lang = "en", mid = "", status = true, images = [], monadic = false) {
   const status_class = status === true ? "active" : "";
 
   // Fix jupyter notebook URL issue
-  const replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
+  let replaced_html;
+  if (role === "system") {
+    replaced_html = escapeHtml(html);
+  } else {
+    replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
+  }
 
   let className;
   if (role === "user") {

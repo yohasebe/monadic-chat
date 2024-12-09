@@ -15,7 +15,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Dec, 2024] 0.9.26
+- [Dec, 2024] 0.9.27
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed
   - Role selection issue fixed

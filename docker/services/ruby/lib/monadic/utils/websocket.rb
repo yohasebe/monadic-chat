@@ -163,6 +163,15 @@ module WebSocketHelper
           # Filter messages only once and store in filtered_messages
           filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
 
+          # Convert markdown to HTML for assistant messages if html field is missing
+          filtered_messages.each do |m|
+            if m["role"] == "assistant"
+              m["html"] = session["parameters"]&.[]("monadic") ? 
+                APPS[session["parameters"]["app_name"]].monadic_html(m["text"]) :
+                markdown_to_html(m["text"])
+            end
+          end
+
           # Use filtered_messages for pushing past messages
           @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
           @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?

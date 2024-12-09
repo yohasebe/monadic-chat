@@ -1,9 +1,9 @@
 module ClaudeHelper
   MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.anthropic.com/v1"
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  OPEN_TIMEOUT = 5 * 2
+  READ_TIMEOUT = 60 * 2
+  WRITE_TIMEOUT = 60 * 2
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
@@ -276,74 +276,87 @@ module ClaudeHelper
         scanner = StringScanner.new(buffer[last_processed..-1])  # Scan from last processed position
         pattern = /data: (\{.*?\})(?=\n|\z)/
 
-          while matched = scanner.scan_until(pattern)
-            json_data = matched.match(pattern)[1]
-            # begin
-              json = JSON.parse(json_data)
+        while matched = scanner.scan_until(pattern)
+          json_data = matched.match(pattern)[1]
+          # begin
+            json = JSON.parse(json_data)
 
-              # Handle content type changes
-              new_content_type = json.dig("content_block", "type")
-              if new_content_type == "tool_use"
-                json["content_block"]["input"] = ""
-                tool_calls << json["content_block"]
-              end
-              content_type = new_content_type if new_content_type
+            # Handle content type changes
+            new_content_type = json.dig("content_block", "type")
+            if new_content_type == "tool_use"
+              json["content_block"]["input"] = ""
+              tool_calls << json["content_block"]
+            end
+            content_type = new_content_type if new_content_type
 
-              if content_type == "tool_use"
-                if json.dig("delta", "partial_json")
-                  fragment = json.dig("delta", "partial_json").to_s
-                  next if !fragment || fragment == ""
+            if content_type == "tool_use"
+              if json.dig("delta", "partial_json")
+                fragment = json.dig("delta", "partial_json").to_s
+                next if !fragment || fragment == ""
 
-                  tool_calls.last["input"] << fragment
-                end
-                if json.dig("delta", "stop_reason")
-                  stop_reason = json.dig("delta", "stop_reason")
-                  case stop_reason
-                  when "tool_use"
-                    fragment = <<~FRAG
-                    <div class='toggle'><pre>
-                    #{JSON.pretty_generate(tool_calls.last)}
-                    </pre></div>
-                    FRAG
-
-                    # texts << "\n" + fragment.strip
-
-                    finish_reason = "tool_use"
-                    res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                    block&.call res1
+                # 新しく追加された処理
+                if fragment.include?('"code"')
+                  begin
+                    parsed_fragment = JSON.parse(fragment)
+                    if parsed_fragment["code"]
+                      parsed_fragment["code"] = parsed_fragment["code"]
+                        .gsub(/\\n/, "\n")
+                        .gsub(/\\'/, "'")
+                        .gsub(/\\"/, '"')
+                        .gsub(/\\\\/, "\\")
+                      fragment = parsed_fragment.to_json
+                    end
+                  rescue JSON::ParserError
+                    # パースエラーの場合は元のフラグメントを使用
                   end
                 end
-              else
-                # Handle text content
-                if json.dig("delta", "text")
-                  fragment = json.dig("delta", "text").to_s
-                  next if !fragment || fragment == ""
 
-                  texts << fragment
+                tool_calls.last["input"] << fragment
+              end
+              if json.dig("delta", "stop_reason")
+                stop_reason = json.dig("delta", "stop_reason")
+                case stop_reason
+                when "tool_use"
+                  fragment = <<~FRAG
+                  <div class='toggle'><pre>
+                  #{JSON.pretty_generate(tool_calls.last)}
+                  </pre></div>
+                  FRAG
 
-                  res = {
-                    "type" => "fragment",
-                    "content" => fragment
-                  }
-                  block&.call res
-                end
+                  # texts << "\n" + fragment.strip
 
-                # Handle stop reasons
-                if json.dig("delta", "stop_reason")
-                  stop_reason = json.dig("delta", "stop_reason")
-                  case stop_reason
-                  when "max_tokens"
-                    finish_reason = "length"
-                  when "end_turn"
-                    finish_reason = "stop"
-                  end
+                  finish_reason = "tool_use"
+                  res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                  block&.call res1
                 end
               end
-            # rescue JSON::ParserError
-            #   # If JSON parsing fails, wait for the next chunk
-            #   break
-            # end
-          end
+            else
+              # Handle text content
+              if json.dig("delta", "text")
+                fragment = json.dig("delta", "text").to_s
+                next if !fragment || fragment == ""
+
+                texts << fragment
+
+                res = {
+                  "type" => "fragment",
+                  "content" => fragment
+                }
+                block&.call res
+              end
+
+              # Handle stop reasons
+              if json.dig("delta", "stop_reason")
+                stop_reason = json.dig("delta", "stop_reason")
+                case stop_reason
+                when "max_tokens"
+                  finish_reason = "length"
+                when "end_turn"
+                  finish_reason = "stop"
+                end
+              end
+            end
+        end
 
         # Update the last processed position
         last_processed = buffer.length - scanner.rest.length
@@ -410,7 +423,7 @@ module ClaudeHelper
       # Return the last response
       responses.last
 
-      # Process regular text response
+    # Process regular text response
     elsif result
       # Handle different model types
       case session[:parameters]["model"]

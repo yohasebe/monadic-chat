@@ -317,7 +317,6 @@ class MonadicApp
 
   # This is currently not used in the app
   # Created to experiment with Google Gemini's function calling feature
-
   def run_script(code: "", command: "", extension: "")
     # remove escape characters from the code
     code = code.gsub(/\\n/) { "\n" }

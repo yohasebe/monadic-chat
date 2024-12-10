@@ -76,9 +76,7 @@ class CodeInterpreterClaude < MonadicApp
 
       Output:
 
-      <div class="generated_image">
-        <img src="/data/IMAGE_FILE_NAME" />
-      </div>
+      ![](/data/IMAGE_FILE_NAME)
 
       ---
 
@@ -172,6 +170,9 @@ class CodeInterpreterClaude < MonadicApp
   prompt_suffix = <<~TEXT
     Run the code you have written using `run_script`. If your code is for the presentation purpose only, tell it to the user.
 
+    Check the environment using `check_environment` before adding cells to the Jupyter Notebook.
+
+    If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
   TEXT
 
@@ -181,6 +182,7 @@ class CodeInterpreterClaude < MonadicApp
     temperature: 0.0,
     presence_penalty: 0.2,
     top_p: 0.0,
+    context_size: 2,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: true,
@@ -239,7 +241,7 @@ class CodeInterpreterClaude < MonadicApp
       },
       {
         name: "lib_installer",
-        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
+        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the following commands respectively: `pip install`, `apt-get install -y`.",
         input_schema: {
           type: "object",
           properties: {

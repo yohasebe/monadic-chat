@@ -323,7 +323,7 @@ class MonadicApp
           code_snippet: code,
           attempt: retries + 1
         }
-        raise StandardError, generate_error_message(last_error)
+        # raise StandardError, generate_error_suggestions(last_error)
       end
     end
   end
@@ -379,17 +379,19 @@ class MonadicApp
   # This is currently not used in the app
   # Created to experiment with Google Gemini's function calling feature
 
-  def run_script(code: "", command: "", extension: "")
+  def run_script(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
     # remove escape characters from the code
-    code = code.gsub(/\\n/) { "\n" }
-    code = code.gsub(/\\'/) { "'" }
-    code = code.gsub(/\\"/) { '"' }
-    code = code.gsub(/\\\\/) { "\\" }
+    if code
+      code = code.gsub(/\\n/) { "\n" }
+      code = code.gsub(/\\'/) { "'" }
+      code = code.gsub(/\\"/) { '"' }
+      code = code.gsub(/\\\\/) { "\\" }
+    end
 
     # return the error message unless all the arguments are provided
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
-    send_code(code: code, command: command, extension: extension)
+    send_code(code: code, command: command, extension: extension, success: success)
   end
 
   def ask_openai(parameters)

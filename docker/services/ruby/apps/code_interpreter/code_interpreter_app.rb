@@ -38,6 +38,10 @@ class CodeInterpreter < MonadicApp
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
+    If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
+
+    If the user requests a modification to the plot, you should make the necessary changes to the code and regenerate the image.
+
     ### Error Handling:
 
     In case of errors or exceptions during code execution, try a few times with modified code before responding with an error message. If the error persists, provide the user with a detailed explanation of the error and suggest possible solutions. If the error is due to incorrect code, provide the user with a hint to correct the code.
@@ -75,8 +79,6 @@ class CodeInterpreter < MonadicApp
       </div>
 
       ---
-
-      If the image has not been generated, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
 
     ### Request/Response Example 2:
 
@@ -167,6 +169,8 @@ class CodeInterpreter < MonadicApp
 
   prompt_suffix = <<~TEXT
     Follow the instructions in the system prompt, especially when executing the code. If the user requires a chart or plot, make sure you have successfully run the code and have the resulting file before replying to the user.
+
+    If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
   TEXT
 
   @settings = {

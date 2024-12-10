@@ -346,7 +346,7 @@ A coding assistant app using Anthropic's Claude model is also available.
 
 <summary>coding_assistant_claude_app.rb</summary>
 
-![coding_asistant_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
+![coding_assistant_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
 
 </details>
 

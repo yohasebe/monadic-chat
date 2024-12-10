@@ -24,7 +24,7 @@ quadrantChart
   y-axis Not Important --> important
   quadrant-1 Plan
   quadrant-2 Do
-  quadrant-3 Deligate
+  quadrant-3 Delegate
   quadrant-4 Delete
 ```
 

@@ -30,7 +30,7 @@ module MonadicHelper
     end
 
     return "Error: Filename is required." if filename == ""
-    return "Error: Proper cell data is required; Probably the structure is ill-formated." if cells == ""
+    return "Error: Proper cell data is required; Probably the structure is ill-formatted." if cells == ""
 
     begin
       cells_in_json = cells.to_json

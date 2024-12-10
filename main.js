@@ -768,7 +768,7 @@ function updateStatus() {
 // Update the tray image based on the current status
 function updateTrayImage(status) {
   if (tray) {
-    // catche error and fallback to "Building.png"
+    // catch error and fallback to "Building.png"
     try {
       tray.setImage(path.join(iconDir, `${status}.png`));
     } catch {
@@ -1336,7 +1336,7 @@ async function updateDockerStatus() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('docker-desktop-status-update', status);
       // if status is false, meaning Docker Desktop is not running,
-      // update the context menu and buttons onlly if the current status is not "Stopped"
+      // update the context menu and buttons only if the current status is not "Stopped"
       if (!status && currentStatus !== 'Stopped') {
         currentStatus = 'Stopped';
         updateContextMenu(false);

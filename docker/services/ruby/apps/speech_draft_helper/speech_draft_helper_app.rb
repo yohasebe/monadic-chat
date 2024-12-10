@@ -172,7 +172,7 @@ class SpeechDraftHelper < MonadicApp
         function:
         {
           name: "text_to_speech",
-          description: "Convert the text to speech to generate an MP3 file and retrun the filename.",
+          description: "Convert the text to speech to generate an MP3 file and return the filename.",
           parameters: {
             type: "object",
             properties: {

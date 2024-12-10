@@ -46,7 +46,7 @@ class MonadicApp
 
       Do your best to make the conversation as natural as possible. Do not change subjects unless it is necessary, and keep the conversation going by asking questions or making comments relevant to the preceding and current topics.
 
-      Your response should be consice and clear. Even if the preceding messages are formatted as json, you keep your response as plain text. do not use parentheses or brackets in your response.
+      Your response should be concise and clear. Even if the preceding messages are formatted as json, you keep your response as plain text. do not use parentheses or brackets in your response.
 
       Remember you are the one who inquires for information, not providing the answers.
   PROMPT
@@ -249,8 +249,9 @@ class MonadicApp
     "Error occurred: #{e.message}"
   end
 
-  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5)
+  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: true)
     retries = 0
+    last_error = nil
 
     begin
       if IN_CONTAINER
@@ -261,30 +262,47 @@ class MonadicApp
 
       container = "monadic-chat-python-container"
 
-      # create a temporary file inside the data directory
-      temp_file = Tempfile.new(["code", ".#{extension}"], data_dir)
+      # Generate timestamp-based filename
+      timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
+      filename = "code_#{timestamp}.#{extension}"
 
-      temp_file.write(code)
-      temp_file.close
+      if keep_file
+        # Create a permanent file with timestamp-based name
+        file_path = File.join(data_dir, filename)
+        File.write(file_path, code)
+      else
+        # Create a temporary file with timestamp-based name
+        temp_file = Tempfile.new(["code_#{timestamp}", ".#{extension}"], data_dir)
+        temp_file.write(code)
+        temp_file.close
+        file_path = temp_file.path
+      end
+
+      # Copy the file to the container
       docker_command = <<~DOCKER
-        docker cp #{temp_file.path} #{container}:#{SHARED_VOL}
+        docker cp #{file_path} #{container}:#{SHARED_VOL}
       DOCKER
       stdout, stderr, status = Open3.capture3(docker_command)
       unless status.success?
         raise "Error occurred: #{stderr}"
       end
 
+      # Get the list of files before execution
       local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
 
+      # Execute the code in the container
       docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(temp_file.path)}
+        docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(file_path)}
       DOCKER
 
       stdout, stderr, status = Open3.capture3(docker_command)
 
       if status.success?
+        # Get the list of files after execution
         local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
         new_files = local_files2 - local_files1
+
+        # Prepare the success message with file information if any new files were generated
         if !new_files.empty?
           new_files = new_files.map { |file| "/data/" + File.basename(file) }
           output = "#{success}; File(s) generated: #{new_files.join(", ")}"
@@ -292,20 +310,63 @@ class MonadicApp
         else
           output = "#{success}; Output: #{stdout}" if stdout.strip.length.positive?
         end
+
+        # Clean up temporary file if keep_file is false
+        temp_file.unlink if !keep_file && temp_file
+
         output
       else
-        raise "Error occurred: #{stderr}"
+        # Create detailed error information
+        last_error = {
+          message: stderr,
+          type: detect_error_type(stderr),
+          code_snippet: code,
+          attempt: retries + 1
+        }
+        # raise StandardError, generate_error_suggestions(last_error)
       end
-    rescue StandardError => e
-      if retries < max_retries
-        retries += 1
-        sleep(retry_delay)
-        retry
-      else
-        "Error occurred after #{max_retries} attempts: #{e.message}"
-      end
-    ensure
-      temp_file.unlink if temp_file
+    end
+  end
+
+  def detect_error_type(error_message)
+    case error_message
+    when /SyntaxError/
+      "SyntaxError"
+    when /ImportError|ModuleNotFoundError/
+      "ImportError"
+    when /NameError/
+      "NameError"
+    when /TypeError/
+      "TypeError"
+    when /ValueError/
+      "ValueError"
+    when /IndexError/
+      "IndexError"
+    when /KeyError/
+      "KeyError"
+    else
+      "UnknownError"
+    end
+  end
+
+  def generate_error_suggestions(error)
+    case error[:type]
+    when "SyntaxError"
+      "Check the code syntax: verify indentation, matching brackets, and proper statement termination."
+    when "ImportError"
+      "Required library might be missing. Check if all necessary packages are installed."
+    when "NameError"
+      "Variable or function might be undefined. Verify all names are properly defined before use."
+    when "TypeError"
+      "Operation might be performed on incompatible types. Check variable types and operations."
+    when "ValueError"
+      "Invalid value provided for operation. Verify input values and their formats."
+    when "IndexError"
+      "Array index out of bounds. Check array lengths and index values."
+    when "KeyError"
+      "Dictionary key not found. Verify key existence before access."
+    else
+      "Unexpected error occurred. Review the code logic and implementation."
     end
   end
 
@@ -317,17 +378,20 @@ class MonadicApp
 
   # This is currently not used in the app
   # Created to experiment with Google Gemini's function calling feature
-  def run_script(code: "", command: "", extension: "")
+
+  def run_script(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
     # remove escape characters from the code
-    code = code.gsub(/\\n/) { "\n" }
-    code = code.gsub(/\\'/) { "'" }
-    code = code.gsub(/\\"/) { '"' }
-    code = code.gsub(/\\\\/) { "\\" }
+    if code
+      code = code.gsub(/\\n/) { "\n" }
+      code = code.gsub(/\\'/) { "'" }
+      code = code.gsub(/\\"/) { '"' }
+      code = code.gsub(/\\\\/) { "\\" }
+    end
 
     # return the error message unless all the arguments are provided
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
-    send_code(code: code, command: command, extension: extension)
+    send_code(code: code, command: command, extension: extension, success: success)
   end
 
   def ask_openai(parameters)

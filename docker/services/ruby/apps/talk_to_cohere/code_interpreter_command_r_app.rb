@@ -6,7 +6,7 @@ class CodeInterpreterCommandR < MonadicApp
   icon = "<i class='fa-solid fa-c'></i>"
 
   description = <<~TEXT
-  This is an application that allows you to run Python code with Cohere Command R. The assistant can help you write and run code, visualize data, and provide detailed instructions on how to do so. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=cohere" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an application that allows you to run Python code with Cohere Command R. The assistant can help you write and run code, visualize data, and provide detailed instructions on how to do so. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=cohere" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT
@@ -233,7 +233,7 @@ class CodeInterpreterCommandR < MonadicApp
       },
       {
         name: "lib_installer",
-        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
+        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the following commands respectively: `pip install`, `apt-get install -y`.",
         parameter_definitions: {
           command: {
             type: "string",

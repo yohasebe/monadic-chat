@@ -27,7 +27,7 @@ class MusicComposer < MonadicApp
 
     It is desirable that the music is as complex as the genre or style requires. Include as many notes, chords, and rests as necessary to achieve the desired complexity. Use multiple voices, if necessary, to represent different parts of the music.
 
-    Plase make sure to specify the BPM (beats per minute) with the `Q` field of the ABC code.
+    Please make sure to specify the BPM (beats per minute) with the `Q` field of the ABC code.
 
     Note that the ABC code must be placed inside these two pairs of div tags. Do not put this inside Markdown code block tags. Just show the ABC code inside the div tags.
 

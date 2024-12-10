@@ -390,13 +390,13 @@ module WebSocketHelper
                 segments = ps.segment
                 if !cutoff && segments.size > 1
                   candidate = segments.first
-                  splitted = candidate.split("---")
-                  if splitted.empty?
+                  split = candidate.split("---")
+                  if split.empty?
                     cutoff = true
                   end
 
                   if obj["auto_speech"] && !cutoff && !obj["monadic"]
-                    text = splitted[0] || ""
+                    text = split[0] || ""
                     if text != "" && candidate != ""
                       res_hash = tts_api_request(text, voice, speed, response_format, model)
                       @channel.push(res_hash.to_json)

@@ -4,7 +4,7 @@ class ImageGeneration < MonadicApp
   icon = "<i class='fa-regular fa-image'></i>"
 
   description = <<~TEXT
-  This is an app that generates images based on a description. If the prompt is not concrete enough or if it is written in a language other than English, the app will return an improved prompt and proceed with the improved prompt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an app that generates images based on a description. If the prompt is not concrete enough or if it is written in a language other than English, the app will return an improved prompt and proceed with the improved prompt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

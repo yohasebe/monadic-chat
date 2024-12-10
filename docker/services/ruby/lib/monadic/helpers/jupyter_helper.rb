@@ -10,11 +10,6 @@ module MonadicHelper
   def add_jupyter_cells(filename: "", cells: "", escaped: false, retrial: false)
     original_cells = cells.dup
 
-    # f = File.open("check.txt", "a")
-    # f.write cells.is_a?(Array).to_s + "\n"
-    # f.write cells.to_s + "\n\n"
-    # f.close
-
     # remove escape characters from the cells
     if escaped
       if cells.is_a?(Array)
@@ -35,7 +30,7 @@ module MonadicHelper
     end
 
     return "Error: Filename is required." if filename == ""
-    return "Error: Proper cell data is required; Probably the structure is ill-formated." if cells == ""
+    return "Error: Proper cell data is required; Probably the structure is ill-formatted." if cells == ""
 
     begin
       cells_in_json = cells.to_json

@@ -46,7 +46,7 @@ task :build do
   Dir.glob("dist/*").each do |file|
     filepath = File.expand_path(file)
     FileUtils.rm_rf(filepath) unless necessary_files.include?(filepath)
-    # move the file to the /docs/assets/download/ directory if it is included in necessar_files
+    # move the file to the /docs/assets/download/ directory if it is included in necessary_files
     # FileUtils.mv(filepath, "docs/assets/download/") if necessary_files.include?(filepath)
   end
 end

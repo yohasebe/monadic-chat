@@ -41,7 +41,7 @@ def count_tokens():
     model_name = data.get('model_name', default_model)
     encoding_name = data.get('encoding_name', "o200k_base")
 
-    # if enconding_name is not provided, get the encoding name from the model name
+    # if encoding_name is not provided, get the encoding name from the model name
     if encoding_name == "":
         encoding_name = model_to_encoding_map[model_name]
 

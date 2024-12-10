@@ -22,11 +22,11 @@ class JupyterNotebookClaude < MonadicApp
   initial_prompt = <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
 
-      First, check if you have already launched a Jupyterlab notebook. If you have, the context data will contain the URL of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command and tell the user that the user can ask the agent to stop it if needed. Then, ask the user if the user wants a new notebook to be created. At the end of this inquiery for the user, provide the following special string:
+      First, check if you have already launched a Jupyterlab notebook. If you have, the previous message in the context data must contain the URL (`Link`) of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command. Then, ask the user if the user wants a new notebook to be created. At the end of this inquiery for the user, provide the following special string:
 
       "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
 
-    Use the above special string at the end of your message when you ask the user a "yes/no" question, not only in this initial prompt but also in the subsequent conversation. Do not use the special string when you ask the user for a different type of response, however.
+    Use the above special string at the end of your message only when you ask the user a "yes/no" question and it is not accompanied by other types of questions.
 
       If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
 
@@ -140,7 +140,7 @@ class JupyterNotebookClaude < MonadicApp
       },
       {
         name: "lib_installer",
-        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the folllowing commands respectively: `pip install`, `apt-get install -y`.",
+        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the following commands respectively: `pip install`, `apt-get install -y`.",
         input_schema: {
           type: "object",
           properties: {

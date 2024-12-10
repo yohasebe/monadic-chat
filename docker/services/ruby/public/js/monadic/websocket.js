@@ -758,7 +758,7 @@ function connect_websocket(callback) {
         const pdf_table = "<div class='like-h6'><i class='fas fa-file-pdf'></i> Uploaded PDF</div>" +
           "<table class='table mt-1 mb-3'><tbody>" +
           data["content"].map((title, index) => {
-            return `<tr><td>${title}</td><td class="align-middle text-end"><button id='pdf-del-${index}' type='botton' class='btn btn-sm btn-secondary'><i class='fas fa-trash'></i></button></td></tr>`;
+            return `<tr><td>${title}</td><td class="align-middle text-end"><button id='pdf-del-${index}' type='button' class='btn btn-sm btn-secondary'><i class='fas fa-trash'></i></button></td></tr>`;
           }).join("") +
           "</tbody></table>";
         $("#pdf-titles").html(pdf_table);

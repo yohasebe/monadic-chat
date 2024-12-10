@@ -6,7 +6,7 @@ class CodeInterpreterClaude < MonadicApp
   icon = "<i class='fa-solid fa-a'></i>"
 
   description = <<~TEXT
-  This is an application that allows you to run Python code with Anthropic Claude. You can write and execute Python code, install libraries, fetch text from files, and fetch web content. Claude will help you run the code and display the output, including generated images and text data. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=anthropic" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an application that allows you to run Python code with Anthropic Claude. You can write and execute Python code, install libraries, fetch text from files, and fetch web content. Claude will help you run the code and display the output, including generated images and text data. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=anthropic" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT
@@ -39,6 +39,10 @@ class CodeInterpreterClaude < MonadicApp
     If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it and ask the user for confirmation before proceeding with the installation.
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
+
+    If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
+
+    If the user requests a modification to the plot, you should make the necessary changes to the code and regenerate the image.
 
     ### Error Handling:
 
@@ -77,8 +81,6 @@ class CodeInterpreterClaude < MonadicApp
       </div>
 
       ---
-
-      If the image has not been generated, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
 
     ### Request/Response Example 2:
 
@@ -168,7 +170,9 @@ class CodeInterpreterClaude < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    Follow the instructions in the system prompt, especially when executing the code. If the user requires a chart or plot, make sure you have successfully run the code and have the resulting file before replying to the user.
+    Run the code you have written using `run_script`. If your code is for the presentation purpose only, tell it to the user.
+
+    If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
   TEXT
 
   @settings = {

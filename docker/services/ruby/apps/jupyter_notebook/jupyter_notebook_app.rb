@@ -11,6 +11,9 @@ class JupyterNotebook < MonadicApp
     The function `add_jupyter_cells` needs parameters `filename` and `cells`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly.
 
     Check the environment using `check_environment` before adding cells to the Jupyter Notebook. 
+
+    If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
+
   TEXT
 
   initial_prompt = <<~TEXT
@@ -36,7 +39,7 @@ class JupyterNotebook < MonadicApp
 
     Before you suggest your Jupyter code, check what libraries, tools, and models are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment.
 
-    Also before adding the cells, read the whole notebook contents usint the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells.
+    Also before adding the cells, read the whole notebook contents using the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells.
 
     In your Python code in the notebook cells, you need to import a module before use it. Once you have imported it in a previous cell, you can use it in the cells that follow.
     

@@ -39,6 +39,44 @@ $(function () {
       $("#send").trigger("click");
     });
 
+    // Add MutationObserver for handling image errors
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === 1 && node.classList.contains('card')) {
+              $(node).find(".generated_image img").each(function() {
+                const $img = $(this);
+
+                $img.on("error", function() {
+                  const $errorMessage = $("<div>", {
+                    class: "image-error-message",
+                    text: "NO IMAGE GENERATED"
+                  }).css({
+                    'color': '#dc3545',
+                    'padding': '10px',
+                    'text-align': 'center',
+                    'font-style': 'italic'
+                  });
+
+                  $img.replaceWith($errorMessage);
+                });
+              });
+            }
+          });
+        }
+      });
+    });
+
+    // Start observing the discourse element
+    const discourseElement = document.getElementById('discourse');
+    if (discourseElement) {
+      observer.observe(discourseElement, {
+        childList: true,
+        subtree: true
+      });
+    }
+
     $document.on("click", ".yesBtn", function () {
       $("#message").val("Yes");
       $("#send").trigger("click");

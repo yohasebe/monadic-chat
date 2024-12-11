@@ -29,7 +29,7 @@ unless options[:prompt]
   exit
 end
 
-def generate_image(prompt, size, num_retrials: 10)
+def generate_image(prompt, size, num_retrials: 3)
   begin
     api_key = File.read("/monadic/data/.env").split("\n").find do |line|
       line.start_with?("OPENAI_API_KEY")
@@ -89,7 +89,7 @@ def generate_image(prompt, size, num_retrials: 10)
       f.write(image_data)
     end
 
-    { original_prompt: prompt, revised_prompt: revised_prompt, filename: filename }
+    { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
   else
     JSON.parse(res.body)
   end
@@ -101,8 +101,7 @@ rescue StandardError => e
     sleep 1
     generate_image(prompt, num_retrials: num_retrials)
   else
-    puts "Error: Image generation failed."
-    exit
+    { original_prompt: prompt, revised_prompt: revised_prompt, success: false, message: "Error: Image generation failed." }
   end
 end
 

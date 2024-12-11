@@ -76,7 +76,9 @@ class CodeInterpreterClaude < MonadicApp
 
       Output:
 
-      ![](/data/IMAGE_FILE_NAME)
+      <div class="generated_image">
+        <img src="/data/IMAGE_FILE_NAME" />
+      </div>
 
       ---
 

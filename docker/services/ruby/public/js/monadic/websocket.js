@@ -597,6 +597,17 @@ function connect_websocket(callback) {
 
         break;
       }
+      case "open_ai_api_error": {
+        // console.log("OpenAI API error");
+        $("#api-token").val("");
+
+        const message = "<p>Cannot connect to OpenAI API."
+        $("#start").prop("disabled", true);
+        $("#send, #clear, #voice").prop("disabled", true);
+        $("#api-token").focus();
+        setAlert(message, "warning");
+        break;
+      }
       case "token_not_verified": {
         // console.log("Token not verified");
         $("#api-token").val("");

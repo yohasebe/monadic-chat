@@ -127,11 +127,7 @@ module WebSocketHelper
             res = nil
             begin
               res = check_api_key(token) if token
-            rescue StandardError => e
-              ws.send({ "type" => "open_ai_api_error", "token" => "", "content" => "" }.to_json)
-            end
 
-            if res
               if token && res.is_a?(Hash) && res.key?("type")
                 if res["type"] == "error"
                   ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
@@ -144,6 +140,8 @@ module WebSocketHelper
               else
                 ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
               end
+            rescue StandardError => e
+              ws.send({ "type" => "open_ai_api_error", "token" => "", "content" => "" }.to_json)
             end
           end
         when "PING"

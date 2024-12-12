@@ -140,7 +140,12 @@ function attachEventListeners($card) {
     const messageIndex = messages.findIndex((m) => m.mid === mid);
     const currentMessage = messages[messageIndex];
 
-    // Get text content
+    // check if currentMessage has text
+    if (!currentMessage.text) {
+      alert("The current message can't be edited");
+      return;
+    }
+
     const text = currentMessage.text;
 
     // Handle attached files
@@ -194,11 +199,17 @@ function attachEventListeners($card) {
   $card.on("click", ".func-delete", function () {
     const mid = $card.attr('id');
     const messageIndex = messages.findIndex((m) => m.mid === mid);
-    const text = messages[messageIndex].text;
 
-    ttsStop();
+    let confirmed = false
 
-    const confirmed = confirm(`Are you sure to delete the message "${text}"?`);
+    if (!messages[messageIndex].text) {
+      confirmed = true;
+    } else {
+      const text = messages[messageIndex].text;
+      ttsStop();
+      confirmed = confirm(`Are you sure to delete the message "${text}"?`);
+    }
+
     if (confirmed) {
       $(this).tooltip('hide');
 

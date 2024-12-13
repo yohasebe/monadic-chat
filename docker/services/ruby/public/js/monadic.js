@@ -7,6 +7,8 @@ $(function () {
   // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
 
+  $("#send, #clear, #voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+
   //////////////////////////////
   // UI event handlers
   //////////////////////////////

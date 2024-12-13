@@ -435,7 +435,7 @@ function connect_websocket(callback) {
     }
 
     if (!verified) {
-      setAlert("<i class='fa-solid fa-bolt'></i> Verifying OpenAI API token ...", "warning");
+      setAlert("<i class='fa-solid fa-bolt'></i> Verifying token ...", "warning");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
     }
 

@@ -18,6 +18,8 @@ module OpenAIUtils
     if api_key
       api_key = api_key.strip
       settings.api_key = api_key
+    else
+      return { "type" => "error", "content" => "ERROR: API key is empty" }
     end
 
     target_uri = "#{API_ENDPOINT}/models"

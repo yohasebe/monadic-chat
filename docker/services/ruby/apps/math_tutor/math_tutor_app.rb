@@ -25,7 +25,7 @@ class MathTutor < MonadicApp
     app_name: "Math Tutor",
     description: description,
     icon: icon,
-    initiate_from_assistant: false,
+    initiate_from_assistant: true,
     pdf: false,
     image: true,
     mathjax: true

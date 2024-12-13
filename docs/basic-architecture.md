@@ -13,16 +13,21 @@ It also provides a mechanism for sharing data between the host computer and indi
 This section explains the standard Docker containers available in Monadic Chat.  By default, the following containers are built:
 
 **Ruby Container** (`monadic-chat-ruby-container`)
-This container is used to run Monadic Chat applications. It is also used to provide the web interface.
+This container is necessary to run Monadic Chat applications. It is also used to provide the web interface.
 
 **Python Container** (`monadic-chat-python-container`)
 This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab also runs on this container.
 
+Apps that use this container include: `Code Interpreter`, `Jupyter Notebook`, `Video Describer`
+
 **Selenium Container** (`monadic-chat-selenium-container`)
 This container is used to operate a virtual web browser using Selenium for web scraping.
+
+Apps that use this container include: `Code Interpreter`, `Content Reader`
 
 **pgvector Container** (`monadic-chat-pgvector-container`)
 This container is used to store text embedding vector data on PostgreSQL for using pgvector.  For more information on adding Docker containers, see [Adding Docker Containers](./adding-containers.md).
 
-You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
+Apps that use this container include: `PDF Navigator`
 
+You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.

@@ -469,7 +469,7 @@ function resetEvent(event) {
     $("#config").show();
     $("#back-to-settings").hide();
     $("#parameter-panel").hide();
-    setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start.", "success");
+    setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
     $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
 
     if (apps[$("#apps").val()]["monadic"]) {

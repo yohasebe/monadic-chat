@@ -176,11 +176,11 @@ class DockerManager {
           type: 'info',
           buttons: ['OK'],
           title: 'API Key Required',
-          message: 'OpenAI API key is not set',
-          detail: 'Please set it in the Settings before starting the system.',
+          message: 'No API keys are set.',
+          detail: 'Please set at least one API key in the settings window.',
           icon: path.join(iconDir, 'app-icon.png')
         });
-        writeToScreen('[HTML]: <p>OpenAI API Key is not set. Please set it in the Settings before starting the system.</p><hr />');
+        writeToScreen('[HTML]: <p>No API keys are set.</p><hr />');
         return;
       }
     }
@@ -1291,7 +1291,9 @@ function checkAndUpdateEnvFile() {
     envConfig.AI_USER_MODEL = 'gpt-4o-mini';
   }
 
-  return !!envConfig.OPENAI_API_KEY;
+  const api_list = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY'];
+  const hasApiKey = api_list.some(key => envConfig[key]);
+  return hasApiKey;
 }
 
 function loadSettings() {

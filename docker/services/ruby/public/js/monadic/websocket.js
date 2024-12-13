@@ -769,7 +769,13 @@ function connect_websocket(callback) {
         if (infoHtml !== "") {
           setStats(infoHtml);
         }
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+
+        if ($("#apps option").length === 0) {
+          setAlert("<i class='fa-solid fa-bolt'></i> Valid API token not set", "warning");
+        } else {
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+        }
+
         $("#monadic-spinner").hide();
         break;
       }

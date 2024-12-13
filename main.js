@@ -168,20 +168,18 @@ class DockerManager {
   }
 
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
-    // Check if the API key is set when starting the server
     if (command === 'start') {
       const apiKeySet = checkAndUpdateEnvFile();
       if (!apiKeySet) {
-        dialog.showMessageBox(mainWindow, {
-          type: 'info',
-          buttons: ['OK'],
-          title: 'API Key Required',
-          message: 'No API keys are set.',
-          detail: 'Please set at least one API key in the settings window.',
-          icon: path.join(iconDir, 'app-icon.png')
-        });
-        writeToScreen('[HTML]: <p>No API keys are set.</p><hr />');
-        return;
+        // dialog.showMessageBox(mainWindow, {
+        //   type: 'info',
+        //   buttons: ['OK'],
+        //   title: 'API Key Required',
+        //   message: 'No API keys are set.',
+        //   detail: 'Please set at least one API key in the settings window.',
+        //   icon: path.join(iconDir, 'app-icon.png')
+        // });
+        writeToScreen('[HTML]: <p><b>No API keys are set, but proceeding anyway.</b></p>');
       }
     }
 

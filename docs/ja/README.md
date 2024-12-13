@@ -4,7 +4,7 @@
 
 ## 概要
 
-**Monadic Chat** は、インテリジェントなチャットボットを作成・利用するための、ローカル環境で動作するWebアプリケーションです。GPT-4やその他のLLMにDocker上のLinux環境を与え、外部ツールを必要とする高度なタスクを実行させることができます。音声インタラクション、画像・動画の認識と生成、AIどうしのチャットをサポートしており、様々な用途にAIを使うだけでなく、AIを活用したアプリケーションの開発や研究にも役立ちます。
+**Monadic Chat** は、インテリジェントなチャットボットを作成・利用するための、ローカル環境で動作するWebアプリケーションです。GPTやその他のLLMにDocker上のLinux環境を与え、外部ツールを必要とする高度なタスクを実行させることができます。音声インタラクション、画像・動画の認識と生成、AIどうしのチャットをサポートしており、様々な用途にAIを使うだけでなく、AIを活用したアプリケーションの開発や研究にも役立ちます。
 
 **Mac**、**Windows**、**Linux**（Debian/Ubuntu）向けのインストーラが提供されています。
 
@@ -76,7 +76,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 ### 複数のLLM APIに対応
 
 - 👥 下記のLLMの**Web API**に対応
-  - [OpenAI GPT-4](https://platform.openai.com/docs/overview)
+  - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)

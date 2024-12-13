@@ -3,10 +3,11 @@
 //////////////////////////////
 
 let ws = connect_websocket();
-let verified = false;
 let model_options;
 let initialLoadComplete = false; // Flag to track initial load
 
+// OpenAI API token verification
+let verified = null;
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -434,7 +435,7 @@ function connect_websocket(callback) {
     }
 
     if (!verified) {
-      setAlert("<i class='fa-solid fa-bolt'></i> Verifying token ...", "warning");
+      setAlert("<i class='fa-solid fa-bolt'></i> Verifying OpenAI API token ...", "warning");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
     }
 
@@ -587,37 +588,39 @@ function connect_websocket(callback) {
           $("#model-selected").text("gpt-4o-mini");
         }
 
-        verified = true;
+        verified = "full";
         setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         $("#start").prop("disabled", false);
-        $("#send, #clear, #voice").prop("disabled", false);
+        $("#send, #clear, #voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
 
         // console.log("Token verified");
 
         break;
       }
       case "open_ai_api_error": {
+        verified = "partial";
+
+        $("#start").prop("disabled", false);
+        $("#send, #clear").prop("disabled", false);
+
         // console.log("OpenAI API error");
         $("#api-token").val("");
 
-        const message = "<p>Cannot connect to OpenAI API."
-        $("#start").prop("disabled", true);
-        $("#send, #clear, #voice").prop("disabled", true);
-        $("#api-token").focus();
-        setAlert(message, "warning");
+        setAlert("<i class='fa-solid fa-bolt'></i> Cannot connect to OpenAI API", "warning");
         break;
       }
       case "token_not_verified": {
+
+        verified = "partial";
+
+        $("#start").prop("disabled", false);
+        $("#send, #clear").prop("disabled", false);
+
         // console.log("Token not verified");
         $("#api-token").val("");
 
-        const message = "<p>Please set a valid API token.</p>"
-        $("#start").prop("disabled", true);
-        $("#send, #clear, #voice").prop("disabled", true);
-        $("#api-token").focus();
-        setAlert(message, "warning");
-
+        setAlert("<i class='fa-solid fa-bolt'></i> Valid OpenAI token not set", "warning");
         break;
       }
       case "apps": {
@@ -659,10 +662,12 @@ function connect_websocket(callback) {
 
           // Add apps to selector
           // First add the OpenAI Apps label and regular apps
-          $("#apps").append('<option disabled>──OpenAI──</option>');
-          for (const [key, value] of regularApps) {
-            apps[key] = value;
-            $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
+          if (verified === "full") {
+            $("#apps").append('<option disabled>──OpenAI──</option>');
+            for (const [key, value] of regularApps) {
+              apps[key] = value;
+              $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
+            }
           }
 
           // Add special groups with their labels
@@ -675,6 +680,9 @@ function connect_websocket(callback) {
               }
             }
           }
+
+          // select the first option item in the #apps dropdown that is not disabled
+          $("#apps").val($("#apps option:eq(1)").val()).trigger('change')
 
           $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
 

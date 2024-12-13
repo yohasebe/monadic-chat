@@ -254,7 +254,7 @@ function loadParams(params, calledFor = "loadParams") {
   stop_apps_trigger = false;
   if (calledFor === "reset") {
     $("#file-div").hide();
-    $("#apps").val(defaultApp);
+    // $("#apps").val(defaultApp);
     $(`#apps option[value="${defaultApp}"]`).attr('selected', 'selected');
   } else if (calledFor === "loadParams") {
     stop_apps_trigger = true;

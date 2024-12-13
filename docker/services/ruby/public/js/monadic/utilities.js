@@ -507,6 +507,8 @@ function resetEvent(event) {
 
     setStats("−");
 
+    // select the second option item in the apps dropdown
+    $("#apps").val($("#apps option:eq(1)").val());
     // select the first option item in the model dropdown
     $("#model").val($("#model option:first").val());
 

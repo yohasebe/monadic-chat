@@ -1,5 +1,5 @@
 - [Dec, 2024] 0.9.28
-  - OpenAI's API token is not necessarily required when using other APIs
+  - OpenAI's API token is not necessarily required when using other APIs (Anthropic, Google, Cohere, or Mistral)
   - Image generation feature improved
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed

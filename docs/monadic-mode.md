@@ -26,7 +26,7 @@ During a conversation, both computers and humans do more than just exchange voca
 
 One of the unique features of Monadic Chat is the ability to access a Linux environment on Docker, enabling file sharing with the host computer. This capability is leveraged in the Jupyter Notebook app, where the AI agent can suggest Python code to the user. Users can provide data through a shared folder and receive result files from executing the code.
 
-In Jupyter Notebook, code is executed cell by cell, and variables or functions defined in one cell can be referenced in subsequent cells. Therefore, when requesting code suggestions from the AI agent, it's essential to reference previously defined variables and functions while proposing new code. It's also crucial to know which libraries or modules are currently imported. Additionally, the notebook's filename (URL) must be stored.
+In the Jupyter Notebook app, code is executed cell by cell, and variables or functions defined in one cell can be referenced in subsequent cells. Therefore, when requesting code suggestions from the AI agent, it's essential to reference previously defined variables and functions while proposing new code. It's also crucial to know which libraries or modules are currently imported. Additionally, the notebook's filename (URL) must be stored.
 
 The Jupyter Notebook app maintains the following information as an object, updating the components to use as the context for the next response:
 

@@ -1,4 +1,5 @@
-- [Dec, 2024] 0.9.27
+- [Dec, 2024] 0.9.28
+  - OpenAI's API token is not necessarily required when using other APIs
   - Image generation feature improved
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed

@@ -2,7 +2,7 @@
 
 **Q**: Do I need an OpenAI API token to use Monadic Chat?
 
-**A**: Yes, an OpenAI API token is required not only for AI chat but also for speech recognition, speech synthesis, and creating text embeddings. Even if you primarily use APIs other than OpenAI for chat, such as Anthropic's Claude, an OpenAI API token is still necessary.
+**A**: An OpenAI API token is not necessarily required if you do not use functions such as speech recognition, speech synthesis, and text embedding. You can also use APIs such as Anthropic Claude, Google Gemini, Cohere Command R, and Mistral AI.
 
 ---
 

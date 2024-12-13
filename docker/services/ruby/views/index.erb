@@ -208,10 +208,14 @@
           <div id="config" class="rounded p-3 shaded-panel">
             <h5 class="pb-0" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> Chat Settings</span></h5>
 
+
             <form class="row my-2">
               <div class="col-4">
                 <label class="form-label" for="apps">Base App</label>
-                <select class="form-select form-select-sm me-3" id="apps"></select>
+                <div class="select-wrapper">
+                  <select class="form-select form-select-sm me-3 select" id="apps" onkeydown="handleKeyDown(event)">
+                  </select>
+                </div>
               </div>
               <div class="col-3 ms-2">
                 <label class="form-label text-nowrap" for="context-size-toggle">Max Context Size</label>
@@ -221,6 +225,7 @@
                 </div>
               </div>
 
+              
               <div class="col-3 ms-2">
                 <label class="form-label text-nowrap" for="max-tokens-toggle">Max Completion Tokens</label>
                 <div class="d-flex align-items-center gap-2">
@@ -233,7 +238,7 @@
             <form class="row my-3" id="model_and_file">
               <div class="col-4">
                 <label for="model" class="form-label text-nowrap">Model</label>
-                <select class="form-select form-select-sm me-3" id="model" ></select>
+                <select class="form-select form-select-sm me-3" size="1" id="model" ></select>
               </div>
 
               <div class="col-3 ms-2" id="file-div" style="display: none;">
@@ -440,7 +445,7 @@
           </div>
           <div class="modal-footer">
             <div></div>
-            <button type="button" id="resetConfirmed" class="btn btn-primary">Confirm</button>
+            <button type="button" id="resetConfirmed" class="btn btn-primary" data-bs-dismiss="modal">Confirm</button>
           </div>
         </div>
       </div>

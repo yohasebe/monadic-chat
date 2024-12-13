@@ -251,6 +251,10 @@ function deleteMessage(mid) {
   let stop_apps_trigger = false;
 
 function loadParams(params, calledFor = "loadParams") {
+  // check if params is not empty
+  if (Object.keys(params).length === 0) {
+    return;
+  }
   stop_apps_trigger = false;
   if (calledFor === "reset") {
     $("#file-div").hide();
@@ -502,6 +506,9 @@ function resetEvent(event) {
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     setStats("−");
+
+    // select the first option item in the model dropdown
+    $("#model").val($("#model option:first").val());
 
     adjustImageUploadButton($("#model").val());
 

@@ -164,6 +164,7 @@ def init_apps
         ...
         EXAMPLE_END_HERE
 
+        When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
       SYSPSUFFIX
     end
 
@@ -260,11 +261,6 @@ def init_apps
 
       Return your response in the same language as the prompt. If you need to switch to another language, please inform the user.
     PSUFFIX
-
-    system_prompt_suffix << <<~SYSPSUFFIX
-
-    When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
-    SYSPSUFFIX
 
     if !system_prompt_suffix.empty? || !prompt_suffix.empty? || !response_suffix.empty?
       system_prompt_suffix = "\n\n" + system_prompt_suffix.strip unless system_prompt_suffix.empty?

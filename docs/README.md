@@ -75,7 +75,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Support for Multiple LLM APIs
 
 - 👥 Support for the following LLM **Web APIs**:
-  - [OpenAI GPT-4](https://platform.openai.com/docs/overview)
+  - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)

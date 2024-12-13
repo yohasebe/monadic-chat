@@ -15,7 +15,8 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Dec, 2024] 0.9.27
+- [Dec, 2024] 0.9.28
+  - Image generation feature improved
   - Image generation feature improved
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed

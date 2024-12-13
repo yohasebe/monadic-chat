@@ -1,4 +1,14 @@
+// This needs to be included to suppress errors regarding modal dialogs 
+document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener('hide.bs.modal', function (event) {
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+  });
+});
+
 $(function () {
+
   elemAlert.draggable({ cursor: "move" });
 
   const backToTop = $("#back_to_top");
@@ -678,6 +688,7 @@ $(function () {
   // if #model value is changed, update the value #model-selected
   $("#model").on("change", function() {
     const selectedModel = $("#model").val();
+    // return if selectedModel is empty
     $("#model-selected").text(selectedModel);
 
     adjustImageUploadButton(selectedModel);

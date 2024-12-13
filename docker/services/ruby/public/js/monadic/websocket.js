@@ -598,6 +598,7 @@ function connect_websocket(callback) {
 
         break;
       }
+
       case "open_ai_api_error": {
         verified = "partial";
 

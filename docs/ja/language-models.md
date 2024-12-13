@@ -2,7 +2,9 @@
 
 ## OpenAI Models
 
-Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのため（チャットで使いたいモデルがOpenAIのモデルでない場合も）必ずOpenAIのAPIキーを設定する必要があります。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのためOpenAIのAPIキーを設定することをお勧めします。ただし、チャットで使いたいモデルがOpenAIのモデルでない場合、必ずしもOpenAIのAPIキーを設定する必要はありません。
+
+APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 OPENAI_API_KEY=api_key

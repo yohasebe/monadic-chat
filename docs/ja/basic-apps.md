@@ -359,7 +359,7 @@ Anthropic のClaudeモデルを使用したCoding Assistantアプリも利用可
 AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。
 
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
-<br /><br />![Action menu](./assets/images/action-menu.png ':size=120')
+<br /><br />![Action menu](./assets/images/action-menu.png ':size=160')
 
 <details>
 

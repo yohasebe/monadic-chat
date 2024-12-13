@@ -140,8 +140,7 @@ function attachEventListeners($card) {
     const messageIndex = messages.findIndex((m) => m.mid === mid);
     const currentMessage = messages[messageIndex];
 
-    // check if currentMessage has text
-    if (!currentMessage.text) {
+    if (!currentMessage || !currentMessage.text) {
       alert("The current message can't be edited");
       return;
     }
@@ -202,7 +201,7 @@ function attachEventListeners($card) {
 
     let confirmed = false
 
-    if (!messages[messageIndex].text) {
+    if (!messages[messageIndex] || !messages[messageIndex].text) {
       confirmed = true;
     } else {
       const text = messages[messageIndex].text;

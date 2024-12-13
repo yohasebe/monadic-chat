@@ -15,20 +15,25 @@ Dockerコンテ内にはユーザーとAIエージェントの両方がアクセ
 
 **Rubyコンテナ**（`monadic-chat-ruby-container`）
 
-Monadic Chatのアプリケーションを実行するためのコンテナです。Webインターフェイスを提供するためにも使用されます。
+Monadic Chatのアプリケーションを実行するために必要なコンテナです。Webインターフェイスを提供するためにも使用されます。
 
 **Pythonコンテナ**（`monadic-chat-python-container`）
 
 Monadic Chatの機能を拡張するためのPythonスクリプトを実行するために使用されます。JupyterLabもこのコンテナ上で実行されます。
 
+使用しているアプリの例：`Code Interpreter`, `Jupyter Notebook`, `Video Describer`
+
 **Seleniumコンテナ**（`monadic-chat-selenium-container`）
 
 Seleniumを使用して仮想的なWebブラウザを操作して、Webページのスクレイピングを行うために使用されます。
+
+使用しているアプリの例：`Code Interpreter`, `Content Reader`
 
 **pgvectorコンテナ**（`monadic-chat-pgvector-container`）
 
 Postgresql上にテキスト埋め込みのベクトルデータを保存するため、pgvectorを使用するためのコンテナです。
 
+使用しているアプリの例：`PDF Navigator`
 
 ?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](./adding-containers.md)を参照してください。
 

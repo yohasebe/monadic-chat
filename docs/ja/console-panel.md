@@ -61,7 +61,7 @@ Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート
 
 ここでの設定はすべて `~/monadic/data/.env` ファイルに保存されます。
 
-**OPENAI_API_KEY** （必須）<br />
+**OPENAI_API_KEY**<br />
 OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、Whisper 音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
 
 **Syntax Highlighting Theme**<br />
@@ -80,5 +80,5 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 
 **GEMINI_API_KEY**<br /> Google Gemini API キーを入力してください。このキーはGoogle Gemini (Chat) アプリを使用するのに必要です。[https://ai.google.dev/]で取得できます。
 
-**MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーは「Mistral AI (Chat) アプリを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
+**MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーはMistral AI (Chat) アプリを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
 

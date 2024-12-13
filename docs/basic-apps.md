@@ -357,7 +357,7 @@ A coding assistant app using Anthropic's Claude model is also available.
 This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
 > You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
-<br /><br />![Action menu](./assets/images/action-menu.png ':size=150')
+<br /><br />![Action menu](./assets/images/action-menu.png ':size=160')
 
 <details>
 <summary>jupyter_notebook_app.rb</summary>

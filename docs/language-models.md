@@ -2,7 +2,9 @@
 
 ## OpenAI Models
 
-Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, you must set an OpenAI API key, even if the model you primarily want to use for chat isn't an OpenAI model.  These other features rely on OpenAI services. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.
+
+Once the OpenAI API key is set, it is saved in the `~/monadic/data/.env` file in the following format:
 
 ```
 OPENAI_API_KEY=api_key

@@ -72,7 +72,7 @@ class MathTutor < MonadicApp
   TEXT
 
   @settings = {
-    model: "gpt-4o-mini",
+    model: "gpt-4o-2024-11-20",
     temperature: 0.0,
     top_p: 0.0,
     presence_penalty: 0.2,

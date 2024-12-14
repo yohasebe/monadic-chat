@@ -16,6 +16,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Dec, 2024] 0.9.28
+  - Math Tutor app supports visualizations
   - OpenAI's API token is not necessarily required when using other APIs (Anthropic, Google, Cohere, or Mistral)
   - Image generation feature improved
   - Image generation feature improved

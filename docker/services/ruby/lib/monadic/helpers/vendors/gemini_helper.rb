@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module GeminiHelper
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
   OPEN_TIMEOUT = 10
@@ -48,7 +50,9 @@ module GeminiHelper
       api_key = CONFIG["GEMINI_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: GEMINI_API_KEY not found.  Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file."
+      # ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file.
+      error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file."
+      pp error_message
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -166,13 +170,10 @@ module GeminiHelper
     end
 
     if role == "tool"
+      # MODIFICATION: Changed the structure of the contents to match the expected format
       body["contents"] << {
         "role" => "model",
-        "parts" => obj["tool_results"]["model_parts"]
-      }
-      body["contents"] << {
-        "role" => "function",
-        "parts" => obj["tool_results"]["function_parts"]
+        "parts" => obj["tool_results"]
       }
     end
 
@@ -317,7 +318,8 @@ module GeminiHelper
 
   def process_functions(_app, session, tool_calls, call_depth, &block)
     obj = session[:parameters]
-    tool_results = { "model_parts" => [], "function_parts" => [] }
+    # MODIFICATION: Changed the structure of tool_results to only include functionResponse
+    tool_results = []
     tool_calls.each do |tool_call|
       function_name = tool_call["name"]
 
@@ -333,24 +335,21 @@ module GeminiHelper
 
       function_return = send(function_name.to_sym, **argument_hash)
 
-      tool_results["model_parts"] << {
-        "functionCall" => {
-          "name" => function_name,
-          "args" => argument_hash
-        }
-      }
-
-      tool_results["function_parts"] << {
-        "functionResponse" => {
-          "name" => function_name,
-          "response" => {
+      # MODIFICATION: Improved error handling and unified the return value format
+      if function_return["result"] == "success"
+        tool_results << {
+          "functionResponse" => {
             "name" => function_name,
-            "content" => {
-              "result" => function_return.to_s
+            "response" => {
+              "name" => function_name,
+              "content" => function_return["data"]
             }
           }
         }
-      }
+      else
+        # Error handling
+        return [{ "type" => "error", "content" => "ERROR: Function call failed: #{function_name}" }]
+      end
     end
 
     obj["tool_results"] = tool_results

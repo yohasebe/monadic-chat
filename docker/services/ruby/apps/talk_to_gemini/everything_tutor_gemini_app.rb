@@ -6,7 +6,7 @@ class EverythingTutorGemini < MonadicApp
   icon = "<i class='fa-solid fa-chalkboard-user'></i>"
 
   description = <<~DESC
-    This is an application that allows AI chatbot to give a response to a wide range of prompts. The AI chatbot can provide step-by-step solutions to various problems and detailed explanations of the solutions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=everything-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    This is an application that allows AI chatbot to give a response to a wide range of prompts. The AI chatbot can provide step-by-step solutions to various problems and detailed explanations of the solutions.</a>
   DESC
 
   initial_prompt = <<~TEXT

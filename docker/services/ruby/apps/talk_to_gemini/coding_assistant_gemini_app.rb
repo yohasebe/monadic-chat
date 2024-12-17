@@ -32,7 +32,8 @@ class CodingAssistantGemini < MonadicApp
     initiate_from_assistant: true,
     image: true,
     models: GeminiHelper.list_models,
-    model: "gemini-exp-1206",
+    model: "gemini-2.0-flash-exp",
     sourcecode: true
   }
 end
+

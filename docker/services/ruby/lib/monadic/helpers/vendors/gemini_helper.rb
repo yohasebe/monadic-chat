@@ -20,7 +20,7 @@ module GeminiHelper
     }
 
     target_uri = "#{API_ENDPOINT}/models?key=#{api_key}"
-    http = HTTP.headers(headers)
+      http = HTTP.headers(headers)
 
     begin
       res = http.get(target_uri)
@@ -167,19 +167,32 @@ module GeminiHelper
 
     if settings["tools"]
       body["tools"] = settings["tools"]
+      if body["tools"]
+        body["tool_config"] = {
+          "function_calling_config" => {
+            "mode" => "ANY"
+          }
+        }
+      end
     end
 
     if role == "tool"
-      # MODIFICATION: Changed the structure of the contents to match the expected format
+      body["tool_config"] = {
+        "function_calling_config" => {
+          "mode" => "NONE"
+        }
+      }
       body["contents"] << {
         "role" => "model",
-        "parts" => obj["tool_results"]
+        "parts" => obj["tool_results"].map { |result|
+          { "text" => result.dig("functionResponse", "response", "content") }
+        }
       }
     end
 
     target_uri = "#{API_ENDPOINT}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
 
-    http = HTTP.headers(headers)
+      http = HTTP.headers(headers)
 
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
@@ -196,7 +209,7 @@ module GeminiHelper
       error_report = JSON.parse(res.body)
       pp error_report
       res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
-      block&.call res
+        block&.call res
       return [res]
     end
 
@@ -208,9 +221,9 @@ module GeminiHelper
       retry
     else
       error_message = e.is_a?(OpenSSL::SSL::SSLError) ? "SSL ERROR: #{e.message}" : "The request has timed out."
-      pp error_message
+        pp error_message
       res = { "type" => "error", "content" => "HTTP/SSL ERROR: #{error_message}" }
-      block&.call res
+        block&.call res
       [res]
     end
   rescue StandardError => e
@@ -218,7 +231,7 @@ module GeminiHelper
     pp e.backtrace
     pp e.inspect
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
-    block&.call res
+      block&.call res
     [res]
   end
 
@@ -286,7 +299,11 @@ module GeminiHelper
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
-      new_results = process_functions(app, session, tool_calls, call_depth, &block)
+      begin
+        new_results = process_functions(app, session, tool_calls, call_depth, &block)
+      rescue StandardError => e
+        new_results = [{ "type" => "error", "content" => "ERROR: #{e.message}" }]
+      end
 
       if result && new_results
         begin
@@ -317,6 +334,8 @@ module GeminiHelper
   end
 
   def process_functions(_app, session, tool_calls, call_depth, &block)
+    return false if tool_calls.empty?
+
     obj = session[:parameters]
     # MODIFICATION: Changed the structure of tool_results to only include functionResponse
     tool_results = []
@@ -333,25 +352,50 @@ module GeminiHelper
         memo
       end
 
-      function_return = send(function_name.to_sym, **argument_hash)
-
-      # MODIFICATION: Improved error handling and unified the return value format
-      if function_return["result"] == "success"
+      begin
+        function_return = send(function_name.to_sym, **argument_hash)
+        # MODIFICATION: Improved error handling and unified the return value format
+        if function_return && function_return["result"] == "success"
+          tool_results << {
+            "functionResponse" => {
+              "name" => function_name,
+              "response" => {
+                "name" => function_name,
+                "content" => function_return["data"]
+              }
+            }
+          }
+        else
+          # Error handling
+          pp "ERROR: Function call failed: #{function_name}"
+            pp function_return
+          tool_results << {
+            "functionResponse" => {
+              "name" => function_name,
+              "response" => {
+                "name" => function_name,
+                "content" => "ERROR: Function call failed: #{function_name}. #{function_return.to_s}"
+              }
+            }
+          }
+        end
+      rescue StandardError => e
+        pp "ERROR: Function call failed: #{function_name}"
+          pp e.message
+        pp e.backtrace
         tool_results << {
           "functionResponse" => {
             "name" => function_name,
             "response" => {
               "name" => function_name,
-              "content" => function_return["data"]
+              "content" => "ERROR: Function call failed: #{function_name}. #{e.message}"
             }
           }
         }
-      else
-        # Error handling
-        return [{ "type" => "error", "content" => "ERROR: Function call failed: #{function_name}" }]
       end
     end
 
+    # MODIFICATION: Clear tool_results after processing
     obj["tool_results"] = tool_results
     api_request("tool", session, call_depth: call_depth, &block)
   end

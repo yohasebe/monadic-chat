@@ -66,11 +66,7 @@ $(function () {
                     text: "NO IMAGE GENERATED"
                   }).css({
                     'color': '#dc3545',
-                    'padding': '10px',
-                    'text-align': 'center',
-                    'font-style': 'italic'
                   });
-
                   $img.replaceWith($errorMessage);
                 });
               });

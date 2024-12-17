@@ -47,7 +47,7 @@ class CodeInterpreterMistral < MonadicApp
     - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
     - Remember to check if the image file or URL really exists before returning the response.
     - Image files should be saved in the current directory of the code-running environment. For instance, `plt.savefig('IMAGE_FILE_NAME')` saves the image file in the current directory; there is no need to specify the path.
-    - Add `/data/` before the file name when you display the image for the user. Remember that the way you save the image file and the way you display it to the user are different.
+    - Add `/data/` before the file name when you display the image for the user. Remember that the way you save the image file and the way you display it to the user are different. `/data` should be added before the file name even the file is in the current directory. 
 
     User Request:
 

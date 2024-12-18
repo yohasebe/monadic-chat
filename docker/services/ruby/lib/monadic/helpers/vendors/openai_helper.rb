@@ -94,10 +94,10 @@ module OpenAIHelper
     }
 
 
-    beta_model = false
+    o1_model = false
 
-    if model.include?("o1-")
-      beta_model = true
+    if model.include?("o1")
+      o1_model = true
       # body.delete("stream")
       body["stream"] = true
       body.delete("temperature")
@@ -151,8 +151,8 @@ module OpenAIHelper
       message
     end
 
-    # Remove messages with role "system" if model includes "o1-"
-    if beta_model
+    # Remove messages with role "system" if model includes "mini" or "preview"
+    if o1_model && /mini|preview/ =~ model
       body["messages"].reject! { |msg| msg["role"] == "system" }
     end
 

@@ -124,8 +124,8 @@ class CodeInterpreterClaude < MonadicApp
 
     ### Request/Response Example 3:
 
-    - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show a link.
-    - Remember to check if the image file or URL really exists before returning the response.
+    - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the resulting HTML file with a Plotly plot, for instance.
+    - Remember to check if the HTML file really exists before returning the response.
 
     User Request:
 
@@ -149,8 +149,6 @@ class CodeInterpreterClaude < MonadicApp
 
       <div><a href="/data/FILE_NAME" target="_blank">Result</a></div>
 
-      It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
-
     ### Request/Response Example 4:
 
     - The following is a simple example to illustrate how you might respond to a user's request to show an audio/video clip.
@@ -164,6 +162,10 @@ class CodeInterpreterClaude < MonadicApp
 
       <video controls src="/data/FILE_NAME"></video>
 
+---
+
+    It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
+
     Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag. Needless to say, only existing files should be displayed.
   TEXT
 
@@ -172,7 +174,6 @@ class CodeInterpreterClaude < MonadicApp
 
     Check the environment using `check_environment` before adding cells to the Jupyter Notebook.
 
-    If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
   TEXT
 

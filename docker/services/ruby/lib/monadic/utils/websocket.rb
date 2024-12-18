@@ -434,6 +434,11 @@ module WebSocketHelper
                 content = response.dig("choices", 0, "message", "content")
                 @channel.push({ "type" => "error", "content" => response.to_s }.to_json)
               else
+                unless response.dig("choices", 0, "message", "content")
+                  @channel.push({ "type" => "error", "content" => "Content not found in response" }.to_json)
+                  break
+                end
+
                 content = response.dig("choices", 0, "message", "content").gsub(%r{\bsandbox:/}, "/")
                 content = content.gsub(%r{^/mnt/}, "/")
 

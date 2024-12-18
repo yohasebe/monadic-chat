@@ -542,7 +542,7 @@ build_ruby_container)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Ruby container has been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
   fi
@@ -560,7 +560,7 @@ build_python_container)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Python container has been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
   fi
@@ -583,7 +583,7 @@ build_user_containers)
     # No user containers found (special return code)
     echo "[HTML]: <p><i class='fa-solid fa-info-circle'></i> No user containers to build.</p><hr />"
   elif ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> User containers have been built successfully!</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
   fi
@@ -601,7 +601,7 @@ build)
   rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Monadic Chat has been built successfully! Press <b>Start</b> button to initialize the server.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Monadic Chat has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
   fi

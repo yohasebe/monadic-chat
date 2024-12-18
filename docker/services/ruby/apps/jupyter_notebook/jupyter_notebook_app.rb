@@ -47,7 +47,7 @@ class JupyterNotebook < MonadicApp
 
     The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. if the function finishes successfully, tell the user to refresh the page to see the output if the url has already been provided. 
 
-    Use the font `Noto Sans CJK JP` for chinese, japanese, and korean characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).
+    Use the font `Noto Sans CJK JP` for chinese, japanese, and korean characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`). There is no need to insltall `japanize_matplotlib` is unnecessary to include Japanese texts.
 
     If the user just wants to have some information, just respond to the user's request. if the user wants addition of cells to the existing notebook, call the `add_jupyter_cells` function. When you call a function, make sure to provide the correct parameters as described in the function description.
 

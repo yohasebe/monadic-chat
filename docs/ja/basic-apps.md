@@ -316,13 +316,21 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 </details>
 
-Anthropic のClaudeモデルを使用したCode Interpreterアプリも利用可能です。
+Anthropic ClaudeとGoogle Gemini を使用したCode Interpreterアプリも利用可能です。
 
 <details>
 
 <summary>code_interpreter_claude_app.rb</summary>
 
 ![code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
+
+</details>
+
+<details>
+
+<summary>code_interpreter_gemini_app.rb</summary>
+
+![code_interpreter_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
 
 </details>
 

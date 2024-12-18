@@ -315,13 +315,21 @@ This application allows the AI to create and execute program code. The execution
 
 </details>
 
-A code interpreter app using Anthropic's Claude model is also available.
+Code interpreter apps using Anthropic Claude and Google Gemini ais also available.
 
 <details>
 
 <summary>code_interpreter_claude_app.rb</summary>
 
 ![code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
+
+</details>
+
+<details>
+
+<summary>code_interpreter_gemini_app.rb</summary>
+
+![code_interpreter_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
 
 </details>
 

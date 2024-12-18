@@ -13,6 +13,7 @@ class MailComposer < MonadicApp
   TEXT
 
   @settings = {
+    group: "OpenAI",
     model: "gpt-4o-mini",
     temperature: 0.3,
     top_p: 0.0,

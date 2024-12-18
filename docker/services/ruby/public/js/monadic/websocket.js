@@ -556,7 +556,7 @@ function connect_websocket(callback) {
 
         if (!verified) {
           // Array of strings to identify beta models
-          const betaModelPatterns = ["o1-"]; // Multiple patterns can be set
+          const betaModelPatterns = ["o1"]; // Multiple patterns can be set
 
           // Separate regular models and beta models
           const regularModels = [];
@@ -580,7 +580,7 @@ function connect_websocket(callback) {
             ...regularModels.map(model => 
               `<option value="${model}">${model}</option>`
             ),
-            '<option disabled>──Beta Models──</option>',
+            '<option disabled>──o1 models──</option>',
             ...betaModels.map(model => 
               `<option value="${model}">${model}</option>`
             )
@@ -642,17 +642,19 @@ function connect_websocket(callback) {
             const group = value["group"];
             
             // Check if app belongs to special group
-            if (group && 
-                group.trim() !== "" && 
-                !["Regular", "OpenAI"].includes(group.trim())) {
-              // Create group array if it doesn't exist
+            if (group && group.trim() !== "" && ["Regular", "OpenAI"].includes(group.trim())) {
+              regularApps.push([key, value]);
+            } else if (group && group.trim() !== "") {
               if (!specialApps[group]) {
                 specialApps[group] = [];
               }
               specialApps[group].push([key, value]);
             } else {
-              // Add to regular apps if no special group or belongs to Regular/OpenAI
-              regularApps.push([key, value]);
+              // create a group called "Extra" for apps without a group
+              if (!specialApps["Extra"]) {
+                specialApps["Extra"] = [];
+              }
+              specialApps["Extra"].push([key, value]);
             }
           }
 
@@ -673,6 +675,14 @@ function connect_websocket(callback) {
               $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
             }
           }
+
+          // sort specialApps by group name in the order:
+          // "Anthropic", "Google", "Cohere", "Mistral", "Extra"
+          // and set it to the specialApps object
+          specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
+            const order = ["Anthropic", "Google", "Cohere", "Mistral", "Extra"];
+            return order.indexOf(a[0]) - order.indexOf(b[0]);
+          }));
 
           // Add special groups with their labels
           for (const group of Object.keys(specialApps)) {

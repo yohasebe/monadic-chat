@@ -35,6 +35,7 @@ class VideoDescriber < MonadicApp
   TEXT
 
   @settings = {
+    group: "OpenAI",
     model: "gpt-4o-mini",
     models: [
       "gpt-4o-2024-11-20",

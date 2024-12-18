@@ -19,7 +19,7 @@ RUN pip install -U pip && \
     pip install --no-cache-dir --default-timeout=1000 \
     setuptools \
     wheel \
-    jupyterlab \
+    jupyterlab ipywidgets plotly \
     numpy  pandas statsmodels \
     matplotlib seaborn \
     gunicorn tiktoken flask \

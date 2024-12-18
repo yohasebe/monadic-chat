@@ -26,7 +26,7 @@ ANTHROPIC_API_KEY=api_key
 
 ?> Anthropic Claude の Sonnet 系列のモデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input?id=pdf-のアップロード)）
 
-Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Claude) は、プログラムの作成と実行を行います。Coding Assistant (Claude) は、ユーザーがコードの作成したり拡張したりするための補助を行います。Jupyter Notebook (Claude) は、Jupyter Notebookのセルを記述・実行する補助を行います。
+Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Claude) は、プログラムの作成と実行を行います。Coding Assistant (Claude) は、ユーザーがコードの作成したり拡張したりするための補助を行います。Jupyter Notebook (Claude) は、Jupyter Notebookのセルを記述・実行する補助を行います。
 
 <details>
 <summary>chat_claude_app.rb</summary>
@@ -53,32 +53,6 @@ Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピ�
 <summary>jupyter_notebook_claude_app.rb</summary>
 
 ![jupyter_notebook_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
-
-</details>
-
-## Cohere Models
-
-![Cohere apps icon](./assets/icons/c.png ':size=40')
-
-
- CohereのAPIキーを設定すると、Command Rを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
-
-```
-COHERE_API_KEY=api_key
-```
-Chat (Command R) は、Cohere APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Command R) は、プログラムの作成・実行を行います。
-
-<details>
-<summary>chat_command_r_app.rb</summary>
-
-![chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_interpreter_command_r_app.rb</summary>
-
-![code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
 
 </details>
 
@@ -114,6 +88,32 @@ Chat (Gemini) は、Anthropic Gemini APIにアクセスして、幅広いトピ�
 
 </details>
 
+## Cohere Models
+
+![Cohere apps icon](./assets/icons/c.png ':size=40')
+
+
+ CohereのAPIキーを設定すると、Command Rを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+
+```
+COHERE_API_KEY=api_key
+```
+Chat (Command R) は、Cohere APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Command R) は、プログラムの作成・実行を行います。
+
+<details>
+<summary>chat_command_r_app.rb</summary>
+
+![chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>code_interpreter_command_r_app.rb</summary>
+
+![code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
+
+</details>
+
 ## Mistral Models
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
@@ -124,7 +124,7 @@ Mistral AI APIキーを設定すると、Mistralを用いたアプリを使用�
 MISTRAL_API_KEY=api_key
 ```
 
-Chat (Mistral AI) は、Mistral AI APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Mistral AI) は、プログラムの作成と実行を行います。
+Chat (Mistral AI) は、Mistral AI APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Mistral AI) は、ユーザーがコードの作成したり拡張したりするための補助を行います。
 
 <details>
 <summary>chat_mistral_app.rb</summary>
@@ -134,9 +134,9 @@ Chat (Mistral AI) は、Mistral AI APIにアクセスして、幅広いトピッ
 </details>
 
 <details>
-<summary>code_interpreter_mistral_app.rb</summary>
+<summary>coding_assistant_mistral_app.rb</summary>
 
-![code_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/code_interpreter_mistral_app.rb ':include :type=code')
+![code_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/coding_assistant_mistral_app.rb ':include :type=code')
 
 </details>
 

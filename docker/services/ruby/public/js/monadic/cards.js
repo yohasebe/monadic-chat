@@ -3,6 +3,10 @@ const mids = new Set();
 
 function escapeHtml(unsafe)
 {
+    if (unsafe === null || unsafe === undefined) {
+        return "";
+    }
+
     return unsafe
          .replace(/&/g, "&amp;")
          .replace(/</g, "&lt;")
@@ -11,7 +15,7 @@ function escapeHtml(unsafe)
          .replace(/'/g, "&#039;");
  }
 
-function createCard(role, badge, html, lang = "en", mid = "", status = true, images = [], monadic = false) {
+function createCard(role, badge, html, _lang = "en", mid = "", status = true, images = [], _monadic = false) {
   const status_class = status === true ? "active" : "";
 
   // Fix jupyter notebook URL issue
@@ -163,10 +167,10 @@ function attachEventListeners($card) {
     } catch (e) {
       // Not JSON, continue
     }
-    // if (json) {
-    //   alert("The current app is monadic. You can't edit JSON messages");
-    //   return;
-    // }
+    if (json) {
+      alert("The current app is monadic. You can't edit JSON messages");
+      return;
+    }
 
     const confirmed = confirm(`Are you sure to edit this message?\nThis will delete all the messages after it.`);
     if (confirmed) {

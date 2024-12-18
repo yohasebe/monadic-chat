@@ -110,13 +110,8 @@ module MistralHelper
       "presence_penalty" => presence_penalty,
       "frequency_penalty" => frequency_penalty,
       "safe_prompt" => false,
-      "stream" => true,
-      "tool_choice" => "auto"
+      "stream" => true
     }
-
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = settings["tools"] || []
-    end
 
     body["max_tokens"] = max_tokens if max_tokens
 
@@ -124,8 +119,14 @@ module MistralHelper
       { "role" => msg["role"], "content" => msg["text"] }
     end
 
+    if settings["tools"]
+      body["tools"] = settings["tools"]
+      body["tool_choice"] = "any"
+    end
+
     if role == "tool"
       body["messages"] += obj["function_returns"]
+      body["tool_choice"] = "none"
     elsif role == "user"
       body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
     end

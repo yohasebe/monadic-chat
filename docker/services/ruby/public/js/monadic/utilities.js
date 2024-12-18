@@ -203,12 +203,14 @@ function setAlertClass(alertType = "error") {
 function setAlert(text = "", alertType = "success") {
   if (alertType === "error") {
     $("#monnadic-spinner").hide();
-    try {
+    // check if text["content"] exists
+    let msg = text;
+    if (text["content"]) {
       msg = text["content"];
-    } catch {
-      msg = text;
+    } else if (msg === "") {
+      msg = "Something went wrong.";
     }
-    const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", "<p>Something went wrong. Please try again.</p><pre style='white-space: pre-wrap;'>" + msg + "</pre>");
+    const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", msg);
     $("#discourse").append(errorCard);
   } else {
     textAlert.html(`${text}`);

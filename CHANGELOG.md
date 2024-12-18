@@ -1,4 +1,6 @@
 - [Dec, 2024] 0.9.29
+  - Code Interpreter apps are available for OpenAI, Anthropic, Google, and Cohere
+  - Coding Assistant apps are available for OpenAI, Anthropic, Google, and Mistral
   - Math Tutor app supports visualizations
   - OpenAI's API token is not necessarily required when using other APIs (Anthropic, Google, Cohere, or Mistral)
   - Image generation feature improved

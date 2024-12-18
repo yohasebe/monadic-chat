@@ -57,32 +57,6 @@ Chat (Claude) is an application that accesses the Anthropic Claude API to answer
 
 </details>
 
-## Cohere Models
-
-![Cohere apps icon](./assets/icons/c.png ':size=40')
-
-By setting the Cohere API key, you can use apps that utilize Command R. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
-
-```
-COHERE_API_KEY=api_key
-```
-
-Chat (Command R) is an application that accesses the Cohere API to answer questions on a wide range of topics. Code Interpreter (Command R) writes and executes program code.
-
-<details>
-<summary>chat_command_r_app.rb</summary>
-
-[chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_interpreter_command_r_app.rb</summary>
-
-[code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
-
-</details>
-
 ## Google Models
 
 ![Google apps icon](./assets/icons/google.png ':size=40')
@@ -117,6 +91,32 @@ Chat (Gemini) is an application that accesses the Google Gemini API to answer qu
 
 </details>
 
+## Cohere Models
+
+![Cohere apps icon](./assets/icons/c.png ':size=40')
+
+By setting the Cohere API key, you can use apps that utilize Command R. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+
+```
+COHERE_API_KEY=api_key
+```
+
+Chat (Command R) is an application that accesses the Cohere API to answer questions on a wide range of topics. Code Interpreter (Command R) writes and executes program code.
+
+<details>
+<summary>chat_command_r_app.rb</summary>
+
+[chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>code_interpreter_command_r_app.rb</summary>
+
+[code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
+
+</details>
+
 ## Mistral Models
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
@@ -127,7 +127,7 @@ By setting the Mistral AI API key, you can use apps that utilize Mistral. Once s
 MISTRAL_API_KEY=api_key
 ```
 
-Chat (Mistral) is an application that accesses the Mistral AI API to answer questions on a wide range of topics. Code Interpreter (Mistral) writes and executes program code.
+Chat (Mistral) is an application that accesses the Mistral AI API to answer questions on a wide range of topics. Coding Assistant (Mistral) assists in creating and extending code.
 
 <details>
 <summary>chat_mistral_app.rb</summary>
@@ -137,9 +137,9 @@ Chat (Mistral) is an application that accesses the Mistral AI API to answer ques
 </details>
 
 <details>
-<summary>code_interpreter_mistral_app.rb</summary>
+<summary>coding_assistant_mistral_app.rb</summary>
 
-[code_interpreter_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/code_interpreter_mistral_app.rb ':include :type=code')
+[coding_assistant_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/coding_assistant_mistral_app.rb ':include :type=code')
 
 </details>
 

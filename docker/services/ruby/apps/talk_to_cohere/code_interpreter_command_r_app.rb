@@ -187,7 +187,7 @@ class CodeInterpreterCommandR < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "Code Interpreter (Cohere Command R)",
+    app_name: "Code Interpreter (Command R)",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

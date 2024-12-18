@@ -1,4 +1,4 @@
-- [Dec, 2024] 0.9.28
+- [Dec, 2024] 0.9.29
   - Math Tutor app supports visualizations
   - OpenAI's API token is not necessarily required when using other APIs (Anthropic, Google, Cohere, or Mistral)
   - Image generation feature improved

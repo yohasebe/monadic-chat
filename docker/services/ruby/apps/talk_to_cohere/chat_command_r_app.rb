@@ -22,7 +22,7 @@ class ChatCommandR < MonadicApp
   @settings = {
     group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"],
-    app_name: "Chat (Cohere Command R)",
+    app_name: "Chat (Command R)",
     initial_prompt: initial_prompt,
     description: description,
     icon: icon,

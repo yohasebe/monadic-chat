@@ -497,7 +497,10 @@ function connect_websocket(callback) {
 
   // Helper function to display an error message
   function displayErrorMessage(message) {
-    console.error("WebSocket Error:", message);
+    if (message === "") {
+      message = "Something went wrong.";
+    }
+    console.log("Error message:", message);
     setAlert(message, "error");
   }
 

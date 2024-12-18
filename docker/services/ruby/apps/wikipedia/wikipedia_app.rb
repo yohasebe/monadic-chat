@@ -29,6 +29,7 @@ class Wikipedia < MonadicApp
   TEXT
 
   @settings = {
+    group: "OpenAI",
     app_name: "Wikipedia",
     model: "gpt-4o-mini",
     temperature: 0.3,

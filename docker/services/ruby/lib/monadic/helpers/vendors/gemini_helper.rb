@@ -167,13 +167,11 @@ module GeminiHelper
 
     if settings["tools"]
       body["tools"] = settings["tools"]
-      if body["tools"]
-        body["tool_config"] = {
-          "function_calling_config" => {
-            "mode" => "ANY"
-          }
+      body["tool_config"] = {
+        "function_calling_config" => {
+          "mode" => "ANY"
         }
-      end
+      }
     end
 
     if role == "tool"
@@ -274,6 +272,7 @@ module GeminiHelper
               block&.call res
 
             elsif part["functionCall"]
+
               tool_calls << part["functionCall"]
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
               block&.call res

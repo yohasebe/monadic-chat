@@ -192,7 +192,7 @@ class CodeInterpreterGemini < MonadicApp
   @settings = {
     group: "Google",
     disabled: !CONFIG["GEMINI_API_KEY"],
-    app_name: "Code Interpreter (Google Gemini)",
+    app_name: "Code Interpreter (Gemini)",
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     description: description,

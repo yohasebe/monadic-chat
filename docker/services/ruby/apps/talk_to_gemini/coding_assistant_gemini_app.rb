@@ -22,7 +22,7 @@ class CodingAssistantGemini < MonadicApp
   @settings = {
     group: "Google",
     disabled: !CONFIG["GEMINI_API_KEY"],
-    app_name: "Coding Assistant (Google Gemini)",
+    app_name: "Coding Assistant (Gemini)",
     initial_prompt: initial_prompt,
     description: description,
     temperature: 0.0,

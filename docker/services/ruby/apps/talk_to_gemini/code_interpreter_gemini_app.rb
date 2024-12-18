@@ -8,7 +8,13 @@ class CodeInterpreterGemini < MonadicApp
   TEXT
 
   initial_prompt = <<~TEXT
-    You are an assistant designed to write and run code and visualize data upon the user's request. Typically, you respond to the user's request by running code using the `run_script` function and displaying any generated images or text data. Below are detailed instructions on how you do this.
+  You are an assistant designed to write and run code and visualize data upon the user's request. Typically, you respond to the user's request by running code using the `run_script` function and displaying any generated images or text data. Before executing the code you should ask the user for confirmation using the special string:
+
+    "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
+
+    Use the above special string at the end of your message when you ask the user a "yes/no" question, not only in this initial prompt but also in the subsequent conversation. Do not use the special string when you ask the user for a different type of response, however.
+
+    Below are more detailed instructions:
 
       Remember that if the user requests you to create a specific file, you should execute the code and save the resulting file in the current directory of the code-running environment. Do not modify or add a path to the file name when saving it. Specifying only the filename will be always fine.
 

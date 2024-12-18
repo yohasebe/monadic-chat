@@ -26,7 +26,7 @@ ANTHROPIC_API_KEY=api_key
 
 ?> Anthropic Claude の Sonnet 系列のモデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input?id=pdf-のアップロード)）
 
-Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code (Claude) は、プログラム・コードの作成補助を行います。Jupyter Notebook (Claude) は、Jupyter Notebookのセルを記述・実行する補助を行います。
+Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Claude) は、プログラムの作成と実行を行います。Coding Assistant (Claude) は、ユーザーがコードの作成したり拡張したりするための補助を行います。Jupyter Notebook (Claude) は、Jupyter Notebookのセルを記述・実行する補助を行います。
 
 <details>
 <summary>chat_claude_app.rb</summary>
@@ -66,7 +66,7 @@ Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピ�
 ```
 COHERE_API_KEY=api_key
 ```
-Chat (Command R) は、Cohere APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Command R) は、プログラム・コードの作成補助を行います。
+Chat (Command R) は、Cohere APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Command R) は、プログラムの作成・実行を行います。
 
 <details>
 <summary>chat_command_r_app.rb</summary>
@@ -91,13 +91,19 @@ Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用
 ```
 GEMINI_API_KEY=api_key
 ```
-
-Chat with Geminiは、Google Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Google Gemini) は、プログラム・コードの作成補助を行います。
+Chat (Gemini) は、Anthropic Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Gemini) は、プログラムの作成と実行を行います。Coding Assistant (Gemini) は、ユーザーがコードの作成したり拡張したりするための補助を行います。
 
 <details>
 <summary>chat_gemini_app.rb</summary>
 
 ![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/chat_gemini_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>code_interpreter_gemini_app.rb</summary>
+
+[code_interpreter_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
 
 </details>
 
@@ -118,7 +124,7 @@ Mistral AI APIキーを設定すると、Mistralを用いたアプリを使用�
 MISTRAL_API_KEY=api_key
 ```
 
-Chat (Mistral AI) は、Mistral AI APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Mistral AI) は、プログラム・コードの作成補助を行います。
+Chat (Mistral AI) は、Mistral AI APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Mistral AI) は、プログラムの作成と実行を行います。
 
 <details>
 <summary>chat_mistral_app.rb</summary>

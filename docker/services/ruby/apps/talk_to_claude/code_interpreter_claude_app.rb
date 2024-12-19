@@ -183,7 +183,7 @@ class CodeInterpreterClaude < MonadicApp
     temperature: 0.0,
     presence_penalty: 0.2,
     top_p: 0.0,
-    context_size: 2,
+    context_size: 20,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: true,

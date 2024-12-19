@@ -96,6 +96,7 @@ class JupyterNotebookClaude < MonadicApp
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
+    context_size: 20,
     temperature: 0.0,
     top_p: 0.0,
     context_size: 2,

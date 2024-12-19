@@ -187,6 +187,8 @@ class CodeInterpreterGemini < MonadicApp
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
 
     Make sure to call `run_script` whenever possible. Otherwise, the user cannot see the resulting charts and images even if you have suggested a proper code for the user. The same HTML image element should not be presented twice.
+
+    You can check the current date and time using the `current_time` function. This function does not require any parameters and returns the current time in the user's time zone. You can use this function when you need to call a function when there is no specific need.
   TEXT
 
   prompt_suffix = <<~TEXT
@@ -305,7 +307,11 @@ class CodeInterpreterGemini < MonadicApp
         {
           name: "check_environment",
           description: "Check the environment for available libraries and tools.",
-        }
+        },
+        {
+          name: "current_time",
+          description: "Get the current date and time"
+        },
       ]
     }
   }

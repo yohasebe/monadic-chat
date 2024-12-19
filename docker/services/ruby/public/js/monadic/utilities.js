@@ -14,6 +14,27 @@ const DEFAULT_CONTEXT_SIZE = 100;
 
 let currentPdfData = null;
 
+// Adjust scroll buttons visibility
+function adjustScrollButtons() {
+  const $main = $("#main");
+  const scrollTop = $main.scrollTop();
+  const scrollHeight = $main.prop("scrollHeight");
+  const clientHeight = $main.height();
+
+  // Check if content is actually scrollable
+  const isScrollable = scrollHeight > clientHeight;
+
+  // Only show buttons if content is scrollable
+  if (isScrollable) {
+    $("#back_to_top").css("opacity", scrollTop > 200 ? "0.5" : "0.0");
+    $("#back_to_bottom").css("opacity", 
+      scrollTop < scrollHeight - clientHeight - 200 ? "0.5" : "0.0");
+  } else {
+    // Hide both buttons if content is not scrollable
+    $("#back_to_top, #back_to_bottom").css("opacity", "0.0");
+  }
+}
+
 function setCookie(name, value, days) {
   const date = new Date();
   date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
@@ -511,6 +532,7 @@ function resetEvent(event) {
     $("#model").val($("#model option:first").val());
 
     adjustImageUploadButton($("#model").val());
+    adjustScrollButtons();
 
     if (ws) {
       reconnect_websocket(ws);

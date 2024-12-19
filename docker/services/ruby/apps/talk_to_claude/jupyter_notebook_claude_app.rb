@@ -99,7 +99,6 @@ class JupyterNotebookClaude < MonadicApp
     context_size: 20,
     temperature: 0.0,
     top_p: 0.0,
-    context_size: 2,
     image_generation: true,
     sourcecode: true,
     easy_submit: false,

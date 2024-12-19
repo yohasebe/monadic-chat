@@ -434,6 +434,7 @@ $(function () {
     } else {
       $("#start-label").text("Start Session");
     }
+    adjustScrollButtons();
     setInputFocus()
   });
 
@@ -549,27 +550,6 @@ $(function () {
   //////////////////////////////
   // Set up the initial state of the UI
   //////////////////////////////
-
-  // Adjust scroll buttons visibility
-  function adjustScrollButtons() {
-    const $main = $("#main");
-    const scrollTop = $main.scrollTop();
-    const scrollHeight = $main.prop("scrollHeight");
-    const clientHeight = $main.height();
-
-    // Check if content is actually scrollable
-    const isScrollable = scrollHeight > clientHeight;
-
-    // Only show buttons if content is scrollable
-    if (isScrollable) {
-      $("#back_to_top").css("opacity", scrollTop > 200 ? "0.5" : "0.0");
-      $("#back_to_bottom").css("opacity", 
-        scrollTop < scrollHeight - clientHeight - 200 ? "0.5" : "0.0");
-    } else {
-      // Hide both buttons if content is not scrollable
-      $("#back_to_top, #back_to_bottom").css("opacity", "0.0");
-    }
-  }
 
   backToTop.click(function (e) {
     e.preventDefault();

@@ -397,4 +397,8 @@ class MonadicApp
   def ask_openai(parameters)
     BasicAgent.send_query(parameters)
   end
+
+  def current_time
+    Time.now.to_s
+  end
 end

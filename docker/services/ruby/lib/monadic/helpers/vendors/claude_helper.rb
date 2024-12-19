@@ -11,6 +11,33 @@ module ClaudeHelper
   MAX_PC_PROMPTS = 4
 
   attr_accessor :thinking
+  attr_reader :models
+
+  def self.list_models
+    api_key = CONFIG["ANTHROPIC_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "x-api-key": api_key,
+      "anthropic-version": "2023-06-01"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+        model_data = JSON.parse(res.body)
+        model_data["data"].map do |model|
+          model["id"]
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
+  end
 
   def initialize
     @leftover = []

@@ -110,11 +110,8 @@ class JupyterNotebookClaude < MonadicApp
     image: true,
     toggle: true,
     jupyter: true,
+    models: ClaudeHelper.list_models,
     model: "claude-3-5-sonnet-20241022",
-    models: [
-      "claude-3-5-sonnet-20241022",
-      "claude-3-opus-20240229"
-    ],
     tools: [
       {
         name: "run_script",

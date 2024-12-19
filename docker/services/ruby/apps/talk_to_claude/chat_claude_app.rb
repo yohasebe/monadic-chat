@@ -29,11 +29,7 @@ class ChatClaude < MonadicApp
     toggle: true,
     image: true,
     sourcecode: true,
+    models: ClaudeHelper.list_models,
     model: "claude-3-5-sonnet-20241022",
-    models: [
-      "claude-3-5-sonnet-20241022",
-      "claude-3-5-haiku-20241022",
-      "claude-3-opus-20240229",
-    ]
   }
 end

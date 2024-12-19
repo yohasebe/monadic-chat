@@ -37,10 +37,7 @@ class CodingAssistantClaude < MonadicApp
     pdf: false,
     sourcecode: true,
     mathjax: false,
-    models: [
-      "claude-3-5-sonnet-20241022",
-      "claude-3-opus-20240229"
-    ],
+    models: ClaudeHelper.list_models,
     model: "claude-3-5-sonnet-20241022"
   }
 end

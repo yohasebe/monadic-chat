@@ -169,7 +169,7 @@ module ClaudeHelper
       "model" => obj["model"],
       "stream" => true,
       "tool_choice" => {
-        "type": "auto"
+        "type": "any"
       }
     }
 
@@ -241,6 +241,7 @@ module ClaudeHelper
     if role == "tool"
       body["messages"] += obj["function_returns"]
       @leftover += obj["function_returns"]
+      body["tool_choice"] = { "type" => "auto" }
     end
 
     # Call the API

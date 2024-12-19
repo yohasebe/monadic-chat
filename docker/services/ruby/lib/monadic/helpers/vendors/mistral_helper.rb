@@ -126,7 +126,7 @@ module MistralHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-      body["tool_choice"] = "none"
+      body["tool_choice"] = "auto"
     elsif role == "user"
       body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
     end

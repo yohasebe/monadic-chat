@@ -34,3 +34,8 @@ The active/inactive status of a message changes depending on the context size an
 - **Assistant (to add to past messages)**<br />Add text as a message from the AI assistant. Use it to add to past messages as part of the context.
 - **System (to provide additional direction)**<br />Use this to provide additional system prompts.
 
+---
+
+**A**: When I access localhost:4567 in the browser, it shows "Not Secure". Is this a security concern?
+
+**Q**: This application is secure because the server only accepts connections from `localhost` (`127.0.0.1`). The "Not Secure" warning shown in your browser is not a concern for this local connection.

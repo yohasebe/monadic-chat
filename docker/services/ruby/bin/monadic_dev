@@ -69,23 +69,22 @@ def start_server(opts)
   else
     cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
     cmd += " --daemonize" if opts[:daemonize]
-
-    # Capture the command output
-    if opts[:daemonize]
+    
+    if opts[:log] || !opts[:daemonize]
+      puts "Starting server in debug mode..."
+      exec(cmd)
+    else
       output = `#{cmd} 2>&1`
-    else
-      output = `#{cmd}`
-    end
-    success = $?.success?
+      success = $?.success?
 
-    if success
-      puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
-    else
-      puts "Server failed to start"
-      # Save detailed error log to the specified directory on the host
-      File.open(File.join(DATA_DIR, "monadic.log"), "a") do |file|
-        file.puts("Failed to start server at #{Time.now}")
-        file.puts(output)  # Write the detailed error output
+      if success
+        puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
+      else
+        puts "Server failed to start"
+        File.open(File.join(DATA_DIR, "monadic.log"), "a") do |file|
+          file.puts("Failed to start server at #{Time.now}")
+          file.puts(output)
+        end
       end
     end
   end

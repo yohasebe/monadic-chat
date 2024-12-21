@@ -354,20 +354,19 @@ module GeminiHelper
       begin
         function_return = send(function_name.to_sym, **argument_hash)
         # MODIFICATION: Improved error handling and unified the return value format
-        if function_return && function_return["result"] == "success"
+        if function_return
           tool_results << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
                 "name" => function_name,
-                "content" => function_return["data"]
+                "content" => function_return
               }
             }
           }
         else
           # Error handling
-          pp "ERROR: Function call failed: #{function_name}"
-            pp function_return
+          pp "ERROR: Function call failed: Empty or invalid return value"
           tool_results << {
             "functionResponse" => {
               "name" => function_name,

@@ -556,35 +556,39 @@ function connect_websocket(callback) {
 
         if (!verified) {
           // Array of strings to identify beta models
-          const betaModelPatterns = ["o1"]; // Multiple patterns can be set
+          const regularModelPatterns = [/^gpt-4o/];
+          const betaModelPatterns = [/^o1/];
 
           // Separate regular models and beta models
           const regularModels = [];
           const betaModels = [];
+          const otherModels = [];
 
           data['models'].forEach(model => {
-            // Check if any pattern is included in the model name
-            const isBetaModel = betaModelPatterns.some(pattern => 
-              model.includes(pattern)
-            );
-
-            if (isBetaModel) {
+            if (regularModelPatterns.some(pattern => pattern.test(model))) {
+              regularModels.push(model);
+            } else if (betaModelPatterns.some(pattern => pattern.test(model))) {
               betaModels.push(model);
             } else {
-              regularModels.push(model);
+              otherModels.push(model);
             }
           });
 
           // Combine regular models and beta models to generate options
           model_options = [
-            ...regularModels.map(model => 
+            '<option disabled>──gpt-4o──</option>',
+            ...regularModels.map(model =>
               `<option value="${model}">${model}</option>`
             ),
-            '<option disabled>──o1 models──</option>',
-            ...betaModels.map(model => 
+            '<option disabled>──o1──</option>',
+            ...betaModels.map(model =>
+              `<option value="${model}">${model}</option>`
+            ),
+            '<option disabled>──other──</option>',
+            ...otherModels.map(model =>
               `<option value="${model}">${model}</option>`
             )
-          ];
+          ].join('');
 
           $("#model").html(model_options);
           $("#model").val("gpt-4o-mini");

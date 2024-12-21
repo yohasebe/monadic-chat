@@ -591,8 +591,8 @@ function connect_websocket(callback) {
           ].join('');
 
           $("#model").html(model_options);
-          $("#model").val("gpt-4o-mini");
-          $("#model-selected").text("gpt-4o-mini");
+          $("#model").val(DEFAULT_MODEL);
+          $("#model-selected").text(DEFAULT_MODEL);
         }
 
         verified = "full";

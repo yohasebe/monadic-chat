@@ -366,13 +366,12 @@ module GeminiHelper
           }
         else
           # Error handling
-          pp "ERROR: Function call failed: Empty or invalid return value"
           tool_results << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
                 "name" => function_name,
-                "content" => "ERROR: Function call failed: #{function_name}. #{function_return.to_s}"
+                "content" => "ERROR: Function (#{function_name}) called with #{argument_hash} returned nil."
               }
             }
           }

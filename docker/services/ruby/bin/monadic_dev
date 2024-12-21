@@ -9,24 +9,41 @@ require_relative "../lib/monadic/version"
 Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 
 DEFAULT_PORT = 4567
-
-# kill all processes using 4567 port
-system("lsof -i:4567 | awk 'NR!=1 {print $2}' | xargs kill -9")
-
 PID_FILE = __dir__ + "/thin.pid"
 
 # Set the data directory $HOME/monadic/data
 DATA_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "data"))
 
+# Helper methods for OS detection
+def is_mac?
+  RUBY_PLATFORM.include?('darwin')
+end
+
+def is_linux?
+  RUBY_PLATFORM.include?('linux')
+end
+
+# Select appropriate Selenium image based on architecture
 selenium_image = "selenium/standalone-chrome:latest"
-if `uname -s`.chomp.include? "Darwin"
+if is_mac?
   if `uname -m`.chomp == "arm64"
     selenium_image = "seleniarm/standalone-chromium:latest"
   end
 end
+
+# Set environment variables
 ENV["SELENIUM_IMAGE"] = selenium_image
 ENV["MONADIC_VERSION"] = Monadic::VERSION.to_s
 ENV["HOST_OS"] = `uname -s`.chomp
+
+# Define required containers for the application
+REQUIRED_CONTAINERS = [
+  "monadic-chat-python-container",
+  "monadic-chat-selenium-container",
+  "monadic-chat-syntree-container",
+  "monadic-chat-ollama-container",
+  "monadic-chat-pgvector-container"
+]
 
 # Parse command line options
 opts = Optimist.options do
@@ -39,81 +56,105 @@ end
 
 DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
 
-def start_server(opts)
-  start_script = File.join(DOCKER_HOME, "support_scripts", "mac-start-docker.sh")
-  mac_docker_start = File.read(start_script)
+# Helper methods for container management
+def container_exists?(container_name)
+  system("docker container inspect #{container_name} > /dev/null 2>&1")
+end
 
-  system(mac_docker_start)
+def container_running?(container_name)
+  return false unless container_exists?(container_name)
+  `docker container inspect #{container_name} --format '{{.State.Status}}'`.chomp == "running"
+end
+
+def start_server(opts)
+  # Start Docker containers if on Mac
+  if is_mac?
+    start_script = File.join(DOCKER_HOME, "support_scripts", "mac-start-docker.sh")
+    mac_docker_start = File.read(start_script)
+    system(mac_docker_start)
+  end
+
+  # Stop existing Ruby container if running
   system("docker container stop monadic-chat-ruby-container > /dev/null") if system("docker container ls | grep monadic-chat-ruby-container > /dev/null")
 
-  container_names = `docker ps -a --filter 'label=project=monadic-chat' --format '{{.Names}}'`.split("\n")
-
-  container_names.each do |container_name|
-    next if container_name == "monadic-chat-ruby-container"
-
-    cmd1 = "docker container start #{container_name}"
-    system(cmd1)
-    cmd2 = "docker container inspect #{container_name} --format '{{.State.Status}}'"
-    status = ""
-    while status != "running"
-      status = `#{cmd2}`.chomp
-      pp status
-      sleep 0.5
+  # Start required containers
+  REQUIRED_CONTAINERS.each do |container_name|
+    next unless container_exists?(container_name)
+    unless container_running?(container_name)
+      system("docker container start #{container_name}")
+      # Wait for container to start
+      30.times do  # Try for 15 seconds (30 * 0.5)
+        break if container_running?(container_name)
+        sleep 0.5
+      end
     end
   end
 
+  # Check if server is already running
   if File.exist?(PID_FILE)
-    pid = File.read(PID_FILE).to_i
-    Process.kill 0, pid
-    puts "Server is already running"
-  else
-    cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
-    cmd += " --daemonize" if opts[:daemonize]
-    
-    if opts[:log] || !opts[:daemonize]
-      puts "Starting server in debug mode..."
-      exec(cmd)
-    else
-      output = `#{cmd} 2>&1`
-      success = $?.success?
+    begin
+      pid = File.read(PID_FILE).to_i
+      if pid > 0
+        Process.kill(0, pid)
+        puts "Server is already running"
+        return
+      end
+    rescue Errno::ESRCH, Errno::EPERM
+      # Remove PID file if process doesn't exist or we don't have permission
+      File.delete(PID_FILE)
+    end
+  end
 
-      if success
-        puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
-      else
-        puts "Server failed to start"
-        File.open(File.join(DATA_DIR, "monadic.log"), "a") do |file|
-          file.puts("Failed to start server at #{Time.now}")
-          file.puts(output)
-        end
+  # Start the server
+  cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
+  cmd += " --daemonize" if opts[:daemonize]
+  
+  if opts[:log] || !opts[:daemonize]
+    puts "Starting server in debug mode..."
+    exec(cmd)
+  else
+    output = `#{cmd} 2>&1`
+    success = $?.success?
+
+    if success
+      puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
+    else
+      puts "Server failed to start"
+      File.open(File.join(DATA_DIR, "monadic.log"), "a") do |file|
+        file.puts("Failed to start server at #{Time.now}")
+        file.puts(output)
       end
     end
   end
 end
 
 def stop_server
+  # Stop the main server process
   begin
-    pid = File.read(PID_FILE).to_i
-    Process.kill 9, pid
-    File.delete PID_FILE
+    if File.exist?(PID_FILE)
+      pid = File.read(PID_FILE).to_i
+      if pid > 0
+        Process.kill(9, pid)
+        File.delete(PID_FILE)
+      end
+    end
     puts "Server stopped; PID file removed; Stopping docker containers"
-  rescue Errno::ENOENT
+  rescue Errno::ESRCH, Errno::ENOENT
     puts "Server not running"
-  rescue StandardError
-    puts "Server failed to stop; Maybe the server is not running"
+  rescue StandardError => e
+    puts "Error stopping server: #{e.message}"
   end
 
-  container_names = `docker ps -a --filter 'label=project=monadic-chat' --format '{{.Names}}'`.split("\n")
-  container_names.each do |container_name|
-    next if container_name == "monadic-chat-ruby-container"
-
-    cmd1 = "docker container stop #{container_name}"
-    system(cmd1)
-    cmd2 = "docker container inspect #{container_name} --format '{{.State.Status}}'"
-    status = ""
-    while status != "exited"
-      status = `#{cmd2}`.chomp
-      pp status
-      sleep 0.5
+  # Stop all required containers
+  REQUIRED_CONTAINERS.each do |container_name|
+    if container_exists?(container_name)
+      system("docker container stop #{container_name}")
+      
+      # Wait for container to stop
+      30.times do  # Try for 15 seconds (30 * 0.5)
+        break unless container_running?(container_name)
+        sleep 0.5
+      end
     end
   end
 end
@@ -121,32 +162,43 @@ end
 # Restart the server
 def restart_server(opts)
   stop_server
+  sleep 2  # Wait for processes to fully stop
   start_server(opts)
 end
 
 def print_status
-  if File.exist?(PID_FILE)
-    pid = File.read(PID_FILE).to_i
+  # Check main server status
+  server_status = if File.exist?(PID_FILE)
     begin
-      Process.kill 0, pid
-      puts "Server is running"
-    rescue StandardError
-      puts "Server is not running"
+      pid = File.read(PID_FILE).to_i
+      Process.kill(0, pid)
+      "running"
+    rescue Errno::ESRCH
+      "not running"
     end
   else
-    puts "Server is not running"
+    "not running"
+  end
+  puts "Main server is #{server_status}"
+
+  # Print status of required containers
+  puts "\nContainer Status:"
+  REQUIRED_CONTAINERS.each do |container_name|
+    if container_exists?(container_name)
+      status = container_running?(container_name) ? "running" : "stopped"
+      puts "#{container_name}: #{status}"
+    else
+      puts "#{container_name}: does not exist"
+    end
   end
 end
 
 def export_document_db
   command = <<~SHELL
-pg_dump monadic | gzip > "#{DATA_DIR}/monadic.gz"
+    pg_dump monadic | gzip > "#{DATA_DIR}/monadic.gz"
   SHELL
 
-  # Run command and get the result with error reporting
-  res = system(command)
-
-  if res
+  if system(command)
     puts "Document DB exported to 'monadic.gz'"
   else
     puts "Failed to export document DB"
@@ -155,22 +207,19 @@ end
 
 def import_document_db
   command = <<~SHELL
-dropdb monadic && createdb --locale=C --template=template0 monadic && gunzip -c "#{DATA_DIR}/monadic.gz" | psql monadic
+    dropdb monadic && createdb --locale=C --template=template0 monadic && gunzip -c "#{DATA_DIR}/monadic.gz" | psql monadic
   SHELL
 
-  res = system(command)
-
-  if res
+  if system(command)
     puts "Document DB imported from 'monadic.gz'"
   else
     puts "Failed to import document DB"
   end
 end
 
-# Parse subcommand
+# Parse and execute subcommand
 subcommand = ARGV.shift
 
-# Execute subcommand
 case subcommand
 when "start"
   start_server(opts)

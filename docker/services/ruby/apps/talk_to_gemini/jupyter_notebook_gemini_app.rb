@@ -96,7 +96,7 @@ class JupyterNotebookGemini < MonadicApp
     prompt_suffix: prompt_suffix,
     description: description,
     temperature: 0.0,
-    context_size: 5,
+    context_size: 20,
     icon: icon,
     easy_submit: false,
     auto_speech: false,

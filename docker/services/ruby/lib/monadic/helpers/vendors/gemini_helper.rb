@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# frozen_string_literal: false
 
 module GeminiHelper
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
@@ -177,7 +177,7 @@ module GeminiHelper
     if role == "tool"
       body["tool_config"] = {
         "function_calling_config" => {
-          "mode" => "NONE"
+          "mode" => "AUTO"
         }
       }
       body["contents"] << {
@@ -241,6 +241,10 @@ module GeminiHelper
 
     body.each do |chunk|
       buffer << chunk
+
+      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      buffer.encode!("UTF-8", "UTF-16")
+
       if /(\{\s*"candidates":.*\})/m =~ buffer.strip
         json = Regexp.last_match(1)
         begin
@@ -248,7 +252,7 @@ module GeminiHelper
           candidates = json_obj["candidates"]
           candidates.each do |candidate|
 
-            pp finish_reason = candidate["finishReason"]
+            finish_reason = candidate["finishReason"]
             case finish_reason
             when "MAX_TOKENS"
               finish_reason = "length"
@@ -263,7 +267,7 @@ module GeminiHelper
             end
 
             content = candidate["content"]
-            next if (content.nil? || finish_reason == "recitation")
+            next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
 
             content["parts"]&.each do |part|
               if part["text"]
@@ -296,12 +300,19 @@ module GeminiHelper
       pp e.inspect
     end
 
-    result = texts.empty? ? nil : texts
+    if texts.empty? 
+      result << "\n\nNo response from the model."
+      finish_reason = nil
+    else 
+      result = texts
+    end
 
-    # if finish_reason is nil, add text that asks the user if they want to continue
     if finish_reason.nil?
-      ask_continue_message = "\n```\n\nDo you want to continue?"
-      result << ask_continue_message
+      if result.join("").count("```").odd?
+        result << "\n```"
+      end
+
+      result << "\n\nDo you want to continue?"
     end
 
 

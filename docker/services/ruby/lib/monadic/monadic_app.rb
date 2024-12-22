@@ -308,7 +308,7 @@ class MonadicApp
           output = "#{success}; File(s) generated: #{new_files.join(", ")}"
           output += "; Output: #{stdout}" if stdout.strip.length.positive?
         else
-          output = "#{success}; Output: #{stdout}" if stdout.strip.length.positive?
+          output = "#{success} (No files generated); Output: #{stdout}" if stdout.strip.length.positive?
         end
 
         # Clean up temporary file if keep_file is false

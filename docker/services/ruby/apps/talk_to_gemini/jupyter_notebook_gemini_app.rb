@@ -49,7 +49,7 @@ class JupyterNotebookGemini < MonadicApp
 
     The `add_jupyter_cells` function will also run the new cells of the Jupyter Notebook and write the output to the notebook, so the user does not have to run the cells manually. if the function finishes successfully, tell the user to refresh the page to see the output if the url has already been provided. 
 
-    Use the font `Noto Sans CJK JP` for chinese, japanese, and korean characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).
+    Use the font `Noto Sans CJK JP` for chinese, japanese, and korean characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`). Do not use `japanize_matplotlib`.
 
     If the user just wants to have some information, just respond to the user's request. if the user wants addition of cells to the existing notebook, call the `add_jupyter_cells` function. When you call a function, make sure to provide the correct parameters as described in the function description.
 
@@ -72,8 +72,7 @@ class JupyterNotebookGemini < MonadicApp
     Your response should be accompanied with a JSON object with the following structure:
 
 
-    ```
-    Your response here. It is followed by the JSON object below.
+    Your response is followed by the JSON object below.
 
     <div class="toggle"><pre>
       Link: "<a href='URL' target='_blank' rel='noopener noreferrer'>FILENAME</a>",
@@ -81,9 +80,8 @@ class JupyterNotebookGemini < MonadicApp
       Functions: ["function_name(arg1, arg2)"],
       Variables: ["variable1", "variable2"]
     </pre></div>
-    ```
 
-    The above JSON object should be presented as HTML, not as a Markdown code block. It should contain the latest URL of the Jupyter Notebook and the variables defined and updated in the whole session. The variables should be updated as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
+    This JSON object should be presented inside the HTML tags (not as a Markdown code block). It should contain the latest URL of the Jupyter Notebook and the variables defined and updated in the whole session. The variables should be updated as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
 
     In the context data provided to you by the user, the part of your response where function calls are made is not included. You should decide where you should call the functions yourself. Call functions whenever you think it is necessary to do so. If you get errors multiple times in a row, you should stop the process and inform the user of the error.
   TEXT

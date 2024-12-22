@@ -131,6 +131,7 @@ module GeminiHelper
       ]
     }
 
+
     if temperature || max_tokens || top_p
       body["generationConfig"] = {}
       body["generationConfig"]["temperature"] = temperature if temperature

@@ -2,9 +2,9 @@ module MonadicHelper
 
   def unescape(text)
     text.gsub(/\\n/) { "\n" }
-      .gsub!(/\\'/) { "'" }
-      .gsub!(/\\"/) { '"' }
-      .gsub!(/\\\\/) { "\\" }
+      .gsub(/\\'/) { "'" }
+      .gsub(/\\"/) { '"' }
+      .gsub(/\\\\/) { "\\" }
   end
 
   def add_jupyter_cells(filename: "", cells: "", escaped: false, retrial: false)

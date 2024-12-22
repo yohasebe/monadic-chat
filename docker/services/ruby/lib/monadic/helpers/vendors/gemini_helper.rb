@@ -239,55 +239,60 @@ module GeminiHelper
     tool_calls = []
     finish_reason = nil
 
-    body.each do |chunk|
-      buffer << chunk
-      if /(\{\s*"candidates":.*\})/m =~ buffer.strip
-        json = Regexp.last_match(1)
-        begin
-          candidates = JSON.parse(json)["candidates"]
-          candidate = candidates.first
+    # normalize HTTP::Response::Body
+    normalized_body = body.to_s.gsub(/\r\n/, "\n")
 
-          finish_reason = candidate["finishReason"]
-          case finish_reason
-          when "MAX_TOKENS"
-            finish_reason = "length"
-          when "STOP"
-            finish_reason = "stop"
-          when "SAFETY"
-            finish_reason = "safety"
+    begin
+      json_array = JSON.parse(normalized_body)
+      # convert to array if not already
+      json_array = [json_array] unless json_array.is_a?(Array)
+
+      json_array.each do |data|
+        candidates = data["candidates"]
+        next unless candidates
+
+        candidate = candidates.first
+        next unless candidate
+
+        if candidate["finishReason"]
+          finish_reason = case candidate["finishReason"]
+                          when "MAX_TOKENS" then "length"
+                          when "STOP" then "stop"
+                          when "SAFETY" then "safety"
+                          else candidate["finishReason"]
+                          end
+        end
+
+        content = candidate["content"]
+        next unless content
+
+        content["parts"]&.each do |part|
+          if part["text"]
+            fragment = part["text"]
+            texts << fragment
+
+            res = {
+              "type" => "fragment",
+              "content" => fragment
+            }
+            block&.call res
+
+          elsif part["functionCall"]
+            tool_calls << part["functionCall"]
+            res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+            block&.call res
           end
-
-          content = candidate["content"]
-          next if content.nil?
-
-          content["parts"]&.each do |part|
-            if part["text"]
-              fragment = part["text"]
-              texts << fragment
-
-              res = {
-                "type" => "fragment",
-                "content" => fragment
-              }
-              block&.call res
-
-            elsif part["functionCall"]
-
-              tool_calls << part["functionCall"]
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
-            end
-          end
-          buffer = String.new
-        rescue JSON::ParserError
-          # if the JSON parsing fails, the next chunk should be appended to the buffer
-          # and the loop should continue to the next iteration
         end
       end
+    rescue JSON::ParserError => e
+      pp "JSON Parse Error: #{e.message}"
+        pp "Raw body: #{normalized_body}"
+        return [{ "type" => "error", "content" => "JSON parsing failed: #{e.message}" }]
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
+      pp "Error: #{e.message}"
+        pp e.backtrace
       pp e.inspect
+      return [{ "type" => "error", "content" => "Processing failed: #{e.message}" }]
     end
 
     result = texts.empty? ? nil : texts

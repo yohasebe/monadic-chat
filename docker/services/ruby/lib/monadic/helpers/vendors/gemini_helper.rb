@@ -131,7 +131,6 @@ module GeminiHelper
       ]
     }
 
-
     if temperature || max_tokens || top_p
       body["generationConfig"] = {}
       body["generationConfig"]["temperature"] = temperature if temperature
@@ -234,9 +233,6 @@ module GeminiHelper
     [res]
   end
 
-
-
-
   def process_json_data(app, session, body, call_depth, &block)
     buffer = String.new
     texts = []
@@ -244,57 +240,70 @@ module GeminiHelper
     finish_reason = nil
 
     body.each do |chunk|
-      buffer << chunk.to_s.gsub(/\r\n/, "\n")
+      buffer << chunk
       if /(\{\s*"candidates":.*\})/m =~ buffer.strip
         json = Regexp.last_match(1)
         begin
-          candidates = JSON.parse(json)["candidates"]
-          candidate = candidates.first
-          next unless candidates
+          json_obj = JSON.parse(json)
+          candidates = json_obj["candidates"]
+          candidates.each do |candidate|
 
-          if candidate["finishReason"]
-            finish_reason = case candidate["finishReason"]
-                            when "MAX_TOKENS" then "length"
-                            when "STOP" then "stop"
-                            when "SAFETY" then "safety"
-                            else candidate["finishReason"]
-                            end
-          end
+            pp finish_reason = candidate["finishReason"]
+            case finish_reason
+            when "MAX_TOKENS"
+              finish_reason = "length"
+            when "STOP"
+              finish_reason = "stop"
+            when "SAFETY"
+              finish_reason = "safety"
+            when "CITATION"
+              finish_reason = "recitation"
+            else
+              finish_reason = nil
+            end
 
-          content = candidate["content"]
-          next unless content
+            content = candidate["content"]
+            next if (content.nil? || finish_reason == "recitation")
 
-          content["parts"]&.each do |part|
-            if part["text"]
-              fragment = part["text"]
-              texts << fragment
+            content["parts"]&.each do |part|
+              if part["text"]
+                fragment = part["text"]
+                texts << fragment
 
-              res = {
-                "type" => "fragment",
-                "content" => fragment
-              }
-              block&.call res
+                res = {
+                  "type" => "fragment",
+                  "content" => fragment
+                }
+                block&.call res
 
-            elsif part["functionCall"]
-              tool_calls << part["functionCall"]
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
+              elsif part["functionCall"]
+
+                tool_calls << part["functionCall"]
+                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                block&.call res
+              end
             end
           end
           buffer = String.new
-        rescue JSON::ParserError => e
-          # pp "JSON Parse Error: #{e.message}"
-          # return [{ "type" => "error", "content" => "JSON parsing failed: #{e.message}" }]
+        rescue JSON::ParserError
+          # if the JSON parsing fails, the next chunk should be appended to the buffer
+          # and the loop should continue to the next iteration
         end
       end
     rescue StandardError => e
-      pp "Error: #{e.message}"
-        pp e.backtrace
+      pp e.message
+      pp e.backtrace
       pp e.inspect
-      return [{ "type" => "error", "content" => "Processing failed: #{e.message}" }]
     end
 
     result = texts.empty? ? nil : texts
+
+    # if finish_reason is nil, add text that asks the user if they want to continue
+    if finish_reason.nil?
+      ask_continue_message = "\n```\n\nDo you want to continue?"
+      result << ask_continue_message
+    end
+
 
     if tool_calls.any?
       call_depth += 1
@@ -357,6 +366,7 @@ module GeminiHelper
 
       begin
         function_return = send(function_name.to_sym, **argument_hash)
+        # MODIFICATION: Improved error handling and unified the return value format
         if function_return
           tool_results << {
             "functionResponse" => {
@@ -368,7 +378,8 @@ module GeminiHelper
             }
           }
         else
-          tool_results << { # 関数がnilを返した場合のエラー処理
+          # Error handling
+          tool_results << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
@@ -392,9 +403,6 @@ module GeminiHelper
           }
         }
       end
-
-      obj["tool_results"] = tool_results # tool_resultsをクリア
-      api_request("tool", session, call_depth: call_depth, &block)
     end
 
     # MODIFICATION: Clear tool_results after processing

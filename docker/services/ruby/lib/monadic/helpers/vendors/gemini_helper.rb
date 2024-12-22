@@ -175,15 +175,19 @@ module GeminiHelper
     end
 
     if role == "tool"
+      parts = obj["tool_results"].map { |result|
+        { "text" => result.dig("functionResponse", "response", "content") }
+      }.filter { |part| part["text"] }
+
+      if parts.any?
+        body["contents"] << {
+          "role" => "model",
+          "parts" => parts
+        }
+      end
       body["tool_config"] = {
         "function_calling_config" => {
-          "mode" => "AUTO"
-        }
-      }
-      body["contents"] << {
-        "role" => "model",
-        "parts" => obj["tool_results"].map { |result|
-          { "text" => result.dig("functionResponse", "response", "content") }
+          "mode" => "NONE"
         }
       }
     end
@@ -300,6 +304,7 @@ module GeminiHelper
       pp e.inspect
     end
 
+    result = []
     if texts.empty? 
       result << "\n\nNo response from the model."
       finish_reason = nil

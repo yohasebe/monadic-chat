@@ -234,61 +234,59 @@ module GeminiHelper
     [res]
   end
 
+
+
+
   def process_json_data(app, session, body, call_depth, &block)
     buffer = String.new
     texts = []
     tool_calls = []
     finish_reason = nil
 
-    # normalize HTTP::Response::Body
-    normalized_body = body.to_s.gsub(/\r\n/, "\n")
+    body.each do |chunk|
+      buffer << chunk.to_s.gsub(/\r\n/, "\n")
+      if /(\{\s*"candidates":.*\})/m =~ buffer.strip
+        json = Regexp.last_match(1)
+        begin
+          candidates = JSON.parse(json)["candidates"]
+          candidate = candidates.first
+          next unless candidates
 
-    begin
-      json_array = JSON.parse(normalized_body)
-      # convert to array if not already
-      json_array = [json_array] unless json_array.is_a?(Array)
-
-      json_array.each do |data|
-        candidates = data["candidates"]
-        next unless candidates
-
-        candidate = candidates.first
-        next unless candidate
-
-        if candidate["finishReason"]
-          finish_reason = case candidate["finishReason"]
-                          when "MAX_TOKENS" then "length"
-                          when "STOP" then "stop"
-                          when "SAFETY" then "safety"
-                          else candidate["finishReason"]
-                          end
-        end
-
-        content = candidate["content"]
-        next unless content
-
-        content["parts"]&.each do |part|
-          if part["text"]
-            fragment = part["text"]
-            texts << fragment
-
-            res = {
-              "type" => "fragment",
-              "content" => fragment
-            }
-            block&.call res
-
-          elsif part["functionCall"]
-            tool_calls << part["functionCall"]
-            res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-            block&.call res
+          if candidate["finishReason"]
+            finish_reason = case candidate["finishReason"]
+                            when "MAX_TOKENS" then "length"
+                            when "STOP" then "stop"
+                            when "SAFETY" then "safety"
+                            else candidate["finishReason"]
+                            end
           end
+
+          content = candidate["content"]
+          next unless content
+
+          content["parts"]&.each do |part|
+            if part["text"]
+              fragment = part["text"]
+              texts << fragment
+
+              res = {
+                "type" => "fragment",
+                "content" => fragment
+              }
+              block&.call res
+
+            elsif part["functionCall"]
+              tool_calls << part["functionCall"]
+              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+              block&.call res
+            end
+          end
+          buffer = String.new
+        rescue JSON::ParserError => e
+          # pp "JSON Parse Error: #{e.message}"
+          # return [{ "type" => "error", "content" => "JSON parsing failed: #{e.message}" }]
         end
       end
-    rescue JSON::ParserError => e
-      pp "JSON Parse Error: #{e.message}"
-        pp "Raw body: #{normalized_body}"
-        return [{ "type" => "error", "content" => "JSON parsing failed: #{e.message}" }]
     rescue StandardError => e
       pp "Error: #{e.message}"
         pp e.backtrace
@@ -359,7 +357,6 @@ module GeminiHelper
 
       begin
         function_return = send(function_name.to_sym, **argument_hash)
-        # MODIFICATION: Improved error handling and unified the return value format
         if function_return
           tool_results << {
             "functionResponse" => {
@@ -371,8 +368,7 @@ module GeminiHelper
             }
           }
         else
-          # Error handling
-          tool_results << {
+          tool_results << { # 関数がnilを返した場合のエラー処理
             "functionResponse" => {
               "name" => function_name,
               "response" => {
@@ -396,6 +392,9 @@ module GeminiHelper
           }
         }
       end
+
+      obj["tool_results"] = tool_results # tool_resultsをクリア
+      api_request("tool", session, call_depth: call_depth, &block)
     end
 
     # MODIFICATION: Clear tool_results after processing

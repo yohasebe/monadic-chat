@@ -287,6 +287,8 @@ module ClaudeHelper
     [res]
   end
 
+
+
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
     buffer = String.new
@@ -311,78 +313,78 @@ module ClaudeHelper
 
       scanner = StringScanner.new(buffer)
       pattern = /data: (\{.*?\})(?=\n|\z)/
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = matched.match(pattern)[1]
-          begin
-            json = JSON.parse(json_data)
+        until scanner.eos?
+          matched = scanner.scan_until(pattern)
+          if matched
+            json_data = matched.match(pattern)[1]
+            begin
+              json = JSON.parse(json_data)
 
-            # Handle content type changes
-            new_content_type = json.dig("content_block", "type")
-            if new_content_type == "tool_use"
-              json["content_block"]["input"] = ""
-              tool_calls << json["content_block"]
-            end
-            content_type = new_content_type if new_content_type
-
-            if content_type == "tool_use"
-              if json.dig("delta", "partial_json")
-                fragment = json.dig("delta", "partial_json").to_s
-                next if !fragment || fragment == ""
-
-                tool_calls.last["input"] << fragment
+              # Handle content type changes
+              new_content_type = json.dig("content_block", "type")
+              if new_content_type == "tool_use"
+                json["content_block"]["input"] = ""
+                tool_calls << json["content_block"]
               end
-              if json.dig("delta", "stop_reason")
-                stop_reason = json.dig("delta", "stop_reason")
-                case stop_reason
-                when "tool_use"
-                  fragment = <<~FRAG
-                  <div class='toggle'><pre>
-                  #{JSON.pretty_generate(tool_calls.last)}
-                  </pre></div>
-                  FRAG
+              content_type = new_content_type if new_content_type
 
-                  finish_reason = "tool_use"
-                  res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                  block&.call res1
+              if content_type == "tool_use"
+                if json.dig("delta", "partial_json")
+                  fragment = json.dig("delta", "partial_json").to_s
+                  next if !fragment || fragment == ""
+
+                  tool_calls.last["input"] << fragment
+                end
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
+                  case stop_reason
+                  when "tool_use"
+                    fragment = <<~FRAG
+                    <div class='toggle'><pre>
+                    #{JSON.pretty_generate(tool_calls.last)}
+                    </pre></div>
+                    FRAG
+
+                    finish_reason = "tool_use"
+                    res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                    block&.call res1
+                  end
+                end
+              else
+                # Handle text content
+                if json.dig("delta", "text")
+                  fragment = json.dig("delta", "text").to_s
+                  next if !fragment || fragment == ""
+
+                  texts << fragment
+
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment
+                  }
+                  block&.call res
+                end
+
+                # Handle stop reasons
+                if json.dig("delta", "stop_reason")
+                  stop_reason = json.dig("delta", "stop_reason")
+                  case stop_reason
+                  when "max_tokens"
+                    finish_reason = "length"
+                  when "end_turn"
+                    finish_reason = "stop"
+                  end
                 end
               end
-            else
-              # Handle text content
-              if json.dig("delta", "text")
-                fragment = json.dig("delta", "text").to_s
-                next if !fragment || fragment == ""
-
-                texts << fragment
-
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment
-                }
-                block&.call res
-              end
-
-              # Handle stop reasons
-              if json.dig("delta", "stop_reason")
-                stop_reason = json.dig("delta", "stop_reason")
-                case stop_reason
-                when "max_tokens"
-                  finish_reason = "length"
-                when "end_turn"
-                  finish_reason = "stop"
-                end
-              end
+            rescue JSON::ParserError
+              # if the JSON parsing fails, the next chunk should be appended to the buffer
+              # and the loop should continue to the next iteration
             end
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
+          else
+            buffer = scanner.rest
+            break
           end
-        else
-          buffer = scanner.rest
-          break
         end
-      end
     rescue StandardError => e
       pp e.message
       pp e.backtrace

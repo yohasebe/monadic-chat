@@ -192,6 +192,7 @@ class CodeInterpreterGemini < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
+  Do not return an empty response. If you have nothing to return, you should inform the user that there is no output to display, or just return the result of the `current_time` function.
   TEXT
 
   @settings = {

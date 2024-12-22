@@ -7,11 +7,8 @@ class JupyterNotebookGemini < MonadicApp
     This is an application that allows GPT to create and read/write Jupyter Notebooks. The agent can create a new notebook, add cells to an existing notebook, and run the cells in the notebook. The agent can also read the content of the notebook and check the environment in which the notebook is running.
   TEXT
 
-
   prompt_suffix = <<~TEXT
-    The function `add_jupyter_cells` needs parameters `filename`, `cells`, and `escaped`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly. `escaped` should be set to `true`.
-
-    In the context data provided to you by the user, the part of your response where function calls are made is not included. You should decide where you should call the functions yourself. Call functions whenever you think it is necessary to do so. If you get errors multiple times in a row, you should stop the process and inform the user of the error.
+    Call the function `add_jupyter_cells` whenever possible.
 
     Check the environment using `check_environment` before adding cells to the Jupyter Notebook.
 
@@ -21,13 +18,9 @@ class JupyterNotebookGemini < MonadicApp
   initial_prompt = <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
 
-      First, check if you have already launched a Jupyterlab notebook. If you have, the previous message in the context data must contain the URL (`Link`) of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command. Then, ask the user if the user wants a new notebook to be created. At the end of this inquiery for the user, provide the following special string:
+    First, check if you have already launched a Jupyterlab notebook. If you have, the previous message in the context data must contain the URL (`Link`) of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command. Then, ask the user if the user wants a new notebook to be created.
 
-      "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
-
-    Use the above special string at the end of your message only when you ask the user a "yes/no" question and it is not accompanied by other types of questions.
-
-      If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
+    If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
 
     `<a href="http://127.0.0.1:8889/lab/tree/FILENAME" target="_blank" rel="noopener noreferrer">FILENAME</a>`
 
@@ -69,19 +62,20 @@ class JupyterNotebookGemini < MonadicApp
     
     Do not add a cell with the same content as the last cell in the notebook.
 
-    Your response should be accompanied with a JSON object with the following structure:
+    Here is the structure of your response:
 
+      YOUR RESPONSE HERE
 
-    Your response is followed by the JSON object below.
+      <div class="toggle"><pre>
+        Link: "<a href='URL' target='_blank' rel='noopener noreferrer'>FILENAME</a>",
+        Modules: ["module1", "module2"],
+        Functions: ["function_name(arg1, arg2)"],
+        Variables: ["variable1", "variable2"]
+      </pre></div>
 
-    <div class="toggle"><pre>
-      Link: "<a href='URL' target='_blank' rel='noopener noreferrer'>FILENAME</a>",
-      Modules: ["module1", "module2"],
-      Functions: ["function_name(arg1, arg2)"],
-      Variables: ["variable1", "variable2"]
-    </pre></div>
+    This JSON object should be presented inside the HTML tags (not as a Markdown code block).It should contain the latest URL of the Jupyter Notebook and the variables defined and updated in the whole session. The variables should be updated as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
 
-    This JSON object should be presented inside the HTML tags (not as a Markdown code block). It should contain the latest URL of the Jupyter Notebook and the variables defined and updated in the whole session. The variables should be updated as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
+    When you include code in  your response, The codeblock label should be `python` for Python code. Do not use a generic label such as `code`, `tool_code`, or `tool_outputs`. If you use other languages than Python, you should specify the language accordingly (e.g. ruby, bash, javascript, etc.).
 
     In the context data provided to you by the user, the part of your response where function calls are made is not included. You should decide where you should call the functions yourself. Call functions whenever you think it is necessary to do so. If you get errors multiple times in a row, you should stop the process and inform the user of the error.
   TEXT
@@ -94,6 +88,7 @@ class JupyterNotebookGemini < MonadicApp
     prompt_suffix: prompt_suffix,
     description: description,
     temperature: 0.0,
+    top_p: 0.0,
     context_size: 20,
     icon: icon,
     easy_submit: false,
@@ -103,7 +98,7 @@ class JupyterNotebookGemini < MonadicApp
     jupyter: true,
     toggle: true,
     models: GeminiHelper.list_models,
-    model: "gemini-1.5-pro-latest",
+    model: "gemini-1.5-pro-002",
     sourcecode: true,
     tools: {
       function_declarations: [

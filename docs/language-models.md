@@ -26,7 +26,7 @@ ANTHROPIC_API_KEY=api_key
 
 ?> For apps using Anthropic Claude's Sonnet series models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [PDF recognition](./message-input?id=uploading-pdfs))
 
-Chat (Claude) is an application that accesses the Anthropic Claude API to answer questions on a wide range of topics. Code Interpreter (Claude) writes and executes program code. Coding Assistant (Claude) assists in creating and extending code. Jupyter Notebook (Claude) assists in writing and executing Jupyter Notebook cells.
+Once the Anthropic API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
 
 <details>
 <summary>chat_claude_app.rb</summary>
@@ -67,7 +67,7 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini. Once
 GEMINI_API_KEY=api_key
 ```
 
-Chat (Gemini) is an application that accesses the Google Gemini API to answer questions on a wide range of topics. Code Interpreter (Gemini) assists in creating program code. Coding Assistant (Gemini) assists in creating and extending code.
+Once the Google Gemini API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
 
 <details>
 <summary>chat_gemini_app.rb</summary>
@@ -91,6 +91,13 @@ Chat (Gemini) is an application that accesses the Google Gemini API to answer qu
 
 </details>
 
+<details>
+<summary>jupyter_notebook_gemini_app.rb</summary>
+
+![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/jupyter_notebook_gemini_app.rb ':include :type=code')
+
+</details>
+
 ## Cohere Models
 
 ![Cohere apps icon](./assets/icons/c.png ':size=40')
@@ -101,7 +108,7 @@ By setting the Cohere API key, you can use apps that utilize Command R. Once set
 COHERE_API_KEY=api_key
 ```
 
-Chat (Command R) is an application that accesses the Cohere API to answer questions on a wide range of topics. Code Interpreter (Command R) writes and executes program code.
+Once the Cohere API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
 
 <details>
 <summary>chat_command_r_app.rb</summary>
@@ -127,7 +134,7 @@ By setting the Mistral AI API key, you can use apps that utilize Mistral. Once s
 MISTRAL_API_KEY=api_key
 ```
 
-Chat (Mistral) is an application that accesses the Mistral AI API to answer questions on a wide range of topics. Coding Assistant (Mistral) assists in creating and extending code.
+Once the Mistral API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
 
 <details>
 <summary>chat_mistral_app.rb</summary>
@@ -142,7 +149,6 @@ Chat (Mistral) is an application that accesses the Mistral AI API to answer ques
 [coding_assistant_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/coding_assistant_mistral_app.rb ':include :type=code')
 
 </details>
-
 
 ## Ollama Models
 

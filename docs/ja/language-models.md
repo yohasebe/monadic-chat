@@ -18,7 +18,7 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 
 ![Anthropic apps icon](./assets/icons/a.png ':size=40')
 
- ANthropicのAPIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+ANthropic APIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 ANTHROPIC_API_KEY=api_key
@@ -26,7 +26,7 @@ ANTHROPIC_API_KEY=api_key
 
 ?> Anthropic Claude の Sonnet 系列のモデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input?id=pdf-のアップロード)）
 
-Chat (Claude) は、Anthropic Claude APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Claude) は、プログラムの作成と実行を行います。Coding Assistant (Claude) は、ユーザーがコードの作成したり拡張したりするための補助を行います。Jupyter Notebook (Claude) は、Jupyter Notebookのセルを記述・実行する補助を行います。
+Ahthropic APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
 
 <details>
 <summary>chat_claude_app.rb</summary>
@@ -65,7 +65,8 @@ Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用
 ```
 GEMINI_API_KEY=api_key
 ```
-Chat (Gemini) は、Anthropic Gemini APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Gemini) は、プログラムの作成と実行を行います。Coding Assistant (Gemini) は、ユーザーがコードの作成したり拡張したりするための補助を行います。
+
+Google Gemini APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
 
 <details>
 <summary>chat_gemini_app.rb</summary>
@@ -88,6 +89,13 @@ Chat (Gemini) は、Anthropic Gemini APIにアクセスして、幅広いトピ�
 
 </details>
 
+<details>
+<summary>jupyter_notebook_gemini_app.rb</summary>
+
+![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/jupyter_notebook_gemini_app.rb ':include :type=code')
+
+</details>
+
 ## Cohere Models
 
 ![Cohere apps icon](./assets/icons/c.png ':size=40')
@@ -98,7 +106,8 @@ Chat (Gemini) は、Anthropic Gemini APIにアクセスして、幅広いトピ�
 ```
 COHERE_API_KEY=api_key
 ```
-Chat (Command R) は、Cohere APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Code Interpreter (Command R) は、プログラムの作成・実行を行います。
+
+CohereのAPIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
 
 <details>
 <summary>chat_command_r_app.rb</summary>
@@ -118,13 +127,13 @@ Chat (Command R) は、Cohere APIにアクセスして、幅広いトピック�
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
 
-Mistral AI APIキーを設定すると、Mistralを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+Mistral APIキーを設定すると、Mistralを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 MISTRAL_API_KEY=api_key
 ```
 
-Chat (Mistral AI) は、Mistral AI APIにアクセスして、幅広いトピックに関する質問に答えるアプリケーションです。Coding Assistant (Mistral AI) は、ユーザーがコードの作成したり拡張したりするための補助を行います。
+Mistral APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
 
 <details>
 <summary>chat_mistral_app.rb</summary>

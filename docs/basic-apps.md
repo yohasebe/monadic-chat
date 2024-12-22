@@ -1,6 +1,10 @@
 # Basic Apps
 
-Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file. For information on how to develop your own apps, refer to the [App Development](./develop_apps.md) section.
+Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file.
+
+Basic apps use OpenAI's models. If you want to use models from other providers, see [Language Models](./language-models.md).
+
+For information on how to develop your own apps, refer to the [App Development](./develop_apps.md) section.
 
 > Click the dropdown to see the recipe file of each app. The files are the same as the ones in the `main` branch of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
 
@@ -315,23 +319,11 @@ This application allows the AI to create and execute program code. The execution
 
 </details>
 
-Code interpreter apps using Anthropic Claude and Google Gemini ais also available.
+Code Interpreter apps are also available for the following models:
 
-<details>
-
-<summary>code_interpreter_claude_app.rb</summary>
-
-![code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-
-<summary>code_interpreter_gemini_app.rb</summary>
-
-![code_interpreter_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
-
-</details>
+- Anthropic Claude
+- Google Gemini
+- Cohere Command R 
 
 ### Coding Assistant
 
@@ -348,15 +340,11 @@ This application is designed for writing computer program code. You can interact
 
 </details>
 
-A coding assistant app using Anthropic's Claude model is also available.
+Coding Assistant apps are also available for the following models:
 
-<details>
-
-<summary>coding_assistant_claude_app.rb</summary>
-
-![coding_assistant_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
-
-</details>
+- Anthropic Claude
+- Google Gemini
+- Mistral AI
 
 ### Jupyter Notebook
 
@@ -374,12 +362,8 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 </details>
 
-A Jupyter Notebook app using Anthropic's Claude model is also available.
+Jupyter Notebook apps are also available for the following models:
 
-<details>
+- Anthropic Claude
+- Google Gemini
 
-<summary>jupyter_notebook_claude_app.rb</summary>
-
-![jupyter_notebook_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
-
-</details>

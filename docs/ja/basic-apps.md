@@ -1,6 +1,10 @@
 # 基本アプリ
 
-現在、以下の基本アプリが使用可能です。いずれかの基本アプリを選択し、パラメータを変更したり、初期プロンプトを書き換えたりすることで、AIエージェントの挙動を調整できます。調整した設定は、外部のJSONファイルにエクスポート／インポートできます。独自のアプリを作る方法については[アプリの開発](develop_apps.md)を参照してください。
+現在、以下の基本アプリが使用可能です。いずれかの基本アプリを選択し、パラメータを変更したり、初期プロンプトを書き換えたりすることで、AIエージェントの挙動を調整できます。調整した設定は、外部のJSONファイルにエクスポート／インポートできます。
+
+基本アプリはOpenAIのモデルを使用します。OpenAI以外のモデルを使用する場合は、[言語モデル](language-models.md)を参照してください。
+
+独自のアプリを作る方法については[アプリの開発](develop_apps.md)を参照してください。
 
 ?> 各アプリの説明の下のドロップダウンをクリックすると、アプリのソースコードが表示されます。ソースコードはMonadic Chatの[Githubレポジトリ](https://github.com/yohasebe/monadic-chat)の`main`ブランチでの最新版です。
 
@@ -316,24 +320,11 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 </details>
 
-Anthropic ClaudeとGoogle Gemini を使用したCode Interpreterアプリも利用可能です。
+下記の言語モデルでもCode Interpreterアプリが利用可能です。
 
-<details>
-
-<summary>code_interpreter_claude_app.rb</summary>
-
-![code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-
-<summary>code_interpreter_gemini_app.rb</summary>
-
-![code_interpreter_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
-
-</details>
-
+- Anthropic Claude
+- Google Gemini
+- Cohere Command R
 
 ### Coding Assistant
 
@@ -350,15 +341,11 @@ Anthropic ClaudeとGoogle Gemini を使用したCode Interpreterアプリも利�
 
 </details>
 
-Anthropic のClaudeモデルを使用したCoding Assistantアプリも利用可能です。
+下記の言語モデルでもCoding Assistantアプリが利用可能です。
 
-<details>
-
-<summary>coding_assistant_claude_app.rb</summary>
-
-![coding_assistant_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
-
-</details>
+- Anthropic Claude
+- Google Gemini
+- Mistral AI
 
 ### Jupyter Notebook
 
@@ -377,12 +364,8 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 </details>
 
-Anthropic のClaudeモデルを使用したJupyter Notebookアプリも利用可能です。
+下記の言語モデルでもJupyter Notebookアプリが利用可能です。
 
-<details>
+- Anthropic Claude
+- Google Gemini
 
-<summary>jupyter_notebook_claude_app.rb</summary>
-
-![jupyter_notebook_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
-
-</details>

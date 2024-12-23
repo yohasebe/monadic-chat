@@ -26,7 +26,7 @@ stop_jupyterlab() {
 
 if [ "$1" == "run" ]; then
     if [ -f "$SCRIPT_DIR/jupyter_lab.pid" ]; then
-        echo "JupyterLab is already running. Restarting..."
+        echo "JupyterLab is already running. Restarting . . ."
         stop_jupyterlab
     fi
     start_jupyterlab

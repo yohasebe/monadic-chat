@@ -187,7 +187,7 @@ module GeminiHelper
       end
       body["tool_config"] = {
         "function_calling_config" => {
-          "mode" => "NONE"
+          "mode" => "AUTO"
         }
       }
     end
@@ -249,7 +249,7 @@ module GeminiHelper
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")
 
-      if /(\{\s*"candidates":.*\})/m =~ buffer.strip
+      if /^\[?(\{\s*"candidates":.*^\})\n/m =~ buffer
         json = Regexp.last_match(1)
         begin
           json_obj = JSON.parse(json)
@@ -292,11 +292,11 @@ module GeminiHelper
               end
             end
           end
-          buffer = String.new
         rescue JSON::ParserError
           # if the JSON parsing fails, the next chunk should be appended to the buffer
           # and the loop should continue to the next iteration
         end
+        buffer = String.new
       end
     rescue StandardError => e
       pp e.message

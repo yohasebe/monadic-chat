@@ -322,7 +322,6 @@ This application allows the AI to create and execute program code. The execution
 Code Interpreter apps are also available for the following models:
 
 - Anthropic Claude
-- Google Gemini
 - Cohere Command R 
 
 ### Coding Assistant
@@ -365,5 +364,3 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 Jupyter Notebook apps are also available for the following models:
 
 - Anthropic Claude
-- Google Gemini
-

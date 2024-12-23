@@ -77,24 +77,9 @@ Once the Google Gemini API key is set, you can use the following apps. For infor
 </details>
 
 <details>
-
-<summary>code_interpreter_gemini_app.rb</summary>
-
-![code_interpreter_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/code_interpreter_gemini_app.rb ':include :type=code')
-
-</details>
-
-<details>
 <summary>coding_assistant_gemini_app.rb</summary>
 
 ![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/coding_assistant_gemini_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>jupyter_notebook_gemini_app.rb</summary>
-
-![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/jupyter_notebook_gemini_app.rb ':include :type=code')
 
 </details>
 

@@ -95,7 +95,7 @@ voiceButton.on("click", function () {
     silenceDetected = false;
     voiceButton.toggleClass("btn-warning btn-danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Stop');
-    setAlert("<i class='fas fa-microphone'></i> LISTENING ...", "info");
+    setAlert("<i class='fas fa-microphone'></i> LISTENING . . .", "info");
     $("#send, #clear").prop("disabled", true);
     isListening = true;
 

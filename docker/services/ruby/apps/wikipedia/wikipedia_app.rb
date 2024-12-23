@@ -17,6 +17,10 @@ class Wikipedia < MonadicApp
 
     Please make sure that when you present a Wikipedia article link to the user, you use the `target="_blank"` attribute in the HTML link tag so that the user can open the link in a new tab. It is okay to provide the user with a link to the English Wikipedia article.
 
+    If the user needs more information or has further questions, you should be able to provide additional details or examples to help the user understand the topic better. You can also provide analogies or explanations in a beginner-friendly manner. You can access URL's content using the `fetch_web_content` function, which takes the URL as a parameter and saves the content in a file. You can then read the content from the file and use it to answer the user's questions. Use this function to fetch the information from the URL mentioned in the Wikipedia article, for instance. Before you actually run the function, make sure that you have the user's consent to access the URL.
+
+    If you cannot find the information on Wikipedia, please inform the user that you cannot find the information and ask them to provide a different question or topic.
+
     Use the following HTML format in your response:
 
     ```
@@ -65,7 +69,27 @@ class Wikipedia < MonadicApp
           }
         },
         strict: true
-      }
+      },
+      {
+        type: "function",
+        function:
+        {
+          name: "fetch_web_content",
+          description: "Fetch the content of the web page of the given URL and save it to a file.",
+          parameters: {
+            type: "object",
+            properties: {
+              url: {
+                type: "string",
+                description: "URL of the web page."
+              }
+            },
+            required: ["url"],
+            additionalProperties: false
+          }
+        },
+        strict: true
+      },
     ]
   }
 end

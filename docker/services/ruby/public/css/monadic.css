@@ -703,3 +703,18 @@ legend {
   width: 100px;
 }
 
+
+ol {
+  list-style: decimal;
+  counter-reset: none !important;
+}
+
+ol li {
+  display: list-item;
+  counter-increment: none !important;
+}
+
+ol li::before {
+  content: none !important;
+}
+

@@ -8,9 +8,33 @@ module StringUtils
     CLD.detect_language(text)[:code]
   end
 
+  def normalize_markdown(text)
+    # Add blank lines around ordered lists
+    text.gsub!(/(\S+)\n(\d+\. )/, "\\1\n\n\\2")
+    text.gsub!(/(\d+\. .*)\n(\S+)/, "\\1\n\n\\2")
+
+    # Add blank lines around code blocks
+    text.gsub!(/(\S+)\n(```\w*)/, "\\1\n\n\\2")
+    text.gsub!(/(\n```)\n(\S+)/, "\\1\n\n\\2")
+
+    # Add blank lines around headers
+    text.gsub!(/(\S+)\n(#+\s)/, "\\1\n\n\\2")
+
+    # Add blank lines around blockquotes
+    text.gsub!(/(\S+)\n(> )/, "\\1\n\n\\2")
+
+    # Remove multiple blank lines (more than 2)
+    text.gsub!(/\n{3,}/, "\n\n")
+
+    text
+  end
+
+
   def markdown_to_html(text, mathjax: false)
     # if text is not a String, return a string representation of it
     return text.to_s unless text.is_a?(String)
+
+    text = normalize_markdown(text)
 
     text = text.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
     text = text.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')

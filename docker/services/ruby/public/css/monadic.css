@@ -354,10 +354,6 @@ textarea {
   color: #999;
 }
 
-#alert-message code {
-  color: #0a58ca;
-}
-
 blockquote {
   padding: 10px;
   background-color: #f8f8f8;
@@ -368,12 +364,16 @@ blockquote p:last-child {
   margin-bottom: 0;
 }
 
+#alert-message code {
+  color: #0a58ca;
+}
+
 #alert-message {
   font-weight: 600;
-  background: rgba(119,119,119,.15);
+  background: #ffffff;
   padding: 0.8em;
-  text-shadow: 0 0 2px rgba(255,255,255,0.7), 0 0 4px rgba(255,255,255,0.5);
   border-radius: 4px;
+  border: 1px solid rgba(0,0,0,0.1);
 }
 
 #alert-message.message-success {
@@ -381,7 +381,7 @@ blockquote p:last-child {
 }
 
 #alert-message.message-info {
-  color: #568D59;
+  color: #34d83b;
 }
 
 #alert-message.message-warning {

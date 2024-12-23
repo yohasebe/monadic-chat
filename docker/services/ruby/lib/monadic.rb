@@ -462,7 +462,7 @@ end
 
 # Capture the INT signal (e.g., when pressing Ctrl+C)
 Signal.trap("INT") do
-  puts "\nTerminating the application..."
+  puts "\nTerminating the application . . ."
   EMBEDDINGS_DB.close_connection
   exit
 end

@@ -51,7 +51,7 @@ module MonadicHelper
       end
       break if response.is_a?(Net::HTTPSuccess)
     rescue StandardError => e
-      puts "Error: #{e.message}. Retrying in #{i + 1} seconds..."
+      puts "Error: #{e.message}. Retrying in #{i + 1} seconds . . ."
       sleep(i + 1)
     end
 

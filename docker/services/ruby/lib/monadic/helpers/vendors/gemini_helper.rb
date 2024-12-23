@@ -312,13 +312,13 @@ module GeminiHelper
       result = texts
     end
 
-    if finish_reason.nil?
-      if result.join("").count("```").odd?
-        result << "\n```"
-      end
+    # if finish_reason.nil?
+    #   if result.join("").count("```").odd?
+    #     result << "\n```"
+    #   end
 
-      result << "\n\nDo you want to continue?"
-    end
+    #   result << "\n\nDo you want to continue?"
+    # end
 
 
     if tool_calls.any?

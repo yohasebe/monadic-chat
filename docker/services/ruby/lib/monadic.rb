@@ -57,6 +57,32 @@ Dotenv.load(envpath)
 # Connect to the database
 EMBEDDINGS_DB = TextEmbeddings.new("monadic", recreate_db: false)
 
+DEFAULT_PROMPT_SUFFIX = <<~PROMPT
+When creating a numbered list in Markdown that contains code blocks or other content within list items, please follow these formatting rules:
+
+1. Each list item's content (including code blocks, paragraphs, or nested lists) should be indented with 4 spaces from the list marker position
+2. Code blocks within list items should be indented with 4 spaces plus the standard code block syntax
+3. Ensure there is a blank line before and after code blocks and other content within list items
+4. The indentation must be maintained for all content belonging to the same list item
+
+Example format:
+
+1. First item
+
+    ```python
+    # This code block is indented with 4 spaces
+    print("Hello")
+    ```
+
+    Continuation text for first item (also indented with 4 spaces)
+
+2. Second item
+- Nested list (indented with 4 spaces)
+- Another nested item
+
+Please format all numbered lists following these rules to ensure proper rendering.
+PROMPT
+
 CONFIG = {}
 
 begin
@@ -132,10 +158,9 @@ def init_apps
 
     app_name = app.settings["app_name"]
 
-    system_prompt_suffix = ""
+    system_prompt_suffix = DEFAULT_PROMPT_SUFFIX
     prompt_suffix = ""
     response_suffix = ""
-
 
     if app.settings["sourcecode"]
       system_prompt_suffix << <<~SYSPSUFFIX
@@ -150,21 +175,7 @@ def init_apps
 
       Use backticks to enclose code blocks that are not in Markdown. Make sure to insert a blank line before the opening backticks and after the closing backticks.
 
-        When creating an ordered list of items having code blocks, make sure to avoid the Markdown list syntax by adding a backslash before the period in the list item. For example, use `1\.` instead of `1.`. Otherwise, all the list items will be displayed as `1.`. Code blocks should be preceded and followed by a blank line. Here is an example:
-
-        EXAMPLE_START_HERE
-        1\. Item 1
-
-        ```python
-        print("Hello, World!")
-        ```
-
-        2\. Item 2
-
-        ...
-        EXAMPLE_END_HERE
-
-        When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
+      When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
       SYSPSUFFIX
     end
 

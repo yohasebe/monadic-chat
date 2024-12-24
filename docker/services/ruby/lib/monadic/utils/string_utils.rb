@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 module StringUtils
   module_function
@@ -10,23 +10,21 @@ module StringUtils
 
   def normalize_markdown(text)
     # Add blank lines around ordered lists
-    text.gsub!(/(\S+)\n(\d+\. )/, "\\1\n\n\\2")
-    text.gsub!(/(\d+\. .*)\n(\S+)/, "\\1\n\n\\2")
+    t1 = text.gsub(/(\S+)\n(\d+\. )/, "\\1\n\n\\2")
+             .gsub(/(\d+\. .*)\n(\S+)/, "\\1\n\n\\2")
 
     # Add blank lines around code blocks
-    text.gsub!(/(\S+)\n(```\w*)/, "\\1\n\n\\2")
-    text.gsub!(/(\n```)\n(\S+)/, "\\1\n\n\\2")
+    t2 = t1.gsub(/(\S+)\n(```\w*)/, "\\1\n\n\\2")
+           .gsub(/(\n```)\n(\S+)/, "\\1\n\n\\2")
 
     # Add blank lines around headers
-    text.gsub!(/(\S+)\n(#+\s)/, "\\1\n\n\\2")
+    t3 = t2.gsub(/(\S+)\n(#+\s)/, "\\1\n\n\\2")
 
     # Add blank lines around blockquotes
-    text.gsub!(/(\S+)\n(> )/, "\\1\n\n\\2")
+    t4 = t3.gsub(/(\S+)\n(> )/, "\\1\n\n\\2")
 
     # Remove multiple blank lines (more than 2)
-    text.gsub!(/\n{3,}/, "\n\n")
-
-    text
+    t4.gsub(/\n{3,}/, "\n\n")
   end
 
 
@@ -34,10 +32,11 @@ module StringUtils
     # if text is not a String, return a string representation of it
     return text.to_s unless text.is_a?(String)
 
-    text = normalize_markdown(text)
+    # t1 = normalize_markdown(text)
+    t1 = text
 
-    text = text.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
-    text = text.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
+    t2 = t1.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
+    t3 = t2.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
 
     if mathjax
       # Arrays to store the mathjax codes
@@ -45,19 +44,19 @@ module StringUtils
       inline_mathjax = []
 
       # Replace $$...$$ with placeholders
-      text = text.gsub(/\$\$(.*?)\$\$/m) do
+      t4 = t3.gsub(/\$\$(.*?)\$\$/m) do
         block_mathjax << Regexp.last_match(1)
         "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
       end
 
       # Replace $...$ with placeholders
-      text = text.gsub(/\$(.*?)\$/m) do
+      t5 = t4.gsub(/\$(.*?)\$/m) do
         inline_mathjax << Regexp.last_match(1)
         "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
       end
 
       # Convert markdown to HTML using Kramdown
-      html = Kramdown::Document.new(text,
+      html = Kramdown::Document.new(t5,
                                     syntax_highlighter: :rouge,
                                     input: "GFM",
                                     syntax_highlighter_ops: {
@@ -79,7 +78,7 @@ module StringUtils
         html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "$#{code}$")
       end
     else
-      html = Kramdown::Document.new(text,
+      html = Kramdown::Document.new(t3,
                                     syntax_highlighter: :rouge,
                                     input: "GFM",
                                     syntax_highlighter_ops: {

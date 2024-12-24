@@ -187,7 +187,7 @@ module GeminiHelper
       end
       body["tool_config"] = {
         "function_calling_config" => {
-          "mode" => "AUTO"
+          "mode" => "NONE"
         }
       }
     end

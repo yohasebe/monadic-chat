@@ -115,11 +115,15 @@ def load_app_files
                  end
 
   Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
-    apps_to_load[File.basename(file)] = file
+    basename = File.basename(file)
+    next if basename.start_with?("_") # ignore files that start with an underscore
+    apps_to_load[basename] = file
   end
 
   if Dir.exist?(user_plugins_dir)
     Dir["#{File.join(user_plugins_dir, "**", "apps", "**") + File::SEPARATOR}*.rb"].sort.each do |file|
+      basename = File.basename(file)
+      next if basename.start_with?("_") # ignore files that start with an underscore
       apps_to_load[File.basename(file)] = file
     end
   end

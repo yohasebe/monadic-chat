@@ -3,7 +3,6 @@
 require_relative "./utils/basic_agent"
 require_relative "./utils/string_utils"
 
-
 Dir.glob(File.expand_path("helpers/**/*.rb", __dir__)).sort.each do |rb|
   require rb
 end

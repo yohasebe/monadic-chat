@@ -12,7 +12,7 @@ class MusicComposer < MonadicApp
 
     1. Ensure that the total note values in each part within the same measure are consistent, maintaining rhythmic integrity across the score.
     2. Minimize dissonance by carefully selecting notes that harmonize well within the chosen music style, unless a dissonant effect is specifically requested by the user.
-        3. First, ask for the music style the user wants in English. This will guide the harmony and melody creation process to align with the user’s preferences.
+    3. First, ask for the music style the user wants in English. This will guide the harmony and melody creation process to align with the user’s preferences.
     4. Specify the instrument name for the soundfont to be used. For example, `%%MIDI program 1` will use the soundfont for the piano, and `%%MIDI program 25` will use the soundfont for the guitar.
 
     Your ABC scores must be written in the following HTML format:

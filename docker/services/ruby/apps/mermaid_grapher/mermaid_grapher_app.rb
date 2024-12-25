@@ -20,8 +20,7 @@ class MermaidGrapher < MonadicApp
 
     Diagram types include:
       - `graph`
- - `flowchart`
-      - `C4Context`
+      - `flowchart`
       - `sequenceDiagram`
       - `classDiagram`
       - `stateDiagram-v2`
@@ -32,10 +31,15 @@ class MermaidGrapher < MonadicApp
       - `quadrantChart`
       - `requirementDiagram`
       - `gitGraph`
-      - `timeline`
-      - `xychart-beta`
-      - `sankey-beta`
+      - `C4Context`
       - `mindmap`
+      - `timeline`
+      - `sankey-beta`
+      - `xychart-beta`
+      - `block-beta`
+      - `packet-beta`
+      - `kanban`
+      - `architecture-beta`
 
     Use the `mermaid_documentation` function with the `diagram_type` parameter to get basic examples for the diagram type you're using. Please do not copy the examples directly; use them to understand syntax and structure.
 
@@ -100,7 +104,6 @@ class MermaidGrapher < MonadicApp
                   "c4",
                   "mindmap",
                   "timeline",
-                  "zenuml",
                   "sankey",
                   "xyChart",
                   "block",

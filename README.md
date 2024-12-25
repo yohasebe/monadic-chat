@@ -16,6 +16,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Dec, 2024] 0.9.29
+  - xAI Grok models supported
   - Markdown rendering improved
   - Math Tutor app supports visualizations
   - Not require OpenAI's API token when using other APIs (Anthropic, Google, Cohere, or Mistral)

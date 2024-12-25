@@ -135,6 +135,53 @@ Mistral APIキーを設定すると下記のアプリを使用することがで
 
 </details>
 
+## xAI Models
+
+![xAI apps icon](./assets/icons/x.png ':size=40')
+
+xAI APIキーを設定すると、Grokを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+
+```
+XAI_API_KEY=api_key
+```
+
+xAI APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
+
+<details>
+<summary>chat_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/chat_grok_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>code_interpreter_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/code_interpreter_grok_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>coding_assistant_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/coding_assistant_grok_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>code_interpreter_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/code_interpreter_grok_app.rb ':include :type=code')
+
+</details>
+
+<details>
+<summary>coding_assistant_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/coding_assistant_grok_app.rb ':include :type=code')
+
+</details>
+
 ## Ollama Models
 
 ![Ollama apps icon](./assets/icons/ollama.png ':size=40')

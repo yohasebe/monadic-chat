@@ -12,6 +12,13 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## 画像のアップロード
 
+以下のモデルでは画像のアップロードがサポートされています。
+
+- OpenAI GPT
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+
 `Upload Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。
 
 ![](./assets/images/monadi-chat-image-attachment.png ':size=400')

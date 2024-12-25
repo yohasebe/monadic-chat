@@ -323,6 +323,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 下記の言語モデルでもCode Interpreterアプリが利用可能です。
 
 - Anthropic Claude
+- xAI Grok
 - Cohere Command R
 
 ### Coding Assistant
@@ -343,6 +344,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 下記の言語モデルでもCoding Assistantアプリが利用可能です。
 
 - Anthropic Claude
+- xAI Grok
 - Google Gemini
 - Mistral AI
 

@@ -135,6 +135,26 @@ Once the Mistral API key is set, you can use the following apps. For information
 
 </details>
 
+## xAI Models
+
+![xAI apps icon](./assets/icons/x.png ':size=40')
+
+By setting the xAI API key, you can use apps that utilize xAI. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+
+```
+XAI_API_KEY=api_key
+```
+
+Once the xAI API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
+
+<details>
+<summary>chat_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/chat_grok_app.rb ':include :type=code')
+
+</details>
+
+
 ## Ollama Models
 
 ![Ollama apps icon](./assets/icons/ollama.png ':size=40')

@@ -167,6 +167,9 @@
 
         <label for="mistral-api-key">MISTRAL_API_KEY</label>
         <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
+
+        <label for="xai-api-key">XAI_API_KEY</label>
+        <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false">
       </form>
     </div>
 
@@ -188,6 +191,7 @@
           COHERE_API_KEY: document.getElementById('cohere-api-key').value,
           GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
           MISTRAL_API_KEY: document.getElementById('mistral-api-key').value,
+          XAI_API_KEY: document.getElementById('xai-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           VISION_MODEL: document.getElementById('vision-model').value,
           AI_USER_MODEL: document.getElementById('ai-user-model').value
@@ -220,6 +224,7 @@
         document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
         document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
         document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
+        document.getElementById('xai-api-key').value = data.XAI_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
         document.getElementById('vision-model').value = data.VISION_MODEL || 'gpt-4o-mini';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';

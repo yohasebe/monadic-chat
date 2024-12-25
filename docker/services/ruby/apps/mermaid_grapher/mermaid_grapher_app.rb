@@ -12,7 +12,7 @@ class MermaidGrapher < MonadicApp
 
     Respond to the user's request in the language in which the user speaks or writes.
 
-    Limit the diagram creation to one per request.
+    Limit the diagram creation to one per request. Before generating the diagram, ensure that you have checked the documentation for the specific diagram type the user is requesting using the `mermaid_documentation` function explained below.
 
     If no specific data is provided, generate a simple graph or flowchart example.
 
@@ -20,7 +20,7 @@ class MermaidGrapher < MonadicApp
 
     Diagram types include:
       - `graph`
-      - `flowchart`
+ - `flowchart`
       - `C4Context`
       - `sequenceDiagram`
       - `classDiagram`
@@ -37,7 +37,7 @@ class MermaidGrapher < MonadicApp
       - `sankey-beta`
       - `mindmap`
 
-    Use `mermaid_examples(DIAGRAM_TYPE)` to get basic examples for the diagram type you're using. Please do not copy the examples directly; use them to understand syntax and structure.
+    Use the `mermaid_documentation` function with the `diagram_type` parameter to get basic examples for the diagram type you're using. Please do not copy the examples directly; use them to understand syntax and structure.
 
     Respond with the mermaid diagram code in the following HTML format:
 
@@ -78,30 +78,36 @@ class MermaidGrapher < MonadicApp
         type: "function",
         function:
         {
-          name: "mermaid_examples",
-          description: "Get the examples of a specific mermaid diagram type with code examples.",
+          name: "mermaid_documentation",
+          description: "Get the documentation of a specific mermaid diagram type with code examples.",
           parameters: {
             type: "object",
             properties: {
               diagram_type: {
                 type: "string",
-                enum: ["graph",
-                       "C4Context",
-                       "flowchart",
-                       "sequenceDiagram",
-                       "classDiagram",
-                       "stateDiagram-v2",
-                       "erDiagram",
-                       "journey",
-                       "gantt",
-                       "pie",
-                       "quadrantChart",
-                       "requirementDiagram",
-                       "gitGraph",
-                       "sankey-beta",
-                       "timeline",
-                       "xychart-beta",
-                       "mindmap"],
+                enum: [
+                  "flowchart",
+                  "sequenceDiagram",
+                  "classDiagram",
+                  "stateDiagram",
+                  "entityRelationshipDiagram",
+                  "userJourney",
+                  "gantt",
+                  "pie",
+                  "quadrantChart",
+                  "requirementDiagram",
+                  "gitgraph",
+                  "c4",
+                  "mindmap",
+                  "timeline",
+                  "zenuml",
+                  "sankey",
+                  "xyChart",
+                  "block",
+                  "packet",
+                  "kanban",
+                  "architecture"
+                ],
                 description: "the type of the mermaid diagram"
               }
             },
@@ -110,22 +116,11 @@ class MermaidGrapher < MonadicApp
           }
         },
         strict: true
-      }
+      },
     ]
   }
 
-  def mermaid_examples(diagram_type: "graph")
-    file_path = File.join(__dir__, "mermaid_examples", "#{diagram_type}.md")
-    if File.exist?(file_path)
-      diagram_type_content = File.read(file_path)
-
-      <<~DOCS
-        #{diagram_type_content}
-      DOCS
-    else
-      "Example file not found for the diagram type: #{diagram_type}."
-    end
-  rescue StandardError => e
-    "An error occurred while reading examples for the diagram type: #{diagram_type}. Error: #{e.message}"
+  def mermaid_documentation(diagram_type: "graph")
+    fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
   end
 end

@@ -174,6 +174,10 @@ $(document).on("click", ".copy-button", function () {
 });
 
 async function applyMermaid(element) {
+  // Initialize mermaid with configuration
+  mermaid.initialize(mermaid_config);
+
+  // Process each mermaid code block
   element.find(".mermaid-code").each(function (index) {
     const mermaidElement = $(this);
     mermaidElement.addClass("sourcecode");
@@ -181,34 +185,63 @@ async function applyMermaid(element) {
     let mermaidText = mermaidElement.text().trim();
     mermaidElement.find("pre").text(mermaidText);
     addToggleSourceCode(mermaidElement, "Toggle Mermaid Diagram");
-    const diagramContainer = $(`<div class="diagram" id="diagram-${index}"><mermaid>${mermaidText}</mermaid></div>`);
+
+    // Create container for diagram and error message
+    const containerId = `diagram-${index}`;
+    const diagramContainer = $(`<div class="diagram-wrapper">
+      <div class="diagram" id="${containerId}"><mermaid>${mermaidText}</mermaid></div>
+      <div class="error-message" id="error-${containerId}" style="display: none;"></div>
+    </div>`);
     mermaidElement.after(diagramContainer);
+
+    // Validate mermaid syntax
+    try {
+      const type = mermaid.detectType(mermaidText);
+      if (!type) {
+        throw new Error("Invalid diagram type");
+      }
+    } catch (error) {
+      const errorElement = diagramContainer.find(`#error-${containerId}`);
+      errorElement.html(`<div class="alert alert-danger">
+        <strong>Mermaid Syntax Error:</strong><br>
+        ${error.message}
+      </div>`).show();
+      diagramContainer.find('.diagram').hide();
+    }
   });
 
-  mermaid.initialize(mermaid_config);
-  await mermaid.run({
-    querySelector: 'mermaid'
-  });
+  // Render valid diagrams
+  try {
+    await mermaid.run({
+      querySelector: 'mermaid'
+    });
+  } catch (error) {
+    console.error('Mermaid rendering error:', error);
+  }
 
   // Add download functionality
   element.find(".diagram").each(function (index) {
     const diagram = $(this);
-    const downloadButton = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download SVG</button></div>');
-    downloadButton.on('click', function () {
-      const svgElement = diagram.find('svg')[0];
-      const serializer = new XMLSerializer();
-      const source = serializer.serializeToString(svgElement);
-      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `diagram-${index + 1}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
-    diagram.after(downloadButton);
+    if (diagram.is(':visible')) {  // Only add download button for successfully rendered diagrams
+      const downloadButton = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download SVG</button></div>');
+      downloadButton.on('click', function () {
+        const svgElement = diagram.find('svg')[0];
+        if (svgElement) {
+          const serializer = new XMLSerializer();
+          const source = serializer.serializeToString(svgElement);
+          const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `diagram-${index + 1}.svg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      });
+      diagram.after(downloadButton);
+    }
   });
 }
 

@@ -16,9 +16,9 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Dec, 2024] 0.9.29
+  - Markdown rendering improved
   - Math Tutor app supports visualizations
   - Not require OpenAI's API token when using other APIs (Anthropic, Google, Cohere, or Mistral)
-  - Image generation feature improved
   - Image generation feature improved
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed

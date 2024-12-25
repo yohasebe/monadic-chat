@@ -73,14 +73,17 @@ Select the model used for image and video recognition. Currently, `gpt-4o` and `
 Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
 **ANTHROPIC_API_KEY** <br />
-Enter your Anthropic API key. This key is required to use the Anthropic Claude (Chat) and Anthropic Claude (Code Interpreter) apps. It can be obtained from [https://console.anthropic.com].
+Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com].
 
 **COHERE_API_KEY** <br />
-Enter your Cohere API key. This key is required to use the Cohere Command R (Chat) and Cohere Command R (Code Interpreter) apps. It can be obtained from [https://dashboard.cohere.com].
+Enter your Cohere API key. This key is required to use the Cohere Command R models. It can be obtained from [https://dashboard.cohere.com].
 
 **GEMINI_API_KEY** <br />
-Enter your Google Gemini API key. This key is required to use the Google Gemini (Chat) app. It can be obtained from [https://ai.google.dev/].
+Enter your Google Gemini API key. This key is required to use the Google Gemini models. It can be obtained from [https://ai.google.dev/].
 
 **MISTRAL_API_KEY** <br />
-Enter your Mistral API key. This key is required to use the Mistral AI (Chat) app. It can be obtained from [https://console.mistral.ai/].
+Enter your Mistral API key. This key is required to use the Mistral AI models. It can be obtained from [https://console.mistral.ai/].
+
+**XAI_API_KEY** <br />
+Enter your xAI API key. This key is required to use the xAI Grok models. It can be obtained from [https://x.ai/api].
 

@@ -74,11 +74,12 @@ OpenAI API キーを入力してください。このキーはChat API、DALL-E 
 AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`gpt-4o`と`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
 
 **ANTHROPIC_API_KEY**<br />
-Anthropic APIキーを入力してください。このキーはAnthropic Claude (Chat) と Anthropic Claude (Code Interpreter) アプリを使用するのに必要です。[https://console.anthropic.com] で取得できます。
+Anthropic APIキーを入力してください。このキーはAnthropic Claude モデルを使用するのに必要です。[https://console.anthropic.com] で取得できます。
 
-**COHERE_API_KEY**<br /> Cohere API キーを入力してください。このキーは、Cohere Command R (Chat) および Cohere Command R (Code Interpreter) アプリを使用するのに必要です。[https://dashboard.cohere.com] で取得できます。
+**COHERE_API_KEY**<br /> Cohere API キーを入力してください。このキーは、Cohere Command R モデルを使用するのに必要です。[https://dashboard.cohere.com] で取得できます。
 
-**GEMINI_API_KEY**<br /> Google Gemini API キーを入力してください。このキーはGoogle Gemini (Chat) アプリを使用するのに必要です。[https://ai.google.dev/]で取得できます。
+**GEMINI_API_KEY**<br /> Google Gemini API キーを入力してください。このキーはGoogle Gemini モデル アプリを使用するのに必要です。[https://ai.google.dev/]で取得できます。
 
-**MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーはMistral AI (Chat) アプリを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
+**MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーはMistral AI モデルを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
 
+**XAI_API_KEY**<br /> xAI APIキーを入力してください。このキーはxAI Grok モデルを使用するのに必要です。[https://x.ai/api]で取得できます。

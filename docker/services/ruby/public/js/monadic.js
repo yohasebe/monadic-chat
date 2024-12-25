@@ -172,7 +172,7 @@ $(function () {
       let models = JSON.parse(models_text);
       let modelList = listModels(models);
       $("#model").html(modelList);
-      let model = models[0];
+      let model = models[1];
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
       }

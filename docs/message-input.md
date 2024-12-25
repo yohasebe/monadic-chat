@@ -12,6 +12,13 @@ Enter a message in the text area and click the `Send` button to send the message
 
 # Uploading Images
 
+Uploading images is supported for the following models:
+
+- OpenAI GPT
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+
 Click `Upload Image` to select an image to attach to the message.
 
 ![](./assets/images/monadi-chat-image-attachment.png ':size=400')

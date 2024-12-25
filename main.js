@@ -1289,7 +1289,7 @@ function checkAndUpdateEnvFile() {
     envConfig.AI_USER_MODEL = 'gpt-4o-mini';
   }
 
-  const api_list = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY'];
+  const api_list = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY', 'XAI_API_KEY'];
   const hasApiKey = api_list.some(key => envConfig[key]);
   return hasApiKey;
 }

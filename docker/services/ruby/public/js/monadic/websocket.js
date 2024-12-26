@@ -717,7 +717,7 @@ function connect_websocket(callback) {
           // "Anthropic", "Google", "Cohere", "Mistral", "Extra"
           // and set it to the specialApps object
           specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
-            const order = ["Anthropic", "Google", "Cohere", "Mistral", "Extra"];
+            const order = ["Anthropic", "xAI Grok", "Google", "Cohere", "Mistral", "Extra"];
             return order.indexOf(a[0]) - order.indexOf(b[0]);
           }));
 

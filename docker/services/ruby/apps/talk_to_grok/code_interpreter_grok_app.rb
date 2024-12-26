@@ -24,13 +24,13 @@ class CodeInterpreterGrok < MonadicApp
 
     If the user's request is too complex, please suggest that the user break it down into smaller parts, suggesting possible next steps.
 
-    If you need to run a Python code, follow the instructions below:
+    When you run a Python code, follow the instructions below:
 
     ### Basic Procedure:
 
     First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available using the `check_environment` function.
 
-    To execute the Python code, use the `run_script` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
@@ -63,7 +63,7 @@ class CodeInterpreterGrok < MonadicApp
       plt.savefig('IMAGE_FILE_NAME')
       ```
 
-    Once the image file is saved, display it to the user as follows:
+    Once the image file is saved, display it to the user as follows. Note that the file should only be displayed after you actually called the `run_code` function to save the image file.
 
       ![](/data/IMAGE_FILE_NAME)
 
@@ -159,11 +159,7 @@ class CodeInterpreterGrok < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    Run the code you have written using `run_script`. If your code is for the presentation purpose only, tell it to the user.
-
-    Check the environment using `check_environment` before adding cells to the Jupyter Notebook.
-
-    If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
+    Run the code you have written using `run_code`. If your code is for the presentation purpose only, tell it to the user.
   TEXT
 
   @settings = {
@@ -171,8 +167,6 @@ class CodeInterpreterGrok < MonadicApp
     model: "grok-2-1212",
     models: GrokHelper.list_models,
     temperature: 0.0,
-    presence_penalty: 0.2,
-    top_p: 0.0,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: true,
@@ -190,7 +184,7 @@ class CodeInterpreterGrok < MonadicApp
       {
         type: "function",
         function: {
-          name: "run_script",
+          name: "run_code",
           description: "Run program code and return the output.",
           parameters: {
             type: "object",

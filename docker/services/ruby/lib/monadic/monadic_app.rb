@@ -114,6 +114,115 @@ class MonadicApp
     snake
   end
 
+  def send_command(command:,
+                   container: "python",
+                   success: "Command executed successfully",
+                   timeout: 300,  # 5 minutes timeout
+                   retries: 3,
+                   retry_delay: 1.5,
+                   &block)
+    
+    retries.times do |attempt|
+      begin
+        # Execute command with timeout protection
+        Timeout.timeout(timeout) do
+          system_command = prepare_command(command, container)
+          output = execute_with_fallback(system_command)
+          
+          # Process the execution result
+          if block_given?
+            return yield(output[:stdout], output[:stderr], output[:status])
+          elsif output[:status] == 0
+            return "#{success}: #{output[:stdout]}"
+          else
+            raise StandardError, "Error occurred: #{output[:stderr]}" if attempt == retries - 1
+          end
+        end
+      rescue Timeout::Error => e
+        raise e if attempt == retries - 1
+        sleep(retry_delay * (attempt + 1))  # Exponential backoff
+      rescue StandardError => e
+        raise e if attempt == retries - 1
+        sleep(retry_delay * (attempt + 1))
+      end
+    end
+  rescue StandardError => e
+    "Command execution failed: #{e.message}"
+  end
+
+  private
+
+  def prepare_command(command, container)
+    case container.to_s
+    when "ruby"
+      if IN_CONTAINER
+        system_script_dir = SYSTEM_SCRIPT_DIR
+        user_script_dir = USER_SCRIPT_DIR
+        shared_volume = SHARED_VOL
+      else
+        system_script_dir = LOCAL_SYSTEM_SCRIPT_DIR
+        user_script_dir = LOCAL_USER_SCRIPT_DIR
+        shared_volume = LOCAL_SHARED_VOL
+      end
+
+      <<~COMMAND
+        set -o pipefail;
+        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null;
+        find #{user_script_dir} -type f -exec chmod +x {} + 2>/dev/null;
+        export PATH="#{system_script_dir}:#{user_script_dir}:${PATH}";
+        cd #{shared_volume} && #{command}
+      COMMAND
+    when "python"
+      container = "monadic-chat-python-container"
+      <<~DOCKER
+        docker exec #{container} bash -c '
+          set -o pipefail;
+          export PYTHONUNBUFFERED=1;
+          find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null;
+          cd #{SHARED_VOL} && #{command} 2>&1
+        '
+      DOCKER
+    else
+      container = "monadic-chat-#{container}-container"
+      <<~DOCKER
+        docker exec #{container} bash -c '
+          set -o pipefail;
+          find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null;
+          cd #{SHARED_VOL} && #{command} 2>&1
+        '
+      DOCKER
+    end
+  end
+
+  def execute_with_fallback(system_command)
+    begin
+      # Try PTY first for better output handling
+      execute_with_pty(system_command)
+    rescue StandardError
+      execute_with_open3(system_command)
+    end
+  end
+
+  def execute_with_pty(system_command)
+    output = { stdout: "", stderr: "", status: nil }
+    
+    PTY.spawn(system_command) do |stdout, stdin, pid|
+      begin
+        stdout.each { |line| output[:stdout] += line }
+      rescue Errno::EIO
+        # Expected behavior when PTY closes
+      end
+      Process.wait(pid)
+      output[:status] = $?.exitstatus
+    end
+    
+    output
+  end
+
+  def execute_with_open3(system_command)
+    stdout, stderr, status = Open3.capture3(system_command)
+    { stdout: stdout, stderr: stderr, status: status.exitstatus }
+  end
 
   def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
     return hash.to_s unless hash.is_a?(Hash)
@@ -199,64 +308,18 @@ class MonadicApp
     "<div class='json-container'>#{output}</div>"
   end
 
-  def send_command(command:,
-                   container: "python",
-                   success: "Command executed successfully")
-    case container.to_s
-    when "ruby"
-      if IN_CONTAINER
-        system_script_dir = SYSTEM_SCRIPT_DIR
-        user_system_script_dir = USER_SCRIPT_DIR
-        shared_volume = SHARED_VOL
-      else
-        system_script_dir = LOCAL_SYSTEM_SCRIPT_DIR
-        user_system_script_dir = LOCAL_USER_SCRIPT_DIR
-        shared_volume = LOCAL_SHARED_VOL
-      end
-      system_command = <<~SYS
-        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        find #{user_system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        export PATH="#{system_script_dir}:${PATH}" && \
-        export PATH="#{user_system_script_dir}:${PATH}" && \
-        cd #{shared_volume} && \
-        #{command}
-      SYS
-    when "python"
-      container = "monadic-chat-python-container"
-      system_command = <<~DOCKER
-        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +'
-        docker exec -w #{SHARED_VOL} #{container} #{command}
-      DOCKER
-    else
-      container = "monadic-chat-#{container}-container"
-      system_command = <<~DOCKER
-        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +'
-        docker exec -w #{SHARED_VOL} #{container} #{command}
-      DOCKER
-    end
-
-    stdout, stderr, status = Open3.capture3(system_command)
-
-    if block_given?
-      yield(stdout, stderr, status)
-    elsif status.success?
-      "#{success}: #{stdout}"
-    else
-      "Error occurred: #{stderr}"
-    end
-  rescue StandardError => e
-    "Error occurred: #{e.message}"
-  end
-
   def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: true)
     retries = 0
     last_error = nil
 
     begin
+      # Set appropriate paths based on environment
       if IN_CONTAINER
         data_dir = SHARED_VOL
+        files_dir = SHARED_VOL
       else
         data_dir = LOCAL_SHARED_VOL
+        files_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
       end
 
       container = "monadic-chat-python-container"
@@ -277,6 +340,9 @@ class MonadicApp
         file_path = temp_file.path
       end
 
+      # Get the list of files before execution
+      local_files1 = Dir[File.join(files_dir, "*")]
+
       # Copy the file to the container
       docker_command = <<~DOCKER
         docker cp #{file_path} #{container}:#{SHARED_VOL}
@@ -285,9 +351,6 @@ class MonadicApp
       unless status.success?
         raise "Error occurred: #{stderr}"
       end
-
-      # Get the list of files before execution
-      local_files1 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
 
       # Execute the code in the container
       docker_command = <<~DOCKER
@@ -298,16 +361,17 @@ class MonadicApp
 
       if status.success?
         # Get the list of files after execution
-        local_files2 = Dir[File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "*")]
+        local_files2 = Dir[File.join(files_dir, "*")]
         new_files = local_files2 - local_files1
 
-        # Prepare the success message with file information if any new files were generated
+        # Prepare the success message with file information
         if !new_files.empty?
           new_files = new_files.map { |file| "/data/" + File.basename(file) }
           output = "#{success}; File(s) generated: #{new_files.join(", ")}"
           output += "; Output: #{stdout}" if stdout.strip.length.positive?
         else
-          output = "#{success} (No files generated); Output: #{stdout}" if stdout.strip.length.positive?
+          output = "#{success} (No files generated)"
+          output += "; Output: #{stdout}" if stdout.strip.length.positive?
         end
 
         # Clean up temporary file if keep_file is false
@@ -322,7 +386,15 @@ class MonadicApp
           code_snippet: code,
           attempt: retries + 1
         }
-        # raise StandardError, generate_error_suggestions(last_error)
+        raise StandardError, generate_error_suggestions(last_error)
+      end
+    rescue StandardError => e
+      if retries < max_retries
+        retries += 1
+        sleep(retry_delay)
+        retry
+      else
+        "Error executing code: #{e.message}"
       end
     end
   end
@@ -375,11 +447,8 @@ class MonadicApp
     send_code(code: code, command: command, extension: extension, success: success)
   end
 
-  # This is currently not used in the app
-  # Created to experiment with Google Gemini's function calling feature
-
   def run_script(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
-    # remove escape characters from the code
+    # Remove escape characters from the code
     if code
       code = code.gsub(/\\n/) { "\n" }
       code = code.gsub(/\\'/) { "'" }
@@ -387,7 +456,7 @@ class MonadicApp
       code = code.gsub(/\\\\/) { "\\" }
     end
 
-    # return the error message unless all the arguments are provided
+    # Return error message unless all arguments are provided
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension, success: success)

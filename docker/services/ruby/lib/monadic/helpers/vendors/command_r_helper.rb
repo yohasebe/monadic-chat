@@ -256,7 +256,6 @@ module CommandRHelper
         res = { "choices" => [{ "message" => { "content" => result.join("") } }] }
       end
       block&.call res
-      block&.call res
       [res]
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }

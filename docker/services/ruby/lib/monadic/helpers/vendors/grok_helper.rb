@@ -136,7 +136,7 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tool_choice"] = "auto"
+      body["tool_choice"] = "any"
     else
       body.delete("tools")
       body.delete("tool_choice")

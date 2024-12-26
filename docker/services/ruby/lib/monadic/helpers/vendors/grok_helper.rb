@@ -322,7 +322,22 @@ module GrokHelper
             end
 
             # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
-            if json.dig("choices", 0, "delta", "content")
+            if json.dig("choices", 0, "delta", "tool_calls")
+              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+              block&.call res
+
+              tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
+
+              if tid
+                tools[tid] = json
+                tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
+                tools[tid]["choices"][0].delete("delta")
+              else
+                new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
+                existing_tool_call = tools.values.last.dig("choices", 0, "message")
+                existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
+              end
+            elsif json.dig("choices", 0, "delta", "content")
               # Merge text fragments based on "id"
               id = json["id"]
               texts[id] ||= json
@@ -347,23 +362,6 @@ module GrokHelper
               next if !fragment || fragment == ""
 
               texts[id]["choices"][0].delete("delta")
-            end
-
-            if json.dig("choices", 0, "delta", "tool_calls")
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
-
-              tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
-
-              if tid
-                tools[tid] = json
-                tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
-                tools[tid]["choices"][0].delete("delta")
-              else
-                new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                existing_tool_call = tools.values.last.dig("choices", 0, "message")
-                existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
-              end
             end
           rescue JSON::ParserError
             # if the JSON parsing fails, the next chunk should be appended to the buffer

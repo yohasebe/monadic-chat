@@ -114,47 +114,27 @@ class MonadicApp
     snake
   end
 
+  # Execute a command in a specified container with retry and timeout functionality
+  # @param command [String] The command to execute
+  # @param container [String] The container type ("ruby", "python", or custom)
+  # @param success [String] Success message to return
+  # @param timeout [Integer] Maximum time in seconds to wait for command completion
+  # @param retries [Integer] Number of retry attempts
+  # @param retry_delay [Float] Delay between retries in seconds
+  # @param block [Block] Optional block for custom output handling
+  # @return [String] Command execution result or error message
   def send_command(command:,
                    container: "python",
                    success: "Command executed successfully",
-                   timeout: 300,  # 5 minutes timeout
+                   timeout: 300,
                    retries: 3,
                    retry_delay: 1.5,
                    &block)
-    
-    retries.times do |attempt|
-      begin
-        # Execute command with timeout protection
-        Timeout.timeout(timeout) do
-          system_command = prepare_command(command, container)
-          output = execute_with_fallback(system_command)
-          
-          # Process the execution result
-          if block_given?
-            return yield(output[:stdout], output[:stderr], output[:status])
-          elsif output[:status] == 0
-            return "#{success}: #{output[:stdout]}"
-          else
-            raise StandardError, "Error occurred: #{output[:stderr]}" if attempt == retries - 1
-          end
-        end
-      rescue Timeout::Error => e
-        raise e if attempt == retries - 1
-        sleep(retry_delay * (attempt + 1))  # Exponential backoff
-      rescue StandardError => e
-        raise e if attempt == retries - 1
-        sleep(retry_delay * (attempt + 1))
-      end
-    end
-  rescue StandardError => e
-    "Command execution failed: #{e.message}"
-  end
-
-  private
-
-  def prepare_command(command, container)
+      
+    # Prepare the system command based on container type
     case container.to_s
     when "ruby"
+      # Set appropriate paths based on environment (container or local)
       if IN_CONTAINER
         system_script_dir = SYSTEM_SCRIPT_DIR
         user_script_dir = USER_SCRIPT_DIR
@@ -164,34 +144,67 @@ class MonadicApp
         user_script_dir = LOCAL_USER_SCRIPT_DIR
         shared_volume = LOCAL_SHARED_VOL
       end
-
-      <<~COMMAND
-        set -o pipefail;
-        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null;
-        find #{user_script_dir} -type f -exec chmod +x {} + 2>/dev/null;
-        export PATH="#{system_script_dir}:#{user_script_dir}:${PATH}";
-        cd #{shared_volume} && #{command}
-      COMMAND
+      
+      # Construct command for Ruby environment
+      system_command = <<~SYS
+        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+        find #{user_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
+        export PATH="#{system_script_dir}:${PATH}" && \
+        export PATH="#{user_script_dir}:${PATH}" && \
+        cd #{shared_volume} && \
+        #{command}
+      SYS
     when "python"
+      # Set container name for Python environment
       container = "monadic-chat-python-container"
-      <<~DOCKER
-        docker exec #{container} bash -c '
-          set -o pipefail;
-          export PYTHONUNBUFFERED=1;
-          find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null;
-          cd #{SHARED_VOL} && #{command} 2>&1
-        '
+      # Construct command for Python container
+      system_command = <<~DOCKER
+        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +' && \
+        docker exec -w #{SHARED_VOL} #{container} #{command}
       DOCKER
     else
+      # Set container name for custom container types
       container = "monadic-chat-#{container}-container"
-      <<~DOCKER
-        docker exec #{container} bash -c '
-          set -o pipefail;
-          find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null;
-          cd #{SHARED_VOL} && #{command} 2>&1
-        '
+      # Construct command for custom container
+      system_command = <<~DOCKER
+        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +' && \
+        docker exec -w #{SHARED_VOL} #{container} #{command}
       DOCKER
     end
+
+    # Attempt command execution with retries
+    retries.times do |attempt|
+      begin
+        # Execute command with timeout protection
+        Timeout.timeout(timeout) do
+          # Execute the command and capture output
+          stdout, stderr, status = Open3.capture3(system_command)
+          
+          # Process the execution result
+          if block_given?
+            # Use custom output handling if block is provided
+            return yield(stdout, stderr, status)
+          elsif status.success?
+            # Return success message with output
+            return "#{success}: #{stdout}"
+          else
+            # Raise error on last attempt if command failed
+            raise StandardError, "Error occurred: #{stderr}" if attempt == retries - 1
+          end
+        end
+      rescue Timeout::Error => e
+        # Handle timeout error
+        raise e if attempt == retries - 1
+        sleep(retry_delay * (attempt + 1))  # Exponential backoff
+      rescue StandardError => e
+        # Handle other errors
+        raise e if attempt == retries - 1
+        sleep(retry_delay * (attempt + 1))  # Exponential backoff
+      end
+    end
+  rescue StandardError => e
+    # Return error message if all attempts fail
+    "Error occurred: #{e.message}"
   end
 
   def execute_with_fallback(system_command)

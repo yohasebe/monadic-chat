@@ -312,15 +312,6 @@ module GeminiHelper
       result = texts
     end
 
-    # if finish_reason.nil?
-    #   if result.join("").count("```").odd?
-    #     result << "\n```"
-    #   end
-
-    #   result << "\n\nDo you want to continue?"
-    # end
-
-
     if tool_calls.any?
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS

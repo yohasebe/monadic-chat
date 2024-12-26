@@ -61,8 +61,6 @@ module GrokHelper
 
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
-    top_p = obj["top_p"].to_f
-    top_p = 0.1 if top_p == 0.0
     presence_penalty = obj["presence_penalty"].to_f
     frequency_penalty = obj["frequency_penalty"].to_f
     context_size = obj["context_size"].to_i
@@ -124,7 +122,6 @@ module GrokHelper
     body["stream"] = true
     body["n"] = 1
     body["temperature"] = temperature if temperature
-    body["top_p"] = top_p if top_p
     body["presence_penalty"] = presence_penalty if presence_penalty
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_tokens"] = max_tokens if max_tokens
@@ -139,7 +136,7 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tool_choice"] = "any"
+      body["tool_choice"] = "auto"
     else
       body.delete("tools")
       body.delete("tool_choice")
@@ -239,13 +236,17 @@ module GrokHelper
     end
 
     unless res.status.success?
-      pp res.status
-      pp res.body.
-      error_report = JSON.parse(res.body)["error"]
-      pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
-      block&.call res
-      return [res]
+      begin
+        status = res.status
+        error_message = res.body.to_s
+        res = { "type" => "error", "content" => "API ERROR: #{status} - #{error_message}" }
+        block&.call res
+        return [res]
+      rescue StandardError
+        res = { "type" => "error", "content" => "API ERROR" }
+        block&.call res
+        return [res]
+      end
     end
 
     # return Array

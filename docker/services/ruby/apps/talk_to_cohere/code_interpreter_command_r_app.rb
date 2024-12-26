@@ -32,7 +32,7 @@ class CodeInterpreterCommandR < MonadicApp
 
     First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available using the `check_environment` function.
 
-    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    To execute the Python code, use the `run_script` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
@@ -198,30 +198,27 @@ class CodeInterpreterCommandR < MonadicApp
     initiate_from_assistant: false,
     image: false,
     pdf: false,
-    models: [
-      "command-r-plus-08-2024",
-      "command-r-plus"
-    ],
+    models: CommandRHelper.list_models,
     model: "command-r-plus-08-2024",
     tools: [
       {
-        name: "run_code",
+        name: "run_script",
         description: "Run program code and return the output.",
         parameter_definitions: {
           command: {
             type: "string",
             description: "Code execution command (e.g., 'python')",
-            required: false
+            required: true
           },
           code: {
             type: "string",
             description: "Code to be executed.",
-            required: false
+            required: true
           },
           extension: {
             type: "string",
             description: "File exsention of the code (e.g., 'py')",
-            required: false
+            required: true
           }
         }
       },
@@ -299,6 +296,7 @@ class CodeInterpreterCommandR < MonadicApp
       {
         name: "check_environment",
         description: "Get the contents of the Dockerfile and the shell script used in the Python container.",
+        parameter_definitions: {}
       }
     ]
   }

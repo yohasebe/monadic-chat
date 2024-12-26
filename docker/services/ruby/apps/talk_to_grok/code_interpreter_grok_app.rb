@@ -55,86 +55,61 @@ class CodeInterpreterGrok < MonadicApp
 
     Show the user the code to generate the plot in the following format:
 
-      ```python
-      import matplotlib.pyplot as plt
-      x = range(1, 11)
-      y = [i for i in x]
-      plt.plot(x, y)
-      plt.savefig('IMAGE_FILE_NAME')
-      ```
+    ```python
+    import matplotlib.pyplot as plt
+    x = range(1, 11)
+    y = [i for i in x]
+    plt.plot(x, y)
+    plt.savefig('IMAGE_FILE_NAME')
+    ```
 
     Once the image file is saved, display it to the user as follows. Note that the file should only be displayed after you actually called the `run_code` function to save the image file.
 
-      ![](/data/IMAGE_FILE_NAME)
+    ![](/data/IMAGE_FILE_NAME)
 
     ### Request/Response Example 2:
 
     - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the output text. Display the output text below the code in a Markdown code block.
     - Remember to check if the image file or URL really exists before returning the response.
 
-    User Request:
+    Example Code response:
 
-      "Please analyze the sentence 'She saw the boy with binoculars' and show the part-of-speech data."
+    ```python
+    import spacy
 
-    Your Response:
+    # Load the English language model
+    nlp = spacy.load("en_core_web_sm")
 
-      Code:
+    # Text to analyze
+    text = "She saw the boy with binoculars."
 
-      ```python
-      import spacy
+    # Perform tokenization and part-of-speech tagging
+    doc = nlp(text)
 
-      # Load the English language model
-      nlp = spacy.load("en_core_web_sm")
+    # Display the tokens and their part-of-speech tags
+    for token in doc:
+        print(token.text, token.pos_)
+    ```
 
-      # Text to analyze
-      text = "She saw the boy with binoculars."
+    Example output text response:
 
-      # Perform tokenization and part-of-speech tagging
-      doc = nlp(text)
-
-      # Display the tokens and their part-of-speech tags
-      for token in doc:
-          print(token.text, token.pos_)
-      ```
-
-      Output:
-
-      ```markdown
-      She PRON
-      saw VERB
-      the DET
-      boy NOUN
-      with ADP
-      binoculars NOUN
-      . PUNCT
-      ```
+    ```markdown
+    She PRON
+    saw VERB
+    the DET
+    boy NOUN
+    with ADP
+    binoculars NOUN
+    . PUNCT
+    ```
 
     ### Request/Response Example 3:
 
     - The following is a simple example to illustrate how you might respond to a user's request to run a Python code and show the resulting HTML file with a Plotly plot, for instance.
-    - Remember to check if the HTML file really exists before returning the response.
 
-    User Request:
+    Example generated HTML file response:
 
-      "Please create a Plotly scatter plot of the numbers 1 through 10."
-
-    Your Response:
-
-      Code:
-
-      ```python
-        import plotly.graph_objects as go
-
-        x = list(range(1, 11))
-        y = x
-
-        fig = go.Figure(data=go.Scatter(x=x, y=y, mode='markers'))
-        fig.write_html('FILE_NAME')
-      ```
-
-      Output:
-
-      <div><a href="/data/FILE_NAME" target="_blank">Result</a></div>
+    <div><a href="/data/FILE_NAME" target="_blank">Result</a></div>
 
     ### Request/Response Example 4:
 
@@ -143,11 +118,11 @@ class CodeInterpreterGrok < MonadicApp
 
     Audio Clip:
 
-      <audio controls src="/data/FILE_NAME"></audio>
+    <audio controls src="/data/FILE_NAME"></audio>
 
     Video Clip:
 
-      <video controls src="/data/FILE_NAME"></video>
+    <video controls src="/data/FILE_NAME"></video>
 
 ---
 
@@ -156,6 +131,8 @@ class CodeInterpreterGrok < MonadicApp
     Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag. Needless to say, only existing files should be displayed.
 
     You can check the current date and time using the `current_time` function. This function does not require any parameters and returns the current time in the user's time zone. You can use this function when you need to call a function when there is no specific need.
+
+    Do not mention the functions and their parameters in the response to the user. The user should not be aware of the functions you are using. The user should only see the Python code, the output, and the generated images or data files.
   TEXT
 
   prompt_suffix = <<~TEXT
@@ -169,6 +146,7 @@ class CodeInterpreterGrok < MonadicApp
     temperature: 0.0,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
+    presence_penalty: 0.2,
     image_generation: true,
     sourcecode: true,
     easy_submit: false,

@@ -353,8 +353,8 @@ class MonadicApp
         file_path = temp_file.path
       end
 
-      # Get the list of files before execution
-      local_files1 = Dir[File.join(files_dir, "*")]
+      # Get the list of files with their timestamps before execution
+      local_files1 = Dir[File.join(files_dir, "*")].map { |file| [file, File.mtime(file)] }
 
       # Copy the file to the container
       docker_command = <<~DOCKER
@@ -372,10 +372,15 @@ class MonadicApp
 
       stdout, stderr, status = Open3.capture3(docker_command)
 
+      # wait for the command to finish and status to be available
+      sleep 1
+
       if status.success?
         # Get the list of files after execution
-        local_files2 = Dir[File.join(files_dir, "*")]
-        new_files = local_files2 - local_files1
+        local_files2 = Dir[File.join(files_dir, "*")].map { |file| [file, File.mtime(file)] }
+
+        # `new_files` contains newly created or updated files (check the timestamp)
+        new_files = (local_files2 - local_files1).map(&:first) - [file_path]
 
         # Prepare the success message with file information
         if !new_files.empty?

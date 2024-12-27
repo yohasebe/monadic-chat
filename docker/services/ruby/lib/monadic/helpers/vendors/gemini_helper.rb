@@ -313,13 +313,19 @@ module GeminiHelper
     end
 
     if tool_calls.any?
+      context = []
+
+      if result
+        context << { "role" => "model", "text" => result.join("") }
+      end
+
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
       begin
-        new_results = process_functions(app, session, tool_calls, call_depth, &block)
+        new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
       rescue StandardError => e
         new_results = [{ "type" => "error", "content" => "ERROR: #{e.message}" }]
       end
@@ -352,7 +358,7 @@ module GeminiHelper
     end
   end
 
-  def process_functions(_app, session, tool_calls, call_depth, &block)
+  def process_functions(_app, session, tool_calls, context, call_depth, &block)
     return false if tool_calls.empty?
 
     obj = session[:parameters]
@@ -400,7 +406,7 @@ module GeminiHelper
         pp "ERROR: Function call failed: #{function_name}"
           pp e.message
         pp e.backtrace
-        tool_results << {
+        context << {
           "functionResponse" => {
             "name" => function_name,
             "response" => {
@@ -413,7 +419,7 @@ module GeminiHelper
     end
 
     # MODIFICATION: Clear tool_results after processing
-    obj["tool_results"] = tool_results
+    obj["tool_results"] = context
     api_request("tool", session, call_depth: call_depth, &block)
   end
 

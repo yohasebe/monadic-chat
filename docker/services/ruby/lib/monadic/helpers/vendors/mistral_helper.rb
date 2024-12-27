@@ -266,7 +266,7 @@ module MistralHelper
           "function" => tool["function"]
         }
       end
-      context << res
+      context << { role: "assistant", content: res }
 
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS

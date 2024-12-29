@@ -150,7 +150,7 @@ class MonadicApp
           output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
           output += "<div class='json-header' onclick='toggleItem(this)'>"
           output += "<span>#{key}</span>"
-          output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
+          output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
           output += "</div>"
           output += "<div class='json-content' style='margin-left:1em'>"
           output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
@@ -164,7 +164,7 @@ class MonadicApp
             output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
             output += "<div class='json-header' onclick='toggleItem(this)'>"
             output += "<span>#{key}</span>"
-            output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>Close</span>"
+            output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
             output += "</div>"
             output += "<div class='json-content' style='margin-left:1em'>"
             output += "<ul class='no-bullets'>"
@@ -447,5 +447,23 @@ class MonadicApp
 
   def current_time
     Time.now.to_s
+  end
+
+  def self.doc2markdown(filename)
+    container = "monadic-chat-python-container"
+    docker_command = <<~DOCKER
+      docker exec -w #{SHARED_VOL} #{container} markitdown /monadic/data/#{File.basename(filename)}
+    DOCKER
+
+    stdout, stderr, status = Open3.capture3(docker_command)
+
+    # Wait briefly for filesystem synchronization
+    sleep 1
+
+    if status.success?
+      stdout.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    else
+      "Error occurred: #{stderr}"
+    end
   end
 end

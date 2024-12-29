@@ -26,6 +26,9 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
     replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
   }
 
+  // add "?dummy=TIMESTAMP" to the end of the URL to prevent the browser from caching the image
+  replaced_html = replaced_html.replace(/<img src="([^"]+)"/g, '<img src="$1?dummy=' + Date.now() + '"');
+
   let className;
   if (role === "user") {
     className = "role-user";

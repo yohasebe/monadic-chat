@@ -103,9 +103,9 @@ Once the Cohere API key is set, you can use the following apps. For information 
 </details>
 
 <details>
-<summary>code_interpreter_command_r_app.rb</summary>
+<summary>coding_assistant_command_r_app.rb</summary>
 
-[code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
+[coding_assistant_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/coding_assistant_command_r_app.rb ':include :type=code')
 
 </details>
 
@@ -154,6 +154,12 @@ Once the xAI API key is set, you can use the following apps. For information on 
 
 </details>
 
+<details>
+<summary>coding_assistant_grok_app.rb</summary>
+
+![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/coding_assistant_grok_app.rb ':include :type=code')
+
+</details>
 
 ## Ollama Models
 

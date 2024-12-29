@@ -322,8 +322,6 @@ This application allows the AI to create and execute program code. The execution
 Code Interpreter apps are also available for the following models:
 
 - Anthropic Claude
-- xAI Grok
-- Cohere Command R 
 
 ### Coding Assistant
 

@@ -191,12 +191,11 @@ module CommandRHelper
 
     # Handle tool results in v2 format
     if role == "tool" && obj["tool_results"]
-      # Add tool results as messages, maintaining exact tool_call_id correspondence
-      # messages.concat(obj["tool_results"])  # Tool results are already in the correct format
-      messages.concat(obj["tool_results"])  # Tool results are already in the correct format
+      body["messages"] = obj["tool_results"]
+    else
+      body["messages"] = messages
     end
 
-    body["messages"] = messages
 
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)

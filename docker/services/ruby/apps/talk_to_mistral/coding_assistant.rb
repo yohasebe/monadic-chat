@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CodeInterpreterMistral < MonadicApp
+class CodingAssistantMistral < MonadicApp
   include MistralHelper
 
   icon = "<i class='fa-solid fa-m'></i>"

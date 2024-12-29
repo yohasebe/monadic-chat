@@ -61,10 +61,6 @@ module MistralHelper
 
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
-    presence_penalty = obj["presence_penalty"].to_f
-    frequency_penalty = obj["frequency_penalty"].to_f
-    top_p = obj["top_p"].to_f
-    top_p = 0.01 if top_p == 0.0
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
@@ -106,9 +102,6 @@ module MistralHelper
     body = {
       "model" => obj["model"],
       "temperature" => temperature,
-      "top_p" => top_p,
-      "presence_penalty" => presence_penalty,
-      "frequency_penalty" => frequency_penalty,
       "safe_prompt" => false,
       "stream" => true
     }
@@ -121,12 +114,13 @@ module MistralHelper
 
     if settings["tools"]
       body["tools"] = settings["tools"]
-      body["tool_choice"] = "any"
+      body["tool_choice"] = "auto"
+    else
+      body.delete("tool_choice")
     end
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-      body["tool_choice"] = "auto"
     elsif role == "user"
       body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
     end
@@ -176,20 +170,28 @@ module MistralHelper
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-    buffer = String.new
+    # Initialize buffer with explicit UTF-8 encoding
+    buffer = String.new.force_encoding("UTF-8")
     texts = {}
     tools = {}
     finish_reason = nil
 
     body.each do |chunk|
       begin
+        # Check for invalid encoding in the buffer
         if buffer.valid_encoding? == false
           buffer << chunk
           next
         end
 
+        # Handle invalid UTF-8 sequences in the chunk
+        if !chunk.force_encoding("UTF-8").valid_encoding?
+          chunk = chunk.encode("UTF-8", "UTF-8", invalid: :replace, undef: :replace)
+        end
+
         buffer << chunk
 
+        # Extract JSON data items from the buffer
         data_items = buffer.scan(/data: \{.*\}/)
         next if data_items.nil? || data_items.empty?
 
@@ -199,16 +201,20 @@ module MistralHelper
 
           json = JSON.parse(data_content[1])
 
+          # Determine the finish reason from the response
           finish_reason = json.dig("choices", 0, "finish_reason")
           case finish_reason
           when "length"
             finish_reason = "length"
           when "stop"
             finish_reason = "stop"
+          when "tool_calls"
+            finish_reason = "function_call"
           else
             finish_reason = nil
           end
 
+          # Handle text content from the response
           if json.dig("choices", 0, "delta", "content")
             id = json["id"]
             texts[id] ||= json
@@ -228,6 +234,7 @@ module MistralHelper
             texts[id]["choices"][0].delete("delta")
           end
 
+          # Handle tool calls from the response
           if json.dig("choices", 0, "delta", "tool_calls")
             res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
             block&.call res
@@ -236,43 +243,44 @@ module MistralHelper
             tools[id] ||= json
             choice = tools[id]["choices"][0]
             choice["message"] ||= choice["delta"].dup
-
-            if choice["finish_reason"] == "function_call"
-              break
-            end
           end
         rescue JSON::ParserError => e
           pp e.message
           pp e.backtrace
           pp e.inspect
+          next
         end
         buffer = String.new
       end
-    rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
     end
 
+    # Process the final results
     result = texts.empty? ? nil : texts.first[1]
 
     if tools.any?
+      # Handle tool/function calls
       tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
       context = []
-      res = { "role" => "assistant" }
+      res = {
+        "role" => "assistant",
+        "content" => "The AI model is calling functions to process the data."
+      }
       res["tool_calls"] = tools.map do |tool|
         {
           "id" => tool["id"],
+          "type" => "function",
           "function" => tool["function"]
         }
       end
-      context << { role: "assistant", content: res }
+      context << res
 
+      # Check for maximum function call depth
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
+      # Process function calls and get new results
       new_results = process_functions(app, session, tools, context, call_depth, &block)
 
       if new_results
@@ -281,14 +289,17 @@ module MistralHelper
         [result]
       end
     elsif result
+      # Return final result with finish reason
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
     else
-      res = { "type" => "message", "content" => "DONE" }
-      block&.call res
-      [res]
+
+      # # Return done message if no result
+      # res = { "type" => "message", "content" => "DONE" }
+      # block&.call res
+      # [res]
     end
   end
 

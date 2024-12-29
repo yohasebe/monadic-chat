@@ -1,4 +1,5 @@
 - [Dec, 2024] 0.9.29
+  - Document file to markdown conversion feature added (PDF, DOCX, PPTX, XLSX, etc.)
   - xAI Grok models supported
   - Cohere API update to v2
   - Markdown rendering improved

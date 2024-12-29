@@ -422,11 +422,59 @@ post "/load" do
   redirect "/"
 end
 
+# Convert a document file to text
+post "/document" do
+  if params["docFile"]
+    doc_file_handler = params["docFile"]["tempfile"]
+    # name the file based on datetime if no title is provided
+    doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    # get filename from the file handler
+    filename = params["docFile"]["filename"]
+
+    user_data_dir = if IN_CONTAINER
+                      "/monadic/data"
+                    else
+                      Dir.home + "/monadic/data"
+                    end
+
+    # Copy the file to user data directory
+    doc_file_path = File.join(user_data_dir, filename)
+    File.open(doc_file_path, "wb") do |f|
+      f.write(doc_file_handler.read)
+    end
+
+    utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
+
+    doc_file_handler.close
+
+    begin
+      if utf8_filename.end_with?(".pdf") ||
+         utf8_filename.end_with?(".pptx") ||
+         utf8_filename.end_with?(".docx") ||
+         utf8_filename.end_with?(".xlsx")
+        markdown = MonadicApp.doc2markdown(doc_file_path).to_s
+      else
+        markdown = File.read(doc_file_path).to_s.force_encoding("UTF-8")
+      end
+    rescue StandardError => e
+      session[:error] = "Error: File conversion failed. (#{e.message})"
+    end
+
+    doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
+    if doc_label.to_s != ""
+      doc_label + "\n---\n" + doc_text
+    else
+      doc_text
+    end
+  else
+    session[:error] = "Error: No file selected. Please choose a document file to convert."
+  end
+end
+
 # Upload a PDF file
 post "/pdf" do
   if params["pdfFile"]
     pdf_file_handler = params["pdfFile"]["tempfile"]
-    # Create a temporary file and write the content of the file handler to it
     temp_file = Tempfile.new("temp_pdf")
     temp_file.binmode
     temp_file.write(pdf_file_handler.read)

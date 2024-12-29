@@ -153,9 +153,9 @@ $(function () {
       $("#file-div").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-    } else if (apps[$(this).val()]["file"]) {
-      $("#pdf-panel").hide();
-      $("#file-div").show();
+    // } else if (apps[$(this).val()]["file"]) {
+    //   $("#pdf-panel").hide();
+    //   $("#file-div").show();
     } else {
       $("#file-div").hide();
       $("#pdf-panel").hide();
@@ -478,15 +478,15 @@ $(function () {
     $("#loadModal").modal("show");
   });
 
+  $("#loadModal").on("shown.bs.modal", function () {
+    $("#file-title").focus();
+  });
+
   $("#file").on("click", function (event) {
     event.preventDefault();
     $("#file-title").val("");
     $("#fileFile").val("");
     $("#fileModal").modal("show");
-  });
-
-  $("#loadModal").on("shown.bs.modal", function () {
-    $("#file-title").focus();
   });
 
   let fileTitle = "";
@@ -528,6 +528,63 @@ $(function () {
       }
     } else {
       alert("Please select a PDF file to upload");
+    }
+  });
+
+  $("#doc").on("click", function (event) {
+    event.preventDefault();
+    $("#doc-title").val("");
+    $("#docFile").val("");
+    $("#docModal").modal("show");
+  });
+
+  $("#docModal").on("hidden.bs.modal", function () {
+    $('#docFile').val('');
+    $('#convertDoc').prop('disabled', true);
+  });
+
+  $("#docFile").on("change", function() {
+    const file = this.files[0];
+    $('#convertDoc').prop('disabled', !file);
+  });
+
+  $("#convertDoc").on("click", function () {
+    const docInput = $("#docFile")[0];
+    const doc = docInput.files[0];
+
+    if (doc) {
+      // check if the file is a doc file (pdf, docx, xlsx, pptx, and any text-based file such as rb, py, etc.)
+      if (doc.type !== "application/octet-stream") {
+        const docLabel =$("#doc-title").val() ||
+        $("#docModal button").prop("disabled", true);
+        $("#doc-spinner").show();
+        const formData = new FormData();
+        formData.append("docFile", doc);
+        formData.append("docLabel", docLabel);
+
+        $.ajax({
+          url: "/document",
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false
+        }).done(function (markdown) {
+          $("#message").val(markdown);
+          $("#doc-spinner").hide();
+          $("#docModal button").prop('disabled', false);
+          $("#docModal").modal("hide");
+          autoResize($("#message"));
+        }).fail(function (error) {
+          $("#doc-spinner").hide();
+          $("#fdocModal button").prop("disabled", false);
+          $("#docModal").modal("hide");
+          setAlert(`Error converting file: ${error}`, "error");
+        }).always(function () {
+          // console.log('complete');
+        });
+      }
+    } else {
+      alert("Please select a document file to convert");
     }
   });
 

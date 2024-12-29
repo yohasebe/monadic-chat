@@ -75,7 +75,6 @@ class MermaidGrapher < MonadicApp
     initiate_from_assistant: false,
     pdf: false,
     mermaid: true,
-    file: true,
     image: true,
     tools: [
       {

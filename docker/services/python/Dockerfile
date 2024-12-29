@@ -29,7 +29,9 @@ RUN pip install -U pip && \
     opencv-python moviepy \
     requests beautifulsoup4 \
     lxml pygraphviz pydotplus networkx pyvis \
-    svgwrite cairosvg tinycss cssselect pygal
+    svgwrite cairosvg tinycss cssselect pygal \
+    pyecharts pyecharts-snapshot \
+    markitdown
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

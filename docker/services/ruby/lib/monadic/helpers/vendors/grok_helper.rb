@@ -136,7 +136,7 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tool_choice"] = "any"
+      body["tool_choice"] = "auto"
     else
       body.delete("tools")
       body.delete("tool_choice")
@@ -163,7 +163,7 @@ module GrokHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-      body["tool_choice"] = "none"
+      body["tool_choice"] = "auto"
     end
 
     last_text = context.last["text"]

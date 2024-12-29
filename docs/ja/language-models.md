@@ -103,9 +103,9 @@ CohereのAPIキーを設定すると下記のアプリを使用することが�
 </details>
 
 <details>
-<summary>code_interpreter_command_r_app.rb</summary>
+<summary>coding_assistant_command_r_app.rb</summary>
 
-![code_interpreter_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/code_interpreter_command_r_app.rb ':include :type=code')
+![coding_assistant_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/coding_assistant_command_r_app.rb ':include :type=code')
 
 </details>
 
@@ -151,27 +151,6 @@ xAI APIキーを設定すると下記のアプリを使用することができ�
 <summary>chat_grok_app.rb</summary>
 
 ![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/chat_grok_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_interpreter_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/code_interpreter_grok_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/coding_assistant_grok_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_interpreter_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/code_interpreter_grok_app.rb ':include :type=code')
 
 </details>
 

@@ -6,11 +6,11 @@ import argparse
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-# import html2text
 import os
 from datetime import datetime
 from urllib.parse import urlparse
 from PIL import Image
+from html2text import HTML2Text
 
 def is_valid_url(url):
     try:
@@ -30,13 +30,37 @@ def get_relative_path(basepath, output_path):
     else:
         return output_path
 
+def configure_html2text():
+    """Configure and return an HTML2Text instance with optimal settings for markdown conversion"""
+    converter = HTML2Text()
+    # Disable line wrapping
+    converter.body_width = 0
+    # Preserve tables in markdown format
+    converter.tables = True
+    # Preserve horizontal rules
+    converter.ignore_tables = False
+    # Convert horizontal rules to markdown
+    converter.dash_chars = True
+    # Preserve emphasis (bold, italic)
+    converter.emphasis = True
+    # Preserve links
+    converter.links_each_paragraph = True
+    # Preserve images
+    converter.images_to_alt = False
+    # Preserve lists
+    converter.ul_item_mark = '-'
+    # Preserve code blocks
+    converter.code_block_style = 'fenced'
+    return converter
+
 # Initialize the parser
 parser = argparse.ArgumentParser(description='Capture webpage as PNG or convert to Markdown within a specified element.')
 
 # Add arguments that are always available
 parser.add_argument('--url', type=str, required=True, help='URL to access')
 parser.add_argument('--mode', type=str, choices=['png', 'md'], default='md', help='Output mode: png for screenshot, md for markdown')
-parser.add_argument('--filepath', type=str, default='./', help='Path to the directory for saving the output data')
+parser.add_argument('--output', type=str, choices=['file', 'stdout'], default='file', help='Output destination: file or stdout')
+parser.add_argument('--filepath', type=str, default='./', help='Path to the directory for saving the output data (when output=file)')
 parser.add_argument('--fullpage', type=str, choices=['true', 'false'], default='false', help='Capture/convert the full page: true or false')
 parser.add_argument('--timeout-sec', type=int, default=30, help='Maximum time in seconds before the process is canceled')
 
@@ -55,20 +79,21 @@ args.url = ensure_scheme(args.url)
 
 # Validate URL
 if not is_valid_url(args.url):
-    print(f"Error: The URL '{args.url}' is invalid or incomplete. Please provide a valid URL.")
+    print(f"Error: The URL '{args.url}' is invalid or incomplete. Please provide a valid URL.", file=sys.stderr)
     sys.exit(1)
 
-# Validate and create output directory if it doesn't exist
-output_dir = os.path.abspath(args.filepath)
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-
-# Generate filename based on current timestamp and selected mode
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-filename = f"{timestamp}.{args.mode}"
-
-# Full path to save the file
-output_path = os.path.join(output_dir, filename)
+# Only create output directory if output mode is 'file'
+output_dir = None
+output_path = None
+if args.output == 'file':
+    output_dir = os.path.abspath(args.filepath)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Generate filename based on current timestamp and selected mode
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{timestamp}.{args.mode}"
+    output_path = os.path.join(output_dir, filename)
 
 # Initialize driver
 driver = None
@@ -76,10 +101,8 @@ driver = None
 try:
     # Chrome Options settings
     options = Options()
-
     options.add_argument('--headless')
     options.add_argument('--disable-gpu')
-
     options.add_argument('--proxy-server="direct://"')
     options.add_argument('--proxy-bypass-list=*')
     options.add_argument('--hide-scrollbars')
@@ -92,53 +115,80 @@ try:
     driver.get(args.url)
     time.sleep(3)  # Give the page some time to load
 
-    # Adjusted section: Find the element by CSS selector if specified and mode is 'md'
+    # Find the element by CSS selector if specified and mode is 'md'
     element = None
     if args.mode == 'md':
         if hasattr(args, 'element') and args.element:
             try:
                 element = driver.find_element(By.CSS_SELECTOR, args.element)
             except Exception as e:
-                print(f"Error: Could not find element with CSS selector '{args.element}'. {e}")
+                print(f"Error: Could not find element with CSS selector '{args.element}'. {e}", file=sys.stderr)
                 sys.exit(1)
         else:
             # If no specific element is provided, default to capturing the entire body
             element = driver.find_element(By.TAG_NAME, 'body')
 
     if args.mode == 'png':
+        # PNG mode cannot output to stdout due to binary data
+        if args.output == 'stdout':
+            print("Error: PNG mode cannot output to stdout", file=sys.stderr)
+            sys.exit(1)
+            
+        # Take screenshot of either the specified element or full page
         if args.fullpage == 'false' and hasattr(args, 'element') and args.element:
-            # Capture screenshot of the specified element
             element.screenshot(output_path)
         else:
-            # Full page or no specific element, capture according to previous logic
             driver.save_screenshot(output_path)
+            
         # Check if the PNG file is essentially blank
         with Image.open(output_path) as img:
             extrema = img.convert("L").getextrema()
         if extrema == (0, 0) or extrema == (255, 255):
-            # Image is completely black or white, which might be considered blank
             os.remove(output_path)
-            print(f"Removed {output_path} as it was a blank image.")
+            print(f"Removed {output_path} as it was a blank image.", file=sys.stderr)
             sys.exit(1)
         else:
-            print(f"Content successfully saved to: {output_path}")
+            print(f"Content successfully saved to: {output_path}", file=sys.stderr)
+            
     elif args.mode == 'md':
-        # Ensure element is not None, as it's used in 'md' mode
         if element is not None:
-            extracted = element.text
-            with open(output_path, 'w') as f:
-                f.write(extracted)
-            with open(output_path, 'r') as f:
-                content = f.read().strip()
-            if not content:
-                os.remove(output_path)
-                print(f"Removed {output_path} as it contained no meaningful data.")
-                sys.exit(1)
-            else:
-                print(f"Content successfully saved to: {output_path}")
+            # Configure HTML to Markdown converter
+            converter = configure_html2text()
+            
+            # Get the HTML content of the element
+            html_content = element.get_attribute('outerHTML')
+            
+            # Convert HTML to Markdown
+            markdown_content = converter.handle(html_content)
+            
+            # Remove excessive blank lines (more than 2 consecutive blank lines)
+            markdown_content = '\n'.join([line for line, _ in zip(
+                markdown_content.splitlines(),
+                markdown_content.splitlines()[1:]
+            ) if not (not line.strip() and not _.strip())]) + '\n'
+            
+            if args.output == 'file':
+                # Save content to file
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(markdown_content)
+                # Verify the content is not empty
+                with open(output_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                if not content:
+                    os.remove(output_path)
+                    print(f"Removed {output_path} as it contained no meaningful data.", file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    print(f"Content successfully saved to: {output_path}", file=sys.stderr)
+            else:  # stdout mode
+                # Check for meaningful content before printing
+                if not markdown_content.strip():
+                    print("Error: No meaningful content found", file=sys.stderr)
+                    sys.exit(1)
+                print(markdown_content)  # Print to stdout
 
 except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"An error occurred: {e}", file=sys.stderr)
 finally:
     if driver:
         driver.quit()

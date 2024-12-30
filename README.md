@@ -16,7 +16,8 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Dec, 2024] 0.9.29
-  - Convert to markdown feature added (pdf, docx, pptx, xlsx, etc.)
+  - Extract from URL feature added
+  - Extract from file feature added (pdf, docx, pptx, xlsx, etc.)
   - xAI Grok models supported
   - Cohere API update to v2
   - Markdown rendering improved

@@ -10,7 +10,6 @@ import os
 from datetime import datetime
 from urllib.parse import urlparse
 from PIL import Image
-from html2text import HTML2Text
 
 def is_valid_url(url):
     try:
@@ -29,29 +28,6 @@ def get_relative_path(basepath, output_path):
         return output_path[len(basepath):].lstrip('/')
     else:
         return output_path
-
-def configure_html2text():
-    """Configure and return an HTML2Text instance with optimal settings for markdown conversion"""
-    converter = HTML2Text()
-    # Disable line wrapping
-    converter.body_width = 0
-    # Preserve tables in markdown format
-    converter.tables = True
-    # Preserve horizontal rules
-    converter.ignore_tables = False
-    # Convert horizontal rules to markdown
-    converter.dash_chars = True
-    # Preserve emphasis (bold, italic)
-    converter.emphasis = True
-    # Preserve links
-    converter.links_each_paragraph = True
-    # Preserve images
-    converter.images_to_alt = False
-    # Preserve lists
-    converter.ul_item_mark = '-'
-    # Preserve code blocks
-    converter.code_block_style = 'fenced'
-    return converter
 
 # Initialize the parser
 parser = argparse.ArgumentParser(description='Capture webpage as PNG or convert to Markdown within a specified element.')
@@ -152,27 +128,13 @@ try:
             
     elif args.mode == 'md':
         if element is not None:
-            # Configure HTML to Markdown converter
-            converter = configure_html2text()
-            
-            # Get the HTML content of the element
-            html_content = element.get_attribute('outerHTML')
-            
-            # Convert HTML to Markdown
-            markdown_content = converter.handle(html_content)
-            
-            # Remove excessive blank lines (more than 2 consecutive blank lines)
-            markdown_content = '\n'.join([line for line, _ in zip(
-                markdown_content.splitlines(),
-                markdown_content.splitlines()[1:]
-            ) if not (not line.strip() and not _.strip())]) + '\n'
-            
+            extracted = element.text
             if args.output == 'file':
                 # Save content to file
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(markdown_content)
+                with open(output_path, 'w') as f:
+                    f.write(extracted)
                 # Verify the content is not empty
-                with open(output_path, 'r', encoding='utf-8') as f:
+                with open(output_path, 'r') as f:
                     content = f.read().strip()
                 if not content:
                     os.remove(output_path)
@@ -182,10 +144,10 @@ try:
                     print(f"Content successfully saved to: {output_path}", file=sys.stderr)
             else:  # stdout mode
                 # Check for meaningful content before printing
-                if not markdown_content.strip():
+                if not extracted.strip():
                     print("Error: No meaningful content found", file=sys.stderr)
                     sys.exit(1)
-                print(markdown_content)  # Print to stdout
+                print(extracted)  # Print to stdout
 
 except Exception as e:
     print(f"An error occurred: {e}", file=sys.stderr)

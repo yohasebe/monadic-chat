@@ -484,6 +484,30 @@ class MonadicApp
     end
   end
 
+  def self.markdownify(text)
+    model = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
+    sys_prompt = <<~PROMPT
+    Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. The text is extracted from the webpage: #{url}. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
+      PROMPT
+    parameters = {
+      "model" => model,
+      "n" => 1,
+      "stream" => false,
+      "stop" => nil,
+      "messages" => [
+        {
+          "role" => "system",
+          "content" => sys_prompt
+        },
+        {
+          "role" => "user",
+          "content" => text
+        }
+      ]
+    }
+    BasicAgent.send_query(parameters)
+  end
+
   def self.fetch_webpage(url)
     max_retrials = 5
     container = "monadic-chat-python-container"
@@ -500,6 +524,7 @@ class MonadicApp
       if stdout.strip.empty?
         "Webpage content could not be fetched."
       else
+        # markdownify(stdout)
         stdout
       end
     else

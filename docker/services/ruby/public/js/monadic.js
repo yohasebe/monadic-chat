@@ -597,7 +597,10 @@ $(function () {
     $("#urlLabel").val("");
     $("#pageURL").val("");
     $("#urlModal").modal("show");
-    $("#pageURL").focus();
+    // sleep 1 second before focusing on the input field
+    setTimeout(() => {
+      $("#pageURL").focus();
+    }, 1000);
   });
 
   $("#urlModal").on("hidden.bs.modal", function () {
@@ -797,6 +800,13 @@ $(function () {
   });
 
   $("#message").on("keydown", function (event) {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      $("#send").focus();
+    }
+  });
+
+  $("#select-role").on("keydown", function (event) {
     if (event.key === "Tab") {
       event.preventDefault();
       $("#send").focus();

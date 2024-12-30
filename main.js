@@ -818,7 +818,7 @@ function updateApplicationMenu() {
               type: 'info',
               title: 'About Monadic Chat',
               message: `Monadic Chat\nVersion: ${app.getVersion()}`,
-              detail: 'Grounding AI Chatbots with Full Linux Environment on Docker\n\n© 2024 Yoichiro Hasebe',
+              detail: 'Grounding AI Chatbots with Full Linux Environment on Docker\n\n© 2025 Yoichiro Hasebe',
               buttons: ['OK'],
               icon: path.join(iconDir, 'app-icon.png')
             });

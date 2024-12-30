@@ -459,6 +459,32 @@ post "/document" do
   end
 end
 
+
+# Fetch the webpage content
+post "/fetch_webpage" do
+  if params["pageURL"]
+    url = params["pageURL"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+
+    user_data_dir = if IN_CONTAINER
+                      "/monadic/data"
+                    else
+                      Dir.home + "/monadic/data"
+                    end
+
+    markdown = MonadicApp.fetch_webpage(url)
+
+    webpage_text = "URL: " + url + "\n---\n" + markdown
+    if label.to_s != ""
+      label + "\n---\n" + webpage_text
+    else
+      webpage_text
+    end
+  else
+    session[:error] = "Error: No file selected. Please choose a document file to convert."
+  end
+end
+
 # Upload a PDF file
 post "/pdf" do
   if params["pdfFile"]

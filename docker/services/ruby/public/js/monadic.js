@@ -533,9 +533,10 @@ $(function () {
 
   $("#doc").on("click", function (event) {
     event.preventDefault();
-    $("#doc-title").val("");
+    $("#docLabel").val("");
     $("#docFile").val("");
     $("#docModal").modal("show");
+    $("#docLabel").focus();
   });
 
   $("#docModal").on("hidden.bs.modal", function () {
@@ -555,7 +556,7 @@ $(function () {
     if (doc) {
       // check if the file is a doc file (pdf, docx, xlsx, pptx, and any text-based file such as rb, py, etc.)
       if (doc.type !== "application/octet-stream") {
-        const docLabel =$("#doc-title").val() || ""
+        const docLabel =$("#docaLabel").val() || ""
         $("#docModal button").prop("disabled", true);
         $("#doc-spinner").show();
         const formData = new FormData();
@@ -586,6 +587,62 @@ $(function () {
       }
     } else {
       alert("Please select a document file to convert");
+    }
+  });
+
+  $("#url").on("click", function (event) {
+    event.preventDefault();
+    $("#urlLabel").val("");
+    $("#pageURL").val("");
+    $("#urlModal").modal("show");
+    $("#urlLabel").focus();
+  });
+
+  $("#urlModal").on("hidden.bs.modal", function () {
+    $('#pageURL').val('');
+    $('#fetchPage').prop('disabled', true);
+  });
+
+  $("#pageURL").on("keyup", function() {
+    const url = this.value;
+    // check if url is a valid url starting with http or https
+    const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
+    $('#fetchPage').prop('disabled', !validUrl);
+  });
+
+  $("#fetchPage").on("click", function () {
+    const url = $("#pageURL").val();
+
+    if (url) {
+      const urlLabel =$("#urlLabel").val() || ""
+      $("#urlModal button").prop("disabled", true);
+      $("#url-spinner").show();
+      const formData = new FormData();
+      formData.append("pageURL", url);
+      formData.append("urlLabel", urlLabel);
+
+      $.ajax({
+        url: "/fetch_webpage",
+        type: "POST",
+        data: formData,
+        processData: false,
+        contentType: false
+      }).done(function (markdown) {
+        $("#message").val(markdown);
+        $("#url-spinner").hide();
+        $("#urlModal button").prop('disabled', false);
+        $("#urlModal").modal("hide");
+        autoResize($("#message"));
+      }).fail(function (error) {
+        $("#url-spinner").hide();
+        $("#urlModal button").prop("disabled", false);
+        $("#urlModal").modal("hide");
+        setAlert(`Error converting file: ${error}`, "error");
+      }).always(function () {
+        // console.log('complete');
+      });
+    } else {
+      alert("Please specify the URL of the page to fetch");
     }
   });
 
@@ -733,6 +790,13 @@ $(function () {
     selector: '.card-header [title]',
     delay: { show: 0, hide: 0 },
     show: 100
+  });
+
+  $("#message").on("keydown", function (event) {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      $("#send").focus();
+    }
   });
 
   $(document).ready(function () {

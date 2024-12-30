@@ -1277,7 +1277,7 @@ function checkAndUpdateEnvFile() {
 
   let envConfig = readEnvFile(envPath);
 
-  // ROUGE_THEME, VISION_MODEL, AI_USER_MODEL are set with default values if not present
+  // ROUGE_THEME, VISION_MODEL, AI_USER_MODEL, and EMBEDDING_MODEL are set with default values if not present
   if (!envConfig.ROUGE_THEME) {
     envConfig.ROUGE_THEME = 'monokai:dark';
   }
@@ -1287,6 +1287,10 @@ function checkAndUpdateEnvFile() {
 
   if (!envConfig.AI_USER_MODEL) {
     envConfig.AI_USER_MODEL = 'gpt-4o-mini';
+  }
+
+  if (!envConfig.EMBEDDING_MODEL) {
+    envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';
   }
 
   const api_list = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY', 'XAI_API_KEY'];

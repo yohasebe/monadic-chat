@@ -72,6 +72,9 @@ Select the model used for image and video recognition. Currently, `gpt-4o` and `
 **AI_USER_MODEL** <br />
 Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 
+**EMBEDDING_MODEL** <br />
+Select the model used for text embedding. Currently, `text-embedding-3-small` and `text-embedding-3-large` are available. The default is `text-embedding-3-small`.
+
 **ANTHROPIC_API_KEY** <br />
 Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com].
 

@@ -40,7 +40,7 @@ module MonadicHelper
 
     request["Authorization"] = "Bearer #{api_key}"
     request.body = {
-      model: "text-embedding-3-small",
+      model: ENV["EMBEDDING_MODEL"] || "text-embedding-3-small",
       input: text
     }.to_json
 

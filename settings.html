@@ -156,6 +156,12 @@
           <option value="gpt-4o">gpt-4o</option>
         </select>
 
+        <label for="embedding-model">EMBEDDING_MODEL</label>
+        <select id="embedding-model" name="embedding-model">
+          <option value="text-embedding-3-small">text-embedding-3-small</option>
+          <option value="text-embedding-3-large">text-embedding-3-large</option>
+        </select>
+
         <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
         <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
 
@@ -194,7 +200,8 @@
           XAI_API_KEY: document.getElementById('xai-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           VISION_MODEL: document.getElementById('vision-model').value,
-          AI_USER_MODEL: document.getElementById('ai-user-model').value
+          AI_USER_MODEL: document.getElementById('ai-user-model').value,
+          EMBEDDING_MODEL: document.getElementById('embedding-model').value
         };
         ipcRenderer.send('save-settings', data);
         
@@ -228,6 +235,7 @@
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
         document.getElementById('vision-model').value = data.VISION_MODEL || 'gpt-4o-mini';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';
+        document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';
       });
 
       ipcRenderer.send('request-settings');

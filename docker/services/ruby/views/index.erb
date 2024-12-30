@@ -374,9 +374,16 @@
             </div>
 
             <div id="user-panel" class="mt-1">
-
               <div class="row">
-                <div class="col-auto d-flex align-items-center mt-3">
+                <div class="col-12 h-25 mt-3">
+                  <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." ></textarea>
+                  <div class="textbox-caption" id="image-used"></div>
+                  <div id="image-base64"></div>
+                </div>
+              </div>
+
+              <div class="row" mt-1>
+                <div class="col-auto d-flex align-items-center">
                   <label class="form-check-lebel me-2" for="select-role">Role</label>
                   &nbsp;
                   <div style="display: inline-block; max-width: 100%;">
@@ -393,15 +400,7 @@
                 </div>
               </div>
 
-              <div class="row">
-                <div class="col-12 h-25 mt-3">
-                  <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 16px;" rows="4" placeholder="Type your message . . ." ></textarea>
-                  <div class="textbox-caption" id="image-used"></div>
-                  <div id="image-base64"></div>
-                </div>
-              </div>
-
-              <div class="row mt-1">
+              <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
                     <button id="image-file" class="btn btn-sm btn-warning me-2"><i class="fas fa-image"></i> Use Image</button>

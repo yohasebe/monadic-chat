@@ -73,6 +73,9 @@ OpenAI API キーを入力してください。このキーはChat API、DALL-E 
 **AI_USER_MODEL**<br />
 AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`gpt-4o`と`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
 
+**EMBEDDING_MODEL**<br />
+テキスト埋め込みに使用するモデルを選択します。現在は `text-embedding-3-small` と `text-embedding-3-large` が利用可能です。デフォルトは `text-embedding-3-small` です。
+
 **ANTHROPIC_API_KEY**<br />
 Anthropic APIキーを入力してください。このキーはAnthropic Claude モデルを使用するのに必要です。[https://console.anthropic.com] で取得できます。
 

@@ -483,4 +483,27 @@ class MonadicApp
       stdout.strip.empty? ? stderr : stdout
     end
   end
+
+  def self.fetch_webpage(url)
+    max_retrials = 5
+    container = "monadic-chat-python-container"
+    docker_command = <<~DOCKER
+      docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --output stdout'
+    DOCKER
+
+    stdout, stderr, status = Open3.capture3(docker_command)
+
+    # Wait briefly for filesystem synchronization
+    sleep 1
+
+    if status.success?
+      if stdout.strip.empty?
+        "Webpage content could not be fetched."
+      else
+        stdout
+      end
+    else
+      stdout.strip.empty? ? stderr : stdout
+    end
+  end
 end

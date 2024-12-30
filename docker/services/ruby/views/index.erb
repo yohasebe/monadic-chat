@@ -398,20 +398,29 @@
                   <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 16px;" rows="4" placeholder="Type your message . . ." ></textarea>
                   <div class="textbox-caption" id="image-used"></div>
                   <div id="image-base64"></div>
-                  <div class="mt-2 mb-0 textbox-caption" >Press <span class="text-secondary">
-                    <i class="fas fa-paper-plane"></i> Send</span> to send your message.
+                </div>
+              </div>
+
+              <div class="row mt-1">
+                <div class="col-auto">
+                  <div class="d-flex align-items-center">
+                    <button id="image-file" class="btn btn-sm btn-warning me-2"><i class="fas fa-image"></i> Use Image</button>
+                    <button id="doc" class="btn btn-sm btn-warning me-2" ><i class="fa-solid fa-file-arrow-up"></i> Extract from file</button>
+                    <button id="url" class="btn btn-sm btn-warning me-2" ><i class="fa-solid fa-globe"></i> Extract from URL</button>
+                    <button id="voice" class="btn btn-sm btn-warning fixed-width me-0" ><i class="fas fa-microphone"></i> Voice Input</button>
                   </div>
                 </div>
+              </div>
+
+              <div class="mt-3 mb-0 textbox-caption" >Press <span class="text-secondary">
+                  <i class="fas fa-paper-plane"></i> Send</span> to send your message.
               </div>
 
               <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
-                    <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
+                    <button id="send" class="btn btn-sm btn-primary me-2" tabindex="1"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-4"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="image-file" class="btn btn-sm btn-warning me-2"><i class="fas fa-image"></i> Use Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning me-2" ><i class="fa-brands fa-markdown"></i> Convert to Markdown</button>
-                    <button id="voice" class="btn btn-sm btn-warning fixed-width me-0" ><i class="fas fa-microphone"></i> Voice Input</button>
                   </div>
                 </div>
                 <div class="col-auto p-0">
@@ -545,13 +554,13 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> Convert to Markdown</h5>
+            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> Extract from file</h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label class="form-label" for="doc-title">Document Label (Optional)</label>
+            <label class="form-label" for="doc-title">Label (Optional)</label>
             <div class="mb-3">
-              <input placeholder="Text placed at the top of the document" class="form-control form-control-sm" id="doc-title"></input>
+              <input placeholder="Text placed at the top of the document" class="form-control form-control-sm" id="doc-label"></input>
             </div>
             <label for="docFile" class="form-label">Document to convert<br />[pdf, docx, pptx, xlsx, and any text-based files]</label>
             <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
@@ -567,6 +576,33 @@
       </div>
     </div>
 
+    <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="urlModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> Extract from file</h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <label class="form-label" for="urlLabel">Label (Optional)</label>
+            <div class="mb-3">
+              <input placeholder="Text placed at the top of the webpage contents" class="form-control form-control-sm" id="urlLabel"></input>
+            </div>
+            <label for="pageURL" class="form-label">URL of the page to fetch</label>
+            <div class="mb-3">
+              <input placeholder="URL must start with http:// or https://" class="form-control form-control-sm" id="pageURL"></input>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div></div>
+            <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
+              <span class="visually-hidden">Loading . . .</span>
+            </div>
+            <button type="submit" id="fetchPage" value="url" class="btn btn-sm btn-primary" disabled>Convert</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
       <div class="modal-dialog">

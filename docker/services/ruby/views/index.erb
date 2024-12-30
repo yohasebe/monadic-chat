@@ -283,7 +283,7 @@
                   <label class="form-check-label" for="prompt-caching">Prompt caching <super>*</super></label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
                 </div>
-                <textarea class="form-control" style="resize: vertical;" id="initial-prompt"></textarea>
+                <textarea class="form-control form-control-sm" style="resize: vertical;" id="initial-prompt"></textarea>
               </div>
             </div>
 
@@ -301,7 +301,7 @@
                   <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                 </div>
-                <textarea class="form-control" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
+                <textarea class="form-control form-control-sm" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
               </div>
             </div>
 
@@ -348,7 +348,7 @@
 
             <div class="row mt-3">
               <div class="col-2">
-                <button id="start" class="btn btn-primary text-nowrap" disabled="disabled"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
+                <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
               </div>
             </div>
           </div>
@@ -395,7 +395,7 @@
 
               <div class="row">
                 <div class="col-12 h-25 mt-3">
-                  <textarea id="message" class="form-control" style="resize: vertical; margin-bottom: 16px;" rows="4" placeholder="Type your message . . ." ></textarea>
+                  <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 16px;" rows="4" placeholder="Type your message . . ." ></textarea>
                   <div class="textbox-caption" id="image-used"></div>
                   <div id="image-base64"></div>
                   <div class="mt-2 mb-0 textbox-caption" >Press <span class="text-secondary">
@@ -407,11 +407,11 @@
               <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
-                    <button id="send" class="btn btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
-                    <button id="clear" class="btn btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="image-file" class="btn btn-warning me-2"><i class="fas fa-image"></i> Use Image</button>
-                    <button id="doc" class="btn btn-warning me-2" ><i class="fa-solid fa-file-lines"></i> Convert Document</button>
-                    <button id="voice" class="btn btn-warning fixed-width me-0" ><i class="fas fa-microphone"></i> Voice Input</button>
+                    <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
+                    <button id="clear" class="btn btn-sm btn-secondary me-4"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="image-file" class="btn btn-sm btn-warning me-2"><i class="fas fa-image"></i> Use Image</button>
+                    <button id="doc" class="btn btn-sm btn-warning me-2" ><i class="fa-brands fa-markdown"></i> Convert to Markdown</button>
+                    <button id="voice" class="btn btn-sm btn-warning fixed-width me-0" ><i class="fas fa-microphone"></i> Voice Input</button>
                   </div>
                 </div>
                 <div class="col-auto p-0">
@@ -439,14 +439,14 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> Reset</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             Are you sure you want to reset the chat?
           </div>
           <div class="modal-footer">
             <div></div>
-            <button type="button" id="resetConfirmed" class="btn btn-primary" data-bs-dismiss="modal">Confirm</button>
+            <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal">Confirm</button>
           </div>
         </div>
       </div>
@@ -457,7 +457,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="clearConfirmationLabel"><i class="fa-solid fa-broom"></i> Clear Conversation</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Keep"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Keep"></button>
           </div>
           <div class="modal-body">
             Do you want to clear the current conversation?
@@ -465,8 +465,8 @@
           <div class="modal-footer">
             <div></div>
             <div>
-              <button type="button" id="clearConfirmed" class="btn btn-primary">Clear</button>
-              <button type="button" id="clearNotConfirmed" class="btn btn-primary">Keep</button>
+              <button type="button" id="clearConfirmed" class="btn btn-sm btn-primary">Clear</button>
+              <button type="button" id="clearNotConfirmed" class="btn btn-sm btn-primary">Keep</button>
             </div>
           </div>
         </div>
@@ -479,14 +479,14 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fas fa-trash"></i> Delete PDF</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             Are you sure you want to delete <span style="font-weight: bold; color: #777;" id="pdfToDelete"></span>?
           </div>
           <div class="modal-footer">
             <div></div>
-            <button type="button" id="pdfDeleteConfirmed" class="btn btn-primary">Confirm</button>
+            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-primary">Confirm</button>
           </div>
         </div>
       </div>
@@ -499,16 +499,16 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> Load File</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <form action="/load" method="post" enctype="multipart/form-data" type="hidden">
             <div class="modal-body">
               <label for="file-load" class="form-label">Select file to load</label>
-              <input id="file-load" class="form-control" type="file" name="file" accept=".json">
+              <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">
             </div>
             <div class="modal-footer">
               <div></div>
-              <button id="import-button" type="submit" value="load" class="btn btn-primary" disabled>Load</button>
+              <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled>Load</button>
             </div>
           </form>
         </div>
@@ -520,22 +520,22 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="fileModalLabel"><i class="fas fa-file"></i> Import File</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="file-title">File Title (Optional)</label>
             <div class="mb-3">
-              <input placeholder="File name will be used if not provided" class="form-control" id="file-title"></input>
+              <input placeholder="File name will be used if not provided" class="form-control form-control-sm" id="file-title"></input>
             </div>
             <label for="fileFile" class="form-label">File to import</label>
-            <input class="form-control" id="fileFile" type="file" name="fileFile">
+            <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
           </div>
           <div class="modal-footer">
             <div></div>
             <div class="spinner-border" role="status" id="file-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="uploadFile" value="file" class="btn btn-primary" disabled>Import</button>
+            <button type="submit" id="uploadFile" value="file" class="btn btn-sm btn-primary" disabled>Import</button>
           </div>
         </div>
       </div>
@@ -545,23 +545,23 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="docModalLabel"><i class="fa-solid fa-file-lines"></i> Convert Document</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> Convert to Markdown</h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label class="form-label" for="doc-title">Doc Title (Optional)</label>
+            <label class="form-label" for="doc-title">Document Label (Optional)</label>
             <div class="mb-3">
-              <input placeholder="Document name" class="form-control" id="doc-title"></input>
+              <input placeholder="Text placed at the top of the document" class="form-control form-control-sm" id="doc-title"></input>
             </div>
-            <label for="docFile" class="form-label">Document to convert</label>
-            <input class="form-control" id="docFile" type="file" name="docFile">
+            <label for="docFile" class="form-label">Document to convert<br />[pdf, docx, pptx, xlsx, and text-based files]</label>
+            <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
           </div>
           <div class="modal-footer">
             <div></div>
             <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="convertDoc" value="doc" class="btn btn-primary" disabled>Convert</button>
+            <button type="submit" id="convertDoc" value="doc" class="btn btn-sm btn-primary" disabled>Convert</button>
           </div>
         </div>
       </div>
@@ -573,15 +573,15 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> Select File</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label for="imageFile" class="form-label">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
-            <input class="form-control" id="imageFile" type="file" name="imageFile" accept=".pdf,.jpg,.jpeg,.png,.gif">
+            <input class="form-control form-control-sm" id="imageFile" type="file" name="imageFile" accept=".pdf,.jpg,.jpeg,.png,.gif">
           </div>
           <div class="modal-footer">
             <div id="select_image_error" class="size-error text-warning mb-2"></div>
-            <button type="submit" id="uploadImage" value="image" class="btn btn-primary" disabled>Import</button>
+            <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled>Import</button>
           </div>
         </div>
       </div>

@@ -555,7 +555,7 @@ $(function () {
     if (doc) {
       // check if the file is a doc file (pdf, docx, xlsx, pptx, and any text-based file such as rb, py, etc.)
       if (doc.type !== "application/octet-stream") {
-        const docLabel =$("#doc-title").val() ||
+        const docLabel =$("#doc-title").val() || ""
         $("#docModal button").prop("disabled", true);
         $("#doc-spinner").show();
         const formData = new FormData();
@@ -573,6 +573,7 @@ $(function () {
           $("#doc-spinner").hide();
           $("#docModal button").prop('disabled', false);
           $("#docModal").modal("hide");
+          // $("#select-role").val("sample-system").trigger("change");
           autoResize($("#message"));
         }).fail(function (error) {
           $("#doc-spinner").hide();

@@ -450,10 +450,24 @@ class MonadicApp
   end
 
   def self.doc2markdown(filename)
+    basename = File.basename(filename)
+    # get the file extension
+    extension = File.extname(basename).downcase
     container = "monadic-chat-python-container"
-    docker_command = <<~DOCKER
-      docker exec -w #{SHARED_VOL} #{container} markitdown /monadic/data/#{File.basename(filename)}
-    DOCKER
+    case extension
+    when ".pdf"
+      docker_command = <<~DOCKER
+        docker exec -w #{SHARED_VOL} #{container} bash -c 'pdf2txt.py "#{basename}" --format md'
+      DOCKER
+    when ".docx", ".xlsx", ".pptx"
+      docker_command = <<~DOCKER
+        docker exec -w #{SHARED_VOL} #{container} bash -c 'office2txt.py "#{basename}"'
+      DOCKER
+    else
+      docker_command = <<~DOCKER
+        docker exec -w #{SHARED_VOL} #{container} bash -c 'simple_content_fetcher.py "#{basename}"'
+      DOCKER
+    end
 
     stdout, stderr, status = Open3.capture3(docker_command)
 
@@ -461,9 +475,12 @@ class MonadicApp
     sleep 1
 
     if status.success?
-      stdout.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+      # stdout.to_s.encode('UTF-8').gsub(/\\u([0-9a-fA-F]{4})/) { 
+      #   [$1.to_i(16)].pack('U*') 
+      # }
+      stdout
     else
-      "Error occurred: #{stderr}"
+      stdout.strip.empty? ? stderr : stdout
     end
   end
 end

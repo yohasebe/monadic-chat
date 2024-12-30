@@ -1,4 +1,4 @@
-- [Dec, 2024] 0.9.29
+- [Dec, 2024] 0.9.30
   - Extract from URL feature added
   - Extract from file feature added (pdf, docx, pptx, xlsx, etc.)
   - xAI Grok models supported

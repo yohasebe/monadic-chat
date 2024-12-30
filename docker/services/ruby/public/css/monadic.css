@@ -371,7 +371,7 @@ blockquote p:last-child {
 #alert-message {
   font-weight: 600;
   background: #ffffff;
-  padding: 0.8em;
+  padding: 6px;
   border-radius: 4px;
   border: 1px solid rgba(0,0,0,0.1);
 }

@@ -576,6 +576,8 @@ $(function () {
           $("#docModal").modal("hide");
           // $("#select-role").val("sample-system").trigger("change");
           autoResize($("#message"));
+          $("#back_to_bottom").trigger("click");
+          $("#message").focus();
         }).fail(function (error) {
           $("#doc-spinner").hide();
           $("#fdocModal button").prop("disabled", false);
@@ -595,7 +597,7 @@ $(function () {
     $("#urlLabel").val("");
     $("#pageURL").val("");
     $("#urlModal").modal("show");
-    $("#urlLabel").focus();
+    $("#pageURL").focus();
   });
 
   $("#urlModal").on("hidden.bs.modal", function () {
@@ -603,7 +605,7 @@ $(function () {
     $('#fetchPage').prop('disabled', true);
   });
 
-  $("#pageURL").on("keyup", function() {
+  $("#pageURL").on("change keyup input", function() {
     const url = this.value;
     // check if url is a valid url starting with http or https
     const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
@@ -633,6 +635,8 @@ $(function () {
         $("#urlModal button").prop('disabled', false);
         $("#urlModal").modal("hide");
         autoResize($("#message"));
+        $("#back_to_bottom").trigger("click");
+        $("#message").focus();
       }).fail(function (error) {
         $("#url-spinner").hide();
         $("#urlModal button").prop("disabled", false);

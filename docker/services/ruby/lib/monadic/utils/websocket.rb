@@ -114,9 +114,9 @@ module WebSocketHelper
           title = obj["contents"]
           res = EMBEDDINGS_DB.delete_by_title(title)
           if res
-            ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "<b>#{title}</b> deleted successfully" }.to_json)
+            ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "#{title} deleted successfully" }.to_json)
           else
-            ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting <b>#{title}</b>" }.to_json)
+            ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" }.to_json)
           end
         when "CHECK_TOKEN"
           if CONFIG["ERROR"].to_s == "true"

@@ -30,8 +30,7 @@ RUN pip install -U pip && \
     requests beautifulsoup4 \
     lxml pygraphviz pydotplus networkx pyvis \
     svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot \
-    markitdown
+    pyecharts pyecharts-snapshot
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

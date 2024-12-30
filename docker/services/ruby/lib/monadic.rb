@@ -444,21 +444,9 @@ post "/document" do
     end
 
     utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-
     doc_file_handler.close
 
-    begin
-      if utf8_filename.end_with?(".pdf") ||
-         utf8_filename.end_with?(".pptx") ||
-         utf8_filename.end_with?(".docx") ||
-         utf8_filename.end_with?(".xlsx")
-        markdown = MonadicApp.doc2markdown(doc_file_path).to_s
-      else
-        markdown = File.read(doc_file_path).to_s.force_encoding("UTF-8")
-      end
-    rescue StandardError => e
-      session[:error] = "Error: File conversion failed. (#{e.message})"
-    end
+    markdown = MonadicApp.doc2markdown(utf8_filename)
 
     doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
     if doc_label.to_s != ""

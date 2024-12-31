@@ -463,7 +463,8 @@ end
 # Fetch the webpage content
 post "/fetch_webpage" do
   if params["pageURL"]
-    url = params["pageURL"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    url = params["pageURL"]
+    url_decoded = URI.decode(url)
     label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
     user_data_dir = if IN_CONTAINER
@@ -474,7 +475,7 @@ post "/fetch_webpage" do
 
     markdown = MonadicApp.fetch_webpage(url)
 
-    webpage_text = "URL: " + url + "\n---\n" + markdown
+    webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
     if label.to_s != ""
       label + "\n---\n" + webpage_text
     else

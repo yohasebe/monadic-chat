@@ -6,7 +6,7 @@ class CodingAssistantGemini < MonadicApp
   icon = "<i class='fas fa-laptop-code'></i>"
 
   description = <<~TEXT
-    This is an application for writing computer programming code. It uses the "predicted outputs" feature of OpenAI and reduces the latency and the number of tokens used in the query involving computer code and datasets. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an application for writing computer programming code. It assists users in writing code by providing suggestions and advice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

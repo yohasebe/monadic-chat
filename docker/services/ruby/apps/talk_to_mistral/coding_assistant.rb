@@ -6,7 +6,7 @@ class CodingAssistantMistral < MonadicApp
   icon = "<i class='fa-solid fa-m'></i>"
 
   description =<<~DESC
-    This is an application that allows you to run Python code with Mistral AI. The AI model can execute Python code, install libraries, and fetch text from various file formats. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=mistral" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an application for writing computer programming code. It assists users in writing code by providing suggestions and advice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   DESC
 
   initial_prompt = <<~TEXT

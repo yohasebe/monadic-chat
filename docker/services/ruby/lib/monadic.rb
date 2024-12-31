@@ -25,6 +25,7 @@ require "securerandom"
 require "strscan"
 require "tempfile"
 require "uri"
+require "cgi"
 
 require "oj"
 Oj.mimic_JSON
@@ -464,7 +465,7 @@ end
 post "/fetch_webpage" do
   if params["pageURL"]
     url = params["pageURL"]
-    url_decoded = URI.decode(url)
+    url_decoded = CGI.unescape(url)
     label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
     user_data_dir = if IN_CONTAINER

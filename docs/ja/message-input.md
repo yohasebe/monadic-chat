@@ -38,3 +38,25 @@ Anthropic の Sonnet モデルでは、画像の他に PDF のアップロード
 ![](./assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
 チャットの中で継続してPDFの内容についてのやり取りを行うためには、毎回のメッセージ入力で同じ PDF をアップロードする必要があります。セッション中にある PDF を一度アップロードすると、Monadic Chat はセッション終了までの間、毎回、AI エージェントにその PDF を送信します。その際、Web 設定画面で `Prompt Caching` を有効にしている場合、同じ PDF に対するプロンプトがキャッシュされ、API の使用量を節約することができます。その PDF についてのやり取りを終了する場合は、削除 `×` ボタンをクリックして、PDF をクリアします。
+
+## 文書ファイルからのテキスト読み込み
+
+`Extract from file` ボタンをクリックすると、文書ファイルを選択するダイアログが表示されます。選択したファイルの内容がテキストエリアに読み込まれます。読み込みが可能なファイル形式はPDF、Wordファイル（`.docx`）、Excelファイル（.`xlsx`）、PowerPointファイル（`.pptx`）、さまざまなテキストファイル（`.txt`, `.md`, `.html`, etc）です。
+
+![](./assets/images/monadic-chat-extract-from-file.png ':size=400')
+
+## URL からのテキスト読み込み
+
+`Extract from URL` ボタンをクリックすると、URL を入力するダイアログが表示されます。URL を入力すると、その URL にあるコンテンツが可能な範囲で読み出され、Markdown形式でテキストエリアに読み込まれます。
+
+![](./assets/images/monadic-chat-extract-from-url.png ':size=400')
+
+## 音声入力
+
+音声入力を行う場合は、`Voice Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了します。音声入力が終了すると、Whisper API を通じて音声がテキストに変換され、テキストエリアに表示されます。
+
+![](./assets/images/voice-input-stop.png ':size=400')
+
+音声入力後には、音声入力の信頼度を示す `p-value` が表示されます。`p-value` は音声入力の信頼度を示す指標で、0 から 1 の範囲で表されます。`p-value` が 1 に近いほど、音声入力の信頼度が高いことを示します。
+
+![](./assets/images/voice-p-value.png ':size=400')

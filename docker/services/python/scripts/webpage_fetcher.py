@@ -237,137 +237,172 @@ def remove_comments(soup):
 
 def process_element(elem, keep_unknown=False):
     """
-    Process individual element and its children
+    Process individual element and its children to generate GFM-compliant Markdown
     Args:
         elem: BeautifulSoup element
         keep_unknown (bool): Whether to keep text content of unknown elements
     Returns:
-        str: Processed text content
+        str: Processed text content in GFM format
     """
     if isinstance(elem, str):
         return elem.strip()
     
-    # Define meaningful content elements with their formatting rules
+    # Define meaningful content elements with their GFM formatting rules
     content_elements = {
-        # Text content elements
-        'p': {'prefix': '\n', 'suffix': '\n'},
-        'span': {'prefix': '', 'suffix': ' '},
-        'a': {'prefix': '', 'suffix': ' '},
-        'text': {'prefix': '', 'suffix': ' '},
+        # Block elements (require blank lines around them)
+        'p': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'div': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'article': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'section': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'header': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'footer': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'main': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'aside': {'prefix': '\n\n', 'suffix': '\n\n'},
         
-        # Headings
-        'h1': {'prefix': '\n# ', 'suffix': '\n'},
-        'h2': {'prefix': '\n## ', 'suffix': '\n'},
-        'h3': {'prefix': '\n### ', 'suffix': '\n'},
-        'h4': {'prefix': '\n#### ', 'suffix': '\n'},
-        'h5': {'prefix': '\n##### ', 'suffix': '\n'},
-        'h6': {'prefix': '\n###### ', 'suffix': '\n'},
+        # Headings (require blank lines around them)
+        'h1': {'prefix': '\n\n# ', 'suffix': '\n\n'},
+        'h2': {'prefix': '\n\n## ', 'suffix': '\n\n'},
+        'h3': {'prefix': '\n\n### ', 'suffix': '\n\n'},
+        'h4': {'prefix': '\n\n#### ', 'suffix': '\n\n'},
+        'h5': {'prefix': '\n\n##### ', 'suffix': '\n\n'},
+        'h6': {'prefix': '\n\n###### ', 'suffix': '\n\n'},
         
-        # Lists
-        'ul': {'prefix': '\n', 'suffix': '\n'},
-        'ol': {'prefix': '\n', 'suffix': '\n'},
-        'li': {'prefix': '\n- ', 'suffix': ''},
-        'dl': {'prefix': '\n', 'suffix': '\n'},
-        'dt': {'prefix': '\n**', 'suffix': '**'},
-        'dd': {'prefix': ': ', 'suffix': '\n'},
+        # Lists (require blank lines around them)
+        'ul': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'ol': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'li': {'prefix': '* ', 'suffix': '\n'},  # Using * for consistency
+        'dl': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'dt': {'prefix': '\n\n**', 'suffix': '**\n'},
+        'dd': {'prefix': ': ', 'suffix': '\n\n'},
         
-        # Quotes
-        'blockquote': {'prefix': '\n> ', 'suffix': '\n'},
-        'q': {'prefix': '"', 'suffix': '"'},
-        'cite': {'prefix': '_', 'suffix': '_'},
-        
-        # Semantic sections
-        'article': {'prefix': '\n', 'suffix': '\n'},
-        'section': {'prefix': '\n', 'suffix': '\n'},
-        'main': {'prefix': '\n', 'suffix': '\n'},
-        'header': {'prefix': '\n', 'suffix': '\n'},
-        'footer': {'prefix': '\n', 'suffix': '\n'},
-        'nav': {'prefix': '\n', 'suffix': '\n'},
-        'aside': {'prefix': '\n', 'suffix': '\n'},
-        
-        # Other content elements
-        'div': {'prefix': '\n', 'suffix': '\n'},
-        'pre': {'prefix': '\n```\n', 'suffix': '\n```\n'},
+        # Inline elements (no blank lines)
+        'span': {'prefix': '', 'suffix': ''},
+        'a': {'prefix': '[', 'suffix': ']'},  # Link URLs handled separately
+        'strong': {'prefix': '**', 'suffix': '**'},
+        'b': {'prefix': '**', 'suffix': '**'},
+        'em': {'prefix': '_', 'suffix': '_'},
+        'i': {'prefix': '_', 'suffix': '_'},
         'code': {'prefix': '`', 'suffix': '`'},
-        'table': {'prefix': '\n', 'suffix': '\n'},
-        'figure': {'prefix': '\n', 'suffix': '\n'},
-        'figcaption': {'prefix': '_Figure: ', 'suffix': '_\n'}
+        
+        # Block quotes (require blank lines around them)
+        'blockquote': {'prefix': '\n\n> ', 'suffix': '\n\n'},
+        
+        # Code blocks (require blank lines around them)
+        'pre': {'prefix': '\n\n```\n', 'suffix': '\n```\n\n'},
+        
+        # Tables (require blank lines around them)
+        'table': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'tr': {'prefix': '|', 'suffix': '|\n'},
+        'th': {'prefix': ' ', 'suffix': ' |'},
+        'td': {'prefix': ' ', 'suffix': ' |'},
+        
+        # Figure and caption
+        'figure': {'prefix': '\n\n', 'suffix': '\n\n'},
+        'figcaption': {'prefix': '_Figure: ', 'suffix': '_\n\n'}
     }
     
     # Define elements to be completely ignored
     ignored_elements = {
-        # Scripts and styles
-        'script', 'style', 'noscript',
-        
-        # Media elements
+        'script', 'style', 'noscript', 'iframe',
         'img', 'video', 'audio', 'svg', 'canvas',
-        'picture', 'source',
-        
-        # Interactive elements
-        'button', 'input', 'textarea', 'select',
-        'option', 'form', 'iframe',
-        
-        # Other non-content elements
+        'input', 'button', 'form', 'textarea',
         'meta', 'link', 'br', 'hr', 'wbr',
         'template', 'slot', 'portal'
     }
     
     if elem.name in ignored_elements:
         return ''
-        
+    
     if elem.name in content_elements:
         format_rule = content_elements[elem.name]
-        content = ' '.join(
+        
+        # Special handling for links
+        if elem.name == 'a' and elem.get('href'):
+            href = elem.get('href')
+            content = ''.join(
+                filter(None, [process_element(child, keep_unknown) for child in elem.children])
+            ).strip()
+            if content:
+                return f"[{content}]({href})"
+            return ''
+        
+        # Process other elements
+        content = ''.join(
             filter(None, [process_element(child, keep_unknown) for child in elem.children])
         ).strip()
+        
         if content:
-            return f"{format_rule['prefix']}{content}{format_rule['suffix']}"
+            # Handle table rows specially to ensure proper GFM table formatting
+            if elem.name == 'tr' and elem.find_parent('thead'):
+                header_row = format_rule['prefix'] + content + format_rule['suffix']
+                separator_row = '|' + '---|' * (content.count('|')) + '\n'
+                return header_row + separator_row
+            
+            # Handle list items specially to ensure proper indentation
+            if elem.name == 'li':
+                parent = elem.find_parent(['ul', 'ol'])
+                if parent and parent.find_parent(['ul', 'ol']):
+                    # This is a nested list item
+                    return '  ' + format_rule['prefix'] + content + format_rule['suffix']
+            
+            return format_rule['prefix'] + content + format_rule['suffix']
         return ''
     
     # Handle unknown elements
     if keep_unknown:
-        return ' '.join(
+        return ''.join(
             filter(None, [process_element(child, keep_unknown) for child in elem.children])
         ).strip()
     return ''
 
 def extract_wikipedia_content(soup, keep_unknown=False):
     """
-    Extract content specifically from Wikipedia pages
+    Extract content specifically from Wikipedia pages and format as GFM
     Args:
         soup: BeautifulSoup object of the page
         keep_unknown (bool): Whether to keep text content of unknown elements
     Returns:
-        str: Formatted Wikipedia content
+        str: Formatted Wikipedia content in GFM
     """
     # Remove unwanted Wikipedia-specific elements
     unwanted_wiki_elements = [
-        'div.mw-jump-link',           # Skip to navigation/content links
-        'div.mw-editsection',         # Edit section links
-        'div.navbox',                 # Navigation boxes at bottom
-        'div.vertical-navbox',        # Vertical navigation boxes
-        'div.sidebar',                # Sidebar elements
-        'div.sistersitebox',          # Sister project links
-        'div.metadata',               # Metadata boxes
-        'table.metadata',             # Metadata tables
-        'div.reflist',                # Reference lists
-        'div.refbegin',               # Reference sections
-        'div.mw-references-wrap',     # Reference wrappers
-        'div#toc',                    # Table of contents
-        'div.toc',                    # Alternative TOC
-        'div.infobox',                # Infoboxes
-        'table.infobox',              # Infobox tables
-        'div.thumb',                  # Image thumbnails
-        'div.mbox-small',             # Small message boxes
-        'table.ambox',                # Article message boxes
-        'div.sister-wikipedia',       # Sister Wikipedia project links
-        'div.mw-authority-control'    # Authority control
+        'div.mw-jump-link',
+        'div.mw-editsection',  # This is the container for edit links
+        'span.mw-editsection', # This is also used in some Wikipedia versions
+        'div.navbox',
+        'div.vertical-navbox',
+        'div.sidebar',
+        'div.sistersitebox',
+        'div.metadata',
+        'table.metadata',
+        'div.reflist',
+        'div.refbegin',
+        'div.mw-references-wrap',
+        'div#toc',
+        'div.toc',
+        'div.infobox',
+        'table.infobox',
+        'div.thumb',
+        'div.mbox-small',
+        'table.ambox',
+        'div.sister-wikipedia',
+        'div.mw-authority-control'
     ]
 
     # Remove all unwanted elements
     for selector in unwanted_wiki_elements:
         for element in soup.select(selector):
             element.decompose()
+
+    # Remove edit links by their structure (language independent)
+    # These are typically wrapped in brackets and contain an edit link
+    for element in soup.find_all(['span', 'div']):
+        if element.get('class') and any('editsection' in cls for cls in element.get('class')):
+            element.decompose()
+        # Also remove elements that match the edit link pattern
+        elif element.find('a') and element.get_text().strip().startswith('[') and element.get_text().strip().endswith(']'):
+            if any(href and '/edit' in href for href in [a.get('href', '') for a in element.find_all('a')]):
+                element.decompose()
 
     # Find the main content div
     content_div = soup.find('div', id='mw-content-text')
@@ -383,22 +418,35 @@ def extract_wikipedia_content(soup, keep_unknown=False):
     content = process_element(parser_output, keep_unknown)
     
     # Clean up the content
-    lines = [line.strip() for line in content.split('\n')]
-    cleaned_content = '\n'.join(filter(None, lines))
+    # Remove excessive blank lines while preserving GFM formatting
+    lines = content.split('\n')
+    cleaned_lines = []
+    prev_blank = False
+    
+    for line in lines:
+        is_blank = not line.strip()
+        if is_blank and prev_blank:
+            continue
+        cleaned_lines.append(line)
+        prev_blank = is_blank
+    
+    cleaned_content = '\n'.join(cleaned_lines)
+    
+    # Ensure content starts and ends cleanly
+    cleaned_content = cleaned_content.strip() + '\n\n'
     
     return cleaned_content
 
-
 def get_meaningful_content(driver, element=None, url=None, keep_unknown=False):
     """
-    Extract meaningful content from the webpage while preserving basic structure
+    Extract meaningful content from the webpage and format as GFM
     Args:
         driver: Selenium WebDriver instance
         element: Optional specific element to extract from
         url: Original URL for special handling
         keep_unknown (bool): Whether to keep text content of unknown elements
     Returns:
-        tuple: (str: Formatted text content, dict: Metadata)
+        tuple: (str: Formatted text content in GFM, dict: Metadata)
     """
     # Get HTML content
     html = element.get_attribute('outerHTML') if element else driver.page_source
@@ -443,21 +491,35 @@ def get_meaningful_content(driver, element=None, url=None, keep_unknown=False):
     content = process_element(main_content, keep_unknown)
 
     # Clean up the formatted content
-    lines = [line.strip() for line in content.split('\n')]
-    cleaned_content = '\n'.join(filter(None, lines))
+    # Remove excessive blank lines while preserving GFM formatting
+    lines = content.split('\n')
+    cleaned_lines = []
+    prev_blank = False
+    
+    for line in lines:
+        is_blank = not line.strip()
+        if is_blank and prev_blank:
+            continue
+        cleaned_lines.append(line)
+        prev_blank = is_blank
+    
+    cleaned_content = '\n'.join(cleaned_lines)
+    
+    # Ensure content starts and ends cleanly
+    cleaned_content = cleaned_content.strip() + '\n\n'
     
     return cleaned_content, metadata
 
 def extract_text(driver, element=None, url=None, keep_unknown=False):
     """
-    Extract and format text content from the webpage with optimized waiting
+    Extract and format text content from the webpage as GFM
     Args:
         driver: Selenium WebDriver instance
         element: Optional specific element to extract from
         url: Original URL for special handling
         keep_unknown (bool): Whether to keep text content of unknown elements
     Returns:
-        tuple: (str: Formatted text content, dict: Metadata)
+        tuple: (str: Formatted text content in GFM, dict: Metadata)
     """
     try:
         # Wait for body element to be present
@@ -476,42 +538,46 @@ def extract_text(driver, element=None, url=None, keep_unknown=False):
         if not content.strip():
             print("Warning: No content extracted from the page", file=sys.stderr)
         
-        # Format metadata as markdown
-        metadata_md = "\n## Metadata\n\n"
+        # Format metadata as GFM
+        metadata_md = "## Metadata\n\n"
+        
         if metadata['title']:
-            metadata_md += f"### Title\n{metadata['title']}\n\n"
+            metadata_md += f"### Title\n\n{metadata['title']}\n\n"
+        
         if metadata['description']:
-            metadata_md += f"### Description\n{metadata['description']}\n\n"
+            metadata_md += f"### Description\n\n{metadata['description']}\n\n"
+        
         if metadata['keywords']:
-            metadata_md += f"### Keywords\n{metadata['keywords']}\n\n"
+            metadata_md += f"### Keywords\n\n{metadata['keywords']}\n\n"
+        
         if metadata['author']:
-            metadata_md += f"### Author\n{metadata['author']}\n\n"
+            metadata_md += f"### Author\n\n{metadata['author']}\n\n"
         
         if metadata['og_tags']:
-            metadata_md += "### Open Graph Tags\n"
+            metadata_md += "### Open Graph Tags\n\n"
             for key, value in metadata['og_tags'].items():
-                metadata_md += f"- {key}: {value}\n"
+                metadata_md += f"* {key}: {value}\n"
             metadata_md += "\n"
         
         if metadata['twitter_cards']:
-            metadata_md += "### Twitter Cards\n"
+            metadata_md += "### Twitter Cards\n\n"
             for key, value in metadata['twitter_cards'].items():
-                metadata_md += f"- {key}: {value}\n"
+                metadata_md += f"* {key}: {value}\n"
             metadata_md += "\n"
         
         if metadata['other_meta']:
-            metadata_md += "### Other Metadata\n"
+            metadata_md += "### Other Metadata\n\n"
             for key, value in metadata['other_meta'].items():
-                metadata_md += f"- {key}: {value}\n"
+                metadata_md += f"* {key}: {value}\n"
             metadata_md += "\n"
         
-        # Combine content and metadata
-        full_content = f"{content}\n\n{metadata_md}"
+        # Combine content and metadata with proper GFM formatting
+        full_content = f"{content}\n{metadata_md}".strip() + "\n"
         
-        return full_content.strip(), metadata
+        return full_content, metadata
         
     except Exception as e:
-        print(f"Warning: Error during content extraction: {e}", file=sys.stderr)
+        print(f"Error: Error during content extraction: {e}", file=sys.stderr)
         return "", {}
 
 def create_parser():
@@ -521,7 +587,7 @@ def create_parser():
         argparse.ArgumentParser: Configured parser
     """
     parser = argparse.ArgumentParser(
-        description='Web Page Content Fetcher - Capture webpage content as PNG or Markdown',
+        description='Web Page Content Fetcher - Capture webpage content as PNG or GFM',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -537,10 +603,10 @@ Examples:
   # Save PNG and print text content with metadata
   %(prog)s --url example.com --mode png --print-text --save-metadata
 
-  # Extract specific element as Markdown and output to stdout
+  # Extract specific element as GFM and output to stdout
   %(prog)s --url example.com --mode md --element "#main-content" --output stdout
   
-  # Save page content as Markdown with metadata to specific directory
+  # Save page content as GFM with metadata to specific directory
   %(prog)s --url example.com --mode md --filepath /path/to/output --save-metadata
 
   # Extract content including unknown elements
@@ -562,7 +628,7 @@ Examples:
         type=str,
         choices=['png', 'md'],
         default='md',
-        help='Output mode: png for screenshot, md for markdown (default: md)'
+        help='Output mode: png for screenshot, md for GFM (default: md)'
     )
 
     parser.add_argument(
@@ -623,7 +689,7 @@ Examples:
 
 def main():
     """
-    Main function to handle webpage content fetching with optimized performance
+    Main function to handle webpage content fetching with GFM output
     """
     # Parse command line arguments
     parser = create_parser()

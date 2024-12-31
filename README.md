@@ -50,13 +50,13 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 **Chat Window**
 
-<div><img src="./docs/assets/images/monadic-chat-chat-about-pdf.png" width="700px"/></div><br />
+<div><img src="./docs/assets/images/monadic-chat-chat-about-pdf.png" width="800px"/></div><br />
 
 **Console Window**
 
 <div><img src="./docs/assets/images/monadic-chat-console.png" width="700px"/></div><br />
 
-## Contributing
+## Development
 
 Contributions are welcome! Here's how to help:
 
@@ -66,4 +66,11 @@ Contributions are welcome! Here's how to help:
 4. **Commit**: Write clear, concise commit messages.
 5. **Push & PR**: Push the branch and open a pull request.
 
-Thank you for your interest in improving the project!
+## Author
+
+Yoichiro Hasebe <yohasebe@gmail.com>
+
+## License
+
+Monadic Chat is distributed under [the MIT License](http://www.opensource.org/licenses/mit-license.php).
+

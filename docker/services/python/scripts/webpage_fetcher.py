@@ -11,11 +11,25 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException
 import os
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from PIL import Image
 from bs4 import BeautifulSoup
 import json
 from bs4.element import Comment
+
+def decode_unicode_references(text):
+    """
+    Decode URL-encoded Unicode characters to human-readable form
+    Args:
+        text (str): Text containing URL-encoded characters
+    Returns:
+        str: Decoded text with human-readable characters
+    """
+    try:
+        return unquote(text)
+    except Exception as e:
+        print(f"Warning: Failed to decode Unicode references: {e}", file=sys.stderr)
+        return text
 
 def is_valid_url(url):
     """
@@ -202,14 +216,14 @@ def extract_metadata(soup):
     # Extract title
     title_tag = soup.find('title')
     if title_tag:
-        metadata['title'] = title_tag.string.strip()
+        metadata['title'] = decode_unicode_references(title_tag.string.strip())
 
     # Process meta tags
     for meta in soup.find_all('meta'):
         # Get the meta tag attributes
         name = meta.get('name', '').lower()
         property = meta.get('property', '').lower()
-        content = meta.get('content', '')
+        content = decode_unicode_references(meta.get('content', ''))
 
         if name == 'description':
             metadata['description'] = content
@@ -245,7 +259,7 @@ def process_element(elem, keep_unknown=False):
         str: Processed text content in GFM format
     """
     if isinstance(elem, str):
-        return elem.strip()
+        return decode_unicode_references(elem.strip())
     
     # Define meaningful content elements with their GFM formatting rules
     content_elements = {
@@ -318,7 +332,7 @@ def process_element(elem, keep_unknown=False):
         
         # Special handling for links
         if elem.name == 'a' and elem.get('href'):
-            href = elem.get('href')
+            href = decode_unicode_references(elem.get('href'))
             content = ''.join(
                 filter(None, [process_element(child, keep_unknown) for child in elem.children])
             ).strip()

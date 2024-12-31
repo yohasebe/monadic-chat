@@ -600,7 +600,7 @@ $(function () {
     // sleep 1 second before focusing on the input field
     setTimeout(() => {
       $("#pageURL").focus();
-    }, 1000);
+    }, 500);
   });
 
   $("#urlModal").on("hidden.bs.modal", function () {

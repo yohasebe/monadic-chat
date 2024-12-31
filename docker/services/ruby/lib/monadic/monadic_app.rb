@@ -512,7 +512,7 @@ class MonadicApp
     max_retrials = 5
     container = "monadic-chat-python-container"
     docker_command = <<~DOCKER
-      docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --output stdout'
+      docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --keep-unknown --output stdout'
     DOCKER
 
     stdout, stderr, status = Open3.capture3(docker_command)

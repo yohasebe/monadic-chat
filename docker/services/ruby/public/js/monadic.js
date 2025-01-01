@@ -536,7 +536,9 @@ $(function () {
     $("#docLabel").val("");
     $("#docFile").val("");
     $("#docModal").modal("show");
-    $("#docLabel").focus();
+    setTimeout(() => {
+      $("#docFile").focus();
+    }, 500);
   });
 
   $("#docModal").on("hidden.bs.modal", function () {

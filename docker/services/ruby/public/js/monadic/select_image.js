@@ -41,6 +41,9 @@ selectFileButton.on("click", function () {
   }
 
   $("#imageModal").modal("show");
+  setTimeout(() => {
+    $("#imageFile").focus();
+  }, 500);
 });
 
 // Upload button click handler

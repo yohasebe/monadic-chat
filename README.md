@@ -15,6 +15,8 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
+- [Jan, 2025] 0.9.31
+  - Perplexity models supported
 - [Dec, 2024] 0.9.30
   - Extract from URL feature added
   - Extract from file feature added (pdf, docx, pptx, xlsx, etc.)

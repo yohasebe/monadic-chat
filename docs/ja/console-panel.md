@@ -86,3 +86,5 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 **MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーはMistral AI モデルを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
 
 **XAI_API_KEY**<br /> xAI APIキーを入力してください。このキーはxAI Grok モデルを使用するのに必要です。[https://x.ai/api]で取得できます。
+
+**PERPLEXITY_API_KEY**<br /> Perplexity APIキーを入力してください。このキーはPerplexity モデルを使用するのに必要です。[https://perplexity.ai/]で取得できます。

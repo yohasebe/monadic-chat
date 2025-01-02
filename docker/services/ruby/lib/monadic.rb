@@ -451,9 +451,9 @@ post "/document" do
 
     doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
     if doc_label.to_s != ""
-      doc_label + "\n---\n" + doc_text
+      "\n---\n" + doc_label + "\n---\n" + doc_text
     else
-      doc_text
+      "\n---\n" + doc_text
     end
   else
     session[:error] = "Error: No file selected. Please choose a document file to convert."
@@ -478,9 +478,9 @@ post "/fetch_webpage" do
 
     webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
     if label.to_s != ""
-      label + "\n---\n" + webpage_text
+      "\n---\n" + label + "\n---\n" + webpage_text
     else
-      webpage_text
+      "\n---\n" + webpage_text
     end
   else
     session[:error] = "Error: No file selected. Please choose a document file to convert."

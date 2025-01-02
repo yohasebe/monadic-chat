@@ -54,12 +54,62 @@ function getCookie(name) {
   return null;
 }
 
-function listModels(models) {
-  let modelList = "";
+function listModels(models, openai = false) {
+  // Array of strings to identify beta models
+  const regularModelPatterns = [/^gpt-4o/];
+  const betaModelPatterns = [/^o1/];
+
+  // Separate regular models and beta models
+  const regularModels = [];
+  const betaModels = [];
+  const otherModels = [];
+
   for (let model of models) {
-    modelList += `<option value="${model}">${model}</option>`;
+    if (regularModelPatterns.some(pattern => pattern.test(model))) {
+      regularModels.push(model);
+    } else if (betaModelPatterns.some(pattern => pattern.test(model))) {
+      betaModels.push(model);
+    } else {
+      otherModels.push(model);
+    }
   }
-  return modelList;
+
+  // Generate options based on the value of openai
+  let modelOptions = [];
+
+  if (openai) {
+    // Include dummy options when openai is true
+    modelOptions = [
+      '<option disabled>──gpt-4o──</option>',
+      ...regularModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      ),
+      '<option disabled>──o1──</option>',
+      ...betaModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      ),
+      '<option disabled>──other──</option>',
+      ...otherModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      )
+    ];
+  } else {
+    // Exclude dummy options when openai is false
+    modelOptions = [
+      ...regularModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      ),
+      ...betaModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      ),
+      ...otherModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      )
+    ];
+  }
+
+  // Join the options into a single string and return
+  return modelOptions.join('');
 }
 
 // convert an object to HTML changing snake_case to space case in the keys
@@ -447,7 +497,7 @@ function checkParams() {
 
 function adjustImageUploadButton(selectedModel) {
   // Update image/PDF upload UI based on model
-  const isPdfEnabled = selectedModel.includes("sonnet");
+  const isPdfEnabled = selectedModel && selectedModel.includes("sonnet");
   const imageFileBtn = $("#image-file");
   const imageFileInput = $('#imageFile');
 

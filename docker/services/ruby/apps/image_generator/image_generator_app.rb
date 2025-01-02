@@ -35,6 +35,8 @@ class ImageGeneration < MonadicApp
   @settings = {
     group: "OpenAI",
     app_name: "Image Generator",
+    disabled: !CONFIG["OPENAI_API_KEY"],
+    models: OpenAIHelper.list_models,
     model: "gpt-4o-mini",
     temperature: 0.0,
     top_p: 0.0,

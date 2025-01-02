@@ -37,6 +37,7 @@ class VideoDescriber < MonadicApp
   @settings = {
     group: "OpenAI",
     model: "gpt-4o-mini",
+    disabled: !CONFIG["OPENAI_API_KEY"],
     models: [
       "gpt-4o-2024-11-20",
       "gpt-4o-mini",

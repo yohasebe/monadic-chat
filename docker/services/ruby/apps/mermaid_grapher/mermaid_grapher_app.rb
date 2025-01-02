@@ -62,6 +62,8 @@ class MermaidGrapher < MonadicApp
 
   @settings = {
     group: "OpenAI",
+    disabled: !CONFIG["OPENAI_API_KEY"],
+    models: OpenAIHelper.list_models,
     model: "gpt-4o-2024-11-20",
     temperature: 0.0,
     top_p: 0.0,

@@ -12,6 +12,45 @@ module OpenAIHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
+  attr_reader :models
+
+  def self.list_models
+    api_key = CONFIG["OPENAI_API_KEY"]
+    return [] if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    target_uri = "#{API_ENDPOINT}/models"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+
+      if res.status.success?
+
+        res_body = JSON.parse(res.body)
+        if res_body && res_body["data"]
+          models = res_body["data"].sort_by do |item|
+            item["created"]
+          end.reverse[0..20].map do |item|
+            item["id"]
+          end.filter do |item|
+            !item.include?("vision") &&
+            !item.include?("instruct") &&
+            !item.include?("realtime") &&
+            !item.include?("audio") &&
+            !item.include?("moderation")
+          end
+        end
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      []
+    end
+  end
+
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, &block)
     # Set the number of times the request has been retried to 0

@@ -37,18 +37,19 @@ module OpenAIUtils
       res_body = JSON.parse(res.body)
 
       if res_body && res_body["data"]
-        models = res_body["data"].sort_by do |item|
-          item["created"]
-        end.reverse[0..20].map do |item|
-          item["id"]
-        end.filter do |item|
-          !item.include?("vision") &&
-          !item.include?("instruct") &&
-          !item.include?("realtime") &&
-          !item.include?("audio") &&
-          !item.include?("moderation")
-        end
-        { "type" => "models", "content" => "API token verified", "models" => models }
+        # models = res_body["data"].sort_by do |item|
+        #   item["created"]
+        # end.reverse[0..20].map do |item|
+        #   item["id"]
+        # end.filter do |item|
+        #   !item.include?("vision") &&
+        #   !item.include?("instruct") &&
+        #   !item.include?("realtime") &&
+        #   !item.include?("audio") &&
+        #   !item.include?("moderation")
+        # end
+        # { "type" => "models", "content" => "API token verified", "models" => models }
+        { "type" => "models", "content" => "API token verified"}
       else
         { "type" => "error", "content" => "ERROR: API token is not accepted" }
       end

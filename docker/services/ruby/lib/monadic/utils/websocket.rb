@@ -134,7 +134,7 @@ module WebSocketHelper
                 else
                   ws.send({ "type" => "token_verified",
                             "token" => token, "content" => res["content"],
-                            "models" => res["models"],
+                            # "models" => res["models"],
                             "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT }.to_json)
                 end
               else

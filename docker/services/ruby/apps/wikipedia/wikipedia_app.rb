@@ -35,6 +35,8 @@ class Wikipedia < MonadicApp
   @settings = {
     group: "OpenAI",
     app_name: "Wikipedia",
+    disabled: !CONFIG["OPENAI_API_KEY"],
+    models: OpenAIHelper.list_models,
     model: "gpt-4o-mini",
     temperature: 0.3,
     top_p: 0.0,

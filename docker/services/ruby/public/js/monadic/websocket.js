@@ -731,21 +731,26 @@ function connect_websocket(callback) {
         loadParams(data["content"], "loadParams");
         const currentApp = apps[$("#apps").val()] || apps[defaultApp];
 
+        let models = [];
         if (currentApp["models"] && currentApp["models"].length > 0) {
           let models_text = currentApp["models"]
-          let models = JSON.parse(models_text);
-
-          let openai = currentApp["group"].toLowerCase() === "openai";
-          let modelList = listModels(models, openai);
-          $("#model").html(modelList);
-          let model = currentApp["models"][0];
-          if (currentApp["model"] && models.includes(currentApp["model"])) {
-            model = currentApp["model"];
-          }
-          
-          $("#model-selected").text(model);
-          $("#model").val(model);
+          models = JSON.parse(models_text);
+        } else if (currentApp["model"]) {
+          models = [currentApp["model"]];
+        } else {
+          models = [];
         }
+
+        let openai = currentApp["group"].toLowerCase() === "openai";
+        let modelList = listModels(models, openai);
+        $("#model").html(modelList);
+        let model = currentApp["models"][0];
+        if (currentApp["model"] && models.includes(currentApp["model"])) {
+          model = currentApp["model"];
+        }
+        
+        $("#model-selected").text(model);
+        $("#model").val(model);
 
         $("#base-app-title").text(currentApp["app_name"]);
         $("#base-app-icon").html(currentApp["icon"]);

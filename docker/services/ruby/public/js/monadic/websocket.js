@@ -587,47 +587,6 @@ function connect_websocket(callback) {
         $("#api-token").val(data["token"]);
         $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
 
-        if (!verified) {
-          // Array of strings to identify beta models
-          const regularModelPatterns = [/^gpt-4o/];
-          const betaModelPatterns = [/^o1/];
-
-          // Separate regular models and beta models
-          const regularModels = [];
-          const betaModels = [];
-          const otherModels = [];
-
-          data['models'].forEach(model => {
-            if (regularModelPatterns.some(pattern => pattern.test(model))) {
-              regularModels.push(model);
-            } else if (betaModelPatterns.some(pattern => pattern.test(model))) {
-              betaModels.push(model);
-            } else {
-              otherModels.push(model);
-            }
-          });
-
-          // Combine regular models and beta models to generate options
-          model_options = [
-            '<option disabled>──gpt-4o──</option>',
-            ...regularModels.map(model =>
-              `<option value="${model}">${model}</option>`
-            ),
-            '<option disabled>──o1──</option>',
-            ...betaModels.map(model =>
-              `<option value="${model}">${model}</option>`
-            ),
-            '<option disabled>──other──</option>',
-            ...otherModels.map(model =>
-              `<option value="${model}">${model}</option>`
-            )
-          ].join('');
-
-          $("#model").html(model_options);
-          $("#model").val(DEFAULT_MODEL);
-          $("#model-selected").text(DEFAULT_MODEL);
-        }
-
         verified = "full";
         setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
@@ -679,7 +638,7 @@ function connect_websocket(callback) {
             const group = value["group"];
             
             // Check if app belongs to special group
-            if (group && group.trim() !== "" && ["Regular", "OpenAI"].includes(group.trim())) {
+            if (group && group.trim() !== "" && ["OpenAI"].includes(group.trim())) {
               regularApps.push([key, value]);
             } else if (group && group.trim() !== "") {
               if (!specialApps[group]) {
@@ -775,12 +734,15 @@ function connect_websocket(callback) {
         if (currentApp["models"] && currentApp["models"].length > 0) {
           let models_text = currentApp["models"]
           let models = JSON.parse(models_text);
-          let modelList = listModels(models);
+
+          let openai = currentApp["group"].toLowerCase() === "openai";
+          let modelList = listModels(models, openai);
           $("#model").html(modelList);
           let model = currentApp["models"][0];
           if (currentApp["model"] && models.includes(currentApp["model"])) {
             model = currentApp["model"];
           }
+          
           $("#model-selected").text(model);
           $("#model").val(model);
         }

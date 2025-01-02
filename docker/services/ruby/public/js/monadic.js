@@ -167,14 +167,15 @@ $(function () {
       $("#image-file").hide();
     }
 
-    console.log(apps[$(this).val()]);
-    if (apps[$(this).val()]["models"]) {
+    let model;
+    if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
       let models_text = apps[$(this).val()]["models"];
       let models = JSON.parse(models_text);
-      let modelList = listModels(models);
+      let openai = apps[$(this).val()]["group"].toLowerCase() === "openai";
 
+      let modelList = listModels(models, openai);
       $("#model").html(modelList);
-      let model = models[1];
+      model = models[1];
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
       }
@@ -188,10 +189,22 @@ $(function () {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
     } else {
-      $("#model").html("<select><option selected='true' disabled='disabled'>No models available</option></select>");
-      $("#model-selected").text("");
+      let models_text = apps[$(this).val()]["models"];
+      let models = JSON.parse(models_text);
+      model = params["model"];
+
+      if (params["model"] && models && models.includes(params["model"])) {
+        $("#model").html(model_options);
+        $("#model").val(params["model"]);
+      } else {
+        let model_options = `<option disabled="disabled" selected="selected">Models not available</option>`;
+        $("#model").html(model_options);
+      }
+
+      $("#model-selected").text(params["model"]);
       $("#model_and_file").show();
       $("#model_parameters").show();
+
       // Manually trigger the change event
       $("#model").trigger("change");
     }

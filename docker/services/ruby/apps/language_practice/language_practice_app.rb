@@ -15,6 +15,8 @@ class LanguagePractice < MonadicApp
 
   @settings = {
     group: "OpenAI",
+    disabled: !CONFIG["OPENAI_API_KEY"],
+    models: OpenAIHelper.list_models,
     model: "gpt-4o-mini",
     temperature: 0.5,
     top_p: 0.0,

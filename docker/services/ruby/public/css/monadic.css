@@ -43,13 +43,18 @@ div.sourcecode-toggle {
 div.sourcecode pre,
 div.highlight pre,
 pre {
-  padding: 0.8em;
+  padding: 0.9em;
   margin: 0;
-  margin-bottom: 1em;
+  margin-bottom: 0;
   border: none;
   white-space: pre;
   overflow: auto;
   scrollbar-width: thin;
+}
+
+pre code {
+  background-color: #f8f8f8;
+  white-space: pre-wrap;
 }
 
 div.sourcecode-toggle {
@@ -703,7 +708,6 @@ legend {
   width: 100px;
 }
 
-
 ol {
   list-style: decimal;
   counter-reset: none !important;
@@ -718,3 +722,6 @@ ol li::before {
   content: none !important;
 }
 
+div.highlight pre.highlight {
+  padding: 0;
+}

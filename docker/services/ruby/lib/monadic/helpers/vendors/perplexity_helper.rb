@@ -271,18 +271,15 @@ module PerplexityHelper
         next
       end
 
-      # [DONE]メッセージのチェック
       if chunk.include?("data: [DONE]")
         break
       end
 
       buffer << chunk
 
-      # エンコーディングの処理
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")
 
-      # 完全なJSONメッセージを抽出
       while (match = buffer.match(/^data: (\{.*?\})\r\n/m))
         json_str = match[1]
         buffer = buffer[match[0].length..-1]
@@ -294,7 +291,6 @@ module PerplexityHelper
           delta = json.dig("choices", 0, "delta")
 
           if delta && delta["content"]
-            # デルタ更新の処理
             id = json["id"]
             texts[id] ||= json
             choice = texts[id]["choices"][0]
@@ -311,7 +307,6 @@ module PerplexityHelper
               choice["message"]["content"] << fragment
             end
           elsif delta && delta["tool_calls"]
-            # ツール呼び出しの処理
             res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
             block&.call res
 
@@ -328,16 +323,15 @@ module PerplexityHelper
             citations = json["citations"] if json["citations"]
             # add citations to the last message
             if citations
-              citation_text = "\n\n---\n**Citations**\n" + citations.map.with_index do |citation, i|
-                "#{i + 1}. <a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a>"
-              end.join("\n")
+              citation_text = "\n\n**Citation**\n<div class='toggle'><ol>" + citations.map.with_index do |citation, i|
+                "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
+              end.join("\n") + "</ol></div>"
               texts.first[1]["choices"][0]["message"]["content"] += citation_text
             end
             break
           end
         rescue JSON::ParserError => e
           pp "JSON parse error: #{e.message}"
-          # 不完全なJSONの場合は次のチャンクを待つ
           buffer = "data: #{json_str}" + buffer
           break
         end

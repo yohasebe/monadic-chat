@@ -11,7 +11,6 @@ const textStats = $("#stats-message")
 
 const DEFAULT_MAX_TOKENS = 4000;
 const DEFAULT_CONTEXT_SIZE = 100;
-const DEFAULT_MODEL = "gpt-4o-mini";
 
 let currentPdfData = null;
 
@@ -532,8 +531,6 @@ function resetEvent(event) {
     currentPdfData = null;
     resetParams();
 
-    $("#model").html(model_options);
-    $("#model").val(DEFAULT_MODEL);
     $("#model-selected").text($("#model option:selected").text());
     $("#resetConfirmation").modal("hide");
     $("#main-panel").hide();
@@ -578,9 +575,7 @@ function resetEvent(event) {
     setStats("−");
 
     // select the second option item in the apps dropdown
-    $("#apps").val($("#apps option:eq(1)").val());
-    // select the second option item in the model dropdown
-    $("#model").val(DEFAULT_MODEL);
+    $("#apps").val($("#apps option:eq(1)").val()).trigger("change");
 
     adjustImageUploadButton($("#model").val());
     adjustScrollButtons();

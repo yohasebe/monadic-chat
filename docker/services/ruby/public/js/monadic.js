@@ -168,11 +168,17 @@ $(function () {
     }
 
     let model;
+    let models = [];
+
     if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
       let models_text = apps[$(this).val()]["models"];
-      let models = JSON.parse(models_text);
-      let openai = apps[$(this).val()]["group"].toLowerCase() === "openai";
+      models = JSON.parse(models_text);
+    } else if (apps[$(this).val()]["model"] && apps[$(this).val()]["model"].length > 0) {
+      models = [apps[$(this).val()]["model"]];
+    }
 
+    if (models.length > 0) {
+      let openai = apps[$(this).val()]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
       $("#model").html(modelList);
       model = models[1];
@@ -189,6 +195,8 @@ $(function () {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
     } else {
+      // The following code is for backward compatibility
+
       let models_text = apps[$(this).val()]["models"];
       let models = JSON.parse(models_text);
       model = params["model"];

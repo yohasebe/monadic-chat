@@ -23,8 +23,10 @@ class PerplexityChat < MonadicApp
       "llama-3.1-sonar-huge-128k-online"
     ],
     temperature: 0.3,
+    toggle: true,
     initial_prompt: initial_prompt,
     description: description,
+    context_size: 3,
     icon: icon,
     easy_submit: false,
     auto_speech: false,

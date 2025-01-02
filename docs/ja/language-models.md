@@ -161,6 +161,25 @@ xAI APIキーを設定すると下記のアプリを使用することができ�
 
 </details>
 
+## Perplexity Models
+
+![Perplexity apps icon](./assets/icons/p.png ':size=40')
+
+Perplexity APIキーを設定すると、Perplexityを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+
+```
+PERPLEXITY_API_KEY=api_key
+```
+
+Perplexity APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
+
+<details>
+<summary>chat_perplexity_app.rb</summary>
+
+![chat_perplexity_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_perplexity/chat_perplexity_app.rb ':include :type=code')
+
+</details>
+
 ## Ollama Models
 
 ![Ollama apps icon](./assets/icons/ollama.png ':size=40')

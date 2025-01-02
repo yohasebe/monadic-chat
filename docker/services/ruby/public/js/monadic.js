@@ -167,10 +167,12 @@ $(function () {
       $("#image-file").hide();
     }
 
-    if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
+    console.log(apps[$(this).val()]);
+    if (apps[$(this).val()]["models"]) {
       let models_text = apps[$(this).val()]["models"];
       let models = JSON.parse(models_text);
       let modelList = listModels(models);
+
       $("#model").html(modelList);
       let model = models[1];
       if (params["model"] && models.includes(params["model"])) {
@@ -186,12 +188,10 @@ $(function () {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
     } else {
-      $("#model").html(model_options);
-      $("#model").val(params["model"]);
-      $("#model-selected").text(params["model"]);
+      $("#model").html("<select><option selected='true' disabled='disabled'>No models available</option></select>");
+      $("#model-selected").text("");
       $("#model_and_file").show();
       $("#model_parameters").show();
-
       // Manually trigger the change event
       $("#model").trigger("change");
     }
@@ -572,7 +572,8 @@ $(function () {
           processData: false,
           contentType: false
         }).done(function (markdown) {
-          $("#message").val(markdown);
+          const message = $("#message").val().replace(/\n+$/, "");
+          $("#message").val(`${message}\n\n${markdown}`);
           $("#doc-spinner").hide();
           $("#docModal button").prop('disabled', false);
           $("#docModal").modal("hide");
@@ -635,7 +636,8 @@ $(function () {
         processData: false,
         contentType: false
       }).done(function (markdown) {
-        $("#message").val(markdown);
+        const message = $("#message").val().replace(/\n+$/, "");
+        $("#message").val(`${message}\n\n${markdown}`);
         $("#url-spinner").hide();
         $("#urlModal button").prop('disabled', false);
         $("#urlModal").modal("hide");

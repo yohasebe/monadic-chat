@@ -255,6 +255,20 @@ module PerplexityHelper
     [res]
   end
 
+  def check_citations(text, citations)
+    used_citations = text.scan(/\[(\d+)\]/).flatten.map(&:to_i).uniq.sort
+
+    citation_map = used_citations.each_with_index.to_h { |old_num, index| [old_num, index + 1] }
+
+    newtext = text.gsub(/\[(\d+)\]/) do |match|
+      "[#{citation_map[$1.to_i]}]"
+    end
+
+    new_citations = used_citations.map { |i| citations[i - 1] }
+
+    [newtext, new_citations]
+  end
+
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
 
@@ -321,12 +335,13 @@ module PerplexityHelper
           if json["choices"][0]["finish_reason"] == "stop"
             texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"]
             citations = json["citations"] if json["citations"]
+            new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
             # add citations to the last message
-            if citations
-              citation_text = "\n\n**Citations**\n<div class='toggle'><ol>" + citations.map.with_index do |citation, i|
+            if citations.any?
+              citation_text = "\n\n**Citations**\n<div class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
                 "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
               end.join("\n") + "</ol></div>"
-              texts.first[1]["choices"][0]["message"]["content"] += citation_text
+              texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
             end
             break
           end

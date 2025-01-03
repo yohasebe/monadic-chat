@@ -11,7 +11,32 @@ module OpenAIUtils
   # Delay between retries (seconds)
   RETRY_DELAY = 2
 
-  # Check if the API key is valid
+  # Cache class for API key validation
+  class ApiKeyCache
+    def initialize
+      @cache = {}
+      @mutex = Mutex.new
+    end
+
+    def get(key)
+      @mutex.synchronize { @cache[key] }
+    end
+
+    def set(key, value)
+      @mutex.synchronize { @cache[key] = value }
+    end
+
+    def clear
+      @mutex.synchronize { @cache.clear }
+    end
+  end
+
+  # Initialize cache as a singleton
+  def self.api_key_cache
+    @api_key_cache ||= ApiKeyCache.new
+  end
+
+  # Check if the API key is valid with caching mechanism
   # @param api_key [String] The API key to check
   # @return [Hash] A hash containing the result of the check
   def check_api_key(api_key)
@@ -21,6 +46,10 @@ module OpenAIUtils
     else
       return { "type" => "error", "content" => "ERROR: API key is empty" }
     end
+
+    # Return cached result if available
+    cached_result = OpenAIUtils.api_key_cache.get(api_key)
+    return cached_result if cached_result
 
     target_uri = "#{API_ENDPOINT}/models"
 
@@ -36,23 +65,15 @@ module OpenAIUtils
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).get(target_uri)
       res_body = JSON.parse(res.body)
 
-      if res_body && res_body["data"]
-        # models = res_body["data"].sort_by do |item|
-        #   item["created"]
-        # end.reverse[0..20].map do |item|
-        #   item["id"]
-        # end.filter do |item|
-        #   !item.include?("vision") &&
-        #   !item.include?("instruct") &&
-        #   !item.include?("realtime") &&
-        #   !item.include?("audio") &&
-        #   !item.include?("moderation")
-        # end
-        # { "type" => "models", "content" => "API token verified", "models" => models }
+      result = if res_body && res_body["data"]
         { "type" => "models", "content" => "API token verified"}
       else
         { "type" => "error", "content" => "ERROR: API token is not accepted" }
       end
+
+      # Cache the result
+      OpenAIUtils.api_key_cache.set(api_key, result)
+      result
 
     rescue HTTP::Error, HTTP::TimeoutError => e
       if num_retrial < MAX_RETRIES
@@ -60,8 +81,12 @@ module OpenAIUtils
         sleep RETRY_DELAY
         retry
       else
-        pp error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
-        return { "type" => "error", "content" => "ERROR: #{error_message}" }
+        error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
+        pp error_message
+        error_result = { "type" => "error", "content" => "ERROR: #{error_message}" }
+        # Cache the error result as well
+        OpenAIUtils.api_key_cache.set(api_key, error_result)
+        return error_result
       end
     end
   end

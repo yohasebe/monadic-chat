@@ -478,9 +478,9 @@ post "/fetch_webpage" do
 
     webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
     if label.to_s != ""
-      "\n---\n" + label + "\n---\n" + webpage_text
+      "---\n" + label + "\n---\n" + webpage_text
     else
-      "\n---\n" + webpage_text
+      "---\n" + webpage_text
     end
   else
     session[:error] = "Error: No file selected. Please choose a document file to convert."

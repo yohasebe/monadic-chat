@@ -8,7 +8,7 @@ RUN apt-get update && \
     build-essential wget curl git gnupg \
     python3-dev graphviz libgraphviz-dev pkg-config \
     libxml2-dev libxslt-dev \
-    pandoc ffmpeg fonts-noto-cjk \
+    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
     imagemagick libmagickwand-dev \
     && apt-get autoremove -y \
     && apt-get clean \

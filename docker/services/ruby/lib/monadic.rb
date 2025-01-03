@@ -27,8 +27,8 @@ require "tempfile"
 require "uri"
 require "cgi"
 
-require "oj"
-Oj.mimic_JSON
+# require "oj"
+# Oj.mimic_JSON
 
 # return true if we are inside a docker container
 IN_CONTAINER = File.file?("/.dockerenv")

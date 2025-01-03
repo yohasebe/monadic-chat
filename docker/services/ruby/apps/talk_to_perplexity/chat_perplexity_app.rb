@@ -15,6 +15,7 @@ class PerplexityChat < MonadicApp
 
   @settings = {
     app_name: "Chat (Perplexity)",
+    disabled: !CONFIG["PERPLEXITY_API_KEY"],
     group: "Perplexity",
     model: "llama-3.1-sonar-small-128k-online",
     models: [
@@ -22,7 +23,10 @@ class PerplexityChat < MonadicApp
       "llama-3.1-sonar-large-128k-online",
       "llama-3.1-sonar-huge-128k-online"
     ],
-    temperature: 0.3,
+    temperature: 0.2,
+    top_p: 0.9,
+    presence_penalty: 0.0,
+    frequency_penalty: 1.0,
     toggle: true,
     initial_prompt: initial_prompt,
     description: description,
@@ -30,26 +34,6 @@ class PerplexityChat < MonadicApp
     icon: icon,
     easy_submit: false,
     auto_speech: false,
-    initiate_from_assistant: false,
-    tools: [
-      {
-        name: "fetch_web_content",
-        description: "Fetch the content of the web page of the given URL and return it.",
-        input_schema: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "URL of the web page."
-            }
-          },
-          required: ["url"]
-        }
-      }
-    ]
+    initiate_from_assistant: false
   }
-end
-
-def fetch_web_content(url: "")
-  selenium_job(url: url)
 end

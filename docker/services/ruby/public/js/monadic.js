@@ -132,6 +132,10 @@ $(function () {
       }
 
       $("#clearConfirmation").modal("show");
+      setTimeout(function () {
+        $("#clearConfirmed").focus();
+      }, 500);
+
       // if `#clearConfirmed` button is clicked, clear the current conversation
       $("#clearConfirmed").on("click", function () {
         ws.send(JSON.stringify({ "message": "RESET" }));
@@ -494,6 +498,9 @@ $(function () {
   $("#load").on("click", function (event) {
     event.preventDefault();
     $("#loadModal").modal("show");
+    setTimeout(function () {
+      $("#file-load").focus();
+    }, 500);
   });
 
   $("#loadModal").on("shown.bs.modal", function () {

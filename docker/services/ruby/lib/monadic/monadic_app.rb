@@ -525,7 +525,7 @@ class MonadicApp
         "Webpage content could not be fetched."
       else
         # markdownify(stdout)
-        stdout
+        stdout.strip
       end
     else
       stdout.strip.empty? ? stderr : stdout

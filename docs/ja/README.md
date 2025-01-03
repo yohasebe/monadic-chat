@@ -81,6 +81,8 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
+  - [xAI Grok](https://x.ai/api)
+  - [Perplexity](https://docs.perplexity.ai/home)
 - 🦙 **[Ollama](https://ollama.com/)**を用いたDocker上のローカル環境でのLLMの利用
   - Llama
   - Phi

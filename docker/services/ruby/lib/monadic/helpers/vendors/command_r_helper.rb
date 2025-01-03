@@ -9,35 +9,47 @@ module CommandRHelper
   MAX_FUNC_CALLS = 5
   VALID_ROLES = %w[user assistant system tool].freeze
 
-  attr_reader :models
+  class << self
+    attr_reader :cached_models
 
-  # Fetches available models from Cohere API
-  # Returns an array of model names, excluding embedding and reranking models
-  def self.list_models
-    api_key = CONFIG["COHERE_API_KEY"]
-    return [] if api_key.nil?
+    # Fetches available models from Cohere API
+    # Returns an array of model names, excluding embedding and reranking models
+    def list_models
+      # Return cached models if they exist
+      return @cached_models if @cached_models
 
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
+      api_key = CONFIG["COHERE_API_KEY"]
+      return [] if api_key.nil?
 
-    target_uri = "#{API_ENDPOINT}/models"
-    http = HTTP.headers(headers)
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
 
-    begin
-      res = http.get(target_uri)
+      target_uri = "#{API_ENDPOINT}/models"
+      http = HTTP.headers(headers)
 
-      if res.status.success?
-        model_data = JSON.parse(res.body)
-        model_data["models"].map do |model|
-          model["name"]
-        end.filter do |model|
-          !model.include?("embed") && !model.include?("rerank")
+      begin
+        res = http.get(target_uri)
+
+        if res.status.success?
+          # Cache the filtered models
+          model_data = JSON.parse(res.body)
+          @cached_models = model_data["models"].map do |model|
+            model["name"]
+          end.filter do |model|
+            !model.include?("embed") && !model.include?("rerank")
+          end
+          @cached_models
         end
+      rescue HTTP::Error, HTTP::TimeoutError
+        []
       end
-    rescue HTTP::Error, HTTP::TimeoutError
-      []
+    end
+
+    # Method to manually clear the cache if needed
+    def clear_models_cache
+      @cached_models = nil
     end
   end
 

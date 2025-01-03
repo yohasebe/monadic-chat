@@ -173,8 +173,6 @@ $(function () {
     if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
       let models_text = apps[$(this).val()]["models"];
       models = JSON.parse(models_text);
-    } else if (apps[$(this).val()]["model"] && apps[$(this).val()]["model"].length > 0) {
-      models = [apps[$(this).val()]["model"]];
     }
 
     if (models.length > 0) {

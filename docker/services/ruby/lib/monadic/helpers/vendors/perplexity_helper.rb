@@ -323,7 +323,7 @@ module PerplexityHelper
             citations = json["citations"] if json["citations"]
             # add citations to the last message
             if citations
-              citation_text = "\n\n**Citation**\n<div class='toggle'><ol>" + citations.map.with_index do |citation, i|
+              citation_text = "\n\n**Citations**\n<div class='toggle'><ol>" + citations.map.with_index do |citation, i|
                 "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
               end.join("\n") + "</ol></div>"
               texts.first[1]["choices"][0]["message"]["content"] += citation_text

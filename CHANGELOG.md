@@ -1,5 +1,6 @@
 - [Jan, 2025] 0.9.31
   - Perplexity models supported
+  - Start-up time (after build) improved
 - [Dec, 2024] 0.9.30
   - Extract from URL feature added
   - Extract from file feature added (pdf, docx, pptx, xlsx, etc.)
@@ -7,7 +8,7 @@
   - Cohere API update to v2
   - Markdown rendering improved
   - Math Tutor app supports visualizations
-  - Not require OpenAI's API token when using other APIs (Anthropic, Google, Cohere, or Mistral)
+  - Not require OpenAI's API token when using other APIs
   - Image generation feature improved
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed

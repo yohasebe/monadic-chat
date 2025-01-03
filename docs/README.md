@@ -80,6 +80,8 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [Anthropic Claude](https://www.anthropic.com/api)
   - [Cohere Command R](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
+  - [xAI Grok](https://x.ai/api)
+  - [Perplexity](https://docs.perplexity.ai/home)
 - 🦙 Use of LLMs in a local environment on Docker using **[Ollama](https://ollama.com/)**
   - Llama
   - Phi

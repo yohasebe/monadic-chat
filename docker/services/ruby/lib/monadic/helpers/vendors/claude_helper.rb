@@ -11,31 +11,44 @@ module ClaudeHelper
   MAX_PC_PROMPTS = 4
 
   attr_accessor :thinking
-  attr_reader :models
 
-  def self.list_models
-    api_key = CONFIG["ANTHROPIC_API_KEY"]
-    return [] if api_key.nil?
+  class << self
+    attr_reader :cached_models
 
-    headers = {
-      "x-api-key": api_key,
-      "anthropic-version": "2023-06-01"
-    }
+    def list_models
+      # Return cached models if they exist
+      return @cached_models if @cached_models
 
-    target_uri = "#{API_ENDPOINT}/models"
-    http = HTTP.headers(headers)
+      api_key = CONFIG["ANTHROPIC_API_KEY"]
+      return [] if api_key.nil?
 
-    begin
-      res = http.get(target_uri)
+      headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01"
+      }
 
-      if res.status.success?
-        model_data = JSON.parse(res.body)
-        model_data["data"].map do |model|
-          model["id"]
+      target_uri = "#{API_ENDPOINT}/models"
+      http = HTTP.headers(headers)
+
+      begin
+        res = http.get(target_uri)
+
+        if res.status.success?
+          # Cache the model list
+          model_data = JSON.parse(res.body)
+          @cached_models = model_data["data"].map do |model|
+            model["id"]
+          end
+          @cached_models
         end
+      rescue HTTP::Error, HTTP::TimeoutError
+        []
       end
-    rescue HTTP::Error, HTTP::TimeoutError
-      []
+    end
+
+    # Method to manually clear the cache if needed
+    def clear_models_cache
+      @cached_models = nil
     end
   end
 

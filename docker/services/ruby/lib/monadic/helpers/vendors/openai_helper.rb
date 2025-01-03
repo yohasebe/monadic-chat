@@ -12,42 +12,53 @@ module OpenAIHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  attr_reader :models
+  class << self
+    attr_reader :cached_models
 
-  def self.list_models
-    api_key = CONFIG["OPENAI_API_KEY"]
-    return [] if api_key.nil?
+    def list_models
+      # Return cached models if they exist
+      return @cached_models if @cached_models
 
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
+      api_key = CONFIG["OPENAI_API_KEY"]
+      return [] if api_key.nil?
 
-    target_uri = "#{API_ENDPOINT}/models"
-    http = HTTP.headers(headers)
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
 
-    begin
-      res = http.get(target_uri)
+      target_uri = "#{API_ENDPOINT}/models"
+      http = HTTP.headers(headers)
 
-      if res.status.success?
+      begin
+        res = http.get(target_uri)
 
-        res_body = JSON.parse(res.body)
-        if res_body && res_body["data"]
-          models = res_body["data"].sort_by do |item|
-            item["created"]
-          end.reverse[0..20].map do |item|
-            item["id"]
-          end.filter do |item|
-            !item.include?("vision") &&
-            !item.include?("instruct") &&
-            !item.include?("realtime") &&
-            !item.include?("audio") &&
-            !item.include?("moderation")
+        if res.status.success?
+          res_body = JSON.parse(res.body)
+          if res_body && res_body["data"]
+            # Cache the filtered and sorted models
+            @cached_models = res_body["data"].sort_by do |item|
+              item["created"]
+            end.reverse[0..20].map do |item|
+              item["id"]
+            end.filter do |item|
+              !item.include?("vision") &&
+              !item.include?("instruct") &&
+              !item.include?("realtime") &&
+              !item.include?("audio") &&
+              !item.include?("moderation")
+            end
+            @cached_models
           end
         end
+      rescue HTTP::Error, HTTP::TimeoutError
+        []
       end
-    rescue HTTP::Error, HTTP::TimeoutError
-      []
+    end
+
+    # Method to manually clear the cache if needed
+    def clear_models_cache
+      @cached_models = nil
     end
   end
 

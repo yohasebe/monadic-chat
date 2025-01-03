@@ -11,31 +11,43 @@ module GrokHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  attr_reader :models
+  class << self
+    attr_reader :cached_models
 
-  def self.list_models
-    api_key = CONFIG["XAI_API_KEY"]
-    return [] if api_key.nil?
+    def list_models
+      # Return cached models if they exist
+      return @cached_models if @cached_models
 
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
+      api_key = CONFIG["XAI_API_KEY"]
+      return [] if api_key.nil?
 
-    target_uri = "#{API_ENDPOINT}/language-models"
-    http = HTTP.headers(headers)
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
 
-    begin
-      res = http.get(target_uri)
+      target_uri = "#{API_ENDPOINT}/language-models"
+      http = HTTP.headers(headers)
 
-      if res.status.success?
-        model_data = JSON.parse(res.body)
-        model_data["models"].map do |model|
-          model["id"]
+      begin
+        res = http.get(target_uri)
+
+        if res.status.success?
+          # Cache the model list
+          model_data = JSON.parse(res.body)
+          @cached_models = model_data["models"].map do |model|
+            model["id"]
+          end
+          @cached_models
         end
+      rescue HTTP::Error, HTTP::TimeoutError
+        []
       end
-    rescue HTTP::Error, HTTP::TimeoutError
-      []
+    end
+
+    # Method to manually clear the cache if needed
+    def clear_models_cache
+      @cached_models = nil
     end
   end
 

@@ -95,10 +95,9 @@ $(function () {
       $("#send").trigger("click");
     });
 
-    $document.on("click", ".base64-image", function () {
+    $document.on("click", ".card-text img", function () {
       window.open().document.write(this.outerHTML);
     });
-
     // Optimize scroll event
     let scrollTimer;
     $main.on("scroll", function () {

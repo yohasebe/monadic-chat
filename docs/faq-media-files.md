@@ -13,7 +13,7 @@ The following basic apps support file reading:
 - PDF Reader<br />PDF files
 - Video Description<br />Video files (MP4, MOV)
 
-You can also click the `Voice Input` button to use voice input. Voice input uses the Whisper API and is available in all apps.
+You can also click the `Speech Input` button to use voice input. Speech input uses the Whisper API and is available in all apps.
 
 ---
 

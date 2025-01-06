@@ -4,7 +4,7 @@ After starting the server and selecting an app and configuring it, click the `St
 
 ![](./assets/images/monadic-chat-message-input.png ':size=700')
 
-Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Voice Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via the Whisper API and displayed in the text area.
+Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via the Whisper API and displayed in the text area.
 
 ?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the web settings. These are enabled by default in the [Voice Chat](./basic-apps?id=voice-chat) app.
 
@@ -51,9 +51,9 @@ Click the `Extract from URL` button to enter a URL. The content at that URL is l
 
 ![](./assets/images/monadic-chat-extract-from-url.png ':size=400')
 
-## Voice Input
+## Speech Input
 
-To use voice input, click the `Voice Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Whisper API and displayed in the text area.
+To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Whisper API and displayed in the text area.
 
 ![](./assets/images/voice-input-stop.png ':size=400')
 

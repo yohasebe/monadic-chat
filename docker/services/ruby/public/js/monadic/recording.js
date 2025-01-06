@@ -126,7 +126,7 @@ voiceButton.on("click", function () {
     // "Stop" button is pressed
   } else if (!silenceDetected) {
     voiceButton.toggleClass("btn-warning btn-danger");
-    voiceButton.html('<i class="fas fa-microphone"></i> Voice Input');
+    voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     setAlert("<i class='fas fa-cogs'></i> PROCESSING ...", "warning");
     $("#send, #clear, #voice").prop("disabled", true);
     isListening = false;
@@ -162,7 +162,7 @@ voiceButton.on("click", function () {
   } else {
     voiceButton.toggleClass("btn-warning btn-danger");
     setAlert("<i class='fas fa-exclamation-triangle'></i> SILENCE DETECTED: Please check your microphone settings and try again", "error");
-    voiceButton.html('<i class="fas fa-microphone"></i> Voice Input');
+    voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     $("#send, #clear").prop("disabled", false);
     isListening = false;
 

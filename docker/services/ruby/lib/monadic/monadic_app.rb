@@ -203,6 +203,9 @@ class MonadicApp
   def send_command(command:,
                    container: "python",
                    success: "Command executed successfully")
+    ### This is to make sure the message is visible to the agent
+    pp command
+
     case container.to_s
     when "ruby"
       if IN_CONTAINER
@@ -238,6 +241,11 @@ class MonadicApp
 
     stdout, stderr, status = Open3.capture3(system_command)
 
+    ### These are to make sure the message is visible to the agent
+    pp stdout
+    pp stderr
+    pp status
+
     if block_given?
       yield(stdout, stderr, status)
     elsif status.success?
@@ -250,6 +258,10 @@ class MonadicApp
   end
 
   def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: true)
+
+    ### This is to make sure the message is visible to the agent
+    pp code
+
     retries = 0
     last_error = nil
 
@@ -307,6 +319,11 @@ class MonadicApp
       DOCKER
 
       stdout, stderr, status = Open3.capture3(docker_command)
+
+      ### These are to make sure the message is visible to the agent
+      pp stdout
+      pp stderr
+      pp status
 
       # Wait briefly for filesystem synchronization
       sleep 1

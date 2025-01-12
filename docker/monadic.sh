@@ -4,7 +4,7 @@
 export PATH=${PATH}:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.9.31
+export MONADIC_VERSION=0.9.32
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -45,7 +45,7 @@ check_if_docker_desktop_is_running() {
 
 # Function to log Docker container startup status
 docker_start_log() {
-  local log_file="${HOME_DIR}/monadic/data/docker_startup.log"
+  local log_file="${HOME_DIR}/monadic/data/log/docker_startup.log"
   local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
   local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
 
@@ -132,6 +132,8 @@ ensure_data_dir() {
     data_dir="${HOME_DIR}/monadic/data"
   fi
   mkdir -p "${data_dir}"
+  mkdir -p "${data_dir}/log"
+  touch "${data_dir}/log/command.log" && echo "" > "${data_dir}/log/command.log"
   touch "${data_dir}/.env"
   touch "${data_dir}/rbsetup.sh"
   cp -f "${data_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
@@ -170,7 +172,7 @@ start_docker() {
 
 # Function to build Ruby container only
 build_ruby_container() {
-  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -188,7 +190,7 @@ build_ruby_container() {
 
 # Function to build Python container only
 build_python_container() {
-  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -233,7 +235,7 @@ build_user_containers() {
     return 2  # Special return code for "no user containers found"
   fi
 
-  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -274,7 +276,7 @@ build_docker_compose() {
   remove_containers
   
   # Create timestamp for log file
-  local log_file="${HOME_DIR}/monadic/data/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"

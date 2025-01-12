@@ -1,4 +1,4 @@
-- [Jan, 2025] 0.9.31
+- [Jan, 2025] 0.9.32
   - Perplexity models supported
   - Start-up time (after build) improved
 - [Dec, 2024] 0.9.30

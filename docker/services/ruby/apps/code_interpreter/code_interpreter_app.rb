@@ -4,7 +4,7 @@ class CodeInterpreter < MonadicApp
   icon = "<i class='fab fa-python'></i>"
 
   description = <<~TEXT
-  This is an application that allows you to run Python code. You can also install libraries, run bash commands, fetch text from files, and generate charts. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  This is an application that allows you to run Python code. You can also run bash commands, fetch text from files, and generate charts. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT
@@ -38,7 +38,7 @@ class CodeInterpreter < MonadicApp
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
-    If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it and ask the user for confirmation before proceeding with the installation. Do not install the library if it is already available: check the availability first with the `check_environment` function.
+    Before you suggest code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment. If the command or library is not available in the environment, ask the user to install it using the command that you suggest. The user can access the environment through the terminal.
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
@@ -224,31 +224,6 @@ class CodeInterpreter < MonadicApp
               }
             },
             required: ["command", "code", "extension"],
-            additionalProperties: false
-          }
-        },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
-        {
-          name: "lib_installer",
-          description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the following commands respectively: `pip install`, `apt-get install -y`.",
-          parameters: {
-            type: "object",
-            properties: {
-              command: {
-                type: "string",
-                description: "Library name to be installed."
-              },
-              packager: {
-                type: "string",
-                enum: ["pip", "apt"],
-                description: "Package manager to be used for installation."
-              }
-            },
-            required: ["command", "packager"],
             additionalProperties: false
           }
         },

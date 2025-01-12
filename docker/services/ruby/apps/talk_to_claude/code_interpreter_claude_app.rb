@@ -6,7 +6,7 @@ class CodeInterpreterClaude < MonadicApp
   icon = "<i class='fa-solid fa-a'></i>"
 
   description = <<~TEXT
-    This is an application that allows you to run Python code with Anthropic Claude. You can write and execute Python code, install libraries, fetch text from files, and fetch web content. Claude will help you run the code and display the output, including generated images and text data. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=anthropic" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an application that allows you to run Python code with Anthropic Claude. You can write and execute Python code, fetch text from files, and fetch web content. Claude will help you run the code and display the output, including generated images and text data. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=anthropic" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT
@@ -34,13 +34,13 @@ class CodeInterpreterClaude < MonadicApp
 
     ### Basic Procedure:
 
-    To execute the Python code, use the `run_script` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
-    If you get an error message from using the `run_script` function, try to modify the code and ask the user if they would like to try again with the modified code. If the error persists, provide the user with a detailed explanation of the error and suggest possible solutions instead of retrying.
+    If you get an error message from using the `run_code` function, try to modify the code and ask the user if they would like to try again with the modified code. If the error persists, provide the user with a detailed explanation of the error and suggest possible solutions instead of retrying.
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
-    If the command or library is not available in the environment, you can use the `lib_installer` function to install the library using the package manager. The package manager can be pip or apt. Check the availability of the library before installing it and ask the user for confirmation before proceeding with the installation. Do not install the library if it is already available: check the availability first with the `check_environment` function.
+    Before you suggest code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment. If the command or library is not available in the environment, ask the user to install it using the command that you suggest. The user can access the environment through the terminal.
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
@@ -176,7 +176,7 @@ class CodeInterpreterClaude < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    Run the code you have written using `run_script`. If your code is for the presentation purpose only, tell it to the user.
+    Run the code you have written using `run_code`. If your code is for the presentation purpose only, tell it to the user.
 
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
   TEXT
@@ -206,7 +206,7 @@ class CodeInterpreterClaude < MonadicApp
     model: "claude-3-5-sonnet-20241022",
     tools: [
       {
-        name: "run_script",
+        name: "run_code",
         description: "Run program code and return the output.",
         input_schema: {
           type: "object",
@@ -239,25 +239,6 @@ class CodeInterpreterClaude < MonadicApp
             }
           },
           required: ["command"]
-        }
-      },
-      {
-        name: "lib_installer",
-        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the following commands respectively: `pip install`, `apt-get install -y`.",
-        input_schema: {
-          type: "object",
-          properties: {
-            command: {
-              type: "string",
-              description: "Library name to be installed."
-            },
-            packager: {
-              type: "string",
-              enum: ["pip", "apt"],
-              description: "Package manager to be used for installation."
-            }
-          },
-          required: ["command", "packager"]
         }
       },
       {

@@ -38,6 +38,8 @@ class CodeInterpreterClaude < MonadicApp
 
     If you get an error message from using the `run_code` function, try to modify the code and ask the user if they would like to try again with the modified code. If the error persists, provide the user with a detailed explanation of the error and suggest possible solutions instead of retrying.
 
+    Make sure to show the code and the output in separate code blocks in your text response, in addition to the tool/function call.
+
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
     Before you suggest code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment. If the command or library is not available in the environment, ask the user to install it using the command that you suggest. The user can access the environment through the terminal.

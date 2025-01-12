@@ -52,11 +52,6 @@ pre {
   scrollbar-width: thin;
 }
 
-pre code {
-  background-color: #f8f8f8;
-  white-space: pre-wrap;
-}
-
 div.sourcecode-toggle {
   color: #777;
 }
@@ -196,10 +191,6 @@ button.fixed-width {
   padding-left: 0;
   border-bottom: 0;
   color: rgba(0, 0, 0, .6);
-}
-
-pre code {
-  font-size: 0.96em;
 }
 
 .icon-container {
@@ -726,3 +717,10 @@ ol li::before {
 div.highlight pre.highlight {
   padding: 0;
 }
+
+pre code {
+  font-size: 0.96em;
+  background-color: #f8f8f8;
+  white-space: pre-wrap;
+}
+

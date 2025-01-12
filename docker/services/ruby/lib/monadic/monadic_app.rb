@@ -32,6 +32,13 @@ class MonadicApp
   # shared volume between the containers
   SHARED_VOL = "/monadic/data"
 
+
+  COMMAND_LOG_FILE = if IN_CONTAINER
+                       "/monadic/data/log/command.log"
+                     else
+                       Dir.home + "/monadic/data/log/command.log"
+                     end
+
   # script directory in the dev mode (= when ruby-container is not used)
   LOCAL_SYSTEM_SCRIPT_DIR = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
   # script directory in the local computer to store the user scripts
@@ -41,9 +48,6 @@ class MonadicApp
 
   # delay to wait for the command execution
   COMMAND_DELAY = 1.5
-
-  # command log file path
-  COMMAND_LOG_FILE = File.expand_path(File.join(Dir.home, "monadic", "data", "log", "command.log"))
 
   AI_USER_INITIAL_PROMPT = <<~PROMPT
       The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.

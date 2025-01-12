@@ -14,6 +14,13 @@ PID_FILE = __dir__ + "/thin.pid"
 # Set the data directory $HOME/monadic/data
 DATA_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "data"))
 
+# Create "log" directory under DATA_DIR if it doesn't exist
+Dir.mkdir(File.join(DATA_DIR, "log")) unless Dir.exist?(File.join(DATA_DIR, "log"))
+
+# Create a "command.log" file under the log directory if it doesn't exist
+# If it exits, empty the file
+File.open(File.join(DATA_DIR, "log", "command.log"), "w") {}
+
 # Helper methods for OS detection
 def is_mac?
   RUBY_PLATFORM.include?('darwin')
@@ -120,7 +127,7 @@ def start_server(opts)
       puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
     else
       puts "Server failed to start"
-      File.open(File.join(DATA_DIR, "monadic.log"), "a") do |file|
+      File.open(File.join(DATA_DIR, "log", "monadic.log"), "a") do |file|
         file.puts("Failed to start server at #{Time.now}")
         file.puts(output)
       end

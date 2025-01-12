@@ -39,6 +39,12 @@ class MonadicApp
   # shared volume in the local computer to share with the containers
   LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
 
+  # delay to wait for the command execution
+  COMMAND_DELAY = 1.5
+
+  # command log file path
+  COMMAND_LOG_FILE = File.expand_path(File.join(Dir.home, "monadic", "data", "log", "command.log"))
+
   AI_USER_INITIAL_PROMPT = <<~PROMPT
       The user is currently answering various types of questions, writing computer program code, making decent suggestions, and giving helpful advice on your message. Give the user requests, suggestions, or questions so that the conversation is engaging and interesting. If there are any errors in the responses you get, point them out and ask for correction. Use the same language as the user.
 
@@ -200,11 +206,30 @@ class MonadicApp
     "<div class='json-container'>#{output}</div>"
   end
 
+  def capture_command(command)
+    unless command
+      return ["Error: command is required.", nil, 1]
+    end
+
+    stdout, stderr, status = Open3.capture3(command)
+
+    # output log data of input and output
+    # create a log (COMMAND_LOG_FILE) to store the command and its output
+    File.open(COMMAND_LOG_FILE, "a") do |f|
+      f.puts "Time: #{Time.now}"
+      f.puts "Command: #{command}"
+      f.puts "Status: #{status.success? ? "Success" : "Failure"}"
+      f.puts "Error: #{stderr}" if stderr.strip.length.positive?
+      f.puts "Output: #{stdout}"
+      f.puts "-----------------------------------"
+    end
+
+    [stdout, stderr, status]
+  end
+
   def send_command(command:,
                    container: "python",
                    success: "Command executed successfully")
-    ### This is to make sure the message is visible to the agent
-    pp command
 
     case container.to_s
     when "ruby"
@@ -239,12 +264,7 @@ class MonadicApp
       DOCKER
     end
 
-    stdout, stderr, status = Open3.capture3(system_command)
-
-    ### These are to make sure the message is visible to the agent
-    pp stdout
-    pp stderr
-    pp status
+    stdout, stderr, status = capture_command(system_command)
 
     if block_given?
       yield(stdout, stderr, status)
@@ -257,10 +277,7 @@ class MonadicApp
     "Error occurred: #{e.message}"
   end
 
-  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: true)
-
-    ### This is to make sure the message is visible to the agent
-    pp code
+  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false)
 
     retries = 0
     last_error = nil
@@ -308,7 +325,7 @@ class MonadicApp
       docker_command = <<~DOCKER
         docker cp #{file_path} #{container}:#{SHARED_VOL}
       DOCKER
-      stdout, stderr, status = Open3.capture3(docker_command)
+      stdout, stderr, status = capture_command(docker_command)
       unless status.success?
         raise "Error occurred: #{stderr}"
       end
@@ -318,15 +335,10 @@ class MonadicApp
         docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(file_path)}
       DOCKER
 
-      stdout, stderr, status = Open3.capture3(docker_command)
-
-      ### These are to make sure the message is visible to the agent
-      pp stdout
-      pp stderr
-      pp status
+      stdout, stderr, status = capture_command(docker_command)
 
       # Wait briefly for filesystem synchronization
-      sleep 1
+      sleep COMMAND_DELAY
 
       if status.success?
         # Get the list of files with their content digest after execution
@@ -486,10 +498,10 @@ class MonadicApp
       DOCKER
     end
 
-    stdout, stderr, status = Open3.capture3(docker_command)
+    stdout, stderr, status = capture_command(docker_command)
 
     # Wait briefly for filesystem synchronization
-    sleep 1
+    sleep COMMAND_DELAY
 
     if status.success?
       # stdout.to_s.encode('UTF-8').gsub(/\\u([0-9a-fA-F]{4})/) { 
@@ -532,7 +544,7 @@ class MonadicApp
       docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --keep-unknown --output stdout'
     DOCKER
 
-    stdout, stderr, status = Open3.capture3(docker_command)
+    stdout, stderr, status = capture_command(docker_command)
 
     # Wait briefly for filesystem synchronization
     sleep 1

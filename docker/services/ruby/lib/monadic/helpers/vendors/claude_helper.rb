@@ -350,11 +350,15 @@ module ClaudeHelper
                 stop_reason = json.dig("delta", "stop_reason")
                 case stop_reason
                 when "tool_use"
-                  fragment = <<~FRAG
-                  <div class='toggle'><pre>
-                  #{JSON.pretty_generate(tool_calls.last)}
-                  </pre></div>
-                  FRAG
+                  #fragment = <<~FRAG
+
+                  #<div class='toggle'><pre>
+                  #  #{JSON.pretty_generate(tool_calls.last)}
+                  #</pre></div>
+
+                  #FRAG
+
+                  #texts << fragment
 
                   finish_reason = "tool_use"
                   res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }

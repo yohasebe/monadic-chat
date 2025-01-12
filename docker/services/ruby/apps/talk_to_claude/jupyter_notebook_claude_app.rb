@@ -10,7 +10,7 @@ class JupyterNotebookClaude < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    The function `add_jupyter_cells` needs parameters `filename`, `cells`, and `escaped`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly. `escaped` should be set to `true`.
+    The function `add_jupyter_cells` needs parameters `filename`, `cells`, and `escaped`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly. `escaped` should be set to `false`.
 
     In the context data provided to you by the user, the part of your response where function calls are made is not included. You should decide where you should call the functions yourself. Call functions whenever you think it is necessary to do so. If you get errors multiple times in a row, you should stop the process and inform the user of the error.
 
@@ -136,25 +136,6 @@ class JupyterNotebookClaude < MonadicApp
         }
       },
       {
-        name: "lib_installer",
-        description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed. The `packager` parameter corresponds to the following commands respectively: `pip install`, `apt-get install -y`.",
-        input_schema: {
-          type: "object",
-          properties: {
-            command: {
-              type: "string",
-              description: "Library name to be installed."
-            },
-            packager: {
-              type: "string",
-              enum: ["pip", "apt"],
-              description: "Package manager to be used for installation."
-            }
-          },
-          required: ["command", "packager"]
-        }
-      },
-      {
         name: "run_bash_command",
         description: "Run a bash command and return the output. The argument to `command` is provided as part of `docker exec -w shared_volume container COMMAND`.",
         input_schema: {
@@ -277,7 +258,7 @@ class JupyterNotebookClaude < MonadicApp
             },
             escaped: {
               type: "boolean",
-              description: "Indicates whether the content of the cells is escaped. Always set to true."
+              description: "Indicates whether the content of the cells is escaped. Always set to false."
             }
           },
           required: ["filename", "cells", "escaped"]

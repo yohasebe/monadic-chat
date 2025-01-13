@@ -26,11 +26,11 @@ RUN pip install -U pip && \
     pymupdf pymupdf4llm \
     selenium html2text \
     openpyxl python-docx python-pptx \
-    opencv-python moviepy \
     requests beautifulsoup4 \
     lxml pygraphviz pydotplus networkx pyvis \
     svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot
+    pyecharts pyecharts-snapshot \
+    opencv-python moviepy==2.0.0.dev2
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

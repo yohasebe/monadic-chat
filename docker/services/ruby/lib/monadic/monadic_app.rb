@@ -34,9 +34,9 @@ class MonadicApp
 
 
   COMMAND_LOG_FILE = if IN_CONTAINER
-                       "/monadic/data/log/command.log"
+                       "/monadic/log/command.log"
                      else
-                       Dir.home + "/monadic/data/log/command.log"
+                       Dir.home + "/monadic/log/command.log"
                      end
 
   # script directory in the dev mode (= when ruby-container is not used)

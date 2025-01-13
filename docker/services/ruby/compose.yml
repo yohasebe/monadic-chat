@@ -13,6 +13,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
+      - log:/monadic/log
+      - ~/monadic/log:/monadic/log
     ports:
       - "4567:4567"
     restart: always

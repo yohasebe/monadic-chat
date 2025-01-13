@@ -27,7 +27,7 @@ function addCopyToClipboardListener() {
 
 // Add event listeners for command buttons
 function addCommandListeners() {
-  ['start', 'stop', 'restart', 'browser', 'folder', 'settings', 'exit'].forEach(id => {
+  ['start', 'stop', 'restart', 'browser', 'sharedfolder', 'settings', 'exit'].forEach(id => {
     document.getElementById(id).addEventListener('click', () => {
       window.electronAPI.sendCommand(id);
     });
@@ -58,7 +58,7 @@ function updateMonadicChatStatusUI(status) {
     stop: document.getElementById('stop'),
     restart: document.getElementById('restart'),
     browser: document.getElementById('browser'),
-    folder: document.getElementById('folder'),
+    sharedfolder: document.getElementById('sharedfolder'),
     settings: document.getElementById('settings')
   };
 
@@ -75,7 +75,7 @@ function updateMonadicChatStatusUI(status) {
     Object.values(buttons).forEach(button => button.disabled = true);
     statusElement.classList.remove('active');
     statusElement.classList.add('inactive');
-    buttons.folder.disabled = false;
+    buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Running') {
     statusElement.textContent = "Final Steps";
@@ -84,7 +84,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.stop.disabled = false;
     buttons.restart.disabled = false;
     buttons.browser.disabled = true;
-    buttons.folder.disabled = false;
+    buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Ready') {
     statusElement.textContent = "Running";
@@ -94,7 +94,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.stop.disabled = false;
     buttons.restart.disabled = false;
     buttons.browser.disabled = false;
-    buttons.folder.disabled = false;
+    buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Stopped') {
     statusElement.classList.remove('active');
@@ -103,11 +103,11 @@ function updateMonadicChatStatusUI(status) {
     buttons.stop.disabled = true;
     buttons.restart.disabled = true;
     buttons.browser.disabled = true;
-    buttons.folder.disabled = false;
+    buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else {
     Object.values(buttons).forEach(button => button.disabled = true);
-    buttons.folder.disabled = false;
+    buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   }
 }

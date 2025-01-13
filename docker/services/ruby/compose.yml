@@ -13,6 +13,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
+      - config:/monadic/config
+      - ~/monadic/config:/monadic/config
       - log:/monadic/log
       - ~/monadic/log:/monadic/log
     ports:

@@ -4,7 +4,7 @@
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.
 
-Once the OpenAI API key is set, it is saved in the `~/monadic/data/.env` file in the following format:
+Once the OpenAI API key is set, it is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 OPENAI_API_KEY=api_key
@@ -18,7 +18,7 @@ For apps using OpenAI's language models, refer to the [Basic Apps](./basic-apps.
 
 ![Anthropic apps icon](./assets/icons/a.png ':size=40')
 
-By setting the Anthropic API key, you can use apps that utilize Claude. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+By setting the Anthropic API key, you can use apps that utilize Claude. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 ANTHROPIC_API_KEY=api_key
@@ -61,7 +61,7 @@ Once the Anthropic API key is set, you can use the following apps. For informati
 
 ![Google apps icon](./assets/icons/google.png ':size=40')
 
-By setting the Google Gemini API key, you can use apps that utilize Gemini. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+By setting the Google Gemini API key, you can use apps that utilize Gemini. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 GEMINI_API_KEY=api_key
@@ -87,7 +87,7 @@ Once the Google Gemini API key is set, you can use the following apps. For infor
 
 ![Cohere apps icon](./assets/icons/c.png ':size=40')
 
-By setting the Cohere API key, you can use apps that utilize Command R. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+By setting the Cohere API key, you can use apps that utilize Command R. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 COHERE_API_KEY=api_key
@@ -113,7 +113,7 @@ Once the Cohere API key is set, you can use the following apps. For information 
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
 
-By setting the Mistral AI API key, you can use apps that utilize Mistral. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+By setting the Mistral AI API key, you can use apps that utilize Mistral. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 MISTRAL_API_KEY=api_key
@@ -139,7 +139,7 @@ Once the Mistral API key is set, you can use the following apps. For information
 
 ![xAI apps icon](./assets/icons/x.png ':size=40')
 
-By setting the xAI API key, you can use apps that utilize xAI. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+By setting the xAI API key, you can use apps that utilize xAI. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 XAI_API_KEY=api_key
@@ -165,7 +165,7 @@ Once the xAI API key is set, you can use the following apps. For information on 
 
 ![Perplexity apps icon](./assets/icons/p.png ':size=40')
 
-By setting the Perplexity API key, you can use apps that utilize Perplexity. Once set, the API key is saved in the `~/monadic/data/.env` file in the following format:
+By setting the Perplexity API key, you can use apps that utilize Perplexity. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 PERPLEXITY_API_KEY=api_key

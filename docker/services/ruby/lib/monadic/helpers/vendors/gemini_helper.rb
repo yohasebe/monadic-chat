@@ -50,8 +50,8 @@ module GeminiHelper
       api_key = CONFIG["GEMINI_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      # ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file.
-      error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/data/.env file."
+      # ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file.
+      error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file."
       pp error_message
       res = { "type" => "error", "content" => error_message }
       block&.call res

@@ -31,11 +31,11 @@ end
 
 def generate_image(prompt, size, num_retrials: 3)
   begin
-    api_key = File.read("/monadic/data/.env").split("\n").find do |line|
+    api_key = File.read("/monadic/config/env").split("\n").find do |line|
       line.start_with?("OPENAI_API_KEY")
     end.split("=").last
   rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/data/.env").split("
+    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("
 ").find do |line|
       line.start_with?("OPENAI_API_KEY")
     end.split("=").last

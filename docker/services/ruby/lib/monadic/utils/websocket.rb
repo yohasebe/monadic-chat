@@ -120,7 +120,7 @@ module WebSocketHelper
           end
         when "CHECK_TOKEN"
           if CONFIG["ERROR"].to_s == "true"
-            ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/data/.env</code>" }.to_json)
+            ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/config/env</code>" }.to_json)
           else
             token = CONFIG["OPENAI_API_KEY"]
 

@@ -5,13 +5,13 @@ module Paths
   retries = 0
 
   if IN_CONTAINER
-    ENV_PATH = "/monadic/data/.env"
+    ENV_PATH = "/monadic/config/env"
     SCRIPTS_PATH = "/monadic/data/scripts"
     APPS_PATH = "/monadic/data/apps"
     HELPERS_PATH = "/monadic/data/helpers"
     PLUGINS_PATH = "/monadic/data/plugins"
   else
-    ENV_PATH = File.join(Dir.home, "monadic", "data", ".env")
+    ENV_PATH = File.join(Dir.home, "monadic", "config", "env")
     SCRIPTS_PATH = File.join(Dir.home, "monadic", "data", "scripts")
     APPS_PATH = File.join(Dir.home, "monadic", "data", "apps")
     HELPERS_PATH = File.join(Dir.home, "monadic", "data", "helpers")

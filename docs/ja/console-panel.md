@@ -59,7 +59,7 @@ Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート
 
 ![Settings Panel](./assets/images/settings-panel.png ':size=600')
 
-ここでの設定はすべて `~/monadic/data/.env` ファイルに保存されます。
+ここでの設定はすべて `~/monadic/config/env` ファイルに保存されます。
 
 **OPENAI_API_KEY**<br />
 OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、Whisper 音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。

@@ -72,7 +72,7 @@ module CommandRHelper
       api_key = CONFIG["COHERE_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: COHERE_API_KEY not found. Please set the COHERE_API_KEY environment variable in the ~/monadic/data/.env file."
+      pp error_message = "ERROR: COHERE_API_KEY not found. Please set the COHERE_API_KEY environment variable in the ~/monadic/config/env file."
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []

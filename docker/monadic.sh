@@ -104,7 +104,7 @@ set_docker_compose() {
   if [[ -z "${compose_user}" ]]; then
     COMPOSE_MAIN="${ROOT_DIR}/services/compose.yml"
   else
-    cat <<EOF >"${HOME_DIR}/monadic/data/compose.yml"
+    cat <<EOF >"${HOME_DIR}/monadic/config/compose.yml"
 include:
   - ${ROOT_DIR}/services/ruby/compose.yml
   - ${ROOT_DIR}/services/pgvector/compose.yml
@@ -119,7 +119,7 @@ networks:
 volumes:
   data:
 EOF
-    COMPOSE_MAIN="${HOME_DIR}/monadic/data/compose.yml"
+    COMPOSE_MAIN="${HOME_DIR}/monadic/config/compose.yml"
   fi
 }
 
@@ -127,21 +127,29 @@ EOF
 ensure_data_dir() {
   local data_dir
   local log_dir
+  local config_dir
+
   if [[ -f "/.dockerenv" ]]; then
     data_dir="/monadic/data"
     log_dir="/monadic/log"
+    log_dir="/monadic/config"
   else
     data_dir="${HOME_DIR}/monadic/data"
     log_dir="${HOME_DIR}/monadic/log"
+    config_dir="${HOME_DIR}/monadic/config"
   fi
+
   mkdir -p "${data_dir}"
   mkdir -p "${log_dir}"
+  mkdir -p "${config_dir}"
+
   rm -f "${log_dir}/command.log"
-  touch "${data_dir}/.env"
-  touch "${data_dir}/rbsetup.sh"
-  cp -f "${data_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
-  touch "${data_dir}/pysetup.sh"
-  cp -f "${data_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
+
+  touch "${config_dir}/env"
+  touch "${config_dir}/rbsetup.sh"
+  cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
+  touch "${config_dir}/pysetup.sh"
+  cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
 }
 
 # Function to start Docker based on OS

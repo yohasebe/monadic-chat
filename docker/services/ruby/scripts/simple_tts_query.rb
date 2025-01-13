@@ -13,10 +13,10 @@ def tts_api_request(text, response_format: "mp3", speed: "1.0", voice: "alloy", 
   num_retrial = 0
 
   begin
-    api_key = File.read("/monadic/data/.env").split("
+    api_key = File.read("/monadic/config/env").split("
 ").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
   rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/data/.env").split("
+    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("
 ").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
   end
 

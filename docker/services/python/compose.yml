@@ -13,8 +13,6 @@ services:
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
-      - log:/monadic/log
-      - ~/monadic/log:/monadic/log
     command: /bin/sh -c "cd /monadic/flask && gunicorn --timeout 300 -b 0.0.0.0:5070 app:app"
     networks:
       - monadic-chat-network

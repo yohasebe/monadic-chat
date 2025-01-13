@@ -74,9 +74,9 @@ def image_query(message, image, model = "gpt-4o-mini")
   num_retrial = 0
 
   begin
-    api_key = File.read("/monadic/data/.env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
+    api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
   rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/data/.env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
+    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
   end
 
   if image && File.file?(image)

@@ -58,7 +58,7 @@ Import PDF document data exported by Monadic Chat's export feature into the PGVe
 
 ![Settings Panel](./assets/images/settings-panel.png ':size=600')
 
-All settings here are saved in the `~/monadic/data/.env` file.
+All settings here are saved in the `~/monadic/config/env` file.
 
 **OPENAI_API_KEY** <br />
 (Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Whisper speech recognition API, and speech synthesis API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).

@@ -10,4 +10,3 @@ networks:
 
 volumes:
   data:
-  log:

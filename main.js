@@ -518,6 +518,14 @@ const menuItems = [
     enabled: true
   },
   {
+    label: 'Open Config Folder',
+    click: () => {
+      openMainWindow();
+      openConfigFolder();
+    },
+    enabled: true
+  },
+  {
     label: 'Open Log Folder',
     click: () => {
       openMainWindow();
@@ -1026,6 +1034,13 @@ function updateApplicationMenu() {
           }
         },
         {
+          label: 'Open Config Folder',
+          click: () => {
+            openMainWindow();
+            openConfigFolder();
+          }
+        },
+        {
           label: 'Open Log Folder',
           click: () => {
             openMainWindow();
@@ -1180,6 +1195,33 @@ function openSharedFolder() {
   });
 }
 
+function openConfigFolder() {
+  let folderPath;
+  if (os.platform() === 'darwin' || os.platform() === 'linux') {
+    folderPath = path.join(os.homedir(), 'monadic', 'config');
+  } else if (os.platform() === 'win32') {
+    try {
+      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
+      const wslPath = `/home/${path.basename(wslHome)}/monadic/config`;
+      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+    } catch (error) {
+      console.error('Error retrieving WSL path:', error);
+      return;
+    }
+  }
+  
+  // create folderPath if it does not exist
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, {recursive: true});
+  }
+
+  shell.openPath(folderPath).then((result) => {
+    if (result) {
+      console.error('Error opening path:', result);
+    }
+  });
+}
+
 function openLogFolder() {
   let folderPath;
   if (os.platform() === 'darwin' || os.platform() === 'linux') {
@@ -1284,14 +1326,14 @@ function getEnvPath() {
   if (os.platform() === 'win32') {
     try {
       const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/data/.env`;
+      const wslPath = `/home/${path.basename(wslHome)}/monadic/config/env`;
       return execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
     } catch (error) {
       console.error('Error getting WSL path:', error);
       return null;
     }
   } else {
-    return path.join(os.homedir(), 'monadic', 'data', '.env');
+    return path.join(os.homedir(), 'monadic', 'config', 'env');
   }
 }
 

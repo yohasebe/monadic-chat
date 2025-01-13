@@ -4,7 +4,7 @@
 
 Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのためOpenAIのAPIキーを設定することをお勧めします。ただし、チャットで使いたいモデルがOpenAIのモデルでない場合、必ずしもOpenAIのAPIキーを設定する必要はありません。
 
-APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 OPENAI_API_KEY=api_key
@@ -18,7 +18,7 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 
 ![Anthropic apps icon](./assets/icons/a.png ':size=40')
 
-ANthropic APIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+ANthropic APIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 ANTHROPIC_API_KEY=api_key
@@ -60,7 +60,7 @@ Ahthropic APIキーを設定すると下記のアプリを使用することが�
 
 ![Google apps icon](./assets/icons/google.png ':size=40')
 
-Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 GEMINI_API_KEY=api_key
@@ -87,7 +87,7 @@ Google Gemini APIキーを設定すると下記のアプリを使用すること
 ![Cohere apps icon](./assets/icons/c.png ':size=40')
 
 
- CohereのAPIキーを設定すると、Command Rを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+ CohereのAPIキーを設定すると、Command Rを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 COHERE_API_KEY=api_key
@@ -113,7 +113,7 @@ CohereのAPIキーを設定すると下記のアプリを使用することが�
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
 
-Mistral APIキーを設定すると、Mistralを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+Mistral APIキーを設定すると、Mistralを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 MISTRAL_API_KEY=api_key
@@ -139,7 +139,7 @@ Mistral APIキーを設定すると下記のアプリを使用することがで
 
 ![xAI apps icon](./assets/icons/x.png ':size=40')
 
-xAI APIキーを設定すると、Grokを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+xAI APIキーを設定すると、Grokを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 XAI_API_KEY=api_key
@@ -165,7 +165,7 @@ xAI APIキーを設定すると下記のアプリを使用することができ�
 
 ![Perplexity apps icon](./assets/icons/p.png ':size=40')
 
-Perplexity APIキーを設定すると、Perplexityを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/data/.env` ファイルに次の形式でAPIキーが保存されます。
+Perplexity APIキーを設定すると、Perplexityを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 PERPLEXITY_API_KEY=api_key

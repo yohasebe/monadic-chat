@@ -11,15 +11,13 @@ Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 DEFAULT_PORT = 4567
 PID_FILE = __dir__ + "/thin.pid"
 
-# Set the data directory $HOME/monadic/data
 DATA_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "data"))
+LOG_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "log"))
 
-# Create "log" directory under DATA_DIR if it doesn't exist
-Dir.mkdir(File.join(DATA_DIR, "log")) unless Dir.exist?(File.join(DATA_DIR, "log"))
+Dir.mkdir(DATA_DIR) unless Dir.exist?(DATA_DIR)
+Dir.mkdir(LOG_DIR) unless Dir.exist?(LOG_DIR)
 
-# Create a "command.log" file under the log directory if it doesn't exist
-# If it exits, empty the file
-File.open(File.join(DATA_DIR, "log", "command.log"), "w") {}
+File.open(File.join(LOG_DIR, "command.log"), "w") {}
 
 # Helper methods for OS detection
 def is_mac?
@@ -114,6 +112,7 @@ def start_server(opts)
 
   # Start the server
   cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
+  cmd += " --log #{File.join(LOG_DIR, "server.log")}" if opts[:log]
   cmd += " --daemonize" if opts[:daemonize]
   
   if opts[:log] || !opts[:daemonize]
@@ -127,7 +126,7 @@ def start_server(opts)
       puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
     else
       puts "Server failed to start"
-      File.open(File.join(DATA_DIR, "log", "monadic.log"), "a") do |file|
+      File.open(File.join(LOG_DIR, "server.log"), "a") do |file|
         file.puts("Failed to start server at #{Time.now}")
         file.puts(output)
       end

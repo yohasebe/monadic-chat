@@ -14,6 +14,8 @@ services:
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
+      - log:/monadic/log
+      - ~/monadic/log:/monadic/log
       - monadic-chat-pgvector-data:/var/lib/postgresql/data:rw
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]

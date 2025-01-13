@@ -249,11 +249,6 @@ module WebSocketHelper
           mini_session[:parameters]["frequency_penalty"] = 1.0
           mini_session[:parameters].delete("prompt_suffix")
 
-          f = File.open("log.txt", "w")
-          f.write mini_session.to_json
-          f.close
-
-
           responses = api_request.call("user", mini_session) do |fragment|
             if fragment["type"] == "error"
               @channel.push({ "type" => "error", "content" => "E1:#{fragment}" }.to_json)

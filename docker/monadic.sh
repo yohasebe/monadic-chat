@@ -45,7 +45,7 @@ check_if_docker_desktop_is_running() {
 
 # Function to log Docker container startup status
 docker_start_log() {
-  local log_file="${HOME_DIR}/monadic/data/log/docker_startup.log"
+  local log_file="${HOME_DIR}/monadic/log/docker_startup.log"
   local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
   local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
 
@@ -126,14 +126,17 @@ EOF
 # Function to ensure data directory exists
 ensure_data_dir() {
   local data_dir
+  local log_dir
   if [[ -f "/.dockerenv" ]]; then
     data_dir="/monadic/data"
+    log_dir="/monadic/log"
   else
     data_dir="${HOME_DIR}/monadic/data"
+    log_dir="${HOME_DIR}/monadic/log"
   fi
   mkdir -p "${data_dir}"
-  mkdir -p "${data_dir}/log"
-  touch "${data_dir}/log/command.log" && echo "" > "${data_dir}/log/command.log"
+  mkdir -p "${log_dir}"
+  rm -f "${log_dir}/command.log"
   touch "${data_dir}/.env"
   touch "${data_dir}/rbsetup.sh"
   cp -f "${data_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
@@ -156,7 +159,7 @@ start_docker() {
     ;;
   *)
     echo "Unsupported operating system: ${HOST_OS}" >&2
-    exit 1
+    # exit 1
     ;;
   esac
 
@@ -165,14 +168,14 @@ start_docker() {
     sh "${start_script}" && echo "[HTML]: <p>Starting Docker . . .</p>"
   else
     echo "Start script not found: ${start_script}" >&2
-    exit 1
+    # exit 1
   fi
 
 }
 
 # Function to build Ruby container only
 build_ruby_container() {
-  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -190,7 +193,7 @@ build_ruby_container() {
 
 # Function to build Python container only
 build_python_container() {
-  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -235,7 +238,7 @@ build_user_containers() {
     return 2  # Special return code for "no user containers found"
   fi
 
-  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -276,7 +279,7 @@ build_docker_compose() {
   remove_containers
   
   # Create timestamp for log file
-  local log_file="${HOME_DIR}/monadic/data/log/docker_build.log"
+  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
   
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
@@ -299,7 +302,7 @@ start_docker_compose() {
   while ! ${DOCKER} info > /dev/null 2>&1; do
     if [ $retries -ge $RETRY_COUNT ]; then
       echo "Docker did not start. Please start Docker Desktop manually."
-      exit 1
+      # exit 1
     fi
     retries=$((retries + 1))
     echo "Waiting for Docker to start... (${retries}/${RETRY_COUNT})"
@@ -489,7 +492,7 @@ export_db() {
     start_docker_compose silent
   else
     echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    exit 1
+    # exit 1
   fi
 
   ${DOCKER} exec "${container_name}" sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
@@ -510,12 +513,12 @@ import_db() {
     start_docker_compose silent
   else
     echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    exit 1
+    # exit 1
   fi
 
   if [ ! -f "${HOME_DIR}/monadic/data/monadic.gz" ]; then
     echo "[HTML]: <p>Document DB file 'monadic.gz' does not exist. Please set the file in the shared folder first.</p><hr />"
-    exit 1
+    # exit 1
   fi
 
   ${DOCKER} exec "${container_name}" sh -c "dropdb -f -U postgres monadic && createdb -U postgres --locale=C --template=template0 monadic && gunzip -t \"/monadic/data/monadic.gz\" && gunzip -c \"/monadic/data/monadic.gz\" | psql -v ON_ERROR_STOP=1 -U postgres monadic || exit 1"
@@ -546,7 +549,7 @@ build_ruby_container)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_python_container)
@@ -564,7 +567,7 @@ build_python_container)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_user_containers)
@@ -587,7 +590,7 @@ build_user_containers)
   elif ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build)
@@ -605,7 +608,7 @@ build)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Monadic Chat has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>monadic.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 check)
@@ -666,7 +669,7 @@ import-db)
   ;;
 *)
   echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2
-  exit 1
+  # exit 1
   ;;
 esac
 

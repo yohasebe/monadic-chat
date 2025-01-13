@@ -252,7 +252,7 @@ class DockerManager {
                         openBrowser('http://localhost:4567');
                       })
                       .catch(error => {
-                      writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please check out <b>monadic.log</b> in the shared folder and start the server again. Rebuild the image ("Menu" → "Action" → "Rebuild"), if necessary.</p><hr />');
+                      writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please check out <b>server.log</b> in the log folder and start the server again. Rebuild the image ("Menu" → "Action" → "Rebuild"), if necessary.</p><hr />');
                       console.error('Fetch operation failed after retries:', error);
                       currentStatus = 'Stopped';
                       updateTrayImage(currentStatus);
@@ -513,7 +513,15 @@ const menuItems = [
     label: 'Open Shared Folder',
     click: () => {
       openMainWindow();
-      openFolder();
+      openSharedFolder();
+    },
+    enabled: true
+  },
+  {
+    label: 'Open Log Folder',
+    click: () => {
+      openMainWindow();
+      openLogFolder();
     },
     enabled: true
   },
@@ -632,9 +640,12 @@ function initializeApp() {
           case 'browser':
             openBrowser('http://localhost:4567');
             break;
-          case 'folder':
-            openFolder();
+          case 'sharedfolder':
+            openSharedFolder();
             break;
+          // case 'logfolder':
+          //   openLogFolder();
+          //   break;
           case 'settings':
             openSettingsWindow();
             break;
@@ -720,7 +731,7 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout =
         await new Promise(resolve => setTimeout(resolve, delay));
         return attemptFetch(attempt + 1);
       } else {
-        console.log(`Failed to connect to server after ${retries} attempts. Please check the error log in the shared folder.`);
+        console.log(`Failed to connect to server after ${retries} attempts. Please check the error log in the log folder.`);
       }
       throw error;
     }
@@ -1011,7 +1022,14 @@ function updateApplicationMenu() {
           label: 'Open Shared Folder',
           click: () => {
             openMainWindow();
-            openFolder();
+            openSharedFolder();
+          }
+        },
+        {
+          label: 'Open Log Folder',
+          click: () => {
+            openMainWindow();
+            openLogFolder();
           }
         },
         {
@@ -1135,7 +1153,7 @@ function createMainWindow() {
   });
 }
 
-function openFolder() {
+function openSharedFolder() {
   let folderPath;
   if (os.platform() === 'darwin' || os.platform() === 'linux') {
     folderPath = path.join(os.homedir(), 'monadic', 'data');
@@ -1148,6 +1166,38 @@ function openFolder() {
       console.error('Error retrieving WSL path:', error);
       return;
     }
+  }
+
+  // create folderPath if it does not exist
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, {recursive: true});
+  }
+
+  shell.openPath(folderPath).then((result) => {
+    if (result) {
+      console.error('Error opening path:', result);
+    }
+  });
+}
+
+function openLogFolder() {
+  let folderPath;
+  if (os.platform() === 'darwin' || os.platform() === 'linux') {
+    folderPath = path.join(os.homedir(), 'monadic', 'log');
+  } else if (os.platform() === 'win32') {
+    try {
+      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
+      const wslPath = `/home/${path.basename(wslHome)}/monadic/log`;
+      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+    } catch (error) {
+      console.error('Error retrieving WSL path:', error);
+      return;
+    }
+  }
+  
+  // create folderPath if it does not exist
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, {recursive: true});
   }
 
   shell.openPath(folderPath).then((result) => {

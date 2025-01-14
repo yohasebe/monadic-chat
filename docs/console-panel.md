@@ -82,13 +82,19 @@ Open the `~/monadic/config` folder. This folder contains configuration files for
 - `rbsetup.sh`: Script for setting up the Ruby environment.
 - `compose.yml`: Docker Compose configuration file.
 
-** Open Log Folder** <br />
+**Open Log Folder** <br />
 Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat. The following files are included:
 
 - `docker-build.log`: Log file for Docker build.
 - `docker-startup.log`: Log file for Docker startup.
 - `server.log`: Log file for the Monadic Chat server.
 - `command.log`: Log file for command execution and code execution.
+
+**Open Console** <br />
+Open the Monadic Chat console.
+
+**Settings** <br />
+Open the Monadic Chat settings panel.
 
 ## API Token Settings Panel
 

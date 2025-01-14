@@ -26,7 +26,12 @@ Monadic Chat Consoleを終了します。
 
 ![Console Menu](./assets/images/console-menu.png ':size=300')
 
+### Actions メニュー
+
 ![Action Menu](./assets/images/action-menu.png ':size=150')
+
+**Start** <br />
+Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
 **Rebuild All** <br />
 Monadic ChatのすべてのDockerイメージおよびコンテナを再構築します。
@@ -54,6 +59,37 @@ Monadic ChatのPGVectorデータベースに保存されているPDFドキュメ
 
 **Import Document DB** <br />
 Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート機能で書き出されたPDFドキュメントデータをインポートします。インポートの際には、共有フォルダに`monadic.json`という名前のファイルを配置してください。
+
+### Open メニュー
+
+![Open Menu](./assets/images/open-menu.png ':size=190')
+
+**Open Browser** <br />
+Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
+
+**Open Shared Folder** <br />
+ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
+
+- `apps`: 追加アプリケーションを格納するフォルダ
+- `scripts`: カスタムスクリプトを格納するフォルダ
+- `helpers`: カスタムヘルパースクリプトを格納するフォルダ
+- `plugins`: カスタムプラグインを格納するフォルダ
+
+**Open Config Folder** <br />
+Monadic Chatの設定ファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
+
+- `env`: 環境変数を設定するファイル（GUIを通じて設定可能）
+- `pysetup.sh`: Python環境をセットアップするスクリプト
+- `rubysetup.sh`: Ruby環境をセットアップするスクリプト
+- `compose.yml`: Docker Compose設定ファイル（自動生成・通常は編集不要）
+
+** Open Log Folder** <br />
+Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
+
+- `docker-build.log`: Dockerビルドのログファイル
+- `docker-startup.log`: Docker起動のログファイル
+- `server.log`: Monadic Chatのサーバーログファイル
+- `command.log`: Monadic Chatのコマンド実行およびコード実行ログファイル
 
 ## APIトークン設定パネル
 

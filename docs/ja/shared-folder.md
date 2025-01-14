@@ -16,22 +16,14 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 
 ## 共有フォルダに保存されるファイル
 
-### システム関連のファイル
-
-- `server.log`：Monadic Chatサーバーのログファイル
-- `pysetup.log`：Pythonコンテナのライブラリインストールログファイル
-- `compose.yml`：追加コンテナ作成・起動時に必要な自動生成ファイル
-
-これらのファイルは自動で生成・更新されます。削除しないことをお勧めします。
-
 ### 基本アプリが生成するファイル
 
-- `code interpreter`：などのアプリで実行されたコードの中間ファイルや結果ファイル
-- `image generator`：アプリで生成された画像ファイル
-- `jupyter notebook`：アプリで作成されたノートブックファイル
-- `video describer`：アプリが動画を分割して生成した画像ファイル
-- `video describer`：アプリが抽出した音声ファイル
-- `speech draft helper`：アプリで生成された音声ファイル
+- `code interpreter` などのアプリで実行されたコードの中間ファイルや結果ファイル
+- `image generator` アプリで生成された画像ファイル
+- `jupyter notebook` アプリで作成されたノートブックファイル
+- `video describer` アプリが動画を分割して生成した画像ファイル
+- `video describer` アプリが抽出した音声ファイル
+- `speech draft helper` アプリで生成された音声ファイル
 
 不要なファイルは定期的に削除することをお勧めします。
 

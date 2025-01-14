@@ -25,7 +25,12 @@ Exit the Monadic Chat Console.
 
 ![Console Menu](./assets/images/console-menu.png ':size=300')
 
+### Actions Menu
+
 ![Action Menu](./assets/images/action-menu.png ':size=150')
+
+**Start** <br />
+Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
 **Rebuild All** <br />
 Rebuild all Docker images and containers for Monadic Chat.
@@ -53,6 +58,37 @@ Export PDF document data stored in Monadic Chat's PGVector database. The exporte
 
 **Import Document DB** <br />
 Import PDF document data exported by Monadic Chat's export feature into the PGVector database. When importing, place a file named `monadic.gz` in the shared folder.
+
+### Open Menu
+
+![Open Menu](./assets/images/open-menu.png ':size=150')
+
+**Open Browser** <br />
+Open the default browser to access Monadic Chat at `http://localhost:4567`.
+
+**Open Shared Folder** <br />
+Open the folder shared between the host and Docker containers. It can be used for importing and exporting files. It is also used when installing additional apps. The following folders are included:
+
+- `apps`: Folder for storing additional applications.
+- `helpers`: Folder for storing helper files containing functions used by apps.
+- `scripts`: Folder for storing executable scripts that can be run within the Python container (`monadic-chat-python-container`).
+- `plugins`: Folder for organizing Monadic Chat plugins.
+
+**Open Config Folder** <br />
+Open the `~/monadic/config` folder. This folder contains configuration files for Monadic Chat. The following files are included:
+
+- `env`: Environment variables for Monadic Chat.
+- `pysetup.sh`: Script for setting up the Python environment.
+- `rbsetup.sh`: Script for setting up the Ruby environment.
+- `compose.yml`: Docker Compose configuration file.
+
+** Open Log Folder** <br />
+Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat. The following files are included:
+
+- `docker-build.log`: Log file for Docker build.
+- `docker-startup.log`: Log file for Docker startup.
+- `server.log`: Log file for the Monadic Chat server.
+- `command.log`: Log file for command execution and code execution.
 
 ## API Token Settings Panel
 

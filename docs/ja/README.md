@@ -1,6 +1,6 @@
 # Monadic Chat
 
-![Monadic Chat Architecture](./assets/images/monadic-chat-architecture.svg ':size=800')
+w[Monadic Chat Architecture](./assets/images/monadic-chat-architecture.svg ':size=800')
 
 ## 概要
 
@@ -47,6 +47,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 💬 文脈データとしてAPIに送信するメッセージ数（**コンテクストサイズ**）の指定
 - 📜 メッセージの**ロール**設定（ユーザー、アシスタント、システム）
 - 🔢 **PDF**からの**テキスト埋め込み**生成とインポート／エクスポート
+- 📼 コードの実行とツール/関数の使用の詳細な**ログ**
 
 ### 音声インタラクション
 

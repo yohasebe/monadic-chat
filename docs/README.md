@@ -47,6 +47,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💬 Specify the number of messages to send to the API as **context size**
 - 📜 Set **roles** for messages (user, assistant, system)
 - 🔢 Generate and import/export **text embeddings** from PDFs
+- 📼 **Logging** of code execution and tool/function use
 
 ### Voice Interaction
 

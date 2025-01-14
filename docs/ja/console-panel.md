@@ -83,13 +83,19 @@ Monadic Chatの設定ファイルが保存されているフォルダを開き�
 - `rubysetup.sh`: Ruby環境をセットアップするスクリプト
 - `compose.yml`: Docker Compose設定ファイル（自動生成・通常は編集不要）
 
-** Open Log Folder** <br />
+**Open Log Folder** <br />
 Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
 - `docker-build.log`: Dockerビルドのログファイル
 - `docker-startup.log`: Docker起動のログファイル
 - `server.log`: Monadic Chatのサーバーログファイル
 - `command.log`: Monadic Chatのコマンド実行およびコード実行ログファイル
+
+**Open Console** <br />
+Monadic Chatのコンソールパネルを開きます。
+
+**Settings** <br />
+Monadic Chatの設定パネルを開きます。
 
 ## APIトークン設定パネル
 

@@ -31,9 +31,10 @@ pip install --no-cache-dir --default-timeout=1000 \
     gensim\
     librosa \
     wordcloud \
-    spacy \
     nltk \
-    textblob
+    textblob \
+    spacy==3.7.5
+
 # Download NLTK data
 python -m nltk.downloader all
 # Download spaCy models

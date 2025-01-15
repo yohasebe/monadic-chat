@@ -1,4 +1,4 @@
-- [Jan, 2025] 0.9.32
+- [Jan, 2025] 0.9.33
   - Better logging for tool use (function calling)
   - New folder structure for config/data/logs introduced
   - Perplexity models supported

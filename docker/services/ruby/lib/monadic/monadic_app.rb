@@ -210,27 +210,6 @@ class MonadicApp
     "<div class='json-container'>#{output}</div>"
   end
 
-  def capture_command(command)
-    unless command
-      return ["Error: command is required.", nil, 1]
-    end
-
-    stdout, stderr, status = Open3.capture3(command)
-
-    # output log data of input and output
-    # create a log (COMMAND_LOG_FILE) to store the command and its output
-    File.open(COMMAND_LOG_FILE, "a") do |f|
-      f.puts "Time: #{Time.now}"
-      f.puts "Command: #{command}"
-      f.puts "Status: #{status.success? ? "Success" : "Failure"}"
-      f.puts "Error: #{stderr}" if stderr.strip.length.positive?
-      f.puts "Output: #{stdout}"
-      f.puts "-----------------------------------"
-    end
-
-    [stdout, stderr, status]
-  end
-
   def send_command(command:,
                    container: "python",
                    success: "Command executed successfully")
@@ -268,7 +247,7 @@ class MonadicApp
       DOCKER
     end
 
-    stdout, stderr, status = capture_command(system_command)
+    stdout, stderr, status = self.capture_command(system_command)
 
     if block_given?
       yield(stdout, stderr, status)
@@ -329,7 +308,8 @@ class MonadicApp
       docker_command = <<~DOCKER
         docker cp #{file_path} #{container}:#{SHARED_VOL}
       DOCKER
-      stdout, stderr, status = capture_command(docker_command)
+
+      stdout, stderr, status = self.capture_command(docker_command)
       unless status.success?
         raise "Error occurred: #{stderr}"
       end
@@ -339,7 +319,7 @@ class MonadicApp
         docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(file_path)}
       DOCKER
 
-      stdout, stderr, status = capture_command(docker_command)
+    stdout, stderr, status = self.capture_command(docker_command)
 
       # Wait briefly for filesystem synchronization
       sleep COMMAND_DELAY
@@ -482,6 +462,31 @@ class MonadicApp
     Time.now.to_s
   end
 
+  def capture_command(command)
+    self.class.capture_command(command)
+  end
+
+  def self.capture_command(command)
+    unless command
+      return ["Error: command is required.", nil, 1]
+    end
+
+    stdout, stderr, status = Open3.capture3(command)
+
+    # output log data of input and output
+    # create a log (COMMAND_LOG_FILE) to store the command and its output
+    File.open(COMMAND_LOG_FILE, "a") do |f|
+      f.puts "Time: #{Time.now}"
+      f.puts "Command: #{command}"
+      f.puts "Status: #{status.success? ? "Success" : "Failure"}"
+      f.puts "Error: #{stderr}" if stderr.strip.length.positive?
+      f.puts "Output: #{stdout}"
+      f.puts "-----------------------------------"
+    end
+
+    [stdout, stderr, status]
+  end
+
   def self.doc2markdown(filename)
     basename = File.basename(filename)
     # get the file extension
@@ -502,7 +507,7 @@ class MonadicApp
       DOCKER
     end
 
-    stdout, stderr, status = capture_command(docker_command)
+    stdout, stderr, status = self.capture_command(docker_command)
 
     # Wait briefly for filesystem synchronization
     sleep COMMAND_DELAY
@@ -548,7 +553,7 @@ class MonadicApp
       docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --keep-unknown --output stdout'
     DOCKER
 
-    stdout, stderr, status = capture_command(docker_command)
+    stdout, stderr, status = self.capture_command(docker_command)
 
     # Wait briefly for filesystem synchronization
     sleep 1

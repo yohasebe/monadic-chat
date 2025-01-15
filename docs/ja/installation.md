@@ -118,5 +118,7 @@ Linux (Ubuntu/Debian) の場合、下記のページを参照してDocker Deskto
 
 ## アップデート
 
+<img src="./assets/images/monadic-chat-menu.png" width="240px"/>
+
 Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューの`Check for Updates`を実行してください。もし新しいバージョンがある場合、ダウンロードリンクが表示されます。ダウンロードリンクをクリックして、新しいバージョンのインストーラーをダウンロードしてください。
 

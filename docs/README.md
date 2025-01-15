@@ -75,7 +75,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Support for Multiple LLM APIs
 
-- 👥 Support for the following LLM **Web APIs**:
+- 👥 **Web APIs**:
   - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
@@ -83,7 +83,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [Mistral AI](https://docs.mistral.ai/api/)
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)
-- 🦙 Use of LLMs in a local environment on Docker using **[Ollama](https://ollama.com/)**
+- 🦙 [**Ollama**](https://ollama.com/) in the local Docker environment
   - Llama
   - Phi
   - Mistral

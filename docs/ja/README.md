@@ -76,7 +76,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 複数のLLM APIに対応
 
-- 👥 下記のLLMの**Web API**に対応
+- 👥 **Web API**
   - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
@@ -84,7 +84,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - [Mistral AI](https://docs.mistral.ai/api/)
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)
-- 🦙 **[Ollama](https://ollama.com/)**を用いたDocker上のローカル環境でのLLMの利用
+- 🦙 ローカルDocker環境の[**Ollama**](https://ollama.com/)
   - Llama
   - Phi
   - Mistral

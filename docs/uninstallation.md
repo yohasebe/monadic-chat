@@ -34,7 +34,9 @@ $ sudo apt remove monadic-chat
 
 <!-- tabs:end -->
 
-## If Problems Occur
+<img src="./assets/images/monadic-chat-menu.png" width="250px"/>
+
+## Cleanup (Optional)
 
 If the containers and images are not deleted even after running `Uninstall Images and Containers`, or if problems occur during an update or uninstallation, manually delete the following Docker containers and images and then reinstall Monadic Chat.
 

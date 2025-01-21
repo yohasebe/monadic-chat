@@ -307,7 +307,6 @@ module MistralHelper
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
     else
-
       # # Return done message if no result
       # res = { "type" => "message", "content" => "DONE" }
       # block&.call res

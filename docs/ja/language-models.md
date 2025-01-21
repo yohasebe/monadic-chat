@@ -26,36 +26,6 @@ ANTHROPIC_API_KEY=api_key
 
 ?> Anthropic Claude の Sonnet 系列のモデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input?id=pdf-のアップロード)）
 
-Ahthropic APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
-
-<details>
-<summary>chat_claude_app.rb</summary>
-
-[chat_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/chat_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_interpreter_claude_app.rb</summary>
-
-[code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_claude_app.rb</summary>
-
-[code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>jupyter_notebook_claude_app.rb</summary>
-
-![jupyter_notebook_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
-
-</details>
-
 ## Google Models
 
 ![Google apps icon](./assets/icons/google.png ':size=40')
@@ -65,22 +35,6 @@ Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用
 ```
 GEMINI_API_KEY=api_key
 ```
-
-Google Gemini APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
-
-<details>
-<summary>chat_gemini_app.rb</summary>
-
-![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/chat_gemini_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_gemini_app.rb</summary>
-
-![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/coding_assistant_gemini_app.rb ':include :type=code')
-
-</details>
 
 ## Cohere Models
 
@@ -93,22 +47,6 @@ Google Gemini APIキーを設定すると下記のアプリを使用すること
 COHERE_API_KEY=api_key
 ```
 
-CohereのAPIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
-
-<details>
-<summary>chat_command_r_app.rb</summary>
-
-![chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_command_r_app.rb</summary>
-
-![coding_assistant_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/coding_assistant_command_r_app.rb ':include :type=code')
-
-</details>
-
 ## Mistral Models
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
@@ -118,22 +56,6 @@ Mistral APIキーを設定すると、Mistralを用いたアプリを使用す�
 ```
 MISTRAL_API_KEY=api_key
 ```
-
-Mistral APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
-
-<details>
-<summary>chat_mistral_app.rb</summary>
-
-![chat_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/chat_mistral_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_mistral_app.rb</summary>
-
-![code_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/coding_assistant_mistral_app.rb ':include :type=code')
-
-</details>
 
 ## xAI Models
 
@@ -145,22 +67,6 @@ xAI APIキーを設定すると、Grokを用いたアプリを使用すること
 XAI_API_KEY=api_key
 ```
 
-xAI APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
-
-<details>
-<summary>chat_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/chat_grok_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/coding_assistant_grok_app.rb ':include :type=code')
-
-</details>
-
 ## Perplexity Models
 
 ![Perplexity apps icon](./assets/icons/p.png ':size=40')
@@ -171,14 +77,15 @@ Perplexity APIキーを設定すると、Perplexityを用いたアプリを使�
 PERPLEXITY_API_KEY=api_key
 ```
 
-Perplexity APIキーを設定すると下記のアプリを使用することができます。各アプリの特徴については、[基本アプリ](basic-apps.md) を参照してください。
+## DeepSeek Models
 
-<details>
-<summary>chat_perplexity_app.rb</summary>
+![DeepSeek apps icon](./assets/icons/d.png ':size=40')
 
-![chat_perplexity_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_perplexity/chat_perplexity_app.rb ':include :type=code')
+DeepSeek APIキーを設定すると、`deepseek-chat`や`deepseek-reasoner`を用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
-</details>
+```
+DEEPSEEK_API_KEY=api_key
+```
 
 ## Ollama Models
 

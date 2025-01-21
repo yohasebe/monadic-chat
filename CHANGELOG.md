@@ -1,4 +1,5 @@
-- [Jan, 2025] 0.9.33
+- [Jan, 2025] 0.9.34
+  - DeepSeek models supported
   - Better logging for tool use (function calling)
   - New folder structure for config/data/logs introduced
   - Perplexity models supported

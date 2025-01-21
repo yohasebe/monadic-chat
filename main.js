@@ -1385,7 +1385,15 @@ function checkAndUpdateEnvFile() {
     envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';
   }
 
-  const api_list = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY', 'XAI_API_KEY', 'PERPLEXITY_API_KEY'];
+  const api_list = [
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
+    'COHERE_API_KEY',
+    'GEMINI_API_KEY',
+    'XAI_API_KEY',
+    'PERPLEXITY_API_KEY',
+    'DEEPSEEK_API_KEY'
+  ];
   const hasApiKey = api_list.some(key => envConfig[key]);
   return hasApiKey;
 }

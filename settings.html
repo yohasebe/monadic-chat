@@ -179,6 +179,9 @@
 
         <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
         <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false">
+
+        <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
+        <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false">
       </form>
     </div>
 
@@ -202,6 +205,7 @@
           MISTRAL_API_KEY: document.getElementById('mistral-api-key').value,
           XAI_API_KEY: document.getElementById('xai-api-key').value,
           PERPLEXITY_API_KEY: document.getElementById('perplexity-api-key').value,
+          DEEPSEEK_API_KEY: document.getElementById('deepseek-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           VISION_MODEL: document.getElementById('vision-model').value,
           AI_USER_MODEL: document.getElementById('ai-user-model').value,
@@ -237,6 +241,7 @@
         document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
         document.getElementById('xai-api-key').value = data.XAI_API_KEY || '';
         document.getElementById('perplexity-api-key').value = data.PERPLEXITY_API_KEY || '';
+        document.getElementById('deepseek-api-key').value = data.DEEPSEEK_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
         document.getElementById('vision-model').value = data.VISION_MODEL || 'gpt-4o-mini';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';

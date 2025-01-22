@@ -74,6 +74,9 @@ module DeepSeekHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
+    prompt_suffix = obj["prompt_suffix"]
+    model = obj["model"]
+
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     context_size = obj["context_size"].to_i
@@ -81,6 +84,14 @@ module DeepSeekHelper
 
     if role != "tool"
       message = obj["message"].to_s
+
+      # If the app is monadic, the message is passed through the monadic_map function
+      if obj["monadic"].to_s == "true" && message != ""
+        if message != ""
+          APPS[app].methods
+          message = APPS[app].monadic_unit(message)
+        end
+      end
 
       html = if message != ""
                markdown_to_html(message)
@@ -115,7 +126,7 @@ module DeepSeekHelper
     }
 
     body = {
-      "model" => obj["model"],
+      "model" => model,
       "stream" => true
     }
 
@@ -131,6 +142,7 @@ module DeepSeekHelper
       body["tools"] = settings["tools"]
       body["tool_choice"] = "auto"
     else
+      body.delete("tools")
       body.delete("tool_choice")
     end
 
@@ -148,28 +160,15 @@ module DeepSeekHelper
       body.delete("presence_penalty")
       body.delete("frequency_penalty")
 
-
       # remove the text from the beginning of the message to "---" from the previous messages
       body["messages"] = body["messages"].map do |msg|
         msg["content"] = msg["content"].sub(/---\n\n/, "")
         msg
       end
-
-
-      # concatenate previous messages into one and put it to the only message with the role "user"
-      # the single message holds all the messages with the roles "user", "assistant", and "system"
-      # an example of the format:
-      #
-      #  SYSTEM: SYSTEM MESSAGE
-      #  USER: USER MESSAGE
-      #  ASSISTANT: ASSISTANT MESSAGE
-      #  USER: USER MESSAGE
-      #  ...
-
-      # concatenated_messages = body["messages"].map do |msg|
-      #   "#{msg['role'].upcase}: #{msg['content']}"
-      # end
-      # body["messages"] = [{ "role" => "user", "content" => concatenated_messages.join("\n") }]
+    else
+      if obj["monadic"] || obj["json"]
+        body["response_format"] ||= { "type" => "json_object" }
+      end
     end
 
     target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -217,6 +216,7 @@ module DeepSeekHelper
   end
 
   def process_json_data(app, session, body, call_depth, &block)
+    obj = session[:parameters]
     @current_mode = nil
 
     buffer = String.new.force_encoding("UTF-8")
@@ -371,6 +371,17 @@ module DeepSeekHelper
 
     # Process the final results
     result = texts.empty? ? nil : texts.first[1]
+
+    if result
+      if obj["monadic"]
+        choice = result["choices"][0]
+        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+          message = choice["message"]["content"]
+          modified = APPS[app].monadic_map(message)
+          choice["text"] = modified
+        end
+      end
+    end
 
     if tools.any?
       # Handle tool/function calls

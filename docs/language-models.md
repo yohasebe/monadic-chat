@@ -26,37 +26,6 @@ ANTHROPIC_API_KEY=api_key
 
 ?> For apps using Anthropic Claude's Sonnet series models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [PDF recognition](./message-input?id=uploading-pdfs))
 
-Once the Anthropic API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
-
-<details>
-<summary>chat_claude_app.rb</summary>
-
-[chat_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/chat_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>code_interpreter_claude_app.rb</summary>
-
-[code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/code_interpreter_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_claude_app.rb</summary>
-
-[code_interpreter_claude_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/coding_assistant_claude_app.rb ':include :type=code')
-
-</details>
-
-<details>
-
-<summary>jupyter_notebook_claude_app.rb</summary>
-
-![jupyter_notebook_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_claude/jupyter_notebook_claude_app.rb ':include :type=code')
-
-</details>
-
 ## Google Models
 
 ![Google apps icon](./assets/icons/google.png ':size=40')
@@ -66,22 +35,6 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini. Once
 ```
 GEMINI_API_KEY=api_key
 ```
-
-Once the Google Gemini API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
-
-<details>
-<summary>chat_gemini_app.rb</summary>
-
-[chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/chat_gemini_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_gemini_app.rb</summary>
-
-![chat_gemini_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_gemini/coding_assistant_gemini_app.rb ':include :type=code')
-
-</details>
 
 ## Cohere Models
 
@@ -93,22 +46,6 @@ By setting the Cohere API key, you can use apps that utilize Command R. Once set
 COHERE_API_KEY=api_key
 ```
 
-Once the Cohere API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
-
-<details>
-<summary>chat_command_r_app.rb</summary>
-
-[chat_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/chat_command_r_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_command_r_app.rb</summary>
-
-[coding_assistant_command_r_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_cohere/coding_assistant_command_r_app.rb ':include :type=code')
-
-</details>
-
 ## Mistral Models
 
 ![Mistral apps icon](./assets/icons/m.png ':size=40')
@@ -118,22 +55,6 @@ By setting the Mistral AI API key, you can use apps that utilize Mistral. Once s
 ```
 MISTRAL_API_KEY=api_key
 ```
-
-Once the Mistral API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
-
-<details>
-<summary>chat_mistral_app.rb</summary>
-
-[chat_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/chat_mistral_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_mistral_app.rb</summary>
-
-[coding_assistant_mistral_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_mistral/coding_assistant_mistral_app.rb ':include :type=code')
-
-</details>
 
 ## xAI Models
 
@@ -145,22 +66,6 @@ By setting the xAI API key, you can use apps that utilize xAI. Once set, the API
 XAI_API_KEY=api_key
 ```
 
-Once the xAI API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
-
-<details>
-<summary>chat_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/chat_grok_app.rb ':include :type=code')
-
-</details>
-
-<details>
-<summary>coding_assistant_grok_app.rb</summary>
-
-![chat_grok_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_grok/coding_assistant_grok_app.rb ':include :type=code')
-
-</details>
-
 ## Perplexity Models
 
 ![Perplexity apps icon](./assets/icons/p.png ':size=40')
@@ -171,14 +76,15 @@ By setting the Perplexity API key, you can use apps that utilize Perplexity. Onc
 PERPLEXITY_API_KEY=api_key
 ```
 
-Once the Perplexity API key is set, you can use the following apps. For information on the features of each app, refer to the [Basic Apps](./basic-apps.md) section.
+## DeepSeek Models
 
-<details>
-<summary>chat_perplexity_app.rb</summary>
+![DeepSeek apps icon](./assets/icons/d.png ':size=40')
 
-![chat_perplexity_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/talk_to_perplexity/chat_perplexity_app.rb ':include :type=code')
+By setting the DeepSeek API key, you can use apps that utilize DeepSeek. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
-</details>
+```
+DEEPSEEK_API_KEY=api_key
+```
 
 ## Ollama Models
 

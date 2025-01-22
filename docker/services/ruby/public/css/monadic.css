@@ -718,7 +718,7 @@ div.highlight pre.highlight {
   padding: 0;
 }
 
-pre code {
+pre {
   font-size: 0.96em;
   background-color: #f8f8f8;
   white-space: pre-wrap;

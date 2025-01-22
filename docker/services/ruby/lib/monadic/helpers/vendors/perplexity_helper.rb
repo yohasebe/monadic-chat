@@ -303,8 +303,6 @@ module PerplexityHelper
         begin
           json = JSON.parse(json_str)
 
-          pp JSON.pretty_generate(json)
-
           finish_reason = json.dig("choices", 0, "finish_reason")
           delta = json.dig("choices", 0, "delta")
 

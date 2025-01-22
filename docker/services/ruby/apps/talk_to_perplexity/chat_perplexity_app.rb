@@ -19,11 +19,10 @@ class PerplexityChat < MonadicApp
     app_name: "Chat (Perplexity)",
     disabled: !CONFIG["PERPLEXITY_API_KEY"],
     group: "Perplexity",
-    model: "llama-3.1-sonar-small-128k-online",
+    model: "sonar",
     models: [
-      "llama-3.1-sonar-small-128k-online",
-      "llama-3.1-sonar-large-128k-online",
-      "llama-3.1-sonar-huge-128k-online"
+      "sonar-pro",
+      "sonar"
     ],
     temperature: 0.2,
     top_p: 0.9,

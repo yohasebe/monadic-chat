@@ -130,3 +130,5 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 **XAI_API_KEY**<br /> xAI APIキーを入力してください。このキーはxAI Grok モデルを使用するのに必要です。[https://x.ai/api]で取得できます。
 
 **PERPLEXITY_API_KEY**<br /> Perplexity APIキーを入力してください。このキーはPerplexity モデルを使用するのに必要です。[https://perplexity.ai/]で取得できます。
+
+**DEEPSEEK_API_KEY**<br /> DeepSeek APIキーを入力してください。このキーはDeepSeek モデルを使用するのに必要です。[https://platform.deepseek.com/]で取得できます。

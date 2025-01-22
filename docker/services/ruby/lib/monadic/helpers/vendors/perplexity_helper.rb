@@ -294,12 +294,16 @@ module PerplexityHelper
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")
 
+      first_iteration = true
+
       while (match = buffer.match(/^data: (\{.*?\})\r\n/m))
         json_str = match[1]
         buffer = buffer[match[0].length..-1]
 
         begin
           json = JSON.parse(json_str)
+
+          pp JSON.pretty_generate(json)
 
           finish_reason = json.dig("choices", 0, "finish_reason")
           delta = json.dig("choices", 0, "delta")
@@ -309,6 +313,10 @@ module PerplexityHelper
             texts[id] ||= json
             choice = texts[id]["choices"][0]
             choice["message"] ||= { "role" => delta["role"] || "assistant", "content" => "" }
+
+            choice["message"]["content"] = "" if first_iteration
+            first_iteration = false
+
             fragment = delta["content"].to_s
 
             unless fragment.empty?
@@ -332,7 +340,8 @@ module PerplexityHelper
             end
           end
 
-          if json["choices"][0]["finish_reason"] == "stop"
+          # This comment-out is due to the lack of finish_reason in the JSON response from "sonar-pro"
+          # if json["choices"][0]["finish_reason"] == "stop"
             texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"]
             citations = json["citations"] if json["citations"]
             new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
@@ -344,7 +353,7 @@ module PerplexityHelper
               texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
             end
             break
-          end
+          # end
         rescue JSON::ParserError => e
           pp "JSON parse error: #{e.message}"
           buffer = "data: #{json_str}" + buffer

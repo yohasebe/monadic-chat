@@ -132,3 +132,5 @@ Enter your Mistral API key. This key is required to use the Mistral AI models. I
 **XAI_API_KEY** <br />
 Enter your xAI API key. This key is required to use the xAI Grok models. It can be obtained from [https://x.ai/api].
 
+**DEEPSEEK_API_KEY** <br />
+Enter your DeepSeek API key. This key is required to use the DeepSeek models. It can be obtained from [https://platform.deepseek.com/].

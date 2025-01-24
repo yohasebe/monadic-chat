@@ -108,9 +108,6 @@ All settings here are saved in the `~/monadic/config/env` file.
 **Syntax Highlighting Theme** <br />
 Select the theme for code syntax highlighting. The default is `monokai`.
 
-**VISION_MODEL** <br />
-Select the model used for image and video recognition. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
-
 **AI_USER_MODEL** <br />
 Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
 

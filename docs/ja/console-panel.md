@@ -109,9 +109,6 @@ OpenAI API キーを入力してください。このキーはChat API、DALL-E 
 **Syntax Highlighting Theme**<br />
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
 
-**VISION_MODEL**<br />
-画像認識と動画認識に使用するモデルを選択します。現在は `gpt-4o` と `gpt-4o-mini` が利用可能です。デフォルトは `gpt-4o-mini` です。
-
 **AI_USER_MODEL**<br />
 AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`gpt-4o`と`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
 

@@ -31,7 +31,8 @@ module MonadicAgent
 
     query = query ? " \"#{query}\"" : ""
 
-    model = ENV["VISION_MODEL"] || "gpt-4o-mini"
+    model = settings["model"] || settings[:model]
+    model = check_vision_capability(model) || "gpt-4o-mini"
 
     video_command = <<~CMD
       bash -c 'simple_video_query.rb "#{json_file}" #{query} "#{model}"'

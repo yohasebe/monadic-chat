@@ -719,8 +719,11 @@ div.highlight pre.highlight {
 }
 
 pre {
+  background-color: #f8f8f8;
+}
+
+pre code{
   font-size: 0.96em;
   background-color: #f8f8f8;
   white-space: pre-wrap;
 }
-

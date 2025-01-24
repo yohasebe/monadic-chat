@@ -569,4 +569,27 @@ class MonadicApp
       stdout.strip.empty? ? stderr : stdout
     end
   end
+
+  def check_vision_capability(model)
+    self.class.check_vision_capability(model)
+  end
+
+  def self.check_vision_capability(model)
+    capable_model_names = [
+      "4o",
+      "o1"
+    ]
+
+    rejected_model_names = [
+      "preview",
+      "o1-mini"
+    ]
+
+    if model.match?(/\b(#{capable_model_names.join("|")})\b/) &&
+        !model.match?(/\b(#{rejected_model_names.join("|")})\b/)
+      model
+    else
+      nil
+    end
+  end
 end

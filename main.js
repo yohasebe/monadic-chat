@@ -1369,12 +1369,9 @@ function checkAndUpdateEnvFile() {
 
   let envConfig = readEnvFile(envPath);
 
-  // ROUGE_THEME, VISION_MODEL, AI_USER_MODEL, and EMBEDDING_MODEL are set with default values if not present
+  // ROUGE_THEME, AI_USER_MODEL, and EMBEDDING_MODEL are set with default values if not present
   if (!envConfig.ROUGE_THEME) {
     envConfig.ROUGE_THEME = 'monokai:dark';
-  }
-  if (!envConfig.VISION_MODEL) {
-    envConfig.VISION_MODEL = 'gpt-4o-mini';
   }
 
   if (!envConfig.AI_USER_MODEL) {

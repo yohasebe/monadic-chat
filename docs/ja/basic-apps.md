@@ -8,6 +8,8 @@
 
 ?> 各アプリの説明の下のドロップダウンをクリックすると、アプリのソースコードが表示されます。ソースコードはMonadic Chatの[Githubレポジトリ](https://github.com/yohasebe/monadic-chat)の`main`ブランチでの最新版です。
 
+一部のアプリは複数のベンダーによるAIモデルで利用できます。特に明記されていない場合、アプリはOpenAIモデルで利用可能です。
+
 ## アシスタント
 
 ### Chat
@@ -20,6 +22,16 @@
 <summary>chat_app.rb</summary>
 
 [chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/chat/chat_app.rb ':include :type=code')
+
+下記の言語モデルでCoding Assistantアプリが利用可能です。
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
+- DeepSeek
 
 </details>
 
@@ -339,12 +351,15 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 </details>
 
-下記の言語モデルでもCoding Assistantアプリが利用可能です。
+下記の言語モデルでCoding Assistantアプリが利用可能です。
 
+- OpenAI
 - Anthropic Claude
 - xAI Grok
 - Google Gemini
 - Mistral AI
+- Perplexity
+- DeepSeek
 
 ### Jupyter Notebook
 
@@ -363,7 +378,8 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 </details>
 
-下記の言語モデルでもJupyter Notebookアプリが利用可能です。
+下記の言語モデルでJupyter Notebookアプリが利用可能です。
 
+- OpenAI
 - Anthropic Claude
 

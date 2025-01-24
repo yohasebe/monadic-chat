@@ -38,11 +38,6 @@ class VideoDescriber < MonadicApp
     group: "OpenAI",
     model: "gpt-4o-mini",
     disabled: !CONFIG["OPENAI_API_KEY"],
-    models: [
-      "gpt-4o-2024-11-20",
-      "gpt-4o-mini",
-      "gpt-4o"
-    ],
     temperature: 0.0,
     presence_penalty: 0.2,
     top_p: 0.0,

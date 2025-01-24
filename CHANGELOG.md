@@ -1,4 +1,5 @@
-- [Jan, 2025] 0.9.34
+- [Jan, 2025] 0.9.35
+  - OpenAI o1 models supported
   - DeepSeek models supported
   - Better logging for tool use (function calling)
   - New folder structure for config/data/logs introduced

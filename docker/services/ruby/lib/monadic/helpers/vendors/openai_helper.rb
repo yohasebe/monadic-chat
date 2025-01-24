@@ -12,6 +12,25 @@ module OpenAIHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
+  MODELS_N_LATEST = -1
+
+  EXCLUDED_MODELS = [
+    "vision",
+    "instruct",
+    "realtime",
+    "audio",
+    "moderation",
+    "embedding",
+    "tts",
+    "davinci",
+    "babbage",
+    "turbo",
+    "dall-e",
+    "whisper",
+    "gpt-3.5",
+    "gpt-4"
+  ]
+
   class << self
     attr_reader :cached_models
 
@@ -39,14 +58,11 @@ module OpenAIHelper
             # Cache the filtered and sorted models
             @cached_models = res_body["data"].sort_by do |item|
               item["created"]
-            end.reverse[0..20].map do |item|
+            end.reverse[0..MODELS_N_LATEST].map do |item|
               item["id"]
-            end.filter do |item|
-              !item.include?("vision") &&
-              !item.include?("instruct") &&
-              !item.include?("realtime") &&
-              !item.include?("audio") &&
-              !item.include?("moderation")
+              # Filter out excluded models, embedding each string in a regex
+            end.reject do |model|
+              EXCLUDED_MODELS.any? { |excluded_model| /\b#{excluded_model}\b/ =~ model }
             end
             @cached_models
           end
@@ -155,8 +171,10 @@ module OpenAIHelper
       body.delete("presence_penalty")
       body.delete("top_p")
       body.delete("max_tokens")
-      body.delete("tools")
-      body.delete("response_format")
+      if model.include?("mini") || model.include?("preview")
+        body.delete("tools")
+        body.delete("response_format")
+      end
     else
       body["stream"] = true
       body["n"] = 1
@@ -256,7 +274,7 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      body["model"] = CONFIG["VISION_MODEL"] || "gpt-4o-mini"
+      body["model"] = check_vision_capability(model) || "gpt-4o-mini"
       body.delete("stop")
     end
 

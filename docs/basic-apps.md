@@ -8,6 +8,8 @@ For information on how to develop your own apps, refer to the [App Development](
 
 > Click the dropdown to see the recipe file of each app. The files are the same as the ones in the `main` branch of the Monadic Chat's [GitHub repository](https://github.com/yohasebe/monadic-chat).
 
+Some apps are available for models by multiple providers. If not specified, the app is available for OpenAI's models.
+
 ## Assistant
 
 ### Chat
@@ -22,6 +24,16 @@ This is a standard chat application. The AI responds to the text input by the us
 [chat_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/chat/chat_app.rb ':include :type=code')
 
 </details>
+
+Coding Assistant apps are also available for the following models:
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
+- DeepSeek
 
 ### Chat Plus
 
@@ -340,10 +352,13 @@ This application is designed for writing computer program code. You can interact
 
 Coding Assistant apps are also available for the following models:
 
+- OpenAI
 - Anthropic Claude
 - xAI Grok
 - Google Gemini
 - Mistral AI
+- Perplexity
+- DeepSeek
 
 ### Jupyter Notebook
 
@@ -363,4 +378,5 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 Jupyter Notebook apps are also available for the following models:
 
+- OpenAI
 - Anthropic Claude

@@ -159,13 +159,11 @@ module OpenAIHelper
       "model" => model,
     }
 
-
     o1_model = false
 
     if model.include?("o1")
       o1_model = true
       # body.delete("stream")
-      body["stream"] = true
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
@@ -174,6 +172,9 @@ module OpenAIHelper
       if model.include?("mini") || model.include?("preview")
         body.delete("tools")
         body.delete("response_format")
+        body["stream"] = true
+      else
+        body["stream"] = false
       end
     else
       body["stream"] = true
@@ -295,14 +296,16 @@ module OpenAIHelper
       end
     end
 
-    MAX_RETRIES.times do
+    # MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
-      break if res.status.success?
+      # break if res.status.success?
 
-      sleep RETRY_DELAY
-    end
+      # sleep RETRY_DELAY
+    # end
+
+    pp res.headers
 
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
@@ -371,6 +374,7 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             json = JSON.parse(json_data)
+            pp json
 
             finish_reason = json.dig("choices", 0, "finish_reason")
             case finish_reason

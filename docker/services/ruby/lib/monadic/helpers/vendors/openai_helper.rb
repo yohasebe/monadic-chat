@@ -5,7 +5,7 @@ module OpenAIHelper
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
 
-  OPEN_TIMEOUT = 5
+  OPEN_TIMEOUT = 20
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
 
@@ -29,6 +29,20 @@ module OpenAIHelper
     "whisper",
     "gpt-3.5",
     "gpt-4"
+  ]
+
+  BETA_MODELS = [
+    "o1",
+    "o1-2024-12-17",
+    "o1-mini",
+    "o1-mini-2024-09-12",
+    "o1-preview",
+    "o1-preview-2024-09-12"
+  ]
+
+  NON_STREAMING_MODELS = [
+    "o1",
+    "o1-2024-12-17"
   ]
 
   class << self
@@ -159,17 +173,16 @@ module OpenAIHelper
       "model" => model,
     }
 
-    o1_model = false
+    beta_model = BETA_MODELS.any? { |beta_model| /\b#{beta_model}\b/ =~ model }
+    stream_model = NON_STREAMING_MODELS.none? { |stream_model| /\b#{stream_model}\b/ =~ model }
 
-    if model.include?("o1")
-      o1_model = true
-      # body.delete("stream")
+    if beta_model
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
       body.delete("top_p")
       body.delete("max_tokens")
-      if model.include?("mini") || model.include?("preview")
+      if stream_model
         body.delete("tools")
         body.delete("response_format")
         body["stream"] = true
@@ -221,7 +234,7 @@ module OpenAIHelper
     end
 
     # Remove messages with role "system" if model includes "mini" or "preview"
-    if o1_model && /mini|preview/ =~ model
+    if beta_model && /mini|preview/ =~ model
       body["messages"].reject! { |msg| msg["role"] == "system" }
     end
 
@@ -296,16 +309,14 @@ module OpenAIHelper
       end
     end
 
-    # MAX_RETRIES.times do
+    MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
-      # break if res.status.success?
+      break if res.status.success?
 
-      # sleep RETRY_DELAY
-    # end
-
-    pp res.headers
+      sleep RETRY_DELAY
+    end
 
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
@@ -374,7 +385,6 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             json = JSON.parse(json_data)
-            pp json
 
             finish_reason = json.dig("choices", 0, "finish_reason")
             case finish_reason

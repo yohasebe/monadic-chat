@@ -171,14 +171,6 @@ class DockerManager {
     if (command === 'start') {
       const apiKeySet = checkAndUpdateEnvFile();
       if (!apiKeySet) {
-        // dialog.showMessageBox(mainWindow, {
-        //   type: 'info',
-        //   buttons: ['OK'],
-        //   title: 'API Key Required',
-        //   message: 'No API keys are set.',
-        //   detail: 'Please set at least one API key in the settings window.',
-        //   icon: path.join(iconDir, 'app-icon.png')
-        // });
         writeToScreen('[HTML]: <p><b>No API keys are set, but proceeding anyway.</b></p>');
       }
     }
@@ -225,8 +217,8 @@ class DockerManager {
                   dialog.showMessageBox(mainWindow, {
                     type: 'info',
                     buttons: ['OK'],
-                    title: 'Update Available',
-                    message: `A new version of the app is available. Please update to the latest version.`,
+                    message: 'Update Available',
+                    detail: `A new version of the app is available. Please update to the latest version.`,
                     icon: path.join(iconDir, 'app-icon.png')
                   });
                 }
@@ -339,16 +331,16 @@ function checkForUpdates() {
           dialog.showMessageBox(mainWindow, {
             type: 'info',
             buttons: ['OK'],
-            title: 'Update Available',
-            message: `A new version (${latestVersion}) of the app is available. Please update to the latest version.`,
+            message: 'Update Available',
+            detail: `A new version (${latestVersion}) of the app is available. Please update to the latest version.`,
             icon: path.join(iconDir, 'app-icon.png')
           });
         } else {
           dialog.showMessageBox(mainWindow, {
             type: 'info',
             buttons: ['OK'],
-            title: 'Up to Date',
-            message: `You are already using the latest version of the app.`,
+            message: 'Up to Date',
+            detail: `You are already using the latest version of the app.`,
             icon: path.join(iconDir, 'app-icon.png')
           });
         }
@@ -367,8 +359,8 @@ function uninstall() {
     type: 'question',
     buttons: ['Cancel', 'Delete all'],
     defaultId: 1,
-    title: 'Confirm Uninstall',
-    message: 'This will remove all the Monadic Chat images and containers. Do you want to continue?',
+    message: 'Confirm Uninstall',
+    detail: 'This will remove all the Monadic Chat images and containers. Do you want to continue?',
     icon: path.join(iconDir, 'app-icon.png')
   };
 

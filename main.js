@@ -494,6 +494,13 @@ const menuItems = [
   },
   { type: 'separator' },
   {
+    label: 'Open Console',
+    click: () => {
+      openMainWindow();
+    },
+    enabled: true
+  },
+  {
     label: 'Open Browser',
     click: () => {
       openMainWindow();
@@ -501,6 +508,7 @@ const menuItems = [
     },
     enabled: false
   },
+  { type: 'separator' },
   {
     label: 'Open Shared Folder',
     click: () => {
@@ -522,13 +530,6 @@ const menuItems = [
     click: () => {
       openMainWindow();
       openLogFolder();
-    },
-    enabled: true
-  },
-  {
-    label: 'Open Console',
-    click: () => {
-      openMainWindow();
     },
     enabled: true
   },
@@ -1011,6 +1012,12 @@ function updateApplicationMenu() {
       label: 'Open',
       submenu: [
         {
+          label: 'Open Console',
+          click: () => {
+            openMainWindow();
+          }
+        },
+        {
           label: 'Open Browser',
           click: () => {
             openMainWindow();
@@ -1018,6 +1025,7 @@ function updateApplicationMenu() {
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
+        { type: 'separator' },
         {
           label: 'Open Shared Folder',
           click: () => {
@@ -1037,12 +1045,6 @@ function updateApplicationMenu() {
           click: () => {
             openMainWindow();
             openLogFolder();
-          }
-        },
-        {
-          label: 'Open Console',
-          click: () => {
-            openMainWindow();
           }
         },
         { type: 'separator' },

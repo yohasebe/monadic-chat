@@ -263,8 +263,6 @@ module DeepSeekHelper
 
               json = JSON.parse(data_content[1])
 
-              reasoning_content = ""
-              
               # Process finish reason
               finish_reason = json.dig("choices", 0, "finish_reason")
               case finish_reason

@@ -21,9 +21,11 @@ class PerplexityChat < MonadicApp
     group: "Perplexity",
     model: "sonar",
     models: [
+      "sonar",
       "sonar-pro",
-      "sonar"
+      "sonar-reasoning",
     ],
+    toggle: true,
     temperature: 0.2,
     top_p: 0.9,
     presence_penalty: 0.0,

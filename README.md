@@ -16,6 +16,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 ## Latest Changes
 
 - [Jan, 2025] 0.9.37
+  - Perplexity `sonar-reasoning` (DeepSeek) model supported
   - OpenAI o1 models supported
   - DeepSeek models supported
   - Better logging for tool use (function calling)

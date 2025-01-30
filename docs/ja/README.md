@@ -84,11 +84,13 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - [Mistral AI](https://docs.mistral.ai/api/)
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)
+  - [DeepSeek](https://www.deepseek.com/)
 - 🦙 ローカルDocker環境の[**Ollama**](https://ollama.com/)
   - Llama
   - Phi
   - Mistral
   - Gemma
+  - DeepSeek
 - 🤖💬🤖 **AI対AI**のチャット機能
 
 ### モナドとしての会話

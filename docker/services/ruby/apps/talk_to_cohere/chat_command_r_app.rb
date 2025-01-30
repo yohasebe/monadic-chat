@@ -31,6 +31,6 @@ class ChatCommandR < MonadicApp
     initiate_from_assistant: false,
     image: false,
     models: CommandRHelper.list_models,
-    model: "command-r-plus"
+    model: "command-r-plus-08-2024"
   }
 end

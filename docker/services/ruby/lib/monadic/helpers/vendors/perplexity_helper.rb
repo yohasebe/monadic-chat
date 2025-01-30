@@ -142,6 +142,28 @@ module PerplexityHelper
       body["tool_choice"] = "auto"
     end
 
+    if obj["model"].include?("reasoning")
+      body.delete("temperature")
+      body.delete("tool_choice")
+      body.delete("tools")
+      body.delete("top_p")
+      body.delete("presence_penalty")
+      body.delete("frequency_penalty")
+
+      # remove the text from the beginning of the message to "---" from the previous messages
+      body["messages"] = body["messages"].each do |msg|
+        msg["content"].each do |item|
+          if item["type"] == "text"
+            item["text"] = item["text"].sub(/---\n\n/, "")
+          end
+        end
+      end
+    else
+      if obj["monadic"] || obj["json"]
+        body["response_format"] ||= { "type" => "json_object" }
+      end
+    end
+
     last_text = context.last["text"]
 
     # Decorate the last message in the context with the message with the snippet
@@ -310,22 +332,19 @@ module PerplexityHelper
             id = json["id"]
             texts[id] ||= json
             choice = texts[id]["choices"][0]
-            choice["message"] ||= { "role" => delta["role"] || "assistant", "content" => "" }
-
-            choice["message"]["content"] = "" if first_iteration
-            first_iteration = false
+            choice["message"] ||= delta.dup
+            choice["message"]["content"] ||= ""
 
             fragment = delta["content"].to_s
+            choice["message"]["content"] << fragment
 
-            unless fragment.empty?
-              res = {
-                "type" => "fragment",
-                "content" => fragment
-              }
-              block&.call res
+            res = {
+              "type" => "fragment",
+              "content" => fragment
+            }
+            block&.call res
 
-              choice["message"]["content"] << fragment
-            end
+            texts[id]["choices"][0].delete("delta")
           elsif delta && delta["tool_calls"]
             res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
             block&.call res
@@ -339,19 +358,25 @@ module PerplexityHelper
           end
 
           # This comment-out is due to the lack of finish_reason in the JSON response from "sonar-pro"
-          # if json["choices"][0]["finish_reason"] == "stop"
-            texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"]
+          if json["choices"][0]["finish_reason"] == "stop"
+            texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"].gsub(/<think>\s+/m) do
+              "<div data-title='Thinking' class='toggle'><div class='toggle-open'>"
+            end.gsub("</think>") do
+              "</div></div>"
+            end
+
             citations = json["citations"] if json["citations"]
             new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
             # add citations to the last message
             if citations.any?
-              citation_text = "\n\n**Citations**\n<div class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
+              citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
                 "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
               end.join("\n") + "</ol></div>"
               texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
             end
             break
-          # end
+          end
+
         rescue JSON::ParserError => e
           pp "JSON parse error: #{e.message}"
           buffer = "data: #{json_str}" + buffer

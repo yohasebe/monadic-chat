@@ -83,11 +83,13 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [Mistral AI](https://docs.mistral.ai/api/)
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)
+  - [DeepSeek](https://www.deepseek.com/)
 - 🦙 [**Ollama**](https://ollama.com/) in the local Docker environment
   - Llama
   - Phi
   - Mistral
   - Gemma
+  - DeepSeek
 - 🤖💬🤖 **AI-to-AI** chat functionality
 
 ### Conversations as Monads

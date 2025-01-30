@@ -38,10 +38,12 @@ class CodingAssistantPerplexity < MonadicApp
     initiate_from_assistant: false,
     pdf: false,
     image: false,
+    toggle: true,
     model: "sonar-pro",
     models: [
+      "sonar",
       "sonar-pro",
-      "sonar"
+      "sonar-reasoning",
     ]
   }
 end

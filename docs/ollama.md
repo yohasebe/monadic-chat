@@ -2,6 +2,8 @@
 
 ## Setup
 
+!> For versions 0.9.38 and later, the `MonadicApp` class has been updated, and the Monadic Chat Extra files have been modified accordingly. If you're using version 0.9.38 or later, download the latest version of Monadic Chat Extra.
+
 To use Ollama with Monadic Chat, you need to download additional files and rebuild Monadic Chat.  Follow these steps:
 
 1. Download the necessary Ollama files from the [Monadic Chat Extra](https://github.com/yohasebe/monadic-chat-extra) repository.  You'll need the `ollama` folder containing the `apps`, `services`, and `helpers` subfolders.

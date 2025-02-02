@@ -14,6 +14,10 @@ module GrokHelper
   class << self
     attr_reader :cached_models
 
+    def vendor_name
+      "Grok"
+    end
+
     def list_models
       # Return cached models if they exist
       return @cached_models if @cached_models
@@ -49,6 +53,61 @@ module GrokHelper
     def clear_models_cache
       @cached_models = nil
     end
+  end
+
+  # No streaming plain text completion/chat call
+  def send_query(options, model: "grok-2-1212")
+    api_keyder = ENV["XAI_API_KEY"]
+
+    # Set the headers for the API request
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    # Set the body for the API request
+    body = {
+      "model" => model,
+      "stream" => false,
+      "messages" => []
+    }
+
+    body.merge!(options)
+
+    target_uri = API_ENDPOINT + "/chat/completions"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      break if res.status.success?
+
+      sleep RETRY_DELAY
+    end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success branch
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Attempt to parse error response body only once
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
   end
 
   # Connect to OpenAI API and get a response
@@ -301,14 +360,18 @@ module GrokHelper
     started = false
 
     body.each do |chunk|
+      chunk = chunk.force_encoding("UTF-8")
+      buffer << chunk
+
       if buffer.valid_encoding? == false
-        buffer << chunk
         next
       end
 
-      break if /\Rdata: [DONE]\R/ =~ buffer
-
-      buffer << chunk
+      begin
+        break if /\Rdata: [DONE]\R/ =~ buffer
+      rescue
+        next
+      end
 
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")

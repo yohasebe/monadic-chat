@@ -701,6 +701,14 @@ legend {
   width: 100px;
 }
 
+#reasoning-effort {
+  width: 124px;
+}
+
+#file {
+  width: 124px;
+}
+
 ol {
   list-style: decimal;
   counter-reset: none !important;

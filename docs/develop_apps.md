@@ -176,18 +176,21 @@ With the correct information about the generated files, the AI agent can continu
 
 ## Using LLM in Functions and Tools
 
-In functions and tools called by the AI agent, you may want to make requests to the AI agent. In such cases, you can use the `ask_openai` method available in the `MonadicApp` class.
+!> The `ask_openai` method used in versions prior to `0.9.37` has been replaced by the `send_query` method in the `MonadicApp` class.
 
-The `ask_openai` method is used to make requests to the AI agent from within functions and tools in the app. It takes a hash as an argument that specifies the request parameters available for the OpenAI Chat Completions API.  The parameter hash *must* include a `messages` key with an array of messages as its value. The `model` key specifies the language model to use (defaults to `gpt-4o-mini`). Other parameters available for the OpenAI Chat Completions API can also be used. See the [Chat Completions](https://platform.openai.com/docs/guides/chat-completions) API documentation for more information.
+In functions and tools called by the AI agent, you may want to make requests to the AI agent. In such cases, you can use the `send_query` method available in the `MonadicApp` class.
 
+The `send_query` method is used to make requests to the AI agent from within functions and tools in the app. It sends a request to the AI agent through the API of the language model currently used in the app (or a language model by the same vendor) and returns the result. You can send a request to the AI agent by passing a hash with API parameters set to the method as an argument.
 
-!> The `stream` parameter of the OpenAI Chat Completions API must be `false`. It is already set to `false` by default, so there is no need to change it.  If you set `stream` to `true`, you will need to implement unnecessary procedures in the function or tool to handle the information exchange between the LLMs.
+The hash of API parameters must specify an array of messages as the value of the `messages` key. The `model` key specifies the language model to use. Various parameters available in the API of that language model can also be used.
 
-The following is an example of using the `ask_openai` method:
+In queries using `send_query`, `stream` is set to `false` (it is already set to `false` by default, so there is no need to specify it explicitly).
+
+The following is an example of how to use `send_query` in a function or tool created using Ruby in the recipe file.
 
 ```ruby
 def my_function
-  # Set the parameters for the OpenAI API
+  # Set parameters
   parameters = {
     message: {
       model: "gpt-4o",
@@ -199,7 +202,7 @@ def my_function
       ]
     }
   }
-  # Send a request to the OpenAI API
-  ask_openai(parameters)
+  # Send a request to OpenAI
+  send_query(parameters)
 end
 ```

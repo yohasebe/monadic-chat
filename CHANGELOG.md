@@ -1,4 +1,13 @@
-- [Jan, 2025] 0.9.38
+- [Feb, 2025] 0.9.38
+  - OpenAI o3-mini model supported with the `reasoning-effort` parameter
+- [Jan, 2025] 0.9.37
+  - Perplexity `sonar-reasoning` (DeepSeek) model supported
+  - OpenAI o1 models supported
+  - DeepSeek models supported
+  - Better logging for tool use (function calling)
+  - New folder structure for config/data/logs introduced
+  - Perplexity models supported
+  - Start-up time (after build) improved
   - Perplexity `sonar-reasoning` (DeepSeek) model supported
   - OpenAI o1 models supported
   - DeepSeek models supported

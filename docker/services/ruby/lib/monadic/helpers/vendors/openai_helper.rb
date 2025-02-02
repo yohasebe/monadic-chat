@@ -31,7 +31,12 @@ module OpenAIHelper
     "gpt-4"
   ]
 
-  BETA_MODELS = [
+  REASONING_MODELS = [
+    "o3",
+    "o3-2025-01-31",
+  ]
+
+  NON_TOOL_MODELS = [
     "o1",
     "o1-2024-12-17",
     "o1-mini",
@@ -40,13 +45,17 @@ module OpenAIHelper
     "o1-preview-2024-09-12"
   ]
 
-  NON_STREAMING_MODELS = [
+  NON_STREAM_MODELS = [
     "o1",
     "o1-2024-12-17"
   ]
 
   class << self
     attr_reader :cached_models
+
+    def vendor_name
+      "OpenAI"
+    end
 
     def list_models
       # Return cached models if they exist
@@ -92,6 +101,63 @@ module OpenAIHelper
     end
   end
 
+  # No streaming plain text completion/chat call
+  def send_query(options, model: "gpt-4o-mini")
+    api_key = ENV["OPENAI_API_KEY"]
+
+    # Set the headers for the API request
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    # Set the body for the API request
+    body = {
+      "model" => model,
+      "n" => 1,
+      "stream" => false,
+      "stop" => nil,
+      "messages" => []
+    }
+
+    body.merge!(options)
+    target_uri = API_ENDPOINT + "/chat/completions"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      # Ensure res and its status exist before checking success
+      break if res && res.status && res.status.success?
+
+      sleep RETRY_DELAY
+    end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success branch
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Attempt to parse error response body only once
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
+  end
+
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, &block)
     # Set the number of times the request has been retried to 0
@@ -111,8 +177,9 @@ module OpenAIHelper
 
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
+    reasoning_effort = obj["reasoning_effort"]
 
-    max_tokens = obj["max_tokens"]&.to_i
+    max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
     top_p = obj["top_p"].to_f
     presence_penalty = obj["presence_penalty"].to_f
@@ -173,20 +240,32 @@ module OpenAIHelper
       "model" => model,
     }
 
-    beta_model = BETA_MODELS.any? { |beta_model| /\b#{beta_model}\b/ =~ model }
-    stream_model = NON_STREAMING_MODELS.none? { |stream_model| /\b#{stream_model}\b/ =~ model }
+    reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
+    non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
+    non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
 
-    if beta_model
+    if reasoning_model
+      body["stream"] = true
+      body["reasoning_effort"] = reasoning_effort || "medium"
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
       body.delete("top_p")
-      body.delete("max_tokens")
-      if stream_model
+      body.delete("max_completion_tokens")
+
+      if non_tool_model
         body.delete("tools")
         body.delete("response_format")
-        body["stream"] = true
       else
+        if obj["tools"] && !obj["tools"].empty?
+          body["tools"] = APPS[app].settings["tools"]
+        else
+          body.delete("tools")
+          body.delete("tool_choice")
+        end
+      end
+
+      if non_stream_model
         body["stream"] = false
       end
     else
@@ -196,7 +275,7 @@ module OpenAIHelper
       body["top_p"] = top_p if top_p
       body["presence_penalty"] = presence_penalty if presence_penalty
       body["frequency_penalty"] = frequency_penalty if frequency_penalty
-      body["max_tokens"] = max_tokens if max_tokens
+      body["max_completion_tokens"] = max_completion_tokens if max_completion_tokens 
 
       if obj["response_format"]
         body["response_format"] = APPS[app].settings["response_format"]
@@ -233,9 +312,20 @@ module OpenAIHelper
       message
     end
 
-    # Remove messages with role "system" if model includes "mini" or "preview"
-    if beta_model && /mini|preview/ =~ model
-      body["messages"].reject! { |msg| msg["role"] == "system" }
+    # "system" role must be replaced with "developer" for reasoning models
+    if reasoning_model
+      num_sysetm_messages = 0
+      body["messages"].each do |msg|
+        if msg["role"] == "system"
+          msg["role"] = "developer" 
+          msg["content"].each do |content_item|
+            if content_item["type"] == "text" && num_sysetm_messages == 0
+              content_item["text"] = "Formatting re-enabled\n---\n" + content_item["text"]
+            end
+          end
+          num_sysetm_messages += 1
+        end
+      end
     end
 
     if role == "tool"
@@ -358,6 +448,7 @@ module OpenAIHelper
 
   def process_json_data(app, session, body, call_depth, &block)
     obj = session[:parameters]
+    reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ obj["model"] }
 
     buffer = String.new
     texts = {}
@@ -365,14 +456,18 @@ module OpenAIHelper
     finish_reason = nil
 
     body.each do |chunk|
+      chunk = chunk.force_encoding("UTF-8")
+      buffer << chunk
+
       if buffer.valid_encoding? == false
-        buffer << chunk
         next
       end
 
-      break if /\Rdata: [DONE]\R/ =~ buffer
-
-      buffer << chunk
+      begin
+        break if /\Rdata: [DONE]\R/ =~ buffer
+      rescue
+        next
+      end
 
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")
@@ -405,6 +500,11 @@ module OpenAIHelper
               choice["message"] ||= choice["delta"].dup
               choice["message"]["content"] ||= ""
               fragment = json.dig("choices", 0, "delta", "content").to_s
+
+              # Skip if duplicate fragment is found in the reasoning model
+              # if choice["message"]["content"].end_with?(fragment) && reasoning_model
+              #   next
+              # end
 
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
@@ -521,7 +621,11 @@ module OpenAIHelper
       end
 
       begin
-        function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+        if argument_hash.empty?
+          function_return = APPS[app].send(function_name.to_sym)
+        else
+          function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+        end
       rescue StandardError => e
         pp e.message
         pp e.backtrace

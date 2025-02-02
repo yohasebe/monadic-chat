@@ -4,6 +4,8 @@
 
 Ollamaを利用するためには[Monadic Chat Extra](https://github.com/yohasebe/monadic-chat-extra)から追加ファイルをダウンロードする必要があります。ダウンロードしたファイルを共有フォルダに配置することでOllamaを利用することができます。
 
+!> `0.9.38`より、`MonadicApp`クラスの仕様が一部変更されました。それに伴い、Monadic Chat Extraのファイルも変更されています。`0.9.38`以降のバージョンを利用する場合は、Monadic Chat Extraの最新版をダウンロードしてください。
+
 以下のように必要なファイルを配置してMonadic Chatを再構築してください。
 
 1. Ollama用追加ファイルをダウンロードします。

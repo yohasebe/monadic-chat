@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DeepSeekHelper
   MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.deepseek.com"
@@ -11,6 +13,10 @@ module DeepSeekHelper
     attr_reader :cached_models
 
     @current_mode = nil
+
+    def vendor_name
+      "DeepSeek"
+    end
 
     def list_models
       # Return cached models if they exist
@@ -53,13 +59,74 @@ module DeepSeekHelper
     end
   end
 
+  # No streaming plain text completion/chat call
+  def send_query(options, model: "deepseek-chat")
+    api_key = ENV["DEEPSEEK_API_KEY"]
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    body = {
+      "model" => model,
+      "stream" => false,
+      "messages" => []
+    }
+
+    body.merge!(options)
+    target_uri = "#{API_ENDPOINT}/chat/completions"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do |i|
+      begin
+        res = http.timeout(
+          connect: OPEN_TIMEOUT,
+          write: WRITE_TIMEOUT,
+          read: READ_TIMEOUT
+        ).post(target_uri, json: body)
+
+        # Check that res exists and has a successful status.
+        break if res && res.status && res.status.success?
+
+        sleep RETRY_DELAY * (i + 1)  # Exponential backoff
+      rescue HTTP::Error, HTTP::TimeoutError => e
+        next unless i == MAX_RETRIES - 1
+
+        pp error_message = "Network error: #{e.message}"
+          res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+          block&.call(res)
+        return [res]
+      end
+    end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success branch.
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Parse error response body only once.
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
+  end
+
   def api_request(role, session, call_depth: 0, &block)
 
     num_retrial = 0
-
-    # session[:messages].delete_if do |msg|
-    #   msg["role"] == "assistant" && msg["content"].to_s == ""
-    # end
 
     begin
       api_key = CONFIG["DEEPSEEK_API_KEY"]
@@ -228,6 +295,7 @@ module DeepSeekHelper
 
     body.each do |chunk|
       begin
+        chunk = chunk.force_encoding("UTF-8")
         if buffer.valid_encoding? == false
           buffer << chunk
           next
@@ -472,7 +540,11 @@ module DeepSeekHelper
       end
 
       begin
+      if converted.empty?
+        function_return = APPS[app].send(function_name.to_sym)
+      else
         function_return = APPS[app].send(function_name.to_sym, **converted)
+      end
       rescue StandardError => e
         function_return = "ERROR: #{e.message}"
       end

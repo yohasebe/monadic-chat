@@ -15,6 +15,10 @@ module ClaudeHelper
   class << self
     attr_reader :cached_models
 
+    def vendor_name
+      "Anthropic"
+    end
+
     def list_models
       # Return cached models if they exist
       return @cached_models if @cached_models
@@ -76,6 +80,62 @@ module ClaudeHelper
     end
 
     result
+  end
+
+  # No streaming plain text completion/chat call
+  def send_query(options, model: "claude-3-5-sonnet-20241022")
+    api_key = ENV["ANTHROPIC_API_KEY"]
+
+    # Set the headers for the API request
+    headers = {
+      "content-type" => "application/json",
+      "anthropic-version" => "2023-06-01",
+      "x-api-key" => api_key,
+    }
+
+    # Set the body for the API request
+    body = {
+      "model" => model,
+      "stream" => false,
+      "messages" => []
+    }
+
+    body.merge!(options)
+    target_uri = "#{API_ENDPOINT}/messages"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      # Check that res exists and has a successful status.
+      break if res && res.status && res.status.success?
+
+      sleep RETRY_DELAY
+    end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success case.
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Attempt to parse the error body only once.
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
   end
 
   def get_thinking_text(result)
@@ -310,14 +370,18 @@ module ClaudeHelper
     content_type = "text"
 
     body.each do |chunk|
+      chunk = chunk.force_encoding("UTF-8")
+      buffer << chunk
+
       if buffer.valid_encoding? == false
-        buffer << chunk
         next
       end
 
-      break if /\Rdata: [DONE]\R/ =~ buffer
-
-      buffer << chunk
+      begin
+        break if /\Rdata: [DONE]\R/ =~ buffer
+      rescue
+        next
+      end
 
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")
@@ -544,7 +608,11 @@ module ClaudeHelper
       # wait for the app instance is ready up to 10 seconds
       app_instance = APPS[app]
 
-      tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+      if argument_hash.empty?
+        tool_return = app_instance.send(tool_name.to_sym)
+      else
+        tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+      end
 
       unless tool_return
         tool_return = "Empty result"

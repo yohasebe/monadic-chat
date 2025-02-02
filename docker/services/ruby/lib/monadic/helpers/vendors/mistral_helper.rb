@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module MistralHelper
   MAX_FUNC_CALLS = 10
   API_ENDPOINT = "https://api.mistral.ai/v1"
@@ -9,6 +11,10 @@ module MistralHelper
 
   class << self
     attr_reader :cached_models
+
+    def vendor_name
+      "Mistral"
+    end
 
     def list_models
       # Return cached models if they exist
@@ -51,12 +57,61 @@ module MistralHelper
     end
   end
 
+  # No streaming plain text completion/chat call
+  def send_query(options, model: "mistral-large-latest")
+    api_key = CONFIG["MISTRAL_API_KEY"]
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+
+    body = {
+      "model" => model,
+      "stream" => false
+    }
+
+    body.merge!(options)
+    target_uri = "#{API_ENDPOINT}/chat/completions"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      if res.status.success?
+        break
+      end
+
+      sleep RETRY_DELAY
+    end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success branch
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Attempt to parse error response body only once
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
+  end
+
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
-
-    # session[:messages].delete_if do |msg|
-    #   msg["role"] == "assistant" && msg["content"].to_s == ""
-    # end
 
     begin
       api_key = CONFIG["MISTRAL_API_KEY"]
@@ -190,6 +245,7 @@ module MistralHelper
 
     body.each do |chunk|
       begin
+        chunk = chunk.force_encoding("UTF-8")
         # Check for invalid encoding in the buffer
         if buffer.valid_encoding? == false
           buffer << chunk

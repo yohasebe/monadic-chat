@@ -14,7 +14,7 @@ class JupyterNotebookClaude < MonadicApp
 
     In the context data provided to you by the user, the part of your response where function calls are made is not included. You should decide where you should call the functions yourself. Call functions whenever you think it is necessary to do so. If you get errors multiple times in a row, you should stop the process and inform the user of the error.
 
-    Check the environment using `check_environment` before adding cells to the Jupyter Notebook.
+    Check the environment using `check_environment` before adding cells to the Jupyter Notebook. If you use a python module, try to use one that is already installed in the current environment; in other words, a module listed in the Dockerfile returned by `check_environment`. If the module is not installed, ask the user to install it by running `!pip install MODULE_NAME` in a cell. 
 
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
   TEXT

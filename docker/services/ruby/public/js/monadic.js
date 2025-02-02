@@ -812,14 +812,27 @@ $(function () {
     }
   });
 
-  // if #model value is changed, update the value #model-selected
   $("#model").on("change", function() {
     const selectedModel = $("#model").val();
-    // return if selectedModel is empty
-    $("#model-selected").text(selectedModel);
 
+    // check if selected mode has data-model-type attribute and its value is "reasoning"
+    const modelType = $("#model option:selected").attr("data-model-type");
+    if (modelType && modelType === "reasoning") {
+      const reasoningEffort = $("#reasoning-effort").val();
+      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
+    } else {
+      $("#model-selected").text(selectedModel);
+    }
     adjustImageUploadButton(selectedModel);
-    
+  });
+
+  $("#reasoning-effort").on("change", function () {
+    const selectedModel = $("#model").val();
+    const modelType = $("#model option:selected").attr("data-model-type");
+    if (modelType && modelType === "reasoning") {
+      const reasoningEffort = $("#reasoning-effort").val();
+      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
+    }
   });
 
   $("#discourse").tooltip({

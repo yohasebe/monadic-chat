@@ -139,6 +139,14 @@ def init_apps
     app = a.new
     app.settings = ActiveSupport::HashWithIndifferentAccess.new(a.instance_variable_get(:@settings))
 
+    vendor = app.settings["group"]
+    models = app.settings["models"]
+    if vendor && models
+      MonadicApp.register_models(vendor, models)
+    end
+
+    MonadicApp.register_app_settings(app.settings["app_name"], app)
+
     app.settings["description"] ||= ""
     if !app.settings["initial_prompt"]
       app.settings["initial_prompt"] = "You are an AI assistant but the initial prompt is missing. Tell the user they should provide a prompt."

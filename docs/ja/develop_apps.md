@@ -188,16 +188,17 @@ The code has been executed successfully; File(s) generated: NEW_FILE; Output: OU
 
 ## 関数・ツール内でのLLMの使用
 
-上記の方法で作成した、AIエージェントから呼び出される関数・ツールの中で、さらにAIエージェントへのリクエストを行いたい場合があります。そのような場合、`MonadicApp`クラスで利用可能な`ask_openai`メソッドを使うことができます。
+!> `0.9.37`以前のバージョンで用いていた`ask_openai`メソッドは、`MonadicApp`クラスの`send_query`メソッドに置き換えられました。
 
-`ask_openai`は、OpenAIのAPIを介してAIエージェントにリクエストを送信し、その結果を返します。APIのパラメターを設定したハッシュを引数として渡すことで、AIエージェントにリクエストを送信することができます。
+上記の方法で作成した、AIエージェントから呼び出される関数・ツールの中で、さらにAIエージェントへのリクエストを行いたい場合があります。そのような場合、`MonadicApp`クラスで利用可能な`send_query`メソッドを使うことができます。
 
-APIパラメターのハッシュには`messages`キーとその値としてメッセージの配列を指定する必要があります。また`model`キーには使用する言語モデルを指定します（省略時は `gpt-4o-mini`を使用）。その他、OpenAIの[Chat Completions](https://platform.openai.com/docs/guides/chat-completions) APIで利用できる各種パラメターが利用可能です。
+`send_query`は、現在のアプリで使用している言語モデル（または同じベンダーによる言語モデル）のAPIを介してAIエージェントにリクエストを送信し、その結果を返します。APIのパラメターを設定したハッシュを引数として渡すことで、AIエージェントにリクエストを送信することができます。
 
-!> OpenAIのChat Compeletions APIのパラメターの1つ`stream`は`false`である必要があります。デフォルトで`false`に設定済みですので、変更する必要はありません。内部でのLLMどうしでの情報のやり取りなので、`stream`を`true`に設定すると、不要な処理を関数・ツール側で実装する必要が生じます。
+APIパラメターのハッシュには`messages`キーとその値としてメッセージの配列を指定する必要があります。また`model`キーには使用する言語モデルを指定します。その言語モデルのAPIで利用できる各種パラメターも利用可能です。
 
+`send_queryを用いたクエリーでは`stream`は`false`になります（デフォルトで`false`に設定済みですので、明示的に指定する必要はありません）。
 
-レシピファイル内でRubyを使用して作成した関数・ツールの中で、`ask_openai`を使用する方法は次の通りです。
+レシピファイル内でRubyを使用して作成した関数・ツールの中で、`send_query`を使用する方法は次の通りです。
 
 ```ruby
 def my_function
@@ -214,6 +215,6 @@ def my_function
     }
   }
   # OpenAIにリクエストを送信
-  ask_openai(parameters)
+  send_query(parameters)
 end
 ```

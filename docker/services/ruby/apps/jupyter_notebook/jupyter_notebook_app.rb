@@ -10,7 +10,7 @@ class JupyterNotebook < MonadicApp
   prompt_suffix = <<~TEXT
     The function `add_jupyter_cells` needs parameters `filename` and `cells`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly.
 
-    Check the environment using `check_environment` before adding cells to the Jupyter Notebook. 
+      Check the environment using `check_environment` before adding cells to the Jupyter Notebook. If you use a python module, try to use one that is already installed in the current environment; in other words, a module listed in the Dockerfile returned by `check_environment`. If the module is not installed, ask the user to install it by running `!pip install MODULE_NAME` in a cell. 
 
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
 
@@ -22,8 +22,6 @@ class JupyterNotebook < MonadicApp
       Next, ask the user if the user wants a new notebook to be created. At the end of this inquiery for the user, provide the following special string:
 
       "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
-
-    Use the above special string at the end of your message when you ask the user a "yes/no" question, not only in this initial prompt but also in the subsequent conversation. Do not use the special string when you ask the user for a different type of response, however.
 
       If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
 

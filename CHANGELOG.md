@@ -1,4 +1,4 @@
-- [Feb, 2025] 0.9.38
+- [Feb, 2025] 0.9.39
   - OpenAI o3-mini model supported with the `reasoning-effort` parameter
 - [Jan, 2025] 0.9.37
   - Perplexity `sonar-reasoning` (DeepSeek) model supported

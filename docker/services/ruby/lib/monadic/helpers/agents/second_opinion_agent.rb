@@ -38,6 +38,6 @@ module SecondOpinionAgent
       model: model
     }
 
-    ask_openai(parameters)
+    send_query(parameters)
   end
 end

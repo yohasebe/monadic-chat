@@ -30,7 +30,6 @@ class PerplexityChat < MonadicApp
     top_p: 0.9,
     presence_penalty: 0.0,
     frequency_penalty: 1.0,
-    toggle: true,
     initial_prompt: initial_prompt,
     description: description,
     context_size: 3,

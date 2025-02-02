@@ -36,7 +36,7 @@ module MonadicAgent
       { role: "user", content: content }
     ]
 
-    json = BasicAgent.send_query(body)
+    json = send_query(body)
     begin
       JSON.parse(json)
     rescue JSON::ParserError

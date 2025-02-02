@@ -14,12 +14,15 @@ Monadic Chatであらかじめ用意された基本アプリの中から1つを�
 
 !> 多くの基本アプリではモデルのリストをAPI経由で取得しており、複数のモデルが選択可能です。デフォルトのモデル以外を使用する場合はエラーとなる場合もあります。
 
+**Reasoning Effort** <br />
+OpenAIの高度な推論が可能なモデル（`o1`や`o3-mini`）では、推論に用いるトークン数を調整することができます。`low`を選択すると、推論過程のトークン数が最小限に抑えられ、`high`を選択すると、推論過程のトークン数が最大限になります。デフォルトは`medium`はその中間です。
+
 **Max Tokens** <br />
 チェックマークをオンにすると、APIに送信されるテキスト（過去のやりとりと新たなメッセージ）を指定されたトークン数に限定します。トークンのカウント方法についてはモデルによって異なります。OpenAIのモデルに関しては、[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
 
 数値入力フォームには、APIにパラメターとして送られる「トークンの最大値」を指定します。これにはプロンプトとして送られるテキストのトークン数と、レスポンスとして返ってくるテキストのトークン数が含まれます。OpenAIのAPIにおけるトークンのカウント方法については[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
 
-**Context Size** <br />
+**Max Context Size** <br />
 現在進行中のチャットに含まれるやりとりの中で、アクティブなものとして保つ発話の最大数です。アクティブな発話のみがOpenAIのchat APIに文脈情報として送信されます。インアクティブな発話も画面上では参照可能であり、エクスポートの際には保存対象となります。
 
 **Parameters**<br />

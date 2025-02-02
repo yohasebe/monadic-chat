@@ -32,7 +32,7 @@ class CodingAssistantClaude < MonadicApp
     app_name: "Coding Assistant (Claude)",
     description: description,
     icon: icon,
-    initiate_from_assistant: true,
+    initiate_from_assistant: false,
     image: true,
     pdf: false,
     sourcecode: true,

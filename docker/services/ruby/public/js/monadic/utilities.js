@@ -55,8 +55,8 @@ function getCookie(name) {
 
 function listModels(models, openai = false) {
   // Array of strings to identify beta models
-  const regularModelPatterns = [/^gpt-4o/];
-  const betaModelPatterns = [/^o1/];
+  const regularModelPatterns = [/^\bgpt-4o\b/];
+  const betaModelPatterns = [/^\bo\d\b/];
 
   // Separate regular models and beta models
   const regularModels = [];
@@ -79,15 +79,15 @@ function listModels(models, openai = false) {
   if (openai) {
     // Include dummy options when openai is true
     modelOptions = [
-      '<option disabled>──gpt-4o──</option>',
+      '<option disabled>──gpt-models──</option>',
       ...regularModels.map(model =>
         `<option value="${model}">${model}</option>`
       ),
-      '<option disabled>──o1──</option>',
+      '<option disabled>──reasoning models──</option>',
       ...betaModels.map(model =>
-        `<option value="${model}">${model}</option>`
+        `<option value="${model}" data-model-type="reasoning">${model}</option>`
       ),
-      '<option disabled>──other──</option>',
+      '<option disabled>──other models──</option>',
       ...otherModels.map(model =>
         `<option value="${model}">${model}</option>`
       )
@@ -437,6 +437,7 @@ function setParams() {
 
   // params["initial_prompt"] = $("#initial-prompt").val();
   params["model"] = $("#model").val();
+  params["reasoning_effort"] = $("#reasoning-effort").val();
   params["temperature"] = $("#temperature").val();
   params["top_p"] = $("#top-p").val();
   params["presence_penalty"] = $("#presence-penalty").val();
@@ -572,7 +573,7 @@ function resetEvent(event) {
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
-    setStats("−");
+    setStats("No data available");
 
     // select the second option item in the apps dropdown
     $("#apps").val($("#apps option:eq(1)").val()).trigger("change");
@@ -683,4 +684,3 @@ function onNewElementAdded() {
 function applyCollapseStates() {
   updateItemStates();
 }
-

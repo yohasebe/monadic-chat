@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "./utils/basic_agent"
 require_relative "./utils/string_utils"
-
 
 Dir.glob(File.expand_path("helpers/**/*.rb", __dir__)).sort.each do |rb|
   require rb
@@ -22,6 +20,42 @@ class MonadicApp
   include MonadicAgent
   include MonadicHelper
   include StringUtils
+
+  @model_data = {}
+  @app_settings = {}
+
+  class << self
+    attr_reader :model_data, :app_settings
+    
+    def register_models(vendor_name, models)
+      @model_data[vendor_name] ||= Set.new
+      @model_data[vendor_name].merge(models)
+    end
+
+    def model_data
+      @model_data ||= {}
+    end
+    
+    def models_for_vendor(vendor_name)
+      @model_data[vendor_name]&.to_a || []
+    end
+    
+    def vendors
+      @model_data.keys
+    end
+
+    def register_app_settings(app_name, settings)
+      @app_settings[app_name] = settings
+    end
+
+    def app_settings(app_name)
+      @app_settings[app_name] || {}
+    end
+
+    def all_app_settings
+      @app_settings
+    end
+  end
 
   TOKENIZER = FlaskAppClient.new
 
@@ -454,10 +488,6 @@ class MonadicApp
     send_code(code: code, command: command, extension: extension, success: success)
   end
 
-  def ask_openai(parameters)
-    BasicAgent.send_query(parameters)
-  end
-
   def current_time
     Time.now.to_s
   end
@@ -522,7 +552,7 @@ class MonadicApp
     end
   end
 
-  def self.markdownify(text)
+  def markdownify(text)
     model = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
     sys_prompt = <<~PROMPT
     Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. The text is extracted from the webpage: #{url}. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
@@ -543,7 +573,7 @@ class MonadicApp
         }
       ]
     }
-    BasicAgent.send_query(parameters)
+    send_query(parameters)
   end
 
   def self.fetch_webpage(url)
@@ -576,12 +606,12 @@ class MonadicApp
 
   def self.check_vision_capability(model)
     capable_model_names = [
+      "o1",
       "4o",
-      "o1"
     ]
 
     rejected_model_names = [
-      "preview",
+      "o1-preview",
       "o1-mini"
     ]
 

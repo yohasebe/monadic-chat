@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 
 module GeminiHelper
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
@@ -8,8 +8,30 @@ module GeminiHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   MAX_FUNC_CALLS = 5
+  SAFETY_SETTINGS = [
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold: "BLOCK_ONLY_HIGH"
+    },
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH",
+      threshold: "BLOCK_ONLY_HIGH"
+    },
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_ONLY_HIGH"
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold: "BLOCK_ONLY_HIGH"
+    }
+  ]
 
   attr_reader :models
+
+  def self.vendor_name
+    "Gemini"
+  end
 
   def self.list_models
     api_key = CONFIG["GEMINI_API_KEY"]
@@ -41,6 +63,60 @@ module GeminiHelper
     rescue HTTP::Error, HTTP::TimeoutError
       []
     end
+  end
+
+  # No streaming plain text completion/chat call
+  def send_query(options, model: "gemini-2.0-flash-exp")
+    api_key = ENV["GEMINI_API_KEY"]
+
+    headers = {
+      "content-type" => "application/json"
+    }
+
+    body = {
+      "safety_settings" => SAFETY_SETTINGS
+    }
+
+    body["contents"] = options["messages"]
+    options.delete("messages")
+    body["generationConfig"] = options
+
+    target_uri = "#{API_ENDPOINT}/models/#{model}:streamGenerateContent?key=#{api_key}"
+
+    http = HTTP.headers(headers)
+
+    MAX_RETRIES.times do
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                         write: WRITE_TIMEOUT,
+                         read: READ_TIMEOUT).post(target_uri, json: body)
+      if res.status.success?
+        break
+      end
+
+      sleep RETRY_DELAY
+    end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success branch
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Attempt to parse error response body only once
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -111,24 +187,7 @@ module GeminiHelper
     }
 
     body = {
-      safety_settings: [
-        {
-          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_ONLY_HIGH"
-        },
-        {
-          category: "HARM_CATEGORY_HATE_SPEECH",
-          threshold: "BLOCK_ONLY_HIGH"
-        },
-        {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_ONLY_HIGH"
-        },
-        {
-          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-          threshold: "BLOCK_ONLY_HIGH"
-        }
-      ]
+      safety_settings: SAFETY_SETTINGS
     }
 
     if temperature || max_tokens || top_p
@@ -244,7 +303,18 @@ module GeminiHelper
     finish_reason = nil
 
     body.each do |chunk|
+      chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
+
+      if buffer.valid_encoding? == false
+        next
+      end
+
+      begin
+        break if /\Rdata: [DONE]\R/ =~ buffer
+      rescue
+        next
+      end
 
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")

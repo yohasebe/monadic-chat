@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CommandRHelper
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
@@ -11,6 +13,10 @@ module CommandRHelper
 
   class << self
     attr_reader :cached_models
+
+    def vendor_name
+      "CommandR"
+    end
 
     # Fetches available models from Cohere API
     # Returns an array of model names, excluding embedding and reranking models
@@ -53,16 +59,74 @@ module CommandRHelper
     end
   end
 
+  # No streaming plain text completion/chat call
+def send_query(options, model: "command-r-plus-08-2024")
+  api_key = ENV["COHERE_API_KEY"]
+
+  headers = {
+    "accept" => "application/json",
+    "content-type" => "application/json",
+    "Authorization" => "Bearer #{api_key}"
+  }
+
+  body = {
+    "model" => model,
+    "stream" => false,
+    "messages" => []
+  }
+
+  body.merge!(options)
+
+  target_uri = "#{API_ENDPOINT}/chat"
+  http = HTTP.headers(headers)
+
+  res = nil
+  MAX_RETRIES.times do |i|
+    begin
+      res = http.timeout(
+        connect: OPEN_TIMEOUT,
+        write: WRITE_TIMEOUT,
+        read: READ_TIMEOUT
+      ).post(target_uri, json: body)
+      
+      # Check that res exists and that its status is successful
+      break if res && res.status && res.status.success?
+      
+      sleep RETRY_DELAY * (i + 1) # Exponential backoff
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      next unless i == MAX_RETRIES - 1
+      
+      pp error_message = "Network error: #{e.message}"
+      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      block&.call res
+      return [res]
+    end
+  end
+
+  if res && res.status && res.status.success?
+    begin
+      # Parse response only once in the success branch
+      parsed_response = JSON.parse(res.body)
+      return parsed_response.dig("choices", 0, "message", "content")
+    rescue JSON::ParserError => e
+      return "ERROR: Failed to parse response JSON: #{e.message}"
+    end
+  else
+    error_response = nil
+    begin
+      # Parse error response body only once
+      error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+    rescue JSON::ParserError => e
+      error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+    end
+    pp error_response
+    return "ERROR: #{error_response["error"]}"
+  end
+rescue StandardError => e
+  return "Error: The request could not be completed. (#{e.message})"
+end
+
   # Main API request handler
-  # @param role [String] The role of the message sender
-  # @param session [Hash] Session data containing parameters and message history
-  # @param call_depth [Integer] Current depth of function calls
-  # @yield [Hash] Yields response chunks for streaming
-  # Main API request handler
-  # @param role [String] The role of the message sender
-  # @param session [Hash] Session data containing parameters and message history
-  # @param call_depth [Integer] Current depth of function calls
-  # @yield [Hash] Yields response chunks for streaming
   def api_request(role, session, call_depth: 0, &block)
     empty_tool_results = role == "empty_tool_results"
     num_retrial = 0
@@ -208,7 +272,6 @@ module CommandRHelper
       body["messages"] = messages
     end
 
-
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
 
@@ -259,11 +322,6 @@ module CommandRHelper
   end
 
   # Process streaming JSON response data
-  # @param app [String] Application name
-  # @param session [Hash] Session data
-  # @param body [String] Response body
-  # @param call_depth [Integer] Current depth of function calls
-  # @yield [Hash] Yields processed response chunks
   def process_json_data(app, session, body, call_depth, &block)
     texts = []
     tool_calls = []
@@ -276,6 +334,7 @@ module CommandRHelper
     if body.respond_to?(:each)
       body.each do |chunk|
         begin
+          chunk = chunk.force_encoding("UTF-8")
           # Split chunk into separate JSON objects if multiple exist
           chunk.to_s.split("\n").each do |json_str|
             next if json_str.empty?
@@ -419,11 +478,6 @@ module CommandRHelper
   end
 
   # Process function calls from the API response
-  # @param app [String] Application name
-  # @param session [Hash] Session data
-  # @param tool_calls [Array] Array of tool calls to process
-  # @param call_depth [Integer] Current depth of function calls
-  # @yield [Hash] Yields processed response chunks
   def process_functions(app, session, tool_calls, context, call_depth, &block)
     obj = session[:parameters]
     tool_results = []
@@ -490,8 +544,6 @@ module CommandRHelper
   end
 
   # Translate role names to v2 API format
-  # @param role [String] Role name to translate
-  # @return [String] Translated role name
   def translate_role(role)
     role_lower = role.to_s.downcase
     VALID_ROLES.include?(role_lower) ? role_lower : "user"

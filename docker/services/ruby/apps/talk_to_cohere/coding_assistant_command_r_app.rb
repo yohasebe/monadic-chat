@@ -31,7 +31,7 @@ class CodingAssistantCommandR < MonadicApp
     icon: icon,
     easy_submit: false,
     auto_speech: false,
-    initiate_from_assistant: true,
+    initiate_from_assistant: false,
     image: true,
     sourcecode: true
   }

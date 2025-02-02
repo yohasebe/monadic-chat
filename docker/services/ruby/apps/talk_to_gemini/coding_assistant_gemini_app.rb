@@ -29,7 +29,7 @@ class CodingAssistantGemini < MonadicApp
     icon: icon,
     easy_submit: false,
     auto_speech: false,
-    initiate_from_assistant: true,
+    initiate_from_assistant: false,
     image: true,
     models: GeminiHelper.list_models,
     model: "gemini-2.0-flash-exp",

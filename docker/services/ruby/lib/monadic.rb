@@ -26,6 +26,7 @@ require "strscan"
 require "tempfile"
 require "uri"
 require "cgi"
+require "yaml"
 
 # return true if we are inside a docker container
 IN_CONTAINER = File.file?("/.dockerenv")

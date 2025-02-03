@@ -170,10 +170,10 @@ function attachEventListeners($card) {
     } catch (e) {
       // Not JSON, continue
     }
-    if (json) {
-      alert("The current app is monadic. You can't edit JSON messages");
-      return;
-    }
+    // if (json) {
+    //   alert("The current app is monadic. You can't edit JSON messages");
+    //   return;
+    // }
 
     const confirmed = confirm(`Are you sure to edit this message?\nThis will delete all the messages after it.`);
     if (confirmed) {

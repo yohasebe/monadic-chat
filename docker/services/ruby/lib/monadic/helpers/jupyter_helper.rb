@@ -1,5 +1,11 @@
 module MonadicHelper
 
+  JUPYTER_LOG_FILE = if IN_CONTAINER
+                       "/monadic/log/jupyter.log"
+                     else
+                       Dir.home + "/monadic/log/jupyter.log"
+                     end
+
   def unescape(text)
     text.gsub(/\\n/) { "\n" }
       .gsub(/\\'/) { "'" }
@@ -7,8 +13,24 @@ module MonadicHelper
       .gsub(/\\\\/) { "\\" }
   end
 
+  def capture_add_cells(cells)
+    begin
+      cells_str = YAML.dump(cells)
+    rescue StandardError
+      cells_str = cells.to_s
+    end
+
+    File.open(JUPYTER_LOG_FILE, "a") do |f|
+      f.puts "Time: #{Time.now}"
+      f.puts "Cells: #{cells_str}"
+      f.puts "-----------------------------------"
+    end
+  end
+
   def add_jupyter_cells(filename: "", cells: "", escaped: false, retrial: false)
     original_cells = cells.dup
+
+    capture_add_cells(cells)
 
     # remove escape characters from the cells
     if escaped

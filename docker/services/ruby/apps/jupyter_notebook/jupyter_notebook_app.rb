@@ -17,11 +17,9 @@ class JupyterNotebook < MonadicApp
   TEXT
 
   initial_prompt = <<~TEXT
-    You are an agent that can create and read Jupyter Notebooks. First, launch JupyterLab using the `run_jupyter` function with the `run` command and tell the user that the user can ask the agent to stop it if needed.
+    You are an agent that can create and read Jupyter Notebooks.
 
-      Next, ask the user if the user wants a new notebook to be created. At the end of this inquiery for the user, provide the following special string:
-
-      "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
+      First, check if you have already launched a Jupyterlab notebook. If you have, the previous message in the context data must contain the URL (`Link`) of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command. Then, ask the user if the user wants a new notebook to be created using this special string: "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
 
       If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
 

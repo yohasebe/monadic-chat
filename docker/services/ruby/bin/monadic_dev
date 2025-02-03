@@ -18,6 +18,7 @@ Dir.mkdir(DATA_DIR) unless Dir.exist?(DATA_DIR)
 Dir.mkdir(LOG_DIR) unless Dir.exist?(LOG_DIR)
 
 File.open(File.join(LOG_DIR, "command.log"), "w") {}
+File.open(File.join(LOG_DIR, "jupyter.log"), "w") {}
 
 # Helper methods for OS detection
 def is_mac?

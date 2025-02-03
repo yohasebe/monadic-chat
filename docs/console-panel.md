@@ -89,6 +89,7 @@ Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat
 - `docker-startup.log`: Log file for Docker startup.
 - `server.log`: Log file for the Monadic Chat server.
 - `command.log`: Log file for command execution and code execution.
+- `jupyter.log`: Log file for cells added to jupyter notebook.
 
 **Open Console** <br />
 Open the Monadic Chat console.

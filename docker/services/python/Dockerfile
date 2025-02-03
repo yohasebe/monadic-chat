@@ -30,7 +30,8 @@ RUN pip install -U pip && \
     lxml pygraphviz pydotplus networkx pyvis \
     svgwrite cairosvg tinycss cssselect pygal \
     pyecharts pyecharts-snapshot \
-    opencv-python moviepy==2.0.0.dev2
+    opencv-python moviepy==2.0.0.dev2 \
+    torch torchvision torchaudio 
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

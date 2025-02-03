@@ -144,6 +144,7 @@ ensure_data_dir() {
   mkdir -p "${config_dir}"
 
   rm -f "${log_dir}/command.log"
+  rm -f "${log_dir}/jupyter.log"
 
   touch "${config_dir}/env"
   touch "${config_dir}/rbsetup.sh"

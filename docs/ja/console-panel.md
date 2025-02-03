@@ -90,6 +90,7 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 - `docker-startup.log`: Docker起動のログファイル
 - `server.log`: Monadic Chatのサーバーログファイル
 - `command.log`: Monadic Chatのコマンド実行およびコード実行ログファイル
+- `jupyter.log`: Jupyterノートブックに追加されたセルのログファイル
 
 **Open Console** <br />
 Monadic Chatのコンソールパネルを開きます。

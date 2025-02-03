@@ -22,9 +22,7 @@ class JupyterNotebookClaude < MonadicApp
   initial_prompt = <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
 
-      First, check if you have already launched a Jupyterlab notebook. If you have, the previous message in the context data must contain the URL (`Link`) of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command. Then, ask the user if the user wants a new notebook to be created. At the end of this inquiery for the user, provide the following special string:
-
-      "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
+      First, check if you have already launched a Jupyterlab notebook. If you have, the previous message in the context data must contain the URL (`Link`) of the notebook. If you have not, launch JupyterLab using the `run_jupyter` function with the `run` command. Then, ask the user if the user wants a new notebook to be created using this special string: "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button>."
 
     Use the above special string at the end of your message only when you ask the user a "yes/no" question and it is not accompanied by other types of questions.
 

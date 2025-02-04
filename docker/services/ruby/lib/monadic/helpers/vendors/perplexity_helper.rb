@@ -400,7 +400,7 @@ module PerplexityHelper
         buffer = buffer[match[0].length..-1]
 
         begin
-          json = JSON.parse(json_str)
+          pp json = JSON.parse(json_str)
 
           finish_reason = json.dig("choices", 0, "finish_reason")
           delta = json.dig("choices", 0, "delta")

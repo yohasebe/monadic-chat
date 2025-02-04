@@ -15,11 +15,12 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Feb, 2025] 0.9.39
+- [Feb, 2025] 0.9.40
   - OpenAI o3-mini model supported with the `reasoning-effort` parameter
   - Jupyter Notebook apps improved with `jupyter.log` generated for each session
+  - Perplexity `sonar-reasoning-pro` (DeepSeek R1) model supported
 - [Jan, 2025] 0.9.37
-  - Perplexity `sonar-reasoning` (DeepSeek) model supported
+  - Perplexity `sonar-reasoning` (DeepSeek R1) model supported
   - OpenAI o1 models supported
   - DeepSeek models supported
   - Better logging for tool use (function calling)

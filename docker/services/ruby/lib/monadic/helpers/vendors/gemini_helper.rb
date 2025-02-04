@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module GeminiHelper
-  API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
+  API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
   OPEN_TIMEOUT = 10
   READ_TIMEOUT = 90
   WRITE_TIMEOUT = 90

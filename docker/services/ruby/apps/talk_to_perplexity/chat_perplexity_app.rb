@@ -24,6 +24,7 @@ class PerplexityChat < MonadicApp
       "sonar",
       "sonar-pro",
       "sonar-reasoning",
+      "sonar-reasoning-pro"
     ],
     toggle: true,
     temperature: 0.2,

@@ -33,7 +33,7 @@ module OpenAIHelper
 
   REASONING_MODELS = [
     "o3",
-    "o3-2025-01-31",
+    "o1"
   ]
 
   NON_TOOL_MODELS = [

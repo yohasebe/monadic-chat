@@ -376,31 +376,29 @@ module PerplexityHelper
     finish_reason = nil
     started = false
     current_json = nil
+    stopped = false
+    json = nil
 
     body.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
+      buffer << chunk
+
       if buffer.valid_encoding? == false
-        buffer << chunk
         next
       end
-
-      if chunk.include?("data: [DONE]")
-        break
-      end
-
-      buffer << chunk
 
       buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
       buffer.encode!("UTF-8", "UTF-16")
 
       first_iteration = true
 
+
       while (match = buffer.match(/^data: (\{.*?\})\r\n/m))
         json_str = match[1]
         buffer = buffer[match[0].length..-1]
 
         begin
-          pp json = JSON.parse(json_str)
+          json = JSON.parse(json_str)
 
           finish_reason = json.dig("choices", 0, "finish_reason")
           delta = json.dig("choices", 0, "delta")
@@ -451,6 +449,7 @@ module PerplexityHelper
               end.join("\n") + "</ol></div>"
               texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
             end
+            stopped = true
             break
           end
 
@@ -459,6 +458,25 @@ module PerplexityHelper
           buffer = "data: #{json_str}" + buffer
           break
         end
+      end
+    end
+
+    if json && !stopped
+      stopped = true
+      texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"].gsub(/<think>\s+/m) do
+        "<div data-title='Thinking' class='toggle'><div class='toggle-open'>"
+      end.gsub("</think>") do
+        "</div></div>\n\n---\n\n"
+      end
+
+      citations = json["citations"] if json["citations"]
+      new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
+      # add citations to the last message
+      if citations.any?
+        citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
+          "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
+        end.join("\n") + "</ol></div>"
+        texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
       end
     end
 

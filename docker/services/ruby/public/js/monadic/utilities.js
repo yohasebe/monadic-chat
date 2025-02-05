@@ -357,6 +357,13 @@ function loadParams(params, calledFor = "loadParams") {
   } else {
     $("#initiate-from-assistant").prop('checked', false);
   }
+  if (params["mathjax"]) {
+    $("#mathjax").prop('checked', true);
+    $("#math-badge").show();
+  } else {
+    $("#mathjax").prop('checked', false);
+    $("#math-badge").hide();
+  }
 
   $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
 
@@ -429,6 +436,12 @@ function setParams() {
     }
   } else {
     params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
+  }
+
+  if ($("#mathjax").is(":checked")) {
+    params["mathjax"] = "true";
+  } else {
+    params["mathjax"] = "false";
   }
 
   if ($("#prompt-caching").prop('checked') && !$("#prompt-caching").prop('disabled')) {

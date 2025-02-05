@@ -317,6 +317,54 @@ module WebSocketHelper
           end
         when "SYSTEM_PROMPT"
           text = obj["content"] || ""
+
+          if obj["mathjax"]
+            # the blank line at the beginning is important!
+            text << <<~SYSPSUFFIX
+
+            You use the MathJax notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of MathJax expression should be presntend without surrounding backticks.
+              SYSPSUFFIX
+
+            if obj["monadic"] || obj["jupyter"]
+              # the blank line at the beginning is important!
+              text << <<~SYSPSUFFIX
+
+              Make sure to escape properly in the MathJax expressions.
+
+                Good examples of inline MathJax expressions:
+                - `$1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)$`
+                - `$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$`
+                - `$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$`
+                - `$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$`
+
+              Good examples of block MathJax expressions:
+                - `$$1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)$$`
+                - `$$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
+                - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
+                - `$$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$$`
+              SYSPSUFFIX
+            else
+              # the blank line at the beginning is important!
+              text << <<~SYSPSUFFIX
+
+              Good examples of inline MathJax expressions:
+                - `$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$`
+                - `$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$`
+                - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
+                - `$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$`
+
+              Good examples of block MathJax expressions:
+                - `$$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$$`
+                - `$$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
+                - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
+                - `$$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$$`
+
+              Remember that the following are not available in MathJax:
+                - `\begin{itemize}` and `\end{itemize}`
+              SYSPSUFFIX
+            end
+          end
+
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => "system",
                        "text" => text,

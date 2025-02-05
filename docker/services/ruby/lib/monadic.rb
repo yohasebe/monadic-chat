@@ -61,7 +61,7 @@ When creating a numbered list in Markdown that contains code blocks or other con
 
 1. Each list item's content (including code blocks, paragraphs, or nested lists) should be indented with 4 spaces from the list marker position
 2. Code blocks within list items should be indented with 4 spaces plus the standard code block syntax
-3. Ensure there is a blank line before and after code blocks and other content within list items
+3. Ensure there is a blank line before and after code blocks, tables, headings, paragraphs, lists, and other elements (including those within list items)
 4. The indentation must be maintained for all content belonging to the same list item
 
 Example format:
@@ -76,8 +76,9 @@ Example format:
     Continuation text for first item (also indented with 4 spaces)
 
 2. Second item
-- Nested list (indented with 4 spaces)
-- Another nested item
+
+    - Nested list (indented with 4 spaces)
+    - Another nested item
 
 Please format all numbered lists following these rules to ensure proper rendering.
 PROMPT
@@ -169,14 +170,14 @@ def init_apps
 
     app_name = app.settings["app_name"]
 
-    system_prompt_suffix = DEFAULT_PROMPT_SUFFIX
+    system_prompt_suffix = DEFAULT_PROMPT_SUFFIX.dup
     prompt_suffix = ""
     response_suffix = ""
 
     if app.settings["sourcecode"]
       system_prompt_suffix << <<~SYSPSUFFIX
 
-      It is import to avoid nesting Markdown code blocks. When embedding the content of a Markdown  file within your response, use the following format. This will ensure that the content is displayed correctly in the browser. 
+      It is important to avoid nesting Markdown code blocks. When embedding the content of a Markdown  file within your response, use the following format. This will ensure that the content is displayed correctly in the browser. 
 
       EXAMPLE_START_HERE
       <div class="language-markdown highlighter-rouge”><pre class=“highlight”><code>
@@ -188,57 +189,6 @@ def init_apps
 
       When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
       SYSPSUFFIX
-    end
-
-    if app.settings["mathjax"]
-      # the blank line at the beginning is important!
-      system_prompt_suffix << <<~SYSPSUFFIX
-
-      You use the MathJax notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of MathJax expression should be presntend without surrounding backticks.
-      SYSPSUFFIX
-
-      if app.settings["monadic"] || app.settings["jupyter"]
-        # the blank line at the beginning is important!
-        system_prompt_suffix << <<~SYSPSUFFIX
-
-        Make sure to escape properly in the MathJax expressions.
-
-        Good examples of inline MathJax expressions:
-        - `$1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)$`
-        - `$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$`
-        - `$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$`
-        - `$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$`
-
-        Good examples of block MathJax expressions:
-        - `$$1 + 2 + 3 + … + k + (k + 1) = \\\\frac{k(k + 1)}{2} + (k + 1)$$`
-        - `$$\\\\textbf{a} + \\\\textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
-        - `$$\\\\begin{align} 1 + 2 + … + k + (k+1) &= \\\\frac{k(k+1)}{2} + (k+1)\\\\end{align}$$`
-        - `$$\\\\sin(\\\\theta) = \\\\frac{\\\\text{opposite}}{\\\\text{hypotenuse}}$$`
-        SYSPSUFFIX
-      else
-        # the blank line at the beginning is important!
-        system_prompt_suffix << <<~SYSPSUFFIX
-
-        Good examples of inline MathJax expressions:
-        - `$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$`
-        - `$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$`
-        - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
-        - `$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$`
-
-        Good examples of block MathJax expressions:
-        - `$$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$$`
-        - `$$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
-        - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
-        - `$$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$$`
-
-        Remember that the following are not available in MathJax:
-        - `\begin{itemize}` and `\end{itemize}`
-        SYSPSUFFIX
-      end
-
-      prompt_suffix << <<~PSUFFIX
-      Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly.
-      PSUFFIX
     end
 
     if app.settings["tools"]
@@ -304,6 +254,7 @@ def init_apps
 
     apps[app_name] = app
   end
+
   # remove apps if its settings are empty
   apps.sort_by { |k, _v| k }.to_h
 end

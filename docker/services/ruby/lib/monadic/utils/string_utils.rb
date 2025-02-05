@@ -27,14 +27,13 @@ module StringUtils
     t4.gsub(/\n{3,}/, "\n\n")
   end
 
-
   def markdown_to_html(text, mathjax: false)
     # if text is not a String, return a string representation of it
     return text.to_s unless text.is_a?(String)
 
-    # t1 = normalize_markdown(text)
-    t1 = text
-
+    # insert a newline after a line that does not end with a newline
+    pattern = Regexp.new('^(\s*#{1,6}\s+.*)(\n)(?!\n)')
+    t1 = text.gsub(pattern, "\\1\\2\n")
     t2 = t1.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
     t3 = t2.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
 

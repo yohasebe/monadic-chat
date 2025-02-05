@@ -41,6 +41,9 @@ Displays the initial prompt given to the AI user when the AI User feature is ena
 **Prompt Caching**<br />
 Specify whether to cache the system prompt sent to the API. Enabling caching allows the same system prompt to be reused on the API side, saving API usage and improving response time. At present, this feature is only available for Anthropic's Claude model and is limited to system prompts, images, and PDFs.
 
+**Math Rendering**<br />
+Request the AI agent to use MathJax format when displaying mathematical expressions and render mathematical expressions in the response using MathJax.
+
 **Enable AI-User**<br />
 Specify whether to enable the AI User feature. This feature cannot be used together with the `Start from assistant` feature.
 

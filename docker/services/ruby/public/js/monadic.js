@@ -156,9 +156,6 @@ $(function () {
       $("#file-div").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-    // } else if (apps[$(this).val()]["file"]) {
-    //   $("#pdf-panel").hide();
-    //   $("#file-div").show();
     } else {
       $("#file-div").hide();
       $("#pdf-panel").hide();
@@ -251,7 +248,11 @@ $(function () {
 
     if (apps[$(this).val()]["mathjax"]) {
       $("#math-badge").show();
+      $("#mathjax").prop("checked", true);
+      $("#math-badge").show();
     } else {
+      $("#math-badge").hide();
+      $("#mathjax").prop("checked", false);
       $("#math-badge").hide();
     }
 
@@ -288,6 +289,16 @@ $(function () {
       params["easy_submit"] = false;
     }
   })
+
+  $("#mathjax").on("change", function () {
+    if ($(this).is(":checked")) {
+      params["mathjax"] = true;
+      $("#math-badge").show();
+    } else {
+      params["mathjax"] = false;
+      $("#math-badge").hide();
+    }
+  });
 
   $("#toggle-menu").on("click", function () {
     // toggle shoe/hide menu and adjust main panel width
@@ -334,7 +345,13 @@ $(function () {
       setInputFocus()
     } else {
       // create secure random 4-digit number
-      ws.send(JSON.stringify({ message: "SYSTEM_PROMPT", content: $("#initial-prompt").val() }));
+      ws.send(JSON.stringify({
+        message: "SYSTEM_PROMPT",
+        content: $("#initial-prompt").val(),
+        mathjax: $("#mathjax").is(":checked"),
+        monadic: params["monadic"],
+        jupyter: params["jupyter"],
+      }));
 
       $("#config").hide();
       $("#back-to-settings").show();
@@ -361,6 +378,7 @@ $(function () {
       $("#initiate-from-assistant").prop("checked", false).trigger("change");
     }
   });
+
   // if $ai-user-initial-prompt is enabled, $ai-user-toggle will be automatically disabled
   $("#initiate-from-assistant").on("change", function () {
     if ($(this).is(":checked")) {

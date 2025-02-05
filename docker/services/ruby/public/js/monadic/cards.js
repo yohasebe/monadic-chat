@@ -240,4 +240,8 @@ function attachEventListeners($card) {
     const $icon = $(this).find("i");
     $icon.css("color", event.type === "mouseenter" ? "#DC4C64" : "");
   });
+
+  $card.on("mouseleave", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
+    $(this).tooltip('hide');
+  });
 }

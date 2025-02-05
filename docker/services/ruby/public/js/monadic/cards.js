@@ -236,12 +236,15 @@ function attachEventListeners($card) {
   });
 
   // Combine mouse events into a single listener
-  $card.on("mouseenter mouseleave", ".func-play, .func-copy, .func-delete, .func-edit", function (event) {
+  $card.on("mouseenter", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
+    $(this).tooltip('show');
     const $icon = $(this).find("i");
-    $icon.css("color", event.type === "mouseenter" ? "#DC4C64" : "");
+    $icon.css("color", "#DC4C64");
   });
 
   $card.on("mouseleave", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
     $(this).tooltip('hide');
+    const $icon = $(this).find("i");
+    $icon.css("color", "");
   });
 }

@@ -592,7 +592,7 @@ function connect_websocket(callback) {
         setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         $("#start").prop("disabled", false);
-        $("#send, #clear, #voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+        $("#send, #clear, #voice, #tts-provider, #xi-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
 
         // console.log("Token verified");
 

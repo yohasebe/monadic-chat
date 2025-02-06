@@ -15,7 +15,8 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Feb, 2025] 0.9.42
+- [Feb, 2025] 0.9.43
+  - ElevenLabs TTS voices supported
   - OpenAI o3-mini model supported with the `reasoning-effort` parameter
   - Jupyter Notebook apps improved with `jupyter.log` generated for each session
   - Perplexity `sonar-reasoning-pro` (DeepSeek R1) model supported

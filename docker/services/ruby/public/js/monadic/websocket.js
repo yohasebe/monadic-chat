@@ -561,6 +561,7 @@ function connect_websocket(callback) {
       }
 
       case "error": {
+        console.log(data);
         $("#send, #clear, #voice").prop("disabled", false);
         $("#alert-message").html("Input a message.");
         $("#temp-card").hide();
@@ -768,6 +769,21 @@ function connect_websocket(callback) {
         $("#start").focus();
 
         updateAppAndModelSelection(data["content"]);
+        break;
+      }
+      case "elevenlabs_voices": {
+        let voices = data["content"];
+        if (voices.length > 0) {
+          // set #xi-provider-option enabled
+          $("#xi-provider-option").prop("disabled", false);
+        } else {
+          // set #xi-provider-option disabled
+          $("#xi-provider-option").prop("disabled", true);
+        }
+        $("#xi-tts-voice").empty();
+        voices.forEach((voice) => {
+          $("#xi-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
+        });
         break;
       }
       case "whisper": {

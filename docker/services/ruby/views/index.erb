@@ -113,7 +113,21 @@
             <h5 class=""><span class="text"><i class="fas fa-comment-dots"></i> Speech</span></h5>
 
             <div class="my-1">
-              <label for="tts-voice" class="div-label my-2">Text-to-Speech (TTS) Voice</label>
+              <label for="tts-provider" class="div-label my-2">Text-to-Speech (TTS) Provider</label>
+              <select class="form-select form-select-sm" id="tts-provider">
+                <option id="openai-provider-option" value="openai">OpenAI</option>
+                <option id="xi-provider-option" value="xi">ElevenLabs</option>
+              </select>
+            </div>
+
+            <div id="xi-voices" class="my-1" style="display: none;">
+              <label for="tts-voice" class="div-label my-2">Elevenlabs Text-to-Speech Voice</label>
+              <select class="form-select form-select-sm" id="xi-tts-voice">
+              </select>
+            </div>
+
+            <div id="openai-voices" class="my-1">
+              <label for="tts-voice" class="div-label my-2">OpenAI Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="tts-voice">
                 <option value="alloy">Alloy</option>
                 <option value="ash">Ash</option>

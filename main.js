@@ -1383,7 +1383,8 @@ function checkAndUpdateEnvFile() {
     'GEMINI_API_KEY',
     'XAI_API_KEY',
     'PERPLEXITY_API_KEY',
-    'DEEPSEEK_API_KEY'
+    'DEEPSEEK_API_KEY',
+    'XI_API_KEY'
   ];
   const hasApiKey = api_list.some(key => envConfig[key]);
   return hasApiKey;

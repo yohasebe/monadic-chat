@@ -91,24 +91,44 @@ module OpenAIUtils
     end
   end
 
-  def tts_api_request(text, voice, speed, response_format, model, &block)
-    body = {
-      "input" => text,
-      "model" => model,
-      "voice" => voice,
-      "speed" => speed,
-      "response_format" => response_format
-    }
+  def tts_api_request(provider, text, voice, speed, response_format, model, &block)
 
-    num_retrial = 0
-    api_key = settings.api_key
+    case provider
+    when "openai"
+      body = {
+        "input" => text,
+        "model" => model,
+        "voice" => voice,
+        "speed" => speed,
+        "response_format" => response_format
+      }
 
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
+      num_retrial = 0
+      api_key = settings.api_key
 
-    target_uri = "#{API_ENDPOINT}/audio/speech"
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+
+      target_uri = "#{API_ENDPOINT}/audio/speech"
+    when "xi"
+      body = {
+        "text" => text,
+        "model_id" => "eleven_flash_v2_5",
+      }
+
+      num_retrial = 0
+      api_key = ENV["XI_API_KEY"]
+
+      headers = {
+        "Content-Type" => "application/json",
+        "xi-api-key" => api_key
+      }
+
+      output_format = "mp3_44100_128"
+      target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}"
+    end
 
     begin
       http = HTTP.headers(headers)
@@ -137,17 +157,39 @@ module OpenAIUtils
         { "type" => "audio", "content" => Base64.strict_encode64(res) }
       end
 
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      if num_retrial < MAX_RETRIES
-        num_retrial += 1
-        sleep RETRY_DELAY
-        retry
-      else
-        pp error_message = "The request has timed out."
-        res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-        block&.call res
-        false
+    # rescue HTTP::Error, HTTP::TimeoutError => e
+    #   if num_retrial < MAX_RETRIES
+    #     num_retrial += 1
+    #     sleep RETRY_DELAY
+    #     retry
+    #   else
+    #     pp error_message = "The request has timed out."
+    #     res = { "type" => "error", "content" => "ERROR: #{error_message}" }
+    #     block&.call res
+    #     false
+    #   end
+    end
+  end
+
+  def list_elevenlabs_voices(xi_api_key)
+    return [] unless xi_api_key
+
+    begin
+      url = URI("https://api.elevenlabs.io/v1/voices")
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      request = Net::HTTP::Get.new(url)
+      request["xi-api-key"] = xi_api_key
+      response = http.request(request)
+      voices = response.read_body
+      JSON.parse(voices)&.dig("voices")&.map do |voice|
+        {
+          "voice_id" => voice["voice_id"],
+          "name" => voice["name"]
+        }
       end
+    rescue StandardError => e
+      []
     end
   end
 

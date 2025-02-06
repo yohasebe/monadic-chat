@@ -92,7 +92,6 @@ module OpenAIUtils
   end
 
   def tts_api_request(provider, text, voice, speed, response_format, model, &block)
-
     case provider
     when "openai"
       body = {

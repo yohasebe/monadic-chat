@@ -18,7 +18,9 @@ function audioInit() {
 
 function ttsSpeak(text, stream, callback) {
 
+  const provider = $("#tts-provider").val();
   const voice = $("#tts-voice").val();
+  const xi_voice = $("#xi-tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
   let mode = "TTS"
@@ -48,9 +50,11 @@ function ttsSpeak(text, stream, callback) {
   }
 
   ws.send(JSON.stringify({
+    provider: provider,
     message: mode,
     text: text,
     voice: voice,
+    xi_voice: xi_voice,
     speed: speed,
     model: model,
     response_format: response_format

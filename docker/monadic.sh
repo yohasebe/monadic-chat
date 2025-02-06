@@ -4,7 +4,7 @@
 export PATH=${PATH}:/usr/local/bin
 
 export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-export MONADIC_VERSION=0.9.42
+export MONADIC_VERSION=0.9.43
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5

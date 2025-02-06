@@ -83,21 +83,23 @@ module WebSocketHelper
 
         case msg
         when "TTS"
+          provider = obj["provider"]
           text = obj["text"]
           voice = obj["voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
           model = obj["model"]
-          res_hash = tts_api_request(text, voice, speed, response_format, model)
+          res_hash = tts_api_request(provider, text, voice, speed, response_format, model)
           @channel.push(res_hash.to_json)
         when "TTS_STREAM"
           thread&.join
+          provider = obj["provider"]
           text = obj["text"]
           voice = obj["voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
           model = obj["model"]
-          tts_api_request(text, voice, speed, response_format, model) do |fragment|
+          tts_api_request(provider, text, voice, speed, response_format, model) do |fragment|
             @channel.push(fragment.to_json)
           end
         when "CANCEL"
@@ -181,6 +183,12 @@ module WebSocketHelper
           @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
           @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
           @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty? 
+
+          CONFIG["XI_API_KEY"] = "90425e9339ae1f6f0de462ac02ed0e0d"
+          elevenlabs_voices =  list_elevenlabs_voices(CONFIG["XI_API_KEY"])
+          if !elevenlabs_voices.empty?
+            @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
+          end
 
           past_messages_data = check_past_messages(session[:parameters])
 
@@ -414,7 +422,12 @@ module WebSocketHelper
           session[:parameters].merge! obj
 
           if obj["auto_speech"]
-            voice = obj["tts_voice"]
+            provider = obj["tts_provider"]
+            if provider == "xi"
+              voice = obj["xi_tts_voice"]
+            else
+              voice = obj["tts_voice"]
+            end
             speed = obj["tts_speed"]
             response_format = "mp3"
             model = "tts-1"
@@ -446,7 +459,7 @@ module WebSocketHelper
                   if obj["auto_speech"] && !cutoff && !obj["monadic"]
                     text = split[0] || ""
                     if text != "" && candidate != ""
-                      res_hash = tts_api_request(text, voice, speed, response_format, model)
+                      res_hash = tts_api_request(provider, text, voice, speed, response_format, model)
                       @channel.push(res_hash.to_json)
                     end
                   end
@@ -462,7 +475,7 @@ module WebSocketHelper
 
             if obj["auto_speech"] && !cutoff && !obj["monadic"]
               text = buffer.join
-              res_hash = tts_api_request(text, voice, speed, response_format, model)
+              res_hash = tts_api_request(provider, text, voice, speed, response_format, model)
               @channel.push(res_hash.to_json)
             end
 
@@ -489,7 +502,7 @@ module WebSocketHelper
 
                 if obj["auto_speech"] && obj["monadic"]
                   message = JSON.parse(content)["message"]
-                  res_hash = tts_api_request(message, voice, speed, response_format, model)
+                  res_hash = tts_api_request(provider, message, voice, speed, response_format, model)
                   @channel.push(res_hash.to_json)
                 end
 

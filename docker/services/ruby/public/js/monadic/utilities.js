@@ -203,7 +203,9 @@ function listModels(models, openai = false) {
     const objToSave = Object.assign({}, obj);
     delete objToSave["parameters"]["message"];
     delete objToSave["parameters"]["pdf"];
+    delete objToSave["parameters"]["tts_provider"];
     delete objToSave["parameters"]["tts_voice"];
+    delete objToSave["parameters"]["xi_tts_voice"];
     delete objToSave["parameters"]["tts_speed"];
     const data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objToSave));
     const downloadLink = $('<a></a>')
@@ -470,8 +472,10 @@ function setParams() {
     params["context_size"] = $("#context-size").val();
   }
 
+  params["tts_provider"] = $("#tts-provider").val();
+  params["tts_voice"] = $("#xi-tts-voice").val();
+  params["xi_tts_voice"] = $("#xi-tts-voice").val();
   params["tts_speed"] = $("#tts-speed").val();
-  params["tts_voice"] = $("#tts-voice").val();
   params["asr_lang"] = $("#asr-lang").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');

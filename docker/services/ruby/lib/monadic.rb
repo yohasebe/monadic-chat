@@ -270,6 +270,7 @@ configure do
   set :public_folder, "public"
   set :views, "views"
   set :api_key, ENV["OPENAI_API_KEY"]
+  set :xi_api_key, ENV["XI_API_KEY"]
   enable :cross_origin
 end
 

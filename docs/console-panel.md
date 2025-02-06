@@ -132,3 +132,6 @@ Enter your xAI API key. This key is required to use the xAI Grok models. It can 
 
 **DEEPSEEK_API_KEY** <br />
 Enter your DeepSeek API key. This key is required to use the DeepSeek models. It can be obtained from [https://platform.deepseek.com/].
+
+**XI_API_KEY** <br />
+Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers].

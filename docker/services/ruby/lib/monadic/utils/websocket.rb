@@ -85,6 +85,7 @@ module WebSocketHelper
         when "TTS"
           provider = obj["provider"]
           text = obj["text"]
+          xi_voice = obj["xi_voice"]
           voice = obj["voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
@@ -96,6 +97,7 @@ module WebSocketHelper
           provider = obj["provider"]
           text = obj["text"]
           voice = obj["voice"]
+          xi_voice = obj["xi_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
           model = obj["model"]

@@ -473,7 +473,7 @@ function setParams() {
   }
 
   params["tts_provider"] = $("#tts-provider").val();
-  params["tts_voice"] = $("#xi-tts-voice").val();
+  params["tts_voice"] = $("#tts-voice").val();
   params["xi_tts_voice"] = $("#xi-tts-voice").val();
   params["tts_speed"] = $("#tts-speed").val();
   params["asr_lang"] = $("#asr-lang").val();

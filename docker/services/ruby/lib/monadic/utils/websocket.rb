@@ -85,7 +85,7 @@ module WebSocketHelper
         when "TTS"
           provider = obj["provider"]
           text = obj["text"]
-          xi_voice = obj["xi_voice"]
+          elevenlabs_voice = obj["elevenlabs_voice"]
           voice = obj["voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
@@ -97,7 +97,7 @@ module WebSocketHelper
           provider = obj["provider"]
           text = obj["text"]
           voice = obj["voice"]
-          xi_voice = obj["xi_voice"]
+          elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
           model = obj["model"]
@@ -186,8 +186,7 @@ module WebSocketHelper
           @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
           @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty? 
 
-          CONFIG["XI_API_KEY"] = "90425e9339ae1f6f0de462ac02ed0e0d"
-          elevenlabs_voices =  list_elevenlabs_voices(CONFIG["XI_API_KEY"])
+          elevenlabs_voices =  list_elevenlabs_voices(CONFIG["ELEVENLABS_API_KEY"])
           if !elevenlabs_voices.empty?
             @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
           end
@@ -425,8 +424,8 @@ module WebSocketHelper
 
           if obj["auto_speech"]
             provider = obj["tts_provider"]
-            if provider == "xi"
-              voice = obj["xi_tts_voice"]
+            if provider == "elevenlabs"
+              voice = obj["elevenlabs_tts_voice"]
             else
               voice = obj["tts_voice"]
             end

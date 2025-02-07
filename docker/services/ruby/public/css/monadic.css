@@ -736,3 +736,8 @@ pre code{
   background-color: #f8f8f8;
   white-space: pre-wrap;
 }
+
+
+#voice:focus {
+outline: 2px #FF8C00 solid;
+}

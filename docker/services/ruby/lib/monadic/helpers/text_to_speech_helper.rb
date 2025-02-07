@@ -1,5 +1,12 @@
 module MonadicHelper
-  def text_to_speech(text: "", speed: 1.0, voice: "alloy", language: "auto")
+  def list_providers_and_voices
+    command = <<~CMD
+      bash -c 'simple_tts_query.rb --list'
+    CMD
+    send_command(command: command, container: "ruby")
+  end
+
+  def text_to_speech(provider: "openai", text: "", speed: 1.0, voice_id: "alloy", language: "auto")
     text = text.gsub(/"/, '\"')
 
     save_path = if IN_CONTAINER
@@ -16,7 +23,7 @@ module MonadicHelper
     end
 
     command = <<~CMD
-      bash -c 'simple_tts_query.rb "#{textpath}" --speed=#{speed} --voice=#{voice} --language=#{language}'
+      bash -c 'simple_tts_query.rb #{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language}'
     CMD
     send_command(command: command, container: "ruby")
   end

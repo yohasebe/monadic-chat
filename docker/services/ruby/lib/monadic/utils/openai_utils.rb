@@ -92,8 +92,16 @@ module OpenAIUtils
   end
 
   def tts_api_request(provider, text, voice, speed, response_format, model, &block)
+    num_retrial = 0
+
     case provider
     when "openai"
+      api_key = settings.api_key
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+
       body = {
         "input" => text,
         "model" => model,
@@ -102,27 +110,17 @@ module OpenAIUtils
         "response_format" => response_format
       }
 
-      num_retrial = 0
-      api_key = settings.api_key
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
       target_uri = "#{API_ENDPOINT}/audio/speech"
     when "xi"
-      body = {
-        "text" => text,
-        "model_id" => "eleven_flash_v2_5",
-      }
-
-      num_retrial = 0
       api_key = ENV["XI_API_KEY"]
-
       headers = {
         "Content-Type" => "application/json",
         "xi-api-key" => api_key
+      }
+
+      body = {
+        "text" => text,
+        "model_id" => "eleven_flash_v2_5",
       }
 
       output_format = "mp3_44100_128"
@@ -155,18 +153,6 @@ module OpenAIUtils
       else
         { "type" => "audio", "content" => Base64.strict_encode64(res) }
       end
-
-    # rescue HTTP::Error, HTTP::TimeoutError => e
-    #   if num_retrial < MAX_RETRIES
-    #     num_retrial += 1
-    #     sleep RETRY_DELAY
-    #     retry
-    #   else
-    #     pp error_message = "The request has timed out."
-    #     res = { "type" => "error", "content" => "ERROR: #{error_message}" }
-    #     block&.call res
-    #     false
-    #   end
     end
   end
 

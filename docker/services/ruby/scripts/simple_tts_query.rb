@@ -22,19 +22,19 @@ end
 
 def list_elevenlabs_voices
   begin
-    xi_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("XI_API_KEY") }.split("=").last
+    elevenlabs_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
   rescue Errno::ENOENT
-    xi_api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("XI_API_KEY") }.split("=").last
+    elevenlabs_api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
   end
 
-  return [] unless xi_api_key
+  return [] unless elevenlabs_api_key
 
   begin
     url = URI("https://api.elevenlabs.io/v1/voices")
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true
     request = Net::HTTP::Get.new(url)
-    request["xi-api-key"] = xi_api_key
+    request["xi-api-key"] = elevenlabs_api_key
     response = http.request(request)
     voices = response.read_body
     JSON.parse(voices)&.dig("voices")&.map do |voice|
@@ -54,7 +54,7 @@ def list_providers
       "name" => "OpenAI",
       "voices" => list_openai_voices,
     },
-    "xi" => {
+    "elevenlabs" => {
       "name" => "ElevenLabs",
       "voices" => list_elevenlabs_voices
     }
@@ -98,16 +98,16 @@ def tts_api_request(text, provider: "openai", response_format: "mp3", speed: "1.
     end
 
     target_uri = "#{API_ENDPOINT}/audio/speech"
-  when "xi"
+  when "elevenlabs"
     api_key = nil
     begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("XI_API_KEY") }.split("=").last
+      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
     rescue Errno::ENOENT
-      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("XI_API_KEY") }.split("=").last
+      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
     end
 
     if api_key.nil?
-      return { type: "error", content: "ERROR: XI_API_KEY is not set." }
+      return { type: "error", content: "ERROR: ELEVENLABS_API_KEY is not set." }
     end
     
     headers = {

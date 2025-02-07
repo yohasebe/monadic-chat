@@ -91,7 +91,7 @@ module OpenAIUtils
     end
   end
 
-  def tts_api_request(provider, text, voice, speed, response_format, model, &block)
+  def tts_api_request(provider, text, voice, speed, response_format, &block)
     num_retrial = 0
 
     case provider
@@ -104,7 +104,7 @@ module OpenAIUtils
 
       body = {
         "input" => text,
-        "model" => model,
+        "model" => "tts-1",
         "voice" => voice,
         "speed" => speed,
         "response_format" => response_format

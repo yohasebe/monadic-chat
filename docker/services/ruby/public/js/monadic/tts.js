@@ -29,7 +29,7 @@ function ttsSpeak(text, stream, callback) {
     mode = "TTS_STREAM"
   }
 
-  let model = "tts-1"
+  // let model = "tts-1"
   // if (quality) {
   //   model = "tts-1-hd"
   // }
@@ -56,7 +56,7 @@ function ttsSpeak(text, stream, callback) {
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,
     speed: speed,
-    model: model,
+    // model: model,
     response_format: response_format
   }));
 

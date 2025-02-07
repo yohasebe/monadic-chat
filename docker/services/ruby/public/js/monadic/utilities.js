@@ -607,8 +607,8 @@ function resetEvent(event) {
 }
 
 function autoResize(textarea) {
-  textarea.css('height', 'auto');
-  textarea.css('height', textarea.prop('scrollHeight') + 'px');
+  // textarea.css('height', 'auto');
+  // textarea.css('height', textarea.prop('scrollHeight') + 'px');
 }
 
 let collapseStates = {};

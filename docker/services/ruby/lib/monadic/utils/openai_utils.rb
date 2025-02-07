@@ -111,8 +111,8 @@ module OpenAIUtils
       }
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
-    when "xi"
-      api_key = ENV["XI_API_KEY"]
+    when "elevenlabs"
+      api_key = ENV["ELEVENLABS_API_KEY"]
       headers = {
         "Content-Type" => "application/json",
         "xi-api-key" => api_key
@@ -132,8 +132,8 @@ module OpenAIUtils
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
       unless res.status.success?
-        error_report = JSON.parse(res.body)["error"]
-        res = { "type" => "error", "content" => "ERROR: #{error_report["message"]}" }
+        error_report = JSON.parse(res.body)
+        res = { "type" => "error", "content" => "ERROR: #{error_report}" }
         block&.call res
         return res
       end
@@ -156,15 +156,15 @@ module OpenAIUtils
     end
   end
 
-  def list_elevenlabs_voices(xi_api_key)
-    return [] unless xi_api_key
+  def list_elevenlabs_voices(elevenlabs_api_key)
+    return [] unless elevenlabs_api_key
 
     begin
       url = URI("https://api.elevenlabs.io/v1/voices")
       http = Net::HTTP.new(url.host, url.port)
       http.use_ssl = true
       request = Net::HTTP::Get.new(url)
-      request["xi-api-key"] = xi_api_key
+      request["xi-api-key"] = elevenlabs_api_key
       response = http.request(request)
       voices = response.read_body
       JSON.parse(voices)&.dig("voices")&.map do |voice|

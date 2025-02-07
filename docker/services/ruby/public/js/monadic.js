@@ -734,12 +734,12 @@ $(function () {
 
   $("#tts-provider").on("change", function () {
     params["tts_provider"] = $("#tts-provider option:selected").val();
-    // show/hide #xi-voices and hide #openai-voices based on the selected provider
-    if (params["tts_provider"] === "xi") {
-      $("#xi-voices").show();
+    // show/hide #elevenlabs-voices and hide #openai-voices based on the selected provider
+    if (params["tts_provider"] === "elevenlabs") {
+      $("#elevenlabs-voices").show();
       $("#openai-voices").hide();
     } else if (params["tts_provider"] === "openai") {
-      $("#xi-voices").hide();
+      $("#elevenlabs-voices").hide();
       $("#openai-voices").show();
     }
 
@@ -751,9 +751,9 @@ $(function () {
     setCookie("userVoice", params["tts_voice"], 30);
   });
 
-  $("#xi-tts-voice").on("change", function () {
-    params["xi_tts_voice"] = $("#xi-tts-voice option:selected").val();
-    setCookie("userXIVoice", params["xi_tts_voice"], 30);
+  $("#elevenlabs-tts-voice").on("change", function () {
+    params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice option:selected").val();
+    setCookie("userXIVoice", params["elevenlabs_tts_voice"], 30);
   });
 
   $("#asr-lang").on("change", function () {

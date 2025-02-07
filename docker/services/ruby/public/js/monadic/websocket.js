@@ -592,7 +592,7 @@ function connect_websocket(callback) {
         setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         $("#start").prop("disabled", false);
-        $("#send, #clear, #voice, #tts-provider, #xi-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+        $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
 
         // console.log("Token verified");
 
@@ -774,15 +774,15 @@ function connect_websocket(callback) {
       case "elevenlabs_voices": {
         let voices = data["content"];
         if (voices.length > 0) {
-          // set #xi-provider-option enabled
-          $("#xi-provider-option").prop("disabled", false);
+          // set #elevenlabs-provider-option enabled
+          $("#elevenlabs-provider-option").prop("disabled", false);
         } else {
-          // set #xi-provider-option disabled
-          $("#xi-provider-option").prop("disabled", true);
+          // set #elevenlabs-provider-option disabled
+          $("#elevenlabs-provider-option").prop("disabled", true);
         }
-        $("#xi-tts-voice").empty();
+        $("#elevenlabs-tts-voice").empty();
         voices.forEach((voice) => {
-          $("#xi-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
+          $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
         });
         break;
       }

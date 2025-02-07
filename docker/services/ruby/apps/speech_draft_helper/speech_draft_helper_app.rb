@@ -198,7 +198,7 @@ class SpeechDraftHelper < MonadicApp
               },
               text: {
                 type: "string",
-                enum: ["openai", "xi"],
+                enum: ["openai", "elevenlabs"],
                 description: "Provider of the speech."
               },
               voice_id: {

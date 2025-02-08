@@ -69,7 +69,7 @@ def tts_api_request(text, provider: "openai", response_format: "mp3", speed: "1.
   response = nil
 
   case provider
-  when "openai"
+  when "openai", "openai-hd"
     begin
       api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
     rescue Errno::ENOENT
@@ -85,9 +85,11 @@ def tts_api_request(text, provider: "openai", response_format: "mp3", speed: "1.
       Authorization: "Bearer #{api_key}"
     }
 
+    model = provider == "openai-hd" ? "tts-1-hd" : "tts-1"
+
     body = {
       input: text,
-      model: "tts-1",
+      model: model,
       voice: voice,
       speed: speed,
       response_format: response_format

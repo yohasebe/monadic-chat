@@ -772,6 +772,7 @@ function connect_websocket(callback) {
         break;
       }
       case "elevenlabs_voices": {
+        const cookieValue = getCookie("elevenlabs-tts-voice");
         let voices = data["content"];
         if (voices.length > 0) {
           // set #elevenlabs-provider-option enabled
@@ -782,7 +783,11 @@ function connect_websocket(callback) {
         }
         $("#elevenlabs-tts-voice").empty();
         voices.forEach((voice) => {
-          $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
+          if (cookieValue === voice.voice_id) {
+            $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
+          } else {
+            $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
+          }
         });
         break;
       }

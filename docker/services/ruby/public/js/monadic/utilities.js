@@ -53,6 +53,20 @@ function getCookie(name) {
   return null;
 }
 
+// load document.cookie and set the values to the form elements
+function setCookieValues() {
+  const properties = ["tts-provider", "tts-voice", "tts-speed", "asr-lang"];
+  properties.forEach(property => {
+    const value = getCookie(property);
+    if (value) {
+      // check if the value is a valid option
+      if ($(`#${property} option[value="${value}"]`).length > 0) {
+        $(`#${property}`).val(value).trigger("change");
+      }
+    }
+  });
+}
+
 function listModels(models, openai = false) {
   // Array of strings to identify beta models
   const regularModelPatterns = [/^\bgpt-4o\b/];
@@ -228,6 +242,11 @@ function listModels(models, openai = false) {
       $("#start").focus();
     } else if ($("#check-easy-submit").is(":checked") && $("#check-auto-speech").is(":checked")) {
       $("#voice").focus();
+      // show #voice-note but set it to hide when the voice button is unfocused
+      $("#voice-note").show();
+      $("#voice").on("blur focusout", function () {
+        $("#voice-note").hide();
+      });
     } else {
       $("#message").focus();
     }

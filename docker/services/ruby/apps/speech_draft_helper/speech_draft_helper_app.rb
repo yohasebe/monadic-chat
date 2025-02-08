@@ -33,6 +33,8 @@ class SpeechDraftHelper < MonadicApp
 
     Remember to use the `voice_id` even if the user specifies the voice with its `name`. The `text_to_speech` function does not accept a voice `name`.
 
+    TTS providers include "openai" and its high-definition version "openai-hd". Other provides such as "elevenlabs" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
+
     If you have generated an MP3, present it using the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
   TEXT
 
@@ -198,7 +200,7 @@ class SpeechDraftHelper < MonadicApp
               },
               text: {
                 type: "string",
-                enum: ["openai", "elevenlabs"],
+                enum: ["openai", "openai-hd", "elevenlabs"],
                 description: "Provider of the speech."
               },
               voice_id: {

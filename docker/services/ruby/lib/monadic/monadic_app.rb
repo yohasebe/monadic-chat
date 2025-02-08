@@ -185,7 +185,7 @@ class MonadicApp
         output += "<span>Context</span>"
         output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
         output += "</div>"
-        output += "<div class='json-content' style='margin-left:1em'>"
+        output += "<div class='json-content'>"
         output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
         output += "</div></div>"
       else
@@ -196,7 +196,7 @@ class MonadicApp
           output += "<span>#{key}</span>"
           output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
           output += "</div>"
-          output += "<div class='json-content' style='margin-left:1em'>"
+          output += "<div class='json-content'"
           output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
           output += "</div></div>"
         when Array
@@ -210,7 +210,7 @@ class MonadicApp
             output += "<span>#{key}</span>"
             output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
             output += "</div>"
-            output += "<div class='json-content' style='margin-left:1em'>"
+            output += "<div class='json-content'>"
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)

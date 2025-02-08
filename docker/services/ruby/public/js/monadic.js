@@ -734,37 +734,36 @@ $(function () {
 
   $("#tts-provider").on("change", function () {
     params["tts_provider"] = $("#tts-provider option:selected").val();
-    // show/hide #elevenlabs-voices and hide #openai-voices based on the selected provider
     if (params["tts_provider"] === "elevenlabs") {
       $("#elevenlabs-voices").show();
       $("#openai-voices").hide();
-    } else if (params["tts_provider"] === "openai") {
+    } else if (params["tts_provider"] === "openai" || params["tts_provider"] === "openai-hd") {
       $("#elevenlabs-voices").hide();
       $("#openai-voices").show();
     }
 
-    setCookie("userProvider", params["tts_provider"], 30);
+    setCookie("tts-provider", params["tts_provider"], 30);
   });
 
   $("#tts-voice").on("change", function () {
     params["tts_voice"] = $("#tts-voice option:selected").val();
-    setCookie("userVoice", params["tts_voice"], 30);
+    setCookie("tts-voice", params["tts_voice"], 30);
   });
 
   $("#elevenlabs-tts-voice").on("change", function () {
     params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice option:selected").val();
-    setCookie("userXIVoice", params["elevenlabs_tts_voice"], 30);
+    setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
   });
 
   $("#asr-lang").on("change", function () {
     params["asr_lang"] = $("#asr-lang option:selected").val();
-    setCookie("asrLang", params["asr-lang"], 30);
+    setCookie("asr-lang", params["asr_lang"], 30);
   });
 
   $("#tts-speed").on("input", function () {
     $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
-    params["tts_speed_rate"] = parseFloat($(this).val());
-    setCookie("userSpeed", params["tts_speed_rate"], 30);
+    params["tts_speed"] = parseFloat($(this).val());
+    setCookie("tts-speed", params["tts_speed"], 30);
   });
 
   $("#error-close").on("click", function (event) {
@@ -899,6 +898,7 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
     adjustScrollButtons();
+    setCookieValues();
     $("#monadic-spinner").show();
   });
 });

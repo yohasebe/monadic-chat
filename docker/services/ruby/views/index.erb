@@ -113,9 +113,10 @@
             <h5 class=""><span class="text"><i class="fas fa-comment-dots"></i> Speech</span></h5>
 
             <div class="my-1">
-              <label for="tts-provider" class="div-label my-2">Text-to-Speech (TTS) Provider</label>
+              <label for="tts-provider" class="div-label my-2">Text-to-Speech Provider</label>
               <select class="form-select form-select-sm" id="tts-provider">
-                <option id="openai-provider-option" value="openai">OpenAI</option>
+                <option id="openai-provider-option" value="openai">OpenAI (TTS)</option>
+                <option id="openai-hd-provider-option" value="openai-hd">OpenAI (TTS HD)</option>
                 <option id="elevenlabs-provider-option" value="elevenlabs" disabled>ElevenLabs</option>
               </select>
             </div>
@@ -141,10 +142,12 @@
               </select>
             </div>
 
+            <!--
             <div class="my-1">
               <label for="tts-speed" class="div-label my-2">TTS Speed (<span id="tts-speed-value">1.0</span>)</label><br />
               <input type="range" class="div-range" min="0.25" max="4.0" step="0.05" value="1.0" id="tts-speed">
             </div>
+            -->
 
             <div class="my-1">
               <label for="asr-lang" class="div-label my-2">Automatic-Speech-Recognition (ASR) Language</label>
@@ -447,19 +450,20 @@
                 </div>
               </div>
 
-              <div class="mt-2 mb-0 textbox-caption" >Press <span class="text-secondary">
-                  <i class="fas fa-paper-plane"></i> Send</span> to send your message.
+              <div class="mt-2 mb-0 textbox-caption" >
+                <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> to send your message.</span>
+                <span id="voice-note" style="display: none;">Hit <span class="text-secondary"> Enter ⏎<span> to start/stop voice input</small>
               </div>
 
               <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
-                    <button id="clear" class="btn btn-sm btn-secondary me-4"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="clear" class="btn btn-sm btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
                   </div>
                 </div>
                 <div class="col-auto p-0">
-                  <div id="asr-p-value" style="padding-top:4px;"></div>
+                  <div id="asr-p-value" class="textbox-caption" style="padding-top:4px;"></div>
                   <div id="amplitude" style="display: none;">
                     <div style="display: inline-block; margin-top: 6px;">
                       <div style="display: flex; align-items: flex-end;">

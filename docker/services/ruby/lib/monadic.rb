@@ -39,8 +39,8 @@ require_relative "monadic/utils/flask_app_client"
 require_relative "monadic/utils/string_utils"
 helpers StringUtils
 
-require_relative "monadic/utils/openai_utils"
-helpers OpenAIUtils
+require_relative "monadic/utils/interaction_utils"
+helpers InteractionUtils
 
 require_relative "monadic/utils/websocket"
 helpers WebSocketHelper

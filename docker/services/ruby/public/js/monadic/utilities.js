@@ -198,7 +198,7 @@ function listModels(models, openai = false) {
       <i class="fas fa-chevron-right"></i> <span class="toggle-text">click to toggle</span>
       </div>
       <div class="json-content" style="display: none;">
-      <table class="table table-sm mt-2 mb-0">
+      <table class="table table-sm mb-0">
       <tbody>
       ${textRows}
     ${numRows}

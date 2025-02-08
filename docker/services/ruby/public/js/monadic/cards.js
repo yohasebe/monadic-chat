@@ -113,7 +113,6 @@ function attachEventListeners($card) {
     text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);
-    console.log(text);
     ttsSpeak(text, true);
   });
 

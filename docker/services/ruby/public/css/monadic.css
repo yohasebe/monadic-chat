@@ -393,7 +393,7 @@ blockquote p:last-child {
 #message,
 #initial-prompt,
 #ai-user-initial-prompt {
-  overflow: hidden;
+  overflow-y: scroll;
 }
 
 div.diagram {

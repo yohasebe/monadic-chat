@@ -1,4 +1,4 @@
-module OpenAIUtils
+module InteractionUtils
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
 
@@ -48,7 +48,7 @@ module OpenAIUtils
     end
 
     # Return cached result if available
-    cached_result = OpenAIUtils.api_key_cache.get(api_key)
+    cached_result = InteractionUtils.api_key_cache.get(api_key)
     return cached_result if cached_result
 
     target_uri = "#{API_ENDPOINT}/models"
@@ -72,7 +72,7 @@ module OpenAIUtils
       end
 
       # Cache the result
-      OpenAIUtils.api_key_cache.set(api_key, result)
+      InteractionUtils.api_key_cache.set(api_key, result)
       result
 
     rescue HTTP::Error, HTTP::TimeoutError => e
@@ -85,7 +85,7 @@ module OpenAIUtils
         pp error_message
         error_result = { "type" => "error", "content" => "ERROR: #{error_message}" }
         # Cache the error result as well
-        OpenAIUtils.api_key_cache.set(api_key, error_result)
+        InteractionUtils.api_key_cache.set(api_key, error_result)
         return error_result
       end
     end
@@ -95,16 +95,18 @@ module OpenAIUtils
     num_retrial = 0
 
     case provider
-    when "openai"
+    when "openai", "openai-hd"
       api_key = settings.api_key
       headers = {
         "Content-Type" => "application/json",
         "Authorization" => "Bearer #{api_key}"
       }
 
+      model = provider == "openai-hd" ? "tts-1-hd" : "tts-1"
+
       body = {
         "input" => text,
-        "model" => "tts-1",
+        "model" => model,
         "voice" => voice,
         "speed" => speed,
         "response_format" => response_format

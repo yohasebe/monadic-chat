@@ -91,9 +91,17 @@ module InteractionUtils
     end
   end
 
-  def tts_api_request(provider, text, voice, speed, response_format, &block)
+  def tts_api_request(text,
+                      provider:,
+                      voice:,
+                      speed:,
+                      response_format:,
+                      language: "auto",
+                      &block)
     if CONFIG["TTS_DICT"]
       text_converted = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+    else
+      text_converted = text
     end
 
     num_retrial = 0
@@ -116,6 +124,10 @@ module InteractionUtils
         "response_format" => response_format
       }
 
+      unless language == "auto"
+        body["language"] = language
+      end
+
       target_uri = "#{API_ENDPOINT}/audio/speech"
     when "elevenlabs"
       api_key = ENV["ELEVENLABS_API_KEY"]
@@ -128,6 +140,10 @@ module InteractionUtils
         "text" => text_converted,
         "model_id" => "eleven_flash_v2_5",
       }
+
+      unless language == "auto"
+        body["language_code"] = language
+      end
 
       output_format = "mp3_44100_128"
       target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}"

@@ -8,7 +8,7 @@ require "optparse"
 # Parse command line arguments for the prompt and size
 options = { size: "1024x1024" } # Default size
 OptionParser.new do |opts|
-  opts.banner = "Usage: generate_image.rb [options]"
+  opts.banner = "Usage: simple_image_generation.rb [options]"
 
   opts.on("-p", "--prompt PROMPT", "The prompt to generate an image for") do |prompt|
     options[:prompt] = prompt

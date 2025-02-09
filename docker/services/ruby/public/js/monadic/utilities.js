@@ -61,7 +61,14 @@ function setCookieValues() {
     if (value) {
       // check if the value is a valid option
       if ($(`#${property} option[value="${value}"]`).length > 0) {
-        $(`#${property}`).val(value).trigger("change");
+        if (property === "tts-provider" && value === "elevenlabs") {
+          // check if #elevenlabs-tts-voice option exists and not empty
+          if ($("#elevenlabs-tts-voice option").length > 0) {
+            $(`#${property}`).val(value).trigger("change");
+          }
+        } else {
+          $(`#${property}`).val(value).trigger("change");
+        }
       }
     }
   });

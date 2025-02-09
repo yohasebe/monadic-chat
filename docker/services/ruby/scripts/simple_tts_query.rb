@@ -64,7 +64,12 @@ def list_providers
   providers.reject { |_, voices| voices.empty? }
 end
 
-def tts_api_request(text, provider: "openai", response_format: "mp3", speed: "1.0", voice: "alloy", language: "auto")
+def tts_api_request(text,
+                    provider: "openai",
+                    response_format: "mp3",
+                    speed: "1.0",
+                    voice: "alloy",
+                    language: "auto")
   num_retrial = 0
   response = nil
 

@@ -394,6 +394,10 @@ blockquote p:last-child {
 #initial-prompt,
 #ai-user-initial-prompt {
   overflow-y: scroll;
+  min-height: 100px;
+  overflow-y: hidden;
+  resize: vertical;
+  transition: height 0.2s ease;
 }
 
 div.diagram {

@@ -1331,75 +1331,98 @@ function getEnvPath() {
   }
 }
 
+// Read the ENV file; if it does not exist, create it
 function readEnvFile(envPath) {
-  try {
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    envContent = envContent.replace(/\r\n/g, '\n');
-    return dotenv.parse(envContent);
-  } catch {
-    const envDir = path.dirname(envPath);
-    fs.mkdirSync(envDir, { recursive: true });
-    fs.writeFileSync(envPath, '');
-    return {};
-  }
+    try {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        envContent = envContent.replace(/\r\n/g, '\n');
+        return dotenv.parse(envContent);
+    } catch {
+        const envDir = path.dirname(envPath);
+        fs.mkdirSync(envDir, { recursive: true });
+        fs.writeFileSync(envPath, '');
+        return {};
+    }
 }
 
+// Write the ENV file by converting config entries to newline-separated key=value pairs
 function writeEnvFile(envPath, envConfig) {
-  const envContent = Object.entries(envConfig)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('\n');
+    const envContent = Object.entries(envConfig)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n');
 
-  try {
-    fs.writeFileSync(envPath, envContent);
-    console.log('Settings saved successfully');
-  } catch (error) {
-    console.error('Error saving settings:', error);
-  }
+    try {
+        fs.writeFileSync(envPath, envContent);
+        console.log('Settings saved successfully to', envPath);
+    } catch (error) {
+        console.error('Error saving settings:', error);
+    }
 }
 
+// Update ENV file settings; if a key is missing, set default value (do not override TTS_DICT_PATH if present)
 function checkAndUpdateEnvFile() {
-  const envPath = getEnvPath();
-  if (!envPath) return false;
+    const envPath = getEnvPath();
+    if (!envPath) return false;
 
-  let envConfig = readEnvFile(envPath);
+    let envConfig = readEnvFile(envPath);
 
-  // ROUGE_THEME, AI_USER_MODEL, and EMBEDDING_MODEL are set with default values if not present
-  if (!envConfig.ROUGE_THEME) {
-    envConfig.ROUGE_THEME = 'monokai:dark';
-  }
+    // Set default values if not already specified
+    if (!envConfig.ROUGE_THEME) {
+        envConfig.ROUGE_THEME = 'monokai:dark';
+    }
 
-  if (!envConfig.AI_USER_MODEL) {
-    envConfig.AI_USER_MODEL = 'gpt-4o-mini';
-  }
+    if (!envConfig.AI_USER_MODEL) {
+        envConfig.AI_USER_MODEL = 'gpt-4o-mini';
+    }
 
-  if (!envConfig.EMBEDDING_MODEL) {
-    envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';
-  }
+    if (!envConfig.EMBEDDING_MODEL) {
+        envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';
+    }
 
-  const api_list = [
-    'OPENAI_API_KEY',
-    'ANTHROPIC_API_KEY',
-    'COHERE_API_KEY',
-    'GEMINI_API_KEY',
-    'XAI_API_KEY',
-    'PERPLEXITY_API_KEY',
-    'DEEPSEEK_API_KEY',
-    'ELEVENLABS_API_KEY'
-  ];
-  const hasApiKey = api_list.some(key => envConfig[key]);
-  return hasApiKey;
+    // Do not override TTS_DICT_PATH if it already exists
+    if (envConfig.TTS_DICT_PATH === undefined) {
+        envConfig.TTS_DICT_PATH = '';
+    }
+
+    // Check for the presence of any API key
+    const api_list = [
+        'OPENAI_API_KEY',
+        'ANTHROPIC_API_KEY',
+        'COHERE_API_KEY',
+        'GEMINI_API_KEY',
+        'XAI_API_KEY',
+        'PERPLEXITY_API_KEY',
+        'DEEPSEEK_API_KEY',
+        'ELEVENLABS_API_KEY'
+    ];
+    const hasApiKey = api_list.some(key => envConfig[key]);
+    
+    // Save updated config to file
+    writeEnvFile(envPath, envConfig);
+    return hasApiKey;
+}
+
+// Save the settings received from the settings UI
+function saveSettings(data) {
+    const envPath = getEnvPath();
+    if (envPath) {
+        // Ensure that TTS_DICT_PATH is not undefined
+        if (typeof data.TTS_DICT_PATH === 'undefined' || data.TTS_DICT_PATH === null) {
+            data.TTS_DICT_PATH = ''; // default to an empty string if undefined
+        }
+        
+        // Read the existing configuration from the file
+        let envConfig = readEnvFile(envPath);
+        // Override existing settings with new data (empty string values are included)
+        Object.assign(envConfig, data);
+        // Write the updated configuration back to the file
+        writeEnvFile(envPath, envConfig);
+    }
 }
 
 function loadSettings() {
   const envPath = getEnvPath();
   return envPath ? readEnvFile(envPath) : {};
-}
-
-function saveSettings(data) {
-  const envPath = getEnvPath();
-  if (envPath) {
-    writeEnvFile(envPath, data);
-  }
 }
 
 ipcMain.on('request-settings', (event) => {
@@ -1424,6 +1447,18 @@ ipcMain.on('close-settings', () => {
   if (settingsWindow) {
     settingsWindow.hide();
   }
+});
+
+// Add IPC handler for selecting TTS dictionary file
+ipcMain.handle('select-tts-dict', async () => {
+    const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+        return result.filePaths[0];
+    }
+    return '';
 });
 
 async function updateDockerStatus() {

@@ -27,6 +27,7 @@ require "tempfile"
 require "uri"
 require "cgi"
 require "yaml"
+require "csv"
 
 # return true if we are inside a docker container
 IN_CONTAINER = File.file?("/.dockerenv")
@@ -131,6 +132,22 @@ def load_app_files
   apps_to_load.each_value do |file|
     require file
   end
+end
+
+# load the TTS dictionary, which is a valid CSV of [original, replacement] pairs
+def load_tts_dict(tts_dict_path)
+  if File.exist?(tts_dict_path)
+    tts_dict = {}
+    begin
+      CSV.foreach(tts_dict_path, headers: false) do |row|
+        # make sure the data is in UTF-8; otherwise, convert it
+        row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+        tts_dict[row[0]] = row[1]
+      end
+    rescue StandardError => e
+    end
+  end
+  CONFIG["TTS_DICT"] = tts_dict
 end
 
 # Initialize apps
@@ -254,6 +271,8 @@ def init_apps
 
     apps[app_name] = app
   end
+
+  load_tts_dict(CONFIG["TTS_DICT_PATH"]) if CONFIG["TTS_DICT_PATH"]
 
   # remove apps if its settings are empty
   apps.sort_by { |k, _v| k }.to_h

@@ -7,6 +7,10 @@ module MonadicHelper
   end
 
   def text_to_speech(provider: "openai", text: "", speed: 1.0, voice_id: "alloy", language: "auto")
+    if CONFIG["TTS_DICT"]
+      text = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+    end
+
     text = text.gsub(/"/, '\"')
 
     save_path = if IN_CONTAINER

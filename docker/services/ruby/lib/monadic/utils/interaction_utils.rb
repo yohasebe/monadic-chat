@@ -92,6 +92,10 @@ module InteractionUtils
   end
 
   def tts_api_request(provider, text, voice, speed, response_format, &block)
+    if CONFIG["TTS_DICT"]
+      text_converted = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+    end
+
     num_retrial = 0
 
     case provider
@@ -105,7 +109,7 @@ module InteractionUtils
       model = provider == "openai-hd" ? "tts-1-hd" : "tts-1"
 
       body = {
-        "input" => text,
+        "input" => text_converted,
         "model" => model,
         "voice" => voice,
         "speed" => speed,
@@ -121,7 +125,7 @@ module InteractionUtils
       }
 
       body = {
-        "text" => text,
+        "text" => text_converted,
         "model_id" => "eleven_flash_v2_5",
       }
 

@@ -94,7 +94,11 @@ module WebSocketHelper
           speed = obj["speed"]
           response_format = obj["response_format"]
           # model = obj["model"]
-          res_hash = tts_api_request(provider, text, voice, speed, response_format)
+          res_hash = tts_api_request(text,
+                                     provider: provider,
+                                     voice: voice,
+                                     speed: speed,
+                                     response_format: response_format)
           @channel.push(res_hash.to_json)
         when "TTS_STREAM"
           thread&.join
@@ -109,7 +113,11 @@ module WebSocketHelper
           speed = obj["speed"]
           response_format = obj["response_format"]
           # model = obj["model"]
-          tts_api_request(provider, text, voice, speed, response_format) do |fragment|
+          tts_api_request(text,
+                          provider: provider,
+                          voice: voice,
+                          speed: speed,
+                          response_format: response_format) do |fragment|
             @channel.push(fragment.to_json)
           end
         when "CANCEL"
@@ -468,7 +476,11 @@ module WebSocketHelper
                   if obj["auto_speech"] && !cutoff && !obj["monadic"]
                     text = split[0] || ""
                     if text != "" && candidate != ""
-                      res_hash = tts_api_request(provider, text, voice, speed, response_format)
+                      res_hash = tts_api_request(text,
+                                                 provider: provider,
+                                                 voice: voice,
+                                                 speed: speed,
+                                                 response_format: response_format)
                       @channel.push(res_hash.to_json)
                     end
                   end
@@ -484,7 +496,11 @@ module WebSocketHelper
 
             if obj["auto_speech"] && !cutoff && !obj["monadic"]
               text = buffer.join
-              res_hash = tts_api_request(provider, text, voice, speed, response_format)
+              res_hash = tts_api_request(text, 
+                                         provider: provider, 
+                                         voice: voice,
+                                         speed: speed,
+                                         response_format: response_format)
               @channel.push(res_hash.to_json)
             end
 
@@ -511,7 +527,11 @@ module WebSocketHelper
 
                 if obj["auto_speech"] && obj["monadic"]
                   message = JSON.parse(content)["message"]
-                  res_hash = tts_api_request(provider, message, voice, speed, response_format)
+                  res_hash = tts_api_request(message,
+                                             provider: provider,
+                                             voice: voice,
+                                             speed: speed,
+                                             response_format: response_format)
                   @channel.push(res_hash.to_json)
                 end
 

@@ -555,13 +555,15 @@ function resetEvent(event) {
   $("#image-used").children().remove();
   images = [];
 
-  $("#message").css("height", "96px").val("");
   $("#resetConfirmation").modal("show");
   $("#resetConfirmation").on("shown.bs.modal", function () {
     $("#resetConfirmed").focus();
   });
   $("#resetConfirmed").on("click", function (event) {
     event.preventDefault();
+
+    $("#message").css("height", "96px").val("");
+
     ws.send(JSON.stringify({ "message": "RESET" }));
     ws.send(JSON.stringify({ "message": "LOAD" }));
 
@@ -623,11 +625,6 @@ function resetEvent(event) {
     window.scroll({ top: 0 });
     messages.length = 0;
   });
-}
-
-function autoResize(textarea) {
-  // textarea.css('height', 'auto');
-  // textarea.css('height', textarea.prop('scrollHeight') + 'px');
 }
 
 let collapseStates = {};

@@ -962,7 +962,6 @@ function connect_websocket(callback) {
       }
       case "ai_user": {
         $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
-        autoResize($("#message"));
         if (autoScroll && !isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
@@ -971,7 +970,6 @@ function connect_websocket(callback) {
       case "ai_user_finished": {
         $("#message").attr("placeholder", "Type your message . . .");
         $("#message").prop("disabled", false);
-        autoResize($("#message"));
         $("#cancel_query").hide();
         $("#send, #clear, #image-file, #voice").prop("disabled", false);
 

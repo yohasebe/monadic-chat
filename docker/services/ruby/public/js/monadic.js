@@ -1,11 +1,53 @@
-// This needs to be included to suppress errors regarding modal dialogs 
 document.addEventListener("DOMContentLoaded", function () {
-  document.addEventListener('hide.bs.modal', function (event) {
+  const textareas = [
+    document.getElementById('message'),
+    document.getElementById('initial-prompt'),
+    document.getElementById('ai-user-initial-prompt')
+  ];
+
+  const initialHeight = 100;
+
+  textareas.forEach(textarea => {
+    if (textarea) {
+      setupTextarea(textarea, initialHeight);
+    }
+  });
+
+  document.addEventListener('hide.bs.modal', function (_event) {
     if (document.activeElement) {
       document.activeElement.blur();
     }
   });
 });
+
+function setupTextarea(textarea, initialHeight) {
+  let isIMEActive = false;
+
+  textarea.style.height = initialHeight + 'px';
+
+  textarea.addEventListener('compositionstart', function() {
+    isIMEActive = true;
+  });
+
+  textarea.addEventListener('compositionend', function() {
+    isIMEActive = false;
+    autoResize(textarea, initialHeight);
+  });
+
+  textarea.addEventListener('input', function() {
+    if (!isIMEActive) {
+      autoResize(textarea, initialHeight);
+    }
+  });
+
+  autoResize(textarea, initialHeight);
+}
+
+function autoResize(textarea, initialHeight) {
+  textarea.style.height = 'auto';
+  const newHeight = Math.max(textarea.scrollHeight, initialHeight);
+  textarea.style.height = newHeight + 'px';
+}
 
 $(function () {
 
@@ -621,7 +663,6 @@ $(function () {
           $("#docModal button").prop('disabled', false);
           $("#docModal").modal("hide");
           // $("#select-role").val("sample-system").trigger("change");
-          autoResize($("#message"));
           $("#back_to_bottom").trigger("click");
           $("#message").focus();
         }).fail(function (error) {
@@ -684,7 +725,6 @@ $(function () {
         $("#url-spinner").hide();
         $("#urlModal button").prop('disabled', false);
         $("#urlModal").modal("hide");
-        autoResize($("#message"));
         $("#back_to_bottom").trigger("click");
         $("#message").focus();
       }).fail(function (error) {
@@ -775,16 +815,10 @@ $(function () {
     elemAlert.hide();
   })
 
-  $("#message, #initial-prompt, #ai-user-initial-prompt").on("input", function () {
-    if (message.dataset.ime !== "true") {
-      autoResize($(this));
-    }
-  });
-
   $("#initial-prompt-toggle").on("change", function () {
     if (this.checked) {
       $("#initial-prompt").css("display", "");
-      autoResize($("#initial-prompt"));
+      autoResize(document.getElementById('initial-prompt'), 100);
     } else {
       $("#initial-prompt").css("display", "none");
     }
@@ -793,7 +827,7 @@ $(function () {
   $("#ai-user-initial-prompt-toggle").on("change", function () {
     if (this.checked) {
       $("#ai-user-initial-prompt").css("display", "");
-      autoResize($("#ai-user-initial-prompt"));
+      autoResize(document.getElementById('ai-user-initial-prompt'), 100);
     } else {
       $("#ai-user-initial-prompt").css("display", "none");
     }

@@ -96,8 +96,10 @@ module InteractionUtils
                       voice:,
                       speed:,
                       response_format:,
+                      previous_text: nil,
                       language: "auto",
                       &block)
+
     if CONFIG["TTS_DICT"]
       text_converted = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
     else
@@ -140,6 +142,10 @@ module InteractionUtils
         "text" => text_converted,
         "model_id" => "eleven_flash_v2_5",
       }
+
+      if previous_text.to_s != ""
+        body["previous_text"] = previous_text
+      end
 
       unless language == "auto"
         body["language_code"] = language

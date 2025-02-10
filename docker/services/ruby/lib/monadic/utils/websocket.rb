@@ -457,6 +457,7 @@ module WebSocketHelper
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
 
+            prev_texts_for_tts = []
             responses = app_obj.api_request("user", session) do |fragment|
               if fragment["type"] == "error"
                 @channel.push({ "type" => "error", "content" => fragment }.to_json)
@@ -476,11 +477,14 @@ module WebSocketHelper
                   if obj["auto_speech"] && !cutoff && !obj["monadic"]
                     text = split[0] || ""
                     if text != "" && candidate != ""
+                      previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
                       res_hash = tts_api_request(text,
+                                                 previous_text: previous_text, 
                                                  provider: provider,
                                                  voice: voice,
                                                  speed: speed,
                                                  response_format: response_format)
+                      prev_texts_for_tts << text
                       @channel.push(res_hash.to_json)
                     end
                   end
@@ -496,7 +500,9 @@ module WebSocketHelper
 
             if obj["auto_speech"] && !cutoff && !obj["monadic"]
               text = buffer.join
+              previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
               res_hash = tts_api_request(text, 
+                                         previous_text: previous_text,
                                          provider: provider, 
                                          voice: voice,
                                          speed: speed,

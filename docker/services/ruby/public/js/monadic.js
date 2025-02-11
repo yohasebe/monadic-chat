@@ -18,6 +18,11 @@ document.addEventListener("DOMContentLoaded", function () {
       document.activeElement.blur();
     }
   });
+
+  // if on Firefox, disable the #tts-panel
+  if (runningOnFirefox) {
+    $("#tts-panel").hide();
+  }
 });
 
 function setupTextarea(textarea, initialHeight) {

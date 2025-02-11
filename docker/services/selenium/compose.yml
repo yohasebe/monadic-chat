@@ -5,7 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        SELENIUM_IMAGE: ${SELENIUM_IMAGE}
         PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-selenium-container
     shm_size: 2gb

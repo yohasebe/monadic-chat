@@ -107,15 +107,6 @@ Monadic Chatの設定パネルを開きます。
 **OPENAI_API_KEY**<br />
 OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、Whisper 音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
 
-**Syntax Highlighting Theme**<br />
-コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
-
-**AI_USER_MODEL**<br />
-AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`gpt-4o`と`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
-
-**EMBEDDING_MODEL**<br />
-テキスト埋め込みに使用するモデルを選択します。現在は `text-embedding-3-small` と `text-embedding-3-large` が利用可能です。デフォルトは `text-embedding-3-small` です。
-
 **ANTHROPIC_API_KEY**<br />
 Anthropic APIキーを入力してください。このキーはAnthropic Claude モデルを使用するのに必要です。[https://console.anthropic.com] で取得できます。
 
@@ -132,3 +123,16 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 **DEEPSEEK_API_KEY**<br /> DeepSeek APIキーを入力してください。このキーはDeepSeek モデルを使用するのに必要です。[https://platform.deepseek.com/]で取得できます。
 
 **ELEVENLABS_API_KEY**<br /> ElevenLabs APIキーを入力してください。このキーはElevenLabsの音声モデルを使用するのに必要です。[https://elevenlabs.io/developers]で取得できます。
+
+**Syntax Highlighting Theme**<br />
+コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
+
+**AI_USER_MODEL**<br />
+AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`o3-mini`、gpt-4o`、`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
+
+**EMBEDDING_MODEL**<br />
+テキスト埋め込みに使用するモデルを選択します。現在は `text-embedding-3-small` と `text-embedding-3-large` が利用可能です。デフォルトは `text-embedding-3-small` です。
+
+**TTS Dictionary File Path**<br />
+テキスト読み上げのための文字列置き換え辞書ファイルのパスを指定します。辞書ファイルはCSV形式で、置き換え対象の文字列と読み上げに使う文字列をカンマ区切りで記述します（見出し行は不要）。TTSによる読み上げ時にテキスト内の置き換え対象文字列が読み上げ文字列に置き換えられます。
+

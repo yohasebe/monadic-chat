@@ -664,6 +664,7 @@ $(function () {
         }).done(function (markdown) {
           const message = $("#message").val().replace(/\n+$/, "");
           $("#message").val(`${message}\n\n${markdown}`);
+          autoResize(document.getElementById('message'), 100);
           $("#doc-spinner").hide();
           $("#docModal button").prop('disabled', false);
           $("#docModal").modal("hide");
@@ -727,6 +728,7 @@ $(function () {
       }).done(function (markdown) {
         const message = $("#message").val().replace(/\n+$/, "");
         $("#message").val(`${message}\n\n${markdown}`);
+        autoResize(document.getElementById('message'), 100);
         $("#url-spinner").hide();
         $("#urlModal button").prop('disabled', false);
         $("#urlModal").modal("hide");

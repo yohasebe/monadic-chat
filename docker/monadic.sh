@@ -3,7 +3,6 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
 export MONADIC_VERSION=0.9.43
 export HOST_OS=$(uname -s)
 
@@ -23,9 +22,13 @@ DOCKER=$(command -v docker)
 # escape spaces in the path to docker
 DOCKER=$(echo "${DOCKER}" | sed 's/ /\\ /g')
 
-if [[ "${HOST_OS}" == "Darwin"* || "${HOST_OS}" == "Linux" ]] && [[ "$(uname -m)" == "arm64" ]]; then
-  export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
-fi
+# if [[ "${HOST_OS}" == "Darwin"* || "${HOST_OS}" == "Linux" ]] && [[ "$(uname -m)" == "arm64" ]]; then
+#   export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
+# else
+  # export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
+# fi
+
+export SELENIUM_IMAGE="selenium/standalone-chromium:latest"
 
 # Define the paths to the support scripts
 SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
@@ -83,6 +86,7 @@ docker_start_log() {
 
 set_docker_compose() {
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
+
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
     home_paths[$i]=$(normalize_path "${home_paths[$i]}")

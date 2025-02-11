@@ -108,11 +108,11 @@ Clicking the `Export` button saves the current settings and conversation data to
 
 !> To use the speech feature, you need to use the Google Chrome or Microsoft Edge browser.
 
-**Text-to-Speech (TTS) Voice**<br />
-You can specify the voice used for speech synthesis.
+**Text-to-Speech Provider**<br />
+Select the provider used for speech synthesis. If you can choose between OpenAI (Normal or HD) and ElevenLabs voices if API Tokens for these providers are set.
 
-**TTS Speed**<br />
-You can specify the speech speed for speech synthesis between 0.5 and 1.5 (default: 1.0).
+**Text-to-Speech Voice**<br />
+You can specify the voice used for speech synthesis.
 
 **Automatic Speech Recognition (ASR) Language**<br />
 Whisper API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector.

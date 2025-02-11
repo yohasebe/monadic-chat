@@ -53,6 +53,8 @@ Click the `Extract from URL` button to enter a URL. The content at that URL is l
 
 ## Speech Input
 
+?> Currently, voice input is only supported in Chrome and Edge browsers.
+
 To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Whisper API and displayed in the text area.
 
 ![](./assets/images/voice-input-stop.png ':size=400')

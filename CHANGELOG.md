@@ -5,6 +5,8 @@
   - Perplexity `sonar-reasoning-pro` (DeepSeek R1) model supported
   - Math rendering option added to the web UI
   - Initial system prompt duplication issue fixed
+  - TTS support for Safari
+  - Selenium image supported for both arm64 and amd64
 - [Jan, 2025] 0.9.37
   - Perplexity `sonar-reasoning` (DeepSeek) model supported
   - OpenAI o1 models supported

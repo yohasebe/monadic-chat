@@ -452,12 +452,11 @@ function connect_websocket(callback) {
     if (!mediaSource) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
-        // console.log('MediaSource opened');
-        if (runningOnFirefox) {
-          sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-        } else {
+        // if (runningOnFirefox) {
+        //   sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+        // } else {
           sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-        }
+        // }
         sourceBuffer.addEventListener('updateend', processAudioDataQueue);
       });
     }

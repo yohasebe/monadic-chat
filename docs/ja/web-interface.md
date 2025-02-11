@@ -112,13 +112,11 @@ Monadic Chatの現在の状況を示します。
 
 ![](./assets/images/monadic-chat-tts.png ':size=400')
 
-!> 音声機能を使用するにはGoogle ChromeまたはMicrosoft Edgeブラウザを使用する必要があります。
+**Text-to-Speech Provider**<br />
+音声合成に使用するプロバイダーを選択します。API Tokenが設定されていれば、OpenAI（NormalまたはHD）とElevenLabsの音声が選択可能です。
 
-**Text-to-Speech (TTS) Voice**<br />
+**Text-to-Speech Voice**<br />
 音声合成に使用するボイスを指定できます。
-
-**TTS Speed**<br />
-音声合成の際の発話スピードを0.5から1.5の間で指定することができます（デフォルト：0.0）。
 
 **Automatic-Speech-Recognition (ASR) Language**<br />
 音声認識にはWhisper APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。

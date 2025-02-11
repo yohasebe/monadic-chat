@@ -80,11 +80,12 @@ function ttsStop() {
 
   mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', () => {
-    // if (runningOnFirefox) {
-    //   sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
-    // } else {
+    // Though TTS on FireFox is not supported, the following is needed to prevent an error
+    if (runningOnFirefox) {
+      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
+    } else {
       sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-    // }
+    }
     sourceBuffer.addEventListener('updateend', processAudioDataQueue);
   });
 

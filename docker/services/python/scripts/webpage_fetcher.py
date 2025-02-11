@@ -495,7 +495,7 @@ def extract_text(driver, element=None, url=None, keep_unknown=False):
         return full_content, metadata
 
     except Exception as e:
-        print(f"Error: Error during content extraction: {e}", file=sys.stderr)
+        print("Something went wrong while extracting content. Please try again later.", file=sys.stderr)
         return "", {}
 
 def create_parser():
@@ -600,20 +600,20 @@ def main():
         try:
             driver.get(args.url)
         except TimeoutException:
-            print(f"Error: Connection timed out while trying to access {args.url}", file=sys.stderr)
+            print(f"The connection timed out while trying to access {args.url}. Please check your internet connection.", file=sys.stderr)
             sys.exit(1)
         except WebDriverException as e:
             error_message = str(e).lower()
             if "err_name_not_resolved" in error_message:
-                print(f"Error: Could not resolve the domain name for {args.url}. Please check if the URL is correct.", file=sys.stderr)
+                print(f"We couldn't resolve the domain name for {args.url}. Please check if the URL is correct.", file=sys.stderr)
             elif "err_connection_refused" in error_message:
-                print(f"Error: Connection was refused by {args.url}. The server might be down.", file=sys.stderr)
+                print(f"The connection was refused by {args.url}. The server might be down.", file=sys.stderr)
             elif "err_connection_timed_out" in error_message:
-                print(f"Error: Connection timed out while trying to access {args.url}", file=sys.stderr)
+                print(f"The connection timed out while trying to access {args.url}.", file=sys.stderr)
             elif "err_ssl_protocol_error" in error_message:
-                print(f"Error: SSL/TLS error occurred while trying to access {args.url}", file=sys.stderr)
+                print(f"An SSL/TLS error occurred while trying to access {args.url}.", file=sys.stderr)
             else:
-                print(f"Error: Failed to access {args.url}. {str(e)}", file=sys.stderr)
+                print(f"We failed to access {args.url}. {str(e)}", file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -621,7 +621,7 @@ def main():
                 lambda d: d.execute_script("return document.readyState") == "complete"
             )
         except TimeoutException:
-            print(f"Error: Page load timed out for {args.url}", file=sys.stderr)
+            print(f"The page load timed out for {args.url}.", file=sys.stderr)
             sys.exit(1)
 
         # Find target element if specified
@@ -631,12 +631,12 @@ def main():
             try:
                 element = driver.find_element(By.CSS_SELECTOR, args.element)
             except Exception as e:
-                print(f"Error: Could not find element '{args.element}'. {e}", file=sys.stderr)
+                print(f"We could not find the element '{args.element}'. Please check the selector.", file=sys.stderr)
                 sys.exit(1)
 
         if args.mode == 'png':
             if args.output == 'stdout' and not args.print_text:
-                print("Error: PNG mode cannot output to stdout", file=sys.stderr)
+                print("PNG mode cannot output to stdout.", file=sys.stderr)
                 sys.exit(1)
             # Capture screenshot of element or full page
 
@@ -653,7 +653,7 @@ def main():
                 extrema = img.convert("L").getextrema()
             if extrema == (0, 0) or extrema == (255, 255):
                 os.remove(output_path)
-                print(f"Error: Captured image was blank. Removed {output_path}", file=sys.stderr)
+                print(f"The captured image was blank. Removed {output_path}.", file=sys.stderr)
                 sys.exit(1)
             else:
                 print(f"Successfully saved screenshot to: {output_path}", file=sys.stderr)
@@ -685,11 +685,11 @@ def main():
                             json.dump(metadata, f, ensure_ascii=False, indent=2)
                         print(f"Saved metadata to: {metadata_path}", file=sys.stderr)
                 else:
-                    print("Error: No content captured", file=sys.stderr)
+                    print("No content captured.", file=sys.stderr)
                     sys.exit(1)
             else:  # Output to stdout
                 if not extracted:
-                    print("Error: No content captured", file=sys.stderr)
+                    print("No content captured.", file=sys.stderr)
                     sys.exit(1)
                 print(extracted)
                 if args.save_metadata:
@@ -698,7 +698,7 @@ def main():
                     print("\n=============\n")
 
     except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
+        print("Something went wrong. Please try again later.", file=sys.stderr)
         sys.exit(1)
     finally:
         if driver:

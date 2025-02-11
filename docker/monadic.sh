@@ -28,8 +28,6 @@ DOCKER=$(echo "${DOCKER}" | sed 's/ /\\ /g')
   # export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
 # fi
 
-export SELENIUM_IMAGE="selenium/standalone-chromium:latest"
-
 # Define the paths to the support scripts
 SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
 

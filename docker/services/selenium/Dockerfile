@@ -1,5 +1,5 @@
-ARG SELENIUM_IMAGE
-FROM ${SELENIUM_IMAGE}
+FROM selenium/standalone-chromium:latest
+
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 

@@ -59,7 +59,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
     <div class="card mt-3" id="${mid}"> 
     <div class="card-header p-2 ps-3 d-flex justify-content-between">
     <div class="fs-5 card-title mb-0">${badge}</div>
-    ${(!runningOnChrome && !runningOnEdge) ? `
+    ${(!runningOnChrome && !runningOnEdge && !runningOnSafari) ? `
         <div class="me-1 text-secondary d-flex align-items-center">
         <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
         <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>

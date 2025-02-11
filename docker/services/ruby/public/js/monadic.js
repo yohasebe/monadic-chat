@@ -833,7 +833,7 @@ $(function () {
     }
   });
 
-  if (!runningOnChrome && !runningOnEdge) {
+  if (!runningOnChrome && !runningOnEdge && !runningOnSafari) {
     voiceButton.hide();
     $("#auto-speech").hide();
     $("#auto-speech-form").hide();

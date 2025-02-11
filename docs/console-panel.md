@@ -106,15 +106,6 @@ All settings here are saved in the `~/monadic/config/env` file.
 **OPENAI_API_KEY** <br />
 (Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Whisper speech recognition API, and speech synthesis API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
-**Syntax Highlighting Theme** <br />
-Select the theme for code syntax highlighting. The default is `monokai`.
-
-**AI_USER_MODEL** <br />
-Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
-
-**EMBEDDING_MODEL** <br />
-Select the model used for text embedding. Currently, `text-embedding-3-small` and `text-embedding-3-large` are available. The default is `text-embedding-3-small`.
-
 **ANTHROPIC_API_KEY** <br />
 Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com].
 
@@ -135,3 +126,15 @@ Enter your DeepSeek API key. This key is required to use the DeepSeek models. It
 
 **ELEVENLABS_API_KEY** <br />
 Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers].
+
+**Syntax Highlighting Theme** <br />
+Select the theme for code syntax highlighting. The default is `monokai`.
+
+**AI_USER_MODEL** <br />
+Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o-mini`.
+
+**EMBEDDING_MODEL** <br />
+Select the model used for text embedding. Currently, `text-embedding-3-small` and `text-embedding-3-large` are available. The default is `text-embedding-3-small`.
+
+**TTS Dictionary File Path** <br />
+Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.

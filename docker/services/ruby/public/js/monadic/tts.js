@@ -29,15 +29,7 @@ function ttsSpeak(text, stream, callback) {
     mode = "TTS_STREAM"
   }
 
-  // let model = "tts-1"
-  // if (quality) {
-  //   model = "tts-1-hd"
-  // }
-
   let response_format = "mp3"
-  if(runningOnFirefox){
-    response_format = "mp3"
-  }
 
   audioInit();
 
@@ -88,12 +80,11 @@ function ttsStop() {
 
   mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', () => {
-    // console.log('MediaSource opened');
-    if (runningOnFirefox) {
-      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
-    } else {
+    // if (runningOnFirefox) {
+    //   sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
+    // } else {
       sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-    }
+    // }
     sourceBuffer.addEventListener('updateend', processAudioDataQueue);
   });
 

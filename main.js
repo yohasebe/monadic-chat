@@ -1393,7 +1393,8 @@ function checkAndUpdateEnvFile() {
         'XAI_API_KEY',
         'PERPLEXITY_API_KEY',
         'DEEPSEEK_API_KEY',
-        'ELEVENLABS_API_KEY'
+        'ELEVENLABS_API_KEY',
+        'TAVILY_API_KEY'
     ];
     const hasApiKey = api_list.some(key => envConfig[key]);
     

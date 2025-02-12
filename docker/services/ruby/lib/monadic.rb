@@ -290,6 +290,7 @@ configure do
   set :views, "views"
   set :api_key, ENV["OPENAI_API_KEY"]
   set :elevenlabs_api_key, ENV["ELEVENLABS_API_KEY"]
+  set :tavily_api_key, ENV["TAVILY_API_KEY"]
   enable :cross_origin
 end
 
@@ -451,7 +452,12 @@ post "/fetch_webpage" do
                       Dir.home + "/monadic/data"
                     end
 
-    markdown = MonadicApp.fetch_webpage(url)
+    tavily_api_key = ENV["TAVILY_API_key"]
+    if tavily_apikey_
+      markdown = tavily_fetch(url)
+    else
+      markdown = MonadicApp.fetch_webpage(url)
+    end
 
     webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
     if label.to_s != ""

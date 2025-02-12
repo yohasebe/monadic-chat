@@ -124,6 +124,8 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 
 **ELEVENLABS_API_KEY**<br /> ElevenLabs APIキーを入力してください。このキーはElevenLabsの音声モデルを使用するのに必要です。[https://elevenlabs.io/developers]で取得できます。
 
+**TAVILY_API_KEY**<br /> Tavily APIキーを入力してください。このキーはTavily によるweb検索やwebページ抽出機能を使用するのに必要です。[https://tavily.com/]で取得できます。
+
 **Syntax Highlighting Theme**<br />
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
 

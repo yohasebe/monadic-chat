@@ -127,9 +127,6 @@ Enter your DeepSeek API key. This key is required to use the DeepSeek models. It
 **ELEVENLABS_API_KEY** <br />
 Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers].
 
-**TAVILY_API_KEY** <br />
-Enter your Tavily API key. This key is required to use the Tavily web search and web extract for RAG. It can be obtained from [https://tavily.com/].
-
 **Syntax Highlighting Theme** <br />
 Select the theme for code syntax highlighting. The default is `monokai`.
 

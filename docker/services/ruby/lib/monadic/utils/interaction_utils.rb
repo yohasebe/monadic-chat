@@ -181,16 +181,6 @@ module InteractionUtils
       else
         { "type" => "audio", "content" => Base64.strict_encode64(res) }
       end
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      if num_retrial < MAX_RETRIES
-        num_retrial += 1
-        sleep RETRY_DELAY
-        retry
-      else
-        pp e.message
-        pp e.backtrace
-        return { "type" => "error", "content" => "ERROR: #{e.message}" }
-      end
     end
   end
 
@@ -263,39 +253,6 @@ module InteractionUtils
     else
       pp "Error: #{response.status} - #{response.body}"
       { "type" => "error", "content" => "Whisper API Error" }
-    end
-  end
-
-  def tavily_fetch(url)
-    api_key = ENV["TAVILY_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-
-    body = {
-      "urls" => url,
-      "include_images": false,
-      "extract_depth": "basic"
-    }
-
-    target_uri = "https://api.tavily.com/extract"
-
-    begin
-      http = HTTP.headers(headers)
-      res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
-
-      if res.status.success?
-        res = JSON.parse(res.body)
-      else
-        JSON.parse(res.body)
-        error_report = JSON.parse(res.body)
-        res ="ERROR: #{error_report}"
-      end
-
-      res.dig("results", 0, "raw_content") || "No content found"
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      "Error occurred: #{e.message}"
     end
   end
 end

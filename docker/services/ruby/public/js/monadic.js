@@ -727,7 +727,7 @@ $(function () {
         contentType: false
       }).done(function (markdown) {
         const message = $("#message").val().replace(/\n+$/, "");
-        $("#message").val(`${message}\n\n${markdown}`);
+        $("#message").val(`${message}\n${markdown}`);
         autoResize(document.getElementById('message'), 100);
         $("#url-spinner").hide();
         $("#urlModal button").prop('disabled', false);

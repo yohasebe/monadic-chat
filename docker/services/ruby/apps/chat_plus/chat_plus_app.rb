@@ -33,7 +33,6 @@ class ChatPlus < MonadicApp
     model: "gpt-4o-2024-11-20",
     temperature: 0.5,
     top_p: 0.0,
-    max_tokens: 4000,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,

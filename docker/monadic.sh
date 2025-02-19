@@ -611,6 +611,9 @@ build)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  remove_containers
+  echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
   build_docker_compose "no-cache"
 
   rm -f "${ROOT_DIR}/services/ruby/setup.sh"

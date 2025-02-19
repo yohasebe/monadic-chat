@@ -21,7 +21,6 @@ class GrokChat < MonadicApp
     model: "grok-2-1212",
     temperature: 0.5,
     top_p: 0.1,
-    max_tokens: 4000,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,

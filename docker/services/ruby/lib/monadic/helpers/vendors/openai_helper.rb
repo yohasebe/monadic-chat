@@ -28,14 +28,17 @@ module OpenAIHelper
     "dall-e",
     "whisper",
     "gpt-3.5",
-    "gpt-4"
+    "gpt-4",
+    "o1-preview"
   ]
 
+  # partial string match
   REASONING_MODELS = [
     "o3",
     "o1"
   ]
 
+  # complete string match
   NON_TOOL_MODELS = [
     "o1",
     "o1-2024-12-17",
@@ -45,10 +48,8 @@ module OpenAIHelper
     "o1-preview-2024-09-12"
   ]
 
-  NON_STREAM_MODELS = [
-    "o1",
-    "o1-2024-12-17"
-  ]
+  # complete string match
+  NON_STREAM_MODELS = []
 
   class << self
     attr_reader :cached_models

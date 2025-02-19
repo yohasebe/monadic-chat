@@ -703,6 +703,12 @@ function connect_websocket(callback) {
             $("#monadic-badge").hide();
           }
 
+          if (apps[$("#apps").val()]["websearch"]) {
+            $("#websearch-badge").show();
+          } else {
+            $("#websearch-badge").hide();
+          }
+
           if (apps[$("#apps").val()]["tools"]) {
             $("#tools-badge").show();
           } else {
@@ -755,16 +761,25 @@ function connect_websocket(callback) {
 
         $("#base-app-title").text(currentApp["app_name"]);
         $("#base-app-icon").html(currentApp["icon"]);
+
         if (currentApp["monadic"]) {
           $("#monadic-badge").show();
         } else {
           $("#monadic-badge").hide();
         }
+
+        if (currentApp["websearch"]) {
+          $("#websearch-badge").show();
+        } else {
+          $("#websearch-badge").hide();
+        }
+
         if (currentApp["tools"]) {
           $("#tools-badge").show();
         } else {
           $("#tools-badge").hide();
         }
+
         $("#base-app-desc").html(currentApp["description"]);
         $("#start").focus();
 

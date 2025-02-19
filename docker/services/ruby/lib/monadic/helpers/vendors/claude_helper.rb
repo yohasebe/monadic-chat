@@ -42,6 +42,8 @@ module ClaudeHelper
           model_data = JSON.parse(res.body)
           @cached_models = model_data["data"].map do |model|
             model["id"]
+          end.select do |model|
+            !model.include?("claude-2")
           end
           @cached_models
         end

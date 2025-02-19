@@ -371,7 +371,7 @@ blockquote p:last-child {
   background: #ffffff;
   padding: 6px;
   border-radius: 4px;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid #999999;
 }
 
 #alert-message.message-success {
@@ -458,9 +458,10 @@ div.diagram {
 }
 
 fieldset {
-  border: 1px solid silver;
+  border: 1px solid #999999;
   padding: 8px;
   border-radius: 4px;
+  background-color: #ffffff;
 }
 
 legend {

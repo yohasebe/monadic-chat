@@ -376,7 +376,10 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      body["model"] = check_vision_capability(model) || "gpt-4o-mini"
+      unless obj["vision_capability"]
+        body["model"] = "gpt-4o"
+        body.delete("reasoning_effort")
+      end
       body.delete("stop")
     end
 

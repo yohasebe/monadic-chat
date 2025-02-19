@@ -222,7 +222,6 @@ module PerplexityHelper
       body.delete("temperature")
       body.delete("tool_choice")
       body.delete("tools")
-      body.delete("top_p")
       body.delete("presence_penalty")
       body.delete("frequency_penalty")
 

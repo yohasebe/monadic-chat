@@ -166,6 +166,82 @@ $(function () {
     setupEventListeners();
   });
 
+  $("#model").on("change", function() {
+    const selectedModel = $("#model").val();
+
+    if (modelSpec[selectedModel]) {
+      if (modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
+        $("#reasoning-effort").prop("disabled", false);
+        $("#reasoning-effort").val(modelSpec[selectedModel]["reasoning_effort"]);
+      } else {
+        $("#reasoning-effort").prop("disabled", true);
+      }
+
+      if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
+        $("#temperature").prop("disabled", false);
+        const temperature = modelSpec[selectedModel]["temperature"][1];
+        $("#temperature").val(temperature);
+        $("#temperature-value").text(parseFloat(temperature).toFixed(1));
+      } else {
+        $("#temperature").prop("disabled", true);
+      }
+
+      if (modelSpec[selectedModel].hasOwnProperty("presence_penalty")) {
+        $("#presence-penalty").prop("disabled", false);
+        const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
+        $("#presence-penalty").val(presencePenalty);
+        $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
+      } else {
+        $("#presence-penalty").prop("disabled", true);
+      }
+
+      if (modelSpec[selectedModel].hasOwnProperty("frequency_penalty")) {
+        $("#frequency-penalty").prop("disabled", false);
+        const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
+        $("#frequency-penalty").val(frequencyPenalty);
+        $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
+      } else {
+        $("#frequency-penalty").prop("disabled", true);
+      }
+
+      if (modelSpec[selectedModel].hasOwnProperty("max_output_tokens")) {
+        $("#max-tokens-toggle").prop("checked", true).trigger("change");
+        const maxOutputTokens = modelSpec[selectedModel]["max_output_tokens"][1];
+        $("#max-tokens").val(maxOutputTokens);
+      } else {
+        $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS)
+        $("#max-tokens-toggle").prop("checked", false).trigger("change");
+      }
+    } else {
+      $("#reasoning-effort").prop("disabled", true);
+      $("#temperature").prop("disabled", true);
+      $("#presence-penalty").prop("disabled", true);
+      $("#frequency-penalty").prop("disabled", true);
+      $("#max-tokens-toggle").prop("checked", false).trigger("change");
+      $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS)
+    }
+
+    // check if selected mode has data-model-type attribute and its value is "reasoning"
+    const modelType = $("#model option:selected").attr("data-model-type");
+    if (modelType && modelType === "reasoning") {
+      const reasoningEffort = $("#reasoning-effort").val();
+      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
+    } else {
+      $("#model-selected").text(selectedModel);
+    }
+    adjustImageUploadButton(selectedModel);
+  });
+
+  $("#reasoning-effort").on("change", function () {
+    const selectedModel = $("#model").val();
+    const modelType = $("#model option:selected").attr("data-model-type");
+    if (modelType && modelType === "reasoning") {
+      const reasoningEffort = $("#reasoning-effort").val();
+      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
+    }
+  });
+
+
   $("#apps").on("change", function (event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
@@ -234,8 +310,6 @@ $(function () {
       $("#model-selected").text(model);
       $("#model").val(model);
 
-      // Manually trigger the change event
-      $("#model").trigger("change");
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
@@ -257,17 +331,6 @@ $(function () {
       $("#model-selected").text(params["model"]);
       $("#model_and_file").show();
       $("#model_parameters").show();
-
-      // Manually trigger the change event
-      $("#model").trigger("change");
-    }
-
-    if (apps[$(this).val()]["max_tokens"]) {
-      $("#max-tokens-toggle").prop("checked", true);
-      $("#max-tokens").prop("disabled", false);
-    } else {
-      $("#max-tokens-toggle").prop("checked", false);
-      $("#max-tokens").prop("disabled", true);
     }
 
     if (apps[$(this).val()]["context_size"]) {
@@ -285,6 +348,12 @@ $(function () {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
+    }
+
+    if (apps[$(this).val()]["websearch"]) {
+      $("#websearch-badge").show();
+    } else {
+      $("#websearch-badge").hide();
     }
 
     if (apps[$(this).val()]["tools"]) {
@@ -307,6 +376,9 @@ $(function () {
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+
+    // // Manually trigger the change event
+    $("#model").trigger("change");
 
     $("#start").focus();
   })
@@ -397,6 +469,7 @@ $(function () {
         content: $("#initial-prompt").val(),
         mathjax: $("#mathjax").is(":checked"),
         monadic: params["monadic"],
+        websearch: params["websearch"],
         jupyter: params["jupyter"],
       }));
 
@@ -751,10 +824,6 @@ $(function () {
     $("#temperature-value").text(parseFloat($(this).val()).toFixed(1));
   });
 
-  $("#top-p").on("input", function () {
-    $("#top-p-value").text(parseFloat($(this).val()).toFixed(1));
-  });
-
   $("#presence-penalty").on("input", function () {
     $("#presence-penalty-value").text(parseFloat($(this).val()).toFixed(1));
   });
@@ -886,29 +955,6 @@ $(function () {
       fileButton.prop('disabled', false);
     } else {
       fileButton.prop('disabled', true);
-    }
-  });
-
-  $("#model").on("change", function() {
-    const selectedModel = $("#model").val();
-
-    // check if selected mode has data-model-type attribute and its value is "reasoning"
-    const modelType = $("#model option:selected").attr("data-model-type");
-    if (modelType && modelType === "reasoning") {
-      const reasoningEffort = $("#reasoning-effort").val();
-      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
-    } else {
-      $("#model-selected").text(selectedModel);
-    }
-    adjustImageUploadButton(selectedModel);
-  });
-
-  $("#reasoning-effort").on("change", function () {
-    const selectedModel = $("#model").val();
-    const modelType = $("#model option:selected").attr("data-model-type");
-    if (modelType && modelType === "reasoning") {
-      const reasoningEffort = $("#reasoning-effort").val();
-      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
     }
   });
 

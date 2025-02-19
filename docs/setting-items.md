@@ -36,9 +36,6 @@ Specify the default `presence_penalty`. This is available for OpenAI and Mistral
 `frequency_penalty` (float)
 Specify the default `frequency_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
 
-`top_p` (float)
-Specify the default `top_p`. It is ignored if the model does not support it.
-
 `max_tokens` (int)
 Specify the default `max_tokens`.
 

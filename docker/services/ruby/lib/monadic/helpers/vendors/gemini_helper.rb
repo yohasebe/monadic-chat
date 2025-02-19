@@ -28,12 +28,16 @@ module GeminiHelper
   ]
 
   attr_reader :models
+  attr_reader :cached_models
 
   def self.vendor_name
     "Gemini"
   end
 
   def self.list_models
+    # Return cached models if they exist
+    return @cached_models if @cached_models
+
     api_key = CONFIG["GEMINI_API_KEY"]
     return [] if api_key.nil?
 
@@ -57,9 +61,11 @@ module GeminiHelper
         end
       end
 
-      models.filter do |model|
-        /(?:embedding|aqa|vision)/ !~ model && model != "gemini-pro"
+      @cached_models = models.filter do |model|
+        /(?:embedding|aqa|vision|imagen|learnlm|gemini-pro|gemini-1|gemini-exp)/ !~ model
       end.reverse
+      @cached_models
+
     rescue HTTP::Error, HTTP::TimeoutError
       []
     end
@@ -140,7 +146,6 @@ module GeminiHelper
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i
-    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -190,11 +195,10 @@ module GeminiHelper
       safety_settings: SAFETY_SETTINGS
     }
 
-    if temperature || max_tokens || top_p
+    if temperature || max_tokens
       body["generationConfig"] = {}
       body["generationConfig"]["temperature"] = temperature if temperature
       body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
-      body["generationConfig"]["topP"] = top_p if top_p
     end
 
     body["contents"] = context.compact.map do |msg|

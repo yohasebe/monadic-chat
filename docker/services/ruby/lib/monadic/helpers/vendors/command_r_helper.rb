@@ -152,7 +152,6 @@ end
     # Parse numerical parameters
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i
-    top_p = obj["top_p"]&.to_f
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
@@ -231,7 +230,6 @@ end
     # Add optional parameters with validation
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
-    body["p"] = top_p if top_p && top_p.between?(0.0, 1.0)
 
     # Add tools configuration if available
     if role != "tool" && APPS[app]&.settings&.dig("tools")

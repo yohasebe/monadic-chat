@@ -40,7 +40,6 @@ class VideoDescriber < MonadicApp
     disabled: !CONFIG["OPENAI_API_KEY"],
     temperature: 0.0,
     presence_penalty: 0.2,
-    top_p: 0.0,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     sourcecode: true,

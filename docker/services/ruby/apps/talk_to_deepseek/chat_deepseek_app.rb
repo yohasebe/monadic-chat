@@ -24,7 +24,6 @@ class ChatDeepSeek < MonadicApp
     group: "DeepSeek",
     disabled: !CONFIG["DEEPSEEK_API_KEY"],
     temperature: 0.7,  # Adjusted temperature
-    top_p: 1.0,        # Adjusted top_p
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: false,

@@ -187,7 +187,6 @@ class CodeInterpreterClaude < MonadicApp
     group: "Anthropic",
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
     temperature: 0.0,
-    top_p: 0.0,
     context_size: 20,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,

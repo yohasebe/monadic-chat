@@ -1,5 +1,5 @@
-class ResearchAssistant < MonadicApp
-  include OpenAIHelper
+class ResearchAssistantGemini < MonadicApp
+  include GeminiHelper
   include TavilyHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
@@ -31,31 +31,29 @@ class ResearchAssistant < MonadicApp
   
   At the beginning of the chat, it's your turn to start the conversation. Engage the user with a question to understand their research needs and provide relevant assistance. Use English as the primary language for communication with the user, unless specified otherwise.
 
-      Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">>Example</a>`
+  Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: <a href="https://www.example.com" target="_blank" rel="noopener noreferrer">>Example</a>
 
   When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available.
   TEXT
 
   @settings = {
-    group: "OpenAI",
-    disabled: !CONFIG["OPENAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
-    models: OpenAIHelper.list_models,
-    model: "gpt-4o-2024-11-20",
+    group: "Google",
+    disabled: !CONFIG["GEMINI_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    models: GeminiHelper.list_models,
+    model: "gemini-2.0-flash-exp",
     websearch: true,
-    temperature: 0.2,
+    temperature: 0.0,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant",
+    app_name: "Research Assistant (Gemini)",
     description: description,
     icon: icon,
     mathjax: true,
     image: true,
-    tools: [
-      {
-        type: "function",
-        function:
+    tools: {
+      function_declarations: [
         {
           name: "fetch_text_from_office",
           description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
@@ -67,35 +65,23 @@ class ResearchAssistant < MonadicApp
                 description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
               }
             },
-            required: ["file"],
-            additionalProperties: false
+            required: ["file"]
           }
         },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
         {
           name: "fetch_text_from_pdf",
           description: "Fetch the text from the PDF file and return it.",
           parameters: {
             type: "object",
             properties: {
-              pdf: {
+              file: {
                 type: "string",
                 description: "File name or file path of the PDF"
               }
             },
-            required: ["pdf"],
-            additionalProperties: false
+            required: ["file"]
           }
         },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
         {
           name: "analyze_image",
           description: "Analyze the image and return the result.",
@@ -111,15 +97,9 @@ class ResearchAssistant < MonadicApp
                 description: "Path to the image file. It can be either a local file path or a URL."
               }
             },
-            required: ["message", "image_path"],
-            additionalProperties: false
+            required: ["message", "image_path"]
           }
         },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
         {
           name: "analyze_audio",
           description: "Analyze the audio and return the transcript.",
@@ -131,15 +111,9 @@ class ResearchAssistant < MonadicApp
                 description: "File path of the audio file"
               }
             },
-            required: ["audio"],
-            additionalProperties: false
+            required: ["audio"]
           }
         },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
         {
           name: "fetch_text_from_file",
           description: "Fetch the text from a file and return its content.",
@@ -151,15 +125,9 @@ class ResearchAssistant < MonadicApp
                 description: "File name or file path"
               }
             },
-            required: ["file"],
-            additionalProperties: false
+            required: ["file"]
           }
         },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
         {
           name: "tavily_fetch",
           description: "Fetch the content of the web page of the given URL and return its content.",
@@ -172,14 +140,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["url"],
-            additionalProperties: false
           }
         },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
         {
           name: "tavily_search",
           description: "Search the web for the given query and return the result. The result contains the answer to the query, the source URL, and the content of the web page.",
@@ -196,11 +158,9 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["query"],
-            additionalProperties: false
           }
-        },
-        strict: true
-      }
-    ]
+        }
+      ]
+    }
   }
 end

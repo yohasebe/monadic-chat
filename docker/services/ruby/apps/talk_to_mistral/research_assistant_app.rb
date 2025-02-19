@@ -1,5 +1,5 @@
-class ResearchAssistant < MonadicApp
-  include OpenAIHelper
+class ResearchAssistantMistral < MonadicApp
+  include MistralHelper
   include TavilyHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
@@ -37,17 +37,17 @@ class ResearchAssistant < MonadicApp
   TEXT
 
   @settings = {
-    group: "OpenAI",
-    disabled: !CONFIG["OPENAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
-    models: OpenAIHelper.list_models,
-    model: "gpt-4o-2024-11-20",
+    group: "Mistral",
+    disabled: !CONFIG["MISTRAL_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    models: MistralHelper.list_models,
+    model: "mistral-large-latest",
     websearch: true,
-    temperature: 0.2,
+    temperature: 0.0,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant",
+    app_name: "Research Assistant (Mistral AI)",
     description: description,
     icon: icon,
     mathjax: true,
@@ -67,11 +67,9 @@ class ResearchAssistant < MonadicApp
                 description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
               }
             },
-            required: ["file"],
-            additionalProperties: false
+            required: ["file"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -87,11 +85,9 @@ class ResearchAssistant < MonadicApp
                 description: "File name or file path of the PDF"
               }
             },
-            required: ["pdf"],
-            additionalProperties: false
+            required: ["pdf"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -111,11 +107,9 @@ class ResearchAssistant < MonadicApp
                 description: "Path to the image file. It can be either a local file path or a URL."
               }
             },
-            required: ["message", "image_path"],
-            additionalProperties: false
+            required: ["message", "image_path"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -131,11 +125,9 @@ class ResearchAssistant < MonadicApp
                 description: "File path of the audio file"
               }
             },
-            required: ["audio"],
-            additionalProperties: false
+            required: ["audio"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -151,11 +143,9 @@ class ResearchAssistant < MonadicApp
                 description: "File name or file path"
               }
             },
-            required: ["file"],
-            additionalProperties: false
+            required: ["file"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -171,11 +161,9 @@ class ResearchAssistant < MonadicApp
                 description: "URL of the web page."
               }
             },
-            required: ["url"],
-            additionalProperties: false
+            required: ["url"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -195,11 +183,9 @@ class ResearchAssistant < MonadicApp
                 description: "Number of results to return (default: 3)."
               }
             },
-            required: ["query"],
-            additionalProperties: false
+            required: ["query", "n"]
           }
-        },
-        strict: true
+        }
       }
     ]
   }

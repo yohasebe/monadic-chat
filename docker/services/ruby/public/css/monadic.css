@@ -764,3 +764,7 @@ code {
 #config, #main-panel, #monadic-info-panel, #api-token-panel, #control-panel, #tts-panel {
   border: 1px solid #666;
 }
+
+ul, ol {
+  margin-bottom: 16px !important;
+}

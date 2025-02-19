@@ -1,5 +1,5 @@
-class ResearchAssistant < MonadicApp
-  include OpenAIHelper
+class ResearchAssistantDeepSeek < MonadicApp
+  include DeepSeekHelper
   include TavilyHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
@@ -37,17 +37,17 @@ class ResearchAssistant < MonadicApp
   TEXT
 
   @settings = {
-    group: "OpenAI",
-    disabled: !CONFIG["OPENAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
-    models: OpenAIHelper.list_models,
-    model: "gpt-4o-2024-11-20",
+    group: "DeepSeek",
+    disabled: !CONFIG["DEEPSEEK_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    models: DeepSeekHelper.list_models,
+    model: "deepseek-chat",
     websearch: true,
     temperature: 0.2,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant",
+    app_name: "Research Assistant (DeepSeek)",
     description: description,
     icon: icon,
     mathjax: true,
@@ -68,10 +68,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["file"],
-            additionalProperties: false
           }
         },
-        strict: true
       },
       {
         type: "function",
@@ -88,10 +86,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["pdf"],
-            additionalProperties: false
           }
         },
-        strict: true
       },
       {
         type: "function",
@@ -112,10 +108,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["message", "image_path"],
-            additionalProperties: false
           }
         },
-        strict: true
       },
       {
         type: "function",
@@ -132,10 +126,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["audio"],
-            additionalProperties: false
           }
         },
-        strict: true
       },
       {
         type: "function",
@@ -152,10 +144,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["file"],
-            additionalProperties: false
           }
         },
-        strict: true
       },
       {
         type: "function",
@@ -172,10 +162,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["url"],
-            additionalProperties: false
           }
         },
-        strict: true
       },
       {
         type: "function",
@@ -196,10 +184,8 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["query"],
-            additionalProperties: false
           }
         },
-        strict: true
       }
     ]
   }

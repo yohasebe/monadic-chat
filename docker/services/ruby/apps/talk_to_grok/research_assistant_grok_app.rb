@@ -1,5 +1,5 @@
-class ResearchAssistant < MonadicApp
-  include OpenAIHelper
+class ResearchAssistantGrok < MonadicApp
+  include GrokHelper
   include TavilyHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
@@ -37,17 +37,17 @@ class ResearchAssistant < MonadicApp
   TEXT
 
   @settings = {
-    group: "OpenAI",
-    disabled: !CONFIG["OPENAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
-    models: OpenAIHelper.list_models,
-    model: "gpt-4o-2024-11-20",
+    group: "xAI Grok",
+    disabled: !CONFIG["XAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    models: GrokHelper.list_models,
+    model: "grok-2-1212",
     websearch: true,
     temperature: 0.2,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant",
+    app_name: "Research Assistant (Grok)",
     description: description,
     icon: icon,
     mathjax: true,

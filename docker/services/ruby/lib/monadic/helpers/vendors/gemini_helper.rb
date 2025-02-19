@@ -380,7 +380,7 @@ module GeminiHelper
 
     result = []
     if texts.empty? 
-      result << "\n\nNo response from the model."
+      # result << "\n\nNo response from the model."
       finish_reason = nil
     else 
       result = texts
@@ -455,12 +455,18 @@ module GeminiHelper
         function_return = send(function_name.to_sym, **argument_hash)
         # MODIFICATION: Improved error handling and unified the return value format
         if function_return
+          content = if function_return.is_a?(String)
+                      function_return
+                    else
+                      function_return.to_json
+                    end
+
           tool_results << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
                 "name" => function_name,
-                "content" => function_return
+                "content" => content
               }
             }
           }
@@ -478,7 +484,7 @@ module GeminiHelper
         end
       rescue StandardError => e
         pp "ERROR: Function call failed: #{function_name}"
-          pp e.message
+        pp e.message
         pp e.backtrace
         context << {
           "functionResponse" => {
@@ -493,7 +499,7 @@ module GeminiHelper
     end
 
     # MODIFICATION: Clear tool_results after processing
-    obj["tool_results"] = context
+    obj["tool_results"] = tool_results
     api_request("tool", session, call_depth: call_depth, &block)
   end
 

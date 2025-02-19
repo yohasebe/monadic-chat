@@ -222,8 +222,7 @@ $(function () {
     }
 
     // check if selected mode has data-model-type attribute and its value is "reasoning"
-    const modelType = $("#model option:selected").attr("data-model-type");
-    if (modelType && modelType === "reasoning") {
+    if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
       $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
     } else {
@@ -234,8 +233,7 @@ $(function () {
 
   $("#reasoning-effort").on("change", function () {
     const selectedModel = $("#model").val();
-    const modelType = $("#model option:selected").attr("data-model-type");
-    if (modelType && modelType === "reasoning") {
+    if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
       $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
     }
@@ -307,7 +305,12 @@ $(function () {
         model = params["model"];
       }
 
-      $("#model-selected").text(model);
+      if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+        $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+      } else {
+        $("#model-selected").text(model);
+      }
+
       $("#model").val(model);
 
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
@@ -328,7 +331,12 @@ $(function () {
         $("#model").html(model_options);
       }
 
-      $("#model-selected").text(params["model"]);
+      if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+        $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+      } else {
+        $("#model-selected").text(params["model"]);
+      }
+
       $("#model_and_file").show();
       $("#model_parameters").show();
     }
@@ -377,21 +385,8 @@ $(function () {
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
-    // // Manually trigger the change event
-    $("#model").trigger("change");
-
     $("#start").focus();
   })
-
-  $("#show-notification").on("change", function () {
-    if ($(this).is(":checked")) {
-      params["show_notification"] = true;
-      elemAlert.show();
-    } else {
-      params["show_notification"] = false;
-      elemAlert.hide();
-    }
-  });
 
   $("#check-auto-speech").on("change", function () {
     if ($(this).is(":checked")) {
@@ -482,6 +477,7 @@ $(function () {
       if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
+        $("#cancel_query").show();
         reconnect_websocket(ws, function (ws) {
           ws.send(JSON.stringify(params));
         });
@@ -536,7 +532,6 @@ $(function () {
     $("#cancel_query").show();
     
     // Hide message input and show spinner
-    $("#message").hide();
     $("#monadic-spinner").show();
 
     if ($("#select-role").val() !== "user") {

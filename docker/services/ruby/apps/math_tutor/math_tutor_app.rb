@@ -77,7 +77,6 @@ class MathTutor < MonadicApp
     models: OpenAIHelper.list_models,
     model: "gpt-4o-2024-11-20",
     temperature: 0.0,
-    top_p: 0.0,
     presence_penalty: 0.2,
     initial_prompt: initial_prompt,
     prompt_suffix: "",

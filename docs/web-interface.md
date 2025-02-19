@@ -15,8 +15,8 @@ Models available for the selected app are displayed. If a default model is set f
 **Reasoning Effort** <br />
 For models capable of advanced reasoning (such as `o1` and `o3-mini` from OpenAI), you can adjust the number of tokens used for inference. Selecting `low` minimizes the number of tokens used in the inference process, while selecting `high` maximizes the number of tokens used. The default is `medium`, which is in between.
 
-**Max Tokens** <br />
-When the checkmark is on, the text sent to the API (past interactions and new messages) is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
+**Max Output Tokens** <br />
+When the checkmark is on, the text sent from the API (past interactions and new messages) is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 
 Specify the maximum number of tokens to be sent to the API. This includes the number of tokens in the text sent as a prompt and the number of tokens in the text returned as a response. For information on how tokens are counted in OpenAI's API, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 

@@ -42,7 +42,6 @@ class NovelWriter < MonadicApp
     models: OpenAIHelper.list_models,
     model: "gpt-4o-2024-11-20",
     temperature: 0.5,
-    top_p: 0.0,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     easy_submit: false,

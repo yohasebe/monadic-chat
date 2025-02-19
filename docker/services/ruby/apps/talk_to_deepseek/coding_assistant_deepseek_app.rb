@@ -25,7 +25,6 @@ class CodingAssistantDeepSeek < MonadicApp
     group: "DeepSeek",
     disabled: !CONFIG["DEEPSEEK_API_KEY"],
     temperature: 0.0,
-    top_p: 1.0,
     initial_prompt: initial_prompt,
     image_generation: false,
     sourcecode: true,

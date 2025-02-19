@@ -5,7 +5,6 @@ module MonadicAgent
     body = {
       model: model,
       temperature: 0.0,
-      top_p: 0.0,
       n: 1,
       stream: false,
       response_format: {

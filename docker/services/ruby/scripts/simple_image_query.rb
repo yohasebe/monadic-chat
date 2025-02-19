@@ -105,7 +105,6 @@ def image_query(message, image, model = "gpt-4o-mini")
   body = {
     model: model,
     temperature: 0.0,
-    top_p: 0.0,
     n: 1,
     stream: false,
     max_tokens: 1000,

@@ -96,7 +96,6 @@ class JupyterNotebookClaude < MonadicApp
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
     context_size: 20,
     temperature: 0.0,
-    top_p: 0.0,
     image_generation: true,
     sourcecode: true,
     easy_submit: false,

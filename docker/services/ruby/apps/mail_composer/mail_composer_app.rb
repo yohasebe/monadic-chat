@@ -21,7 +21,6 @@ class MailComposer < MonadicApp
     models: OpenAIHelper.list_models,
     model: "gpt-4o-mini",
     temperature: 0.3,
-    top_p: 0.0,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,

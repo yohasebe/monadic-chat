@@ -45,10 +45,6 @@ Web 設定画面の Base App セレクタ上でアプリをグループ化する
 
 デフォルトの`frequency_penalty`を指定します。OpenAI と Mistral AI のモデルで利用可能です。モデルが対応していない場合は無視されます。
 
-`top_p` (float)
-
-デフォルトの`top_p`を指定します。モデルが対応していない場合は無視されます。
-
 `max_tokens` (int)
 
 デフォルトの`max_tokens`を指定します。

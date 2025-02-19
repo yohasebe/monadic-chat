@@ -409,7 +409,7 @@ function loadParams(params, calledFor = "loadParams") {
   let spec = modelSpec[model];
 
   if (spec) {
-    let reasoning_effort = params["reasoning_effort"];
+    const reasoning_effort = params["reasoning_effort"];
     if (reasoning_effort) {
       $("#reasoning-effort").val(reasoning_effort);
       $("#reasoning-effort").prop('disabled', false);
@@ -422,52 +422,33 @@ function loadParams(params, calledFor = "loadParams") {
       }
     }
 
-    const temperature = params["temperature"];
+    let temperature = params["temperature"];
     if (temperature) {
       if (isNaN(temperature)) {
-        $("#temperature").val(parseFloat(temperature).toFixed(1));
-      } else {
-        $("#temperature").val(temperature);
+        temperature = parseFloat(temperature).toFixed(1);
       }
+      $("#temperature").val(temperature);
       $("#temperature-value").text(temperature);
     } else {
       if (spec["temperature"]) {
         $("#temperature").val(spec["temperature"][1]);
-        $("#temperature-value").text(spec["temperature"][1]);
+        $("#temperature-value").text(parseFloat(spec["temperature"][1]).toFixed(1));
       } else {
         $("#temperature").prop('disabled', true);
-      }
-    }
-
-    const top_p = params["top_p"];
-    if (top_p) {
-      if (isNaN(top_p)) {
-        $("#top-p").val(parseFloat(top_p).toFixed(1));
-      } else {
-        $("#top-p").val(top_p);
-      }
-      $("#top-p-value").text(top_p);
-    } else {
-      if (spec["top_p"]) {
-        $("#top-p").val(spec["top_p"][1]);
-        $("#top-p-value").text(spec["top_p"][1]);
-      } else {
-        $("#top-p").prop('disabled', true);
       }
     }
 
     let presence_penalty = params["presence_penalty"];
     if (presence_penalty) {
       if (isNaN(presence_penalty)) {
-        $("#presence-penalty").val(parseFloat(presence_penalty).toFixed(1));
-      } else {
-        $("#presence-penalty").val(presence_penalty);
+        presence_penalty = parseFloat(presence_penalty).toFixed(1);
       }
+      $("#presence-penalty").val(presence_penalty);
       $("#presence-penalty-value").text(presence_penalty);
     } else {
       if (spec["presence_penalty"]) {
         $("#presence-penalty").val(spec["presence_penalty"][1]);
-        $("#presence-penalty-value").text(spec["presence_penalty"][1]);
+        $("#presence-penalty-value").text(parseFloat(spec["presence_penalty"][1]).toFixed(1));
       } else {
         $("#presence-penalty").prop('disabled', true);
       }
@@ -476,15 +457,14 @@ function loadParams(params, calledFor = "loadParams") {
     let frequency_penalty = params["frequency_penalty"];
     if (frequency_penalty) {
       if (isNaN(frequency_penalty)) {
-        $("#frequency-penalty").val(parseFloat(frequency_penalty).toFixed(1));
-      } else {
-        $("#frequency-penalty").val(frequency_penalty);
+        frequency_penalty = parseFloat(frequency_penalty).toFixed(1);
       }
+      $("#frequency-penalty").val(frequency_penalty);
       $("#frequency-penalty-value").text(frequency_penalty);
     } else {
       if (spec["frequency_penalty"]) {
         $("#frequency-penalty").val(spec["frequency_penalty"][1]);
-        $("#frequency-penalty-value").text(spec["frequency_penalty"][1]);
+        $("#frequency-penalty-value").text(parseFloat(spec["frequency_penalty"][1]).toFixed(1));
       } else {
         $("#frequency-penalty").prop('disabled', true);
       }
@@ -510,7 +490,6 @@ function loadParams(params, calledFor = "loadParams") {
   } else {
     $("#reasoning-effort").prop('disabled', true);
     $("#temperature").prop('disabled', true);
-    $("#top-p").prop('disabled', true);
     $("#presence-penalty").prop('disabled', true);
     $("#frequency-penalty").prop('disabled', true);
     $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
@@ -572,10 +551,6 @@ function setParams() {
 
   if (!$("#temperature").prop('disabled')) {
     params["temperature"] = $("#temperature").val();
-  }
-
-  if (!$("#top-p").prop('disabled')) {
-    params["top_p"] = $("#top-p").val();
   }
 
   if (!$("#presence-penalty").prop('disabled')) {
@@ -643,10 +618,6 @@ function checkParams() {
   } else if (!$("#temperature").val()) {
     alert("Please enter a temperature.");
     $("#temperature").focus();
-    return false;
-  } else if (!$("#top-p").val()) {
-    alert("Please enter a top p value.");
-    $("#top-p").focus();
     return false;
   }
   return true;

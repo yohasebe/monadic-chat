@@ -181,23 +181,16 @@ $(function () {
         $("#temperature").prop("disabled", false);
         const temperature = modelSpec[selectedModel]["temperature"][1];
         $("#temperature").val(temperature);
-        $("#temperature-value").text(temperature);
+        $("#temperature-value").text(parseFloat(temperature).toFixed(1));
       } else {
         $("#temperature").prop("disabled", true);
-      }
-
-      if (modelSpec[selectedModel].hasOwnProperty("top_p")) {
-        $("#top-p").prop("disabled", false);
-        const top_p = modelSpec[selectedModel]["top_p"];
-        $("#top-p").val(top_p);
-      } else {
-        $("#top-p").prop("disabled", true);
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("presence_penalty")) {
         $("#presence-penalty").prop("disabled", false);
         const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
         $("#presence-penalty").val(presencePenalty);
+        $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
       } else {
         $("#presence-penalty").prop("disabled", true);
       }
@@ -206,6 +199,7 @@ $(function () {
         $("#frequency-penalty").prop("disabled", false);
         const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
         $("#frequency-penalty").val(frequencyPenalty);
+        $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
       } else {
         $("#frequency-penalty").prop("disabled", true);
       }
@@ -221,7 +215,6 @@ $(function () {
     } else {
       $("#reasoning-effort").prop("disabled", true);
       $("#temperature").prop("disabled", true);
-      $("#top-p").prop("disabled", true);
       $("#presence-penalty").prop("disabled", true);
       $("#frequency-penalty").prop("disabled", true);
       $("#max-tokens-toggle").prop("checked", false).trigger("change");
@@ -385,7 +378,7 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     // // Manually trigger the change event
-    // $("#model").trigger("change");
+    $("#model").trigger("change");
 
     $("#start").focus();
   })
@@ -829,10 +822,6 @@ $(function () {
 
   $("#temperature").on("input", function () {
     $("#temperature-value").text(parseFloat($(this).val()).toFixed(1));
-  });
-
-  $("#top-p").on("input", function () {
-    $("#top-p-value").text(parseFloat($(this).val()).toFixed(1));
   });
 
   $("#presence-penalty").on("input", function () {

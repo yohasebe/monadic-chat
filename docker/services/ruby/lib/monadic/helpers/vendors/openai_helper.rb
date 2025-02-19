@@ -182,7 +182,6 @@ module OpenAIHelper
 
     max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
-    top_p = obj["top_p"].to_f
     presence_penalty = obj["presence_penalty"].to_f
     frequency_penalty = obj["frequency_penalty"].to_f
     context_size = obj["context_size"].to_i
@@ -251,7 +250,6 @@ module OpenAIHelper
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
-      body.delete("top_p")
       body.delete("max_completion_tokens")
 
       if non_tool_model
@@ -273,7 +271,6 @@ module OpenAIHelper
       body["stream"] = true
       body["n"] = 1
       body["temperature"] = temperature if temperature
-      body["top_p"] = top_p if top_p
       body["presence_penalty"] = presence_penalty if presence_penalty
       body["frequency_penalty"] = frequency_penalty if frequency_penalty
       body["max_completion_tokens"] = max_completion_tokens if max_completion_tokens 

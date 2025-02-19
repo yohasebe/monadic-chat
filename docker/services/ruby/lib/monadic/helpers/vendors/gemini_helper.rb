@@ -146,7 +146,6 @@ module GeminiHelper
 
     temperature = obj["temperature"]&.to_f
     max_tokens = obj["max_tokens"]&.to_i
-    top_p = obj["top_p"]&.to_f
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -196,11 +195,10 @@ module GeminiHelper
       safety_settings: SAFETY_SETTINGS
     }
 
-    if temperature || max_tokens || top_p
+    if temperature || max_tokens
       body["generationConfig"] = {}
       body["generationConfig"]["temperature"] = temperature if temperature
       body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
-      body["generationConfig"]["topP"] = top_p if top_p
     end
 
     body["contents"] = context.compact.map do |msg|

@@ -113,6 +113,21 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 </details>
 
+### Research Assistant
+
+![Research Assistant app icon](./assets/icons/research-assistant.png ':size=40')
+
+アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、インテリジェントな研究アシスタントとして機能します。Tavily APIを使用してウェブ検索を行い、ウェブページ、画像、音声ファイル、ドキュメントなどの情報を取得し、分析します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、科学的な問い合わせを進めます。
+
+?> Tavily API Keyは、[Tavily](https://tavily.com/)のウェブサイトで取得できます。月に1,000回の無料リクエストが利用可能です。
+
+<details>
+<summary>research_assistant_app.rb</summary>
+
+![research_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/research_assistant/research_assistant_app.rb ':include :type=code')
+
+</details>
+
 ## 言語関連
 
 ### Language Practice

@@ -20,8 +20,6 @@ class SecondOpinion < MonadicApp
     models: OpenAIHelper.list_models,
     model: "gpt-4o-2024-11-20",
     temperature: 0.2,
-    top_p: 0.0,
-    max_tokens: 4000,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,

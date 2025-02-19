@@ -43,7 +43,6 @@ class ResearchAssistant < MonadicApp
     model: "gpt-4o-2024-11-20",
     websearch: true,
     temperature: 0.2,
-    top_p: 0.0,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,

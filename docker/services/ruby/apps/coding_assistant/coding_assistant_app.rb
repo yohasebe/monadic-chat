@@ -22,6 +22,8 @@ class CodingAssistant < MonadicApp
     disabled: !CONFIG["OPENAI_API_KEY"],
     models: OpenAIHelper.list_models,
     model: "o3-mini",
+    temperature: 0.0,
+    reasoning_effort: "high",
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,

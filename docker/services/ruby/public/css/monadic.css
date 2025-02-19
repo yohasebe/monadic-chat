@@ -192,6 +192,7 @@ button.fixed-width {
   padding-left: 0;
   border-bottom: 0;
   color: rgba(0, 0, 0, .6);
+  background-color: #f0f0f0;
 }
 
 .icon-container {
@@ -518,17 +519,9 @@ legend {
   opacity: 0.65;
 }
 
-.json-item {
-  margin-bottom: 0.5em;
-}
-
 .json-header {
   cursor: pointer;
   user-select: none;
-}
-
-.json-header:hover {
-  background-color: #f0f0f0;
 }
 
 .no-bullets {
@@ -561,7 +554,8 @@ legend {
 
 #main-nav {
   height: 108px;
-  border-bottom: 2px solid #777;
+  border-top: 1px solid #666;
+  border-bottom: 1px solid #666;
   background-color: #F8F8F8;
 }
 
@@ -652,10 +646,17 @@ legend {
   background-color: white; 
   border: 1px solid #ccc;
   border-radius: 4px;
+  line-height: 1.8;
+  background-color: #f0f0f0;
 }
 
 .json-content table {
   padding: 20px;
+}
+
+.json-content tbody {
+  padding: 20px;
+  background-color: #f0f0f0;
 }
 
 .json-content li p {
@@ -758,4 +759,8 @@ outline: 2px #FF8C00 solid;
 code {
   color: gray;
   font-size: 0.9em;
+}
+
+#config, #main-panel, #monadic-info-panel, #api-token-panel, #control-panel, #tts-panel {
+  border: 1px solid #666;
 }

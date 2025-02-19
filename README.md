@@ -15,7 +15,11 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Latest Changes
 
-- [Feb, 2025] 0.9.43
+- [Feb, 2025] 0.9.44
+  - Better support for model specific parameters
+  - Improved max input token and max output token handling
+  - Research Assistant app added
+  - Tavily web search and webpage extraction supported
   - ElevenLabs TTS voices supported
   - OpenAI o3-mini model supported with the `reasoning-effort` parameter
   - Jupyter Notebook apps improved with `jupyter.log` generated for each session

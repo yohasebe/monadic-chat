@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.43
+export MONADIC_VERSION=0.9.44
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -611,6 +611,9 @@ build)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  remove_containers
+  echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
   build_docker_compose "no-cache"
 
   rm -f "${ROOT_DIR}/services/ruby/setup.sh"

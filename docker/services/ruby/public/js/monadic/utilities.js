@@ -311,11 +311,6 @@ function setAlert(text = "", alertType = "success") {
   } else {
     textAlert.html(`${text}`);
     setAlertClass(alertType);
-    if ($("#show-notification").is(":checked")) {
-      elemAlert.show();
-    } else {
-      elemAlert.hide();
-    }
   }
 }
 
@@ -424,7 +419,7 @@ function loadParams(params, calledFor = "loadParams") {
 
     let temperature = params["temperature"];
     if (temperature) {
-      if (isNaN(temperature)) {
+      if (!isNaN(temperature)) {
         temperature = parseFloat(temperature).toFixed(1);
       }
       $("#temperature").val(temperature);
@@ -440,7 +435,7 @@ function loadParams(params, calledFor = "loadParams") {
 
     let presence_penalty = params["presence_penalty"];
     if (presence_penalty) {
-      if (isNaN(presence_penalty)) {
+      if (!isNaN(presence_penalty)) {
         presence_penalty = parseFloat(presence_penalty).toFixed(1);
       }
       $("#presence-penalty").val(presence_penalty);
@@ -456,7 +451,7 @@ function loadParams(params, calledFor = "loadParams") {
 
     let frequency_penalty = params["frequency_penalty"];
     if (frequency_penalty) {
-      if (isNaN(frequency_penalty)) {
+      if (!isNaN(frequency_penalty)) {
         frequency_penalty = parseFloat(frequency_penalty).toFixed(1);
       }
       $("#frequency-penalty").val(frequency_penalty);
@@ -473,7 +468,7 @@ function loadParams(params, calledFor = "loadParams") {
     let max_tokens = params["max_tokens"];
     if (max_tokens) {
       $("#max-tokens-toggle").prop("checked", true).trigger("change");
-      if (isNaN(max_tokens)) {
+      if (!isNaN(max_tokens)) {
         $("#max-tokens").val(parseInt(max_tokens));
       } else {
         $("#max-tokens").val(max_tokens);
@@ -582,13 +577,24 @@ function setParams() {
   params["asr_lang"] = $("#asr-lang").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
-  params["show_notification"] = $("#show-notification").prop('checked');
 
   const spec = modelSpec[model];
   if (spec && spec["context_window"]) {
     params["max_input_tokens"] = spec["context_window"][1];
   } else {
     params["max_input_tokens"] = DEFAULT_MAX_INPUT_TOKENS;
+  }
+
+  if (spec && spec["tool_capability"]) {
+    params["tool_capability"] = spec["tool_capability"];
+  } else {
+    params["tool_capability"] = null;
+  }
+
+  if (spec && spec["vision_capability"]) {
+    params["vision_capability"] = spec["vision_capability"];
+  } else {
+    params["vision_capability"] = null;
   }
 
   return params;
@@ -662,7 +668,13 @@ function resetEvent(event) {
     currentPdfData = null;
     resetParams();
 
-    $("#model-selected").text($("#model option:selected").text());
+    const model = $("#model").val();
+    if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+      $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+    } else {
+      $("#model-selected").text(model);
+    }
+
     $("#resetConfirmation").modal("hide");
     $("#main-panel").hide();
     $("#discourse").html("").hide();

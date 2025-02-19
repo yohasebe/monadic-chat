@@ -1,5 +1,5 @@
-class ResearchAssistant < MonadicApp
-  include OpenAIHelper
+class ResearchAssistantCommandR < MonadicApp
+  include CommandRHelper
   include TavilyHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
@@ -37,169 +37,108 @@ class ResearchAssistant < MonadicApp
   TEXT
 
   @settings = {
-    group: "OpenAI",
-    disabled: !CONFIG["OPENAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
-    models: OpenAIHelper.list_models,
-    model: "gpt-4o-2024-11-20",
+    group: "Cohere",
+    disabled: !CONFIG["COHERE_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    models: CommandRHelper.list_models,
+    model: "command-r7b-12-2024",
     websearch: true,
     temperature: 0.2,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant",
+    app_name: "Research Assistant (Command R)",
     description: description,
     icon: icon,
     mathjax: true,
     image: true,
     tools: [
       {
-        type: "function",
-        function:
-        {
-          name: "fetch_text_from_office",
-          description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
-          parameters: {
-            type: "object",
-            properties: {
-              file: {
-                type: "string",
-                description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
-              }
-            },
-            required: ["file"],
-            additionalProperties: false
+        name: "fetch_text_from_office",
+        description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
+        parameter_definitions: {
+          file: {
+            type: "string",
+            description: "File name or file path of the Microsoft Word/Excel/PowerPoint file.",
+            required: true
           }
-        },
-        strict: true
+        }
       },
       {
-        type: "function",
-        function:
-        {
-          name: "fetch_text_from_pdf",
-          description: "Fetch the text from the PDF file and return it.",
-          parameters: {
-            type: "object",
-            properties: {
-              pdf: {
-                type: "string",
-                description: "File name or file path of the PDF"
-              }
-            },
-            required: ["pdf"],
-            additionalProperties: false
+        name: "fetch_text_from_pdf",
+        description: "Fetch the text from the PDF file and return it.",
+        parameter_definitions: {
+          pdf: {
+            type: "string",
+            description: "File name or file path of the PDF",
+            required: true
           }
-        },
-        strict: true
+        }
       },
       {
-        type: "function",
-        function:
-        {
-          name: "analyze_image",
-          description: "Analyze the image and return the result.",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description: "Text prompt asking about the image (e.g. 'What is in the image?')."
-              },
-              image_path: {
-                type: "string",
-                description: "Path to the image file. It can be either a local file path or a URL."
-              }
-            },
-            required: ["message", "image_path"],
-            additionalProperties: false
+        name: "analyze_image",
+        description: "Analyze the image and return the result.",
+        parameter_definitions: {
+          message: {
+            type: "string",
+            description: "Text prompt asking about the image (e.g. 'What is in the image?').",
+            required: true
+          },
+          image_path: {
+            type: "string",
+            description: "Path to the image file. It can be either a local file path or a URL.",
+            required: true
           }
-        },
-        strict: true
+        }
       },
       {
-        type: "function",
-        function:
-        {
-          name: "analyze_audio",
-          description: "Analyze the audio and return the transcript.",
-          parameters: {
-            type: "object",
-            properties: {
-              audio: {
-                type: "string",
-                description: "File path of the audio file"
-              }
-            },
-            required: ["audio"],
-            additionalProperties: false
+        name: "analyze_audio",
+        description: "Analyze the audio and return the transcript.",
+        parameter_definitions: {
+          audio: {
+            type: "string",
+            description: "File path of the audio file",
+            required: true
           }
-        },
-        strict: true
+        }
       },
       {
-        type: "function",
-        function:
-        {
-          name: "fetch_text_from_file",
-          description: "Fetch the text from a file and return its content.",
-          parameters: {
-            type: "object",
-            properties: {
-              file: {
-                type: "string",
-                description: "File name or file path"
-              }
-            },
-            required: ["file"],
-            additionalProperties: false
+        name: "fetch_text_from_file",
+        description: "Fetch the text from a file and return its content.",
+        parameter_definitions: {
+          file: {
+            type: "string",
+            description: "File name or file path",
+            required: true
           }
-        },
-        strict: true
+        }
       },
       {
-        type: "function",
-        function:
-        {
-          name: "tavily_fetch",
-          description: "Fetch the content of the web page of the given URL and return its content.",
-          parameters: {
-            type: "object",
-            properties: {
-              url: {
-                type: "string",
-                description: "URL of the web page."
-              }
-            },
-            required: ["url"],
-            additionalProperties: false
+        name: "tavily_fetch",
+        description: "Fetch the content of the web page of the given URL and return its content.",
+        parameter_definitions: {
+          url: {
+            type: "string",
+            description: "URL of the web page.",
+            required: true
           }
-        },
-        strict: true
+        }
       },
       {
-        type: "function",
-        function:
-        {
-          name: "tavily_search",
-          description: "Search the web for the given query and return the result. The result contains the answer to the query, the source URL, and the content of the web page.",
-          parameters: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "Query to search for."
-              },
-              n: {
-                type: "integer",
-                description: "Number of results to return (default: 3)."
-              }
-            },
-            required: ["query"],
-            additionalProperties: false
+        name: "tavily_search",
+        description: "Search the web for the given query and return the result. The result contains the answer to the query, the source URL, and the content of the web page.",
+        parameter_definitions: {
+          query: {
+            type: "string",
+            description: "Query to search for.",
+            required: true
+          },
+          n: {
+            type: "integer",
+            description: "Number of results to return (default: 3).",
+
           }
-        },
-        strict: true
+        }
       }
     ]
   }

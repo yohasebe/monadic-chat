@@ -756,7 +756,12 @@ function connect_websocket(callback) {
           model = currentApp["model"];
         }
         
-        $("#model-selected").text(model);
+        if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+          $("#model-selected").text(model + " (" + modelSpec[model]["reasoning_effort"] + ")");
+        } else {
+          $("#model-selected").text(model);
+        }
+
         $("#model").val(model);
 
         $("#base-app-title").text(currentApp["app_name"]);

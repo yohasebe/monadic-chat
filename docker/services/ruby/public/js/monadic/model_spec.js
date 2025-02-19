@@ -8,8 +8,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gpt-4o-2024-08-06": {
     "context_window" : [1, 128000],
@@ -18,8 +18,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gpt-4o-2024-11-20": {
     "context_window" : [1, 128000],
@@ -28,8 +28,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gpt-4o-2024-05-13": {
     "context_window" : [1, 128000],
@@ -38,8 +38,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "chatgpt-4o-latest": {
     "context_window" : [1, 128000],
@@ -48,8 +48,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
@@ -58,8 +58,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gpt-4o-mini-2024-07-18": {
     "context_window" : [1, 128000],
@@ -68,37 +68,37 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   // reasoning models
   "o1": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 100000],
     "reasoning_effort": [["low", "medium", "high"], "medium"],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "o1-2024-12-17": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 100000],
     "reasoning_effort": [["low", "medium", "high"], "medium"],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "o3-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 100000],
     "reasoning_effort": [["low", "medium", "high"], "medium"],
-    "tools": true,
-    "vision": false
+    "tool_capability": true,
+    "vision_capability": false
   },
   "o3-mini-2025-01-31": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 100000],
     "reasoning_effort": [["low", "medium", "high"], "medium"],
-    "tools": true,
-    "vision": false
+    "tool_capability": true,
+    "vision_capability": false
   },
   // Anthropic models
   "claude-3-5-sonnet-20241022": {
@@ -106,56 +106,56 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": true
+    "vision_capability": true
   },
   "claude-3-5-sonnet-latest": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": true
+    "vision_capability": true
   },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": false
+    "vision_capability": false
   },
   "claude-3-5-haiku-latest": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": false
+    "vision_capability": false
   },
   "claude-3-opus-20240229": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": true
+    "vision_capability": true
   },
   "claude-3-opus-latest": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": true
+    "vision_capability": true
   },
   "claude-3-sonnet-20240229": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": true
+    "vision_capability": true
   },
   "claude-3-haiku-20240307": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
-    "vision": false
+    "vision_capability": false
   },
   // Cohere models
   "command-r7b-12-2024": {
@@ -165,7 +165,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command-r-plus-08-2024": {
     "context_window" : [1, 128000],
@@ -174,7 +174,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command-r-plus-04-2024": {
     "context_window" : [1, 128000],
@@ -183,7 +183,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command-r-plus": {
     "context_window" : [1, 128000],
@@ -192,7 +192,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command-r-08-2024": {
     "context_window" : [1, 128000],
@@ -201,7 +201,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command-r-03-2024": {
     "context_window" : [1, 128000],
@@ -210,7 +210,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command-r": {
     "context_window" : [1, 128000],
@@ -219,7 +219,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "command": {
     "context_window" : [1, 4000],
@@ -276,56 +276,56 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-pro-exp": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-pro-exp-02-05": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash-thinking-exp": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash-thinking-exp-1219": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash-thinking-exp-01-21": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "learnlm-1.5-pro-experimental": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   // Flash models
   "gemini-2.0-flash-exp": {
@@ -333,72 +333,72 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash-001": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash-lite-preview": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-2.0-flash-lite-preview-02-05": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-1.5-flash": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-1.5-flash-8b": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-1.5-pro": {
     "context_window" : [1, 2097152],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   "gemini-1.5-pro": {
     "context_window" : [1, 2097152],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tools": true,
-    "vision": true,
+    "tool_capability": true,
+    "vision_capability": true,
   },
   // Mistral models
   // codestral models
@@ -408,7 +408,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "codestral-2501": {
     "max_output_tokens" : [1, 256000],
@@ -416,7 +416,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "codestral-2411-rc5": {
     "max_output_tokens" : [1, 256000],
@@ -424,7 +424,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "codestral-mamba-latest": {
     "max_output_tokens" : [1, 256000],
@@ -432,7 +432,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   // mistral models
   "mistral-large-latest": {
@@ -441,7 +441,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "mistral-saba-latest": {
     "max_output_tokens" : [1, 32000],
@@ -464,8 +464,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "pixtral-large-2411": {
     "max_output_tokens" : [1, 131000],
@@ -473,8 +473,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "pixtral-12b-2409": {
     "max_output_tokens" : [1, 131000],
@@ -482,8 +482,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   // ministral models
   "ministral-3b-latest": {
@@ -492,7 +492,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "ministral-3b-2410": {
     "max_output_tokens" : [1, 131000],
@@ -500,7 +500,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "ministral-8b-latest": {
     "max_output_tokens" : [1, 131000],
@@ -508,7 +508,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "ministral-8b-2410": {
     "max_output_tokens" : [1, 131000],
@@ -516,7 +516,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   // open models
   "open-mistral-nemo": {
@@ -525,7 +525,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "open-mistral-nemo-2407": {
     "max_output_tokens" : [1, 131000],
@@ -533,7 +533,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "open-codestral-mamba": {
     "max_output_tokens" : [1, 256000],
@@ -549,8 +549,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "grok-2-vision": {
     "context_window" : [1, 32768],
@@ -558,8 +558,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "grok-2-vision-latest": {
     "context_window" : [1, 32768],
@@ -567,8 +567,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true,
-    "vision": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "grok-2-1212": {
     "context_window" : [1, 131072],
@@ -576,7 +576,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "grok-2": {
     "context_window" : [1, 131072],
@@ -584,7 +584,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "grok-2-latest": {
     "context_window" : [1, 131072],
@@ -592,7 +592,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "grok-vision-beta": {
     "context_window" : [1, 8192],
@@ -600,7 +600,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   "grok": {
     "context_window" : [1, 131072],
@@ -608,7 +608,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tools": true
+    "tool_capability": true
   },
   // Perplexity models
   "sonar-reasoning-pro": {

@@ -9,7 +9,8 @@ const elemAlert = $("#alert-box")
 const textAlert = $("#alert-message")
 const textStats = $("#stats-message")
 
-const DEFAULT_MAX_TOKENS = 4000;
+const DEFAULT_MAX_INPUT_TOKENS = 4000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 4000;
 const DEFAULT_CONTEXT_SIZE = 100;
 
 let currentPdfData = null;
@@ -404,33 +405,119 @@ function loadParams(params, calledFor = "loadParams") {
     $("#ai-user-toggle").prop("checked", false)
   }
 
-  const temperature = parseFloat(params["temperature"]) 
-  if (!isNaN(temperature)) {
-    $("#temperature").val(temperature);
-    $("#temperature-value").text(temperature);
-  } else {
-    $("#temperature").val("0.3");
-    $("#temperature-value").text("0.3");
-  }
+  let model = params["model"];
+  let spec = modelSpec[model];
 
-  let top_p = parseFloat(params["top_p"])
-  if (!isNaN(top_p)) {
-    if (Number.isInteger(top_p)) {
-      top_p = top_p.toFixed(1);
+  if (spec) {
+    let reasoning_effort = params["reasoning_effort"];
+    if (reasoning_effort) {
+      $("#reasoning-effort").val(reasoning_effort);
+      $("#reasoning-effort").prop('disabled', false);
+    } else {
+      if (spec["reasoning_effort"]) {
+        $("#reasoning-effort").val(reasoning_effort[1]);
+        $("#reasoning-effort").prop('disabled', false);
+      } else {
+        $("#reasoning-effort").prop('disabled', true);
+      }
     }
-    $("#top-p").val(top_p);
-    $("#top-p-value").text(top_p);
+
+    const temperature = params["temperature"];
+    if (temperature) {
+      if (isNaN(temperature)) {
+        $("#temperature").val(parseFloat(temperature).toFixed(1));
+      } else {
+        $("#temperature").val(temperature);
+      }
+      $("#temperature-value").text(temperature);
+    } else {
+      if (spec["temperature"]) {
+        $("#temperature").val(spec["temperature"][1]);
+        $("#temperature-value").text(spec["temperature"][1]);
+      } else {
+        $("#temperature").prop('disabled', true);
+      }
+    }
+
+    const top_p = params["top_p"];
+    if (top_p) {
+      if (isNaN(top_p)) {
+        $("#top-p").val(parseFloat(top_p).toFixed(1));
+      } else {
+        $("#top-p").val(top_p);
+      }
+      $("#top-p-value").text(top_p);
+    } else {
+      if (spec["top_p"]) {
+        $("#top-p").val(spec["top_p"][1]);
+        $("#top-p-value").text(spec["top_p"][1]);
+      } else {
+        $("#top-p").prop('disabled', true);
+      }
+    }
+
+    let presence_penalty = params["presence_penalty"];
+    if (presence_penalty) {
+      if (isNaN(presence_penalty)) {
+        $("#presence-penalty").val(parseFloat(presence_penalty).toFixed(1));
+      } else {
+        $("#presence-penalty").val(presence_penalty);
+      }
+      $("#presence-penalty-value").text(presence_penalty);
+    } else {
+      if (spec["presence_penalty"]) {
+        $("#presence-penalty").val(spec["presence_penalty"][1]);
+        $("#presence-penalty-value").text(spec["presence_penalty"][1]);
+      } else {
+        $("#presence-penalty").prop('disabled', true);
+      }
+    }
+
+    let frequency_penalty = params["frequency_penalty"];
+    if (frequency_penalty) {
+      if (isNaN(frequency_penalty)) {
+        $("#frequency-penalty").val(parseFloat(frequency_penalty).toFixed(1));
+      } else {
+        $("#frequency-penalty").val(frequency_penalty);
+      }
+      $("#frequency-penalty-value").text(frequency_penalty);
+    } else {
+      if (spec["frequency_penalty"]) {
+        $("#frequency-penalty").val(spec["frequency_penalty"][1]);
+        $("#frequency-penalty-value").text(spec["frequency_penalty"][1]);
+      } else {
+        $("#frequency-penalty").prop('disabled', true);
+      }
+    }
+
+    let max_tokens = params["max_tokens"];
+    if (max_tokens) {
+      $("#max-tokens-toggle").prop("checked", true).trigger("change");
+      if (isNaN(max_tokens)) {
+        $("#max-tokens").val(parseInt(max_tokens));
+      } else {
+        $("#max-tokens").val(max_tokens);
+      } 
+    } else {
+      if (spec["max_output_tokens"]) {
+        $("#max-tokens").val(spec["max_output_tokens"][1]);
+        $("#max-tokens-toggle").prop("checked", true).trigger("change");
+      } else {
+        $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
+        $("#max-tokens-toggle").prop("checked", false).trigger("change");
+      }
+    }
   } else {
-    $("#top-p").val("0.0");
-    $("#top-p-value").text("0.0");
+    $("#reasoning-effort").prop('disabled', true);
+    $("#temperature").prop('disabled', true);
+    $("#top-p").prop('disabled', true);
+    $("#presence-penalty").prop('disabled', true);
+    $("#frequency-penalty").prop('disabled', true);
+    $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
+    $("#max-tokens-toggle").prop("checked", false).trigger("change");
   }
 
-  $("#max-tokens").val(params["max_tokens"] || DEFAULT_MAX_TOKENS);
-  $("#contenxt-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
-  $("#presence-penalty").val(params["presence_penalty"] || "0.0");
-  $("#presence-penalty-value").text(params["presence_penalty"] || "0.0");
-  $("#frequency-penalty").val(params["frequency_penalty"] || "0.0");
-  $("#frequency-penalty-value").text(params["frequency_penalty"] || "0.0");
+  $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
   $("#context-size").val(params["context_size"] || "10");
 }
 
@@ -478,15 +565,30 @@ function setParams() {
 
   // params["initial_prompt"] = $("#initial-prompt").val();
   params["model"] = $("#model").val();
-  params["reasoning_effort"] = $("#reasoning-effort").val();
-  params["temperature"] = $("#temperature").val();
-  params["top_p"] = $("#top-p").val();
-  params["presence_penalty"] = $("#presence-penalty").val();
-  params["frequency_penalty"] = $("#frequency-penalty").val();
+
+  if (!$("#reasoning-effort").prop('disabled')) {
+    params["reasoning_effort"] = $("#reasoning-effort").val();
+  }
+
+  if (!$("#temperature").prop('disabled')) {
+    params["temperature"] = $("#temperature").val();
+  }
+
+  if (!$("#top-p").prop('disabled')) {
+    params["top_p"] = $("#top-p").val();
+  }
+
+  if (!$("#presence-penalty").prop('disabled')) {
+    params["presence_penalty"] = $("#presence-penalty").val();
+  }
+
+  if (!$("#frequency-penalty").prop('disabled')) {
+    params["frequency_penalty"] = $("#frequency-penalty").val();
+  }
 
   if ($("#max-tokens").prop('disabled')) {
     // just a midium-sized default value
-    params["max_tokens"] = DEFAULT_MAX_TOKENS;
+    params["max_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;
   } else {
     params["max_tokens"] = $("#max-tokens").val();
   }
@@ -506,6 +608,14 @@ function setParams() {
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
   params["show_notification"] = $("#show-notification").prop('checked');
+
+  const spec = modelSpec[model];
+  if (spec && spec["context_window"]) {
+    params["max_input_tokens"] = spec["context_window"][1];
+  } else {
+    params["max_input_tokens"] = DEFAULT_MAX_INPUT_TOKENS;
+  }
+
   return params;
 }
 
@@ -515,7 +625,7 @@ function checkParams() {
     $("#initial-prompt").focus();
     return false;
   } else if (!$("#max-tokens").val()) {
-    alert("Please enter a max tokens value.");
+    alert("Please enter a max output tokens value.");
     $("#max-tokens").focus();
     return false;
   } else if (!$("#context-size").val()) {
@@ -526,6 +636,10 @@ function checkParams() {
     alert("Please select a model.");
     $("#model").focus();
     return false;
+  } else if (!$("#reasoning-effort").val()) {
+    alert("Please select a reasoning effort.");
+    $("#reasoning-effort").focus();
+    return false
   } else if (!$("#temperature").val()) {
     alert("Please enter a temperature.");
     $("#temperature").focus();
@@ -593,6 +707,12 @@ function resetEvent(event) {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
+    }
+
+    if (apps[$("#apps").val()]["websearch"]) {
+      $("#websearch-badge").show();
+    } else {
+      $("#websearch-badge").hide();
     }
 
     if (apps[$("#apps").val()]["tools"]) {

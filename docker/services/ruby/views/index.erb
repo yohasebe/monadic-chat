@@ -73,6 +73,7 @@
               <div class="ms-2 like-h6">
                 <span id="monadic-badge" class="badge bg-secondary fw-bold" style="display: none;">monadic</span>
                 <span id="tools-badge" class="badge bg-secondary fw-bold" style="display: none;">tools</span>
+                <span id="websearch-badge" class="badge bg-secondary fw-bold" style="display: none;">web</span>
                 <span id="math-badge" class="badge bg-secondary fw-bold" style="display: none;">math</span>
               </div>
             </div>
@@ -230,7 +231,7 @@
 
 
             <form class="row my-2">
-              <div class="col-4">
+              <div class="col-5">
                 <label class="form-label" for="apps">Base App</label>
                 <div class="select-wrapper">
                   <select class="form-select form-select-sm me-3 select" id="apps">
@@ -246,16 +247,16 @@
               </div>
               
               <div class="col-3 ms-2">
-                <label class="form-label text-nowrap" for="max-tokens-toggle">Max Completion Tokens</label>
+                <label class="form-label text-nowrap" for="max-tokens-toggle">Max Output Tokens</label>
                 <div class="d-flex align-items-center gap-2">
                   <input class="form-check-input mt-0" type="checkbox" id="max-tokens-toggle" checked="checked">
-                  <input type="number" id="max-tokens" stop="1" min="100" max="99999" value="4000" class="form-control form-control-sm" />
+                  <input type="number" id="max-tokens" stop="1" min="100" max="999999" value="4000" class="form-control form-control-sm" />
                 </div>
               </div>
             </form>
 
             <form class="row my-3" id="model_and_file">
-              <div class="col-4">
+              <div class="col-5">
                 <label for="model" class="form-label text-nowrap">Model</label>
                 <select class="form-select form-select-sm me-3" size="1" id="model" ></select>
               </div>
@@ -264,8 +265,8 @@
                 <label class="form-label text-nowrap" for="reasoning-effort">Reasoning Effort <super>*</super></label>
                 <div class="d-flex align-items-center gap-2">
                   <select class="form-select form-select-sm" id="reasoning-effort">
-                    <option value="low" selected>low</option>
-                    <option value="medium">medium</option>
+                    <option value="low">low</option>
+                    <option value="medium" selected>medium</option>
                     <option value="high">high</option>
                   </select>
                 </div>
@@ -274,8 +275,8 @@
               <div class="col-3 ms-2" id="file-div" style="display: none;">
                 <div class="row">
                   <div class="col-auto">
-                    <label class="form-label" for="file" style="color: transparent;">□</label>
-                    <div><button class="btn btn-sm btn-warning text-nowrap" id="file"><i class="fas fa-file"></i> Upload File</button></div>
+                    <label class="form-label" for="file">PDF → DB</label>
+                    <div><button class="btn btn-sm btn-warning text-nowrap" id="file"><i class="fas fa-file"></i> Import File</button></div>
                   </div>
                 </div>
               </div>
@@ -284,7 +285,7 @@
             <form class="row my-3" id="model_parameters">
               <div class="col-3">
                 <label for="temperature" class="div-label my-2">Temperature <small><span id="temperature-value">0.3</span></small></label><br />
-                <input type="range" class="div-range" min="0.0" max="1.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">
+                <input type="range" class="div-range" min="0.0" max="2.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
@@ -313,6 +314,12 @@
                   <label class="form-check-label" for="prompt-caching">Prompt Caching <super>**</super></label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
                 </div>
+                <!--
+                <div style="display:inline-block;" class="form-check form-switch me-3">
+                  <label class="form-check-label" for="websearch">Web Search</label>
+                  <input class="form-check-input" type="checkbox" id="websearch">
+                </div>
+                -->
                 <div style="display:inline-block;" class="form-check form-switch me-3">
                   <label class="form-check-label" for="mathjax">Math Rendering</label>
                   <input class="form-check-input" type="checkbox" id="mathjax">
@@ -696,6 +703,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js"></script>
 
+    <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/websocket.js?timestamp=<%= @timestamp %>"></script>

@@ -10,7 +10,7 @@ module WebSocketHelper
     messages = session[:messages].filter { |m| m["type"] != "search" }
 
     res = false
-    max_tokens = obj["max_tokens"].to_i
+    max_input_tokens = obj["max_input_tokens"].to_i
     context_size = obj["context_size"].to_i
     tokenizer_available = true
 
@@ -31,7 +31,7 @@ module WebSocketHelper
       total_tokens = active_messages.sum { |m| m["tokens"] || 0 }
 
       # Remove oldest messages until total token count and message count are within limits
-      until active_messages.empty? || (total_tokens <= max_tokens && active_messages.size <= context_size)
+      until active_messages.empty? || (total_tokens <= max_input_tokens && active_messages.size <= context_size)
         last_message = active_messages.pop
         last_message["active"] = false
         total_tokens -= last_message["tokens"] || 0
@@ -93,7 +93,6 @@ module WebSocketHelper
           elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
-          # model = obj["model"]
           res_hash = tts_api_request(text,
                                      provider: provider,
                                      voice: voice,

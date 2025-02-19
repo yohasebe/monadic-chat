@@ -28,12 +28,16 @@ module GeminiHelper
   ]
 
   attr_reader :models
+  attr_reader :cached_models
 
   def self.vendor_name
     "Gemini"
   end
 
   def self.list_models
+    # Return cached models if they exist
+    return @cached_models if @cached_models
+
     api_key = CONFIG["GEMINI_API_KEY"]
     return [] if api_key.nil?
 
@@ -57,9 +61,11 @@ module GeminiHelper
         end
       end
 
-      models.filter do |model|
-        /(?:embedding|aqa|vision)/ !~ model && model != "gemini-pro"
+      @cached_models = models.filter do |model|
+        /(?:embedding|aqa|vision|imagen|learnlm|gemini-pro|gemini-1|gemini-exp)/ !~ model
       end.reverse
+      @cached_models
+
     rescue HTTP::Error, HTTP::TimeoutError
       []
     end

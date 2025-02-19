@@ -25,7 +25,6 @@ class VoiceInterpreter < MonadicApp
     model: "gpt-4o-mini",
     temperature: 0.2,
     top_p: 0.0,
-    max_tokens: 4000,
     initial_prompt: initial_prompt,
     easy_submit: true,
     auto_speech: true,

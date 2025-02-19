@@ -9,6 +9,16 @@ module MistralHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
+  EXCLUDED_MODELS = [
+    "embed",
+    "moderation",
+    "open",
+    "medium",
+    "small",
+    "tiny",
+    "pixtral-12b"
+  ]
+
   class << self
     attr_reader :cached_models
 
@@ -41,8 +51,10 @@ module MistralHelper
             model["created"]
           end.reverse.map do |model|
             model["id"]
-          end.filter do |model|
-            !model.include?("embed")
+          end.reject do |model|
+            EXCLUDED_MODELS.any? do |excluded_model|
+              /\b#{excluded_model}\b/ =~ model || /[\d\-]+(?:rc\d+)?\z/ =~ model 
+            end
           end
           @cached_models
         end

@@ -1,9 +1,9 @@
 module MonadicHelper
   def fetch_web_content(url: "")
-    selenium_job(url: url)
+    selenium_fetch(url: url)
   end
 
-  def selenium_job(url: "")
+  def selenium_fetch(url: "")
     max_retrials = 10
     command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
     # we wait for the following command to finish before returning the output

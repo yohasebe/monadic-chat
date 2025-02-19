@@ -451,7 +451,12 @@ post "/fetch_webpage" do
                       Dir.home + "/monadic/data"
                     end
 
-    markdown = MonadicApp.fetch_webpage(url)
+    tavily_api_key = ENV["TAVILY_API_key"]
+    if tavily_apikey_
+      markdown = tavily_fetch(url: url)
+    else
+      markdown = MonadicApp.fetch_webpage(url)
+    end
 
     webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
     if label.to_s != ""

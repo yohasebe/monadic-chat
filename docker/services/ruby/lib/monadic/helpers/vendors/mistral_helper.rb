@@ -19,6 +19,66 @@ module MistralHelper
     "pixtral-12b"
   ]
 
+  WEBSEARCH_TOOLS = [
+    {
+      type: "function",
+      function:
+      {
+        name: "tavily_fetch",
+        description: "fetch the content of the web page of the given url and return its content.",
+        parameters: {
+          type: "object",
+          properties: {
+            url: {
+              type: "string",
+              description: "url of the web page."
+            }
+          },
+          required: ["url"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function:
+      {
+        name: "tavily_search",
+        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "query to search for."
+            },
+            n: {
+              type: "integer",
+              description: "number of results to return (default: 3)."
+            }
+          },
+          required: ["query"]
+        }
+      }
+    }
+  ]
+
+  WEBSEARCH_PROMPT = <<~TEXT
+
+    To fulfill your tasks, you can use the following functions:
+
+    1. **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
+
+    2. **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+
+    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses.
+
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+
+    Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+
+    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
+  TEXT
+
   class << self
     attr_reader :cached_models
 
@@ -145,6 +205,8 @@ module MistralHelper
     context_size = obj["context_size"].to_i
     request_id   = SecureRandom.hex(4)
 
+    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+
     if role != "tool"
       message = obj["message"].to_s
       html = message.empty? ? message : markdown_to_html(message)
@@ -180,21 +242,34 @@ module MistralHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
+    websearch_prompto_added = false
+    messages = context.compact.map do |msg|
+      if websearch && !websearch_prompto_added && msg["role"] == "system"
+        text = msg["text"] + "\n\n" + WEBSEARCH_PROMPT
+        websearch_prompto_added = true
+      else
+        text = msg["text"]
+      end
+      { "role" => msg["role"], "content" => text }
+    end
+
     body = {
       "model"       => obj["model"],
       "temperature" => temperature,
       "safe_prompt" => false,
       "stream"      => true,
-      "messages"    => context.compact.map { |msg| { "role" => msg["role"], "content" => msg["text"] } }
+      "messages"    => messages
     }
     body["max_tokens"] = max_tokens if max_tokens
 
     # Add tool settings if available
-
-    if settings["tools"]
+    if obj["tools"] && !obj["tools"].empty?
       body["tools"] = settings["tools"]
-      body["tool_choice"] = "auto"
+      body["tools"].append(WEBSEARCH_TOOLS) if websearch
+    elsif websearch
+      body["tools"] = WEBSEARCH_TOOLS
     else
+      body.delete("tools")
       body.delete("tool_choice")
     end
 

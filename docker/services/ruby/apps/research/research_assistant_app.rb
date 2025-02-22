@@ -58,17 +58,17 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "fetch_text_from_office",
-          description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
+          description: "fetch the text from the microsoft word/excel/powerpoint file and return it.",
           parameters: {
             type: "object",
             properties: {
               file: {
                 type: "string",
-                description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
+                description: "file name or file path of the microsoft word/excel/powerpoint file."
               }
             },
             required: ["file"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true
@@ -78,17 +78,17 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "fetch_text_from_pdf",
-          description: "Fetch the text from the PDF file and return it.",
+          description: "fetch the text from the pdf file and return it.",
           parameters: {
             type: "object",
             properties: {
               pdf: {
                 type: "string",
-                description: "File name or file path of the PDF"
+                description: "file name or file path of the pdf"
               }
             },
             required: ["pdf"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true
@@ -98,21 +98,21 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "analyze_image",
-          description: "Analyze the image and return the result.",
+          description: "analyze the image and return the result.",
           parameters: {
             type: "object",
             properties: {
               message: {
                 type: "string",
-                description: "Text prompt asking about the image (e.g. 'What is in the image?')."
+                description: "text prompt asking about the image (e.g. 'what is in the image?')."
               },
               image_path: {
                 type: "string",
-                description: "Path to the image file. It can be either a local file path or a URL."
+                description: "path to the image file. it can be either a local file path or a url."
               }
             },
             required: ["message", "image_path"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true
@@ -122,17 +122,17 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "analyze_audio",
-          description: "Analyze the audio and return the transcript.",
+          description: "analyze the audio and return the transcript.",
           parameters: {
             type: "object",
             properties: {
               audio: {
                 type: "string",
-                description: "File path of the audio file"
+                description: "file path of the audio file"
               }
             },
             required: ["audio"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true
@@ -142,17 +142,17 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "fetch_text_from_file",
-          description: "Fetch the text from a file and return its content.",
+          description: "fetch the text from a file and return its content.",
           parameters: {
             type: "object",
             properties: {
               file: {
                 type: "string",
-                description: "File name or file path"
+                description: "file name or file path"
               }
             },
             required: ["file"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true
@@ -162,17 +162,17 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "tavily_fetch",
-          description: "Fetch the content of the web page of the given URL and return its content.",
+          description: "fetch the content of the web page of the given url and return its content.",
           parameters: {
             type: "object",
             properties: {
               url: {
                 type: "string",
-                description: "URL of the web page."
+                description: "url of the web page."
               }
             },
             required: ["url"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true
@@ -182,21 +182,21 @@ class ResearchAssistant < MonadicApp
         function:
         {
           name: "tavily_search",
-          description: "Search the web for the given query and return the result. The result contains the answer to the query, the source URL, and the content of the web page.",
+          description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
           parameters: {
             type: "object",
             properties: {
               query: {
                 type: "string",
-                description: "Query to search for."
+                description: "query to search for."
               },
               n: {
                 type: "integer",
-                description: "Number of results to return (default: 3)."
+                description: "number of results to return (default: 3)."
               }
             },
             required: ["query"],
-            additionalProperties: false
+            additionalproperties: false
           }
         },
         strict: true

@@ -89,7 +89,7 @@ module MistralHelper
     def list_models
       # Return cached models if available
 
-      return @cached_models if @cached_models
+      return $MODELS[:mistral] if $MODELS[:mistral]
 
       api_key = CONFIG["MISTRAL_API_KEY"]
       return [] if api_key.nil?
@@ -108,7 +108,7 @@ module MistralHelper
           # Cache filtered and sorted models
 
           model_data = JSON.parse(response.body)
-          @cached_models = model_data["data"]
+          $MODELS[:mistral] = model_data["data"]
             .sort_by { |model| model["created"] }
             .reverse
             .map { |model| model["id"] }
@@ -118,7 +118,7 @@ module MistralHelper
                   /[\d\-]+(?:rc\d+)?\z/ =~ model
               end
             end
-          @cached_models
+          $MODELS[:mistral]
         else
           []
         end
@@ -130,7 +130,7 @@ module MistralHelper
     # Method to manually clear cache if needed
 
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:mistral] = nil
     end
   end
 
@@ -265,7 +265,7 @@ module MistralHelper
     # Add tool settings if available
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = settings["tools"]
-      body["tools"].append(WEBSEARCH_TOOLS) if websearch
+      body["tools"].append(WEBSEARCH_TOOLS).flatten if websearch
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
     else

@@ -85,7 +85,7 @@ module GrokHelper
 
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:grok] if $MODELS[:grok]
 
       api_key = CONFIG["XAI_API_KEY"]
       return [] if api_key.nil?
@@ -104,10 +104,10 @@ module GrokHelper
         if res.status.success?
           # Cache the model list
           model_data = JSON.parse(res.body)
-          @cached_models = model_data["models"].map do |model|
+          $MODELS[:grok] = model_data["models"].map do |model|
             model["id"]
           end
-          @cached_models
+          $MODELS[:grok]
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []
@@ -116,7 +116,7 @@ module GrokHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:grok] = nil
     end
   end
 
@@ -274,7 +274,7 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tools"].append(WEBSEARCH_TOOLS) if websearch
+      body["tools"].append(WEBSEARCH_TOOLS).flatten if websearch
       body["tool_choice"] = "auto"
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS

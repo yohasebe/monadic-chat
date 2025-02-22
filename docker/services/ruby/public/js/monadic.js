@@ -171,7 +171,6 @@ $(function () {
 
     if (modelSpec[selectedModel]) {
       if (modelSpec[selectedModel].hasOwnProperty("tool_capability") && modelSpec[selectedModel]["tool_capability"]) {
-        $("#websearch-badge").show();
         $("#websearch").prop("disabled", false);
       } else {
         $("#websearch-badge").hide();
@@ -320,7 +319,6 @@ $(function () {
       }
 
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
-        $("#websearch-badge").show();
         $("#websearch").prop("disabled", false);
       } else {
         $("#websearch-badge").hide();

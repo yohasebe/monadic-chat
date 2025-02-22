@@ -81,7 +81,7 @@ module DeepSeekHelper
 
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:deepseek] if $MODELS[:deepseek]
 
       api_key = CONFIG["DEEPSEEK_API_KEY"]
       return [] if api_key.nil?
@@ -100,14 +100,14 @@ module DeepSeekHelper
         if res.status.success?
           # Cache the filtered and sorted models
           model_data = JSON.parse(res.body)
-          @cached_models = model_data["data"].sort_by do |model|
+          $MODELS[:deepseek] = model_data["data"].sort_by do |model|
             model["created"]
           end.reverse.map do |model|
             model["id"]
           end.filter do |model|
             !model.include?("embed")
           end
-          @cached_models
+          $MODELS[:deepseek]
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []
@@ -116,7 +116,7 @@ module DeepSeekHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:deepseek] = nil
     end
   end
 
@@ -275,7 +275,7 @@ module DeepSeekHelper
 
     if settings["tools"]
       body["tools"] = settings["tools"]
-      body["tools"].append(WEBSEARCH_TOOLS) if websearch
+      body["tools"].append(WEBSEARCH_TOOLS).flatten if websearch
       body["tool_choice"] = "auto"
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS

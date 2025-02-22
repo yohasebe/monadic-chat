@@ -125,7 +125,7 @@ module OpenAIHelper
 
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:openai] if $MODELS[:openai]
 
       api_key = CONFIG["OPENAI_API_KEY"]
       return [] if api_key.nil?
@@ -145,7 +145,7 @@ module OpenAIHelper
           res_body = JSON.parse(res.body)
           if res_body && res_body["data"]
             # Cache the filtered and sorted models
-            @cached_models = res_body["data"].sort_by do |item|
+            $MODELS[:openai] = res_body["data"].sort_by do |item|
               item["created"]
             end.reverse[0..MODELS_N_LATEST].map do |item|
               item["id"]
@@ -153,7 +153,7 @@ module OpenAIHelper
             end.reject do |model|
               EXCLUDED_MODELS.any? { |excluded_model| /\b#{excluded_model}\b/ =~ model }
             end
-            @cached_models
+            $MODELS[:openai]
           end
         end
       rescue HTTP::Error, HTTP::TimeoutError
@@ -163,7 +163,7 @@ module OpenAIHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:openai] = nil
     end
   end
 
@@ -345,7 +345,7 @@ module OpenAIHelper
     else
       if obj["tools"] && !obj["tools"].empty?
         body["tools"] = APPS[app].settings["tools"]
-        body["tools"].append(WEBSEARCH_TOOLS) if websearch
+        body["tools"].append(WEBSEARCH_TOOLS).flatten if websearch
       elsif websearch
         body["tools"] = WEBSEARCH_TOOLS
       else

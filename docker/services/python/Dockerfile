@@ -31,7 +31,7 @@ RUN pip install -U pip && \
     svgwrite cairosvg tinycss cssselect pygal \
     pyecharts pyecharts-snapshot \
     opencv-python moviepy==2.0.0.dev2 \
-    torch torchvision torchaudio 
+    torch torchvision torchaudio transformers tokenizers
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

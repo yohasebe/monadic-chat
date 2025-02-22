@@ -20,7 +20,7 @@ module TavilyHelper
     body = {
       "urls" => url,
       "include_images": false,
-      "extract_depth": "basic"
+      "extract_depth": "basic",
     }
 
     target_uri = "https://api.tavily.com/extract"

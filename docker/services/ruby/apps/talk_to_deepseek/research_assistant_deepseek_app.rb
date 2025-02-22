@@ -43,7 +43,7 @@ class ResearchAssistantDeepSeek < MonadicApp
     model: "deepseek-chat",
     websearch: true,
     temperature: 0.2,
-    context_size: 100,
+    context_size: 10,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,

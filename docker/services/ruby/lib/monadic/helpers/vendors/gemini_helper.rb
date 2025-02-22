@@ -89,7 +89,7 @@ module GeminiHelper
 
   def self.list_models
     # Return cached models if they exist
-    return @cached_models if @cached_models
+    return $MODELS[:gemini] if $MODELS[:gemini]
 
     api_key = CONFIG["GEMINI_API_KEY"]
     return [] if api_key.nil?
@@ -114,14 +114,18 @@ module GeminiHelper
         end
       end
 
-      @cached_models = models.filter do |model|
+      $MODELS[:gemini] = models.filter do |model|
         /(?:embedding|aqa|vision|imagen|learnlm|gemini-pro|gemini-1|gemini-exp)/ !~ model
       end.reverse
-      @cached_models
 
     rescue HTTP::Error, HTTP::TimeoutError
       []
     end
+  end
+
+  # Method to manually clear the cache if needed
+  def clear_models_cache
+    $MODELS[:gemini] = nil
   end
 
   # No streaming plain text completion/chat call
@@ -291,7 +295,7 @@ module GeminiHelper
 
     if settings["tools"]
       body["tools"] = settings["tools"]
-      body["tools"]["function_declarations"].append(WEBSEARCH_TOOLS) if websearch
+      body["tools"]["function_declarations"].append(WEBSEARCH_TOOLS).flatten if websearch
       body["tool_config"] = {
         "function_calling_config" => {
           "mode" => "ANY"

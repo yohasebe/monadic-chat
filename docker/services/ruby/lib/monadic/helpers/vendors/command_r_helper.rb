@@ -70,7 +70,7 @@ module CommandRHelper
     # Returns an array of model names, excluding embedding and reranking models
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:cohere] if $MODELS[:cohere]
 
       api_key = CONFIG["COHERE_API_KEY"]
       return [] if api_key.nil?
@@ -89,12 +89,12 @@ module CommandRHelper
         if res.status.success?
           # Cache the filtered models
           model_data = JSON.parse(res.body)
-          @cached_models = model_data["models"].map do |model|
+          $MODELS[:cohere] = model_data["models"].map do |model|
             model["name"]
           end.filter do |model|
             !model.include?("embed") && !model.include?("rerank")
           end
-          @cached_models
+          $MODELS[:cohere]
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []
@@ -103,7 +103,7 @@ module CommandRHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:cohere] = nil
     end
   end
 
@@ -288,7 +288,7 @@ end
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tools"].append(WEBSEARCH_TOOLS) if websearch
+      body["tools"].append(WEBSEARCH_TOOLS).flatten if websearch
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
     else

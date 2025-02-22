@@ -75,7 +75,7 @@ module ClaudeHelper
 
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:anthropic] if $MODELS[:anthropic]
 
       api_key = CONFIG["ANTHROPIC_API_KEY"]
       return [] if api_key.nil?
@@ -94,12 +94,12 @@ module ClaudeHelper
         if res.status.success?
           # Cache the model list
           model_data = JSON.parse(res.body)
-          @cached_models = model_data["data"].map do |model|
+          $MODELS[:anthropic] = model_data["data"].map do |model|
             model["id"]
           end.select do |model|
             !model.include?("claude-2")
           end
-          @cached_models
+          $MODELS[:anthropic]
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []
@@ -108,7 +108,7 @@ module ClaudeHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:anthropic] = nil
     end
   end
 
@@ -314,7 +314,7 @@ module ClaudeHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tools"].append(WEBSEARCH_TOOLS) if websearch
+      body["tools"].append(WEBSEARCH_TOOLS).flatten if websearch
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
     else

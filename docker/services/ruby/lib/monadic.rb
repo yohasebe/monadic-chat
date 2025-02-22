@@ -29,6 +29,8 @@ require "cgi"
 require "yaml"
 require "csv"
 
+$MODELS = {}
+
 # return true if we are inside a docker container
 IN_CONTAINER = File.file?("/.dockerenv")
 

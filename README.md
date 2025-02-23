@@ -1,6 +1,6 @@
-<div><img src="https://github.com/yohasebe/monadic-chat/raw/main/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
+<div><img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-<div><img src="https://github.com/yohasebe/monadic-chat/blob/main/docs/assets/images/monadic-chat-architecture.png" width="800px"/></div>
+<div><img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
 ## Overview
 
@@ -83,7 +83,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Support for Multiple LLM APIs
 
-- 👥 **Web APIs**:
+- 👥 Web API
   - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
@@ -92,7 +92,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)
   - [DeepSeek](https://www.deepseek.com/)
-- 🦙 [**Ollama**](https://ollama.com/) in the local Docker environment
+- 🦙 [Ollama](https://ollama.com/) in the local Docker environment
   - Llama
   - Phi
   - Mistral

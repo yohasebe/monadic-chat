@@ -1,6 +1,6 @@
-# Monadic Chat
+<div><img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-w[Monadic Chat Architecture](./assets/images/monadic-chat-architecture.svg ':size=800')
+<div><img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
 ## 概要
 
@@ -51,8 +51,8 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 音声インタラクション
 
+- 🔈 AIアシスタントによるレスポンス**テキスト読み上げ** (OpenAIまたはElevenlabs)
 - 🎙️ Whisper APIを使用した**音声認識**（+ p値の表示）
-- 🔈 AIアシスタントによるレスポンス**テキスト読み上げ**
 - 🗺️ テキスト読み上げのための**自動言語検出**
 - 🗣️ テキスト読み上げのための**言語とボイス**の選択
 - 😊 音声認識とテキスト読み上げを使用した、AIエージェントとの**インタラクティブな会話**
@@ -76,7 +76,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 複数のLLM APIに対応
 
-- 👥 **Web API**
+- 👥 Web API
   - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
@@ -85,13 +85,14 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)
   - [DeepSeek](https://www.deepseek.com/)
-- 🦙 ローカルDocker環境の[**Ollama**](https://ollama.com/)
+- 🦙 ローカルDocker環境の[Ollama](https://ollama.com/)
+- 🦙 [Ollama](https://ollama.com/) in the local Docker environment
   - Llama
   - Phi
   - Mistral
   - Gemma
   - DeepSeek
-- 🤖💬🤖 **AI対AI**のチャット機能
+- 🤖💬🤖 AI対AIのチャット機能
 
 ### モナドとしての会話
 

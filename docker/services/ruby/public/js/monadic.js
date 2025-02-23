@@ -378,12 +378,18 @@ $(function () {
       $("#tools-badge").hide();
     }
 
+    if (apps[$(this).val()]["websearch"]) {
+      $("#websearch").prop("checked", true);
+      $("#websearch-badge").show();
+    } else {
+      $("#websearch").prop("checked", false);
+      $("#websearch-badge").hide();
+    }
+
     if (apps[$(this).val()]["mathjax"]) {
-      $("#math-badge").show();
       $("#mathjax").prop("checked", true);
       $("#math-badge").show();
     } else {
-      $("#math-badge").hide();
       $("#mathjax").prop("checked", false);
       $("#math-badge").hide();
     }

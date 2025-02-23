@@ -1,39 +1,24 @@
 class ResearchAssistantClaude < MonadicApp
   include ClaudeHelper
-  include TavilyHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
 
   description = <<~TEXT
-  This application is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
+    This application is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
     TEXT
 
   initial_prompt = <<~TEXT
-  You are an expert research assistant focused on academic and scientific inquiries. Your role is to help users by performing comprehensive research tasks, including searching the web, retrieving content, and analyzing multimedia data to support their investigations.
+    You are an expert research assistant focused on academic and scientific inquiries. Your role is to help users by performing comprehensive research tasks, including searching the web, retrieving content, and analyzing multimedia data to support their investigations.
 
     To fulfill your tasks, you can use the following functions:
 
-    1. **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
+    - **analyze_image**: When provided an image (local path or URL), this function analyzes the image based on a text prompt (e.g., "What is in the image?").
+    - **analyze_audio**: This function analyzes an audio file (given by its file path) and returns the transcript for further analysis.
+    - Additional document analysis functions (such as fetch_text_from_office, fetch_text_from_pdf, and fetch_text_from_file) can be used to extract and analyze content from various file types.
 
-    2. **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    3. **analyze_image**: When provided an image (local path or URL), this function analyzes the image based on a text prompt (e.g., "What is in the image?").
-
-    4. **analyze_audio**: This function analyzes an audio file (given by its file path) and returns the transcript for further analysis.
-
-    5. Additional document analysis functions (such as fetch_text_from_office, fetch_text_from_pdf, and fetch_text_from_file) can be used to extract and analyze content from various file types.
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
-
-    As ageneral guideline, at least one (possively 3, 5, or more) useful and informative web search result should be included in your response. This will require you to use the `tavily_search` function to search for relevant information based on the user's query.
+    As a general guideline, at least one (possively 3, 5, or more) useful and informative web search result should be included in your response. This will require you to use the `tavily_search` function to search for relevant information based on the user's query.
 
     At the beginning of the chat, it's your turn to start the conversation. Engage the user with a question to understand their research needs and provide relevant assistance. Use English as the primary language for communication with the user, unless specified otherwise.
-
-      Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-  When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available.
     TEXT
 
   @settings = {
@@ -125,38 +110,6 @@ class ResearchAssistantClaude < MonadicApp
             }
           },
           required: ["file"]
-        }
-      },
-      {
-        name: "tavily_fetch",
-        description: "Fetch the content of the web page of the given URL and return its content.",
-        input_schema: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "URL of the web page."
-            }
-          },
-          required: ["url"],
-        }
-      },
-      {
-        name: "tavily_search",
-        description: "Search the web for the given query and return the result. The result contains the answer to the query, the source URL, and the content of the web page.",
-        input_schema: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "Query to search for."
-            },
-            n: {
-              type: "integer",
-              description: "Number of results to return (default: 3)."
-            }
-          },
-          required: ["query"],
         }
       }
     ]

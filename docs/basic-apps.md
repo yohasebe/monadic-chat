@@ -120,12 +120,13 @@ This app generates an answer to your question. To verify the validity of that an
 
 This app is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
 
+?> The Research Assistant app needs an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with a 1,000 free API calls per month.
+
 <details>
 <summary>research_assistant_app.rb</summary>
 
-[research_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/research_assistant/research_assistant_app.rb ':include :type=code')
+[research_assistant_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/research/research_assistant_app.rb ':include :type=code')
 
-?> The Research Assistant app uses the [Tavily API](https://tavily.com/) to retrieve and analyze information from the web. You can make up to 1,000 requests per month for free. 
 </details>
 
 ## Language Related

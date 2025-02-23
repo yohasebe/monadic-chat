@@ -1,87 +1,114 @@
-<div><img src="./docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
+<div><img src="https://github.com/yohasebe/monadic-chat/raw/main/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-<div><img src="./docs/assets/images/monadic-chat-architecture.svg" width="800px"/></div>
+<div><img src="https://github.com/yohasebe/monadic-chat/blob/main/docs/assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
 ## Overview
 
-🤖 + 🐳 + 🐧 [**Monadic Chat**](https://yohasebe.github.io/monadic-chat) is a locally hosted web application designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT and other LLMs, it enables code execution (Python, Ruby, etc.) and advanced tasks that require external tools (Jupyterlab, ffmpeg, etc.). It also supports voice interaction, image/video recognition and generation, and AI-to-AI chat.
+**Monadic Chat** is a locally hosted web application designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT and other LLMs, it allows the execution of advanced tasks that require external tools. It supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for various AI applications but also for developing and researching AI-powered applications.
 
 Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-use installers.
+
+[Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
 
 ## Getting Started
 
 - [**Documentation**](https://yohasebe.github.io/monadic-chat)
 - [**Installation**](https://yohasebe.github.io/monadic-chat/#/installation)
 
-## Latest Changes
+## What is Grounding?
 
-- [Feb, 2025] 0.9.46
-  - Better support for model specific parameters
-  - Improved max input token and max output token handling
-  - Research Assistant app added
-  - Tavily web search and webpage extraction supported
-  - ElevenLabs TTS voices supported
-  - OpenAI o3-mini model supported with the `reasoning-effort` parameter
-  - Jupyter Notebook apps improved with `jupyter.log` generated for each session
-  - Perplexity `sonar-reasoning-pro` (DeepSeek R1) model supported
-  - Math rendering option added to the web UI
-  - Initial system prompt duplication issue fixed
-  - TTS/ASR support for Safari
-  - Selenium image supported for both arm64 and amd64
-- [Jan, 2025] 0.9.37
-  - Perplexity `sonar-reasoning` (DeepSeek R1) model supported
-  - OpenAI o1 models supported
-  - DeepSeek models supported
-  - Better logging for tool use (function calling)
-  - New folder structure for config/data/logs introduced
-  - Perplexity models supported
-  - Start-up time (after build) improved
-- [Dec, 2024] 0.9.30
-  - Extract from URL feature added
-  - Extract from file feature added (pdf, docx, pptx, xlsx, etc.)
-  - xAI Grok models supported
-  - Cohere API update to v2
-  - Markdown rendering improved
-  - Math Tutor app supports visualizations
-  - Not require OpenAI's API token when using other APIs
-  - Image generation feature improved
-  - Many UI and under-the-hood improvements
-  - User container rebuild feature fixed
-  - Role selection issue fixed
-- [Nov, 2024] 0.9.22
-  - Rebuilding specific containers feature added
-  - `pysetup.sh` extra installation script supported
-  - Jupyter Notebook apps (for GPT and Claude) improved
-  - Streaming supported for OpenAI's o1 models
-  - CJK font issue on code apps addressed
-  - Syntax highlighting theme option added
-  - App settings convention enhanced with "group" attribute
-  - Check for updates when starting the app
-  - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
-  - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models
-  - AI user feature improved
+Monadic Chat is an AI framework grounded in the real world. The term **grounding** here has two meanings.
 
-- [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
+Typically, discourse involves context and purpose, which are referenced and updated as the conversation progresses. Just as in human-to-human conversations, **maintaining and referencing context** is useful, or even essential, in conversations with AI agents. By defining the format and structure of meta-information in advance, it is expected that conversations with AI agents will become more purposeful. The process of users and AI agents advancing discourse while sharing a foundational background is the first meaning of "grounding."
 
-## Screenshots
+Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. Since it is an environment on Docker containers, it does not affect the host system. This is the second meaning of "grounding."
 
-**Web Interface**
+## Features
 
-<div><img src="./docs/assets/images/monadic-chat-web.png" width="800px"/></div><br />
+### Basic Structure
 
-**Chat Window**
+- 🤖 Use of **AI assistants** via various web and local APIs
+- ⚛️ Easy Docker environment setup using a GUI app with **Electron**
+- 📁 **Synchronized folder** for syncing local files with files inside Docker containers
+- 📦 User-added **apps** and **containers** functionality
+- 👩💬 Support for both **human↔️AI chat** and 🤖💬 **AI↔️AI chat**
+- ✨ Chat functionality utilizing **multiple AI models**
 
-<div><img src="./docs/assets/images/monadic-chat-chat-about-pdf.png" width="800px"/></div><br />
+### AI + Linux Environment
 
-**Console Window**
+- 🐧 Provision of a **Linux environment** to AI agents
+- 🐳 Tools available to LLMs via **Docker containers**
+  - Linux (+ apt)
+  - Ruby (+ gem)
+  - Python (+ pip)
+  - PGVector (+ PostgreSQL)
+  - Selenium (+ Chrome/Chromium)
+- ⚡️ Use of LLMs via online and local APIs
+- 📦 Each container can be managed via **SSH**
+- 📓 Integration with **Jupyter Notebook**
 
-<div><img src="./docs/assets/images/monadic-chat-console.png" width="700px"/></div><br />
+### Data Management
 
-## Author
+- 💾 **Export/import** chat data
+- 📝 **Edit** chat data (add, delete, edit)
+- 💬 Specify the number of messages to send to the API as **context size**
+- 📜 Set **roles** for messages (user, assistant, system)
+- 🔢 Generate and import/export **text embeddings** from PDFs
+- 📼 **Logging** of code execution and tool/function use for debugging
 
-Yoichiro Hasebe <yohasebe@gmail.com>
+### Voice Interaction
+
+- 🔈 **Text-to-speech** for AI assistant responses (OpenAI or Elevenlabs)
+- 🎙️ **Speech recognition** using the Whisper API (+ display of p-values)
+- 🗺️ **Automatic language detection** for text-to-speech
+- 🗣️ Choose the **language and voice** for text-to-speech
+- 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
+- 🎧 Save AI assistant's spoken responses as **MP3 audio** files
+
+### Image/Video Recognition and Generation
+
+- 🖼️ **Image generation** using DALL·E 3 API
+- 👀 Recognition and description of **uploaded images**
+- 📚 Upload and recognition of **multiple images**
+- 🎥 Recognition and description of **uploaded video content and audio**
+
+### Configuration and Extension
+
+- 💡 Specify and edit **API parameters** and **system prompts**
+- 💎 Extend functionality using the **Ruby** programming language
+- 🐍 Extend functionality using the **Python** programming language
+- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API
+- 🌎 Perform **web scraping** using Selenium
+- 📦 Add custom **Docker containers**
+
+### Support for Multiple LLM APIs
+
+- 👥 **Web APIs**:
+  - [OpenAI GPT](https://platform.openai.com/docs/overview)
+  - [Google Gemini](https://ai.google.dev/gemini-api)
+  - [Anthropic Claude](https://www.anthropic.com/api)
+  - [Cohere Command R](https://cohere.com/)
+  - [Mistral AI](https://docs.mistral.ai/api/)
+  - [xAI Grok](https://x.ai/api)
+  - [Perplexity](https://docs.perplexity.ai/home)
+  - [DeepSeek](https://www.deepseek.com/)
+- 🦙 [**Ollama**](https://ollama.com/) in the local Docker environment
+  - Llama
+  - Phi
+  - Mistral
+  - Gemma
+  - DeepSeek
+- 🤖💬🤖 **AI-to-AI** chat functionality
+
+### Conversations as Monads
+
+- ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state** of the conversation by obtaining additional responses and updating values within a predefined JSON object
+
+## Developer
+
+Yoichiro HASEBE<br />
+[yohasebe@gmail.com](yohasebe@gmail.com)
 
 ## License
 
-Monadic Chat is distributed under [the MIT License](http://www.opensource.org/licenses/mit-license.php).
-
+This software is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).

@@ -198,20 +198,6 @@ class JupyterNotebookClaude < MonadicApp
         }
       },
       {
-        name: "fetch_web_content",
-        description: "Fetch the content of the web page of the given URL and return it.",
-        input_schema: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "URL of the web page."
-            }
-          },
-          required: ["url"]
-        }
-      },
-      {
         name: "create_jupyter_notebook",
         description: "Create a Jupyter Notebook and return the URL of the Jupyter Notebook.",
         input_schema: {

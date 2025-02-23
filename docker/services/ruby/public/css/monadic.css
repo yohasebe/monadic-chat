@@ -758,8 +758,8 @@ outline: 2px #FF8C00 solid;
 }
 
 code {
-  color: gray;
-  font-size: 0.9em;
+  color: #555;
+  font-size: 0.90em;
 }
 
 #config, #main-panel, #monadic-info-panel, #api-token-panel, #control-panel, #tts-panel {

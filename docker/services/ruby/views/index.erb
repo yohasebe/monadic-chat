@@ -19,7 +19,7 @@
 
     <link href="css/pigments-default.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
-    <link rel="icon" href="img/favicon.png" type="image/x-icon">
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
   </head>
   <body>
 
@@ -54,8 +54,6 @@
                 <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer">Homepage</a></span>
                 &nbsp;&nbsp;
                 <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer">GitHub</a></span>
-                &nbsp;&nbsp;
-                <span class="text text-secondary"><i class="fa-solid fa-chart-column"></i> <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer">API Usage</a></span>
               </div>
             </div>
             <div class="mb-4" style="display: flex; align-items: center;">
@@ -143,12 +141,10 @@
               </select>
             </div>
 
-            <!--
             <div class="my-1">
-              <label for="tts-speed" class="div-label my-2">TTS Speed (<span id="tts-speed-value">1.0</span>)</label><br />
-              <input type="range" class="div-range" min="0.25" max="4.0" step="0.05" value="1.0" id="tts-speed">
+              <label for="tts-speed" class="div-label my-2">TTS Speed (<span id="tts-speed-value">1.00</span>)</label><br />
+              <input type="range" class="div-range" min="0.70" max="1.20" step="0.01" value="1.00" id="tts-speed">
             </div>
-            -->
 
             <div class="my-1">
               <label for="asr-lang" class="div-label my-2">Automatic-Speech-Recognition (ASR) Language</label>
@@ -262,7 +258,7 @@
               </div>
 
               <div class="col-3 ms-2">
-                <label class="form-label text-nowrap" for="reasoning-effort">Reasoning Effort <super>*</super></label>
+                <label class="form-label text-nowrap" for="reasoning-effort">Reasoning Effort</label>
                 <div class="d-flex align-items-center gap-2">
                   <select class="form-select form-select-sm" id="reasoning-effort">
                     <option value="low">low</option>
@@ -306,12 +302,12 @@
                   <input class="form-check-input" type="checkbox" id="initial-prompt-toggle">
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="prompt-caching">Prompt Caching <super>**</super></label>
+                  <label class="form-check-label" for="prompt-caching">Prompt Caching <sup>1</sup></label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
                 </div>
 
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="websearch">Web Search</label>
+                  <label class="form-check-label" for="websearch">Web Search <sup>2</sup></label>
                   <input class="form-check-input" type="checkbox" id="websearch">
                 </div>
 
@@ -330,7 +326,7 @@
                   <input class="form-check-input" type="checkbox" id="ai-user-initial-prompt-toggle">&nbsp;
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="ai-user-toggle">Enable AI-User <super>***</super></label>
+                  <label class="form-check-label" for="ai-user-toggle">Enable AI-User <sup>3</sup></label>
                   <input class="form-check-input" type="checkbox" value="" id="ai-user-toggle">
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
@@ -366,13 +362,13 @@
                 </fieldset>
 
                 <div class="textbox-caption mt-2 mb-0">
-                  <super>*</super> <code>Reasoning Effort</code> is available for OpenAI <code>o1</code> and <code>o3-mini</code> models.
+                  <sup>1</sup> <code>Prompt Caching</code> is currently controllable only for the Anthropic Claude models. 
                 </div>
                 <div class="textbox-caption mt-0 mb-0">
-                  <super>**</super> <code>Prompt Caching</code> is currently controllable only for the Anthropic Claude models. 
+                  <sup>2</sup> <code>Web Search</code> takes effect when Tavily API Key is set in the settings.
                 </div>
                 <div class="textbox-caption mt-0 mb-0">
-                  <super>***</super> <code>AI-User</code> feature can only be enabled if <code>Start from assistant</code> is disabled
+                  <sup>3</sup> <code>AI-User</code> feature can only be enabled if <code>Start from assistant</code> is disabled
                 </div>
 
               </div>

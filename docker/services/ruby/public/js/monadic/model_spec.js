@@ -581,7 +581,6 @@ const modelSpec = {
   // Perplexity models
   "sonar-reasoning-pro": {
     "context_window" : [1, 127000],
-    "max_output_tokens" : [1, 127000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -589,7 +588,6 @@ const modelSpec = {
   },
   "sonar-reasoning": {
     "context_window" : [1, 127000],
-    "max_output_tokens" : [1, 127000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -597,7 +595,6 @@ const modelSpec = {
   },
   "sonar-pro": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 127000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -605,7 +602,6 @@ const modelSpec = {
   },
   "sonar": {
     "context_window" : [1, 127000],
-    "max_output_tokens" : [1, 127000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],

@@ -27,7 +27,7 @@ module MonadicHelper
     end
 
     command = <<~CMD
-      bash -c 'simple_tts_query.rb #{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language}'
+      bash -c 'simple_tts_query.rb "#{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language}'
     CMD
     send_command(command: command, container: "ruby")
   end

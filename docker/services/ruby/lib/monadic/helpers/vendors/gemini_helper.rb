@@ -27,6 +27,56 @@ module GeminiHelper
     }
   ]
 
+  WEBSEARCH_TOOLS = [
+    {
+      name: "tavily_fetch",
+      description: "fetch the content of the web page of the given url and return its content.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "url of the web page."
+          }
+        },
+        required: ["url"]
+      }
+    },
+    {
+      name: "tavily_search",
+      description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "query to search for."
+          },
+          n: {
+            type: "integer",
+            description: "number of results to return (default: 3)."
+          }
+        },
+        required: ["query", "n"]
+      }
+    }
+  ]
+
+  WEBSEARCH_PROMPT = <<~TEXT
+
+    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
+
+    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
+    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+
+    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
+  TEXT
+
+
   attr_reader :models
   attr_reader :cached_models
 
@@ -36,7 +86,7 @@ module GeminiHelper
 
   def self.list_models
     # Return cached models if they exist
-    return @cached_models if @cached_models
+    return $MODELS[:gemini] if $MODELS[:gemini]
 
     api_key = CONFIG["GEMINI_API_KEY"]
     return [] if api_key.nil?
@@ -61,14 +111,18 @@ module GeminiHelper
         end
       end
 
-      @cached_models = models.filter do |model|
+      $MODELS[:gemini] = models.filter do |model|
         /(?:embedding|aqa|vision|imagen|learnlm|gemini-pro|gemini-1|gemini-exp)/ !~ model
       end.reverse
-      @cached_models
 
     rescue HTTP::Error, HTTP::TimeoutError
       []
     end
+  end
+
+  # Method to manually clear the cache if needed
+  def clear_models_cache
+    $MODELS[:gemini] = nil
   end
 
   # No streaming plain text completion/chat call
@@ -150,6 +204,8 @@ module GeminiHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
+    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+
     if role != "tool"
       message = obj["message"].to_s
 
@@ -201,11 +257,17 @@ module GeminiHelper
       body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
     end
 
+    websearch_suffixed = false
     body["contents"] = context.compact.map do |msg|
+      if websearch && !websearch_suffixed
+        text = "#{msg["text"]}\n\n#{WEBSEARCH_PROMPT}"
+      else
+        text = msg["text"]
+      end
       message = {
         "role" => translate_role(msg["role"]),
         "parts" => [
-          { "text" => msg["text"] }
+          { "text" => text }
         ]
       }
     end
@@ -230,11 +292,24 @@ module GeminiHelper
 
     if settings["tools"]
       body["tools"] = settings["tools"]
+      body["tools"]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
+      body["tools"].uniq!
+
       body["tool_config"] = {
         "function_calling_config" => {
           "mode" => "ANY"
         }
       }
+    elsif websearch
+      body["tools"] = {"function_declarations" => WEBSEARCH_TOOLS}
+      body["tool_config"] = {
+        "function_calling_config" => {
+          "mode" => "ANY"
+        }
+      }
+    else
+      body.delete("tools")
+      body.delete("tool_config")
     end
 
     if role == "tool"
@@ -380,7 +455,7 @@ module GeminiHelper
 
     result = []
     if texts.empty? 
-      # result << "\n\nNo response from the model."
+      # result << "\n\nNo response from the AI agent."
       finish_reason = nil
     else 
       result = texts

@@ -11,6 +11,68 @@ module GrokHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
+    # websearch tools
+  WEBSEARCH_TOOLS = [
+    {
+      type: "function",
+      function:
+      {
+        name: "tavily_fetch",
+        description: "fetch the content of the web page of the given url and return its content.",
+        parameters: {
+          type: "object",
+          properties: {
+            url: {
+              type: "string",
+              description: "url of the web page."
+            }
+          },
+          required: ["url"],
+          additionalproperties: false
+        }
+      },
+      strict: true
+    },
+    {
+      type: "function",
+      function:
+      {
+        name: "tavily_search",
+        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "query to search for."
+            },
+            n: {
+              type: "integer",
+              description: "number of results to return (default: 3)."
+            }
+          },
+          required: ["query"],
+          additionalproperties: false
+        }
+      },
+      strict: true
+    }
+  ]
+
+  WEBSEARCH_PROMPT = <<~TEXT
+
+    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
+
+    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
+    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+
+    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
+  TEXT
+
   class << self
     attr_reader :cached_models
 
@@ -20,7 +82,7 @@ module GrokHelper
 
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:grok] if $MODELS[:grok]
 
       api_key = CONFIG["XAI_API_KEY"]
       return [] if api_key.nil?
@@ -39,10 +101,10 @@ module GrokHelper
         if res.status.success?
           # Cache the model list
           model_data = JSON.parse(res.body)
-          @cached_models = model_data["models"].map do |model|
+          $MODELS[:grok] = model_data["models"].map do |model|
             model["id"]
           end
-          @cached_models
+          $MODELS[:grok]
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []
@@ -51,7 +113,7 @@ module GrokHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:grok] = nil
     end
   end
 
@@ -138,6 +200,8 @@ module GrokHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
+    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+
     message = nil
     data = nil
 
@@ -207,6 +271,12 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
+      body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+      body["tools"].uniq!
+
+      body["tool_choice"] = "auto"
+    elsif websearch
+      body["tools"] = WEBSEARCH_TOOLS
       body["tool_choice"] = "auto"
     else
       body.delete("tools")
@@ -265,7 +335,6 @@ module GrokHelper
       }
     end
 
-    # initial prompt in the body is appended with the settings["system_prompt_suffix"
     if initial_prompt != "" && obj["system_prompt_suffix"].to_s != ""
       new_text = initial_prompt + "\n\n" + obj["system_prompt_suffix"].strip
       body["messages"].first["content"].each do |content_item|
@@ -285,6 +354,8 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    websearch_prompt_added = false
+
     body["messages"].each do |msg|
       next unless msg["tool_calls"] || msg[:tool_call]
 
@@ -294,6 +365,11 @@ module GrokHelper
       tool_calls = msg["tool_calls"] || msg[:tool_call]
       tool_calls.each do |tool_call|
         tool_call.delete("index")
+      end
+
+      if websearch && !websearch_prompt_added && msg["role"] == "system"
+        msg["content"] = msg["content"] + "\n\n" + WEBSEARCH_PROMPT
+        websearch_prompt_added = true
       end
     end
 

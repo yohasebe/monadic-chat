@@ -31,7 +31,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - ⚛️ Easy Docker environment setup using a GUI app with **Electron**
 - 📁 **Synchronized folder** for syncing local files with files inside Docker containers
 - 📦 User-added **apps** and **containers** functionality
-- 👩💬 Support for both **human↔️AI chat** and 🤖💬 **AI↔️AI chat**
+- 💬 Support for both **Human/AI chat** and **AI/AI chat**
 - ✨ Chat functionality utilizing **multiple AI models**
 
 ### AI + Linux Environment

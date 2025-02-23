@@ -8,6 +8,11 @@
 
 **Mac**、**Windows**、**Linux**（Debian/Ubuntu）向けのインストーラが提供されています。
 
+## はじめよう
+
+- [**ドキュメント**](https://yohasebe.github.io/monadic-chat) EN/JA
+- [**インストール**](https://yohasebe.github.io/monadic-chat/#/installation)
+
 ## 接地とは？
 
 Monadic Chatは現実世界に接地するAIフレームワークです。ここで**接地**（grounding）という表現は2つの意味を持ちます。

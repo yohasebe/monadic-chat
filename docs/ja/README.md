@@ -41,7 +41,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - Python (+ pip)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
-- ⚡️ オンラインおよびローカルAPIを介したLLMの利用
+- ⚡️ **オンラインまたはローカル**のAPIを介したLLMの利用
 - 📦 各コンテナは**SSH**接続による管理が可能
 - 📓 **Jupyter Notebook**との連携
 

@@ -43,7 +43,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Python (+ pip)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
-- ⚡️ Use of LLMs via online and local APIs
+- ⚡️ Use of LLMs via **online and local** APIs
 - 📦 Each container can be managed via **SSH**
 - 📓 Integration with **Jupyter Notebook**
 

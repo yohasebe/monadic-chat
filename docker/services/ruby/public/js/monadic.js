@@ -170,6 +170,13 @@ $(function () {
     const selectedModel = $("#model").val();
 
     if (modelSpec[selectedModel]) {
+      if (modelSpec[selectedModel].hasOwnProperty("tool_capability") && modelSpec[selectedModel]["tool_capability"]) {
+        $("#websearch").prop("disabled", false);
+      } else {
+        $("#websearch-badge").hide();
+        $("#websearch").prop("disabled", true);
+      }
+
       if (modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
         $("#reasoning-effort").prop("disabled", false);
         $("#reasoning-effort").val(modelSpec[selectedModel]["reasoning_effort"]);
@@ -252,22 +259,22 @@ $(function () {
         return;
       }
 
-      $("#clearConfirmation").modal("show");
-      setTimeout(function () {
-        $("#clearConfirmed").focus();
-      }, 500);
+      // $("#clearConfirmation").modal("show");
+      // setTimeout(function () {
+      //   $("#clearConfirmed").focus();
+      // }, 500);
 
-      // if `#clearConfirmed` button is clicked, clear the current conversation
-      $("#clearConfirmed").on("click", function () {
-        ws.send(JSON.stringify({ "message": "RESET" }));
-        messages = [];
-        $("#discourse").html("");
-        $("#clearConfirmation").modal("hide");
-      });
-      // if `#clearNotConfirmed` button is clicked, just hide the modal
-      $("#clearNotConfirmed").on("click", function () {
-        $("#clearConfirmation").modal("hide");
-      });
+      // $("#clearConfirmed").on("click", function () {
+      //   ws.send(JSON.stringify({ "message": "RESET" }));
+      //   messages = [];
+      //   $("#discourse").html("");
+      //   $("#clearConfirmation").modal("hide");
+      // });
+
+      // $("#clearNotConfirmed").on("click", function () {
+      //   $("#clearConfirmation").modal("hide");
+      // });
+
     }
     lastApp = this.value;
     Object.assign(params, apps[$(this).val()]);
@@ -309,6 +316,13 @@ $(function () {
         $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
       } else {
         $("#model-selected").text(model);
+      }
+
+      if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
+        $("#websearch").prop("disabled", false);
+      } else {
+        $("#websearch-badge").hide();
+        $("#websearch").prop("disabled", true);
       }
 
       $("#model").val(model);
@@ -358,24 +372,24 @@ $(function () {
       $("#monadic-badge").hide();
     }
 
-    if (apps[$(this).val()]["websearch"]) {
-      $("#websearch-badge").show();
-    } else {
-      $("#websearch-badge").hide();
-    }
-
     if (apps[$(this).val()]["tools"]) {
       $("#tools-badge").show();
     } else {
       $("#tools-badge").hide();
     }
 
+    if (apps[$(this).val()]["websearch"]) {
+      $("#websearch").prop("checked", true);
+      $("#websearch-badge").show();
+    } else {
+      $("#websearch").prop("checked", false);
+      $("#websearch-badge").hide();
+    }
+
     if (apps[$(this).val()]["mathjax"]) {
-      $("#math-badge").show();
       $("#mathjax").prop("checked", true);
       $("#math-badge").show();
     } else {
-      $("#math-badge").hide();
       $("#mathjax").prop("checked", false);
       $("#math-badge").hide();
     }
@@ -386,6 +400,16 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     $("#start").focus();
+  })
+
+  $("#websearch").on("change", function () {
+    if ($(this).is(":checked")) {
+      params["websearch"] = true;
+      $("#websearch-badge").show();
+    } else {
+      params["websearch"] = false;
+      $("#websearch-badge").hide();
+    }
   })
 
   $("#check-auto-speech").on("change", function () {

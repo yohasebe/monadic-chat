@@ -1,4 +1,4 @@
-- [Feb, 2025] 0.9.45
+- [Feb, 2025] 0.9.46
   - Better support for model specific parameters
   - Improved max input token and max output token handling
   - Research Assistant app added

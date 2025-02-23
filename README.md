@@ -12,7 +12,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Getting Started
 
-- [**Documentation**](https://yohasebe.github.io/monadic-chat)
+- [**Documentation**](https://yohasebe.github.io/monadic-chat) EN/JA
 - [**Installation**](https://yohasebe.github.io/monadic-chat/#/installation)
 
 ## What is Grounding?

@@ -51,6 +51,68 @@ module OpenAIHelper
   # complete string match
   NON_STREAM_MODELS = []
 
+  # websearch tools
+  WEBSEARCH_TOOLS = [
+    {
+      type: "function",
+      function:
+      {
+        name: "tavily_fetch",
+        description: "fetch the content of the web page of the given url and return its content.",
+        parameters: {
+          type: "object",
+          properties: {
+            url: {
+              type: "string",
+              description: "url of the web page."
+            }
+          },
+          required: ["url"],
+          additionalproperties: false
+        }
+      },
+      strict: true
+    },
+    {
+      type: "function",
+      function:
+      {
+        name: "tavily_search",
+        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "query to search for."
+            },
+            n: {
+              type: "integer",
+              description: "number of results to return (default: 3)."
+            }
+          },
+          required: ["query"],
+          additionalproperties: false
+        }
+      },
+      strict: true
+    }
+  ]
+
+  WEBSEARCH_PROMPT = <<~TEXT
+
+    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
+
+    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
+    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+
+    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
+  TEXT
+
   class << self
     attr_reader :cached_models
 
@@ -60,7 +122,7 @@ module OpenAIHelper
 
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:openai] if $MODELS[:openai]
 
       api_key = CONFIG["OPENAI_API_KEY"]
       return [] if api_key.nil?
@@ -80,7 +142,7 @@ module OpenAIHelper
           res_body = JSON.parse(res.body)
           if res_body && res_body["data"]
             # Cache the filtered and sorted models
-            @cached_models = res_body["data"].sort_by do |item|
+            $MODELS[:openai] = res_body["data"].sort_by do |item|
               item["created"]
             end.reverse[0..MODELS_N_LATEST].map do |item|
               item["id"]
@@ -88,7 +150,7 @@ module OpenAIHelper
             end.reject do |model|
               EXCLUDED_MODELS.any? { |excluded_model| /\b#{excluded_model}\b/ =~ model }
             end
-            @cached_models
+            $MODELS[:openai]
           end
         end
       rescue HTTP::Error, HTTP::TimeoutError
@@ -98,7 +160,7 @@ module OpenAIHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:openai] = nil
     end
   end
 
@@ -188,6 +250,8 @@ module OpenAIHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
+    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+
     message = nil
     data = nil
 
@@ -245,30 +309,12 @@ module OpenAIHelper
     non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
 
     if reasoning_model
-      body["stream"] = true
       body["reasoning_effort"] = reasoning_effort || "medium"
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
       body.delete("max_completion_tokens")
-
-      if non_tool_model
-        body.delete("tools")
-        body.delete("response_format")
-      else
-        if obj["tools"] && !obj["tools"].empty?
-          body["tools"] = APPS[app].settings["tools"]
-        else
-          body.delete("tools")
-          body.delete("tool_choice")
-        end
-      end
-
-      if non_stream_model
-        body["stream"] = false
-      end
     else
-      body["stream"] = true
       body["n"] = 1
       body["temperature"] = temperature if temperature
       body["presence_penalty"] = presence_penalty if presence_penalty
@@ -282,9 +328,24 @@ module OpenAIHelper
       if obj["monadic"] || obj["json"]
         body["response_format"] ||= { "type" => "json_object" }
       end
+    end
 
+    if non_stream_model
+      body["stream"] = false
+    else
+      body["stream"] = true
+    end
+
+    if non_tool_model
+      body.delete("tools")
+      body.delete("response_format")
+    else
       if obj["tools"] && !obj["tools"].empty?
         body["tools"] = APPS[app].settings["tools"]
+        body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+        body["tools"].uniq!
+      elsif websearch
+        body["tools"] = WEBSEARCH_TOOLS
       else
         body.delete("tools")
         body.delete("tool_choice")
@@ -318,7 +379,12 @@ module OpenAIHelper
           msg["role"] = "developer" 
           msg["content"].each do |content_item|
             if content_item["type"] == "text" && num_sysetm_messages == 0
-              content_item["text"] = "Formatting re-enabled\n---\n" + content_item["text"]
+              if websearch
+                text = "Web search enabled\n---\n" + content_item["text"] + "\n---\n" + WEBSEARCH_PROMPT
+              else
+                text = "Formatting re-enabled\n---\n" + content_item["text"]
+              end
+              content_item["text"] = text
             end
           end
           num_sysetm_messages += 1

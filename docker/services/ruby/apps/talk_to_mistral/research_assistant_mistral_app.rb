@@ -1,10 +1,10 @@
-class ResearchAssistantGrok < MonadicApp
-  include GrokHelper
+class ResearchAssistantMistral < MonadicApp
+  include MistralHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
 
   description = <<~TEXT
-  This application is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
+    This application is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
   TEXT
 
   initial_prompt = <<~TEXT
@@ -22,17 +22,17 @@ class ResearchAssistantGrok < MonadicApp
   TEXT
 
   @settings = {
-    group: "xAI Grok",
-    disabled: !CONFIG["XAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
-    models: GrokHelper.list_models,
-    model: "grok-2-1212",
+    group: "Mistral",
+    disabled: !CONFIG["MISTRAL_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    models: MistralHelper.list_models,
+    model: "mistral-large-latest",
     websearch: true,
-    temperature: 0.2,
+    temperature: 0.0,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant (Grok)",
+    app_name: "Research Assistant (Mistral AI)",
     description: description,
     icon: icon,
     mathjax: true,
@@ -52,11 +52,9 @@ class ResearchAssistantGrok < MonadicApp
                 description: "File name or file path of the Microsoft Word/Excel/PowerPoint file."
               }
             },
-            required: ["file"],
-            additionalProperties: false
+            required: ["file"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -72,11 +70,9 @@ class ResearchAssistantGrok < MonadicApp
                 description: "File name or file path of the PDF"
               }
             },
-            required: ["pdf"],
-            additionalProperties: false
+            required: ["pdf"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -96,11 +92,9 @@ class ResearchAssistantGrok < MonadicApp
                 description: "Path to the image file. It can be either a local file path or a URL."
               }
             },
-            required: ["message", "image_path"],
-            additionalProperties: false
+            required: ["message", "image_path"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -116,11 +110,9 @@ class ResearchAssistantGrok < MonadicApp
                 description: "File path of the audio file"
               }
             },
-            required: ["audio"],
-            additionalProperties: false
+            required: ["audio"]
           }
-        },
-        strict: true
+        }
       },
       {
         type: "function",
@@ -136,11 +128,9 @@ class ResearchAssistantGrok < MonadicApp
                 description: "File name or file path"
               }
             },
-            required: ["file"],
-            additionalProperties: false
+            required: ["file"]
           }
-        },
-        strict: true
+        }
       }
     ]
   }

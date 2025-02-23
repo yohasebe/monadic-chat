@@ -11,6 +11,51 @@ module CommandRHelper
   MAX_FUNC_CALLS = 5
   VALID_ROLES = %w[user assistant system tool].freeze
 
+  # websearch tools
+  WEBSEARCH_TOOLS = [
+    {
+        name: "tavily_fetch",
+        description: "fetch the content of the web page of the given url and return its content.",
+        parameter_definitions: {
+          url: {
+            type: "string",
+            description: "url of the web page.",
+            required: true
+          }
+        }
+    },
+    {
+      name: "tavily_search",
+      description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
+      parameter_definitions: {
+        query: {
+          type: "string",
+          description: "query to search for.",
+          required: true
+        },
+        n: {
+          type: "integer",
+          description: "number of results to return (default: 3).",
+          required: true
+        }
+      }
+    }
+  ]
+
+  WEBSEARCH_PROMPT = <<~TEXT
+
+    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
+
+    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
+    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+
+    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
+  TEXT
+
   class << self
     attr_reader :cached_models
 
@@ -22,7 +67,7 @@ module CommandRHelper
     # Returns an array of model names, excluding embedding and reranking models
     def list_models
       # Return cached models if they exist
-      return @cached_models if @cached_models
+      return $MODELS[:cohere] if $MODELS[:cohere]
 
       api_key = CONFIG["COHERE_API_KEY"]
       return [] if api_key.nil?
@@ -41,12 +86,12 @@ module CommandRHelper
         if res.status.success?
           # Cache the filtered models
           model_data = JSON.parse(res.body)
-          @cached_models = model_data["models"].map do |model|
+          $MODELS[:cohere] = model_data["models"].map do |model|
             model["name"]
           end.filter do |model|
             !model.include?("embed") && !model.include?("rerank")
           end
-          @cached_models
+          $MODELS[:cohere]
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []
@@ -55,7 +100,7 @@ module CommandRHelper
 
     # Method to manually clear the cache if needed
     def clear_models_cache
-      @cached_models = nil
+      $MODELS[:cohere] = nil
     end
   end
 
@@ -155,6 +200,7 @@ end
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
+    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
     message = obj["message"]
 
     # Handle non-tool messages and update session
@@ -197,10 +243,16 @@ end
     # Prepare messages array for v2 API format
     messages = []
 
+    initial_prompt_with_suffix = if websearch
+                                   initial_prompt.to_s + WEBSEARCH_PROMPT
+                                 else
+                                   initial_prompt.to_s
+                                 end
+
     # Add system message (initial prompt)
     messages << {
       "role" => "system",
-      "content" => initial_prompt.to_s
+      "content" => initial_prompt_with_suffix
     }
 
     # Add context messages with appropriate roles
@@ -230,6 +282,16 @@ end
     # Add optional parameters with validation
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
+
+    if obj["tools"] && !obj["tools"].empty?
+      body["tools"] = APPS[app].settings["tools"]
+      body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+      body["tools"].uniq!
+    elsif websearch
+      body["tools"] = WEBSEARCH_TOOLS
+    else
+      body.delete("tools")
+    end
 
     # Add tools configuration if available
     if role != "tool" && APPS[app]&.settings&.dig("tools")

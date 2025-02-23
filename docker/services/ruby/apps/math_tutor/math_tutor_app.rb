@@ -122,26 +122,6 @@ class MathTutor < MonadicApp
         type: "function",
         function:
         {
-          name: "fetch_web_content",
-          description: "Fetch the content of the web page of the given URL and return it.",
-          parameters: {
-            type: "object",
-            properties: {
-              url: {
-                type: "string",
-                description: "URL of the web page."
-              }
-            },
-            required: ["url"],
-            additionalProperties: false
-          }
-        },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
-        {
           name: "check_environment",
           description: "Check the environment for available libraries and tools.",
         },

@@ -1,12 +1,19 @@
-# Monadic Chat
+<div><img src="https://github.com/yohasebe/monadic-chat/raw/main/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
 
-![Monadic Chat Architecture](./assets/images/monadic-chat-architecture.svg ':size=800')
+<div><img src="https://github.com/yohasebe/monadic-chat/blob/main/docs/assets/images/monadic-chat-architecture.png" width="800px"/></div>
 
 ## Overview
 
 **Monadic Chat** is a locally hosted web application designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT and other LLMs, it allows the execution of advanced tasks that require external tools. It supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for various AI applications but also for developing and researching AI-powered applications.
 
 Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-use installers.
+
+[Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
+
+## Getting Started
+
+- [**Documentation**](https://yohasebe.github.io/monadic-chat)
+- [**Installation**](https://yohasebe.github.io/monadic-chat/#/installation)
 
 ## What is Grounding?
 
@@ -51,8 +58,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Voice Interaction
 
+- 🔈 **Text-to-speech** for AI assistant responses (OpenAI or Elevenlabs)
 - 🎙️ **Speech recognition** using the Whisper API (+ display of p-values)
-- 🔈 **Text-to-speech** for AI assistant responses
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
@@ -70,6 +77,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💡 Specify and edit **API parameters** and **system prompts**
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
+- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
 

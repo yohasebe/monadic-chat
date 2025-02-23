@@ -106,6 +106,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-5-sonnet-latest": {
@@ -113,6 +114,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-5-haiku-20241022": {
@@ -120,6 +122,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": false
   },
   "claude-3-5-haiku-latest": {
@@ -127,6 +130,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": false
   },
   "claude-3-opus-20240229": {
@@ -134,6 +138,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-opus-latest": {
@@ -141,6 +146,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-sonnet-20240229": {
@@ -148,6 +154,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-haiku-20240307": {
@@ -155,6 +162,7 @@ const modelSpec = {
     "max_output_tokens" : [1, 4096],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
+    "tool_capability": true,
     "vision_capability": false
   },
   // Cohere models
@@ -319,14 +327,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
   },
-  "learnlm-1.5-pro-experimental": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-  },
   // Flash models
   "gemini-2.0-flash-exp": {
     "context_window" : [1, 1048576],
@@ -362,38 +362,6 @@ const modelSpec = {
   },
   "gemini-2.0-flash-lite-preview-02-05": {
     "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-  },
-  "gemini-1.5-flash": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-  },
-  "gemini-1.5-flash-8b": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-  },
-  "gemini-1.5-pro": {
-    "context_window" : [1, 2097152],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-  },
-  "gemini-1.5-pro": {
-    "context_window" : [1, 2097152],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
@@ -650,7 +618,8 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0]
+    "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0],
+    // "tool_capability": true
   },
   "deepseek-reasoner": {
     "context_window" : [1, 32000],
@@ -658,6 +627,7 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0]
+    "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0],
+    // "tool_capability": true
   },
 }

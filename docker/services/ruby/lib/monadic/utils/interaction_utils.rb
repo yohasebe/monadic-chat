@@ -141,6 +141,7 @@ module InteractionUtils
       body = {
         "text" => text_converted,
         "model_id" => "eleven_flash_v2_5",
+        "speed" => speed
       }
 
       if previous_text.to_s != ""

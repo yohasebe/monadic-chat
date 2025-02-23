@@ -773,12 +773,6 @@ function connect_websocket(callback) {
           $("#monadic-badge").hide();
         }
 
-        if (currentApp["websearch"]) {
-          $("#websearch-badge").show();
-        } else {
-          $("#websearch-badge").hide();
-        }
-
         if (currentApp["tools"]) {
           $("#tools-badge").show();
         } else {

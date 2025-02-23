@@ -533,6 +533,12 @@ function setParams() {
     params["mathjax"] = "false";
   }
 
+  if ($("#websearch").is(":checked") && modelSpec[params["model"]]["tool_capability"]) {
+    params["websearch"] = "true";
+  } else {
+    params["websearch"] = "false";
+  }
+
   if ($("#prompt-caching").prop('checked') && !$("#prompt-caching").prop('disabled')) {
     params["prompt_caching"] = true;
   }
@@ -647,7 +653,7 @@ function adjustImageUploadButton(selectedModel) {
   }
 }
 
-function resetEvent(event) {
+function resetEvent(_event) {
   audioInit();
 
   $("#image-used").children().remove();
@@ -669,6 +675,19 @@ function resetEvent(event) {
     resetParams();
 
     const model = $("#model").val();
+
+    if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
+      $("#websearch").prop("disabled", false)
+      if ($("#websearch").is(":checked")) {
+        $("#websearch-badge").show();
+      } else {
+        $("#websearch-badge").hide();
+      }
+    } else {
+      $("#websearch").prop("disabled", true)
+      $("#websearch-badge").hide();
+    }
+
     if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
       $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
     } else {
@@ -690,12 +709,6 @@ function resetEvent(event) {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
-    }
-
-    if (apps[$("#apps").val()]["websearch"]) {
-      $("#websearch-badge").show();
-    } else {
-      $("#websearch-badge").hide();
     }
 
     if (apps[$("#apps").val()]["tools"]) {

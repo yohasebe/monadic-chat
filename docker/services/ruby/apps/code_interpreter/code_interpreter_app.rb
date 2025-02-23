@@ -20,8 +20,6 @@ class CodeInterpreter < MonadicApp
 
     If the user's messages are in a language other than English, please respond in the same language. If automatic language detection is not possible, kindly ask the user to specify their language at the beginning of their request.
 
-    If the user refers to a specific web URL, please fetch the content of the web page using the `fetch_web_content` function. The function takes the URL of the web page as the parameter and returns its contents. Throughout the conversation, the user can provide a new URL to analyze. A copy of the text file saved by `fetch_web_content` is stored in the current directory of the code running environment.
-
     The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
     If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
@@ -243,26 +241,6 @@ class CodeInterpreter < MonadicApp
               }
             },
             required: ["command"],
-            additionalProperties: false
-          }
-        },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
-        {
-          name: "fetch_web_content",
-          description: "Fetch the content of the web page of the given URL and return it.",
-          parameters: {
-            type: "object",
-            properties: {
-              url: {
-                type: "string",
-                description: "URL of the web page."
-              }
-            },
-            required: ["url"],
             additionalProperties: false
           }
         },

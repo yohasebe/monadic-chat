@@ -20,6 +20,7 @@ class MonadicApp
   include MonadicAgent
   include MonadicHelper
   include StringUtils
+  include TavilyHelper
 
   @model_data = {}
   @app_settings = {}

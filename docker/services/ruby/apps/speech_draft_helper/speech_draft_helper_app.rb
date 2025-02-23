@@ -16,8 +16,6 @@ class SpeechDraftHelper < MonadicApp
 
       First, talk to the user in English and get a speech draft or idea from the user. The user may give you a text segment in their message, or they may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
 
-    Alternatively, the user may give you a web URL. Then, please fetch the content of the web page using the `fetch_web_content` function. The function takes the web page URL as the parameter and saves its contents in a file. Read the file content and use it to answer the user's questions.
-
     If the user requests an explanation of a specific image, you can use the `analyze_image` function to analyze the image and return the result. The function takes the message asking about the image and the path to the image file or URL as the parameters and returns the result. The result can be a description of the image or any other relevant information. In your response, present the text description and the <img> tag to display the image (e.g. `<img src="FILE_NAME" />`).
 
     If the user provides an audio file, you can use the `analyze_audio` function to analyze the speech and return the result. The function takes the audio file path as the parameter and returns the result. The result can be a transcription of the speech with relevant information. In your response, present the text transcription and the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
@@ -88,26 +86,6 @@ class SpeechDraftHelper < MonadicApp
               }
             },
             required: ["pdf"],
-            additionalProperties: false
-          }
-        },
-        strict: true
-      },
-      {
-        type: "function",
-        function:
-        {
-          name: "fetch_web_content",
-          description: "Fetch the content of the web page of the given URL and save it to a file.",
-          parameters: {
-            type: "object",
-            properties: {
-              url: {
-                type: "string",
-                description: "URL of the web page."
-              }
-            },
-            required: ["url"],
             additionalProperties: false
           }
         },

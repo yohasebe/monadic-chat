@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module OpenAIHelper
-  MAX_FUNC_CALLS = 10
+  MAX_FUNC_CALLS = 5
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
 
@@ -28,7 +28,6 @@ module OpenAIHelper
     "dall-e",
     "whisper",
     "gpt-3.5",
-    "gpt-4",
     "o1-preview"
   ]
 
@@ -109,8 +108,6 @@ module OpenAIHelper
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
   TEXT
 
   class << self
@@ -165,7 +162,7 @@ module OpenAIHelper
   end
 
   # No streaming plain text completion/chat call
-  def send_query(options, model: "gpt-4o-mini")
+  def send_query(options, model: "gpt-4o")
     api_key = ENV["OPENAI_API_KEY"]
 
     # Set the headers for the API request
@@ -491,7 +488,12 @@ module OpenAIHelper
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
       [obj]
     else
-      process_json_data(app, session, res.body, call_depth, &block)
+      process_json_data(app: app,
+                        session: session,
+                        query: body,
+                        res: res.body,
+                        call_depth: call_depth, &block)
+
     end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
@@ -513,7 +515,13 @@ module OpenAIHelper
     [res]
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
     obj = session[:parameters]
     reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ obj["model"] }
 
@@ -522,7 +530,7 @@ module OpenAIHelper
     tools = {}
     finish_reason = nil
 
-    body.each do |chunk|
+    res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -547,6 +555,10 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             json = JSON.parse(json_data)
+
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log.puts(JSON.pretty_generate(json))
+            end
 
             finish_reason = json.dig("choices", 0, "finish_reason")
             case finish_reason
@@ -616,6 +628,10 @@ module OpenAIHelper
       pp e.inspect
     end
 
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
+    end
+
     result = texts.empty? ? nil : texts.first[1]
 
     if result
@@ -630,22 +646,27 @@ module OpenAIHelper
     end
 
     if tools.any?
-      context = []
-      if result
-        merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
-        context << merged
-      else
-        context << tools.first[1].dig("choices", 0, "message")
-      end
-
-      tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
-
       call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
-      end
 
-      new_results = process_functions(app, session, tools, context, call_depth, &block)
+      if call_depth > MAX_FUNC_CALLS
+        res = {
+          "type" => "fragment",
+          "content" => "NOTICE: Maximum function call depth exceeded"
+        }
+        block&.call res
+        new_results = nil
+      else
+        context = []
+        if result
+          merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
+          context << merged
+        else
+          context << tools.first[1].dig("choices", 0, "message")
+        end
+
+        tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+        new_results = process_functions(app, session, tools, context, call_depth, &block)
+      end
 
       # return Array
       if result && new_results

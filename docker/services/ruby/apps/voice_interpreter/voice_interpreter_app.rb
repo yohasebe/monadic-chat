@@ -22,7 +22,7 @@ class VoiceInterpreter < MonadicApp
     group: "OpenAI",
     disabled: !CONFIG["OPENAI_API_KEY"],
     models: OpenAIHelper.list_models,
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     temperature: 0.2,
     initial_prompt: initial_prompt,
     easy_submit: true,

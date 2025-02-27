@@ -13,7 +13,7 @@ MAX_FRAMES = 50
 
 DEFAULT_QUERY = "Describe what happens in the video by analyzing the image data extracted from the video."
 
-def video_query(json_path, query, model = "gpt-4o-mini")
+def video_query(json_path, query, model = "gpt-4o")
   num_retrial = 0
 
   begin
@@ -112,7 +112,7 @@ end
 # Assuming the first argument is the path to the JSON file and the second is the query
 json_path = ARGV[0]
 query = ARGV[1] || DEFAULT_QUERY
-model = ARGV[2] || "gpt-4o-mini"
+model = ARGV[2] || "gpt-4o"
 
 if json_path.nil?
   puts "Usage: #{$PROGRAM_NAME} 'json_path' ['query']"

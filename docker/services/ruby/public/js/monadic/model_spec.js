@@ -74,37 +74,44 @@ const modelSpec = {
   // reasoning models
   "o1": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o1-2024-12-17": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o3-mini": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o3-mini-2025-01-31": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   // Anthropic models
+  "claude-3-7-sonnet-20250219": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [[1, 128000], 64000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   "claude-3-5-sonnet-20241022": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 8192],
-    "temperature": [0.0, 1.0],
+    "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": true
@@ -112,14 +119,14 @@ const modelSpec = {
   "claude-3-5-sonnet-latest": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 8192],
-    "temperature": [0.0, 1.0],
+    "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 8192],
+    "max_output_tokens" : [[[0.0, 1.0], 1.0], 8192],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
@@ -128,14 +135,14 @@ const modelSpec = {
   "claude-3-5-haiku-latest": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 8192],
-    "temperature": [0.0, 1.0],
+    "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": false
   },
   "claude-3-opus-20240229": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 4096],
+    "max_output_tokens" : [[0.0, 1.0], 1.0],
     "temperature": [0.0, 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
@@ -144,7 +151,7 @@ const modelSpec = {
   "claude-3-opus-latest": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
-    "temperature": [0.0, 1.0],
+    "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": true
@@ -152,7 +159,7 @@ const modelSpec = {
   "claude-3-sonnet-20240229": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
-    "temperature": [0.0, 1.0],
+    "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": true
@@ -160,7 +167,7 @@ const modelSpec = {
   "claude-3-haiku-20240307": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [1, 4096],
-    "temperature": [0.0, 1.0],
+    "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": false
@@ -579,15 +586,30 @@ const modelSpec = {
     "tool_capability": true
   },
   // Perplexity models
+  "r1-1776": {
+    "context_window" : [1, 128000],
+    "temperature": [[0.0, 1.99], 0.9],
+    "top_p": [[0.0, 1.0], 0.9],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[0.0, 2.0], 1.0]
+  },
+  "sonar-deep-research": {
+    "context_window" : [1, 60000],
+    "temperature": [[0.0, 1.99], 0.9],
+    "top_p": [[0.0, 1.0], 0.9],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[0.0, 2.0], 1.0]
+  },
   "sonar-reasoning-pro": {
-    "context_window" : [1, 127000],
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 8000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[0.0, 2.0], 1.0]
   },
   "sonar-reasoning": {
-    "context_window" : [1, 127000],
+    "context_window" : [1, 128000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -595,13 +617,14 @@ const modelSpec = {
   },
   "sonar-pro": {
     "context_window" : [1, 200000],
+    "max_output_tokens" : [1, 8000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[0.0, 2.0], 1.0]
   },
   "sonar": {
-    "context_window" : [1, 127000],
+    "context_window" : [1, 128000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],

@@ -10,6 +10,7 @@ RUN apt-get update && \
     libxml2-dev libxslt-dev \
     pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
     imagemagick libmagickwand-dev \
+    && fc-cache -fv \
     && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -38,6 +39,7 @@ RUN mkdir -p /root/.jupyter/lab/user-settings
 COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
 
 # Set up Matplotlib configuration
+ENV MPLCONFIGDIR=/root/.config/matplotlib
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 

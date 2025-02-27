@@ -1,5 +1,4 @@
-- [Feb, 2025] 0.9.46
-  - Better support for model specific parameters
+- [Feb, 2025] 0.9.47
   - Improved max input token and max output token handling
   - Research Assistant app added
   - Tavily web search and webpage extraction supported

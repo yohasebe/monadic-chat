@@ -37,7 +37,7 @@ class Wikipedia < MonadicApp
     app_name: "Wikipedia",
     disabled: !CONFIG["OPENAI_API_KEY"],
     models: OpenAIHelper.list_models,
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     temperature: 0.3,
     initial_prompt: initial_prompt,
     description: description,

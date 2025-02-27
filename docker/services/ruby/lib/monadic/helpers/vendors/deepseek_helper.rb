@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# frozen_string_literal: false
 
 module DeepSeekHelper
   MAX_FUNC_CALLS = 10
@@ -63,14 +63,10 @@ module DeepSeekHelper
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
   TEXT
 
   class << self
     attr_reader :cached_models
-
-    @current_mode = nil
 
     def vendor_name
       "DeepSeek"
@@ -329,7 +325,11 @@ module DeepSeekHelper
       return [res]
     end
 
-    process_json_data(app, session, res.body, call_depth, &block)
+    process_json_data(app: app,
+                      session: session,
+                      query: body,
+                      res: res.body,
+                      call_depth: call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -350,9 +350,14 @@ module DeepSeekHelper
     [res]
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
     obj = session[:parameters]
-    @current_mode = nil
 
     buffer = String.new.force_encoding("UTF-8")
     texts = {}
@@ -361,7 +366,7 @@ module DeepSeekHelper
     partial_json = nil
     first_message = true
 
-    body.each do |chunk|
+    res.each do |chunk|
       begin
         chunk = chunk.force_encoding("UTF-8")
         if buffer.valid_encoding? == false
@@ -399,6 +404,10 @@ module DeepSeekHelper
 
               json = JSON.parse(data_content[1])
 
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log.puts(JSON.pretty_generate(json))
+              end
+
               # Process finish reason
               finish_reason = json.dig("choices", 0, "finish_reason")
               case finish_reason
@@ -421,42 +430,25 @@ module DeepSeekHelper
                   texts[id] ||= json
                   choice = texts[id]["choices"][0]
                   choice["message"] ||= delta.dup
+                  choice["message"]["reasoning_content"] ||= ""
+                  choice["message"]["content"] ||= ""
+
                   fragment = delta["reasoning_content"].to_s
-
-                  if @current_mode != "reasoning"
-                    choice["message"]["content"] = <<~THINKING
-                      <div data-title='Thinking' class='toggle'><div class='toggle-open'>
-                    THINKING
-                    @current_mode = "reasoning"
-                  end
-
-                  choice["message"]["content"] << fragment
+                  choice["message"]["reasoning_content"] << fragment
 
                   res = {
-                    "type" => "fragment",
+                    "type" => "thinking",
                     "content" => fragment
                   }
                   block&.call res
 
                   texts[id]["choices"][0].delete("delta")
-
                 elsif delta["content"]
                   id = json["id"]
                   texts[id] ||= json
                   choice = texts[id]["choices"][0]
                   choice["message"] ||= delta.dup
                   choice["message"]["content"] ||= ""
-
-                  if @current_mode == "reasoning"
-                    div_close = "</div></div>\n\n---\n\n"
-                    choice["message"]["content"] << div_close
-                    res = {
-                      "type" => "fragment",
-                      "content" => div_close
-                    }
-                    block&.call res
-                    @current_mode = nil
-                  end
 
                   fragment = delta["content"].to_s
                   choice["message"]["content"] << fragment
@@ -503,12 +495,15 @@ module DeepSeekHelper
       end
     end
 
-    # Process the final results
-    result = texts.empty? ? nil : texts.first[1]
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
+    end
 
-    if result
+    text_result = texts.empty? ? nil : texts.first[1]
+
+    if text_result
       if obj["monadic"]
-        choice = result["choices"][0]
+        choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
           message = choice["message"]["content"]
           modified = APPS[app].monadic_map(message)
@@ -545,15 +540,15 @@ module DeepSeekHelper
 
       if new_results
         new_results
-      elsif result
-        [result]
+      elsif text_result
+        [text_result]
       end
-    elsif result
+    elsif text_result
       # Return final result with finish reason
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
-      result["choices"][0]["finish_reason"] = finish_reason
-      [result]
+      text_result["choices"][0]["finish_reason"] = finish_reason
+      [text_result]
     else
       # Return done message if no result
       res = { "type" => "message", "content" => "DONE" }

@@ -1,6 +1,6 @@
 module MonadicAgent
   def command_output_agent(prompt, content)
-    model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
+    model = ENV["AI_USER_MODEL"] || "gpt-4o"
 
     body = {
       model: model,

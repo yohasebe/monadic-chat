@@ -390,6 +390,7 @@ post "/load" do
           html = text
         end
         message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+        message_obj["thinking"] = msg["thinking"] if msg["thinking"]
         message_obj["images"] = msg["images"] if msg["images"]
         message_obj
       end

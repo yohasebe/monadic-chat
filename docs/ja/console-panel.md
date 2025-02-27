@@ -128,7 +128,7 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
 
 **AI_USER_MODEL**<br />
-AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`o3-mini`、gpt-4o`、`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o-mini`です。
+AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`o1`, `o1-mini`, `o3-mini`、`gpt-4o`、`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o`です。
 
 **EMBEDDING_MODEL**<br />
 テキスト埋め込みに使用するモデルを選択します。現在は `text-embedding-3-small` と `text-embedding-3-large` が利用可能です。デフォルトは `text-embedding-3-small` です。

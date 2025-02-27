@@ -344,6 +344,7 @@ function deleteMessage(mid) {
   let stop_apps_trigger = false;
 
 function loadParams(params, calledFor = "loadParams") {
+  $("#model-non-default").hide();
   // check if params is not empty
   if (Object.keys(params).length === 0) {
     return;
@@ -408,13 +409,17 @@ function loadParams(params, calledFor = "loadParams") {
     if (reasoning_effort) {
       $("#reasoning-effort").val(reasoning_effort);
       $("#reasoning-effort").prop('disabled', false);
+      $("#max-tokens").prop("disabled", true);
     } else {
       if (spec["reasoning_effort"]) {
         $("#reasoning-effort").val(reasoning_effort[1]);
         $("#reasoning-effort").prop('disabled', false);
+        $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
       } else {
         $("#reasoning-effort").prop('disabled', true);
+        $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
       }
+      $("#max-tokens").prop("disabled", false);
     }
 
     let temperature = params["temperature"];

@@ -37,6 +37,7 @@ class ResearchAssistantClaude < MonadicApp
     icon: icon,
     mathjax: true,
     image: true,
+    toggle: true,
     tools: [
       {
         name: "fetch_text_from_office",

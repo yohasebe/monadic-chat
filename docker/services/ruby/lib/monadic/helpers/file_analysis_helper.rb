@@ -1,9 +1,9 @@
 module MonadicHelper
-  def analyze_image(message: "", image_path: "", model: "gpt-4o-mini")
+  def analyze_image(message: "", image_path: "", model: "gpt-4o")
     message = message.gsub(/"/, '\"')
 
     model = settings["model"] || settings[:model]
-    model = check_vision_capability(model) || "gpt-4o-mini"
+    model = check_vision_capability(model) || "gpt-4o"
 
     command = <<~CMD
       bash -c 'simple_image_query.rb "#{message}" "#{image_path}" "#{model}"'

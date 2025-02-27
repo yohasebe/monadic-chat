@@ -1372,7 +1372,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.AI_USER_MODEL) {
-        envConfig.AI_USER_MODEL = 'gpt-4o-mini';
+        envConfig.AI_USER_MODEL = 'gpt-4o';
     }
 
     if (!envConfig.EMBEDDING_MODEL) {
@@ -1382,6 +1382,10 @@ function checkAndUpdateEnvFile() {
     // Do not override TTS_DICT_PATH if it already exists
     if (envConfig.TTS_DICT_PATH === undefined) {
         envConfig.TTS_DICT_PATH = '';
+    }
+
+    if (envConfig.EXTRA_LOGGING === undefined) {
+      envConfig.EXTRA_LOGGING = 'false';
     }
 
     // Check for the presence of any API key

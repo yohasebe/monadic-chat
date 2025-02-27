@@ -72,8 +72,6 @@ module GeminiHelper
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
   TEXT
 
 
@@ -293,7 +291,7 @@ module GeminiHelper
     if settings["tools"]
       body["tools"] = settings["tools"]
       body["tools"]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
-      body["tools"].uniq!
+      body["tools"]["function_declarations"].uniq!
 
       body["tool_config"] = {
         "function_calling_config" => {
@@ -353,7 +351,11 @@ module GeminiHelper
       return [res]
     end
 
-    process_json_data(app, session, res.body, call_depth, &block)
+    process_json_data(app: app,
+                      session: session,
+                      query: body,
+                      res: res.body,
+                      call_depth: call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError => e
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -375,13 +377,19 @@ module GeminiHelper
     [res]
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
     buffer = String.new
     texts = []
     tool_calls = []
     finish_reason = nil
 
-    body.each do |chunk|
+    res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -402,6 +410,11 @@ module GeminiHelper
         json = Regexp.last_match(1)
         begin
           json_obj = JSON.parse(json)
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log.puts(JSON.pretty_generate(json_obj))
+          end
+
           candidates = json_obj["candidates"]
           candidates.each do |candidate|
 
@@ -451,6 +464,10 @@ module GeminiHelper
       pp e.message
       pp e.backtrace
       pp e.inspect
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
     end
 
     result = []

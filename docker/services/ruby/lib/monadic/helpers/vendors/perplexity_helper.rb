@@ -5,8 +5,8 @@ module PerplexityHelper
   API_ENDPOINT = "https://api.perplexity.ai"
 
   OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  READ_TIMEOUT = 60 * 10
+  WRITE_TIMEOUT = 60 * 10
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -18,7 +18,13 @@ module PerplexityHelper
   end
 
   def self.list_models
-    ["sonar", "sonar-pro", "sonar-reasoning"]
+    ["sonar",
+     "sonar-pro",
+     "sonar-reasoning",
+     "sonar-reasoning-pro",
+     "sonar-deep-research",
+     "r1-1776"
+    ]
   end
 
   # No streaming plain text completion/chat call
@@ -330,7 +336,11 @@ module PerplexityHelper
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
       [obj]
     else
-      process_json_data(app, session, res.body, call_depth, &block)
+      process_json_data(app: app,
+                        session: session,
+                        query: body,
+                        res: res.body,
+                        call_depth: call_depth, &block)
     end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
@@ -361,16 +371,27 @@ module PerplexityHelper
       "[#{citation_map[$1.to_i]}]"
     end
 
-    new_citations = used_citations.map { |i| citations[i - 1] }
+    new_citations = if used_citations
+                      used_citations.compact.map { |i| citations[i - 1] }
+                    else
+                      []
+                    end
 
     [newtext, new_citations]
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
     obj = session[:parameters]
 
     buffer = String.new
     texts = {}
+    thinking = []
     tools = {}
     finish_reason = nil
     started = false
@@ -378,7 +399,7 @@ module PerplexityHelper
     stopped = false
     json = nil
 
-    body.each do |chunk|
+    res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -398,6 +419,10 @@ module PerplexityHelper
 
         begin
           json = JSON.parse(json_str)
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log.puts(JSON.pretty_generate(json))
+          end
 
           finish_reason = json.dig("choices", 0, "finish_reason")
           delta = json.dig("choices", 0, "delta")
@@ -433,16 +458,15 @@ module PerplexityHelper
 
           # This comment-out is due to the lack of finish_reason in the JSON response from "sonar-pro"
           if json["choices"][0]["finish_reason"] == "stop"
-            texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"].gsub(/<think>\s+/m) do
-              "<div data-title='Thinking' class='toggle'><div class='toggle-open'>"
-            end.gsub("</think>") do
-              "</div></div>\n\n---\n\n"
+            texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"].gsub(/<think>(.*?)<\/think>\s+/m) do
+              thinking << $1
+              ""
             end
 
             citations = json["citations"] if json["citations"]
             new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
             # add citations to the last message
-            if citations.any?
+            if citations && citations.any?
               citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
                 "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
               end.join("\n") + "</ol></div>"
@@ -460,14 +484,12 @@ module PerplexityHelper
       end
     end
 
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
+    end
+
     if json && !stopped
       stopped = true
-      texts.first[1]["choices"][0]["message"]["content"] = json["choices"][0]["message"]["content"].gsub(/<think>\s+/m) do
-        "<div data-title='Thinking' class='toggle'><div class='toggle-open'>"
-      end.gsub("</think>") do
-        "</div></div>\n\n---\n\n"
-      end
-
       citations = json["citations"] if json["citations"]
       new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
       # add citations to the last message
@@ -479,11 +501,12 @@ module PerplexityHelper
       end
     end
 
-    result = texts.empty? ? nil : texts.first[1]
+    thinking_result = thinking.empty? ? nil : thinking.join("\n\n")
+    text_result = texts.empty? ? nil : texts.first[1]
 
-    if result
+    if text_result
       if obj["monadic"]
-        choice = result["choices"][0]
+        choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
           message = choice["message"]["content"]
           modified = APPS[app].monadic_map(message)
@@ -494,8 +517,8 @@ module PerplexityHelper
 
     if tools.any?
       context = []
-      if result
-        merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
+      if text_result
+        merged = text_result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
         context << merged
       else
         context << tools.first[1].dig("choices", 0, "message")
@@ -510,18 +533,19 @@ module PerplexityHelper
 
       new_results = process_functions(app, session, tools, context, call_depth, &block)
 
-      if result && new_results
-        [result].concat new_results
+      if text_result && new_results
+        [text_result].concat new_results
       elsif new_results
         new_results
-      elsif result
-        [result]
+      elsif text_result
+        [text_result]
       end
-    elsif result
+    elsif text_result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
-      result["choices"][0]["finish_reason"] = finish_reason
-      [result]
+      text_result["choices"][0]["finish_reason"] = finish_reason
+      text_result["choices"][0]["thinking"] = thinking_result.strip if thinking_result
+      [text_result]
     else
       res = { "type" => "message", "content" => "DONE" }
       block&.call res

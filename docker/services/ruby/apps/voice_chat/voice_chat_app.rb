@@ -21,7 +21,7 @@ class VoiceChat < MonadicApp
     group: "OpenAI",
     disabled: !CONFIG["OPENAI_API_KEY"],
     models: OpenAIHelper.list_models,
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     temperature: 0.7,
     initial_prompt: initial_prompt,
     easy_submit: true,

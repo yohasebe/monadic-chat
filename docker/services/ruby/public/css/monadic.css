@@ -43,18 +43,19 @@ div.sourcecode-toggle {
 div.sourcecode pre,
 div.highlight pre,
 pre {
-  padding: 0.9em;
+  padding: 0.5em;
   margin: 0;
   margin-bottom: 0;
-  border: none;
   white-space: pre;
   overflow: auto;
   scrollbar-width: thin;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 div.sourcecode-toggle {
   color: #777;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .list-group-item {
@@ -477,8 +478,11 @@ legend {
 
 .toggle-open {
   padding: 0.5em;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   white-space: pre-wrap;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 .toggle-open ul,
@@ -648,7 +652,7 @@ legend {
   border: 1px solid #ccc;
   border-radius: 4px;
   line-height: 1.8;
-  background-color: #f0f0f0;
+  background-color: #fff
 }
 
 .json-content table {
@@ -768,4 +772,9 @@ code {
 
 ul, ol {
   margin-bottom: 16px !important;
+}
+
+h1 {
+  font-size: 1.6em;
+  margin: 1.2em 0 1em 0;
 }

@@ -56,12 +56,10 @@ module ClaudeHelper
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
   TEXT
 
 
-  attr_accessor :thinking
+  attr_accessor :thinking, :signature
 
   class << self
     attr_reader :cached_models
@@ -110,29 +108,9 @@ module ClaudeHelper
   end
 
   def initialize
-    @leftover = []
-    @thinking = []
+    @thinking = nil
+    @signature = nil
     super
-  end
-
-  def add_replacements(result)
-    result.strip!
-    replacements = {
-      "<thinking>" => "<div data-title='Thinking' class='toggle'><div class='toggle-open'>",
-      "</thinking>" => "</div></div>",
-      "<search_quality_reflection>" => "<div data-title='Search Quality Reflection' class='toggle'><div class='toggle-open'>",
-      "</search_quality_reflection>" => "</div></div>",
-      "<search_quality_score>" => "<div data-title='Search Quality Score' class='toggle'><div class='toggle-open'>",
-      "</search_quality_score>" => "</div></div>",
-      "<result>" => "",
-      "</result>" => ""
-    }
-
-    replacements.each do |old, new|
-      result = result.gsub(/#{old}\n?/m) { new }
-    end
-
-    result
   end
 
   # No streaming plain text completion/chat call
@@ -143,14 +121,14 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "x-api-key" => api_key,
+      "x-api-key" => api_key
     }
 
     # Set the body for the API request
     body = {
       "model" => model,
       "stream" => false,
-      "messages" => []
+      "messages" => [],
     }
 
     body.merge!(options)
@@ -191,10 +169,6 @@ module ClaudeHelper
     return "Error: The request could not be completed. (#{e.message})"
   end
 
-  def get_thinking_text(result)
-    @thinking += result.scan(%r{<thinking>.*?</thinking>}m) if result
-  end
-
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
@@ -211,6 +185,7 @@ module ClaudeHelper
     # Get the parameters from the session
     obj = session[:parameters]
     app = obj["app_name"]
+    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
 
     system_prompts = []
     session[:messages].each_with_index do |msg, i|
@@ -220,7 +195,7 @@ module ClaudeHelper
         check_num_tokens(msg) if obj["prompt_caching"]
       end
 
-      if system_prompts.empty?
+      if system_prompts.empty? && websearch
         text = msg["text"] + "\n---\n" + WEBSEARCH_PROMPT
       else
         text = msg["text"]
@@ -242,7 +217,19 @@ module ClaudeHelper
 
     message = obj["message"].to_s
 
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    case obj["reasoning_effort"]
+    when "low"
+      budget_tokens = 16000
+      max_tokens = 128000
+    when "medium"
+      budget_tokens = 32000
+      max_tokens = 128000
+    when "high"
+      budget_tokens = 48000
+      max_tokens = 128000
+    else
+      budget_tokens = nil
+    end
 
     if role != "tool"
       # Apply monadic transformation if monadic mode is enabled
@@ -255,7 +242,8 @@ module ClaudeHelper
     end
 
     if message != "" && role == "user"
-      @thinking.clear
+      @thinking = nil
+      @signature = nil
       res = { "type" => "user",
               "content" => {
                 "role" => role,
@@ -291,7 +279,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25",
+      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }
@@ -306,8 +294,18 @@ module ClaudeHelper
       }
     }
 
-    body["temperature"] = temperature if temperature
-    body["max_tokens"] = max_tokens if max_tokens
+    if budget_tokens
+      body["max_tokens"] = max_tokens
+      body["temperature"] = 1
+      body["tool_choice"] = { "type" => "auto" }
+      body["thinking"] = {
+        "type": "enabled",
+        "budget_tokens": budget_tokens
+      }
+    else
+      body["temperature"] = temperature if temperature
+      body["max_tokens"] = max_tokens if max_tokens
+    end
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
@@ -376,7 +374,6 @@ module ClaudeHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-      @leftover += obj["function_returns"]
       body["tool_choice"] = { "type" => "auto" }
     end
 
@@ -402,7 +399,11 @@ module ClaudeHelper
       return [res]
     end
 
-    process_json_data(app, session, res.body, call_depth, &block)
+    process_json_data(app: app,
+                      session: session,
+                      query: body,
+                      res: res.body,
+                      call_depth: call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -423,16 +424,25 @@ module ClaudeHelper
     [res]
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
     obj = session[:parameters]
     buffer = String.new
     texts = []
+    thinking = []
+    redacted_thinking = []
+    thinking_signature = nil
     tool_calls = []
     finish_reason = nil
 
     content_type = "text"
 
-    body.each do |chunk|
+    res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -458,6 +468,15 @@ module ClaudeHelper
           begin
             json = JSON.parse(json_data)
 
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log.puts(JSON.pretty_generate(json))
+            end
+
+            if json.dig("type") == "content_block_stop"
+              res = { "type" => "fragment", "content" => "\n\n" }
+              block&.call res
+            end
+
             # Handle content type changes
             new_content_type = json.dig("content_block", "type")
             if new_content_type == "tool_use"
@@ -468,8 +487,8 @@ module ClaudeHelper
 
             if content_type == "tool_use"
               if json.dig("delta", "partial_json")
+
                 fragment = json.dig("delta", "partial_json").to_s
-                next if !fragment || fragment == ""
 
                 tool_calls.last["input"] << fragment
               end
@@ -477,16 +496,6 @@ module ClaudeHelper
                 stop_reason = json.dig("delta", "stop_reason")
                 case stop_reason
                 when "tool_use"
-                  #fragment = <<~FRAG
-
-                  #<div class='toggle'><pre>
-                  #  #{JSON.pretty_generate(tool_calls.last)}
-                  #</pre></div>
-
-                  #FRAG
-
-                  #texts << fragment
-
                   finish_reason = "tool_use"
                   res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                   block&.call res1
@@ -496,8 +505,6 @@ module ClaudeHelper
               # Handle text content
               if json.dig("delta", "text")
                 fragment = json.dig("delta", "text").to_s
-                next if !fragment || fragment == ""
-
                 texts << fragment
 
                 res = {
@@ -505,6 +512,21 @@ module ClaudeHelper
                   "content" => fragment
                 }
                 block&.call res
+              elsif json.dig("delta", "thinking")
+                fragment = json.dig("delta", "thinking").to_s
+                thinking << fragment
+
+                res = {
+                  "type" => "thinking",
+                  "content" => fragment
+                }
+                block&.call res
+              elsif json.dig("delta", "signature")
+                fragment = json.dig("delta", "signature").to_s
+                thinking_signature = fragment
+              elsif json.dig("delta", "redacted_thinking")
+                fragment = json.dig("delta", "redacted_thinking").to_s
+                redacted_thinking << fragment
               end
 
               # Handle stop reasons
@@ -533,24 +555,34 @@ module ClaudeHelper
       pp e.inspect
     end
 
-    # Combine all text fragments
-    result = if texts.empty?
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
+    end
+
+    thinking_result = if thinking.empty?
+                        nil
+                      else
+                        thinking.join("")
+                      end
+
+    redacted_thinking_result = if redacted_thinking.empty?
+                                 nil
+                               else
+                                 redacted_thinking.join("")
+                               end
+
+    @thinking = @thinking.to_s + thinking_result if thinking_result
+    @signature = thinking_signature if thinking_signature
+
+    text_result = if texts.empty?
                nil
              else
                texts.join("")
              end
 
     # Process tool calls if any exist
-    if tool_calls.any?
-      get_thinking_text(result)
-
+    if tool_calls.any? && call_depth <= MAX_FUNC_CALLS
       call_depth += 1
-
-      # Check for maximum function call depth
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
-      end
-
       # Process each tool call individually
       responses = tool_calls.map do |tool_call|
         context = []
@@ -559,12 +591,30 @@ module ClaudeHelper
           "content" => []
         }
 
-        # Add the current result to context if it exists
-        if result
-          context.last["content"] << {
-            "type" => "text",
-            "text" => result
+        if thinking_result || @thinking.to_s != ""
+          thinking = thinking_result || @thinking.to_s
+          signature = thinking_signature || @signature
+          thinking_block = {
+            "type" => "thinking",
+            "thinking" => thinking,
+            "signature" => signature
           }
+          context.last["content"] << thinking_block
+        end
+
+        if redacted_thinking_result
+          context.last["content"] << {
+            "type" => "redacted_thinking",
+            "data" => redacted_thinking_result
+          }
+        end
+
+        if text_result
+          content ={
+            "type" => "text",
+            "text" => text_result
+          }
+          context.last["content"] << content
         end
 
         # Parse tool call input
@@ -575,6 +625,7 @@ module ClaudeHelper
         end
 
         tool_call["input"] = input_hash
+
         context.last["content"] << {
           "type" => "tool_use",
           "id" => tool_call["id"],
@@ -586,39 +637,33 @@ module ClaudeHelper
         process_functions(app, session, [tool_call], context, call_depth, &block)
       end
 
-      # Return the last response
-      responses.last
+      return responses.last
 
       # Process regular text response
-    elsif result
-      # Handle different model types
-      case session[:parameters]["model"]
-      when /opus/
-        result = add_replacements(result)
-        result = add_replacements(@thinking.join("\n")) + result
-        result = result.gsub(%r{<thinking>.*?</thinking>}m, "")
-      when /sonnet/
-        unless @leftover.empty?
-          leftover_assistant = @leftover.filter { |x| x["role"] == "assistant" }
-          result = leftover_assistant.map { |x| x.dig("content", 0, "text") }.join("\n") + result
-        end
+    elsif text_result
+
+      if call_depth > MAX_FUNC_CALLS
+        res = {
+          "type" => "fragment",
+          "content" => "NOTICE: Maximum function call depth exceeded"
+        }
+        block&.call res
       end
-      @leftover.clear
 
       # Apply monadic transformation if enabled
-      if result && obj["monadic"]
+      if text_result && obj["monadic"]
         begin
           # Check if result is valid JSON
-          JSON.parse(result)
+          JSON.parse(text_result)
           # If it's already JSON, apply monadic_map directly
-          result = APPS[app].monadic_map(result)
+          text_result = APPS[app].monadic_map(text_result)
         rescue JSON::ParserError
           # If not JSON, wrap it in the proper format before applying monadic_map
           wrapped = JSON.pretty_generate({
-            "message" => result,
+            "message" => text_result,
             "context" => {}
           })
-          result = APPS[app].monadic_map(wrapped)
+          text_result = APPS[app].monadic_map(wrapped)
         end
       end
 
@@ -632,7 +677,10 @@ module ClaudeHelper
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => { "content" => result }
+              "message" => {
+                "thinking" => @thinking,
+                "content" => text_result
+              }
             }
           ]
         }

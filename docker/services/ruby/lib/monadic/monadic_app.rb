@@ -74,6 +74,12 @@ class MonadicApp
                        Dir.home + "/monadic/log/command.log"
                      end
 
+  EXTRA_LOG_FILE = if IN_CONTAINER
+                       "/monadic/log/extra.log"
+                     else
+                       Dir.home + "/monadic/log/extra.log"
+                     end
+
   # script directory in the dev mode (= when ruby-container is not used)
   LOCAL_SYSTEM_SCRIPT_DIR = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
   # script directory in the local computer to store the user scripts
@@ -105,6 +111,13 @@ class MonadicApp
     @api_key = ""
     @embeddings_db = nil
     @settings = {}
+
+    if CONFIG["EXTRA_LOGGING"]
+      # regenerate the log file
+      File.open(EXTRA_LOG_FILE, "w") do |f|
+        f.puts "Extra log file created at #{Time.now}\n\n"
+      end
+    end
   end
 
   # Wrap the user's message in a monad
@@ -509,7 +522,6 @@ class MonadicApp
     File.open(COMMAND_LOG_FILE, "a") do |f|
       f.puts "Time: #{Time.now}"
       f.puts "Command: #{command}"
-      f.puts "Status: #{status.success? ? "Success" : "Failure"}"
       f.puts "Error: #{stderr}" if stderr.strip.length.positive?
       f.puts "Output: #{stdout}"
       f.puts "-----------------------------------"
@@ -554,7 +566,7 @@ class MonadicApp
   end
 
   def markdownify(text)
-    model = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
+    model = CONFIG["AI_USER_MODEL"] || "gpt-4o"
     sys_prompt = <<~PROMPT
     Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. The text is extracted from the webpage: #{url}. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
       PROMPT

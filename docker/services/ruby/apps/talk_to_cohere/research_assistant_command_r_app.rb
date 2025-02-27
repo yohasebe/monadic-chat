@@ -39,62 +39,91 @@ class ResearchAssistantCommandR < MonadicApp
     image: true,
     tools: [
       {
-        name: "fetch_text_from_office",
-        description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
-        parameter_definitions: {
-          file: {
-            type: "string",
-            description: "File name or file path of the Microsoft Word/Excel/PowerPoint file.",
-            required: true
+        type: "function",
+        function: {
+          name: "fetch_text_from_office",
+          description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
+          parameters: {
+            type: "object",
+            properties: {
+              file: {
+                type: "string",
+                description: "File name or file path of the Microsoft Word/Excel/PowerPoint file.",
+              }
+            },
+            required: ["file"]
           }
         }
       },
       {
-        name: "fetch_text_from_pdf",
-        description: "Fetch the text from the PDF file and return it.",
-        parameter_definitions: {
-          pdf: {
-            type: "string",
-            description: "File name or file path of the PDF",
-            required: true
+        type: "function",
+        function: {
+          name: "fetch_text_from_pdf",
+          description: "Fetch the text from the PDF file and return it.",
+          parameters: {
+            type: "object",
+            properties: {
+              pdf: {
+                type: "string",
+                description: "File name or file path of the PDF",
+              }
+            },
+            required: ["pdf"]
           }
         }
       },
       {
-        name: "analyze_image",
-        description: "Analyze the image and return the result.",
-        parameter_definitions: {
-          message: {
-            type: "string",
-            description: "Text prompt asking about the image (e.g. 'What is in the image?').",
-            required: true
+        type: "function",
+        function: {
+          name: "analyze_image",
+          description: "Analyze the image and return the result.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description: "Text prompt asking about the image (e.g. 'What is in the image?').",
+              },
+              image_path: {
+                type: "string",
+                description: "Path to the image file. It can be either a local file path or a URL.",
+              }
+            }
           },
-          image_path: {
-            type: "string",
-            description: "Path to the image file. It can be either a local file path or a URL.",
-            required: true
+          required: ["message", "image_path"]
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "analyze_audio",
+          description: "Analyze the audio and return the transcript.",
+          parameters: {
+            type: "object",
+            properties: {
+              audio: {
+                type: "string",
+                description: "File path of the audio file",
+              }
+            },
+            required: ["audio"]
           }
         }
       },
       {
-        name: "analyze_audio",
-        description: "Analyze the audio and return the transcript.",
-        parameter_definitions: {
-          audio: {
-            type: "string",
-            description: "File path of the audio file",
-            required: true
-          }
-        }
-      },
-      {
-        name: "fetch_text_from_file",
-        description: "Fetch the text from a file and return its content.",
-        parameter_definitions: {
-          file: {
-            type: "string",
-            description: "File name or file path",
-            required: true
+        type: "function",
+        function: {
+          name: "fetch_text_from_file",
+          description: "Fetch the text from a file and return its content.",
+          parameters: {
+            type: "object",
+            properties: {
+              file: {
+                type: "string",
+                description: "File name or file path",
+              }
+            },
+            required: ["file"]
           }
         }
       }

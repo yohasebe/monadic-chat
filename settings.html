@@ -169,8 +169,10 @@
         <label for="ai-user-model">AI_USER_MODEL</label>
         <select id="ai-user-model" name="ai-user-model">
           <option value="gpt-4o-mini">gpt-4o-mini</option>
-          <option value="gpt-4o-2024-11-20">gpt-4o-2024-11-20</option>
           <option value="gpt-4o">gpt-4o</option>
+          <option value="o3-mini">o3-mini</option>
+          <option value="o1-mini">o1-mini</option>
+          <option value="o1">o1</option>
         </select>
 
         <label for="embedding-model">EMBEDDING_MODEL</label>
@@ -184,6 +186,10 @@
           <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px;">
           <button type="button" id="select-tts-dict">Select File</button>
         </div>
+
+        <label class="form-check-label" for="extra-logging">Extra Logging</label>
+        <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
+
       </form>
     </div>
 
@@ -215,7 +221,8 @@
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           AI_USER_MODEL: document.getElementById('ai-user-model').value,
           EMBEDDING_MODEL: document.getElementById('embedding-model').value,
-          TTS_DICT_PATH: ttsDictPath
+          TTS_DICT_PATH: ttsDictPath,
+          EXTRA_LOGGING: document.getElementById('extra-logging').checked
         };
 
         ipcRenderer.send('save-settings', data);
@@ -250,9 +257,10 @@
         document.getElementById('deepseek-api-key').value = data.DEEPSEEK_API_KEY || '';
         document.getElementById('elevenlabs-api-key').value = data.ELEVENLABS_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
-        document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o-mini';
+        document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o';
         document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
+        document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
       });
 
       ipcRenderer.send('request-settings');

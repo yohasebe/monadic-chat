@@ -32,7 +32,7 @@ module MonadicAgent
     query = query ? " \"#{query}\"" : ""
 
     model = settings["model"] || settings[:model]
-    model = check_vision_capability(model) || "gpt-4o-mini"
+    model = check_vision_capability(model) || "gpt-4o"
 
     video_command = <<~CMD
       bash -c 'simple_video_query.rb "#{json_file}" #{query} "#{model}"'

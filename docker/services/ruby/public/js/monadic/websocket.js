@@ -914,7 +914,12 @@ function connect_websocket(callback) {
               break;
             }
             case "assistant": {
-              const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
+              let html = msg["html"];
+              if (msg["thinking"]) {
+                html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + msg["thinking"] + "</div></div>" + html
+              } 
+
+              const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
 
               const htmlContent = $("#discourse div.card:last");
@@ -1000,8 +1005,16 @@ function connect_websocket(callback) {
         callingFunction = false;
         messages.push(data["content"]);
 
+        let html = data["content"]["html"];
+
+        if (data["content"]["thinking"]) {
+          html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html
+        } else if(data["content"]["reasoning_content"]) {
+          html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html
+        }
+
         if (data["content"]["role"] === "assistant") {
-          appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
+          appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
 
           // Show message input and hide spinner
           $("#message").show();
@@ -1098,14 +1111,17 @@ function connect_websocket(callback) {
       }
 
       default: {
+        let content = data["content"];
         if (!responseStarted || callingFunction) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
           callingFunction = false;
           responseStarted = true;
+          // remove the leading new line characters from content
+          content = content.replace(/^\n+/, "");
         }
         $("#indicator").show();
-        if (data["content"] !== undefined) {
-          $("#chat").html($("#chat").html() + data["content"].replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
+        if (content !== undefined) {
+          $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
         }
         if (autoScroll && !isElementInViewport(chatBottom)) {
           chatBottom.scrollIntoView(false);
@@ -1156,7 +1172,6 @@ function handleVisibilityChange() {
   if (!document.hidden) {
     if (ws.readyState === WebSocket.CLOSED) {
       ws = connect_websocket(() => {
-        // 再接続後に過去のメッセージを再取得
         ws.send(JSON.stringify({ message: "LOAD" }));
       });
     }

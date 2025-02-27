@@ -25,7 +25,7 @@ Specify the group name for grouping the app on the Base App selector on the web 
 ![](./assets/images/groups.png ':size=300')
 
 `model` (string)
-Specify the default model. If not specified, the default model provided by the included helper module (e.g., `gpt-4o-mini` for `OpenAIHelper`) is used.
+Specify the default model. If not specified, the default model provided by the included helper module (e.g., `gpt-4o` for `OpenAIHelper`) is used.
 
 `temperature` (float)
 Specify the default temperature.

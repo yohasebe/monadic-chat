@@ -45,6 +45,10 @@ function setupTextarea(textarea, initialHeight) {
     }
   });
 
+  textarea.addEventListener('focus', function() {
+    autoResize(textarea, initialHeight);
+  });
+
   autoResize(textarea, initialHeight);
 }
 
@@ -168,6 +172,12 @@ $(function () {
 
   $("#model").on("change", function() {
     const selectedModel = $("#model").val();
+    const defaultModel = apps[$("#apps").val()]["model"];
+    if (selectedModel !== defaultModel) {
+      $("#model-non-default").show();
+    } else {
+      $("#model-non-default").hide();
+    }
 
     if (modelSpec[selectedModel]) {
       if (modelSpec[selectedModel].hasOwnProperty("tool_capability") && modelSpec[selectedModel]["tool_capability"]) {
@@ -231,8 +241,12 @@ $(function () {
     // check if selected mode has data-model-type attribute and its value is "reasoning"
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
+      $("#max-tokens").prop("disabled", true);
+      $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
       $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
     } else {
+      $("#max-tokens").prop("disabled", false)
+      $("#max-tokens-toggle").prop("disabled", false).prop("checked", true)
       $("#model-selected").text(selectedModel);
     }
     adjustImageUploadButton(selectedModel);
@@ -252,6 +266,8 @@ $(function () {
       stop_apps_trigger = false;
       return
     }
+
+    $("#model-additional-info").text("default").css("color", "#777")
 
     event.preventDefault();
     if (messages.length > 0) {
@@ -339,7 +355,7 @@ $(function () {
 
       if (params["model"] && models && models.includes(params["model"])) {
         $("#model").html(model_options);
-        $("#model").val(params["model"]);
+        $("#model").val(params["model"]).trigger("change");
       } else {
         let model_options = `<option disabled="disabled" selected="selected">Models not available</option>`;
         $("#model").html(model_options);
@@ -638,7 +654,23 @@ $(function () {
       if (index === 0 && message.role === "system") {
         return;
       }
-      let message_obj = {"role": message.role, "text": message.text, "mid": message.mid};
+
+      let message_obj;
+      if (message.role === "assistant") {
+        message_obj = {
+          "role": message.role,
+          "text": message.text,
+          "mid": message.mid,
+          "thinking": message.thinking
+        };
+      } else {
+        message_obj = {
+          "role": message.role,
+          "text": message.text,
+          "mid": message.mid
+        };
+      }
+
       if (message.image) {
         message_obj.image = message.image;
       }

@@ -14,29 +14,40 @@ module CommandRHelper
   # websearch tools
   WEBSEARCH_TOOLS = [
     {
+      type: "function",
+      function: {
         name: "tavily_fetch",
         description: "fetch the content of the web page of the given url and return its content.",
-        parameter_definitions: {
-          url: {
-            type: "string",
-            description: "url of the web page.",
-            required: true
-          }
+        parameters: {
+          type: "object",
+          properties: {
+            url: {
+              type: "string",
+              description: "url of the web page."
+            }
+          },
+          required: ["url"]
         }
+      }
     },
     {
-      name: "tavily_search",
-      description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-      parameter_definitions: {
-        query: {
-          type: "string",
-          description: "query to search for.",
-          required: true
-        },
-        n: {
-          type: "integer",
-          description: "number of results to return (default: 3).",
-          required: true
+      type: "function",
+      function: {
+        name: "tavily_search",
+        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "query to search for."
+            },
+            n: {
+              type: "integer",
+              description: "number of results to return (default: 3)."
+            }
+          },
+          required: ["query", "n"]
         }
       }
     }
@@ -52,8 +63,6 @@ module CommandRHelper
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
   TEXT
 
   class << self
@@ -293,38 +302,6 @@ end
       body.delete("tools")
     end
 
-    # Add tools configuration if available
-    if role != "tool" && APPS[app]&.settings&.dig("tools")
-      body["tools"] = APPS[app].settings["tools"].map do |tool|
-        # Build parameters in object format
-        properties = {}
-        required = []
-
-        unless tool["parameter_definitions"].empty?
-          tool["parameter_definitions"].each do |name, definition|
-            properties[name] = {
-              "type" => definition["type"],
-              "description" => definition["description"]
-            }
-            required << name if definition["required"]
-          end
-        end
-
-        {
-          "type" => "function",
-          "function" => {
-            "name" => tool["name"],
-            "description" => tool["description"],
-            "parameters" => {
-              "type" => "object",
-              "properties" => properties,
-              "required" => required
-            }
-          }
-        }
-      end
-    end
-
     # Handle tool results in v2 format
     if role == "tool" && obj["tool_results"]
       body["messages"] = obj["tool_results"]
@@ -371,7 +348,11 @@ end
     end
 
     # Process streaming response
-    process_json_data(app, session, res.body, call_depth, &block)
+    process_json_data(app: app,
+                      session: session,
+                      query: body,
+                      res: res.body,
+                      call_depth: call_depth, &block)
   rescue StandardError => e
     pp e.message
     pp e.backtrace
@@ -382,53 +363,55 @@ end
   end
 
   # Process streaming JSON response data
-  def process_json_data(app, session, body, call_depth, &block)
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
     texts = []
     tool_calls = []
     finish_reason = nil
-    complete_text = ""
-    buffer = ""
+    buffer = String.new
     current_tool_call = nil
     accumulated_tool_calls = []
 
-    if body.respond_to?(:each)
-      body.each do |chunk|
-        begin
-          chunk = chunk.force_encoding("UTF-8")
-          # Split chunk into separate JSON objects if multiple exist
-          chunk.to_s.split("\n").each do |json_str|
-            next if json_str.empty?
-            
-            begin
-              json = JSON.parse(json_str)
+    res.each do |chunk|
+      chunk = chunk.force_encoding("UTF-8")
+      buffer << chunk
 
-              # Handle different event types from v2 streaming API
-              case json["type"]
-              when "message-start"
-                buffer = ""
-                accumulated_tool_calls = []
-              when "content-start"
-              when "content-delta"
-                if content = json.dig("delta", "message", "content")
-                  if text = content["text"]
-                    buffer += text
-                    texts << text
-                    complete_text = buffer
+      if buffer.valid_encoding? == false
+        next
+      end
 
-                    unless text.strip.empty?
-                      res = {
-                        "type" => "fragment",
-                        "content" => text
-                      }
-                      block&.call res
-                    end
-                  end
-                end
-              when "tool-plan-delta"
-                if text = json.dig("delta", "message", "tool_plan")
+      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      buffer.encode!("UTF-8", "UTF-16")
+
+      scanner = StringScanner.new(buffer)
+      pattern = /(\{.*?\})(?=\n|\z)/
+      until scanner.eos?
+        matched = scanner.scan_until(pattern)
+        if matched
+          begin
+            json_data = matched.match(pattern)[1]
+            json = JSON.parse(json_data)
+
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log.puts(JSON.pretty_generate(json))
+            end
+
+            # Handle different event types from v2 streaming API
+            case json["type"]
+            when "message-start"
+              buffer = ""
+              accumulated_tool_calls = []
+            when "content-start"
+            when "content-delta"
+              if content = json.dig("delta", "message", "content")
+                if text = content["text"]
                   buffer += text
                   texts << text
-                  complete_text = buffer
 
                   unless text.strip.empty?
                     res = {
@@ -438,48 +421,67 @@ end
                     block&.call res
                   end
                 end
-              when "tool-call-start"
-                tool_call_data = json.dig("delta", "message", "tool_calls")
-                current_tool_call = tool_call_data.dup
-              when "tool-call-delta"
-                if current_tool_call && args = json.dig("delta", "message", "tool_calls", "function", "arguments")
-                  current_tool_call["function"]["arguments"] += args
-                end
-              when "tool-call-end"
-                if current_tool_call
-                  accumulated_tool_calls << current_tool_call
-                  current_tool_call = nil
-                  res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+              end
+            when "tool-plan-delta"
+              if text = json.dig("delta", "message", "tool_plan")
+                buffer += text
+                texts << text
+
+                unless text.strip.empty?
+                  res = {
+                    "type" => "fragment",
+                    "content" => text
+                  }
                   block&.call res
                 end
-              when "message-end"
-                if json.dig("delta", "finish_reason")
-                  finish_reason = case json["delta"]["finish_reason"]
-                                 when "MAX_TOKENS"
-                                   "length"
-                                 when "COMPLETE"
-                                   "stop"
-                                 else
-                                   json["delta"]["finish_reason"]
-                                 end
-                end
-                break
               end
-            rescue JSON::ParserError => e
-              pp "JSON parse error in split: #{e.message}"  # Debug log
-              next
+            when "tool-call-start"
+              tool_call_data = json.dig("delta", "message", "tool_calls")
+              current_tool_call = tool_call_data.dup
+            when "tool-call-delta"
+              if current_tool_call && args = json.dig("delta", "message", "tool_calls", "function", "arguments")
+                current_tool_call["function"]["arguments"] += args
+              end
+            when "tool-call-end"
+              if current_tool_call
+                accumulated_tool_calls << current_tool_call
+                current_tool_call = nil
+                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                block&.call res
+              end
+            when "message-end"
+              if json.dig("delta", "finish_reason")
+                finish_reason = case json["delta"]["finish_reason"]
+                                when "MAX_TOKENS"
+                                  "length"
+                                when "COMPLETE"
+                                  "stop"
+                                else
+                                  json["delta"]["finish_reason"]
+                                end
+              end
             end
+          rescue JSON::ParserError => e
+            # if the JSON parsing fails, the next chunk should be appended to the buffer
+            # and the loop should continue to the next iteration
           end
-        rescue StandardError => e
-          pp "Error processing chunk: #{e.message}"  # Debug log
-          pp e.backtrace  # Debug log
-          next
+        else
+          buffer = scanner.rest
+          break
         end
       end
+    rescue StandardError => e
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
     end
 
     # Prepare final result from accumulated text
-    result = complete_text.empty? ? nil : complete_text.strip
+    result = texts.empty? ? nil : texts.join("")
 
     # Process accumulated tool calls if any exist
     if accumulated_tool_calls.any?

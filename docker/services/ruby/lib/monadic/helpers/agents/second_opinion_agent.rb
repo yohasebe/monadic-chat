@@ -1,6 +1,6 @@
 module SecondOpinionAgent
   def second_opinion_agent(user_query: "", agent_response: "")
-    model = ENV["AI_USER_MODEL"] || "gpt-4o-mini"
+    model = ENV["AI_USER_MODEL"] || "gpt-4o"
 
     prompt = <<~TEXT
       Your are an agent that verify and make comments about given pairs of query and response. If the response is correct, you should say 'The response is correct'. But you are rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.

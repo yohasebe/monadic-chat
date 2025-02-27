@@ -72,8 +72,6 @@ module MistralHelper
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-
-    When mentioning specific facts, statistics, references, proper names, or other data, ensure that your information is accurate and up-to-date. Use `tavily_search` to verify the information and provide the user with the most reliable and recent data available. Use `tavily_fetch` to retrieve the full content of a web page URL and analyze it for relevant information. When showing your response based on the web search results, include the source URLs and relevant content from the web pages to support your answers.
   TEXT
 
   class << self
@@ -300,7 +298,12 @@ module MistralHelper
       return [res]
     end
 
-    process_json_data(app, session, response.body, call_depth, &block)
+    process_json_data(app: app,
+                      session: session,
+                      query: body,
+                      res: response.body,
+                      call_depth: call_depth, &block)
+
   rescue HTTP::Error, HTTP::TimeoutError
     @num_retrial ||= 0
     if @num_retrial < MAX_RETRIES
@@ -321,8 +324,12 @@ module MistralHelper
     [res]
   end
 
-  def process_json_data(app, session, body, call_depth, &block)
-    # Initialize buffer and result holders
+  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
 
     buffer = ""
     texts  = {}
@@ -331,7 +338,7 @@ module MistralHelper
 
     # Process each chunk from the streaming response
 
-    body.each do |chunk|
+    res.each do |chunk|
       # Ensure valid UTF-8 encoding; replace invalid sequences if needed
 
       chunk = chunk.force_encoding("UTF-8")
@@ -362,6 +369,11 @@ module MistralHelper
 
         begin
           json = JSON.parse(data_payload)
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log.puts(JSON.pretty_generate(json))
+          end
+
         rescue JSON::ParserError
           buffer = data_payload + buffer
           break
@@ -417,7 +429,9 @@ module MistralHelper
       end
     end
 
-    # Use a regular if-elsif-else chain instead of 'unless' to allow elsif usage
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
+    end
 
     if !tools.empty?
       # Process tool/function calls if any exist
@@ -518,4 +532,13 @@ module MistralHelper
     sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)
   end
+
+  def replace_references(text)
+    text.gsub(/\[\{"type"=>"reference", "reference_ids"=>\[(.*?)\]\}\]/) do
+      ids_str = $1
+      ids = ids_str.split(',').map(&:strip)
+      "[#{ids.join(', ')}]"
+    end
+  end
+
 end

@@ -40,7 +40,32 @@ class JupyterNotebookClaude < MonadicApp
 
     Before you suggest your Jupyter code, check what libraries, tools, and models are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment.
 
-    Also before adding the cells, read the whole notebook contents using the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells.
+    Also before adding the cells, read the whole notebook contents using the `fetch_text_from_file` function. If there are cells that should be removed because of bugs and other issues they contain, ask the user for confirmation to remove them. If the user confirms, remove the cells using `write_to_file` and save the notebook. And then add new cells. Though the details must vary, the cells should look like the following:
+
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "# Generate random data\n",
+        "np.random.seed(0)\n",
+        "x = np.random.rand(100)\n",
+        "y = np.random.rand(100)\n",
+        "\n",
+        "# Plot the scatter plot\n",
+        "plt.figure(figsize=(8, 6))\n",
+        "plt.scatter(x, y, color='blue', alpha=0.5)\n",
+        "plt.title('Scatter Plot of Random Data')\n",
+        "plt.xlabel('X-axis')\n",
+        "plt.ylabel('Y-axis')\n",
+        "plt.grid(True)\n",
+        "plt.show()"
+      ]
+    },
 
     In your Python code in the notebook cells, you need to import a module before use it. Once you have imported it in a previous cell, you can use it in the cells that follow.
     

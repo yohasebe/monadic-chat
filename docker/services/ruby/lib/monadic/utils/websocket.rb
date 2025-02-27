@@ -259,7 +259,7 @@ module WebSocketHelper
 
           # code to use the OpenAI mode for AI User
           api_request = APPS["Chat"].method(:api_request)
-          parameters_modified["model"] = CONFIG["AI_USER_MODEL"] || "gpt-4o-mini"
+          parameters_modified["model"] = CONFIG["AI_USER_MODEL"] || "gpt-4o"
 
           mini_session = {
             parameters: parameters_modified,
@@ -293,6 +293,7 @@ module WebSocketHelper
               content = last_one["choices"][0]
 
               text = content["text"] || content["message"]["content"]
+              thinking = content["thinking"] || content["message"]["thinking"] || content["message"]["reasoning_content"]
 
               type_continue = "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results\n"
               code_truncated = "[CODE BLOCK TRUNCATED]"
@@ -319,7 +320,14 @@ module WebSocketHelper
                 html += "\n\n" + session["parameters"]["response_suffix"]
               end
 
-              new_data = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => text, "html" => html, "lang" => detect_language(text), "active" => true } # detect_language is called only once here
+              new_data = { "mid" => SecureRandom.hex(4),
+                           "role" => "assistant",
+                           "text" => text,
+                           "html" => html,
+                           "lang" => detect_language(text),
+                           "active" => true } # detect_language is called only once here
+
+              new_data["thinking"] = thinking if thinking
 
               @channel.push({
                 "type" => "html",

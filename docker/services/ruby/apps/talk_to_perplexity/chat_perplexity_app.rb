@@ -20,12 +20,7 @@ class PerplexityChat < MonadicApp
     disabled: !CONFIG["PERPLEXITY_API_KEY"],
     group: "Perplexity",
     model: "sonar",
-    models: [
-      "sonar",
-      "sonar-pro",
-      "sonar-reasoning",
-      "sonar-reasoning-pro"
-    ],
+    models: PerplexityHelper.list_models,
     toggle: true,
     temperature: 0.2,
     presence_penalty: 0.0,

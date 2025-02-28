@@ -28,6 +28,7 @@ module OpenAIHelper
     "dall-e",
     "whisper",
     "gpt-3.5",
+    "gpt-4-",
     "o1-preview"
   ]
 

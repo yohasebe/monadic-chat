@@ -83,7 +83,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.start.disabled = true;
     buttons.stop.disabled = false;
     buttons.restart.disabled = false;
-    buttons.browser.disabled = true;
+    buttons.browser.disabled = false;
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Ready') {

@@ -49,8 +49,6 @@ pre {
   white-space: pre;
   overflow: auto;
   scrollbar-width: thin;
-  border: 1px solid #ccc;
-  border-radius: 4px;
 }
 
 div.sourcecode-toggle {
@@ -193,7 +191,6 @@ button.fixed-width {
   padding-left: 0;
   border-bottom: 0;
   color: rgba(0, 0, 0, .6);
-  background-color: #f0f0f0;
 }
 
 .icon-container {

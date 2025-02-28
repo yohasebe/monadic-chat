@@ -1,4 +1,7 @@
-- [Feb, 2025] 0.9.47
+- [Feb, 2025] 0.9.48
+  - OpenAI `gpt-4.5-preview` model supported
+  - Anthropic `claude-3.7-sonnet` model supported
+  - Perplexity `sonar-deep-research` model supported
   - Improved max input token and max output token handling
   - Research Assistant app added
   - Tavily web search and webpage extraction supported

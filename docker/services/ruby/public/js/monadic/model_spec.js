@@ -1,5 +1,26 @@
 const modelSpec = {
   // Opena AI models
+  // gpt-4.5 models
+  "gpt-4.5-preview-2025-02-27": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "gpt-4.5-preview": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   // gpt-4o models
   "gpt-4o": {
     "context_window" : [1, 128000],

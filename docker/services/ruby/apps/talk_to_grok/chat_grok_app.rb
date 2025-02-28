@@ -19,7 +19,6 @@ class GrokChat < MonadicApp
     disabled: !CONFIG["XAI_API_KEY"],
     models: GrokHelper.list_models,
     model: "grok-2-1212",
-    temperature: 0.5,
     context_size: 100,
     initial_prompt: initial_prompt,
     easy_submit: false,

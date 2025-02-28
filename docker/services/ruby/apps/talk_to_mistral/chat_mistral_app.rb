@@ -23,7 +23,6 @@ class ChatMistral < MonadicApp
   @settings = {
     group: "Mistral",
     disabled: !CONFIG["MISTRAL_API_KEY"],
-    temperature: 0.7,  # Adjusted temperature
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: false,

@@ -496,8 +496,8 @@ function loadParams(params, calledFor = "loadParams") {
     $("#max-tokens-toggle").prop("checked", false).trigger("change");
   }
 
+  // Set context size from configuration or use default
   $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
-  $("#context-size").val(params["context_size"] || "10");
 }
 
 function resetParams() {

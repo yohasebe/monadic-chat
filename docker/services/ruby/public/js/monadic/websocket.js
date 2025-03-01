@@ -1145,22 +1145,41 @@ function connect_websocket(callback) {
   return ws;
 }
 
+// Track reconnection attempts
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 10;
+const baseReconnectDelay = 1000;
+
 function reconnect_websocket(ws, callback) {
+  // Limit maximum reconnection attempts
+  if (reconnectAttempts >= maxReconnectAttempts) {
+    console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached. Please refresh the page.`);
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection failed. Please refresh the page.", "danger");
+    return;
+  }
+
+  // Use exponential backoff for retry delay
+  const delay = baseReconnectDelay * Math.pow(1.5, reconnectAttempts);
+  
   switch (ws.readyState) {
     case WebSocket.CLOSED:
+      reconnectAttempts++;
+      console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
       ws = connect_websocket(callback);
       break;
     case WebSocket.CLOSING:
       setTimeout(() => {
         reconnect_websocket(ws, callback);
-      }, reconnectDelay);
+      }, delay);
       break;
     case WebSocket.CONNECTING:
       setTimeout(() => {
         reconnect_websocket(ws, callback);
-      }, reconnectDelay);
+      }, delay);
       break;
     case WebSocket.OPEN:
+      // Reset reconnection attempts counter on successful connection
+      reconnectAttempts = 0;
       if (callback) {
         callback(ws);
       }

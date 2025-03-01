@@ -104,12 +104,30 @@ function attachEventListeners($card) {
     const content = $card.find(".card-text");
     let text;
     try {
-      text = content.html().replace(/<style>[\s\S]*?<\/style>/g, "");
-      text = text.replace(/<script>[\s\S]*?<\/script>/g, "");
-      text = $(text.split(/<hr\s*\/?>/, 1)[0]).text()
+      // Create a temporary DOM element to safely parse HTML
+      const tempDiv = document.createElement('div');
+      // Use textContent to prevent execution of scripts when extracting HTML
+      tempDiv.textContent = content.html();
+      // Safely parse and extract content
+      const safeHtml = tempDiv.innerHTML;
+      
+      // Remove <style> and <script> tags using regex
+      let cleanText = safeHtml.replace(/<style>[\s\S]*?<\/style>/g, "");
+      cleanText = cleanText.replace(/<script>[\s\S]*?<\/script>/g, "");
+      
+      // Get only content before any <hr> tag, if present
+      const hrSplit = cleanText.split(/<hr\s*\/?>/);
+      const firstPart = hrSplit.length > 0 ? hrSplit[0] : cleanText;
+      
+      // Use DOMParser to safely extract text content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(firstPart, 'text/html');
+      text = doc.body.textContent || "";
     } catch (e) {
-      text = content.text()
+      console.error("Error extracting text for TTS:", e);
+      text = content.text() || "";
     }
+    
     text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);

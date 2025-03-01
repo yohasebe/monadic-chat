@@ -207,18 +207,22 @@ $(function () {
 
       if (modelSpec[selectedModel].hasOwnProperty("presence_penalty")) {
         $("#presence-penalty").prop("disabled", false);
-        const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
-        $("#presence-penalty").val(presencePenalty);
-        $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
+        // presence penalty is kept unchanged even if the model is changed
+        ;
+        // const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
+        // $("#presence-penalty").val(presencePenalty);
+        // $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
       } else {
         $("#presence-penalty").prop("disabled", true);
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("frequency_penalty")) {
         $("#frequency-penalty").prop("disabled", false);
-        const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
-        $("#frequency-penalty").val(frequencyPenalty);
-        $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
+        // frequency penalty is kept unchanged even if the model is changed
+        ;
+        // const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
+        // $("#frequency-penalty").val(frequencyPenalty);
+        // $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
       } else {
         $("#frequency-penalty").prop("disabled", true);
       }
@@ -774,7 +778,7 @@ $(function () {
     if (doc) {
       // check if the file is a doc file (pdf, docx, xlsx, pptx, and any text-based file such as rb, py, etc.)
       if (doc.type !== "application/octet-stream") {
-        const docLabel =$("#docaLabel").val() || ""
+        const docLabel = $("#doc-label").val() || ""
         $("#docModal button").prop("disabled", true);
         $("#doc-spinner").show();
         const formData = new FormData();
@@ -799,7 +803,7 @@ $(function () {
           $("#message").focus();
         }).fail(function (error) {
           $("#doc-spinner").hide();
-          $("#fdocModal button").prop("disabled", false);
+          $("#docModal button").prop("disabled", false);
           $("#docModal").modal("hide");
           setAlert(`Error converting file: ${error}`, "error");
         }).always(function () {

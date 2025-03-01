@@ -190,10 +190,20 @@ class MonadicApp
     end
 
     hash.each do |key, value|
-      next if exclude_empty && (value.nil? || value == "" || (value.is_a?(Array) && value.empty?))
-
       key = snake2cap(key)
       data_key = key.downcase
+
+      # If the value is nil, an empty string, or an empty array,
+
+      # output an element indicating that no value was provided.
+
+      if value.nil? || (value.is_a?(String) && value.empty?) || (value.is_a?(Array) && value.empty?)
+        output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
+        output += "<span>#{key}: </span>"
+        output += "<span>no value</span>"
+        output += "</div>"
+        next
+      end
 
       if key.downcase == "context"
         output += "<div class='json-item context' data-depth='#{iteration}' data-key='context'>"
@@ -212,7 +222,7 @@ class MonadicApp
           output += "<span>#{key}</span>"
           output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
           output += "</div>"
-          output += "<div class='json-content'"
+          output += "<div class='json-content'>"
           output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
           output += "</div></div>"
         when Array
@@ -240,7 +250,8 @@ class MonadicApp
             output += "</div></div>"
           end
         else
-          # Check if the value is a single paragraph
+          # Check if the value is a single paragraph string
+
           if value.is_a?(String) && !value.include?("\n")
             output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
             output += "<span>#{key}: </span>"

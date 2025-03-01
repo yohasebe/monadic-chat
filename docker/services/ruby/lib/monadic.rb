@@ -90,7 +90,20 @@ CONFIG = {}
 
 begin
   File.read(Paths::ENV_PATH).split("\n").each do |line|
-    key, value = line.split("=")
+    next if line.strip.empty? || line.strip.start_with?("#")
+    
+    # Check for valid line format (key=value)
+    if !line.include?("=")
+      puts "Warning: Skipping invalid environment line: #{line}"
+      next
+    end
+    
+    key, value = line.split("=", 2) # Split only on first '=' to handle values containing '='
+    next if key.nil? || key.empty?
+    
+    # Trim any whitespace and quotes from values
+    value = value.strip.gsub(/^['"]|['"]$/, '') if value
+    
     converted_value = case value
                       when "true"
                         true
@@ -100,13 +113,27 @@ begin
                         value.to_i
                       when /^\d+\.\d+$/ # float
                         value.to_f
+                      when nil
+                        # Handle nil value
+                        puts "Warning: Empty value for key '#{key}'"
+                        ""
                       else
                         value
                       end
     CONFIG[key] = converted_value
   end
+rescue Errno::ENOENT
+  puts "Environment file not found at #{Paths::ENV_PATH}"
+  CONFIG["ERROR"] = "Environment file not found. Default configuration will be used."
+rescue Errno::EACCES
+  puts "Permission denied when trying to read environment file at #{Paths::ENV_PATH}"
+  CONFIG["ERROR"] = "Permission denied when trying to read environment file. Default configuration will be used."
+rescue JSON::ParserError => e
+  puts "JSON parsing error in environment file: #{e.message}"
+  CONFIG["ERROR"] = "Configuration file contains invalid JSON: #{e.message}"
 rescue StandardError => e
-  CONFIG["ERROR"] = e.message
+  puts "Error loading environment file: #{e.message}\n#{e.backtrace.join("\n")}"
+  CONFIG["ERROR"] = "Error loading configuration: #{e.message}"
 end
 
 def handle_error(message)
@@ -467,7 +494,7 @@ post "/fetch_webpage" do
                     end
 
     tavily_api_key = ENV["TAVILY_API_key"]
-    if tavily_apikey_
+    if tavily_api_key
       markdown = tavily_fetch(url: url)
     else
       markdown = MonadicApp.fetch_webpage(url)

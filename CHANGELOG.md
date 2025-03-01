@@ -1,4 +1,5 @@
-- [Feb, 2025] 0.9.48
+- [Feb, 2025] 0.9.49
+  - Extra logging feature added
   - OpenAI `gpt-4.5-preview` model supported
   - Anthropic `claude-3.7-sonnet` model supported
   - Perplexity `sonar-deep-research` model supported

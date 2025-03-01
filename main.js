@@ -47,7 +47,7 @@ let dockerInstalled = false;
 let wsl2Installed = false;
 
 let dotenv;
-if (app.ispackaged) {
+if (app.isPackaged) {
   dotenv = require('./node_modules/dotenv');
 } else {
   dotenv = require('dotenv');
@@ -377,11 +377,11 @@ function uninstall() {
 
 let mainWindow = null;
 let settingsWindow = null;
-
+let forceQuit = false;
 let isQuittingDialogShown = false;
 
 async function quitApp() {
-  if (isQuittingDialogShown || forceQuit) return; // Add forceQuit check
+  if (isQuittingDialogShown || forceQuit) return;
 
   isQuittingDialogShown = true;
 
@@ -562,7 +562,6 @@ const menuItems = [
 ];
 
 let updateMessage = '';
-let forceQuit = false;
 
 function initializeApp() {
   app.whenReady().then(async () => {
@@ -1278,7 +1277,7 @@ function openBrowser(url, outside = false) {
         time += interval;
         if (time >= timeout) {
           clearInterval(timer);
-          dialog.showErrorBox('Error', "<i class='fa-solid fa-circle-exclamation' style='color: green;'>Failed to start the server. Please try again.");
+          dialog.showErrorBox('Error', "Failed to start the server. Please try again.");
         }
       }
     });

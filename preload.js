@@ -36,5 +36,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),
-
 });

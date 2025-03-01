@@ -1,4 +1,5 @@
-- [Feb, 2025] 0.9.49
+- [Feb, 2025] 0.9.50
+  - Performance improvement and bug fixes
   - Extra logging feature added
   - OpenAI `gpt-4.5-preview` model supported
   - Anthropic `claude-3.7-sonnet` model supported

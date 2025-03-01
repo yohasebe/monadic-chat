@@ -31,11 +31,12 @@ module WebSocketHelper
       total_tokens = active_messages.sum { |m| m["tokens"] || 0 }
 
       # Remove oldest messages until total token count and message count are within limits
-      until active_messages.empty? || (total_tokens <= max_input_tokens && active_messages.size <= context_size)
+      until active_messages.empty? || total_tokens <= max_input_tokens
         last_message = active_messages.pop
         last_message["active"] = false
         total_tokens -= last_message["tokens"] || 0
         res = true
+        break if context_size.positive? && active_messages.size <= context_size
       end
 
       # Calculate total token counts for different roles
@@ -533,8 +534,17 @@ module WebSocketHelper
                   break
                 end
 
-                content = response.dig("choices", 0, "message", "content").gsub(%r{\bsandbox:/}, "/")
-                content = content.gsub(%r{^/mnt/}, "/")
+                # Get raw content
+                raw_content = response.dig("choices", 0, "message", "content")
+                if raw_content
+                  # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
+                  content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
+                  # Fix mount paths in the same way
+                  content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
+                else
+                  content = ""
+                  @channel.push({ "type" => "error", "content" => "Empty response from API" }.to_json)
+                end
 
                 response.dig("choices", 0, "message")["content"] = content
 

@@ -91,7 +91,19 @@ CONFIG = {}
 begin
   File.read(Paths::ENV_PATH).split("\n").each do |line|
     key, value = line.split("=")
-    CONFIG[key] = value
+    converted_value = case value
+                      when "true"
+                        true
+                      when "false"
+                        false
+                      when /^\d+$/ # integer
+                        value.to_i
+                      when /^\d+\.\d+$/ # float
+                        value.to_f
+                      else
+                        value
+                      end
+    CONFIG[key] = converted_value
   end
 rescue StandardError => e
   CONFIG["ERROR"] = e.message

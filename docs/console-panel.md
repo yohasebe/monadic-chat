@@ -91,6 +91,10 @@ Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat
 - `command.log`: Log file for command execution and code execution.
 - `jupyter.log`: Log file for cells added to jupyter notebook.
 
+When `Extra Logging` is enabled in the settings panel, additional logs are saved as `extra.log`.
+
+- `extra.log`: Log file for chat logs recorded as streaming JSON objects from the start to the end of Monadic Chat.
+
 **Open Console** <br />
 Open the Monadic Chat console.
 
@@ -138,3 +142,6 @@ Select the model used for text embedding. Currently, `text-embedding-3-small` an
 
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.
+
+**Extra Logging** <br />
+Select whether to enable additional logging. When enabled, the chat logs from the start to the end of Monadic Chat are recorded as streaming JSON objects. The log file is saved as `~/monadic/logs/extra.log`.

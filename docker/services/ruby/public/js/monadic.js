@@ -196,9 +196,11 @@ $(function () {
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
         $("#temperature").prop("disabled", false);
-        const temperature = modelSpec[selectedModel]["temperature"][1];
-        $("#temperature").val(temperature);
-        $("#temperature-value").text(parseFloat(temperature).toFixed(1));
+        // temperature is kept unchanged even if the model is changed
+        ;
+        // const temperature = modelSpec[selectedModel]["temperature"][1];
+        // $("#temperature").val(temperature);
+        // $("#temperature-value").text(parseFloat(temperature).toFixed(1));
       } else {
         $("#temperature").prop("disabled", true);
       }

@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.48
+export MONADIC_VERSION=0.9.49
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -147,6 +147,9 @@ ensure_data_dir() {
 
   rm -f "${log_dir}/command.log"
   rm -f "${log_dir}/jupyter.log"
+
+  # remove extra.log if it exists
+  rm -f "${log_dir}/extra.log"
 
   touch "${config_dir}/env"
   touch "${config_dir}/rbsetup.sh"

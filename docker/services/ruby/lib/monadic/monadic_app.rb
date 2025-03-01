@@ -106,17 +106,19 @@ class MonadicApp
 
   attr_accessor :api_key, :context, :embeddings_db, :settings
 
+  @@extra_logging = false
+
   def initialize
     @context = {}
     @api_key = ""
     @embeddings_db = nil
     @settings = {}
 
-    if CONFIG["EXTRA_LOGGING"]
-      # regenerate the log file
+    if CONFIG["EXTRA_LOGGING"] && !@@extra_logging
       File.open(EXTRA_LOG_FILE, "w") do |f|
         f.puts "Extra log file created at #{Time.now}\n\n"
       end
+      @@extra_logging = true
     end
   end
 

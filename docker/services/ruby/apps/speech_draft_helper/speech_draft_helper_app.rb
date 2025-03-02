@@ -29,7 +29,7 @@ class SpeechDraftHelper < MonadicApp
     - `voice_id`: Voice ID of the speech (note that this is voice_id, not voice name).
     - `language`: Language of the speech in the format "en", "es", “ja”, etc.
 
-    Remember to use the `voice_id` even if the user specifies the voice with its `name`. The `text_to_speech` function does not accept a voice `name`.
+    Remember to use the `voice_id` even if the user specifies the voice with its `name`. The `text_to_speech` function does not accept a voice `name` but it accepts a `voice_id`.
 
     TTS providers include "openai" and its high-definition version "openai-hd". Other provides such as "elevenlabs" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
 

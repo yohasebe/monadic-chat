@@ -30,13 +30,14 @@ unless options[:prompt]
 end
 
 def generate_image(prompt, size, num_retrials: 3)
+  revised_prompt = nil # Initialize to avoid undefined variable
+  
   begin
     api_key = File.read("/monadic/config/env").split("\n").find do |line|
       line.start_with?("OPENAI_API_KEY")
     end.split("=").last
   rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("
-").find do |line|
+    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find do |line|
       line.start_with?("OPENAI_API_KEY")
     end.split("=").last
   end
@@ -60,8 +61,8 @@ def generate_image(prompt, size, num_retrials: 3)
 
     res = HTTP.headers(headers).post(url, json: body)
   rescue HTTP::Error, HTTP::TimeoutError => e
-    puts "ERROR: #{e.message}"
-    exit
+    error_msg = "ERROR: #{e.message}"
+    return { original_prompt: prompt, success: false, message: error_msg }
   end
 
   if res.status.success?
@@ -71,8 +72,8 @@ def generate_image(prompt, size, num_retrials: 3)
     revised_prompt = data["revised_prompt"]
 
     if base64_data.nil?
-      puts "Error: No image data received from the API."
-      exit
+      error_msg = "Error: No image data received from the API."
+      return { original_prompt: prompt, success: false, message: error_msg }
     else
       image_data = Base64.decode64(base64_data)
     end
@@ -91,17 +92,26 @@ def generate_image(prompt, size, num_retrials: 3)
 
     { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
   else
-    JSON.parse(res.body)
+    begin
+      error_response = JSON.parse(res.body)
+      error_msg = error_response.dig('error', 'message') || "Error with API response"
+      return { original_prompt: prompt, success: false, message: error_msg }
+    rescue JSON::ParserError
+      return { original_prompt: prompt, success: false, message: "Error parsing API response" }
+    end
   end
 rescue StandardError => e
-  puts e.message
+  error_msg = "Error: #{e.message}"
+  puts error_msg
   puts e.backtrace
+  
   num_retrials -= 1
   if num_retrials.positive?
     sleep 1
-    generate_image(prompt, num_retrials: num_retrials)
+    # Fixed: Pass the size parameter in recursive call
+    return generate_image(prompt, size, num_retrials: num_retrials)
   else
-    { original_prompt: prompt, revised_prompt: revised_prompt, success: false, message: "Error: Image generation failed." }
+    return { original_prompt: prompt, success: false, message: "Error: Image generation failed after multiple attempts." }
   end
 end
 

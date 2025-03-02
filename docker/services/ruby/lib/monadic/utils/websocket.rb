@@ -1,7 +1,35 @@
 # frozen_string_literal: true
 
+require 'timeout'
+
 module WebSocketHelper
   # Handle websocket connection
+  
+  # Initialize token counting in a background thread
+  def initialize_token_counting(text, encoding_name="o200k_base")
+    # Return immediately if no text
+    return nil if text.nil? || text.empty?
+    
+    # Use Thread.new with lower priority to avoid impacting TTS
+    Thread.new do
+      result = nil
+      begin
+        # Add a small delay to prioritize TTS thread startup if running concurrently
+        sleep 0.05 if Thread.list.any? { |t| t[:type] == :tts }
+        
+        # Set thread type for identification
+        Thread.current[:type] = :token_counter
+        
+        # Do the actual token counting
+        result = MonadicApp::TOKENIZER.count_tokens(text, encoding_name)
+      rescue => e
+        # Silently handle token counting errors
+      end
+      
+      # Thread's return value
+      result
+    end
+  end
 
   # check if the total tokens of past messages is less than max_tokens in obj
   # token count is calculated using tiktoken_ruby gem
@@ -22,7 +50,15 @@ module WebSocketHelper
     begin
       # Calculate token count for each message and mark as active if not already calculated
       messages.each do |m|
-        m["tokens"] ||= MonadicApp::TOKENIZER.count_tokens(m["text"], encoding_name)
+        m["tokens"] ||= begin
+          # If this is the most recent message and we have precounted tokens, use them
+          if m == messages.last && defined?(Thread.current[:token_count_result]) && Thread.current[:token_count_result]
+            Thread.current[:token_count_result]
+          else
+            # Otherwise count tokens normally
+            MonadicApp::TOKENIZER.count_tokens(m["text"], encoding_name)
+          end
+        end
         m["active"] = true
       end
 
@@ -445,6 +481,14 @@ module WebSocketHelper
           end
         else # fragment
           session[:parameters].merge! obj
+          
+          # Start background token counting for the user message immediately
+          message_text = obj["message"].to_s
+          if !message_text.empty?
+            # Use o200k_base encoding for most LLMs
+            token_count_thread = initialize_token_counting(message_text, "o200k_base")
+            Thread.current[:token_count_thread] = token_count_thread
+          end
 
           if obj["auto_speech"]
             provider = obj["tts_provider"]
@@ -459,6 +503,26 @@ module WebSocketHelper
           end
 
           thread = Thread.new do
+            # Set thread type for identification
+            Thread.current[:type] = :tts
+            
+            # If we have a token counting thread, wait for it to complete and save result
+            if defined?(token_count_thread) && token_count_thread
+              begin
+                # Don't wait forever, time out after 2 seconds
+                Timeout.timeout(2) do
+                  token_count_result = token_count_thread.value
+                  if token_count_result
+                    Thread.current[:token_count_result] = token_count_result 
+                  end
+                end
+              rescue Timeout::Error
+                # Silently continue without precounted tokens
+              rescue => e
+                # Silently handle errors
+              end
+            end
+            
             buffer = []
             cutoff = false
 

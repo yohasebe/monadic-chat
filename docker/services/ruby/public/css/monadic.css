@@ -552,6 +552,13 @@ legend {
 #monadic-spinner i {
   font-size: 1.8em;
   color: #ffc107;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+#monadic-spinner span {
+  display: inline-flex;
+  align-items: center;
 }
 
 #main-nav {

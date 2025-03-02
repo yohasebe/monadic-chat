@@ -445,20 +445,21 @@ function connect_websocket(callback) {
   let infoHtml = "";
 
   ws.onopen = function () {
-    // console.log('WebSocket connected');
-    setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
-    ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
-
+    // Initialize media handling only once during connection
     if (!mediaSource) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
-        // Though TTS on FireFox is not supported, the following is needed to prevent an error
-        if (runningOnFirefox) {
-          sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-        } else {
-          sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        try {
+          // Use consistent MIME type for Firefox
+          if (runningOnFirefox) {
+            sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
+          } else {
+            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+          }
+          sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+        } catch (err) {
+          console.error("Error adding source buffer:", err);
         }
-        sourceBuffer.addEventListener('updateend', processAudioDataQueue);
       });
     }
 
@@ -467,12 +468,13 @@ function connect_websocket(callback) {
       audio.src = URL.createObjectURL(mediaSource);
     }
 
+    // Only verify token once
     if (!verified) {
       setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
     }
 
-    // check verified at a regular interval
+    // Check verified status at a regular interval
     let verificationCheckTimer = setInterval(function () {
       if (verified) {
         if (!initialLoadComplete) {  // Only send LOAD on initial connection
@@ -549,9 +551,29 @@ function connect_websocket(callback) {
       case "audio": {
         $("#monadic-spinner").hide();
 
-        const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-        audioDataQueue.push(audioData);
-        processAudioDataQueue();
+        // Check if response contains an error
+        if (data.content && typeof data.content === 'string' && data.content.includes('error')) {
+          try {
+            const errorData = JSON.parse(data.content);
+            if (errorData.error) {
+              console.error("TTS error:", errorData.error);
+              setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${errorData.error}`, "warning");
+              return;
+            }
+          } catch (e) {
+            // If not valid JSON, continue with regular processing
+          }
+        }
+
+        // Process audio data
+        try {
+          const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
+          audioDataQueue.push(audioData);
+          processAudioDataQueue();
+        } catch (e) {
+          console.error("Error processing audio data:", e);
+          setAlert("<i class='fa-solid fa-circle-exclamation'></i> Failed to process audio data", "warning");
+        }
         break;
       }
 

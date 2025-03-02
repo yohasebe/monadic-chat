@@ -63,7 +63,7 @@ module MonadicHelper
                                  escaped: !escaped,
                                  retrial: true)
       else
-        return "Error: The cells data could not be converted to JSON. #{e.message}"
+        return "Error: The cells data provided could not be converted to JSON.\n#{original_cells}"
       end
     end
 
@@ -99,7 +99,7 @@ module MonadicHelper
       results2 = run_jupyter_cells(filename: filename)
       results1 + "\n\n" + results2
     else
-      "Error: The cells could not be added to the notebook."
+      "Error: The cells provided could not be added to the notebook. Please correct the cells data and try again: #{original_cells}"
     end
   end
 
@@ -107,7 +107,8 @@ module MonadicHelper
     command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=60 --allow-errors --inplace"
     send_command(command: command,
                  container: "python",
-                 success: "The notebook has been executed and updated with the results successfully.\n")
+                 success: "The notebook has been executed\n",
+                 success_with_output: "The notebook has been executed with the following output:\n")
   end
 
   def create_jupyter_notebook(filename:)

@@ -273,7 +273,9 @@ class MonadicApp
 
   def send_command(command:,
                    container: "python",
-                   success: "Command executed successfully")
+                   success: "Command has been executed.\n",
+                   success_with_output: "Command has been executed with the following output: \n"
+                  )
 
     case container.to_s
     when "ruby"
@@ -313,7 +315,11 @@ class MonadicApp
     if block_given?
       yield(stdout, stderr, status)
     elsif status.success?
-      "#{success}: #{stdout}"
+      if stdout.strip.empty?
+        success
+      else
+        "#{success_with_output}#{stdout}"
+      end
     else
       "Error occurred: #{stderr}"
     end

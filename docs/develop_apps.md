@@ -136,10 +136,10 @@ You can execute commands or shell scripts in the app. The `send_command` method 
 The `send_command` method takes the following arguments: the name of the command or shell script to execute (`command`), the container name (`container`), and an optional message to display when the command is executed successfully (`success`). The `container` argument uses short string notation; for example, `python` represents `monadic-chat-python-container`.
 
 ```ruby
-send_command(command: "ls", container: "python", success: "Linux ls command executed successfully")
+send_command(command: "ls",container: "python", success_with_output: "Linux `ls` command executed with the following output:\n")
 ```
 
-As an example, the above command executes the `ls` command in the `python` container and displays the message "Linux ls command executed successfully" when the command is executed successfully. If the `success` argument is omitted, the message "Command executed successfully" is displayed.
+As an example, the above command executes the `ls` command in the `python` container and displays the message "Linux ls command executed successfully" when the command is executed successfully. If the `success` argument is omitted, the message "Command has been executed" is displayed, and if the `success_with_output` argument is omitted, the message "Command has been executed with the following output: " is displayed.
 
 ?> It is possible to set up a recipe file so that the AI agent can use the `send_command` method directly. However, it is recommended to create a wrapper method in the recipe file and call the `send_command` method from there, implementing necessary error handling procedures. The `MonadicApp` class provides a wrapper method called `run_command` that works similarly to `send_command` but returns a specific message if any arguments are missing. It is recommended to use `run_command` instead of `send_command` directly in your recipe files.
 

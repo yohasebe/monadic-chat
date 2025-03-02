@@ -143,13 +143,13 @@ AIエージェントが使用するための関数・ツールを定義するこ
 
 各コンテナで利用可能な特定のコマンドやシェルスクリプトを実行したい時は、すべての追加アプリの基底クラスである`MonadicApp`に定義されている`send_command`メソッドを使用してください。コマンドやシェルスクリプトは、コンテナ内の（`/monadic/data`）をカレント・ワーキング・ディレクトリとして実行されます。ホストコンピュータの共有フォルダ内の`scripts`ディレクトリに保存されたシェルスクリプトは、コンテナ内でパスが通っており、スクリプト名を指定するだけで実行することができます。
 
-`send_command`メソッドの引数にはコマンド名（またはシェルスクリプト名）、コンテナ名、および成功時のメッセージを指定します。戻り値はコマンドの実行結果の文字列です。
+`send_command`メソッドの引数にはコマンド名（またはシェルスクリプト名）、コンテナ名、および実行完了時のメッセージを指定します。戻り値はコマンドの実行結果の文字列にメッセージを前置したものです。
 
 ```ruby
-send_command(command: "ls", container: "python", success: "Linux ls command executed successfully")
+send_command(command: "ls", container: "python", success_with_output: "Linux ls command executed with the following output:\n")
 ```
 
-例として、上記のコードはPythonコンテナ内で`ls`コマンドを実行し、その結果を返します。`command`引数は実行するコマンドを指定します。`container`引数はコマンドを実行するコンテナを略記で指定します。`python`と指定した場合は`monadic-chat-python-container`を指定することになります。`success`引数はコマンドの実行が成功した場合に、コマンドの実行結果の文字列の前に挿入するメッセージを指定します。成功時のメッセージは省略可能ですが、適切なメッセージを指定することで、AIエージェントがコマンドの実行結果を正しく解釈できるようになります。`success`引数が省略されたときは "Command executed successfully" というメッセージが表示されます。
+例として、上記のコードはPythonコンテナ内で`ls`コマンドを実行し、その結果を返します。`command`引数は実行するコマンドを指定します。`container`引数はコマンドを実行するコンテナを略記で指定します。`python`と指定した場合は`monadic-chat-python-container`を指定することになります。`success`引数と`success_with_output`は引数はコマンドの実行が成功した場合に、コマンドの実行結果の文字列の前に挿入するメッセージを指定します。成功時のメッセージは省略可能ですが、適切なメッセージを指定することで、AIエージェントがコマンドの実行結果を正しく解釈できるようになります。`success`引数が省略されたときは "Command has been executed" というメッセージが表示されます。`success_with_output`引数を省略した場合は"Command has been executed with the following output: "というメッセージが表示されます。
 
 ?> AIエージェントに直接`send_command`を呼び出すように設定することも可能ですが、適切にエラー処理を行うため、Rubyでラッパーメソッドをレシピファイル内に作成して、それをJSONスキーマで指定すると共に`initial_prompt`に使用方法を記述してAIエージェントに使い方を示すやり方をお勧めします。
 

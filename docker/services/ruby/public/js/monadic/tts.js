@@ -2,17 +2,26 @@
 let audioCtx = null;
 let playPromise = null;
 
+// We use the global audio variable from websocket.js
+
 function audioInit() {
   ttsStop();
-  audioCtx = new AudioContext();
-
-  if (audioCtx.state === 'suspended') {
+  
+  // Ensure audio context exists
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  } else if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
-
-  playPromise = audio.play();
-  if (!playPromise || playPromise !== undefined) {
-    playPromise.then(_ => {}).catch(_error => {});
+  
+  // Only attempt to play if audio has a valid source
+  if (audio && audio.src) {
+    playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(_ => {}).catch(_error => {
+        console.error("Error playing audio:", _error);
+      });
+    }
   }
 }
 
@@ -34,6 +43,8 @@ function ttsSpeak(text, stream, callback) {
   audioInit();
 
   if (runningOnFirefox) {
+    // Show a notification to the user instead of silently failing
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Text-to-speech is not supported in Firefox", "warning");
     return false;
   }
 
@@ -52,7 +63,23 @@ function ttsSpeak(text, stream, callback) {
     response_format: response_format
   }));
 
-  audio.play();
+  if (audio) {
+    // Some browsers trigger error events before actually failing
+    // We'll only show a message if playback clearly fails
+    let playbackStarted = false;
+    
+    audio.onplaying = () => {
+      playbackStarted = true;
+    };
+    
+    audio.play().catch(error => {
+      // Only show error if we haven't started playing successfully
+      if (!playbackStarted) {
+        console.error("Error playing audio:", error);
+        setAlert("<i class='fa-solid fa-circle-exclamation'></i> Error starting audio playback", "warning");
+      }
+    });
+  }
 }
 
 function ttsStop() {
@@ -78,18 +105,46 @@ function ttsStop() {
     mediaSource = null;
   }
 
-  mediaSource = new MediaSource();
-  mediaSource.addEventListener('sourceopen', () => {
-    // Though TTS on FireFox is not supported, the following is needed to prevent an error
-    if (runningOnFirefox) {
-      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
-    } else {
-      sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-    }
-    sourceBuffer.addEventListener('updateend', processAudioDataQueue);
-  });
+  try {
+    mediaSource = new MediaSource();
+    mediaSource.addEventListener('sourceopen', () => {
+      try {
+        // Use consistent MIME type for Firefox
+        const mimeType = runningOnFirefox ? 'audio/mp4; codecs="mp3"' : 'audio/mpeg';
+        
+        if (MediaSource.isTypeSupported(mimeType)) {
+          sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+          sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+        } else {
+          console.error(`MIME type ${mimeType} is not supported in this browser`);
+          setAlert("<i class='fa-solid fa-circle-exclamation'></i> Audio format not supported in this browser", "warning");
+        }
+      } catch (err) {
+        console.error("Error adding source buffer:", err);
+        setAlert("<i class='fa-solid fa-circle-exclamation'></i> Error initializing audio", "warning");
+      }
+    });
 
-  audio.src = URL.createObjectURL(mediaSource);
-  audio.load();
+    mediaSource.addEventListener('error', (e) => {
+      console.error("MediaSource error:", e);
+      setAlert("<i class='fa-solid fa-circle-exclamation'></i> Audio playback error", "warning");
+    });
+
+    // Setup error handling before setting the source
+    audio.onerror = (e) => {
+      // Only show error if not during initialization
+      if (audio.readyState > 0) {
+        console.error("Audio element error:", e);
+        setAlert("<i class='fa-solid fa-circle-exclamation'></i> Audio playback failed", "warning");
+      }
+    };
+    
+    // Then set the source and load
+    audio.src = URL.createObjectURL(mediaSource);
+    audio.load();
+  } catch (err) {
+    console.error("MediaSource initialization error:", err);
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Audio system initialization failed", "warning");
+  }
 }
 

@@ -13,6 +13,7 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
 
   let silenceStart = performance.now();
   let triggered = false;
+  let animationFrameId;
 
   function checkSilence() {
     analyser.getByteFrequencyData(dataArray);
@@ -54,13 +55,16 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
     }
 
     // Request the next frame
-    requestAnimationFrame(checkSilence);
+    animationFrameId = requestAnimationFrame(checkSilence);
   }
 
   checkSilence();
 
-  // Return a function to close the audio context
+  // Return a function to close the audio context and cancel animation frame
   return function () {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
     audioContext.close();
   };
 }

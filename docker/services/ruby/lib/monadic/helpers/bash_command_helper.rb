@@ -11,12 +11,14 @@ module MonadicHelper
 
     send_command(command: install_command,
                  container: "python",
-                 success: "The library #{command} has been installed successfully.\n")
+                 success: "The library has been installed successfully.\n",
+                 success_with_output: "The install command has been has been executed with the following output:\n")
   end
 
   def run_bash_command(command: "")
     send_command(command: command,
                  container: "python",
-                 success: "Command executed successfully.\n")
+                 success: "The command has been executed.\n",
+                 success_with_output: "Command has been executed with the following output:\n")
   end
 end

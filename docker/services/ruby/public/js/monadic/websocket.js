@@ -545,6 +545,9 @@ function connect_websocket(callback) {
       case "wait": {
         callingFunction = true;
         setAlert(data["content"], "warning");
+        
+        // Update spinner message for function calls to be more informative
+        $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Processing request...');
         break;
       }
 
@@ -1114,6 +1117,9 @@ function connect_websocket(callback) {
         $("#indicator").show();
         $("#user-panel").hide();
         $("#cancel_query").show();
+        
+        // Show informative spinner message
+        $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Counting tokens...');
         break;
       }
 
@@ -1138,6 +1144,8 @@ function connect_websocket(callback) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
           callingFunction = false;
           responseStarted = true;
+          // Update spinner message for streaming phase
+          $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Receiving response...');
           // remove the leading new line characters from content
           content = content.replace(/^\n+/, "");
         }

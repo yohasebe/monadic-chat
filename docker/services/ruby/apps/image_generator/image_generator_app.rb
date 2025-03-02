@@ -29,7 +29,9 @@ class ImageGeneration < MonadicApp
 
     If the user asks you to add something to generated images or to modify them, re-generate another image by calling the `generate_image` function with an extended or modified prompt and discarding the old ones. Do not modify an existing image itself directly—just ignore the image URLs included in the previous message.
 
-    If an error occurs as a result of calling the `generate_image` function, return the error message to the user: Do not retry calling the function. If the user asks you to retry, you can do so by calling the `generate_image` function again with a prompt modified according to the error message.
+    If an error occurs as a result of calling the `generate_image` function, return the error message to the user: Do not retry calling the function automatically. If the user asks you to retry, you can do so by calling the `generate_image` function again with a prompt modified according to the error message.
+    
+    IMPORTANT: After a few successful image generations, if the system shows repeated function calls without generating an image, inform the user that they have likely reached the maximum number of function calls in this conversation. Suggest that they start a new conversation to generate more images.
   TEXT
 
   @settings = {

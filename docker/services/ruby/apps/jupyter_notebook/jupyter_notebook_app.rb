@@ -8,9 +8,11 @@ class JupyterNotebook < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    The function `add_jupyter_cells` needs parameters `filename` and `cells`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly.
+    The function `add_jupyter_cells` needs parameters `filename` and `cells`. The values to `cells` should be adequately escaped as JSON. Take a very good care of escaping the content of the cells properly. The `add_jupyter_cells` also accepts an optional parameter `run` which is a boolean value. If `run` is `true`, the cells will be executed after they are added to the notebook. If you add a cell that contains code to do a long-running computation, such as training a machine learning model, or downloading a large dataset, it is recommended to set `run` to `false` to avoid long waiting times. Otherwise, set `run` to `true` to run the cells and see the output immediately.
 
-      Check the environment using `check_environment` before adding cells to the Jupyter Notebook. If you use a python module, try to use one that is already installed in the current environment; in other words, a module listed in the Dockerfile returned by `check_environment`. If the module is not installed, ask the user to install it by running `!pip install MODULE_NAME` in a cell. 
+    Check the software environment using `check_environment` before adding cells to the Jupyter Notebook. If you use a python module, try to use one that is already installed in the current environment; in other words, a module listed in the Dockerfile returned by `check_environment`. If the module is not installed, ask the user to install it by running `!pip install MODULE_NAME` in a cell. 
+
+    If you need to check the system environment (CPU and GPU architecture), use the `system_info` function. 
 
     If you use seaborn, do not use `plt.style.use('seaborn')` because this way of specifying a style is deprecated. Just use the default style.
 
@@ -291,9 +293,13 @@ class JupyterNotebook < MonadicApp
                   required: ["type", "content"],
                   additionalProperties: false
                 }
+              },
+              run: {
+                type: "boolean",
+                description: "Run the cells after adding them to the notebook. (default: false)"
               }
             },
-            required: ["filename", "cells"],
+            required: ["filename", "cells", "run"],
             additionalProperties: false
           }
         },

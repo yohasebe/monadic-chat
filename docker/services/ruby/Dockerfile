@@ -9,8 +9,8 @@ RUN apt update && \
     build-essential wget curl git pandoc \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
-    libglib2.0-dev libgirepository1.0-dev \
-    imagemagick libmagickwand-dev \
+    # libglib2.0-dev libgirepository1.0-dev \
+    # imagemagick libmagickwand-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,9 +36,11 @@ RUN apt update && \
     postgresql-client \
     # Add ImageMagick runtime libraries needed by RMagick gem
 
-    imagemagick libmagickwand-dev \
+    # Uncommend to use RSyntaxTree
+    # imagemagick libmagickwand-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
 
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | \
     gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg

@@ -63,7 +63,8 @@ module MonadicHelper
   end
 
 
-  def add_jupyter_cells(filename: "", cells: "", escaped: false, retrial: false)
+  def add_jupyter_cells(filename: "", cells: "", run: false, escaped: false, retrial: false)
+
     original_cells = cells.dup
 
     capture_add_cells(cells)
@@ -131,9 +132,14 @@ module MonadicHelper
                else
                  false
                end
+
     if results1
-      results2 = run_jupyter_cells(filename: filename)
-      results1 + "\n\n" + results2
+      if run.to_s == "true"
+        results2 = run_jupyter_cells(filename: filename)
+        results1 + "\n\n" + results2
+      else
+        results1
+      end
     else
       "Error: The cells provided could not be added to the notebook. Please correct the cells data and try again: #{original_cells}"
     end

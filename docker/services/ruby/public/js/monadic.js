@@ -586,7 +586,7 @@ $(function () {
         const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role }
         ws.send(JSON.stringify(msg_object));
       });
-      $("#message").css("height", "96px").val("");
+      $("#message").css("height", "96px").hide().val("");
       $("#select-role").val("").trigger("change");
     } else {
       reconnect_websocket(ws, function (ws) {
@@ -606,7 +606,7 @@ $(function () {
         }
 
         ws.send(JSON.stringify(params));
-        $("#message").css("height", "96px").val("");
+        $("#message").css("height", "96px").hide().val("");
 
         // Update images array and display to maintain PDF attachment
         images = currentPdfData ? [currentPdfData] : [];

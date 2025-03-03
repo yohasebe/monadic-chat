@@ -143,6 +143,9 @@
         <label for="elevenlabs-api-key">ELEVENLABS_API_KEY</label>
         <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false">
 
+        <label for="tavily-api-key">TAVILY_API_KEY</label>
+        <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false">
+
         <label for="rouge-theme">Syntax Highlighting Theme</label>
         <select id="rouge-theme" name="rouge-theme">
           <option disabled>──Dark Themes──</option>
@@ -218,6 +221,7 @@
           PERPLEXITY_API_KEY: document.getElementById('perplexity-api-key').value,
           DEEPSEEK_API_KEY: document.getElementById('deepseek-api-key').value,
           ELEVENLABS_API_KEY: document.getElementById('elevenlabs-api-key').value,
+          TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           AI_USER_MODEL: document.getElementById('ai-user-model').value,
           EMBEDDING_MODEL: document.getElementById('embedding-model').value,
@@ -256,6 +260,7 @@
         document.getElementById('perplexity-api-key').value = data.PERPLEXITY_API_KEY || '';
         document.getElementById('deepseek-api-key').value = data.DEEPSEEK_API_KEY || '';
         document.getElementById('elevenlabs-api-key').value = data.ELEVENLABS_API_KEY || '';
+        document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o';
         document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';

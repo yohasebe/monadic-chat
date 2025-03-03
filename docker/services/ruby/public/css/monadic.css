@@ -782,3 +782,14 @@ h1 {
   font-size: 1.6em;
   margin: 1.2em 0 1em 0;
 }
+
+.syntree {
+  max-width: 100%; /* Ensure it doesn't exceed the parent container width */
+}
+
+.syntree img {
+  width: 50%; /* Display at 50% of original SVG size */
+  max-width: 100%; /* Ensure it doesn't exceed the syntree container width */
+  height: auto; /* Maintain aspect ratio */
+  display: block; /* Remove any default inline spacing */
+}

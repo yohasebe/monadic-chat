@@ -23,7 +23,7 @@ class ResearchAssistantGemini < MonadicApp
 
   @settings = {
     group: "Google",
-    disabled: !CONFIG["GEMINI_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    disabled: !CONFIG["GEMINI_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: GeminiHelper.list_models,
     model: "gemini-2.0-flash-exp",
     websearch: true,

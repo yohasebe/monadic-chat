@@ -11,7 +11,7 @@ module TavilyHelper
   RETRY_DELAY = 2
 
   def tavily_fetch(url:)
-    api_key = ENV["TAVILY_API_KEY"]
+    api_key = CONFIG["TAVILY_API_KEY"]
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
@@ -31,6 +31,7 @@ module TavilyHelper
 
       if res.status.success?
         res = JSON.parse(res.body)
+        res["webfetch_agent"] = "tavily"
       else
         JSON.parse(res.body)
         error_report = JSON.parse(res.body)
@@ -44,7 +45,7 @@ module TavilyHelper
   end
 
   def tavily_search(query:, n: 1)
-    api_key = ENV["TAVILY_API_KEY"]
+    api_key = CONFIG["TAVILY_API_KEY"]
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
@@ -74,6 +75,7 @@ module TavilyHelper
 
       if res.status.success?
         res = JSON.parse(res.body)
+        res["websearch_agent"] = "tavily"
       else
         JSON.parse(res.body)
         error_report = JSON.parse(res.body)

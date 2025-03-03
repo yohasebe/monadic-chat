@@ -23,7 +23,7 @@ class ResearchAssistantCommandR < MonadicApp
 
   @settings = {
     group: "Cohere",
-    disabled: !CONFIG["COHERE_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    disabled: !CONFIG["COHERE_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: CommandRHelper.list_models,
     model: "command-r7b-12-2024",
     websearch: true,

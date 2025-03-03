@@ -260,7 +260,7 @@ module InteractionUtils
   end
 
   def tavily_fetch(url:)
-    api_key = ENV["TAVILY_API_KEY"]
+    api_key = CONFIG["TAVILY_API_KEY"]
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"

@@ -23,7 +23,7 @@ class ResearchAssistantGrok < MonadicApp
 
   @settings = {
     group: "xAI Grok",
-    disabled: !CONFIG["XAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    disabled: !CONFIG["XAI_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: GrokHelper.list_models,
     model: "grok-2-1212",
     websearch: true,

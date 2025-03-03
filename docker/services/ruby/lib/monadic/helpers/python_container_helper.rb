@@ -1,4 +1,12 @@
 module MonadicHelper
+
+  def system_info
+    command = <<~CMD
+      bash -c 'sysinfo.sh'
+    CMD
+    send_command(command: command, container: "python")
+  end
+
   def get_dockerfile
     command = <<~CMD
       bash -c '/usr/bin/cat /monadic/Dockerfile 2>/dev/null'

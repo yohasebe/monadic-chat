@@ -1,5 +1,6 @@
 module MonadicHelper
 
+  JUPYTER_RUN_TIMEOUT = 600
   JUPYTER_LOG_FILE = if IN_CONTAINER
                        "/monadic/log/jupyter.log"
                      else
@@ -26,6 +27,41 @@ module MonadicHelper
       f.puts "-----------------------------------"
     end
   end
+
+  def get_last_cell_output(notebook_path)
+    notebook = JSON.parse(File.read(notebook_path))
+
+    # Select code cells that have outputs
+
+    executed_cells = notebook['cells'].select do |cell|
+      cell['cell_type'] == 'code' && !cell['outputs'].empty?
+    end
+
+    return nil if executed_cells.empty?
+
+    last_cell = executed_cells.last
+    last_output = last_cell['outputs'].last
+
+    # Extract and format the output based on its type
+
+    case last_output['output_type']
+    when 'execute_result'
+      last_output['data']['text/plain']
+    when 'stream'
+      last_output['text']
+    when 'display_data'
+      last_output['data']['text/plain']
+    when 'error'
+      # Join traceback messages and remove ANSI escape sequences
+
+      last_output['traceback']
+        .join("\n")
+        .gsub(/\e\[[0-9;]*m/, '')
+    else
+      nil
+    end
+  end
+
 
   def add_jupyter_cells(filename: "", cells: "", escaped: false, retrial: false)
     original_cells = cells.dup
@@ -104,11 +140,31 @@ module MonadicHelper
   end
 
   def run_jupyter_cells(filename:)
-    command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=60 --allow-errors --inplace"
-    send_command(command: command,
-                 container: "python",
-                 success: "The notebook has been executed\n",
-                 success_with_output: "The notebook has been executed with the following output:\n")
+    command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=#{JUPYTER_RUN_TIMEOUT} --allow-errors --inplace"
+    res = send_command(
+      command: command,
+      container: "python",
+      success: "The notebook has been executed\n",
+      success_with_output: "The notebook has been executed with the following output:\n"
+    )
+
+    shared_volume = if IN_CONTAINER
+                      MonadicApp::SHARED_VOL
+                    else
+                      MonadicApp::LOCAL_SHARED_VOL
+                    end
+    filepath = File.join(shared_volume, filename)
+
+    if res
+      output = get_last_cell_output(filepath)
+      if output
+        "The last cell output is: #{output}"
+      else
+        "The notebook has been executed successfully."
+      end
+    else
+      "Error: The notebook could not be executed."
+    end
   end
 
   def create_jupyter_notebook(filename:)

@@ -23,7 +23,7 @@ class ResearchAssistantClaude < MonadicApp
 
   @settings = {
     group: "Anthropic",
-    disabled: !CONFIG["ANTHROPIC_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    disabled: !CONFIG["ANTHROPIC_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: ClaudeHelper.list_models,
     model: "claude-3-5-sonnet-20241022",
     websearch: true,

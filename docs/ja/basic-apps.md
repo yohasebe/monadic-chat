@@ -182,6 +182,14 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 </details>
 
+### Syntactic Analysis
+
+![Syntactic Analysis app icon](./assets/icons/syntactic-analysis.png ':size=40')
+
+二重引用符付きで英語のセンテンス（平叙文）を入力すると、AIがそのセンテンスの解析を行い、統語構造を樹形図として可視化します。また、センテンスの統語的な複雑さや構造に関するコメントを行います。
+
+![syntactic_analysis_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/syntactic_analysis/apps/syntactic_analysis_app.rb ':include :type=code')
+
 ## コンテンツ生成
 
 ### Novel Writer

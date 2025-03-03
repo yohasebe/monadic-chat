@@ -23,7 +23,7 @@ class ResearchAssistantMistral < MonadicApp
 
   @settings = {
     group: "Mistral",
-    disabled: !CONFIG["MISTRAL_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    disabled: !CONFIG["MISTRAL_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: MistralHelper.list_models,
     model: "mistral-large-latest",
     websearch: true,

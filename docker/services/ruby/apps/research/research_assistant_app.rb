@@ -23,7 +23,7 @@ class ResearchAssistant < MonadicApp
 
   @settings = {
     group: "OpenAI",
-    disabled: !CONFIG["OPENAI_API_KEY"] || !ENV["TAVILY_API_KEY"],
+    disabled: !CONFIG["OPENAI_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: OpenAIHelper.list_models,
     model: "gpt-4o-2024-11-20",
     websearch: true,

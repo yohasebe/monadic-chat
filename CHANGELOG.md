@@ -1,5 +1,4 @@
-- [Feb, 2025] 0.9.51
-  - Syntactic Analysis app added
+- [Feb, 2025] 0.9.52
   - Performance improvement and bug fixes
   - Extra logging feature added
   - OpenAI `gpt-4.5-preview` model supported

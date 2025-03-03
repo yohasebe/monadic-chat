@@ -1,4 +1,5 @@
-- [Feb, 2025] 0.9.52
+- [Feb, 2025] 0.9.53
+  - `sysinfo` command added to Python container
   - Performance improvement and bug fixes
   - Extra logging feature added
   - OpenAI `gpt-4.5-preview` model supported

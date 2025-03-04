@@ -318,27 +318,8 @@ class JupyterNotebook < MonadicApp
         type: "function",
         function:
         {
-          name: "write_to_file",
-          description: "Write content to a file with the specified filename.",
-          parameters: {
-            type: "object",
-            properties: {
-              filename: {
-                type: "string",
-                description: "Filename of the file without the file extension."
-              },
-              extension: {
-                type: "string",
-                description: "File extension of the file. It is ipynb for Jupyter Notebook."
-              },
-              text: {
-                type: "string",
-                description: "Content text to be written to the file."
-              }
-            },
-            required: ["filename", "extension", "text"],
-            additionalProperties: false
-          }
+          name: "system_info",
+          description: "Get the system information of the current environment."
         },
         strict: true
       }

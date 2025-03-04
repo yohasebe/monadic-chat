@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module PerplexityHelper
-  MAX_FUNC_CALLS = 10
+  MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.perplexity.ai"
 
   OPEN_TIMEOUT = 5

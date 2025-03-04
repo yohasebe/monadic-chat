@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module OpenAIHelper
-  MAX_FUNC_CALLS = 5
+  MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
 

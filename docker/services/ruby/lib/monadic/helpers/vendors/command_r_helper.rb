@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module CommandRHelper
+  MAX_FUNC_CALLS = 8
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
   OPEN_TIMEOUT = 5
@@ -8,7 +9,6 @@ module CommandRHelper
   WRITE_TIMEOUT = 60
   MAX_RETRIES = 5
   RETRY_DELAY = 1
-  MAX_FUNC_CALLS = 5
   VALID_ROLES = %w[user assistant system tool].freeze
 
   # websearch tools

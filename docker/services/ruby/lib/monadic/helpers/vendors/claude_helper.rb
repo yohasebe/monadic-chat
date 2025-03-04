@@ -1,5 +1,5 @@
 module ClaudeHelper
-  MAX_FUNC_CALLS = 10
+  MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.anthropic.com/v1"
   OPEN_TIMEOUT = 5 * 2
   READ_TIMEOUT = 60 * 2

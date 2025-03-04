@@ -296,6 +296,15 @@ class JupyterNotebookClaude < MonadicApp
           properties: {},
           required: []
         }
+      },
+      {
+        name: "system_info",
+        description: "Get the system information of the current environment.",
+        input_schema: {
+          type: "object",
+          properties: {},
+          required: []
+        }
       }
     ]
   }

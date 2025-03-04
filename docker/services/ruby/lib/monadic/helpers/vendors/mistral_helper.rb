@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 module MistralHelper
-  MAX_FUNC_CALLS = 10
+  MAX_FUNC_CALLS = 8
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT   = 5
   READ_TIMEOUT   = 60

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module GrokHelper
-  MAX_FUNC_CALLS = 10
+  MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.x.ai/v1"
 
   OPEN_TIMEOUT = 5

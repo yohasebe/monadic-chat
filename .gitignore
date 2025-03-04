@@ -70,5 +70,3 @@ rsync.sh
 
 /icons/menu_icons/
 /icons/app_icons/
-
-/docker/services/python/pysetup.sh

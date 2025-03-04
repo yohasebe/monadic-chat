@@ -50,18 +50,38 @@ module MonadicHelper
       f.write(text)
     end
 
-    docker_command = <<~DOCKER
-      docker cp #{filepath} #{container}:#{data_dir}
-    DOCKER
-
-    _stdout, stderr, status = Open3.capture3(docker_command)
-
-    if status.exitstatus.zero?
-      "The file #{filename}.#{extension} has been written successfully."
-    else
-      "Error: #{stderr}"
+    # check the availability of the file with the interval of 1 second
+    # for a maximum of 20 seconds
+    success = false
+    max_retrial = 20
+    max_retrial.times do
+      sleep 1.5
+      if File.exist?(filepath)
+        success = true
+        break
+      end
     end
-  rescue StandardError
-    "Error: The code could not be executed."
+
+    if success
+      if IN_CONTAINER
+        docker_command = <<~DOCKER
+          docker cp #{filepath} #{container}:#{data_dir}
+        DOCKER
+
+        _stdout, stderr, status = Open3.capture3(docker_command)
+
+        if status.exitstatus.zero?
+          "The file #{filename}.#{extension} has been written successfully."
+        else
+          "Error: #{stderr}"
+        end
+      else
+        "The file #{filename}.#{extension} has been written successfully."
+      end
+    else
+      "Error: The file could not be written."
+    end
+  rescue StandardError => e
+    "Error: The code could not be executed.\n#{e}"
   end
 end

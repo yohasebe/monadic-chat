@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 module DeepSeekHelper
-  MAX_FUNC_CALLS = 10
+  MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.deepseek.com"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60

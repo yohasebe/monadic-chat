@@ -134,7 +134,7 @@ ensure_data_dir() {
   if [[ -f "/.dockerenv" ]]; then
     data_dir="/monadic/data"
     log_dir="/monadic/log"
-    log_dir="/monadic/config"
+    config_dir="/monadic/config"
   else
     data_dir="${HOME_DIR}/monadic/data"
     log_dir="${HOME_DIR}/monadic/log"

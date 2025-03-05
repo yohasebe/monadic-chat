@@ -1,4 +1,5 @@
 - [Feb, 2025] 0.9.55
+  - Declarative DSL for app authoring (documentation to be updated)
   - `sysinfo` command added to Python container
   - Performance improvement and bug fixes
   - Extra logging feature added

@@ -6,7 +6,9 @@ module MonadicHelper
   def selenium_fetch(url: "")
     max_retrials = 10
     command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
-    # we wait for the following command to finish before returning the output
+
+    result = nil 
+
     send_command(command: command, container: "python") do |stdout, stderr, status|
       if status.success?
         filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
@@ -32,14 +34,16 @@ module MonadicHelper
           end
         end
 
-        if success
-          File.read(filepath)
-        else
-          "Error occurred: The #{filename} could not be read."
-        end
+        result = if success
+                   File.read(filepath)
+                 else
+                   "Error occurred: The #{filename} could not be read."
+                 end
       else
-        "Error occurred: #{stderr}"
+        result = "Error occurred: #{stderr}"
       end
     end
+
+    result
   end
 end

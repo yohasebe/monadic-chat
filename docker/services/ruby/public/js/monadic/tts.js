@@ -5,7 +5,8 @@ let playPromise = null;
 // We use the global audio variable from websocket.js
 
 function audioInit() {
-  ttsStop();
+  // Don't immediately call ttsStop as it creates race conditions
+  // with play/pause operations
   
   // Ensure audio context exists
   if (!audioCtx) {
@@ -14,15 +15,7 @@ function audioInit() {
     audioCtx.resume();
   }
   
-  // Only attempt to play if audio has a valid source
-  if (audio && audio.src) {
-    playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.then(_ => {}).catch(_error => {
-        console.error("Error playing audio:", _error);
-      });
-    }
-  }
+  // We'll handle play() in ttsSpeak after the audio source is properly set up
 }
 
 function ttsSpeak(text, stream, callback) {
@@ -40,6 +33,10 @@ function ttsSpeak(text, stream, callback) {
 
   let response_format = "mp3"
 
+  // First, properly stop any existing audio
+  ttsStop();
+  
+  // Then initialize audio context
   audioInit();
 
   if (runningOnFirefox) {
@@ -62,23 +59,21 @@ function ttsSpeak(text, stream, callback) {
     // model: model,
     response_format: response_format
   }));
-
+  
   if (audio) {
-    // Some browsers trigger error events before actually failing
-    // We'll only show a message if playback clearly fails
-    let playbackStarted = false;
-    
-    audio.onplaying = () => {
-      playbackStarted = true;
-    };
-    
-    audio.play().catch(error => {
-      // Only show error if we haven't started playing successfully
-      if (!playbackStarted) {
-        console.error("Error playing audio:", error);
-        setAlert("<i class='fa-solid fa-circle-exclamation'></i> Error starting audio playback", "warning");
+    // Prepare audio playback
+    audio.oncanplay = () => {
+      // Play only when ready
+      playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(_ => {
+          console.log("Audio playback started successfully");
+        }).catch(error => {
+          console.error("Error playing audio:", error);
+          setAlert("<i class='fa-solid fa-circle-exclamation'></i> Error starting audio playback", "warning");
+        });
       }
-    });
+    };
   }
 }
 

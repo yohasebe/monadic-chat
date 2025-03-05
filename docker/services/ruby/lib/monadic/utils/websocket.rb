@@ -239,7 +239,7 @@ module WebSocketHelper
           @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty? 
 
           elevenlabs_voices =  list_elevenlabs_voices(CONFIG["ELEVENLABS_API_KEY"])
-          if !elevenlabs_voices.empty?
+          if elevenlabs_voices && !elevenlabs_voices.empty?
             @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
           end
 

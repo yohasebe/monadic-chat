@@ -33,9 +33,7 @@
         "to": "app/docker",
         "filter": [
           "**/*",
-          "!**/.*",
-          "!services/ruby/rbsetup.sh",
-          "!services/python/pysetup.sh"
+          "!**/.*"
         ]
       },
       {

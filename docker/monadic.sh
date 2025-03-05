@@ -151,14 +151,22 @@ ensure_data_dir() {
   # remove extra.log if it exists
   rm -f "${log_dir}/extra.log"
 
-  rm -f "${ROOT_DIR}/services/ruby/rbsetup.sh"
-  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
+  # clear rbsetup.sh and pysetup.sh in the root dir by overwriting default comments
+  echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ruby/rbsetup.sh"
+  echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
 
   touch "${config_dir}/env"
-  touch "${config_dir}/rbsetup.sh"
-  cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
-  touch "${config_dir}/pysetup.sh"
-  cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
+
+  # if in docker and setup file in the user config directory exists and non-empty, copy it to the services directory
+  if [[ -f "/.dockerenv" ]]; then
+    if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
+      cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
+    fi
+
+    if [[ -f "${config_dir}/pysetup.sh" && -s "${config_dir}/pysetup.sh" ]]; then
+      cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
+    fi
+  fi
 }
 
 # Function to start Docker based on OS

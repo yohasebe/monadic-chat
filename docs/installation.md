@@ -11,8 +11,8 @@ For macOS, follow these steps to install Monadic Chat.
 1. Install Docker Desktop for Mac.
 2. Download and install the Monadic Chat installer.
 
-- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.53-arm64.dmg) (0.9.53)
-- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.53.dmg) (0.9.53)
+- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.55-arm64.dmg) (0.9.55)
+- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.55.dmg) (0.9.55)
 
 ### **Windows**
 
@@ -22,7 +22,7 @@ For Windows, follow these steps to install Monadic Chat.
 2. Install Docker Desktop for Windows.
 3. Download and install the Monadic Chat installer.
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.9.53.exe) (0.9.53)
+- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.9.55.exe) (0.9.55)
 
 ### **Linux**
 
@@ -34,8 +34,8 @@ Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/insta
 
 2. Download the Monadic Chat installer.
 
-- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.9.53_amd64.deb) (0.9.53)
-- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.9.53_arm64.deb) (0.9.53)
+- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.9.55_amd64.deb) (0.9.55)
+- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.9.55_arm64.deb) (0.9.55)
 
 3. Run the following command in the terminal.
 

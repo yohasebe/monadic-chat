@@ -151,6 +151,9 @@ ensure_data_dir() {
   # remove extra.log if it exists
   rm -f "${log_dir}/extra.log"
 
+  rm -f "${ROOT_DIR}/services/ruby/rbsetup.sh"
+  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
+
   touch "${config_dir}/env"
   touch "${config_dir}/rbsetup.sh"
   cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
@@ -557,8 +560,8 @@ build_ruby_container)
 
   build_ruby_container
 
-  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
-  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
+  # rm -f "${ROOT_DIR}/services/ruby/rbsetup.sh"
+  # rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Ruby container has finished: Check the console panel for details.</p><hr />"

@@ -1,7 +1,8 @@
-- [Feb, 2025] 0.9.53
+- [Feb, 2025] 0.9.55
   - `sysinfo` command added to Python container
   - Performance improvement and bug fixes
   - Extra logging feature added
+  - Fixed Linux packaged app startup issues with missing setup script files
   - OpenAI `gpt-4.5-preview` model supported
   - Anthropic `claude-3.7-sonnet` model supported
   - Perplexity `sonar-deep-research` model supported

@@ -109,6 +109,8 @@ module GeminiHelper
         end
       end
 
+      return [] if !models || models.empty?
+
       $MODELS[:gemini] = models.filter do |model|
         /(?:embedding|aqa|vision|imagen|learnlm|gemini-pro|gemini-1|gemini-exp)/ !~ model
       end.reverse

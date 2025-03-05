@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.53
+export MONADIC_VERSION=0.9.55
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -21,12 +21,6 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 DOCKER=$(command -v docker)
 # escape spaces in the path to docker
 DOCKER=$(echo "${DOCKER}" | sed 's/ /\\ /g')
-
-# if [[ "${HOST_OS}" == "Darwin"* || "${HOST_OS}" == "Linux" ]] && [[ "$(uname -m)" == "arm64" ]]; then
-#   export SELENIUM_IMAGE="seleniarm/standalone-chromium:latest"
-# else
-  # export SELENIUM_IMAGE="selenium/standalone-chrome:latest"
-# fi
 
 # Define the paths to the support scripts
 SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")

@@ -107,7 +107,8 @@ module MonadicDSL
   end
 
   class AppState
-    attr_reader :name, :settings, :features, :ui, :prompts
+    attr_reader :name
+    attr_accessor :settings, :features, :ui, :prompts
     
     def initialize(name)
       @name = name

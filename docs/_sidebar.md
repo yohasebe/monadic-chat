@@ -19,6 +19,7 @@
     - [JupyterLab](/jupyterlab.md)
     - [Shared Folder](/shared-folder.md)
     - [Standard Python Container](/python-container.md)
+    - [Vector Database](/vector-database.md)
 
 - **Advanced Topics**
 

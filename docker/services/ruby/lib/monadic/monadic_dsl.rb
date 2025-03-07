@@ -35,7 +35,7 @@ module MonadicDSL
   # - context_size: Controls the context window size for the conversation
   # - max_tokens: Specifies the maximum number of tokens to generate
 
-class Loader
+  class Loader
     def self.load(file)
       new(file).load
     rescue => e
@@ -103,69 +103,6 @@ class Loader
     rescue => e
       warn "Warning: Failed to require #{@file}: #{e.message}"
       raise
-    end
-    
-    def convert_to_class(app_state)
-      # Determine the appropriate helper module based on the provider
-
-      helper_module = case app_state.settings[:provider].to_s.downcase.gsub(/[\s\-]+/, "")
-                     when "anthropic", "claude", "anthropicclaude"
-                       'ClaudeHelper'
-                     when "gemini", "google", "googlegemini"
-                       'GeminiHelper'
-                     when "cohere", "commandr", "coherecommandr", 
-                       'CommandRHelper'
-                     when "mistral", "mistralai"
-                       'MistralHelper'
-                     when "deepseek", "deep seek"
-                       'DeepSeekHelper'
-                     when "perplexity"
-                       'PerplexityHelper'
-                     when "xai", "grok", "xaigrok"
-                       'GrokHelper'
-                     else
-                       'OpenAIHelper'
-                     end
-
-      # Generate class definition based on app_state
-
-      class_def = <<~RUBY
-        class #{app_state.name} < MonadicApp
-          include #{helper_module} if defined?(#{helper_module})
-
-          icon = #{app_state.ui[:icon].inspect}
-          description = #{app_state.ui[:description].inspect}
-          initial_prompt = #{app_state.prompts[:initial].inspect}
-
-          @settings = {
-            group: #{app_state.settings[:provider].to_s.capitalize.inspect},
-            disabled: !defined?(CONFIG) || !CONFIG["#{app_state.settings[:provider].to_s.upcase}_API_KEY"],
-            models: defined?(#{helper_module}) ? #{helper_module}.list_models : [],
-            model: #{app_state.settings[:model].inspect},
-            temperature: #{app_state.settings[:temperature]},
-            initial_prompt: initial_prompt,
-            app_name: #{(app_state.settings[:app_name] || app_state.name).inspect},
-            description: description,
-            icon: icon,
-            initiate_from_assistant: #{app_state.features[:initiate_from_assistant] || false},
-            easy_submit: #{app_state.features[:easy_submit] || false},
-            auto_speech: #{app_state.features[:auto_speech] || false},
-            image: #{app_state.features[:image] || false},
-            pdf: #{app_state.features[:pdf] || false},
-            mermaid: #{app_state.features[:mermaid] || false},
-            mathjax: #{app_state.features[:mathjax] || false},
-            abc: #{app_state.features[:abc] || false},
-            sourcecode: #{app_state.features[:sourcecode] || false},
-            toggle: #{app_state.features[:toggle] || false},
-            image_generation: #{app_state.features[:image_generation] || false},
-            monadic: #{app_state.features[:monadic] || false},
-            websearch: #{app_state.features[:websearch] || false},
-            tools: #{app_state.settings[:tools].inspect}
-          }
-        end
-      RUBY
-
-      eval(class_def, TOPLEVEL_BINDING, @file)
     end
   end
 
@@ -900,7 +837,6 @@ class Loader
     convert_to_class(state)
     state
   end
-end
   
   # Simplified app definition class
   class SimplifiedAppDefinition

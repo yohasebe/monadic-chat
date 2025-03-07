@@ -1,5 +1,6 @@
 - [Feb, 2025] 0.9.56
-  - Declarative DSL for app authoring (documentation to be updated)
+  - Declarative DSL for app authoring with documentation
+  - IconHelper utility for simplified app icon management
   - `sysinfo` command added to Python container
   - Performance improvement and bug fixes
   - Extra logging feature added

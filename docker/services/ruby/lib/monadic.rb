@@ -157,6 +157,8 @@ def load_app_files
                    Dir.home + "/monadic/data/plugins"
                  end
 
+  # Initialize global error tracking variable
+  $MONADIC_LOADING_ERRORS = []
 
   # Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
   #   basename = File.basename(file)
@@ -193,6 +195,18 @@ def load_app_files
 
   apps_to_load.each_value do |file|
     MonadicDSL::Loader.load(file)
+  end
+  
+  # Report loading errors if any occurred
+  if $MONADIC_LOADING_ERRORS && !$MONADIC_LOADING_ERRORS.empty?
+    error_count = $MONADIC_LOADING_ERRORS.size
+    puts "\n\033[31m⚠️  #{error_count} app#{error_count > 1 ? 's' : ''} failed to load:\033[0m"
+    
+    $MONADIC_LOADING_ERRORS.each_with_index do |error, idx|
+      puts "  #{idx + 1}. \033[33m#{error[:app]}\033[0m (#{File.basename(error[:file])})"
+      puts "     Error: #{error[:error]}"
+    end
+    puts "\n"
   end
 end
 

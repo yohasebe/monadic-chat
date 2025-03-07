@@ -216,6 +216,7 @@ module MistralHelper
             "lang" => detect_language(obj["message"])
           }
         }
+        res["content"]["images"] = obj["images"] if obj["images"]
         block&.call res
         session[:messages] << res["content"]
       end
@@ -269,10 +270,48 @@ module MistralHelper
       body.delete("tool_choice")
     end
 
+    # The context is added to the body
+    messages_containing_img = false
+    body["messages"] = context.compact.map do |msg|
+      message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
+      if msg["images"] && role == "user"
+        msg["images"].each do |img|
+          messages_containing_img = true
+          # if /\.pdf\z/ =~ img["title"]
+          #   message["content"] << {
+          #     "type" => "document_url",
+          #     "document_url" => img["data"]
+          #   }
+          # else
+            message["content"] << {
+              "type" => "image_url",
+              "image_url" => {
+                "url" => img["data"],
+                "detail" => "high"
+              }
+            }
+          # end
+        end
+      end
+      message
+    end
+
+    body["model"] = /pixtral/ =~ obj["model"] ? obj["model"] : "pixtral-large-latest"
+
     if role == "tool"
       body["messages"] += obj["function_returns"]
     elsif role == "user" && settings["prompt_suffix"]
-      body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"]
+      prompt_suffix_added = false
+      body["messages"].reverse_each do |msg|
+        msg["content"].each do |content|
+          if content["type"] == "text"
+            content["text"] += "\n\n" + settings["prompt_suffix"]
+            prompt_suffix_added = true
+            break
+          end
+        end
+        break if prompt_suffix_added
+      end
     end
 
     target_uri = "#{API_ENDPOINT}/chat/completions"

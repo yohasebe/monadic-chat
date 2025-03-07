@@ -1,3 +1,8 @@
+# Add the app method to top-level scope to enable the simplified DSL
+def app(name, &block)
+  MonadicDSL.app(name, &block)
+end
+
 module MonadicDSL
   # Base class for application state management
 
@@ -895,6 +900,7 @@ class Loader
     convert_to_class(state)
     state
   end
+end
   
   # Simplified app definition class
   class SimplifiedAppDefinition

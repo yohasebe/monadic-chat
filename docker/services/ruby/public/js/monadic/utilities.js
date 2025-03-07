@@ -12,6 +12,7 @@ const textStats = $("#stats-message")
 const DEFAULT_MAX_INPUT_TOKENS = 4000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 4000;
 const DEFAULT_CONTEXT_SIZE = 100;
+const DEFAULT_APP = ""; // Empty string to select first available app
 
 let currentPdfData = null;
 
@@ -741,8 +742,8 @@ function resetEvent(_event) {
 
     setStats("No data available");
 
-    // select the second option item in the apps dropdown
-    $("#apps").val($("#apps option:eq(1)").val()).trigger("change");
+    // select the first available (non-disabled) app in the dropdown
+    $("#apps").val($("#apps option:not([disabled]):first").val()).trigger("change");
 
     adjustImageUploadButton($("#model").val());
     adjustScrollButtons();

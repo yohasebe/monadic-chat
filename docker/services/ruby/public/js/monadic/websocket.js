@@ -110,7 +110,7 @@ let autoScroll = true;
 /* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
-const defaultApp = "Chat";
+const defaultApp = DEFAULT_APP;
 
 function isElementInViewport(element) {
   // Convert the jQuery element to a native DOM element
@@ -717,8 +717,8 @@ function connect_websocket(callback) {
             }
           }
 
-          // select the first option item in the #apps dropdown that is not disabled
-          $("#apps").val($("#apps option:eq(1)").val()).trigger('change')
+          // select the first available (non-disabled) app in the dropdown
+          $("#apps").val($("#apps option:not([disabled]):first").val()).trigger('change')
 
           $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
 

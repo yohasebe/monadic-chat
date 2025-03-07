@@ -22,7 +22,7 @@ module MonadicDSL
   # - image_generation: Enables AI image generation within the conversation
   # - monadic: Enables monadic mode for structured JSON responses and special rendering
   # - websearch: Enables web search functionality for retrieving external information (web_search)
-  # - jupyter_access: Enables access to Jupyter notebooks in the conversation
+  # - jupyter_access: Enables access to Jupyter notebooks in the conversation (jupyter)
   # - temperature: Controls randomness in model responses (0.0-2.0)
   # - model: Specifies which AI model to use for this app
   # - group: Groups apps by provider (e.g., "OpenAI", "Anthropic", "Google")
@@ -33,7 +33,13 @@ module MonadicDSL
   # - disabled: Indicates if the app should be disabled (e.g., when API key is missing)
   # - reasoning_effort: Controls the depth of reasoning (e.g., "high")
   # - context_size: Controls the context window size for the conversation
-  # - max_tokens: Specifies the maximum number of tokens to generate
+  # - max_tokens: Specifies the maximum number of tokens to generate (max_output_tokens)
+  #
+  # Note: Some parameters support aliases (shown in parentheses) for backward compatibility:
+  # - sourcecode (code_highlight)
+  # - websearch (web_search)
+  # - jupyter (jupyter_access)
+  # - max_tokens (max_output_tokens)
 
   class Loader
     def self.load(file)
@@ -77,22 +83,13 @@ module MonadicDSL
     private
     
     def dsl_file?
-      @content.match?(/MonadicDSL\.define_app/) ||
-        @content.match?(/^app\s+["']/) ||
-        File.extname(@file) == '.mdsl' ||
-        @content.match?(/^#\s*@monadic_dsl:\s*true/)
+      @content.match?(/^app\s+["']/) ||
+        File.extname(@file) == '.mdsl'
     end
     
     def load_dsl
-      # Handle both the old and new DSL formats
-      if @content.match?(/^app\s+["']/)
-        # New simplified format
-        app_state = eval(@content, TOPLEVEL_BINDING, @file)
-      else
-        # Original format
-        app_state = eval(@content, TOPLEVEL_BINDING, @file)
-        convert_to_class(app_state) if app_state.is_a?(MonadicDSL::AppState)
-      end
+      # Only handle the simplified DSL format
+      app_state = eval(@content, TOPLEVEL_BINDING, @file)
     rescue => e
       warn "Warning: Failed to evaluate DSL in #{@file}: #{e.message}"
       raise
@@ -170,116 +167,8 @@ module MonadicDSL
     end
   end
   
-  # Configuration for basic settings
-
-  class Configuration
-    def initialize(state)
-      @state = state
-    end
-    
-    def use_provider(provider)
-      @state.settings[:provider] = provider.to_sym
-      self
-    end
-    
-    def use_model(name)
-      @state.settings[:model] = name
-      self
-    end
-    
-    def with_temperature(value)
-      @state.settings[:temperature] = value
-      self
-    end
-    
-    def validate_settings
-      raise ValidationError, "Provider not specified" unless @state.settings[:provider]
-      raise ValidationError, "Model not specified" unless @state.settings[:model]
-      self
-    end
-  end
-
-  # Configuration for features
-
-  class FeatureConfiguration
-    # VALID_FEATURES = [
-    #   :initiate_from_assistant,
-    #   :image,
-    #   :easy_submit,
-    #   :auto_speech,
-    #   :pdf
-    # ].freeze
-
-    def initialize(state)
-      @state = state
-    end
-
-    def enable(feature)
-      feature_key = feature.is_a?(String) ? feature.to_sym : feature
-      # validate_feature(feature_key)
-      @state.features[feature_key] = true
-      self
-    end
-
-    def disable(feature)
-      feature_key = feature.is_a?(String) ? feature.to_sym : feature
-      # validate_feature(feature_key)
-      @state.features[feature_key] = false
-      self
-    end
-
-    private
-
-    # def validate_feature(feature)
-    #   unless VALID_FEATURES.include?(feature)
-    #     raise ValidationError, "Invalid feature: #{feature}. Valid features are: #{VALID_FEATURES.join(', ')}"
-    #   end
-    # end
-  end
-  
-  # Configuration for UI elements
-
-  class UIConfiguration
-    def initialize(state)
-      @state = state
-    end
-    
-    def set_icon(icon)
-      @state.ui[:icon] = icon
-      self
-    end
-    
-    def set_description(text)
-      @state.ui[:description] = text
-      self
-    end
-    
-    def to_h
-      @state.ui
-    end
-  end
-  
-  # Configuration for prompts
-
-  class PromptConfiguration
-    def initialize(state)
-      @state = state
-    end
-    
-    def set_initial_prompt(text)
-      @state.prompts[:initial] = text
-      self
-    end
-    
-    def set_system_prompt(text)
-      @state.prompts[:system] = text
-      self
-    end
-    
-    def to_h
-      @state.prompts
-    end
-  end
+  # These configuration classes were for the old DSL format
+  # and have been removed since we're using only the simplified format
   
   # Base class for tool definitions with provider-specific validation
 
@@ -763,52 +652,8 @@ module MonadicDSL
     end
   end
 
-  # Main application definition class
-
-  class AppDefinition
-    def self.define(name, &block)
-      # Convert spaces to empty string for class name
-
-      class_name = name.gsub(/\s+/, '')
-      state = AppState.new(class_name)
-      # Store original name as app_name if it contains spaces
-
-      state.settings[:app_name] = name if name.include?(' ')
-      new(state).instance_eval(&block)
-      state
-    end
-    
-    def initialize(state)
-      @state = state
-    end
-    
-    def configure(&block)
-      Configuration.new(@state).instance_eval(&block)
-    end
-    
-    def compose_features(&block)
-      FeatureConfiguration.new(@state).instance_eval(&block)
-    end
-    
-    def setup_ui(&block)
-      UIConfiguration.new(@state).instance_eval(&block)
-    end
-    
-    def compose_prompts(&block)
-      PromptConfiguration.new(@state).instance_eval(&block)
-    end
-
-    def tools(provider = :openai, &block)
-      tool_config = ToolConfiguration.new(@state, provider)
-      tool_config.instance_eval(&block)
-      @state.settings[:tools] = tool_config.to_h
-      @state
-    end
-
-    def define_methods(&block)
-      @state.settings[:instance_methods] = block
-    end
-  end
+  # No longer needed - removed the old AppDefinition class as we're 
+  # focusing on the simplified DSL format
 
   # Custom error classes
 
@@ -816,12 +661,8 @@ module MonadicDSL
   class ConfigurationError < StandardError; end
   
   # Module methods
-
-  def self.define_app(name, &block)
-    AppDefinition.define(name, &block)
-  end
   
-  # New simplified app definition method
+  # App definition method
   def self.app(name, &block)
     state = AppState.new(name.gsub(/\s+/, ''))
     # Store original name as app_name if it contains spaces
@@ -883,6 +724,11 @@ module MonadicDSL
   
   # LLM Configuration for simplified syntax
   class LLMConfiguration
+    # Map newer parameter names to standard ones
+    PARAMETER_MAP = {
+      max_output_tokens: :max_tokens
+    }
+    
     def initialize(state)
       @state = state
     end
@@ -902,26 +748,43 @@ module MonadicDSL
     def max_tokens(value)
       @state.settings[:max_tokens] = value
     end
+    
+    def max_output_tokens(value)
+      # Alias for max_tokens
+      max_tokens(value)
+    end
+    
+    def method_missing(method_name, *args)
+      if PARAMETER_MAP.key?(method_name)
+        send(PARAMETER_MAP[method_name], *args)
+      else
+        super
+      end
+    end
+    
+    def respond_to_missing?(method_name, include_private = false)
+      PARAMETER_MAP.key?(method_name) || super
+    end
   end
   
   # Simplified Feature Configuration
   class SimplifiedFeatureConfiguration
+    # Map newer feature names to old ones where needed
+    FEATURE_MAP = {
+      code_highlight: :sourcecode,
+      web_search: :websearch,
+      jupyter_access: :jupyter
+    }
+    
     def initialize(state)
       @state = state
     end
     
     def method_missing(method_name, *args)
-      # Map newer feature names to old ones where needed
-      feature_map = {
-        code_highlight: :sourcecode,
-        web_search: :websearch,
-        jupyter_access: :jupyter
-      }
-      
       # Default all called methods to true, handle special cases
       value = args.first.nil? ? true : args.first
       
-      feature_name = feature_map[method_name] || method_name
+      feature_name = FEATURE_MAP[method_name] || method_name
       @state.features[feature_name] = value
     end
     
@@ -995,7 +858,7 @@ module MonadicDSL
     eval(class_def, TOPLEVEL_BINDING, state.name)
   end
 
-  # Utility methods for state conversion
+  # Utility method for state conversion to YAML
   def self.to_yaml(app_state)
     {
       name: app_state.name,
@@ -1004,32 +867,5 @@ module MonadicDSL
       ui: app_state.ui,
       prompts: app_state.prompts
     }.to_yaml
-  end
-  
-  def self.from_yaml(yaml_string)
-    config = YAML.safe_load(yaml_string)
-    define_app(config["name"]) do
-      configure do
-        use_provider config["settings"]["provider"]
-        use_model config["settings"]["model"]
-        with_temperature config["settings"]["temperature"]
-      end
-      
-      compose_features do
-        config["features"].each do |feature, enabled|
-          enabled ? enable(feature) : disable(feature)
-        end
-      end
-      
-      setup_ui do
-        set_icon config["ui"]["icon"]
-        set_description config["ui"]["description"]
-      end
-      
-      compose_prompts do
-        set_initial_prompt config["prompts"]["initial"]
-        set_system_prompt config["prompts"]["system"] if config["prompts"]["system"]
-      end
-    end
   end
 end

@@ -348,6 +348,7 @@ $(function () {
       }
 
       $("#model").val(model);
+      adjustImageUploadButton(model);
 
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model_and_file").hide();
@@ -375,6 +376,7 @@ $(function () {
 
       $("#model_and_file").show();
       $("#model_parameters").show();
+      adjustImageUploadButton(model);
     }
 
     if (apps[$(this).val()]["context_size"]) {
@@ -1043,6 +1045,7 @@ $(function () {
     $("#ai-user-toggle").prop("checked", false);
     adjustScrollButtons();
     setCookieValues();
+    adjustImageUploadButton($("#model").val());
     $("#monadic-spinner").show();
   });
 });

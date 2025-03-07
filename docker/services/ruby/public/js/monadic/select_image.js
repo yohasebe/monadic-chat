@@ -27,7 +27,7 @@ $("#imageFile").on("change", function() {
 // File selection button click handler
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
-  const isPdfEnabled = selectedModel.includes("sonnet");
+  const isPdfEnabled = selectedModel.includes("sonnet")
 
   // Update modal UI based on model capabilities
   if (isPdfEnabled) {
@@ -51,7 +51,7 @@ $("#uploadImage").on("click", function () {
   const fileInput = $('#imageFile')[0];
   const file = fileInput.files[0];
   const selectedModel = $("#model").val();
-  const isPdfEnabled = selectedModel.includes("sonnet");
+  const isPdfEnabled = selectedModel.includes("sonnet")
 
   if (file) {
     // Check file size for PDF files (35MB limit)

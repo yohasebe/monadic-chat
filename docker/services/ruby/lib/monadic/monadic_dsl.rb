@@ -33,8 +33,14 @@ class Loader
       new(file).load
     rescue => e
       # Log the error but continue processing
-
-      warn "Warning: Failed to load #{file}: #{e.message}"
+      app_name = File.basename(file, ".*")
+      error_message = "Warning: Failed to load app '#{app_name}' (#{file}): #{e.message}"
+      warn error_message
+      
+      # Track failed apps in a global array
+      $MONADIC_LOADING_ERRORS ||= []
+      $MONADIC_LOADING_ERRORS << { app: app_name, file: file, error: e.message }
+      
       nil
     end
     

@@ -18,6 +18,7 @@ Uploading images is supported for the following models:
 - Anthropic Claude
 - xAI Grok
 - Google Gemini
+- Mistral AI (Pixtral)
 
 Click `Upload Image` to select an image to attach to the message.
 

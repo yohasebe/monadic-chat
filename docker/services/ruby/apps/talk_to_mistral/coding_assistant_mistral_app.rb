@@ -36,7 +36,7 @@ class CodingAssistantMistral < MonadicApp
     icon: icon,
     initiate_from_assistant: false,
     pdf: false,
-    image: false,
+    image: true,
     models: MistralHelper.list_models,
     model: "codestral-latest"
   }

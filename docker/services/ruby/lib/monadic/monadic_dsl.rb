@@ -1,3 +1,6 @@
+# Add required utilities
+require_relative 'utils/fa_icons'
+
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
   MonadicDSL.app(name, &block)
@@ -691,13 +694,7 @@ module MonadicDSL
     end
     
     def icon(name)
-      # Check if it's already a full HTML tag
-      if name.start_with?("<i") && name.end_with?("></i>")
-        @state.ui[:icon] = name
-      else
-        # Otherwise, convert it to a FontAwesome icon
-        @state.ui[:icon] = "<i class='fa-solid fa-#{name}'></i>"
-      end
+      @state.ui[:icon] = IconHelper.to_html(name)
     end
     
     def system_prompt(text)

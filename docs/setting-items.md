@@ -37,7 +37,7 @@ Specify the default `presence_penalty`. This is available for OpenAI and Mistral
 Specify the default `frequency_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
 
 `max_tokens` (int)
-Specify the default `max_tokens`.
+Specify the default `max_tokens`. Also available as `max_output_tokens`.
 
 `context_size` (int)
 Specify the default `context_size`.
@@ -58,13 +58,13 @@ Specify whether to enable the PDF database feature.
 Specify whether to start with the first message from the AI assistant before the user.
 
 `sourcecode` (bool)
-Specify whether to enable syntax highlighting for program code.
+Specify whether to enable syntax highlighting for program code. Also available as `code_highlight`.
 
 `mathjax` (bool)
 Specify whether to enable rendering of mathematical expressions using [MathJax](https://www.mathjax.org/).
 
 `jupyter` (bool)
-Specify `true` when integrating with Jupyter Notebook (optimizes MathJax display).
+Specify `true` to enable access to Jupyter notebooks in the conversation. Also available as `jupyter_access`.
 
 `monadic` (bool)
 Specify the app to run in Monadic mode. For Monadic mode, refer to [Monadic Mode](./monadic-mode.md).
@@ -74,6 +74,18 @@ Specify a text string to be added to every message from the user before sending 
 
 `file` (bool)
 Specify whether to enable the text file upload feature on the app's web settings screen. The contents of the uploaded file are added to the end of the system prompt.
+
+`websearch` (bool)
+Specify whether to enable web search functionality for retrieving external information. This allows the AI assistant to search the web for current information. Also available as `web_search`.
+
+`image_generation` (bool)
+Specify whether to enable AI image generation capabilities within the conversation. When enabled, the AI can generate images based on text descriptions.
+
+`mermaid` (bool)
+Specify whether to enable Mermaid diagram rendering and interaction. This allows creating and displaying flowcharts, sequence diagrams, and other visual representations directly in the conversation.
+
+`reasoning_effort` (string)
+Specify the depth of reasoning for the model (e.g., "high"). This parameter is used to control how thoroughly the model reasons through complex problems.
 
 `abc` (bool)
 Specify whether to enable the display and playback of musical scores entered in [ABC notation](https://abcnotation.com/) in the AI agent's response. ABC notation is a text-based format for describing musical scores.
@@ -88,7 +100,7 @@ Specify whether to toggle the display of parts of the AI agent's response (meta 
 Specify a list of available models. If not specified, the list of models provided by the included helper module (e.g., `OpenAIHelper`) is used.
 
 `tools` (array)
-Specify a list of available functions. The actual definition of the functions specified here should be written in the recipe file or in another file as instance methods of the `MonadicAgent` module.
+Specify a list of available functions. The actual definition of the functions specified here should be written in the recipe file or in another file as instance methods of the `MonadicApp` class.
 
 `response_format` (hash)
 Specify the output format when outputting in JSON format. For details, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).

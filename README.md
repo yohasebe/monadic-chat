@@ -75,6 +75,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Configuration and Extension
 
 - 💡 Specify and edit **API parameters** and **system prompts**
+- 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
 - 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API

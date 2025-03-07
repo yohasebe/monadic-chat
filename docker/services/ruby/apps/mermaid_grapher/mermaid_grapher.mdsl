@@ -2,7 +2,7 @@ app "Mermaid Grapher" do
   description <<~TEXT
     This application hep you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=mermaid-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
-  icon "<i class='fas fa-project-diagram'></i>"
+  icon "diagram"
   
   system_prompt <<~TEXT
     You are tasked with creating visual representations of data structures using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure.

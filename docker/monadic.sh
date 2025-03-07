@@ -147,19 +147,16 @@ ensure_data_dir() {
 
   # clear rbsetup.sh and pysetup.sh in the root dir by overwriting default comments
   echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ruby/rbsetup.sh"
-  echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
+  echo "# This file is overwritten by pysetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
 
   touch "${config_dir}/env"
 
-  # if in docker and setup file in the user config directory exists and non-empty, copy it to the services directory
-  if [[ -f "/.dockerenv" ]]; then
-    if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
-      cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
-    fi
+  if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
+    cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
+  fi
 
-    if [[ -f "${config_dir}/pysetup.sh" && -s "${config_dir}/pysetup.sh" ]]; then
-      cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
-    fi
+  if [[ -f "${config_dir}/pysetup.sh" && -s "${config_dir}/pysetup.sh" ]]; then
+    cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
   fi
 }
 
@@ -184,7 +181,7 @@ start_docker() {
 
   if [[ -f "${start_script}" ]]; then
     # return this function after the script has been executed without any errors
-    sh "${start_script}" && echo "[HTML]: <p>Starting Docker . . .</p>"
+    sh "${start_script}" && echo "[HTML]: <p>Starting Docker...</p>"
   else
     echo "Start script not found: ${start_script}" >&2
     # exit 1
@@ -204,7 +201,9 @@ build_ruby_container() {
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
 
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
-  build_docker_compose
+  
+  # Don't call build_docker_compose here to avoid rebuilding the same container again
+  # build_docker_compose
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -222,7 +221,9 @@ build_python_container() {
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/python" 2>&1 | tee "${log_file}"
 
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
-  build_docker_compose
+  
+  # Don't call build_docker_compose here to avoid rebuilding the same container again
+  # build_docker_compose
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -338,26 +339,90 @@ start_docker_compose() {
   fi
 
   if [[ "$1" != "silent" ]]; then
-    echo "[HTML]: <p>Monadic Chat app v.${MONADIC_VERSION} <i class='fa-solid fa-arrow-right-arrow-left'></i>Monadic Chat image v.${MONADIC_CHAT_IMAGE_TAG}</p>"
+    echo "[HTML]: <p>Monadic Chat app v${MONADIC_VERSION} <i class='fa-solid fa-arrow-right-arrow-left'></i> Container image v${MONADIC_CHAT_IMAGE_TAG}</p>"
   fi
 
-  # check if MONADIC_CHAT_IMAGE_TAG includes the same as MONADIC_VERSION
-  if [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
-    remove_containers
-    echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
-    ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
-    build_docker_compose "no-cache"
-  elif [[ "$1" != "silent" ]]; then
-    echo "[HTML]: <p>Monadic Chat image is up-to-date. Moving on . . .</p>"
-  fi
-
+  # Check for all required containers and services
+  local needs_full_rebuild=false
+  local needs_user_containers=false
+  
+  # Define the list of required containers
+  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
+  local missing_containers=()
+  
+  # Check if main image exists or needs update
   if ! ${DOCKER} images | grep -q "yohasebe/monadic-chat"; then
     echo "[IMAGE NOT FOUND]"
-    echo "[HTML]: <p>Building Monadic Chat Docker image. This may take a while . . .</p>"
+    echo "[HTML]: <p>Building all Monadic Chat containers. This may take a while...</p>"
+    needs_full_rebuild=true
+  elif [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
+    remove_containers
+    echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Rebuilding containers...</p>"
+    ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
+    needs_full_rebuild=true
+  elif [[ "$1" != "silent" ]]; then
+    echo "[HTML]: <p>Checking container integrity...</p>"
+  fi
+  
+  # If we haven't decided on a full rebuild, check individual containers
+  if [ "$needs_full_rebuild" = false ]; then
+    for container in "${required_containers[@]}"; do
+      if ! ${DOCKER} container ls --all | grep -q "$container"; then
+        missing_containers+=("$container")
+        echo "[HTML]: <p>Container '$container' not found.</p>"
+      fi
+    done
+    
+    # If any containers are missing, do a full rebuild
+    if [ ${#missing_containers[@]} -gt 0 ]; then
+      echo "[HTML]: <p>Missing containers detected. Rebuilding all containers...</p>"
+      needs_full_rebuild=true
+    fi
+  fi
+  
+  # Check for user containers
+  if [[ "$COMPOSE_MAIN" != "${ROOT_DIR}/services/compose.yml" ]]; then
+    # We have user compose files, check if they need to be built
+    local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
+    local user_compose_files=()
+    
+    for i in "${!home_paths[@]}"; do
+      home_paths[$i]=$(eval echo "${home_paths[$i]}")
+      home_paths[$i]=$(normalize_path "${home_paths[$i]}")
+    done
+    
+    # Find user compose files
+    for home_path in "${home_paths[@]}"; do
+      while IFS= read -r file; do
+        if [ ! -z "$file" ]; then
+          file=$(normalize_path "$file")
+          user_compose_files+=("$file")
+        fi
+      done < <(find "${home_path}" -name "compose.yml" 2>/dev/null)
+    done
+    
+    # If we have user compose files, check if their containers are built
+    if [ ${#user_compose_files[@]} -gt 0 ]; then
+      # Logic to check if user containers need rebuilding
+      needs_user_containers=true
+      echo "[HTML]: <p>User container configuration detected. Checking user containers...</p>"
+      
+      if [ "$needs_full_rebuild" = false ]; then
+        # Only show this if we're not already doing a full rebuild
+        echo "[HTML]: <p>Building user containers...</p>"
+        build_user_containers
+      fi
+    fi
+  fi
+  
+  # Build all containers if needed
+  if [ "$needs_full_rebuild" = true ]; then
     build_docker_compose "no-cache"
     if [[ "$1" != "silent" ]]; then
-      echo "[HTML]: <p>Starting Monadic Chat Docker image . . .</p>"
+      echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
     fi
+  elif [[ "$1" != "silent" ]]; then
+    echo "[HTML]: <p>All containers are available. Moving on...</p>"
   fi
 
   remove_older_images yohasebe/monadic-chat
@@ -580,9 +645,6 @@ build_python_container)
 
   build_python_container
 
-  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
-  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
-
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
@@ -599,9 +661,6 @@ build_user_containers)
   # Call build_user_containers and store the return value
   build_user_containers
   BUILD_RESULT=$?
-
-  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
-  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if [ ${BUILD_RESULT} -eq 2 ]; then
     # No user containers found (special return code)
@@ -620,12 +679,9 @@ build)
   done
 
   remove_containers
-  echo "[HTML]: <p>Building Monadic Chat image . . .</p>"
+  echo "[HTML]: <p>Building Monadic Chat image...</p>"
   ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
   build_docker_compose "no-cache"
-
-  rm -f "${ROOT_DIR}/services/ruby/setup.sh"
-  rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Monadic Chat has finished: Check the console panel for details.</p><hr />"

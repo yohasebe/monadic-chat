@@ -21,7 +21,7 @@ Monadic Chatのベクトルデータベース機能は以下のことを行い�
 
 ### テキスト処理フロー
 
-![ベクトルデータベース利用のフロー](./assets/images/rag.png ':size=800')
+![ベクトルデータベース利用のフロー](./assets/images/rag.png ':size=700')
 
 PDF Navigatorアプリでの処理フローは以下の通りです：
 

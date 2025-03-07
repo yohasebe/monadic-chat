@@ -21,7 +21,7 @@ The vector database functionality runs on the pgvector container (`monadic-chat-
 
 ### Text Processing Flow
 
-![Vector Database Flow](./assets/images/rag.png ':size=800')
+![Vector Database Flow](./assets/images/rag.png ':size=700')
 
 Here's the processing flow in the PDF Navigator app:
 

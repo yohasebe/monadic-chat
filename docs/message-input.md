@@ -20,7 +20,7 @@ Uploading images is supported for the following models:
 - Google Gemini
 - Mistral AI (Pixtral)
 
-Click `Upload Image` to select an image to attach to the message.
+Click `Attach Image` to select an image to attach to the message.
 
 ![](./assets/images/monadi-chat-image-attachment.png ':size=400')
 
@@ -30,7 +30,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ## Uploading PDFs
 
-In Anthropic's Sonnet model, PDF uploads are supported in addition to images. Click `Upload Image/PDF` to select a PDF file to attach to the message.
+In Anthropic's Sonnet model, PDF uploads are supported in addition to images. Click `Attach Image/PDF` to select a PDF file to attach to the message.
 
 ![](./assets/images/monadi-chat-pdf-attachment.png ':size=400')
 

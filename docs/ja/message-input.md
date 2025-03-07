@@ -20,7 +20,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 - Google Gemini
 - Mistral AI (Pixtral)
 
-`Upload Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。
+`Attach Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。
 
 ![](./assets/images/monadi-chat-image-attachment.png ':size=400')
 
@@ -30,7 +30,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## PDF のアップロード
 
-Anthropic の Sonnet モデルでは、画像の他に PDF のアップロードもサポートされています。`Upload Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
+Anthropic の Sonnet モデルでは、画像の他に PDF のアップロードもサポートされています。`Attach Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
 
 ![](./assets/images/monadi-chat-pdf-attachment.png ':size=400')
 

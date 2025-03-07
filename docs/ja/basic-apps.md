@@ -161,7 +161,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
 
-?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストと埋め込みデータは [PGVector](https://github.com/pgvector/pgvector) データベースに保存されます。
+?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストと埋め込みデータは [PGVector](https://github.com/pgvector/pgvector) データベースに保存されます。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](/ja/vector-database.md)のドキュメントを参照してください。
 
 ![PDF button](./assets/images/app-pdf.png ':size=700')
 

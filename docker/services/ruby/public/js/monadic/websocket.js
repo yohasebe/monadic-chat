@@ -664,7 +664,7 @@ function connect_websocket(callback) {
             const group = value["group"];
             
             // Check if app belongs to special group
-            if (group && group.trim() !== "" && ["OpenAI"].includes(group.trim())) {
+            if (group && group.trim() !== "" && ["openai"].includes(group.trim().toLowerCase())) {
               regularApps.push([key, value]);
             } else if (group && group.trim() !== "") {
               if (!specialApps[group]) {

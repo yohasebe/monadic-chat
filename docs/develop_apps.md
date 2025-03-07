@@ -62,6 +62,8 @@ The above file structure is an example of a plugin that includes an app, a helpe
 
 ## Writing the Recipe File
 
+!> The documentation below describes the traditional Ruby class-based approach for creating apps. For simpler app development, consider using the new [Monadic DSL format](/monadic_dsl.md), which provides a more concise and readable syntax.
+
 In the recipe file, define a class that inherits from `MonadicApp` and describe the application settings in the instance variable `@settings`.
 
 ```ruby

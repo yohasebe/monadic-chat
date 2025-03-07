@@ -2,7 +2,7 @@ app "Wikipedia" do
   description <<~TEXT
     This is essentially the same as Chat, but for questions that GPT cannot answer, such as questions about events that occurred after the language model cutoff time, it searches Wikipedia to answer them. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
-  icon "<i class='fab fa-wikipedia-w'></i>"
+  icon "fa-wikipedia-w"
   
   system_prompt <<~TEXT
     You are a consultant who responds to any questions asked by the user.

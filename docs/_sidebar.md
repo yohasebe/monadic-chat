@@ -23,6 +23,7 @@
 - **Advanced Topics**
 
     - [Development of Extra Apps](/develop_apps.md)
+    - [Monadic DSL Reference](/monadic_dsl.md)
     - [Application Setting Items](/setting-items.md)
     - [Recipe Examples](/recipe-examples.md)
     - [Monadic Mode](/monadic-mode.md)

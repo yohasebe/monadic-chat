@@ -23,6 +23,7 @@
 - **機能追加**
 
     - [アプリの開発](/ja/develop_apps.md)
+    - [Monadic DSLリファレンス](/ja/monadic_dsl.md)
     - [アプリの設定項目](/ja/setting-items.md)
     - [レシピ・ファイルの例](/ja/recipe-examples.md)
     - [Monadicモード](/ja/monadic-mode.md)

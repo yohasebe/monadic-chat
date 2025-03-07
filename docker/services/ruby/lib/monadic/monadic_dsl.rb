@@ -11,12 +11,13 @@ module MonadicDSL
   # - mermaid: Enables Mermaid diagram rendering and interaction for flowcharts and diagrams
   # - mathjax: Enables mathematical notation rendering using MathJax library
   # - abc: Enables ABC music notation rendering and playback for music composition
-  # - sourcecode: Enables enhanced source code highlighting and formatting
+  # - sourcecode: Enables enhanced source code highlighting and formatting (code_highlight)
   # - toggle: Controls collapsible sections for code blocks and other content
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation
   # - monadic: Enables monadic mode for structured JSON responses and special rendering
-  # - websearch: Enables web search functionality for retrieving external information
+  # - websearch: Enables web search functionality for retrieving external information (web_search)
+  # - jupyter_access: Enables access to Jupyter notebooks in the conversation
   # - temperature: Controls randomness in model responses (0.0-2.0)
   # - model: Specifies which AI model to use for this app
   # - group: Groups apps by provider (e.g., "OpenAI", "Anthropic", "Google")
@@ -27,6 +28,7 @@ module MonadicDSL
   # - disabled: Indicates if the app should be disabled (e.g., when API key is missing)
   # - reasoning_effort: Controls the depth of reasoning (e.g., "high")
   # - context_size: Controls the context window size for the conversation
+  # - max_tokens: Specifies the maximum number of tokens to generate
 
 class Loader
     def self.load(file)
@@ -71,13 +73,21 @@ class Loader
     
     def dsl_file?
       @content.match?(/MonadicDSL\.define_app/) ||
+        @content.match?(/^app\s+["']/) ||
         File.extname(@file) == '.mdsl' ||
         @content.match?(/^#\s*@monadic_dsl:\s*true/)
     end
     
     def load_dsl
-      app_state = eval(@content, TOPLEVEL_BINDING, @file)
-      convert_to_class(app_state)
+      # Handle both the old and new DSL formats
+      if @content.match?(/^app\s+["']/)
+        # New simplified format
+        app_state = eval(@content, TOPLEVEL_BINDING, @file)
+      else
+        # Original format
+        app_state = eval(@content, TOPLEVEL_BINDING, @file)
+        convert_to_class(app_state) if app_state.is_a?(MonadicDSL::AppState)
+      end
     rescue => e
       warn "Warning: Failed to evaluate DSL in #{@file}: #{e.message}"
       raise
@@ -867,9 +877,182 @@ class Loader
   def self.define_app(name, &block)
     AppDefinition.define(name, &block)
   end
+  
+  # New simplified app definition method
+  def self.app(name, &block)
+    state = AppState.new(name.gsub(/\s+/, ''))
+    # Store original name as app_name if it contains spaces
+    state.settings[:app_name] = name if name.include?(' ')
+    
+    # Initialize default values
+    state.features = {}
+    state.settings[:provider] = "OpenAI"
+    state.settings[:model] = "gpt-4o"
+    state.settings[:temperature] = 0.7
+    
+    SimplifiedAppDefinition.new(state).instance_eval(&block)
+    
+    convert_to_class(state)
+    state
+  end
+  
+  # Simplified app definition class
+  class SimplifiedAppDefinition
+    def initialize(state)
+      @state = state
+    end
+    
+    def description(text)
+      @state.ui[:description] = text
+    end
+    
+    def icon(name)
+      # Check if it's already a full HTML tag
+      if name.start_with?("<i") && name.end_with?("></i>")
+        @state.ui[:icon] = name
+      else
+        # Otherwise, convert it to a FontAwesome icon
+        @state.ui[:icon] = "<i class='fa-solid fa-#{name}'></i>"
+      end
+    end
+    
+    def system_prompt(text)
+      @state.prompts[:initial] = text
+    end
+    
+    def llm(&block)
+      LLMConfiguration.new(@state).instance_eval(&block)
+    end
+    
+    def features(&block)
+      SimplifiedFeatureConfiguration.new(@state).instance_eval(&block)
+    end
+    
+    def tools(&block)
+      # Convert provider to symbol
+      provider = @state.settings[:provider].to_s.downcase.to_sym
+      
+      tool_config = ToolConfiguration.new(@state, provider)
+      tool_config.instance_eval(&block) if block_given?
+      @state.settings[:tools] = tool_config.to_h
+    end
+  end
+  
+  # LLM Configuration for simplified syntax
+  class LLMConfiguration
+    def initialize(state)
+      @state = state
+    end
+    
+    def provider(value)
+      @state.settings[:provider] = value
+    end
+    
+    def model(value)
+      @state.settings[:model] = value
+    end
+    
+    def temperature(value)
+      @state.settings[:temperature] = value
+    end
+    
+    def max_tokens(value)
+      @state.settings[:max_tokens] = value
+    end
+  end
+  
+  # Simplified Feature Configuration
+  class SimplifiedFeatureConfiguration
+    def initialize(state)
+      @state = state
+    end
+    
+    def method_missing(method_name, *args)
+      # Map newer feature names to old ones where needed
+      feature_map = {
+        code_highlight: :sourcecode,
+        web_search: :websearch,
+        jupyter_access: :jupyter
+      }
+      
+      # Default all called methods to true, handle special cases
+      value = args.first.nil? ? true : args.first
+      
+      feature_name = feature_map[method_name] || method_name
+      @state.features[feature_name] = value
+    end
+    
+    def respond_to_missing?(method_name, include_private = false)
+      true
+    end
+  end
+
+  # Helper method to convert simplified state to class
+  def self.convert_to_class(state)
+    # Determine the appropriate helper module based on the provider
+    provider_str = state.settings[:provider].to_s.downcase.gsub(/[\s\-]+/, "")
+    
+    helper_module = case provider_str
+                   when "anthropic", "claude", "anthropicclaude"
+                     'ClaudeHelper'
+                   when "gemini", "google", "googlegemini"
+                     'GeminiHelper'
+                   when "cohere", "commandr", "coherecommandr"
+                     'CommandRHelper'
+                   when "mistral", "mistralai"
+                     'MistralHelper'
+                   when "deepseek", "deep seek"
+                     'DeepSeekHelper'
+                   when "perplexity"
+                     'PerplexityHelper'
+                   when "xai", "grok", "xaigrok"
+                     'GrokHelper'
+                   else
+                     'OpenAIHelper'
+                   end
+
+    class_def = <<~RUBY
+      class #{state.name} < MonadicApp
+        include #{helper_module} if defined?(#{helper_module})
+
+        icon = #{state.ui[:icon].inspect}
+        description = #{state.ui[:description].inspect}
+        initial_prompt = #{state.prompts[:initial].inspect}
+
+        @settings = {
+          group: #{state.settings[:provider].to_s.capitalize.inspect},
+          disabled: !defined?(CONFIG) || !CONFIG["#{state.settings[:provider].to_s.upcase}_API_KEY"],
+          models: defined?(#{helper_module}) ? #{helper_module}.list_models : [],
+          model: #{state.settings[:model].inspect},
+          temperature: #{state.settings[:temperature]},
+          initial_prompt: initial_prompt,
+          app_name: #{(state.settings[:app_name] || state.name).inspect},
+          description: description,
+          icon: icon
+        }
+    RUBY
+
+    # Add feature settings
+    state.features.each do |feature, value|
+      class_def << "        @settings[:#{feature}] = #{value.inspect}\n"
+    end
+    
+    # Add max_tokens if specified
+    if state.settings[:max_tokens]
+      class_def << "        @settings[:max_tokens] = #{state.settings[:max_tokens].inspect}\n"
+    end
+    
+    # Add tools if specified
+    if state.settings[:tools]
+      class_def << "        @settings[:tools] = #{state.settings[:tools].inspect}\n"
+    end
+    
+    class_def << "      end\n"
+    
+    eval(class_def, TOPLEVEL_BINDING, state.name)
+  end
 
   # Utility methods for state conversion
-
   def self.to_yaml(app_state)
     {
       name: app_state.name,

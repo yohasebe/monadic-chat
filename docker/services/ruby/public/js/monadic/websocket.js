@@ -546,7 +546,7 @@ function connect_websocket(callback) {
         callingFunction = true;
         setAlert(data["content"], "warning");
         
-        // Update spinner message for function calls to be more informative
+        // Update spinner message for function calls
         $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Processing request...');
         break;
       }
@@ -664,7 +664,7 @@ function connect_websocket(callback) {
             const group = value["group"];
             
             // Check if app belongs to special group
-            if (group && group.trim() !== "" && ["openai"].includes(group.trim().toLowerCase())) {
+            if (group && group.trim() !== "" && ["OpenAI"].includes(group.trim())) {
               regularApps.push([key, value]);
             } else if (group && group.trim() !== "") {
               if (!specialApps[group]) {
@@ -1043,6 +1043,7 @@ function connect_websocket(callback) {
 
           // Show message input and hide spinner
           $("#message").show();
+          $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
 
           if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
@@ -1074,6 +1075,7 @@ function connect_websocket(callback) {
           // Use the appendCard helper function
           appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
           $("#message").show();
+          $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
           $("#cancel_query").hide();
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
@@ -1081,6 +1083,7 @@ function connect_websocket(callback) {
           // Use the appendCard helper function
           appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
           $("#message").show();
+          $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
           $("#cancel_query").hide();
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
@@ -1090,6 +1093,9 @@ function connect_websocket(callback) {
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
+        
+        // Make sure message input is enabled
+        $("#message").prop("disabled", false);
 
         if (!isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
@@ -1119,7 +1125,7 @@ function connect_websocket(callback) {
         $("#cancel_query").show();
         
         // Show informative spinner message
-        $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Processing request'); 
+        $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Processing request');
         break;
       }
 
@@ -1144,7 +1150,7 @@ function connect_websocket(callback) {
           setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
           callingFunction = false;
           responseStarted = true;
-          // Update spinner message for streaming phase
+          // Update spinner message for streaming
           $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Receiving response...');
           // remove the leading new line characters from content
           content = content.replace(/^\n+/, "");
@@ -1184,7 +1190,7 @@ function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached. Please refresh the page.`);
-    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection terminated", "danger");
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection failed. Please refresh the page.", "danger");
     return;
   }
 

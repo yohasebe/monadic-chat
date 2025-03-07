@@ -648,10 +648,10 @@ function adjustImageUploadButton(selectedModel) {
   const imageFileInput = $('#imageFile');
 
   if (isPdfEnabled) {
-    imageFileBtn.html('<i class="fas fa-image"></i> Upload Image/PDF');
+    imageFileBtn.html('<i class="fas fa-image"></i> Attach Image/PDF');
     imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
   } else {
-    imageFileBtn.html('<i class="fas fa-image"></i> Upload Image');
+    imageFileBtn.html('<i class="fas fa-image"></i> Attach Image');
     imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif');
     // Remove any PDF files from images array when switching to non-PDF model
     images = images.filter(img => !img.type.includes('pdf'));

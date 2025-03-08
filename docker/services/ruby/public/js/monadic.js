@@ -439,8 +439,10 @@ $(function () {
   $("#check-auto-speech").on("change", function () {
     if ($(this).is(":checked")) {
       params["auto_speech"] = true;
+      console.log("Auto speech enabled");
     } else {
       params["auto_speech"] = false;
+      console.log("Auto speech disabled");
     }
   })
 
@@ -516,6 +518,9 @@ $(function () {
         jupyter: params["jupyter"],
       }));
 
+      // Initialize audio before showing the UI
+      audioInit();
+      
       $("#config").hide();
       $("#back-to-settings").show();
       $("#parameter-panel").show();
@@ -527,6 +532,10 @@ $(function () {
         $("#user-panel").hide();
         $("#cancel_query").show();
         reconnect_websocket(ws, function (ws) {
+          // Ensure critical parameters are correctly set based on checkboxes
+          params["auto_speech"] = $("#check-auto-speech").is(":checked");
+          params["initiate_from_assistant"] = true;
+          console.log("Start from assistant with auto_speech:", params["auto_speech"]);
           ws.send(JSON.stringify(params));
         });
       } else {
@@ -576,6 +585,8 @@ $(function () {
     }
     params = setParams();
     params["message"] = $("#message").val();
+    
+    // This is handled already in setParams(), no need to override here
 
     $("#cancel_query").show();
     

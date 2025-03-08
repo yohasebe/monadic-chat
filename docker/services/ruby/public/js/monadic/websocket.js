@@ -425,13 +425,37 @@ let sourceBuffer = null;
 let audioDataQueue = [];
 
 function processAudioDataQueue() {
-  if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && sourceBuffer && !sourceBuffer.updating) {
-    const audioData = audioDataQueue.shift();
-    try {
-      sourceBuffer.appendBuffer(audioData);
-    } catch (e) {
-      console.error('Error appending buffer:', e);
+  try {
+    // Make sure we have all required elements before processing
+    if (!mediaSource || !sourceBuffer) {
+      console.warn("MediaSource or SourceBuffer not available, skipping audio processing");
+      return;
     }
+    
+    // Only process if media source is open, we have data, and buffer isn't being updated
+    if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && !sourceBuffer.updating) {
+      const audioData = audioDataQueue.shift();
+      try {
+        sourceBuffer.appendBuffer(audioData);
+      } catch (e) {
+        console.error('Error appending buffer:', e);
+        
+        // Error recovery - if we get an exception, try to reset the audio system
+        if (e.name === 'QuotaExceededError') {
+          // Clear the buffer if we exceed quota
+          try {
+            if (sourceBuffer.buffered.length > 0) {
+              sourceBuffer.remove(0, sourceBuffer.buffered.end(0));
+            }
+          } catch (clearError) {
+            console.error('Error clearing buffer:', clearError);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Critical error in processAudioDataQueue:', e);
+    // Don't show error to user, just log it
   }
 }
 
@@ -445,21 +469,20 @@ function connect_websocket(callback) {
   let infoHtml = "";
 
   ws.onopen = function () {
-    // Initialize media handling only once during connection
+    // console.log('WebSocket connected');
+    setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
+    ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
+
     if (!mediaSource) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
-        try {
-          // Use consistent MIME type for Firefox
-          if (runningOnFirefox) {
-            sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
-          } else {
-            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-          }
-          sourceBuffer.addEventListener('updateend', processAudioDataQueue);
-        } catch (err) {
-          console.error("Error adding source buffer:", err);
+        // Though TTS on FireFox is not supported, the following is needed to prevent an error
+        if (runningOnFirefox) {
+          sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+        } else {
+          sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
         }
+        sourceBuffer.addEventListener('updateend', processAudioDataQueue);
       });
     }
 
@@ -554,28 +577,28 @@ function connect_websocket(callback) {
       case "audio": {
         $("#monadic-spinner").hide();
 
-        // Check if response contains an error
-        if (data.content && typeof data.content === 'string' && data.content.includes('error')) {
-          try {
-            const errorData = JSON.parse(data.content);
-            if (errorData.error) {
-              console.error("TTS error:", errorData.error);
-              setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${errorData.error}`, "warning");
-              return;
-            }
-          } catch (e) {
-            // If not valid JSON, continue with regular processing
-          }
-        }
-
-        // Process audio data
         try {
+          // Check if response contains an error
+          if (data.content && typeof data.content === 'string' && data.content.includes('error')) {
+            try {
+              const errorData = JSON.parse(data.content);
+              if (errorData.error) {
+                console.error("TTS error:", errorData.error);
+                // Just log the error, don't show an alert to the user
+                break;
+              }
+            } catch (e) {
+              // If not valid JSON, continue with regular processing
+            }
+          }
+
           const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
           audioDataQueue.push(audioData);
           processAudioDataQueue();
         } catch (e) {
           console.error("Error processing audio data:", e);
-          setAlert("<i class='fa-solid fa-circle-exclamation'></i> Failed to process audio data", "warning");
+          // Don't show an alert, just log the error
+          // This prevents interrupting the user experience
         }
         break;
       }
@@ -1037,7 +1060,7 @@ function connect_websocket(callback) {
         } else if(data["content"]["reasoning_content"]) {
           html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html
         }
-
+        
         if (data["content"]["role"] === "assistant") {
           appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
 

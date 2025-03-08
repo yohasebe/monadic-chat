@@ -529,8 +529,10 @@ function setParams() {
     if ($("#ai-user-initial-prompt").val().trim() !== "") {
       params["ai_user_initial_prompt"] = $("#ai-user-initial-prompt").val();
     }
+    params["initiate_from_assistant"] = false;
   } else {
-    params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked');
+    // Make sure this is a boolean, not a string
+    params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked') ? true : false;
   }
 
   if ($("#mathjax").is(":checked")) {

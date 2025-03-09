@@ -41,6 +41,7 @@ class ContentReader < MonadicApp
     initiate_from_assistant: true,
     mathjax: true,
     image: true,
+    websearch: true,
     tools: [
       {
         type: "function",

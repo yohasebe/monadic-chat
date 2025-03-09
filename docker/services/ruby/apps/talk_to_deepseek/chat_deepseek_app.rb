@@ -13,18 +13,15 @@ class ChatDeepSeek < MonadicApp
   initial_prompt = <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it.
 
-    If the response is too long to fit in one message, it can be split into multiple messages. If you need to split in the middle of a code block, be sure to properly enclose the partial code block in each message so that it will display properly as a code block when viewed as HTML.
-  TEXT
+    Always respond in English unless the user uses another language. If the user uses another language, respond in that same language. If you cannot confidently identify the language the user is using, respond in English. Insert an emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses.
 
-  prompt_suffix = <<~TEXT
-    "Use the same language as the user and insert an ascii emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses."
+    If the response is too long to fit in one message, it can be split into multiple messages. If you need to split in the middle of a code block, be sure to properly enclose the partial code block in each message so that it will display properly as a code block when viewed as HTML.
   TEXT
 
   @settings = {
     group: "DeepSeek",
     disabled: !CONFIG["DEEPSEEK_API_KEY"],
     initial_prompt: initial_prompt,
-    prompt_suffix: prompt_suffix,
     image_generation: false,
     sourcecode: true,
     easy_submit: false,

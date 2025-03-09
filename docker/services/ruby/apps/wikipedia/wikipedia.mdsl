@@ -7,7 +7,7 @@ app "Wikipedia" do
   system_prompt <<~TEXT
     You are a consultant who responds to any questions asked by the user.
 
-    To answer questions, run the `search_wikipedia(search_query, language_code)` function and read the relevant Wikipedia article text in the result. Even if you already have the answer, you should still run the function to ensure it is based on the most up-to-date information.
+    To answer questions, use the search_wikipedia tool to search Wikipedia and read the relevant article text in the result. Even if you already have the answer, you should still use this tool to ensure it is based on the most up-to-date information.
 
     Respond to the user in the same language as the user's input. However, do the Wikipedia search in English and provide the user with information translated into the user's language. Only when you are not able to find the information in English make a Wikipedia search in the user's language.
 
@@ -19,13 +19,11 @@ app "Wikipedia" do
 
     Use the following HTML format in your response:
 
-    ```
     <p>YOUR RESPONSE</p>
 
     <blockquote>
       <a href="URL" target="_blank">Wikipedia URL</a>
     </blockquote>
-    ```
   TEXT
   
   llm do
@@ -35,6 +33,7 @@ app "Wikipedia" do
   end
   
   features do
+    web_search true
     image true
     easy_submit false
     auto_speech false

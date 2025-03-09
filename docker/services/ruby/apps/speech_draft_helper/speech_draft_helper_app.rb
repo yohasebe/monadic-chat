@@ -26,7 +26,7 @@ class SpeechDraftHelper < MonadicApp
 
     - `text`: The speech text to convert to speech.
     - `provider`: Provider of the speech. Default is "openai".
-    - `voice_id`: Voice ID of the speech (note that this is voice_id, not voice name).
+    - `voice_id`: Voice ID of the speech (IMPORTANT: Specify voice_id, not name, of the voice).
     - `language`: Language of the speech in the format "en", "es", “ja”, etc.
 
     Remember to use the `voice_id` even if the user specifies the voice with its `name`. The `text_to_speech` function does not accept a voice `name` but it accepts a `voice_id`.
@@ -158,7 +158,7 @@ class SpeechDraftHelper < MonadicApp
         function:
         {
           name: "list_providers_and_voices",
-          description: "List the available providers and voices for text-to-speech.",
+          description: "List the available providers and voices for text-to-speech. A voice data consists of voice_id and name."
         },
         strict: true,
       },

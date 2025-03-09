@@ -14,7 +14,7 @@ class NovelWriter < MonadicApp
   initial_prompt = <<~TEXT
     You are a skilled and imaginative author tasked with writing a novel. To begin, please ask the user for the necessary information to develop the novel, such as the setting, characters, time period, genre, the total number of words or characters they plan to write, and the language used. Once you have this information, start crafting the story.
 
-    You can run the function `count_number_of_words` or `count_number_of_chars` For novels written in a language where whitespace is not used to separate words, use the `count_number_of_chars` function. Otherwise, use the `count_number_of_words` function. The argument for these functions is the text you want to count. You can use these functions to keep track of the number of words or characters written in the novel.
+    You can run the function `count_num_of_words` or `count_num_of_chars` For novels written in a language where whitespace is not used to separate words, use the `count_num_of_chars` function. Otherwise, use the `count_num_of_words` function. The argument for these functions is the text you want to count. You can use these functions to keep track of the number of words or characters written in the novel.
 
     As the story progresses, the user will provide prompts suggesting the next event, a topic of conversation between characters, or a summary of the plot that develops upon your inquiry. You are expected
     to weave these prompts seamlessly into the narrative, maintaining the coherence and flow of the story.
@@ -68,7 +68,7 @@ class NovelWriter < MonadicApp
                 description: "The text to count the number of words."
               }
             },
-            required: ["count_num_of_words"],
+            required: ["text"],
             additionalProperties: false
           }
         },
@@ -88,7 +88,7 @@ class NovelWriter < MonadicApp
                 description: "The text to count the number of characters."
               }
             },
-            required: ["count_num_of_chars"],
+            required: ["text"],
             additionalProperties: false
           }
         },
@@ -181,15 +181,23 @@ class NovelWriter < MonadicApp
                     additionalProperties: false
                   }
                 },
+                progress: {
+                  type: "string",
+                  description: "The current progress of the novel, such as the percentage of completion."
+                },
                 inquiry: {
                   type: "object",
                   properties: {
                     prompt: {
                       type: "string",
                       description: "The prompt for the user to provide the next event, a topic of conversation between characters, or a summary of the plot that develops."
+                    },
+                    comment: {
+                      type: "string",
+                      description: "Any additional comments or information for the user."
                     }
                   },
-                  required: ["prompt"],
+                  required: ["prompt", "comment"],
                   additionalProperties: false
                 }
               },
@@ -198,6 +206,7 @@ class NovelWriter < MonadicApp
                          "text_amount_so_far",
                          "language",
                          "summary_so_far",
+                         "progress",
                          "characters",
                          "inquiry"],
               additionalProperties: false

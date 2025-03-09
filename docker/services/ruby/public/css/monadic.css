@@ -793,3 +793,23 @@ h1 {
   height: auto; /* Maintain aspect ratio */
   display: block; /* Remove any default inline spacing */
 }
+
+#pdf-titles {
+  border-radius: 4px;
+  border: 1px solid #999999;
+  background: #ffffff;
+}
+
+#pdf-panel table {
+  background: #ffffff;
+  border: none;
+}
+
+#pdf-panel table th, #pdf-panel table td, #pdf-panel table tr {
+  color: #777;
+  vertical-align: middle;
+}
+
+#pdf-panel table td {
+  border: none;
+}

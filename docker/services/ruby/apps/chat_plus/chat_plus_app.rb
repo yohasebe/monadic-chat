@@ -9,7 +9,7 @@ class ChatPlus < MonadicApp
   TEXT
 
   initial_prompt = <<~TEXT
-    You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Try to use the same language as the user does. but if you are not 100% sure what language it is, keep using English. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+    You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Always respond in English unless the user uses another language. If the user uses another language, respond in that same language. If you are not 100% sure what language the user is using, keep using English. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
     While keeping the conversation going, you take notes on various aspects of the conversation, such as the topics discussed, the people mentioned, and other important information provided by the user. You should update these notes as the conversation progresses.
 
@@ -21,7 +21,7 @@ class ChatPlus < MonadicApp
       - "people": A list of people and their relationships ever mentioned in the whole conversation
       - "notes": A list of the user's preferences and other important information including important dates, locations, and events ever mentioned in the whole conversation and should be remembered throughout the conversation
 
-    You should update the "summary", "topics", "people", and "preferences" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
+    You should update the "reasoning", "topics", "people", and "notes" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
 
       Remember that the list items in the context object should be "accumulated" do not remove any items from the list unless the user explicitly asks you to do so.
   TEXT
@@ -56,9 +56,9 @@ class ChatPlus < MonadicApp
             context: {
               type: "object",
               properties: {
-                summary: {
+                reasoning: {
                   type: "string",
-                  description: "A summary of the conversation so far."
+                  description: "The reasoning and thought process behind your response."
                 },
                 topics: {
                   type: "array",
@@ -82,7 +82,7 @@ class ChatPlus < MonadicApp
                   }
                 }
               },
-              required: ["summary", "topics", "people", "notes"],
+              required: ["reasoning", "topics", "people", "notes"],
               additionalProperties: false
             }
           },

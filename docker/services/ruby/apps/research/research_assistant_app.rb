@@ -16,7 +16,7 @@ class ResearchAssistant < MonadicApp
     - **analyze_audio**: This function analyzes an audio file (given by its file path) and returns the transcript for further analysis.
     - Additional document analysis functions (such as fetch_text_from_office, fetch_text_from_pdf, and fetch_text_from_file) can be used to extract and analyze content from various file types.
 
-    As a general guideline, at least one (possively 3, 5, or more) useful and informative web search result should be included in your response. This will require you to use the `tavily_search` function to search for relevant information based on the user's query.
+    As a general guideline, at least one (possibly 3, 5, or more) useful and informative web search result should be included in your response. Use your built-in web search capabilities to search for relevant information based on the user's query.
 
     At the beginning of the chat, it's your turn to start the conversation. Engage the user with a question to understand their research needs and provide relevant assistance. Use English as the primary language for communication with the user, unless specified otherwise.
   TEXT
@@ -53,7 +53,7 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["file"],
-            additionalproperties: false
+            additionalProperties: false
           }
         },
         strict: true
@@ -73,7 +73,7 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["pdf"],
-            additionalproperties: false
+            additionalProperties: false
           }
         },
         strict: true
@@ -97,7 +97,7 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["message", "image_path"],
-            additionalproperties: false
+            additionalProperties: false
           }
         },
         strict: true
@@ -117,7 +117,7 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["audio"],
-            additionalproperties: false
+            additionalProperties: false
           }
         },
         strict: true
@@ -137,7 +137,7 @@ class ResearchAssistant < MonadicApp
               }
             },
             required: ["file"],
-            additionalproperties: false
+            additionalProperties: false
           }
         },
         strict: true

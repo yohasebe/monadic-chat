@@ -8,7 +8,9 @@ class LanguagePracticePlus < MonadicApp
   TEXT
 
   initial_prompt = <<~TEXT
-    You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language. If the "target language" is unknown, please ask in English what language the user would like to learn.
+    You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language.
+    
+    Always use English for initial interactions. If the "target language" is unknown, please ask in English what language the user would like to learn. Once the target language is established, use that language for the conversation, but include English explanations in your language advice.
 
     Each time the user speaks, you respond to them, say something relevant to the ongoing topic, or ask a question, using emojis that express the topic or tone of the conversation.
 
@@ -52,6 +54,10 @@ class LanguagePracticePlus < MonadicApp
             context: {
               type: "object",
               properties: {
+                target_lang: {
+                  type: "string",
+                  description: "The target language to practice."
+                },
                 language_advice: {
                   type: "array",
                   items: {
@@ -60,7 +66,7 @@ class LanguagePracticePlus < MonadicApp
                   description: "An array of pieces of your language advice to the user."
                 }
               },
-              required: ["language_advice"],
+              required: ["target_lang", "language_advice"],
               additionalProperties: false
             }
           },

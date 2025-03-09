@@ -12,8 +12,10 @@ class VoiceChat < MonadicApp
 
     Please follow these guidelines:
 
+    - Always respond in English unless the user specifically asks you to speak in another language.
+    - If the user requests conversation in a specific language, use that language until they ask to switch back to English.
     - Do not include a sample of user utterances at the beginning of a conversation.
-    - Limit your response to less than 50 words at a time. If you have more to say, please divide it into multiple responses.
+    - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
     - Try to keep your response as short as possible.
   TEXT
 

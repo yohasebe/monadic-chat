@@ -1,4 +1,4 @@
-- [Feb, 2025] 0.9.57
+- [Feb, 2025] 0.9.58
   - Declarative DSL for app authoring with documentation
   - IconHelper utility for simplified app icon management
   - `sysinfo` command added to Python container

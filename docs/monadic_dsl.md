@@ -113,10 +113,13 @@ end
 
 ```ruby
 tools do
-  tool "search_web" do
-    description "Search the web for current information"
+  tool "book_search" do
+    description "Search for books by title, author, or ISBN"
     parameters do
-      parameter "query", type: "string", description: "Search query"
+      parameter "query", type: "string", description: "Search terms (book title, author name, or ISBN)"
+      parameter "search_type", type: "string", enum: ["title", "author", "isbn", "any"], description: "Type of search to perform", required: false
+      parameter "category", type: "string", enum: ["fiction", "non-fiction", "science", "history", "biography"], description: "Book category to filter results", required: false
+      parameter "max_results", type: "integer", description: "Maximum number of results to return", required: false
     end
   end
 end

@@ -40,6 +40,7 @@ class LanguagePracticePlus < MonadicApp
     initiate_from_assistant: true,
     image: true,
     monadic: true,
+    websearch: true,
     response_format: {
       type: "json_schema",
       json_schema: {

@@ -23,7 +23,8 @@ message.addEventListener("compositionend", function () {
 document.addEventListener("keydown", function (event) {
   if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
     event.preventDefault();
-    if ($("#voice").prop("disabled") === false) {
+    // Only activate voice button if session has begun (config is hidden and main panel is visible)
+    if ($("#voice").prop("disabled") === false && !$("#config").is(":visible") && $("#main-panel").is(":visible")) {
       $("#voice").click();
     }
   }
@@ -839,6 +840,10 @@ function connect_websocket(callback) {
         if (voices.length > 0) {
           // set #elevenlabs-provider-option enabled
           $("#elevenlabs-provider-option").prop("disabled", false);
+          // Set ElevenLabs as the selected provider if no cookie exists for tts-provider
+          if (!getCookie("tts-provider")) {
+            $("#tts-provider").val("elevenlabs").trigger("change");
+          }
         } else {
           // set #elevenlabs-provider-option disabled
           $("#elevenlabs-provider-option").prop("disabled", true);
@@ -851,6 +856,18 @@ function connect_websocket(callback) {
             $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
           }
         });
+        
+        // Apply saved cookie value for voice if it exists
+        const savedVoice = getCookie("elevenlabs-tts-voice");
+        if (savedVoice && $(`#elevenlabs-tts-voice option[value="${savedVoice}"]`).length > 0) {
+          $("#elevenlabs-tts-voice").val(savedVoice);
+        }
+        
+        // Apply saved cookie value for provider if it was elevenlabs
+        const savedProvider = getCookie("tts-provider");
+        if (savedProvider === "elevenlabs") {
+          $("#tts-provider").val("elevenlabs").trigger("change");
+        }
         break;
       }
       case "whisper": {

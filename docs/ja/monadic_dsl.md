@@ -113,10 +113,13 @@ end
 
 ```ruby
 tools do
-  tool "search_web" do
-    description "最新情報をウェブから検索する"
+  tool "book_search" do
+    description "タイトル、著者、またはISBNで書籍を検索する"
     parameters do
-      parameter "query", type: "string", description: "検索クエリ"
+      parameter "query", type: "string", description: "検索語句（書籍タイトル、著者名、またはISBN）"
+      parameter "search_type", type: "string", enum: ["title", "author", "isbn", "any"], description: "実行する検索のタイプ", required: false
+      parameter "category", type: "string", enum: ["fiction", "non-fiction", "science", "history", "biography"], description: "結果をフィルタリングする書籍カテゴリ", required: false
+      parameter "max_results", type: "integer", description: "返す最大結果数", required: false
     end
   end
 end

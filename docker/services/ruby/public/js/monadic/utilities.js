@@ -57,20 +57,17 @@ function getCookie(name) {
 
 // load document.cookie and set the values to the form elements
 function setCookieValues() {
-  const properties = ["tts-provider", "tts-voice", "tts-speed", "asr-lang"];
+  const properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "tts-speed", "asr-lang"];
   properties.forEach(property => {
     const value = getCookie(property);
     if (value) {
       // check if the value is a valid option
       if ($(`#${property} option[value="${value}"]`).length > 0) {
-        if (property === "tts-provider" && value === "elevenlabs") {
-          // check if #elevenlabs-tts-voice option exists and not empty
-          if ($("#elevenlabs-tts-voice option").length > 0) {
-            $(`#${property}`).val(value).trigger("change");
-          }
-        } else {
-          $(`#${property}`).val(value).trigger("change");
-        }
+        $(`#${property}`).val(value).trigger("change");
+      }
+      // Special case for elevenlabs-tts-voice which may load after this function runs
+      else if (property === "elevenlabs-tts-voice") {
+        // We'll handle this when voices are loaded
       }
     }
   });

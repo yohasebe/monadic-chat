@@ -33,6 +33,7 @@ class VoiceChat < MonadicApp
     description: description,
     initiate_from_assistant: true,
     image: true,
-    pdf: false
+    pdf: false,
+    websearch: true
   }
 end

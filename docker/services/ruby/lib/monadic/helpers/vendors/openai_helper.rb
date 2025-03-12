@@ -49,6 +49,12 @@ module OpenAIHelper
   ]
 
   # complete string match
+  SEARCH_MODELS = [
+    "gpt-4o-search-preview",
+    "gpt-4o-mini-search-preview"
+  ]
+
+  # complete string match
   NON_STREAM_MODELS = []
 
   # websearch tools
@@ -305,6 +311,7 @@ module OpenAIHelper
     reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
     non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
     non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
+    search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
 
     if reasoning_model
       body["reasoning_effort"] = reasoning_effort || "medium"
@@ -312,6 +319,11 @@ module OpenAIHelper
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
       body.delete("max_completion_tokens")
+    elsif search_model
+      body.delete("n")
+      body.delete("temperature")
+      body.delete("presence_penalty")
+      body.delete("frequency_penalty")
     else
       body["n"] = 1
       body["temperature"] = temperature if temperature

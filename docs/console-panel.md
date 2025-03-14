@@ -32,17 +32,17 @@ Exit the Monadic Chat Console.
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
-**Rebuild All** <br />
-Rebuild all Docker images and containers for Monadic Chat.
+**Build All** <br />
+Build all Docker images and containers for Monadic Chat.
 
-**Rebuild Ruby Container** <br />
-Rebuild the Docker image and container (`monadic-chat-ruby-container`) that powers Monadic Chat.
+**Build Ruby Container** <br />
+Build the Docker image and container (`monadic-chat-ruby-container`) that powers Monadic Chat.
 
-**Rebuild Python Container** <br />
-Rebuild the Docker image and container (`monadic-chat-python-container`) used by the AI agents.
+**Build Python Container** <br />
+Build the Docker image and container (`monadic-chat-python-container`) used by the AI agents.
 
-**Rebuild User Containers** <br />
-Rebuild the Docker images and containers defined by the user.
+**Build User Containers** <br />
+Build the Docker images and containers defined by the user. Note that user-defined containers are not automatically built when starting Monadic Chat - you must use this menu option to build them manually after adding or modifying user container definitions.
 
 **Uninstall Images and Containers** <br />
 Remove the Docker images and containers for Monadic Chat.

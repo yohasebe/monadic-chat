@@ -922,7 +922,7 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
-          label: 'Rebuild All',
+          label: 'Build All',
           click: () => {
             openMainWindow();
             dockerManager.runCommand('build',
@@ -934,11 +934,11 @@ function updateApplicationMenu() {
           enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
         },
         {
-          label: 'Rebuild Ruby Container',
+          label: 'Build Ruby Container',
           click: () => {
             openMainWindow();
             dockerManager.runCommand('build_ruby_container',
-              '[HTML]: <p>Rebuilding Ruby container . . .</p>',
+              '[HTML]: <p>Building Ruby container . . .</p>',
               'Building',
               'Stopped',
               false);
@@ -946,11 +946,11 @@ function updateApplicationMenu() {
           enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
         },
         {
-          label: 'Rebuild Python Container',
+          label: 'Build Python Container',
           click: () => {
             openMainWindow();
             dockerManager.runCommand('build_python_container',
-              '[HTML]: <p>Rebuilding Python container . . .</p>',
+              '[HTML]: <p>Building Python container . . .</p>',
               'Building',
               'Stopped',
               false);
@@ -958,7 +958,7 @@ function updateApplicationMenu() {
           enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
         },
         {
-          label: 'Rebuild User Containers',
+          label: 'Build User Containers',
           click: () => {
             openMainWindow();
             dockerManager.runCommand('build_user_containers',
@@ -1352,7 +1352,7 @@ function writeEnvFile(envPath, envConfig) {
 
     try {
         fs.writeFileSync(envPath, envContent);
-        console.log('Settings saved successfully to', envPath);
+        // console.log('Settings saved successfully to', envPath);
     } catch (error) {
         console.error('Error saving settings:', error);
     }

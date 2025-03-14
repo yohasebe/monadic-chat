@@ -9,7 +9,9 @@ To make a new Docker container available, create a new folder within `~/monadic/
 - `compose.yml`
 - `Dockerfile`
 
-To add a container, you need to rebuild Monadic Chat. During this process, a `docker-compose.yml` file will be automatically generated in the `~/monadic/data` directory. This file is used to manage the containers, including starting and removing them.  Avoid manually modifying or deleting this file.
+To add a container, you need to manually build the container using the "Build User Containers" option in the Actions menu. During this process, a `docker-compose.yml` file will be automatically generated in the `~/monadic/data` directory. This file is used to manage the containers, including starting and removing them. Avoid manually modifying or deleting this file.
+
+**Important**: User-defined containers are not automatically built when starting Monadic Chat. After adding or modifying user container definitions, you must use the "Build User Containers" menu option to build them manually.
 
 ## Example of Necessary Files
 

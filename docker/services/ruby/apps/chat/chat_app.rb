@@ -1,5 +1,6 @@
 class Chat < MonadicApp
   include OpenAIHelper
+  include WebSearchAgent
 
   icon = "<i class='fas fa-comments'></i>"
 
@@ -27,6 +28,7 @@ class Chat < MonadicApp
     icon: icon,
     initiate_from_assistant: false,
     image: true,
-    pdf: false
+    pdf: false,
+    websearch: true
   }
 end

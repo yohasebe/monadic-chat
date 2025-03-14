@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.58
+export MONADIC_VERSION=0.9.59
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -357,7 +357,7 @@ start_docker_compose() {
     needs_full_rebuild=true
   elif [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
     remove_containers
-    echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Rebuilding containers...</p>"
+    echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Building containers...</p>"
     ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
     needs_full_rebuild=true
   elif [[ "$1" != "silent" ]]; then
@@ -401,17 +401,9 @@ start_docker_compose() {
       done < <(find "${home_path}" -name "compose.yml" 2>/dev/null)
     done
     
-    # If we have user compose files, check if their containers are built
+    # If we have user compose files, inform but don't build automatically
     if [ ${#user_compose_files[@]} -gt 0 ]; then
-      # Logic to check if user containers need rebuilding
-      needs_user_containers=true
-      echo "[HTML]: <p>User container configuration detected. Checking user containers...</p>"
-      
-      if [ "$needs_full_rebuild" = false ]; then
-        # Only show this if we're not already doing a full rebuild
-        echo "[HTML]: <p>Building user containers...</p>"
-        build_user_containers
-      fi
+      echo "[HTML]: <p>User container configuration detected. Use 'Rebuild User Containers' from the menu to build them.</p>"
     fi
   fi
   

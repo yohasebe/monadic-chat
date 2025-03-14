@@ -1,5 +1,17 @@
 - [March, 2025] 0.9.59
-  - User defined containers build process changed
+  - OpenAI's web search feature supported
+  - gpt-4o-(mini-)search-preview models supported
+  - User defined containers building process changed
+  - Fix ElevenLabs TTS provider cookie persistence and auto-selection
+  - Many small app improvements
+  - Segmented tts playback feature restored
+  - Basic architecture documentation updated
+  - Add image support for Mistral models
+  - Monadic DSL system introduced
+  - App selection behavior made consistent for startup and reset
+  - Setup script management improved
+
+- [February, 2025] 0.9.58
   - Declarative DSL for app authoring with documentation
   - IconHelper utility for simplified app icon management
   - `sysinfo` command added to Python container
@@ -7,10 +19,7 @@
   - Extra logging feature added
   - Fixed Linux packaged app startup issues with missing setup script files
   - OpenAI `gpt-4.5-preview` model supported
-  - Anthropic `claude-3.7-sonnet` model supported
-  - Perplexity `sonar-deep-research` model supported
-  - Improved max input token and max output token handling
-  - Research Assistant app added
+  - Research Assistant app improved
   - Tavily web search and webpage extraction supported
   - ElevenLabs TTS voices supported
   - OpenAI o3-mini model supported with the `reasoning-effort` parameter

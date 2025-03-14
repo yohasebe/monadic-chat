@@ -132,7 +132,7 @@ Enter your DeepSeek API key. This key is required to use the DeepSeek models. It
 Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers].
 
 **TAVILY_API_KEY** <br />
-Enter your Tavily API key. This key is required to use Tavily's web search and web page information retrieval features. It can be obtained from [https://tavily.com/].
+Enter your Tavily API key. This key is used for two purposes: 1) For "Extract from URL" feature (if not provided, Selenium will be used as a fallback), and 2) For web search functionality in apps using language model providers other than OpenAI (Claude, Gemini, Mistral, etc.). It can be obtained from [https://tavily.com/].
 
 **Syntax Highlighting Theme** <br />
 Select the theme for code syntax highlighting. The default is `monokai`.
@@ -142,6 +142,9 @@ Select the model used for the AI User feature, which creates messages on behalf 
 
 **EMBEDDING_MODEL** <br />
 Select the model used for text embedding. Currently, `text-embedding-3-small` and `text-embedding-3-large` are available. The default is `text-embedding-3-small`.
+
+**WEBSEARCH_MODEL** <br />
+Select the model used for web search in apps that use OpenAI models. This setting applies when using OpenAI's native web search feature with your OPENAI_API_KEY. Currently, `gpt-4o-mini-search-preview` and `gpt-4o-search-preview` are available. The default is `gpt-4o-mini-search-preview`.
 
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.

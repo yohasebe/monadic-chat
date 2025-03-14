@@ -1378,6 +1378,10 @@ function checkAndUpdateEnvFile() {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';
     }
 
+    if (!envConfig.WEBSEARCH_MODEL) {
+        envConfig.WEBSEARCH_MODEL = 'gpt-4o-mini-search-preview';
+    }
+
     // Do not override TTS_DICT_PATH if it already exists
     if (envConfig.TTS_DICT_PATH === undefined) {
         envConfig.TTS_DICT_PATH = '';

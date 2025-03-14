@@ -128,7 +128,7 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 
 **ELEVENLABS_API_KEY**<br /> ElevenLabs APIキーを入力してください。このキーはElevenLabsの音声モデルを使用するのに必要です。[https://elevenlabs.io/developers]で取得できます。
 
-**TAVILY_API_KEY**<br /> Tavily APIキーを入力してください。このキーはTavilyによるWeb検索およびWebページ情報取得機能を使用するのに必要です。[https://tavily.com/]で取得できます。
+**TAVILY_API_KEY**<br /> Tavily APIキーを入力してください。このキーは2つの目的で使用されます：1) "Extract from URL" 機能を利用する場合（提供されていない場合はSeleniumが代替手段として使用されます）、2) OpenAI以外の言語モデルプロバイダー（Claude、Gemini、Mistralなど）を使用するアプリでのWeb検索機能に必要です。[https://tavily.com/]で取得できます。
 
 **Syntax Highlighting Theme**<br />
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
@@ -138,6 +138,9 @@ AIがユーザーの代わりにメッセージを作成するAI User機能に�
 
 **EMBEDDING_MODEL**<br />
 テキスト埋め込みに使用するモデルを選択します。現在は `text-embedding-3-small` と `text-embedding-3-large` が利用可能です。デフォルトは `text-embedding-3-small` です。
+
+**WEBSEARCH_MODEL**<br />
+OpenAI モデルを使用するアプリでのウェブ検索に使用するモデルを選択します。この設定は OpenAI の Web search 機能を利用する場合に適用されます。現在は `gpt-4o-mini-search-preview` と `gpt-4o-search-preview` が利用可能です。デフォルトは `gpt-4o-mini-search-preview` です。
 
 **TTS Dictionary File Path**<br />
 テキスト読み上げのための文字列置き換え辞書ファイルのパスを指定します。辞書ファイルはCSV形式で、置き換え対象の文字列と読み上げに使う文字列をカンマ区切りで記述します（見出し行は不要）。TTSによる読み上げ時にテキスト内の置き換え対象文字列が読み上げ文字列に置き換えられます。

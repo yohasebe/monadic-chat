@@ -39,6 +39,7 @@ module MonadicHelper
     api_key = ENV["OPENAI_API_KEY"]
 
     request["Authorization"] = "Bearer #{api_key}"
+
     request.body = {
       model: ENV["EMBEDDING_MODEL"] || "text-embedding-3-small",
       input: text

@@ -33,17 +33,17 @@ Monadic Chat Consoleを終了します。
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
-**Rebuild All** <br />
-Monadic ChatのすべてのDockerイメージおよびコンテナを再構築します。
+**Build All** <br />
+Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
-**Rebuild Ruby Container** <br />
-Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を再構築します。
+**Build Ruby Container** <br />
+Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を構築します。
 
-**Rebuild Python Container** <br />
-AIエージェントが利用するDockerイメージおよびコンテナ（`monadic-chat-python-container`）を再構築します。
+**Build Python Container** <br />
+AIエージェントが利用するDockerイメージおよびコンテナ（`monadic-chat-python-container`）を構築します。
 
-**Rebuild User Containers** <br />
-ユーザーが定義したDockerイメージおよびコンテナを再構築します。
+**Build User Containers** <br />
+ユーザーが定義したDockerイメージおよびコンテナを構築します。なお、ユーザー定義コンテナはMonadic Chat起動時に自動的には構築されませんので、ユーザーコンテナ定義を追加または変更した後は、このメニューオプションを使用して手動で構築する必要があります。
 
 **Uninstall Images and Containers** <br />
 Monadic ChatのDockerイメージおよびコンテナを削除します。

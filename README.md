@@ -78,7 +78,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
-- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API
+- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and OpenAI's built-in search feature
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
 

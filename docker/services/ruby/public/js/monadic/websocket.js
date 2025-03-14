@@ -1157,6 +1157,12 @@ function connect_websocket(callback) {
         }
         // Use the appendCard helper function
         appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
+        
+        // Scroll down immediately after showing user message to make it visible
+        if (!isElementInViewport(mainPanel)) {
+          mainPanel.scrollIntoView(false);
+        }
+        
         $("#temp-card").show();
         $("#temp-card .status").hide();
         $("#indicator").show();

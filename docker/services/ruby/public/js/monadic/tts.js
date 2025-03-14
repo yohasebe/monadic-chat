@@ -34,9 +34,9 @@ function audioInit() {
       if (playPromise !== undefined) {
         playPromise.then(_ => {
           // Playback started successfully
-        }).catch(error => {
+        }).catch(_error => {
           // Auto-play was prevented or other error
-          console.error("Audio play error:", error);
+          // console.error("Audio play error:", error);
           // Don't show error to user, just log it
         });
       }

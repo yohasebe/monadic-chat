@@ -208,7 +208,6 @@ class CodeInterpreterCohere < MonadicApp
     disabled: !CONFIG["COHERE_API_KEY"],
     temperature: 0.0,
     presence_penalty: 0.2,
-    context_size: 20,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: true,

@@ -72,7 +72,7 @@ docker_start_log() {
     echo "Summary: All containers started successfully" >> "${log_file}"
   else
     echo "Summary: Some containers failed to start" >> "${log_file}"
-    echo "[HTML]: <p style='color: red;'><i class='fas fa-exclamation-circle'></i> Warning: Some containers failed to start. Check docker_startup.log for details.</p>"
+    echo "[HTML]: <p style='color: red;'><i class='fas fa-exclamation-circle'></i>Warning: Some containers failed to start. Check docker_startup.log for details.</p>"
     fi
 }
 
@@ -121,6 +121,7 @@ EOF
 
 # Function to ensure data directory exists
 ensure_data_dir() {
+  local container_type="$1"
   local data_dir
   local log_dir
   local config_dir
@@ -151,12 +152,20 @@ ensure_data_dir() {
 
   touch "${config_dir}/env"
 
+  # Only show Ruby setup message when building Ruby container or all containers
   if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
     cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
+    if [[ "$container_type" == "ruby" || "$container_type" == "" ]]; then
+      echo "[HTML]: <p><i class='fa-solid fa-gem'></i>Custom Ruby setup script (rbsetup.sh) detected and will be used.</p>"
+    fi
   fi
 
+  # Only show Python setup message when building Python container or all containers
   if [[ -f "${config_dir}/pysetup.sh" && -s "${config_dir}/pysetup.sh" ]]; then
     cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
+    if [[ "$container_type" == "python" || "$container_type" == "" ]]; then
+      echo "[HTML]: <p><i class='fa-brands fa-python'></i>Custom Python setup script (pysetup.sh) detected and will be used.</p>"
+    fi
   fi
 }
 
@@ -611,7 +620,7 @@ import_db() {
 # Parse the user command
 case "$1" in
 build_ruby_container)
-  ensure_data_dir &&
+  ensure_data_dir "ruby" &&
 
   while ! ${DOCKER} info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
@@ -623,13 +632,13 @@ build_ruby_container)
   # rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Ruby container has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_python_container)
-  ensure_data_dir &&
+  ensure_data_dir "python" &&
 
   while ! ${DOCKER} info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
@@ -638,13 +647,13 @@ build_python_container)
   build_python_container
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Python container has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_user_containers)
-  ensure_data_dir &&
+  ensure_data_dir "" &&
 
   while ! ${DOCKER} info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
@@ -656,15 +665,15 @@ build_user_containers)
 
   if [ ${BUILD_RESULT} -eq 2 ]; then
     # No user containers found (special return code)
-    echo "[HTML]: <p><i class='fa-solid fa-info-circle'></i> No user containers to build.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-info-circle'></i>No user containers to build.</p><hr />"
   elif ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of user containers has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build)
-  ensure_data_dir &&
+  ensure_data_dir "" &&
 
   while ! ${DOCKER} info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
@@ -676,16 +685,16 @@ build)
   build_docker_compose "no-cache"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i> Build of Monadic Chat has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Monadic Chat has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 check)
   check_if_docker_desktop_is_running
   ;;
 start)
-  ensure_data_dir &&
+  ensure_data_dir "" &&
   start_docker_compose &&
   echo "[SERVER STARTED]" &&
   docker_start_log "silent"

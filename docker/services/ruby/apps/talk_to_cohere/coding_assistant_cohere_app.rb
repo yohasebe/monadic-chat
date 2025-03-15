@@ -23,7 +23,7 @@ class CodingAssistantCohere < MonadicApp
     group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"],
     models: CohereHelper.list_models,
-    model: "command-r7b-12-2024",
+    model: "command-a-03-2025",
     app_name: "Coding Assistant (Cohere)",
     initial_prompt: initial_prompt,
     description: description,

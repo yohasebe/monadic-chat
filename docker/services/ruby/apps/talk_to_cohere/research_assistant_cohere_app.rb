@@ -1,5 +1,5 @@
-class ResearchAssistantCommandR < MonadicApp
-  include CommandRHelper
+class ResearchAssistantCohere < MonadicApp
+  include CohereHelper
 
   icon = "<i class='fa-solid fa-flask'></i>"
 
@@ -24,7 +24,7 @@ class ResearchAssistantCommandR < MonadicApp
   @settings = {
     group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
-    models: CommandRHelper.list_models,
+    models: CohereHelper.list_models,
     model: "command-r7b-12-2024",
     websearch: true,
     temperature: 0.2,
@@ -32,7 +32,7 @@ class ResearchAssistantCommandR < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Research Assistant (Command R)",
+    app_name: "Research Assistant (Cohere)",
     description: description,
     icon: icon,
     mathjax: true,

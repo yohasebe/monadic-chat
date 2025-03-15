@@ -201,6 +201,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 下記の言語モデルでもCode Interpreterアプリが利用可能です。
 
 - Anthropic Claude
+- Cohere
 
 ### Coding Assistant
 

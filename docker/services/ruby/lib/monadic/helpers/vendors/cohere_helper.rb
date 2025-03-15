@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module CommandRHelper
+module CohereHelper
   MAX_FUNC_CALLS = 8
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
@@ -54,7 +54,6 @@ module CommandRHelper
   ]
 
   WEBSEARCH_PROMPT = <<~TEXT
-
     Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
 
     - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
@@ -69,7 +68,7 @@ module CommandRHelper
     attr_reader :cached_models
 
     def vendor_name
-      "CommandR"
+      "Cohere"
     end
 
     # Fetches available models from Cohere API
@@ -114,71 +113,71 @@ module CommandRHelper
   end
 
   # No streaming plain text completion/chat call
-def send_query(options, model: "command-r-plus-08-2024")
-  api_key = ENV["COHERE_API_KEY"]
+  def send_query(options, model: "command-a-03-2025")
+    api_key = CONFIG["COHERE_API_KEY"]
 
-  headers = {
-    "accept" => "application/json",
-    "content-type" => "application/json",
-    "Authorization" => "Bearer #{api_key}"
-  }
+    headers = {
+      "accept" => "application/json",
+      "content-type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
 
-  body = {
-    "model" => model,
-    "stream" => false,
-    "messages" => []
-  }
+    body = {
+      "model" => model,
+      "stream" => false,
+      "messages" => []
+    }
 
-  body.merge!(options)
+    body.merge!(options)
 
-  target_uri = "#{API_ENDPOINT}/chat"
-  http = HTTP.headers(headers)
+    target_uri = "#{API_ENDPOINT}/chat"
+    http = HTTP.headers(headers)
 
-  res = nil
-  MAX_RETRIES.times do |i|
-    begin
-      res = http.timeout(
-        connect: OPEN_TIMEOUT,
-        write: WRITE_TIMEOUT,
-        read: READ_TIMEOUT
-      ).post(target_uri, json: body)
-      
-      # Check that res exists and that its status is successful
-      break if res && res.status && res.status.success?
-      
-      sleep RETRY_DELAY * (i + 1) # Exponential backoff
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      next unless i == MAX_RETRIES - 1
-      
-      pp error_message = "Network error: #{e.message}"
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
-      block&.call res
-      return [res]
+    res = nil
+    MAX_RETRIES.times do |i|
+      begin
+        res = http.timeout(
+          connect: OPEN_TIMEOUT,
+          write: WRITE_TIMEOUT,
+          read: READ_TIMEOUT
+        ).post(target_uri, json: body)
+        
+        # Check that res exists and that its status is successful
+        break if res && res.status && res.status.success?
+        
+        sleep RETRY_DELAY * (i + 1) # Exponential backoff
+      rescue HTTP::Error, HTTP::TimeoutError => e
+        next unless i == MAX_RETRIES - 1
+        
+        pp error_message = "Network error: #{e.message}"
+        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+        block&.call res
+        return [res]
+      end
     end
+
+    if res && res.status && res.status.success?
+      begin
+        # Parse response only once in the success branch
+        parsed_response = JSON.parse(res.body)
+        return parsed_response.dig("choices", 0, "message", "content")
+      rescue JSON::ParserError => e
+        return "ERROR: Failed to parse response JSON: #{e.message}"
+      end
+    else
+      error_response = nil
+      begin
+        # Parse error response body only once
+        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      rescue JSON::ParserError => e
+        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      end
+      pp error_response
+      return "ERROR: #{error_response["error"]}"
+    end
+  rescue StandardError => e
+    return "Error: The request could not be completed. (#{e.message})"
   end
-
-  if res && res.status && res.status.success?
-    begin
-      # Parse response only once in the success branch
-      parsed_response = JSON.parse(res.body)
-      return parsed_response.dig("choices", 0, "message", "content")
-    rescue JSON::ParserError => e
-      return "ERROR: Failed to parse response JSON: #{e.message}"
-    end
-  else
-    error_response = nil
-    begin
-      # Parse error response body only once
-      error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-    rescue JSON::ParserError => e
-      error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
-    end
-    pp error_response
-    return "ERROR: #{error_response["error"]}"
-  end
-rescue StandardError => e
-  return "Error: The request could not be completed. (#{e.message})"
-end
 
   # Main API request handler
   def api_request(role, session, call_depth: 0, &block)
@@ -292,6 +291,7 @@ end
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
 
+    # Handle tools differently for Cohere
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
       body["tools"].push(*WEBSEARCH_TOOLS) if websearch
@@ -370,6 +370,10 @@ end
       extra_log.puts(JSON.pretty_generate(query))
     end
 
+    # Store the request parameters for constructing the final response
+    obj = session[:parameters]
+    app_name = obj["app_name"]
+    
     texts = []
     tool_calls = []
     finish_reason = nil
@@ -438,6 +442,7 @@ end
             when "tool-call-start"
               tool_call_data = json.dig("delta", "message", "tool_calls")
               current_tool_call = tool_call_data.dup
+              
               # Ensure there's a valid arguments field even if empty
               if current_tool_call && current_tool_call["function"] && !current_tool_call["function"]["arguments"]
                 current_tool_call["function"]["arguments"] = "{}"
@@ -448,6 +453,18 @@ end
               end
             when "tool-call-end"
               if current_tool_call
+                # Ensure arguments is a valid JSON string
+                if current_tool_call["function"] && current_tool_call["function"]["arguments"]
+                  begin
+                    # Try to parse to validate JSON and pretty print it
+                    parsed = JSON.parse(current_tool_call["function"]["arguments"])
+                    current_tool_call["function"]["arguments"] = JSON.generate(parsed)
+                  rescue JSON::ParserError
+                    # If not valid JSON, use an empty object
+                    current_tool_call["function"]["arguments"] = "{}"
+                  end
+                end
+                
                 accumulated_tool_calls << current_tool_call
                 current_tool_call = nil
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
@@ -489,7 +506,6 @@ end
 
     # Process accumulated tool calls if any exist
     if accumulated_tool_calls.any?
-
       context = [
         {
           "role" => "assistant",
@@ -521,17 +537,30 @@ end
         # Use only text result
         res = { "choices" => [{ "message" => { "content" => result } }] }
       end
+      
+      # Send the result
       block&.call res
+      
+      # Send the DONE message to trigger HTML rendering
+      done_msg = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
+      block&.call done_msg
+      
+      # Explicitly send a "wait" message to reset the UI status immediately 
+      # This ensures the UI doesn't stay in the "RESPONDING" state
+      ready_msg = { "type" => "wait", "content" => "<i class='fa-solid fa-circle-check text-success'></i> <span class='text-success'>Ready to Start</span>" }
+      block&.call ready_msg
+      
+      # The "DONE" message tells the client to request HTML, which resets the status
       [res]
     elsif result
-      # Return final text result
+      # Return final text result exactly like the command_r_helper does
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       [
         {
           "choices" => [
             {
-              "finish_reason" => finish_reason,
+              "finish_reason" => finish_reason, 
               "message" => { "content" => result }
             }
           ]
@@ -547,7 +576,11 @@ end
   def process_functions(app, session, tool_calls, context, call_depth, &block)
     obj = session[:parameters]
     tool_results = []
-
+    
+    # First, tell the client that function processing is starting
+    begin_msg = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> PROCESSING FUNCTION RESULTS" }
+    block&.call begin_msg
+    
     tool_calls.each do |tool_call|
       # Extract function name and validate
       function_name = tool_call.dig("function", "name")
@@ -575,6 +608,11 @@ end
 
         memo[k.to_sym] = v
         memo
+      end
+
+      # Special handling for check_environment function
+      if function_name == "check_environment" && argument_hash.empty?
+        argument_hash = {}  # Ensure it's an empty hash, not nil
       end
 
       # Execute function and capture result
@@ -605,6 +643,10 @@ end
 
     # Store the tool results in the session
     obj["tool_results"] = context
+
+    # Tell the client we're done with function processing before making the recursive API request
+    done_msg = { "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" }
+    block&.call done_msg
 
     # Make recursive API request with tool results
     api_request("tool", session, call_depth: call_depth, &block)

@@ -29,7 +29,8 @@ module OpenAIHelper
     "whisper",
     "gpt-3.5",
     "gpt-4-",
-    "o1-preview"
+    "o1-preview",
+    "search"
   ]
 
   # partial string match

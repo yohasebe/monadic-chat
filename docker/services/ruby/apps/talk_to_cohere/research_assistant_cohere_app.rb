@@ -25,7 +25,7 @@ class ResearchAssistantCohere < MonadicApp
     group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"] || !CONFIG["TAVILY_API_KEY"],
     models: CohereHelper.list_models,
-    model: "command-r7b-12-2024",
+    model: "command-a-03-2025",
     websearch: true,
     temperature: 0.2,
     context_size: 100,

@@ -31,6 +31,6 @@ class ChatCohere < MonadicApp
     initiate_from_assistant: false,
     image: false,
     models: CohereHelper.list_models,
-    model: "command-r-plus-08-2024"
+    model: "command-a-03-2025"
   }
 end

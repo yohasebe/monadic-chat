@@ -114,7 +114,7 @@ All settings here are saved in the `~/monadic/config/env` file.
 Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com].
 
 **COHERE_API_KEY** <br />
-Enter your Cohere API key. This key is required to use the Cohere Command R models. It can be obtained from [https://dashboard.cohere.com].
+Enter your Cohere API key. This key is required to use the Cohere models. It can be obtained from [https://dashboard.cohere.com].
 
 **GEMINI_API_KEY** <br />
 Enter your Google Gemini API key. This key is required to use the Google Gemini models. It can be obtained from [https://ai.google.dev/].

@@ -2,7 +2,7 @@
 
 **Q**: Monadic Chatを使うのにOpenAIのAPIトークンは必要ですか？
 
-**A**音声認識、音声合成、テキスト埋め込みの作成などの機能を使用しない場合はOpenAIのAPIトークンは必ずしも必要でありません。Anthropic Claude、Google Gemini、Cohere Command R、Mistral AIなどAPIを使用することもできます。
+**A**音声認識、音声合成、テキスト埋め込みの作成などの機能を使用しない場合はOpenAIのAPIトークンは必ずしも必要でありません。Anthropic Claude、Google Gemini、Cohere、Mistral AIなどAPIを使用することもできます。
 
 商用のAPIを使いたくない場合は、Ollamaのコンテナを使用することもできます。Monadic ChatでOllamaを使用する方法については、[Ollamaの利用](./ollama) を参照してください。
 

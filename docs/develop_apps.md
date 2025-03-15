@@ -82,11 +82,11 @@ The following modules are available for use in the recipe file:
 
 - `OpenAIHelper` to use the OpenAI API
 - `ClaudeHelper` to use the Anthropic Claude API
-- `CommandRHelper` to use the Cohere Command R API
+- `CohereHelper` to use the Cohere API
 - `MistralHelper` to use the Mistral AI API
 - `GeminiHelper` to use the Google Gemini API
 
-?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CommandRHelper`, and `MistralHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Currently, these functions are not available in `GeminiHelper`.
+?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, and `MistralHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Currently, these functions are not available in `GeminiHelper`.
 
 !> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed. Details of the specific error are recorded in a log file saved in the shared folder (`~/monadic/data/error.log`).
 

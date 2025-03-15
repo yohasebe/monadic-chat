@@ -40,7 +40,7 @@ GEMINI_API_KEY=api_key
 
 ![Cohere apps icon](./assets/icons/c.png ':size=40')
 
-By setting the Cohere API key, you can use apps that utilize Command R. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the Cohere API key, you can use apps that utilize Cohere's models. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 COHERE_API_KEY=api_key

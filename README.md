@@ -88,7 +88,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)
-  - [Cohere Command R](https://cohere.com/)
+  - [Cohere](https://cohere.com/)
   - [Mistral AI](https://docs.mistral.ai/api/)
   - [xAI Grok](https://x.ai/api)
   - [Perplexity](https://docs.perplexity.ai/home)

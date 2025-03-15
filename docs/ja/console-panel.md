@@ -114,7 +114,7 @@ OpenAI API キーを入力してください。このキーはChat API、DALL-E 
 **ANTHROPIC_API_KEY**<br />
 Anthropic APIキーを入力してください。このキーはAnthropic Claude モデルを使用するのに必要です。[https://console.anthropic.com] で取得できます。
 
-**COHERE_API_KEY**<br /> Cohere API キーを入力してください。このキーは、Cohere Command R モデルを使用するのに必要です。[https://dashboard.cohere.com] で取得できます。
+**COHERE_API_KEY**<br /> Cohere API キーを入力してください。このキーは、Cohere モデルを使用するのに必要です。[https://dashboard.cohere.com] で取得できます。
 
 **GEMINI_API_KEY**<br /> Google Gemini API キーを入力してください。このキーはGoogle Gemini モデル アプリを使用するのに必要です。[https://ai.google.dev/]で取得できます。
 

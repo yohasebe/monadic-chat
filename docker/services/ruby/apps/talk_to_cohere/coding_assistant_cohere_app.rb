@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-class CodingAssistantCommandR < MonadicApp
-  include CommandRHelper
+class CodingAssistantCohere < MonadicApp
+  include CohereHelper
 
   icon = "<i class='fa-solid fa-c'></i>"
 
@@ -22,9 +22,9 @@ class CodingAssistantCommandR < MonadicApp
   @settings = {
     group: "Cohere",
     disabled: !CONFIG["COHERE_API_KEY"],
-    models: CommandRHelper.list_models,
+    models: CohereHelper.list_models,
     model: "command-r7b-12-2024",
-    app_name: "Coding Assistant (Command R)",
+    app_name: "Coding Assistant (Cohere)",
     initial_prompt: initial_prompt,
     description: description,
     temperature: 0.0,

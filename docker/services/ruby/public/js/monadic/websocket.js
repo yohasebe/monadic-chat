@@ -1234,8 +1234,8 @@ const baseReconnectDelay = 1000;
 function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached. Please refresh the page.`);
-    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection failed. Please refresh the page.", "danger");
+    console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection failed.", "danger");
     return;
   }
 

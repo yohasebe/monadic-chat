@@ -1,6 +1,8 @@
-- [March, 2025] 0.9.59
+- [March, 2025] 0.9.60
   - OpenAI's web search feature supported
   - gpt-4o-(mini-)search-preview models supported
+  - Cohere Command A models supported
+  - CommandRHelper module renamed to CohereHelper (vendor-neutral naming)
   - User defined containers building process changed
   - Fix ElevenLabs TTS provider cookie persistence and auto-selection
   - Many small app improvements
@@ -103,7 +105,7 @@
   - Automatic Docker image rebuild feature
   - Source code block copy button added
   - Video Describer app added
-- [May, 2024] Talk to Claude/Command R/Gemini apps added
+- [May, 2024] Talk to Claude/Cohere/Gemini apps added
   - Ruby/Python/PGVector/Selenium containers structure introduced
 - [Feb, 2024] Mermaid diagram support
   - File reading feature

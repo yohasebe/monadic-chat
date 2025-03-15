@@ -88,11 +88,11 @@ end
 
 - `OpenAIHelper`
 - `ClaudeHelper`
-- `CommandRHelper`
+- `CohereHelper`
 - `MistralHelper`
 - `GeminiHelper`
 
-?> `OpenAIHelper`、`ClaudeHelper`、`CommandRHelper`, `MistralHelper`では "function calling" や "tool use" の機能を使うことができます（[関数・ツールの呼び出し](#関数・ツールの呼び出し)を参照）。)を参照）。現在、`GeminiHelper`ではこれらの機能を利用できません。
+?> `OpenAIHelper`、`ClaudeHelper`、`CohereHelper`、`MistralHelper`では "function calling" や "tool use" の機能を使うことができます（[関数・ツールの呼び出し](#関数・ツールの呼び出し)を参照）。現在、`GeminiHelper`ではこれらの機能を利用できません。
 
 !> レシピファイルがRubyスクリプトとして有効ではなく、エラーが発生する場合、Monadic Chatが起動せず、エラーメッセージが表示されます。具体的なエラーの詳細は共有フォルダ内に保存されるログファイルに記録されます（`~/monadic/data/error.log`）。
 

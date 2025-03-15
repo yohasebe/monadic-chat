@@ -26,10 +26,14 @@ class SpeechDraftHelper < MonadicApp
 
     - `text`: The speech text to convert to speech.
     - `provider`: Provider of the speech. Default is "openai".
-    - `voice_id`: Voice ID of the speech (IMPORTANT: Specify voice_id, not name, of the voice).
-    - `language`: Language of the speech in the format "en", "es", “ja”, etc.
+    - `voice_id`: Voice ID of the speech (CRITICAL: You MUST use the exact voice_id value from list_providers_and_voices, NOT the display name).
+    - `language`: Language of the speech in the format "en", "es", "ja", etc.
 
-    Remember to use the `voice_id` even if the user specifies the voice with its `name`. The `text_to_speech` function does not accept a voice `name` but it accepts a `voice_id`.
+    CRITICAL INSTRUCTION: When using the text_to_speech function, always:
+    1. First call list_providers_and_voices to get the available voice options
+    2. Look up the exact voice_id that corresponds to the requested voice name
+    3. Use ONLY the voice_id value from the results, never the display name
+    4. If the user specifies a voice by name (like "Ken"), you must find its corresponding voice_id
 
     TTS providers include "openai" and its high-definition version "openai-hd". Other provides such as "elevenlabs" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
 
@@ -171,18 +175,18 @@ class SpeechDraftHelper < MonadicApp
           parameters: {
             type: "object",
             properties: {
-              provider: {
+              text: {
                 type: "string",
                 description: "Text to convert to speech."
               },
-              text: {
+              provider: {
                 type: "string",
                 enum: ["openai", "openai-hd", "elevenlabs"],
                 description: "Provider of the speech."
               },
               voice_id: {
                 type: "string",
-                description: "Voice id of the speech."
+                description: "Voice ID (not name) of the speech. Use the exact voice_id value from list_providers_and_voices function."
               },
               language: {
                 type: "string",

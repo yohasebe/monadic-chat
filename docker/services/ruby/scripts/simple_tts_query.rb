@@ -138,8 +138,9 @@ def tts_api_request(text,
   begin
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
-      error_report = JSON.parse(res.body)["error"]
-      return { type: "error", content: "ERROR: #{error_report["message"]}" }
+      error_report = JSON.parse(res.body.to_s)
+      error_message = error_report["error"] ? error_report["error"]["message"] : "API request failed"
+      return { type: "error", content: "ERROR: #{error_message}" }
     end
     response = res.body
   rescue HTTP::Error, HTTP::TimeoutError

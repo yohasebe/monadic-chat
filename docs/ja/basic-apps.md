@@ -115,9 +115,14 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 ![Image Generator app icon](./assets/icons/image-generator.png ':size=40')
 
-説明に基づいて画像を生成するアプリケーションです。プロンプトが具体的でない場合や、英語以外の言語で書かれている場合は、改善されたプロンプトを返し、改善されたプロンプトで続行するかどうかを尋ねます。内部でDall-E 3 APIを使用しています。
+説明に基づいて画像を生成するアプリケーションです。プロンプトが具体的でない場合や、英語以外の言語で書かれている場合は、改善されたプロンプトを返し、改善されたプロンプトで続行するかどうかを尋ねます。OpenAIバージョンは内部でDall-E 3 APIを使用しています。
 
 画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
+
+下記の言語モデルでImage Generatorアプリが利用可能です。
+
+- OpenAI（DALL-E 3を使用）
+- Google Gemini（Imagenを使用）
 
 ### Mail Composer
 
@@ -130,12 +135,6 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 ![Mermaid Grapher app icon](./assets/icons/diagram-draft.png ':size=40')
 
 [mermaid.js](https://mermaid.js.org/) を活用してデータを視覚化するアプリケーションです。任意のデータや指示文を入力すると、エージェントがフローチャートのMermaid コードを生成して画像を描画します。
-
-### Music Composer
-
-![Music Composer app icon](./assets/icons/music.png ':size=40')
-
-[ABC](https://en.wikipedia.org/wiki/ABC_notation)記法で簡単な楽譜を作成し、Midiで演奏するアプリケーションです。使用する楽器と音楽のジャンルやスタイルを指定します。
 
 ### Speech Draft Helper
 

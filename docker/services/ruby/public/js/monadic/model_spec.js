@@ -316,7 +316,7 @@ const modelSpec = {
   },
   // Gemini models
   // Experimental models
-  "gemini-2.0-pro-exp": {
+  "gemini-2.0-pro-exp-02-05": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],

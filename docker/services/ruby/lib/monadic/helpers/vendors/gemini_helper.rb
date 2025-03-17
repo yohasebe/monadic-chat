@@ -385,6 +385,9 @@ module GeminiHelper
       extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
       extra_log.puts(JSON.pretty_generate(query))
     end
+    
+    # For image generator app, we'll need special processing to remove code blocks
+    is_image_generator = app.to_s.include?("image_generator") || app.to_s.include?("gemini") && session[:parameters]["app_name"].to_s.include?("Image Generator")
 
     buffer = String.new
     texts = []
@@ -440,6 +443,20 @@ module GeminiHelper
             content["parts"]&.each do |part|
               if part["text"]
                 fragment = part["text"]
+                
+                # Special processing for image generator app to strip code blocks
+                if is_image_generator && fragment.include?("```")
+                  # Remove code block markers and extract HTML
+                  if fragment.include?("```html") && fragment.include?("```\n")
+                    # Extract HTML between code markers
+                    html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
+                    fragment = html_content
+                  elsif fragment.match(/```(\w+)?/)
+                    # Remove any code block markers
+                    fragment = fragment.gsub(/```(\w+)?/, "").gsub(/```/, "")
+                  end
+                end
+                
                 texts << fragment
 
                 res = {

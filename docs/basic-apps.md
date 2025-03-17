@@ -117,9 +117,14 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 ![Image Generator app icon](./assets/icons/image-generator.png ':size=40')
 
-This application generates images based on descriptions. If the prompt is not specific or is written in a language other than English, it returns an improved prompt and asks whether to proceed with the improved prompt. It uses the Dall-E 3 API internally.
+This application generates images based on descriptions. If the prompt is not specific or is written in a language other than English, it returns an improved prompt and asks whether to proceed with the improved prompt. The OpenAI version uses the Dall-E 3 API internally.
 
 Images are saved in the `Shared Folder` and also displayed in the chat.
+
+Image Generator apps are also available for the following models:
+
+- OpenAI (using DALL-E 3)
+- Google Gemini (using Imagen)
 
 ### Mail Composer
 
@@ -132,12 +137,6 @@ This application is for drafting emails in collaboration with the assistant. The
 ![Mermaid Grapher app icon](./assets/icons/diagram-draft.png ':size=40')
 
 This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for a flowchart and renders the image.
-
-### Music Composer
-
-![Music Composer app icon](./assets/icons/music.png ':size=40')
-
-This application creates simple sheet music using [ABC notation](https://en.wikipedia.org/wiki/ABC_notation) and plays it in Midi. Specify the instrument and the genre or style of music to be used.
 
 ### Speech Draft Helper
 

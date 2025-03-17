@@ -94,8 +94,8 @@ module InteractionUtils
   def tts_api_request(text,
                       provider:,
                       voice:,
-                      speed:,
                       response_format:,
+                      speed: nil,
                       previous_text: nil,
                       language: "auto",
                       &block)
@@ -107,6 +107,8 @@ module InteractionUtils
     end
 
     num_retrial = 0
+
+    val_speed = speed ? speed.to_f : 1.0
 
     case provider
     when "openai", "openai-hd"
@@ -122,7 +124,7 @@ module InteractionUtils
         "input" => text_converted,
         "model" => model,
         "voice" => voice,
-        "speed" => speed,
+        "speed" => val_speed,
         "response_format" => response_format
       }
 
@@ -140,9 +142,16 @@ module InteractionUtils
 
       body = {
         "text" => text_converted,
-        "model_id" => "eleven_flash_v2_5",
-        "speed" => speed
+        "model_id" => "eleven_flash_v2_5"
       }
+
+      if speed
+        body["voice_settings"] = {
+          "stability" => 0.5,
+          "similarity_boost" => 0.75,
+          "speed" => val_speed
+        }
+      end
 
       if previous_text.to_s != ""
         body["previous_text"] = previous_text

@@ -6,6 +6,12 @@
 
 ---
 
+**Q**: Can I adjust the speed of the AI agent's voice?
+
+**A**: Yes, you can adjust the playback speed of the synthesized speech using the `Text-to-Speech Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices.
+
+---
+
 **Q**: Can I save the input text as an MP3 file by synthesizing speech?
 
 **A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an MP3 file.

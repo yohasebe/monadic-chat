@@ -1082,7 +1082,11 @@ function connect_websocket(callback) {
 
           // Show message input and hide spinner
           $("#message").show();
+          $("#message").val(""); // Clear the message after successful response
           $("#message").prop("disabled", false);
+          // Re-enable all input controls
+          $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+          $("#select-role").prop("disabled", false);
           $("#monadic-spinner").hide();
 
           if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
@@ -1166,7 +1170,10 @@ function connect_websocket(callback) {
         $("#temp-card").show();
         $("#temp-card .status").hide();
         $("#indicator").show();
-        $("#user-panel").hide();
+        // Keep the user panel visible but disable interactive elements
+        $("#message").prop("disabled", true);
+        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
+        $("#select-role").prop("disabled", true);
         $("#cancel_query").show();
         
         // Show informative spinner message
@@ -1175,9 +1182,12 @@ function connect_websocket(callback) {
       }
 
       case "cancel": {
-        $("#message").val("");
+        // Don't clear the message so users can edit and resubmit
         $("#message").attr("placeholder", "Type your message...");
         $("#message").prop("disabled", false);
+        // Re-enable all the UI elements that were disabled
+        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+        $("#select-role").prop("disabled", false);
         $("#alert-message").html("Input a message.");
         $("#cancel_query").hide();
         

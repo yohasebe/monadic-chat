@@ -118,6 +118,9 @@ Monadic Chatの現在の状況を示します。
 **Text-to-Speech Voice**<br />
 音声合成に使用するボイスを指定できます。
 
+**Text-to-Speech Speed**<br />
+合成音声の再生速度を0.7（遅い）から1.2（速い）の範囲で調整できます。ElevenLabsの音声は、OpenAIの音声と比較して、変更された速度でテキストを再生する際の品質が一般的に優れています。
+
 **Automatic-Speech-Recognition (ASR) Language**<br />
 音声認識にはWhisper APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。
 参考：[Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)

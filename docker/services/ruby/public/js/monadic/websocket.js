@@ -1219,8 +1219,8 @@ function connect_websocket(callback) {
 
   ws.onerror = function (err) {
     console.error('Socket encountered error: ', err.message, 'Closing socket');
-    // set a message in the alert box
-    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection terminated.", "danger");
+    // set a message in the alert box - this happens when the server is actually down
+    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection to server lost.", "danger");
     ws.close();
   }
   return ws;
@@ -1228,14 +1228,14 @@ function connect_websocket(callback) {
 
 // Track reconnection attempts
 let reconnectAttempts = 0;
-const maxReconnectAttempts = 10;
+const maxReconnectAttempts = 20; // Increased max attempts to allow more time for reconnection
 const baseReconnectDelay = 1000;
 
 function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection failed.", "danger");
+    setAlert("<i class='fa-solid fa-info-circle'></i> This tab is inactive. Click to activate or refresh page.", "warning");
     return;
   }
 

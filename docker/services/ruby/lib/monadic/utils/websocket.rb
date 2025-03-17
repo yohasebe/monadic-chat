@@ -107,7 +107,9 @@ module WebSocketHelper
       queue = Queue.new
       thread = nil
       sid = nil
-      @channel = EventMachine::Channel.new
+      
+      # Create a new channel for each connection if it doesn't exist
+      @channel ||= EventMachine::Channel.new
 
       ws = Faye::WebSocket.new(env, nil, { ping: 15 })
       ws.on :open do

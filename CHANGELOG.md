@@ -1,4 +1,5 @@
-- [March, 2025] 0.9.60
+- [March, 2025] 0.9.61
+  - Image generation app added for Google Gemini (Imagen)
   - OpenAI's web search feature supported
   - gpt-4o-(mini-)search-preview models supported
   - Cohere Command A models supported

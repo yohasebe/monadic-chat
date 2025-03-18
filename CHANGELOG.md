@@ -1,4 +1,5 @@
-- [March, 2025] 0.9.61
+- [March, 2025] 0.9.62
+  - DrawIO Grapher app added
   - Image generation app added for Google Gemini (Imagen)
   - OpenAI's web search feature supported
   - gpt-4o-(mini-)search-preview models supported

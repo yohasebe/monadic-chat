@@ -790,29 +790,132 @@ module MonadicDSL
     end
   end
 
+  # Provider configuration for standardizing provider-related settings
+  class ProviderConfig
+    # Provider information mapping
+    PROVIDER_INFO = {
+      # Anthropic/Claude
+      "anthropic" => {
+        helper_module: 'ClaudeHelper',
+        api_key: 'ANTHROPIC_API_KEY',
+        display_group: 'Anthropic',
+        aliases: ['claude', 'anthropicclaude']
+      },
+      # Google/Gemini
+      "gemini" => {
+        helper_module: 'GeminiHelper',
+        api_key: 'GEMINI_API_KEY',
+        display_group: 'Google',
+        aliases: ['google', 'googlegemini']
+      },
+      # Cohere/Command R
+      "cohere" => {
+        helper_module: 'CommandRHelper',
+        api_key: 'COHERE_API_KEY',
+        display_group: 'Cohere',
+        aliases: ['commandr', 'coherecommandr']
+      },
+      # Mistral
+      "mistral" => {
+        helper_module: 'MistralHelper',
+        api_key: 'MISTRAL_API_KEY',
+        display_group: 'Mistral',
+        aliases: ['mistralai']
+      },
+      # DeepSeek
+      "deepseek" => {
+        helper_module: 'DeepSeekHelper',
+        api_key: 'DEEPSEEK_API_KEY',
+        display_group: 'DeepSeek',
+        aliases: ['deep seek']
+      },
+      # Perplexity
+      "perplexity" => {
+        helper_module: 'PerplexityHelper',
+        api_key: 'PERPLEXITY_API_KEY',
+        display_group: 'Perplexity',
+        aliases: []
+      },
+      # XAI/Grok
+      "xai" => {
+        helper_module: 'GrokHelper',
+        api_key: 'GROK_API_KEY',
+        display_group: 'Grok',
+        aliases: ['grok', 'xaigrok']
+      },
+      # OpenAI (default)
+      "openai" => {
+        helper_module: 'OpenAIHelper',
+        api_key: 'OPENAI_API_KEY',
+        display_group: 'OpenAI',
+        aliases: []
+      }
+    }
+    
+    # Constructor
+    def initialize(provider_name)
+      @provider_name = provider_name.to_s.downcase.gsub(/[\s\-]+/, "")
+      @config = find_provider_config
+    end
+    
+    # Get helper module name
+    def helper_module
+      @config[:helper_module]
+    end
+    
+    # Get API key environment variable name
+    def api_key_name
+      @config[:api_key]
+    end
+    
+    # Get display group name
+    def display_group
+      @config[:display_group]
+    end
+    
+    # Get standard provider key
+    def standard_key
+      @config[:standard_key] || @provider_name
+    end
+    
+    # Get model list using the appropriate helper
+    def model_list
+      if Object.const_defined?(@config[:helper_module])
+        helper_class = Object.const_get(@config[:helper_module])
+        if helper_class.respond_to?(:list_models)
+          return helper_class.list_models
+        end
+      end
+      []
+    end
+    
+    private
+    
+    # Find the provider configuration based on name or aliases
+    def find_provider_config
+      # Direct match
+      PROVIDER_INFO.each do |key, config|
+        return config.merge(standard_key: key) if key == @provider_name
+      end
+      
+      # Check aliases
+      PROVIDER_INFO.each do |key, config|
+        return config.merge(standard_key: key) if config[:aliases].include?(@provider_name)
+      end
+      
+      # Default to OpenAI if no match
+      PROVIDER_INFO["openai"]
+    end
+  end
+
   # Helper method to convert simplified state to class
   def self.convert_to_class(state)
-    # Determine the appropriate helper module based on the provider
-    provider_str = state.settings[:provider].to_s.downcase.gsub(/[\s\-]+/, "")
+    # Get standardized provider configuration
+    provider_config = ProviderConfig.new(state.settings[:provider])
+    helper_module = provider_config.helper_module
     
-    helper_module = case provider_str
-                   when "anthropic", "claude", "anthropicclaude"
-                     'ClaudeHelper'
-                   when "gemini", "google", "googlegemini"
-                     'GeminiHelper'
-                   when "cohere", "commandr", "coherecommandr"
-                     'CommandRHelper'
-                   when "mistral", "mistralai"
-                     'MistralHelper'
-                   when "deepseek", "deep seek"
-                     'DeepSeekHelper'
-                   when "perplexity"
-                     'PerplexityHelper'
-                   when "xai", "grok", "xaigrok"
-                     'GrokHelper'
-                   else
-                     'OpenAIHelper'
-                   end
+    # Get model list using helper module - simpler one-line version to avoid syntax errors
+    model_list_code = "defined?(#{helper_module}) ? #{helper_module}.list_models : []"
 
     class_def = <<~RUBY
       class #{state.name} < MonadicApp
@@ -823,9 +926,9 @@ module MonadicDSL
         initial_prompt = #{state.prompts[:initial].inspect}
 
         @settings = {
-          group: #{state.settings[:provider].to_s.capitalize.inspect},
-          disabled: !defined?(CONFIG) || !CONFIG["#{state.settings[:provider].to_s.upcase}_API_KEY"],
-          models: defined?(#{helper_module}) ? #{helper_module}.list_models : [],
+          group: #{provider_config.display_group.inspect},
+          disabled: !defined?(CONFIG) || !CONFIG["#{provider_config.api_key_name}"],
+          models: #{model_list_code},
           model: #{state.settings[:model].inspect},
           temperature: #{state.settings[:temperature]},
           initial_prompt: initial_prompt,

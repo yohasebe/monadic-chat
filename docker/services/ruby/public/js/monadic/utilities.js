@@ -410,7 +410,37 @@ function loadParams(params, calledFor = "loadParams") {
       $("#max-tokens").prop("disabled", true);
     } else {
       if (spec["reasoning_effort"]) {
-        $("#reasoning-effort").val(reasoning_effort[1]);
+        // Get the default reasoning_effort from the model specification if not provided in params
+        let defaultEffort = 'medium';
+        try {
+          // Extract default value from model spec
+          if (Array.isArray(spec["reasoning_effort"]) && spec["reasoning_effort"].length > 1) {
+            defaultEffort = spec["reasoning_effort"][1];
+          }
+        } catch (e) {
+          console.log("Could not get default reasoning effort from model spec", e);
+        }
+        
+        // Handle both array and string formats for reasoning_effort parameter
+        let effortValue = reasoning_effort || defaultEffort;
+        if (reasoning_effort) {  // Only process if reasoning_effort was provided
+          if (Array.isArray(reasoning_effort) && reasoning_effort.length > 1) {
+            effortValue = reasoning_effort[1];
+          } else if (typeof reasoning_effort === 'string' && reasoning_effort.startsWith('[')) {
+            // Try to parse JSON string
+            try {
+              const parsed = JSON.parse(reasoning_effort);
+              if (Array.isArray(parsed) && parsed.length > 1) {
+                effortValue = parsed[1];
+              }
+            } catch (e) {
+              // If parsing fails, use the string value
+              effortValue = reasoning_effort;
+            }
+          }
+        }
+        
+        $("#reasoning-effort").val(effortValue);
         $("#reasoning-effort").prop('disabled', false);
         $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
       } else {

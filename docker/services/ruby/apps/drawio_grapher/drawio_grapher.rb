@@ -116,15 +116,31 @@ class DrawIOGrapher < MonadicApp
   def repair_drawio_xml(content)
     # If the content appears to be just cells or partial content
     if content.include?('<mxCell') && !content.include?('<mxfile')
-      # Extract cells
-      cell_pattern = /<mxCell.*?\/mxCell>/m
-      cells = content.scan(cell_pattern).join("\n")
+      # Fix common typos/errors in mxCell tags before extraction
+      fixed_content = content.gsub(/<mxGeomexCell/, '<mxGeometry></mxCell')
+                             .gsub(/<\/mxGeomexCell>/, '</mxGeometry></mxCell>')
+      
+      # Use Nokogiri to cleanly extract and fix cells when possible
+      begin
+        fragment = Nokogiri::XML.fragment("<root>#{fixed_content}</root>")
+        cells = fragment.xpath(".//mxCell").map(&:to_xml).join("\n")
+      rescue => e
+        # Fallback to regex if Nokogiri parsing fails
+        cell_pattern = /<mxCell.*?<\/mxCell>/m
+        cells = fixed_content.scan(cell_pattern).join("\n")
+        
+        # If still no cells found, try more lenient pattern
+        if cells.empty?
+          cell_pattern = /<mxCell.*?\/mxCell>/m
+          cells = fixed_content.scan(cell_pattern).join("\n")
+        end
+      end
       
       # If no cells were found, try to salvage any XML-like content
       if cells.empty?
         # Try to extract anything that looks like XML tags
         tag_pattern = /<[^>]+>.*?<\/[^>]+>/m
-        cells = content.scan(tag_pattern).join("\n")
+        cells = fixed_content.scan(tag_pattern).join("\n")
       end
       
       # Insert into template

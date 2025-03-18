@@ -165,7 +165,7 @@ voiceButton.on("click", function () {
 
   } else {
     voiceButton.toggleClass("btn-warning btn-danger");
-    setAlert("<i class='fas fa-exclamation-triangle'></i> SILENCE DETECTED: Please check your microphone settings and try again", "error");
+    setAlert("<i class='fas fa-exclamation-triangle'></i> SILENCE DETECTED: Check your microphone settings", "error");
     voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     $("#send, #clear").prop("disabled", false);
     isListening = false;

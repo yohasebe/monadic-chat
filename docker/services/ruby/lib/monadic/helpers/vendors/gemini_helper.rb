@@ -291,7 +291,12 @@ module GeminiHelper
     end
 
     if settings["tools"]
-      body["tools"] = settings["tools"]
+      # Convert the tools format if it's an array (initialize_from_assistant apps)
+      if settings["tools"].is_a?(Array)
+        body["tools"] = {"function_declarations" => settings["tools"]}
+      else
+        body["tools"] = settings["tools"]
+      end
       body["tools"]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
       body["tools"]["function_declarations"].uniq!
 

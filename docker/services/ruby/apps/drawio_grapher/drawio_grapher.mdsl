@@ -74,6 +74,8 @@ app "DrawIO Grapher" do
     4. Any styling or formatting you've applied
     5. A brief suggestion for how the user might want to modify or enhance the diagram further in Draw.io
     
+    IMPORTANT: Be sure to inform the user that diagram generation and file saving may take a moment to complete. Let them know that even after your response appears to finish, there might be a brief period where the system is still processing and saving the file. Mention that they should wait for the processing indicator to stop before attempting to access the file.
+    
     After describing the diagram, inform the user that you've saved the diagram as a .drawio file that they can download from their shared folder and import into Draw.io for further editing or visualization.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.

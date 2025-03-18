@@ -50,13 +50,21 @@ class DrawIOGrapher < MonadicApp
         end
       end
       
-      if success
+      # Explicitly wrap the result string in a variable and return it
+      # This ensures the function result can be properly processed
+      result = if success
         "The file #{filename} has been saved to the shared folder."
       else
         "Error: The file could not be written."
       end
+      
+      # Force synchronization before returning
+      STDOUT.flush
+      return result
     rescue StandardError => e
-      "Error: The file could not be written.\n#{e}"
+      error_result = "Error: The file could not be written.\n#{e}"
+      STDOUT.flush
+      return error_result
     end
   end
   

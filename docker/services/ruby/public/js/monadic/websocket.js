@@ -1245,7 +1245,7 @@ function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    setAlert("<i class='fa-solid fa-info-circle'></i> This tab is inactive. Click to activate or refresh page.", "warning");
+    setAlert("<i class='fa-solid fa-info-circle'></i> This tab is inactive.", "warning");
     return;
   }
 

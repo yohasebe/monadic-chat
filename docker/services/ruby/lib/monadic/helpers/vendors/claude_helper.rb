@@ -2,10 +2,10 @@ module ClaudeHelper
   MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.anthropic.com/v1"
   OPEN_TIMEOUT = 5 * 2
-  READ_TIMEOUT = 60 * 2
-  WRITE_TIMEOUT = 60 * 2
+  READ_TIMEOUT = 60 * 5
+  WRITE_TIMEOUT = 60 * 5
   MAX_RETRIES = 5
-  RETRY_DELAY = 1
+  RETRY_DELAY = 2
 
   MIN_PROMPT_CACHING = 1024
   MAX_PC_PROMPTS = 4
@@ -89,12 +89,16 @@ module ClaudeHelper
         if res.status.success?
           # Cache the model list
           model_data = JSON.parse(res.body)
-          $MODELS[:anthropic] = model_data["data"].map do |model|
+          models = model_data["data"].map do |model|
             model["id"]
           end.select do |model|
             !model.include?("claude-2")
           end
-          $MODELS[:anthropic]
+          
+          # Store in $MODELS with indifferent access
+          $MODELS[:anthropic] = models
+          
+          return models
         end
       rescue HTTP::Error, HTTP::TimeoutError
         []

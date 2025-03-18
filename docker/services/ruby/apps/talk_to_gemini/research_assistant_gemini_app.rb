@@ -40,6 +40,88 @@ class ResearchAssistantGemini < MonadicApp
     tools: {
       function_declarations: [
         {
+          name: "run_script",
+          description: "Run program code and return the output.",
+          parameters: {
+            type: "object",
+            properties: {
+              command: {
+                type: "string",
+                description: "Code execution command (e.g., 'python')"
+              },
+              code: {
+                type: "string",
+                description: "Code to be executed."
+              },
+              extension: {
+                type: "string",
+                description: "File extension of the code (e.g., 'py')"
+              }
+            },
+            required: ["command", "code", "extension"]
+          }
+        },
+        {
+          name: "run_bash_command",
+          description: "Run a bash command and return the output. The argument to `command` is provided as part of `docker exec -w shared_volume container COMMAND`.",
+          parameters: {
+            type: "object",
+            properties: {
+              command: {
+                type: "string",
+                description: "Bash command to be executed."
+              }
+            },
+            required: ["command"]
+          }
+        },
+        {
+          name: "lib_installer",
+          description: "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed.",
+          parameters: {
+            type: "object",
+            properties: {
+              command: {
+                type: "string",
+                description: "Library name to be installed."
+              },
+              packager: {
+                type: "string",
+                description: "Package manager to be used for installation. It can be either `pip` or `apt`."
+              }
+            },
+            required: ["command", "packager"]
+          }
+        },
+        {
+          name: "fetch_text_from_file",
+          description: "Fetch the text from a file and return its content.",
+          parameters: {
+            type: "object",
+            properties: {
+              file: {
+                type: "string",
+                description: "File name or file path"
+              }
+            },
+            required: ["file"]
+          }
+        },
+        {
+          name: "fetch_web_content",
+          description: "Fetch the content of the web page of the given URL and return it.",
+          parameters: {
+            type: "object",
+            properties: {
+              url: {
+                type: "string",
+                description: "URL of the web page."
+              }
+            },
+            required: ["url"]
+          }
+        },
+        {
           name: "fetch_text_from_office",
           description: "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it.",
           parameters: {
@@ -59,58 +141,26 @@ class ResearchAssistantGemini < MonadicApp
           parameters: {
             type: "object",
             properties: {
-              file: {
+              pdf: {
                 type: "string",
                 description: "File name or file path of the PDF"
               }
             },
-            required: ["file"]
+            required: ["pdf"]
           }
         },
         {
-          name: "analyze_image",
-          description: "Analyze the image and return the result.",
+          name: "check_environment",
+          description: "Get the contents of the Dockerfile and the shell script used in the Python container.",
           parameters: {
             type: "object",
             properties: {
-              message: {
+              dummy: {
                 type: "string",
-                description: "Text prompt asking about the image (e.g. 'What is in the image?')."
-              },
-              image_path: {
-                type: "string",
-                description: "Path to the image file. It can be either a local file path or a URL."
+                description: "This parameter is not used and can be omitted."
               }
             },
-            required: ["message", "image_path"]
-          }
-        },
-        {
-          name: "analyze_audio",
-          description: "Analyze the audio and return the transcript.",
-          parameters: {
-            type: "object",
-            properties: {
-              audio: {
-                type: "string",
-                description: "File path of the audio file"
-              }
-            },
-            required: ["audio"]
-          }
-        },
-        {
-          name: "fetch_text_from_file",
-          description: "Fetch the text from a file and return its content.",
-          parameters: {
-            type: "object",
-            properties: {
-              file: {
-                type: "string",
-                description: "File name or file path"
-              }
-            },
-            required: ["file"]
+            required: []
           }
         }
       ]

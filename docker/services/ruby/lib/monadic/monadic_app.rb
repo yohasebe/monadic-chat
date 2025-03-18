@@ -30,7 +30,8 @@ class MonadicApp
     
     def register_models(vendor_name, models)
       @model_data[vendor_name] ||= Set.new
-      @model_data[vendor_name].merge(models)
+      # Assign the result of merge back to @model_data[vendor_name]
+      @model_data[vendor_name] = @model_data[vendor_name].merge(models)
     end
 
     def model_data

@@ -99,13 +99,28 @@ PROMPT
 ### 4. 機能フラグ
 
 ```ruby
+# 標準的なUI機能:
 features do
-  image_support true     # 画像添付を有効にする
-  auto_speech false      # 自動テキスト読み上げを有効にする
-  code_interpreter true  # コード実行を有効にする
-  web_search true        # ウェブ検索機能を有効にする
-  file_upload true       # ファイルアップロードを有効にする
-  chat_history true      # 履歴保存を有効にする
+  image true              # アシスタントの応答内の画像をクリック可能にする (新しいタブで開く)
+  auto_speech false       # アシスタントメッセージの自動テキスト読み上げを有効にする
+  easy_submit true        # Enterキーでのメッセージ送信を有効にする (送信ボタンクリック不要)
+  sourcecode true         # 拡張されたソースコードハイライトを有効にする (別名: code_highlight)
+  mathjax true            # MathJaxを使用した数学表記のレンダリングを有効にする
+  abc true                # ABC音楽表記のレンダリングと再生を有効にする
+  mermaid true            # フローチャートや図表のためのMermaidダイアグラムレンダリングを有効にする
+  websearch true          # ウェブ検索機能を有効にする (別名: web_search)
+end
+
+# アプリ内での特定の実装が必要な機能:
+features do
+  # 以下の機能は特定のシステムコンポーネントと連携します:
+  
+  pdf true                # PDFファイルのアップロードと処理のためのUI要素を有効にする
+  toggle true             # UI内の折りたたみ可能なJSON表示セクションを有効にする
+  jupyter_access true     # Jupyterノートブックインターフェースへのアクセスを有効にする (別名: jupyter)
+  image_generation true   # 会話内でのAI画像生成ツールを有効にする
+  monadic true            # 拡張表示のための構造化JSONとしてレスポンスを処理する
+  initiate_from_assistant true # 会話でアシスタントが最初のメッセージを送信できるようにする
 end
 ```
 
@@ -172,8 +187,8 @@ app "数学チューター" do
   end
   
   features do
-    code_interpreter true
-    image_support true
+    sourcecode true     # コードハイライトを有効にする (以前のcode_interpreter)
+    image true          # レスポンス内のクリック可能な画像を有効にする
   end
   
   tools do
@@ -230,7 +245,7 @@ MDSL形式を使用する場合、ツールの実装は2つの部分に分かれ
 # mermaid_grapher.mdsl
 app "Mermaid Grapher" do
   description "mermaid.js構文を使用して図を作成する"
-  icon "fa-solid fa-project-diagram"
+  icon "diagram"
   
   system_prompt <<~PROMPT
     mermaid.jsを使用してデータを視覚化するのを手伝います。
@@ -239,18 +254,19 @@ app "Mermaid Grapher" do
   
   llm do
     provider "openai"
-    model "gpt-4o"
+    model "gpt-4o-2024-11-20"
     temperature 0.0
   end
   
   features do
     mermaid true
+    image true
   end
   
   # ツールはここで定義されますが、実装は別の場所にあります
   tools do
-    define_tool "mermaid_documentation", "mermaid図表タイプのドキュメントを取得する" do
-      parameter :diagram_type, "string", "ドキュメントを取得する図表タイプ", required: true
+    define_tool "mermaid_documentation", "特定のmermaidダイアグラムタイプのドキュメントと例を取得する" do
+      parameter :diagram_type, "string", "mermaidダイアグラムのタイプ（例：flowchart、sequenceDiagramなど）", required: true
     end
   end
 end
@@ -329,16 +345,18 @@ end
 
 ### プロバイダー固有のアダプター
 
-DSLは異なるAIプロバイダーに対して適切な関数定義形式に自動的に変換します：
+DSLは異なるAIプロバイダーに対して適切な関数定義形式に自動的に変換し、各モデルプロバイダーの特定の要件とフォーマットを処理します：
 
-- OpenAI: function_call形式を使用
-- Anthropic: Claudeのツール形式を使用
-- Cohere: Cohereのコマンドモデル形式に適応
-- Mistral: Mistralの関数呼び出し形式を使用
-- Gemini: Googleのジェミニモデル向けにフォーマット
-- DeepSeek: DeepSeekモデルをサポート
-- Perplexity: Perplexityモデルをサポート
-- Grok (xAI): Grokモデルをサポート
+- OpenAI: `type: "function"`構造を使用してOpenAIの関数呼び出し形式に変換
+- Anthropic: input_schemaプロパティを持つClaudeのツール形式に適応
+- Cohere: Cohereのコマンドモデルのparameter_definitions形式にマッピング
+- Mistral: Mistralの関数呼び出しAPIに対応したフォーマット
+- Gemini: function_declarations構造を使用してGoogle Geminiモデル向けに構造化
+- DeepSeek: DeepSeekの関数呼び出し形式に変換
+- Perplexity: Perplexityの関数形式に適応
+- Grok (xAI): 厳格な検証を持つGrokの関数形式にマッピング
+
+この自動変換により、DSLでツール定義を一度記述するだけで、手動変換なしに異なるプロバイダー間で動作させることができます。
 
 **FontAwesomeアイコンについての注意**: `icon`メソッドを使用してアイコンを指定する場合、FontAwesome 5 Freeの任意のアイコン名を使用できます。利用可能なアイコンは https://fontawesome.com/v5/search?ic=free で確認できます。システムは「brain」のような単純な名前を自動的に適切なスタイルの正しいHTMLに変換します。
 
@@ -376,6 +394,9 @@ class MathTutorApp < MonadicApp
     icon: "fa-solid fa-calculator",
     description: "数学問題を段階的に解決するAIアシスタント",
     initial_prompt: "あなたは有能な数学チューターです...",
+    pdf: false,
+    image: true,
+    sourcecode: true,
     # その他の設定...
   }
   
@@ -387,7 +408,7 @@ end
 ```ruby
 app "数学チューター" do
   description "数学問題を段階的に解決するAIアシスタント"
-  icon "fa-solid fa-calculator"
+  icon "calculator"  # アイコンはfa-solid接頭辞なしで簡略化された名前を使用できます
   
   system_prompt "あなたは有能な数学の先生です..."
   
@@ -395,6 +416,12 @@ app "数学チューター" do
     provider "anthropic"
     model "claude-3-opus-20240229"
     temperature 0.7
+  end
+  
+  features do
+    image true
+    sourcecode true
+    pdf false
   end
   
   # その他の設定...

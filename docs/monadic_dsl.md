@@ -99,13 +99,28 @@ PROMPT
 ### 4. Feature Flags
 
 ```ruby
+# Well-supported UI features:
 features do
-  image_support true     # Enable image attachments
-  auto_speech false      # Enable automatic text-to-speech
-  code_interpreter true  # Enable code execution
-  web_search true        # Enable web search capability
-  file_upload true       # Enable file uploading
-  chat_history true      # Enable history preservation
+  image true              # Enable images in assistant responses to be clickable (opens in new tab)
+  auto_speech false       # Enable automatic text-to-speech for assistant messages
+  easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
+  sourcecode true         # Enable enhanced source code highlighting (alias: code_highlight)
+  mathjax true            # Enable mathematical notation rendering using MathJax
+  abc true                # Enable ABC music notation rendering and playback
+  mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
+  websearch true          # Enable web search capability (alias: web_search)
+end
+
+# Features that require specific implementation in the app:
+features do
+  # The following features are tied to specific system components:
+  
+  pdf true                # Enable PDF file upload and processing UI elements
+  toggle true             # Enable collapsible JSON content sections in the UI
+  jupyter_access true     # Enable access to Jupyter notebook interface (alias: jupyter)
+  image_generation true   # Enable AI image generation tools in conversation
+  monadic true            # Process responses as structured JSON for enhanced display
+  initiate_from_assistant true # Allow assistant to send first message in conversation
 end
 ```
 
@@ -172,8 +187,8 @@ app "Math Tutor" do
   end
   
   features do
-    code_interpreter true
-    image_support true
+    sourcecode true     # Enable code highlighting (formerly code_interpreter)
+    image true          # Enable clickable images in responses
   end
   
   tools do
@@ -230,7 +245,7 @@ First, create your MDSL file with tool definitions:
 # mermaid_grapher.mdsl
 app "Mermaid Grapher" do
   description "Create diagrams using mermaid.js syntax"
-  icon "fa-solid fa-project-diagram"
+  icon "diagram"
   
   system_prompt <<~PROMPT
     You help visualize data using mermaid.js.
@@ -239,18 +254,19 @@ app "Mermaid Grapher" do
   
   llm do
     provider "openai"
-    model "gpt-4o"
+    model "gpt-4o-2024-11-20"
     temperature 0.0
   end
   
   features do
     mermaid true
+    image true
   end
   
   # The tool is defined here, but implemented elsewhere
   tools do
-    define_tool "mermaid_documentation", "Fetch documentation for a mermaid diagram type" do
-      parameter :diagram_type, "string", "Type of diagram to fetch documentation for", required: true
+    define_tool "mermaid_documentation", "Get documentation and examples for a specific mermaid diagram type." do
+      parameter :diagram_type, "string", "The type of mermaid diagram (e.g., flowchart, sequenceDiagram, etc.)", required: true
     end
   end
 end
@@ -329,16 +345,18 @@ end
 
 ### Provider-Specific Adapters
 
-The DSL automatically formats function definitions appropriately for different AI providers:
+The DSL automatically formats function definitions appropriately for different AI providers, handling the specific requirements and formats for each model provider:
 
-- OpenAI: Uses the function_call format
-- Anthropic: Uses Claude's tool format
-- Cohere: Adapts to Cohere's Command models format
-- Mistral: Uses Mistral's function calling format
-- Gemini: Formats tools for Google Gemini models
-- DeepSeek: Supports DeepSeek models
-- Perplexity: Supports Perplexity models
-- Grok (xAI): Supports Grok models
+- OpenAI: Converts to OpenAI's function calling format with `type: "function"` wrapper
+- Anthropic: Adapts to Claude's tool format with input_schema property
+- Cohere: Maps to Cohere's Command models parameter_definitions format
+- Mistral: Formats for Mistral's function calling API
+- Gemini: Structures for Google Gemini models with function_declarations wrapper
+- DeepSeek: Converts to DeepSeek's function calling format
+- Perplexity: Adapts to Perplexity's function format
+- Grok (xAI): Maps to Grok's function format with strict validation
+
+This automatic conversion means you can write your tool definitions once in the DSL, and they will work across different providers without manual conversion.
 
 **Note about FontAwesome Icons**: When specifying icons using the `icon` method, you can use any icon name from FontAwesome 5 Free. Browse the available icons at https://fontawesome.com/v5/search?ic=free. The system will automatically convert simple names like "brain" to the proper HTML with appropriate styles.
 
@@ -376,6 +394,9 @@ class MathTutorApp < MonadicApp
     icon: "fa-solid fa-calculator",
     description: "AI assistant that helps solve math problems step-by-step",
     initial_prompt: "You are a helpful math tutor...",
+    pdf: false,
+    image: true,
+    sourcecode: true,
     # other settings...
   }
   
@@ -387,7 +408,7 @@ end
 ```ruby
 app "Math Tutor" do
   description "AI assistant that helps solve math problems step-by-step"
-  icon "fa-solid fa-calculator"
+  icon "calculator"  # Icons can use simplified names without fa-solid prefix
   
   system_prompt "You are a helpful math tutor..."
   
@@ -395,6 +416,12 @@ app "Math Tutor" do
     provider "anthropic"
     model "claude-3-opus-20240229"
     temperature 0.7
+  end
+  
+  features do
+    image true
+    sourcecode true
+    pdf false
   end
   
   # Other configuration...

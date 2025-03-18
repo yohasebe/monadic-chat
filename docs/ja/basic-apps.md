@@ -136,6 +136,12 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 [mermaid.js](https://mermaid.js.org/) を活用してデータを視覚化するアプリケーションです。任意のデータや指示文を入力すると、エージェントがフローチャートのMermaid コードを生成して画像を描画します。
 
+### DrawIO Grapher
+
+![DrawIO Grapher app icon](./assets/icons/diagram-draft.png ':size=40')
+
+Draw.io ダイアグラムを作成するためのアプリケーションです。要件を伝えると、AIエージェントがDraw.io XMLファイルを生成し、共有フォルダに保存します。生成されたファイルはDraw.ioにインポートして編集することができます。フローチャート、UMLダイアグラム、ER図、ネットワーク図、組織図、マインドマップ、BPMNダイアグラム、ベン図、ワイヤフレームなど、様々な種類の図を作成できます。（注：現在は Anthropic Claude 3.7 モデルのみで利用可能です）
+
 ### Speech Draft Helper
 
 ![Speech Draft Helper app icon](./assets/icons/speech-draft-helper.png ':size=40')

@@ -138,6 +138,12 @@ This application is for drafting emails in collaboration with the assistant. The
 
 This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for a flowchart and renders the image.
 
+### DrawIO Grapher
+
+![DrawIO Grapher app icon](./assets/icons/diagram-draft.png ':size=40')
+
+This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder. (Note: Currently available for Anthropic Claude 3.7 models only)
+
 ### Speech Draft Helper
 
 ![Speech Draft Helper app icon](./assets/icons/speech-draft-helper.png ':size=40')

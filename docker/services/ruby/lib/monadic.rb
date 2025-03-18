@@ -29,7 +29,8 @@ require "cgi"
 require "yaml"
 require "csv"
 
-$MODELS = {}
+# Make $MODELS a HashWithIndifferentAccess so it can be accessed with both strings and symbols
+$MODELS = ActiveSupport::HashWithIndifferentAccess.new
 
 # return true if we are inside a docker container
 IN_CONTAINER = File.file?("/.dockerenv")

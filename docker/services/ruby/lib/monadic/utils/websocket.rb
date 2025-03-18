@@ -218,7 +218,12 @@ module WebSocketHelper
           APPS.each do |k, v|
             apps[k] = {}
             v.settings.each do |p, m|
-              apps[k][p] = m ? m.to_s : nil
+              # Special case for models array to ensure it's properly sent as JSON
+              if p == "models" && m.is_a?(Array)
+                apps[k][p] = m.to_json
+              else
+                apps[k][p] = m ? m.to_s : nil
+              end
             end
             v.api_key = settings.api_key
           end

@@ -1,4 +1,5 @@
-- [March, 2025] 0.9.62
+- [March, 2025] 0.9.63
+  - OpenAI models (gpt-4o, gpt-4o-mini, o1) support PDF input
   - DrawIO Grapher app added
   - Image generation app added for Google Gemini (Imagen)
   - OpenAI's web search feature supported

@@ -30,7 +30,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ## Uploading PDFs
 
-In Anthropic's Sonnet model, PDF uploads are supported in addition to images. Click `Attach Image/PDF` to select a PDF file to attach to the message.
+In Anthropic's Sonnet models and OpenAI's gpt-4o, gpt-4o-mini, and o1 models, PDF uploads are supported in addition to images. Click `Attach Image/PDF` to select a PDF file to attach to the message.
 
 ![](./assets/images/monadi-chat-pdf-attachment.png ':size=400')
 

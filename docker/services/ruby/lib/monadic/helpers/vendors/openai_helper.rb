@@ -359,6 +359,15 @@ module OpenAIHelper
       if msg["images"] && role == "user"
         msg["images"].each do |img|
           messages_containing_img = true
+          if img["type"] == "application/pdf"
+            message["content"] << {
+              "type" => "file",
+              "file" => {
+                "file_data" => img["data"],
+                "filename" => img["title"]
+              }
+            }
+          else
           message["content"] << {
             "type" => "image_url",
             "image_url" => {
@@ -366,6 +375,7 @@ module OpenAIHelper
               "detail" => "high"
             }
           }
+          end
         end
       end
       message

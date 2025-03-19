@@ -671,8 +671,8 @@ function checkParams() {
 }
 
 function adjustImageUploadButton(selectedModel) {
-  // Update image/PDF upload UI based on model
-  const isPdfEnabled = selectedModel && selectedModel.includes("sonnet");
+  // PDF is enabled for models whose name contains either "sonnet", "4o", "4o-mini", or "o1"
+  const isPdfEnabled = /sonnet|4o|4o-mini|o1/.test(selectedModel);
   const imageFileBtn = $("#image-file");
   const imageFileInput = $('#imageFile');
 

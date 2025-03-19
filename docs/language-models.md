@@ -12,7 +12,7 @@ OPENAI_API_KEY=api_key
 
 For apps using OpenAI's language models, refer to the [Basic Apps](./basic-apps.md) section.
 
-?> For apps using OpenAI's GPT-4o series and GPT-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
+?> For apps using OpenAI's gpt-4o series and gpt-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
 
 ## Anthropic Models
 
@@ -24,7 +24,7 @@ By setting the Anthropic API key, you can use apps that utilize Claude. Once set
 ANTHROPIC_API_KEY=api_key
 ```
 
-?> For apps using Anthropic Claude's Sonnet series models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [PDF recognition](./message-input?id=uploading-pdfs))
+?> For apps using Anthropic Claude's Sonnet series models or OpenAI's gpt-4o, gpt-4o-mini, and o1 models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [Uploading PDFs](./message-input?id=uploading-pdfs))
 
 ## Google Models
 

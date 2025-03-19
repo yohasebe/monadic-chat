@@ -606,11 +606,6 @@ $(function () {
         // Create a copy of the current images array to preserve the state
         let currentImages = [...images];
 
-        // Add PDF to the array if it exists and isn't already included
-        if (currentPdfData && !images.some(img => img.type === 'application/pdf')) {
-          currentImages.push(currentPdfData);
-        }
-
         // Set the images parameter for the request
         if (currentImages.length > 0) {
           params.images = currentImages;
@@ -621,8 +616,8 @@ $(function () {
         ws.send(JSON.stringify(params));
         $("#message").css("height", "96px").val("");
 
-        // Update images array and display to maintain PDF attachment
-        images = currentPdfData ? [currentPdfData] : [];
+        // Preserve only PDF files for the next message
+        images = images.filter(img => img.type === 'application/pdf');
         updateFileDisplay(images);
       });
     }

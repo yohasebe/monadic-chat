@@ -27,7 +27,7 @@ $("#imageFile").on("change", function() {
 // File selection button click handler
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
-  const isPdfEnabled = /sonnet|4o|4o-mini|o1/.test(selectedModel);
+  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1/.test(selectedModel);
 
   // Update modal UI based on model capabilities
   if (isPdfEnabled) {
@@ -51,7 +51,7 @@ $("#uploadImage").on("click", function () {
   const fileInput = $('#imageFile')[0];
   const file = fileInput.files[0];
   const selectedModel = $("#model").val();
-  const isPdfEnabled = /sonnet|4o|4o-mini|o1/.test(selectedModel);
+  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1/.test(selectedModel);
 
   if (file) {
     // Check file size for PDF files (35MB limit)
@@ -85,8 +85,8 @@ $("#uploadImage").on("click", function () {
             data: `data:${file.type};base64,${base64}`,
             type: file.type
           };
-          currentPdfData = fileData; // Store PDF data globally
-          images = [fileData]; // Replace existing images with PDF
+          currentPdfData = fileData; // Store the most recent PDF data globally
+          images.push(fileData); // Add the PDF to existing images array
           updateFileDisplay(images);
           $("#imageModal").modal("hide");
           $("#imageModal button").prop("disabled", false);
@@ -158,14 +158,13 @@ function updateFileDisplay(files) {
     const index = $(this).data("index");
     const removedFile = images[index];
 
-    if (removedFile.type === 'application/pdf') {
-      // Clear all PDF-related data
+    // Remove only the selected file (image or PDF)
+    if (removedFile.type === 'application/pdf' && removedFile === currentPdfData) {
+      // If removing the current PDF reference, set it to null
       currentPdfData = null;
-      images = [];
-    } else {
-      // Remove only the selected image
-      images.splice(index, 1);
     }
+    // Remove the file from the images array
+    images.splice(index, 1);
     updateFileDisplay(images);
   });
 }

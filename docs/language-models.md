@@ -24,7 +24,7 @@ By setting the Anthropic API key, you can use apps that utilize Claude. Once set
 ANTHROPIC_API_KEY=api_key
 ```
 
-?> For apps using Anthropic Claude's Sonnet series models or OpenAI's gpt-4o, gpt-4o-mini, and o1 models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [Uploading PDFs](./message-input?id=uploading-pdfs))
+?> For apps using Anthropic Claude's Sonnet series models, OpenAI's gpt-4o, gpt-4o-mini, and o1 models, or Google Gemini models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [Uploading PDFs](./message-input?id=uploading-pdfs))
 
 ## Google Models
 

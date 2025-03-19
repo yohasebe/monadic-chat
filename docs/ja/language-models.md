@@ -24,7 +24,7 @@ ANthropic APIキーを設定すると、Claudeを用いたアプリを使用す�
 ANTHROPIC_API_KEY=api_key
 ```
 
-?> Anthropic Claude の Sonnet 系列のモデルや OpenAI の gpt-4o、gpt-4o-mini、o1 モデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input?id=pdf-のアップロード)）
+?> Anthropic Claude の Sonnet 系列のモデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル、または Google Gemini モデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input?id=pdf-のアップロード)）
 
 ## Google Models
 

@@ -56,7 +56,10 @@ module OpenAIHelper
   ]
 
   # complete string match
-  NON_STREAM_MODELS = []
+  NON_STREAM_MODELS = [
+    "o1-pro",
+    "o1-pro-2025-03-19"
+  ]
 
   # websearch tools
   WEBSEARCH_TOOLS = [

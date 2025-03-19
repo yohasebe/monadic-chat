@@ -577,12 +577,12 @@ $(function () {
   });
 
   $("#send").on("click", function (event) {
-    audioInit();
-    setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
     event.preventDefault();
     if (message.value === "") {
       return;
     }
+    audioInit();
+    setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
     params = setParams();
     params["message"] = $("#message").val();
     

@@ -1,4 +1,4 @@
-- [March, 2025] 0.9.63
+- [March, 2025] 0.9.64
   - OpenAI models and Google Gemini models support PDF input
   - DrawIO Grapher app added
   - Image generation app added for Google Gemini (Imagen)

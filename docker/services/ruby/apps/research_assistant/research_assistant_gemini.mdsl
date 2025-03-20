@@ -8,7 +8,7 @@ app "ResearchAssistantGemini" do
     model "gemini-2.0-flash-exp"
   end
 
-  app_name "Research Assistant (Gemini)"
+  display_name "Research Assistant"
 
   features do
     group "Google"

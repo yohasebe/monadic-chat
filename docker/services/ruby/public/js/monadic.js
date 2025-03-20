@@ -387,7 +387,9 @@ $(function () {
       $("#context-size").prop("disabled", true);
     }
 
-    $("#base-app-title").text(apps[$(this).val()]["app_name"]);
+    // Use display_name if available, otherwise fall back to app_name
+    const displayText = apps[$(this).val()]["display_name"] || apps[$(this).val()]["app_name"];
+    $("#base-app-title").text(displayText);
     $("#base-app-icon").html(apps[$(this).val()]["icon"]);
 
     if (apps[$(this).val()]["monadic"]) {

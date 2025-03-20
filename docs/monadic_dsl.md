@@ -61,6 +61,10 @@ app "Application Name" do
   # icon "<i class='fas fa-code'></i>" # Custom HTML is preserved as-is
   
   # For available icons, see: https://fontawesome.com/v5/search?ic=free
+
+  # App naming options:
+  app_name "Application Full Name"     # Legacy parameter for backward compatibility
+  display_name "Application Name"      # Name shown in the UI (recommended)
   
   group "Category Name"  # Optional grouping for the UI
 end
@@ -168,6 +172,9 @@ end
 app "Math Tutor" do
   description "AI assistant that helps solve math problems step-by-step"
   icon "fa-solid fa-calculator"
+  
+  # Using display_name to standardize UI appearance
+  display_name "Math"
   
   system_prompt <<~PROMPT
     You are a helpful math tutor. When presented with math problems:

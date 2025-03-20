@@ -1,0 +1,63 @@
+app "ResearchAssistantGemini" do
+  icon ResearchAssistant::ICON
+  description ResearchAssistant::DESCRIPTION
+  system_prompt ResearchAssistant::INITIAL_PROMPT
+
+  llm do
+    provider "gemini"
+    model "gemini-2.0-flash-exp"
+  end
+
+  app_name "Research Assistant (Gemini)"
+
+  features do
+    group "Google"
+    disabled !CONFIG["GEMINI_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
+    websearch true
+    temperature 0.0
+    context_size 100
+    easy_submit false
+    auto_speech false
+    mathjax true
+    image true
+    toggle true
+  end
+
+  # Gemini tools
+  tools do
+    define_tool "run_script", "Run program code and return the output." do
+      parameter :command, "string", "Code execution command (e.g., 'python')", required: true
+      parameter :code, "string", "Code to be executed.", required: true
+      parameter :extension, "string", "File extension of the code (e.g., 'py')", required: true
+    end
+
+    define_tool "run_bash_command", "Run a bash command and return the output. The argument to `command` is provided as part of `docker exec -w shared_volume container COMMAND`." do
+      parameter :command, "string", "Bash command to be executed.", required: true
+    end
+
+    define_tool "lib_installer", "Install a library using the package manager. The package manager can be pip or apt. The command is the name of the library to be installed." do
+      parameter :command, "string", "Library name to be installed.", required: true
+      parameter :packager, "string", "Package manager to be used for installation. It can be either `pip` or `apt`.", required: true
+    end
+
+    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
+      parameter :file, "string", "File name or file path", required: true
+    end
+
+    define_tool "fetch_web_content", "Fetch the content of the web page of the given URL and return it." do
+      parameter :url, "string", "URL of the web page.", required: true
+    end
+
+    define_tool "fetch_text_from_office", "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it." do
+      parameter :file, "string", "File name or file path of the Microsoft Word/Excel/PowerPoint file.", required: true
+    end
+
+    define_tool "fetch_text_from_pdf", "Fetch the text from the PDF file and return it." do
+      parameter :pdf, "string", "File name or file path of the PDF", required: true
+    end
+
+    define_tool "check_environment", "Get the contents of the Dockerfile and the shell script used in the Python container." do
+      parameter :dummy, "string", "This parameter is not used and can be omitted.", required: false
+    end
+  end
+end

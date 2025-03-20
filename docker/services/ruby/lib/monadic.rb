@@ -161,38 +161,36 @@ def load_app_files
   # Initialize global error tracking variable
   $MONADIC_LOADING_ERRORS = []
 
-  # Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.rb"].sort.each do |file|
-  #   basename = File.basename(file)
-  #   next if basename.start_with?("_") # ignore files that start with an underscore
-  #   apps_to_load[basename] = file
-  # end
-  
-  # if Dir.exist?(user_plugins_dir)
-  #   Dir["#{File.join(user_plugins_dir, "**", "apps", "**") + File::SEPARATOR}*.rb"].sort.each do |file|
-  #     basename = File.basename(file)
-  #     next if basename.start_with?("_") # ignore files that start with an underscore
-  #     apps_to_load[File.basename(file)] = file
-  #   end
-  # end
-
-  # apps_to_load.each_value do |file|
-  #   require file
-  # end
-
-
   Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
     basename = File.basename(file)
     next if basename.start_with?("_") # ignore files that start with an underscore
-    apps_to_load[basename] = file
+    
+    # If the basename already exists as a key, create a unique key by adding a suffix
+    if apps_to_load.key?(basename)
+      unique_basename = "#{basename}_#{SecureRandom.hex(4)}"
+      apps_to_load[unique_basename] = file
+    else
+      apps_to_load[basename] = file
+    end
   end
 
   if Dir.exist?(user_plugins_dir)
     Dir["#{File.join(user_plugins_dir, "**", "apps", "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
       basename = File.basename(file)
       next if basename.start_with?("_") # ignore files that start with an underscore
-      apps_to_load[File.basename(file)] = file
+      
+      # If the basename already exists as a key, create a unique key by adding a suffix
+      if apps_to_load.key?(basename)
+        unique_basename = "#{basename}_#{SecureRandom.hex(4)}"
+        apps_to_load[unique_basename] = file
+      else
+        apps_to_load[basename] = file
+      end
     end
   end
+
+  # sort apps_to_load so that rb files come before mdsl files
+  apps_to_load = apps_to_load.sort_by { |k, _v| k.end_with?(".rb") ? 0 : 1 }.to_h
 
   apps_to_load.each_value do |file|
     MonadicDSL::Loader.load(file)

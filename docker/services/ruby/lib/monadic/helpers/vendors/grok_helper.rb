@@ -117,7 +117,7 @@ module GrokHelper
 
   # No streaming plain text completion/chat call
   def send_query(options, model: "grok-2-1212")
-    api_keyder = ENV["XAI_API_KEY"]
+    api_key = ENV["XAI_API_KEY"]
 
     # Set the headers for the API request
     headers = {

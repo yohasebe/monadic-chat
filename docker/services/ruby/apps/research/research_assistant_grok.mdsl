@@ -1,0 +1,49 @@
+app "ResearchAssistantGrok" do
+  icon ResearchAssistant::ICON
+  description ResearchAssistant::DESCRIPTION
+  system_prompt ResearchAssistant::INITIAL_PROMPT
+
+  llm do
+    provider "xai"
+    model "grok-2-1212"
+  end
+
+  app_name "Research Assistant (Grok)"
+
+  features do
+    group "xAI Grok"
+    disabled !CONFIG["XAI_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
+    websearch true
+    temperature 0.2
+    context_size 100
+    easy_submit false
+    auto_speech false
+    mathjax true
+    image true
+    toggle true
+  end
+
+  # Grok tools
+  tools do
+    define_tool "fetch_text_from_office", "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it." do
+      parameter :file, "string", "File name or file path of the Microsoft Word/Excel/PowerPoint file.", required: true
+    end
+
+    define_tool "fetch_text_from_pdf", "Fetch the text from the PDF file and return it." do
+      parameter :pdf, "string", "File name or file path of the PDF", required: true
+    end
+
+    define_tool "analyze_image", "Analyze the image and return the result." do
+      parameter :message, "string", "Text prompt asking about the image (e.g. 'What is in the image?').", required: true
+      parameter :image_path, "string", "Path to the image file. It can be either a local file path or a URL.", required: true
+    end
+
+    define_tool "analyze_audio", "Analyze the audio and return the transcript." do
+      parameter :audio, "string", "File path of the audio file", required: true
+    end
+
+    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
+      parameter :file, "string", "File name or file path", required: true
+    end
+  end
+end

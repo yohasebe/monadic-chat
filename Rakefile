@@ -17,6 +17,154 @@ task :eslint do
   sh "npx eslint ."
 end
 
+# Define the list of files that should have consistent version numbers
+def version_files
+  [
+    "./docker/services/ruby/lib/monadic/version.rb",
+    "./package.json",
+    "./package-lock.json",
+    "./docker/monadic.sh",
+    "./docs/_coverpage.md",
+    "./docs/installation.md",
+    "./docs/ja/installation.md"
+  ]
+end
+
+# Get the current version from version.rb (considered the source of truth)
+def get_current_version
+  version_file = "./docker/services/ruby/lib/monadic/version.rb"
+  if File.exist?(version_file)
+    content = File.read(version_file)
+    if content =~ /VERSION\s*=\s*"([^"]+)"/
+      return $1
+    end
+  end
+  nil
+end
+
+desc "Check version number consistency across all relevant files. Verifies that all files have the same version as version.rb"
+task :check_version do
+  # Get the current official version
+  official_version = get_current_version
+  
+  if official_version.nil?
+    puts "Error: Could not determine current version from version.rb"
+    exit 1
+  end
+  
+  puts "Official version from version.rb: #{official_version}"
+
+  # Check each file for the version
+  inconsistent_files = []
+  missing_files = []
+  
+  version_files.each do |file|
+    
+    if File.exist?(file)
+      content = File.read(file)
+      if content.include?(official_version)
+        puts "✓ #{file}: Version matches official version"
+      else
+        inconsistent_files << file
+        puts "✗ #{file}: Version does not match official version"
+      end
+    else
+      missing_files << file
+      puts "! #{file}: File not found"
+    end
+  end
+  
+  # Summary
+  puts "\nVersion Check Summary:"
+  puts "Official version: #{official_version}"
+  
+  if inconsistent_files.empty? && missing_files.empty?
+    puts "All files have consistent version numbers!"
+  else
+    if !inconsistent_files.empty?
+      puts "Files with inconsistent versions:"
+      inconsistent_files.each do |file|
+        puts "  - #{file}"
+      end
+    end
+    
+    if !missing_files.empty?
+      puts "Missing files:"
+      missing_files.each do |file|
+        puts "  - #{file}"
+      end
+    end
+  end
+end
+
+desc "Update version number in all relevant files. Usage: rake update_version[0.9.63,0.9.64] - Updates all version references and adds a changelog entry"
+task :update_version, [:from_version, :to_version] do |_t, args|
+  require 'date'
+  
+  from_version = args[:from_version]
+  to_version = args[:to_version]
+  
+  if from_version.nil? || to_version.nil?
+    puts "Usage: rake update_version[from_version,to_version]"
+    puts "Example: rake update_version[0.9.63,0.9.64]"
+    exit 1
+  end
+  
+  # Current month and year for changelog
+  current_date = Date.today
+  month_year = "#{current_date.strftime('%B')}, #{current_date.year}"
+  
+  # Files to update with exact replacements
+  files = version_files
+  
+  from_version_regex = Regexp.escape(from_version)
+  
+  # Update each file
+  files.each do |file|
+    if File.exist?(file)
+      content = File.read(file)
+      if content.include?(from_version)
+        puts "Updating version in #{file} from #{from_version} to #{to_version}"
+        updated_content = content.gsub(/#{from_version_regex}/, to_version)
+        File.write(file, updated_content)
+      else
+        puts "Version #{from_version} not found in #{file}"
+      end
+    else
+      puts "File not found: #{file}"
+    end
+  end
+  
+  # Add an entry to CHANGELOG.md if it doesn't already exist
+  changelog = "./CHANGELOG.md"
+  if File.exist?(changelog)
+    content = File.read(changelog)
+    unless content.include?("- [#{month_year}] #{to_version}")
+      lines = content.lines
+      
+      # Check if first line contains the current month and from_version
+      first_line = lines[0].strip
+      if first_line.include?("[#{month_year}]") && first_line.include?(from_version)
+        # Update the version number in the current month's entry
+        lines[0] = first_line.gsub(from_version, to_version) + "\n"
+        puts "Updating current month entry in CHANGELOG.md from #{from_version} to #{to_version}"
+      else
+        # Create a new entry for the current month
+        new_entry = "- [#{month_year}] #{to_version}\n  - Version updated from #{from_version}\n\n"
+        lines.unshift(new_entry)
+        puts "Adding new entry to CHANGELOG.md for version #{to_version}"
+      end
+      File.write(changelog, lines.join)
+    end
+  end
+  
+  puts "Version update completed!"
+  
+  # Run check_version to verify the update
+  puts "\nVerifying version consistency after update:"
+  Rake::Task["check_version"].invoke
+end
+
 # task to build win/mac x64/mac arm64 packages
 task :build do
   # remove /docker/services/python/pysetup.py

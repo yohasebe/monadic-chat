@@ -15,11 +15,6 @@ DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
 # Define valid parameter values
 
 VALID_ASPECT_RATIOS = ["1:1", "3:4", "4:3", "9:16", "16:9"]
-VALID_SAFETY_LEVELS = [
-  "BLOCK_LOW_AND_ABOVE",
-  "BLOCK_MEDIUM_AND_ABOVE",
-  "BLOCK_ONLY_HIGH"
-]
 VALID_PERSON_GENERATION = ["DONT_ALLOW", "ALLOW_ADULT"]
 
 # Default options
@@ -27,7 +22,6 @@ VALID_PERSON_GENERATION = ["DONT_ALLOW", "ALLOW_ADULT"]
 DEFAULT_OPTIONS = {
   sample_count: 4,                   # Default to 4 images
   aspect_ratio: "1:1",               # Default aspect ratio
-  safety_filter_level: "BLOCK_MEDIUM_AND_ABOVE",  # Default safety level
   person_generation: "ALLOW_ADULT"   # Default person generation setting
 }
 
@@ -101,7 +95,7 @@ end
 
 # Make API request to generate images
 
-def request_image_generation(prompt, sample_count, aspect_ratio, safety_filter_level, person_generation, api_key)
+def request_image_generation(prompt, sample_count, aspect_ratio, person_generation, api_key)
   url = "#{API_ENDPOINT}?key=#{api_key}"
   
   headers = {
@@ -117,7 +111,6 @@ def request_image_generation(prompt, sample_count, aspect_ratio, safety_filter_l
     parameters: {
       sampleCount: sample_count,
       aspectRatio: aspect_ratio,
-      safetyFilterLevel: safety_filter_level,
       personGeneration: person_generation
     }
   }
@@ -256,11 +249,10 @@ end
 
 # Main function to generate images
 
-def generate_image(prompt, sample_count, aspect_ratio, safety_filter_level, person_generation, num_retrials: 3)
+def generate_image(prompt, sample_count, aspect_ratio, person_generation, num_retrials: 3)
   params = {
     sample_count: sample_count,
     aspect_ratio: aspect_ratio,
-    safety_filter_level: safety_filter_level,
     person_generation: person_generation
   }
   
@@ -274,7 +266,6 @@ def generate_image(prompt, sample_count, aspect_ratio, safety_filter_level, pers
       prompt, 
       sample_count, 
       aspect_ratio, 
-      safety_filter_level, 
       person_generation, 
       api_key
     )
@@ -294,7 +285,7 @@ def generate_image(prompt, sample_count, aspect_ratio, safety_filter_level, pers
     if num_retrials.positive?
       STDERR.puts "Retrying... (#{num_retrials} attempts left)"
       sleep 1
-      return generate_image(prompt, sample_count, aspect_ratio, safety_filter_level, person_generation, num_retrials: num_retrials)
+      return generate_image(prompt, sample_count, aspect_ratio, person_generation, num_retrials: num_retrials)
     else
       return { original_prompt: prompt, success: false, message: "Error: Image generation failed after multiple attempts." }
     end
@@ -327,14 +318,6 @@ def parse_options
         exit
       end
       options[:aspect_ratio] = ratio
-    end
-    
-    opts.on("-s", "--safety-level LEVEL", "Safety filter level") do |level|
-      unless VALID_SAFETY_LEVELS.include?(level)
-        puts "ERROR: Invalid safety level. Valid values are: #{VALID_SAFETY_LEVELS.join(', ')}"
-        exit
-      end
-      options[:safety_filter_level] = level
     end
     
     opts.on("-g", "--person-generation MODE", "Person generation mode") do |mode|
@@ -405,7 +388,6 @@ if __FILE__ == $PROGRAM_NAME
     options[:prompt],
     options[:sample_count],
     options[:aspect_ratio],
-    options[:safety_filter_level],
     options[:person_generation]
   )
   

@@ -1,5 +1,6 @@
 class ResearchAssistantMistral < MonadicApp
   include MistralHelper
+  include WebSearchAgent
 
   icon = "<i class='fa-solid fa-flask'></i>"
 

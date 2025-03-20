@@ -1,5 +1,6 @@
 class ContentReader < MonadicApp
   include OpenAIHelper
+  include WebSearchAgent
 
   icon = "<i class='fab fa-leanpub'></i>"
 

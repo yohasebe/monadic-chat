@@ -1,5 +1,6 @@
 class ResearchAssistantGrok < MonadicApp
   include GrokHelper
+  include WebSearchAgent
 
   icon = "<i class='fa-solid fa-flask'></i>"
 

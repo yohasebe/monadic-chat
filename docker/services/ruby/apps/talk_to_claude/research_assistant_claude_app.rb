@@ -1,5 +1,6 @@
 class ResearchAssistantClaude < MonadicApp
   include ClaudeHelper
+  include WebSearchAgent
 
   icon = "<i class='fa-solid fa-flask'></i>"
 

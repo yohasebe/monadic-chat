@@ -241,12 +241,12 @@ def init_apps
 
     MonadicApp.register_app_settings(app.settings["app_name"], app)
 
-    app.settings["description"] ||= ""
+    app.settings["description"] = app.settings["description"] ? app.settings["description"].dup : ""
     if !app.settings["initial_prompt"]
       app.settings["initial_prompt"] = "You are an AI assistant but the initial prompt is missing. Tell the user they should provide a prompt."
       app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The initial prompt is missing.</p>"
     end
-    if !app.settings["description"]
+    if !app.settings["description"] || app.settings["description"].empty?
       app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The description is missing.</p>"
     end
     if !app.settings["icon"]

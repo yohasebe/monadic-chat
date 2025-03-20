@@ -8,7 +8,7 @@ app "ResearchAssistantOpenAI" do
     model "gpt-4o"
   end
 
-  app_name "Research Assistant (OpenAI)"
+  display_name "Research Assistant"
 
   features do
     group "OpenAI"

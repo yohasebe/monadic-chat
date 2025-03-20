@@ -8,7 +8,7 @@ app "ResearchAssistantMistral" do
     model "mistral-large-latest"
   end
 
-  app_name "Research Assistant (Mistral AI)"
+  display_name "Research Assistant"
 
   features do
     group "Mistral"

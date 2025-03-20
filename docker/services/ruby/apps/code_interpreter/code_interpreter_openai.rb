@@ -191,7 +191,7 @@ class CodeInterpreter < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "Code Interpreter",
+    display_name: "Code Interpreter",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

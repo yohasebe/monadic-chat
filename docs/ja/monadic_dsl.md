@@ -61,6 +61,10 @@ app "アプリケーション名" do
   # icon "<i class='fas fa-code'></i>" # カスタムHTMLはそのまま保持されます
   
   # 利用可能なアイコンは次をご覧ください: https://fontawesome.com/v5/search?ic=free
+
+  # アプリの命名オプション：
+  app_name "アプリケーション完全名"     # 後方互換性のための従来のパラメータ
+  display_name "アプリケーション名"    # UI上に表示される名前（推奨）
   
   group "カテゴリ名"  # UI上でのグループ化（オプション）
 end
@@ -168,6 +172,9 @@ end
 app "数学チューター" do
   description "数学問題を段階的に解決するAIアシスタント"
   icon "fa-solid fa-calculator"
+  
+  # UI表示を標準化するためにdisplay_nameを使用
+  display_name "数学"
   
   system_prompt <<~PROMPT
     あなたは有能な数学チューターです。数学の問題が提示されたら：

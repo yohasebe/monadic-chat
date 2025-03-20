@@ -220,7 +220,7 @@ class CodeInterpreterCohere < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "Code Interpreter (Cohere)",
+    display_name: "Code Interpreter",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

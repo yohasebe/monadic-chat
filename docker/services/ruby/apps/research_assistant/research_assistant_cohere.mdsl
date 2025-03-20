@@ -8,7 +8,7 @@ app "ResearchAssistantCohere" do
     model "command-a-03-2025"
   end
 
-  app_name "Research Assistant (Cohere)"
+  display_name "Research Assistant"
 
   features do
     group "Cohere"

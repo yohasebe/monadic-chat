@@ -20,7 +20,7 @@ app "ChatMistralAI" do
     model "mistral-large-latest"
   end
   
-  app_name "Chat (Mistral)"
+  display_name "Chat"
   
   features do
     easy_submit false

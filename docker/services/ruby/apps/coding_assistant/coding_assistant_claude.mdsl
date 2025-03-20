@@ -23,7 +23,7 @@ app "CodingAssistantClaude" do
     temperature 0.0
   end
   
-  app_name "Coding Assistant (Claude)"
+  display_name "Coding Assistant"
   
   features do
     easy_submit false

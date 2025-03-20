@@ -192,7 +192,7 @@ class CodeInterpreterClaude < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: false,
-    app_name: "Code Interpreter (Claude)",
+    display_name: "Code Interpreter",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

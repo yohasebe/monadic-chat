@@ -18,7 +18,7 @@ app "ChatDeepSeek" do
     model "deepseek-chat"
   end
 
-  app_name "Chat (DeepSeek)"
+  display_name "Chat"
 
   features do
     easy_submit false

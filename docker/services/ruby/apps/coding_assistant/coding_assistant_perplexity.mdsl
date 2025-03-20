@@ -21,8 +21,8 @@ app "CodingAssistantPerplexity" do
     temperature 0.0
   end
   
-  app_name "Coding Assistant (Perplexity)"
-  
+  display_name "Coding Assistant"
+ 
   features do
     easy_submit false
     auto_speech false

@@ -116,7 +116,7 @@ class JupyterNotebook < MonadicApp
     auto_speech: false,
     mathjax: true,
     jupyter: true,
-    app_name: "Jupyter Notebook",
+    display_name: "Jupyter Notebook",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

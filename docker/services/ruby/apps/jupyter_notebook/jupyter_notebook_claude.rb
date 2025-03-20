@@ -128,7 +128,7 @@ class JupyterNotebookClaude < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    app_name: "Jupyter Notebook (Claude)",
+    display_name: "Jupyter Notebook",
     initiate_from_assistant: true,
     pdf: false,
     image: true,

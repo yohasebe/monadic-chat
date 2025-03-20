@@ -1,5 +1,6 @@
 class VoiceChat < MonadicApp
   include OpenAIHelper
+  include WebSearchAgent
 
   icon = "<i class='fas fa-microphone'></i>"
 

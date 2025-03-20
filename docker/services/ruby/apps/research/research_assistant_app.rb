@@ -1,5 +1,6 @@
 class ResearchAssistant < MonadicApp
   include OpenAIHelper
+  include WebSearchAgent
 
   icon = "<i class='fa-solid fa-flask'></i>"
 

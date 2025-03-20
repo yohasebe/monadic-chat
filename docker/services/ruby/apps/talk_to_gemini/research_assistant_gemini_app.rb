@@ -1,5 +1,6 @@
 class ResearchAssistantGemini < MonadicApp
   include GeminiHelper
+  include WebSearchAgent
 
   icon = "<i class='fa-solid fa-flask'></i>"
 

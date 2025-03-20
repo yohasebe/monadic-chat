@@ -1,5 +1,6 @@
 class ResearchAssistantCohere < MonadicApp
   include CohereHelper
+  include WebSearchAgent
 
   icon = "<i class='fa-solid fa-flask'></i>"
 

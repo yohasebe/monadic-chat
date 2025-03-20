@@ -706,6 +706,10 @@ module MonadicDSL
       @state.settings[:app_name] = name
     end
     
+    def display_name(name)
+      @state.settings[:display_name] = name
+    end
+    
     def system_prompt(text)
       @state.prompts[:initial] = text
     end
@@ -935,6 +939,9 @@ module MonadicDSL
 
     # Make sure app_name is set from either settings or features
     app_name = state.settings[:app_name] || state.name
+    
+    # Use display_name if provided, otherwise use app_name
+    display_name = state.settings[:display_name] || app_name
 
     class_def = <<~RUBY
       class #{state.name} < MonadicApp
@@ -952,6 +959,7 @@ module MonadicDSL
           temperature: #{state.settings[:temperature]},
           initial_prompt: initial_prompt,
           app_name: #{app_name.inspect},
+          display_name: #{display_name.inspect},
           description: description,
           icon: icon
         }

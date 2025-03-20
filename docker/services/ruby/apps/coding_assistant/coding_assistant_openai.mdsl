@@ -22,8 +22,8 @@ app "CodingAssistantOpenAI" do
     reasoning_effort "high"
   end
   
-  app_name "Coding Assistant"
-  
+  display_name "Coding Assistant"
+ 
   features do
     easy_submit false
     auto_speech false

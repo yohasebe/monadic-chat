@@ -8,7 +8,7 @@ app "ResearchAssistantGrok" do
     model "grok-2-1212"
   end
 
-  app_name "Research Assistant (Grok)"
+  display_name "Research Assistant"
 
   features do
     group "xAI Grok"

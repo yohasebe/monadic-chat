@@ -718,7 +718,9 @@ function connect_websocket(callback) {
             $("#apps").append('<option disabled>──OpenAI──</option>');
             for (const [key, value] of regularApps) {
               apps[key] = value;
-              $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
+              // Use display_name if available, otherwise fall back to app_name
+              const displayText = value["display_name"] || value["app_name"];
+              $("#apps").append(`<option value="${key}">${displayText}</option>`);
             }
           }
 
@@ -736,7 +738,9 @@ function connect_websocket(callback) {
               $("#apps").append(`<option disabled>──${group}──</option>`);
               for (const [key, value] of specialApps[group]) {
                 apps[key] = value;
-                $("#apps").append(`<option value="${key}">${value["app_name"]}</option>`);
+                // Use display_name if available, otherwise fall back to app_name
+                const displayText = value["display_name"] || value["app_name"];
+                $("#apps").append(`<option value="${key}">${displayText}</option>`);
               }
             }
           }
@@ -744,7 +748,9 @@ function connect_websocket(callback) {
           // select the first available (non-disabled) app in the dropdown
           $("#apps").val($("#apps option:not([disabled]):first").val()).trigger('change')
 
-          $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
+          // Use display_name if available, otherwise fall back to app_name
+          const displayText = apps[$("#apps").val()]["display_name"] || apps[$("#apps").val()]["app_name"];
+          $("#base-app-title").text(displayText);
 
           if (apps[$("#apps").val()]["monadic"]) {
             $("#monadic-badge").show();

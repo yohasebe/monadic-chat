@@ -64,7 +64,7 @@ class ImageGeneratorGeminiApp < MonadicApp
     # Using self.settings = instead of @settings = for proper class variable definition
     @settings = {
       group: "Google",
-      app_name: "Image Generator (Gemini)",
+      display_name: "Image Generator",
       disabled: !CONFIG["GEMINI_API_KEY"],
       models: GeminiHelper.list_models,
       model: "gemini-2.0-flash", # Using an appropriate Gemini model

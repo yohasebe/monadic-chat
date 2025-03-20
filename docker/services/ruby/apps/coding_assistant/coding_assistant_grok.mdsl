@@ -21,8 +21,8 @@ app "CodingAssistantGrok" do
     temperature 0.0
   end
   
-  app_name "Coding Assistant (Grok)"
-  
+  display_name "Coding Assistant"
+ 
   features do
     easy_submit false
     auto_speech false

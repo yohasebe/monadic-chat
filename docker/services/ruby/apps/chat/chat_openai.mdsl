@@ -16,7 +16,7 @@ app "ChatOpenAI" do
     model "gpt-4o"
   end
   
-  app_name "Chat (OpenAI)"
+  display_name "Chat"
   
   features do
     easy_submit false

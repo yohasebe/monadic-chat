@@ -8,7 +8,7 @@ app "ResearchAssistantClaude" do
     model "claude-3-5-sonnet-20241022"
   end
 
-  app_name "Research Assistant (Claude)"
+  display_name "Research Assistant"
 
   features do
     group "Anthropic"

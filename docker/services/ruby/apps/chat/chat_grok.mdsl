@@ -16,7 +16,7 @@ app "ChatGrok" do
     model "grok-2-1212"
   end
   
-  app_name "Chat (Grok)"
+  display_name "Chat"
   
   features do
     easy_submit false

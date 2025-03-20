@@ -760,6 +760,10 @@ module MonadicDSL
       max_tokens(value)
     end
     
+    def reasoning_effort(value)
+      @state.settings[:reasoning_effort] = value
+    end
+    
     def method_missing(method_name, *args)
       if PARAMETER_MAP.key?(method_name)
         send(PARAMETER_MAP[method_name], *args)
@@ -961,6 +965,11 @@ module MonadicDSL
     # Add max_tokens if specified
     if state.settings[:max_tokens]
       class_def << "        @settings[:max_tokens] = #{state.settings[:max_tokens].inspect}\n"
+    end
+    
+    # Add reasoning_effort if specified
+    if state.settings[:reasoning_effort]
+      class_def << "        @settings[:reasoning_effort] = #{state.settings[:reasoning_effort].inspect}\n"
     end
     
     # Add tools if specified

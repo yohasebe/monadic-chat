@@ -677,7 +677,12 @@ module MonadicDSL
     state.settings[:model] = "gpt-4o"
     state.settings[:temperature] = 0.7
     
-    SimplifiedAppDefinition.new(state).instance_eval(&block)
+    # Process the DSL block
+    app_def = SimplifiedAppDefinition.new(state)
+    app_def.instance_eval(&block)
+    
+    # Debug the state
+    puts "After DSL eval: #{state.name}, app_name: #{state.settings[:app_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
     
     convert_to_class(state)
     state
@@ -695,6 +700,10 @@ module MonadicDSL
     
     def icon(name)
       @state.ui[:icon] = IconHelper.to_html(name)
+    end
+    
+    def app_name(name)
+      @state.settings[:app_name] = name
     end
     
     def system_prompt(text)
@@ -839,8 +848,8 @@ module MonadicDSL
       # XAI/Grok
       "xai" => {
         helper_module: 'GrokHelper',
-        api_key: 'GROK_API_KEY',
-        display_group: 'Grok',
+        api_key: 'XAI_API_KEY',
+        display_group: 'xAI Grok',
         aliases: ['grok', 'xaigrok']
       },
       # OpenAI (default)
@@ -917,6 +926,12 @@ module MonadicDSL
     # Get model list using helper module - simpler one-line version to avoid syntax errors
     model_list_code = "defined?(#{helper_module}) ? #{helper_module}.list_models : []"
 
+    # Debug the state
+    puts "Converting class: #{state.name}, app_name: #{state.settings[:app_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+
+    # Make sure app_name is set from either settings or features
+    app_name = state.settings[:app_name] || state.name
+
     class_def = <<~RUBY
       class #{state.name} < MonadicApp
         include #{helper_module} if defined?(#{helper_module})
@@ -932,7 +947,7 @@ module MonadicDSL
           model: #{state.settings[:model].inspect},
           temperature: #{state.settings[:temperature]},
           initial_prompt: initial_prompt,
-          app_name: #{(state.settings[:app_name] || state.name).inspect},
+          app_name: #{app_name.inspect},
           description: description,
           icon: icon
         }

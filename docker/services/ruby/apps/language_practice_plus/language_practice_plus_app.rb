@@ -1,5 +1,6 @@
 class LanguagePracticePlus < MonadicApp
   include OpenAIHelper
+  include WebSearchAgent
 
   icon = "<i class='fas fa-person-chalkboard'></i>"
 

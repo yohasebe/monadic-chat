@@ -193,6 +193,7 @@ def load_app_files
   apps_to_load = apps_to_load.sort_by { |k, _v| k.end_with?(".rb") ? 0 : 1 }.to_h
 
   apps_to_load.each_value do |file|
+    pp file
     MonadicDSL::Loader.load(file)
   end
   

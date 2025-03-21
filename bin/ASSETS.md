@@ -6,14 +6,14 @@ These scripts handle downloading third-party libraries from CDNs for local use i
 
 ## Files
 
-- `assets_list.sh`: Central configuration file defining all required assets
+- `/docker/services/ruby/bin/assets_list.sh`: Central configuration file defining all required assets
 - `download_vendor_assets.sh`: Script to download assets for local development
 
 ## How to Add New Assets
 
 When you need to add a new library or asset:
 
-1. Add an entry to the `ASSETS` array in `assets_list.sh`:
+1. Add an entry to the `ASSETS` array in `/docker/services/ruby/bin/assets_list.sh`:
    ```
    "type,url,filename"
    ```

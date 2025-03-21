@@ -205,6 +205,10 @@ build_ruby_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
+  # Copy assets_list.sh to the Ruby directory before building
+  mkdir -p "${ROOT_DIR}/services/ruby/bin/"
+  cp -f "${ROOT_DIR}/../bin/assets_list.sh" "${ROOT_DIR}/services/ruby/bin/" 2>/dev/null || true
+  
   # build Ruby image only
   local dockerfile="${ROOT_DIR}/services/ruby/Dockerfile"
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"

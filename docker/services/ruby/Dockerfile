@@ -74,7 +74,7 @@ RUN chmod +x $WORKSPACE/scripts/*
 ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"
 
 # Copy assets list for vendor assets
-COPY --from=build /monadic/bin/assets_list.sh $WORKSPACE/bin/assets_list.sh 2>/dev/null || true
+COPY bin/assets_list.sh $WORKSPACE/bin/assets_list.sh
 
 COPY Dockerfile $WORKSPACE/Dockerfile
 

@@ -108,7 +108,7 @@ Open the Monadic Chat settings panel.
 All settings here are saved in the `~/monadic/config/env` file.
 
 **OPENAI_API_KEY** <br />
-(Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Whisper speech recognition API, and speech synthesis API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
+(Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Speech-to-Text API, and Text-to-Speech API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
 **ANTHROPIC_API_KEY** <br />
 Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com].
@@ -136,6 +136,9 @@ Enter your Tavily API key. This key is used for two purposes: 1) For "Extract fr
 
 **Syntax Highlighting Theme** <br />
 Select the theme for code syntax highlighting. The default is `monokai`.
+
+**STT_MODEL** <br />
+Select the model used for speech-to-text. Currently, `gpt-4o-mini-transcribe` and `whisper-1` are available. The default is `gpt-4o-mini-transcribe`.
 
 **AI_USER_MODEL** <br />
 Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `o1`, `o1-mini`, `o3-mini`, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o`.

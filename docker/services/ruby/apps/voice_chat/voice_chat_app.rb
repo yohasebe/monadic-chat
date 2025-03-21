@@ -5,7 +5,7 @@ class VoiceChat < MonadicApp
   icon = "<i class='fas fa-microphone'></i>"
 
   description = <<~TEXT
-    This app enables users to chat using voice through OpenAI's Whisper voice-to-text API and text-to-speech API. The initial prompt is the same as the one for the Chat app. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This app enables users to chat using voice through OpenAI's Speech-to-Text API and text-to-speech API. The initial prompt is the same as the one for the Chat app. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

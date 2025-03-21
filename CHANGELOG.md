@@ -1,4 +1,7 @@
 - [March, 2025] 0.9.64
+  - Add support for new OpenAI speech-to-text models (gpt-4o-mini-transcribe, gpt-4o-transcribe)
+  - Update audio format handling for optimal compatibility with different STT models
+  - Add STT_MODEL selection in settings
   - OpenAI models and Google Gemini models support PDF input
   - DrawIO Grapher app added
   - Image generation app added for Google Gemini (Imagen)
@@ -121,7 +124,7 @@
   - More responsive text-to-speech in auto-speech mode
   - Language Practice Plus app updated
 - [Nov, 2023] Image generator app updated to support dall-e-3.
-  - Whisper voice input is supported for Chrome/Edge/Safari.
+  - Speech-to-Text voice input is supported for Chrome/Edge/Safari.
   - Natural voice stream playback using OpenAI's text-to-speech API supported.
   - OpenAI's new models supported (0.3.0)
 - [Sep, 2023] Stability improvement with several apps modified

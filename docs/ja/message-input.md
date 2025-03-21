@@ -4,7 +4,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ![](./assets/images/monadic-chat-message-input.png ':size=700')
 
-テキストエリアにメッセージを入力し、`Send` ボタンをクリックすると、メッセージが送信されます。音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了すると、Whisper API を通じて音声がテキストに変換され、テキストエリアに表示されます。
+テキストエリアにメッセージを入力し、`Send` ボタンをクリックすると、メッセージが送信されます。音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了すると、Speech-to-Text API を通じて音声がテキストに変換され、テキストエリアに表示されます。
 
 ?> 音声入力と音声合成を使って AI エージェントとのチャットをスムーズに行うためには、Web 設定画面で `Auto Speech` と `Easy Submit` をオンにしておくと便利です。[Voice Chat] (./basic-apps?id=voice-chat)アプリではこれらがデフォルトで有効になっています。
 
@@ -56,10 +56,19 @@ Anthropic の Sonnet モデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル�
 
 ?> 音声入力はChrome、Edge、Safariでサポートされています。
 
-音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了します。音声入力が終了すると、Whisper API を通じて音声がテキストに変換され、テキストエリアに表示されます。
+音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了します。音声入力が終了すると、Speech-to-Text API を通じて音声がテキストに変換され、テキストエリアに表示されます。
 
 ![](./assets/images/voice-input-stop.png ':size=400')
 
 音声入力後には、音声入力の信頼度を示す `p-value` が表示されます。`p-value` は音声入力の信頼度を示す指標で、0 から 1 の範囲で表されます。`p-value` が 1 に近いほど、音声入力の信頼度が高いことを示します。
 
 ![](./assets/images/voice-p-value.png ':size=400')
+
+## 音声認識モデルの選択
+
+設定画面でSpeech-to-Text (STT)モデルを選択できます。Monadic Chatは以下のOpenAI STTモデルをサポートしています:
+- whisper-1
+- gpt-4o-mini-transcribe
+- gpt-4o-transcribe
+
+新しいモデル（gpt-4o-mini-transcribe、gpt-4o-transcribe）は精度と文字起こし品質が向上しています。Monadic Chatは各STTモデルに最適な音声フォーマットを自動的に選択し、最良の文字起こし結果を確保します。

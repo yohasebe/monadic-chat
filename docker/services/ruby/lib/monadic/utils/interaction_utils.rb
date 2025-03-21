@@ -97,6 +97,7 @@ module InteractionUtils
                       response_format:,
                       speed: nil,
                       previous_text: nil,
+                      instructions: nil,
                       language: "auto",
                       &block)
 
@@ -111,14 +112,21 @@ module InteractionUtils
     val_speed = speed ? speed.to_f : 1.0
 
     case provider
-    when "openai", "openai-hd"
+    when "openai-tts-4o", "openai-tts", "openai-tts-hd"
       api_key = settings.api_key
       headers = {
         "Content-Type" => "application/json",
         "Authorization" => "Bearer #{api_key}"
       }
 
-      model = provider == "openai-hd" ? "tts-1-hd" : "tts-1"
+      model = case provider
+              when "openai-tts-hd"
+                "tts-1-hd"
+              when "openai-tts"
+                "tts-1"
+              else
+                "gpt-4o-mini-tts"
+              end
 
       body = {
         "input" => text_converted,
@@ -130,6 +138,10 @@ module InteractionUtils
 
       unless language == "auto"
         body["language"] = language
+      end
+
+      if instructions
+        body["instructions"] = instructions
       end
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
@@ -218,9 +230,29 @@ module InteractionUtils
     end
   end
 
-  def whisper_api_request(blob, format, lang_code)
+  def stt_api_request(blob, format, lang_code, model = "gpt-4o-mini-transcribe")
     lang_code = nil if lang_code == "auto"
 
+    # Normalize format to one that OpenAI API supports
+    # OpenAI API officially supports: "mp3", "mp4", "mpeg", "mpga", "m4a", "wav", or "webm"
+    # However, gpt-4o-mini-transcribe appears to have issues with webm formats
+    normalized_format = format.to_s.downcase
+    normalized_format = "mp3" if normalized_format == "mpeg"
+    normalized_format = "mp4" if normalized_format == "mp4a-latm"
+    normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
+    
+    # For gpt-4o models, always use mp3 for maximum compatibility
+    # For whisper-1, keep original formats (especially webm which works well)
+    if model.to_s.include?("gpt-4o")
+      if normalized_format != "mp3"
+        # Only log format conversion as it could be important
+        normalized_format = "mp3"
+      end
+    end
+    
+    # Default to mp3 for unsupported formats for better compatibility
+    normalized_format = "mp3" unless %w[mp3 mp4 mpeg mpga m4a wav webm].include?(normalized_format)
+    
     num_retrial = 0
 
     url = "#{API_ENDPOINT}/audio/transcriptions"
@@ -228,14 +260,14 @@ module InteractionUtils
     response = nil
 
     begin
-      temp_file = Tempfile.new([file_name, ".#{format}"])
+      temp_file = Tempfile.new([file_name, ".#{normalized_format}"])
       temp_file.write(blob)
       temp_file.flush
 
       options = {
         "file" => HTTP::FormData::File.new(temp_file.path),
-        "model" => "whisper-1",
-        "response_format" => "verbose_json"
+        "model" => model,
+        "response_format" => "json"
       }
       options["language"] = lang_code if lang_code
       form_data = HTTP::FormData.create(options)
@@ -264,7 +296,7 @@ module InteractionUtils
       JSON.parse(response.body)
     else
       pp "Error: #{response.status} - #{response.body}"
-      { "type" => "error", "content" => "Whisper API Error" }
+      { "type" => "error", "content" => "Speech-to-Text API Error" }
     end
   end
 

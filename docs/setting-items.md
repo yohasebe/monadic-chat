@@ -105,3 +105,22 @@ Specify a list of available functions. The actual definition of the functions sp
 `response_format` (hash)
 Specify the output format when outputting in JSON format. For details, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
 
+## System-Level Settings
+
+The following settings are managed at the system level and are not directly configurable in recipe files. They are set through the Monadic Chat settings UI.
+
+`STT_MODEL` (string)
+Specifies the Speech-to-Text model to use for voice transcription across the application. Available options include 'whisper-1', 'gpt-4o-mini-transcribe', and 'gpt-4o-transcribe'. The audio format is automatically optimized based on the selected model.
+
+`AI_USER_MODEL` (string)
+Specifies the model used for AI-generated user messages. Available options include 'gpt-4o-mini', 'gpt-4o', 'o3-mini', 'o1-mini', and 'o1'.
+
+`EMBEDDING_MODEL` (string)
+Specifies the model used for generating text embeddings. Available options include 'text-embedding-3-small' and 'text-embedding-3-large'.
+
+`WEBSEARCH_MODEL` (string)
+Specifies the model used for web search functionality. Available options include 'gpt-4o-mini-search-preview' and 'gpt-4o-search-preview'.
+
+`ROUGE_THEME` (string)
+Specifies the syntax highlighting theme used across the application.
+

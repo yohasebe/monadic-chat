@@ -41,7 +41,7 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 ![Voice Chat app icon](./assets/icons/voice-chat.png ':size=40')
 
-OpenAIのWhisper API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
 
 ![Voice input](./assets/images/voice-input-stop.png ':size=400')
 

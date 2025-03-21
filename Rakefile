@@ -17,6 +17,13 @@ task :eslint do
   sh "npx eslint ."
 end
 
+desc "Download vendor assets from CDN for local use"
+task :download_vendor_assets do
+  puts "Downloading vendor assets from CDN for local use..."
+  sh "./bin/download_vendor_assets.sh"
+  puts "Vendor assets downloaded successfully."
+end
+
 # Define the list of files that should have consistent version numbers
 def version_files
   [
@@ -172,6 +179,10 @@ task :build do
   home_directory_path = File.join(File.dirname(__FILE__), "docker")
   Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
   Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
+
+  # Download vendor assets for offline use
+  puts "Downloading vendor assets for offline use..."
+  Rake::Task["download_vendor_assets"].invoke
 
   sh "npm update"
 

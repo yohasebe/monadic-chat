@@ -70,3 +70,6 @@ rsync.sh
 
 /icons/menu_icons/
 /icons/app_icons/
+
+# Vendor assets (downloaded during build)
+/docker/services/ruby/public/vendor/

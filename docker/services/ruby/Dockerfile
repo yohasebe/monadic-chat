@@ -67,11 +67,14 @@ COPY views/ $WORKSPACE/views/
 
 # create directories log/, public/, tmp/, and tmp/pids/
 
-RUN mkdir -p log/
+RUN mkdir -p log/ bin/
 
 COPY scripts/ $WORKSPACE/scripts/
 RUN chmod +x $WORKSPACE/scripts/*
 ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"
+
+# Copy assets list for vendor assets
+COPY --from=build /monadic/bin/assets_list.sh $WORKSPACE/bin/assets_list.sh 2>/dev/null || true
 
 COPY Dockerfile $WORKSPACE/Dockerfile
 
@@ -88,3 +91,6 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 COPY rbsetup.sh /monadic/rbsetup.sh
 RUN chmod +x /monadic/rbsetup.sh
 RUN /monadic/rbsetup.sh
+
+# Download vendor assets for offline use
+RUN /monadic/scripts/download_assets.sh

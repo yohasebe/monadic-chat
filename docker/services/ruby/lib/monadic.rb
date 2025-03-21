@@ -349,8 +349,14 @@ def init_apps
 
   load_tts_dict(CONFIG["TTS_DICT_PATH"]) if CONFIG["TTS_DICT_PATH"]
 
-  # remove apps if its settings are empty
-  apps.sort_by { |k, _v| k }.to_h
+  # Group apps by provider and sort alphabetically within each group
+  grouped_apps = apps.group_by { |_, app| app.settings["group"] }
+  # Sort each group alphabetically by app name
+  grouped_apps.each do |group, apps_in_group|
+    grouped_apps[group] = apps_in_group.sort_by { |k, _| k }.to_h
+  end
+  # Flatten the structure back into a single hash
+  grouped_apps.values.reduce({}) { |result, group_apps| result.merge(group_apps) }
 end
 
 # Load app files and initialize apps

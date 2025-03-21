@@ -230,7 +230,7 @@ module InteractionUtils
     end
   end
 
-  def stt_api_request(blob, format, lang_code, model = "gpt-4o-mini-transcribe")
+  def stt_api_request(blob, format, lang_code, model = "gpt-4o-transcribe")
     lang_code = nil if lang_code == "auto"
 
     # Normalize format to one that OpenAI API supports

@@ -1371,7 +1371,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.STT_MODEL) {
-        envConfig.STT_MODEL = 'gpt-4o-mini-transcribe';
+        envConfig.STT_MODEL = 'gpt-4o-transcribe';
     }
 
     if (!envConfig.AI_USER_MODEL) {

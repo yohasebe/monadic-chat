@@ -134,7 +134,7 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
 
 **STT_MODEL**<br />
-音声認識に使用するモデルを選択します。現在は `gpt-4o-mini-transcribe` と `whisper-1` が利用可能です。デフォルトは `gpt-4o-mini-transcribe` です。
+音声認識に使用するモデルを選択します。現在は `gpt-4o-transcribe`、`gpt-4o-mini-transcribe` と `whisper-1` が利用可能です。デフォルトは `gpt-4o-transcribe` です。
 
 **AI_USER_MODEL**<br />
 AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`o1`, `o1-mini`, `o3-mini`、`gpt-4o`、`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o`です。

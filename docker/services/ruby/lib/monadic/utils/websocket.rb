@@ -470,7 +470,7 @@ module WebSocketHelper
             @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
           else
             blob = Base64.decode64(obj["content"])
-            model = CONFIG["STT_MODEL"] || "gpt-4o-mini-transcribe"
+            model = CONFIG["STT_MODEL"] || "gpt-4o-transcribe"
             format = obj["format"] || "webm"
             res = stt_api_request(blob, format, obj["lang_code"], model)
             if res["text"] && res["text"] == ""

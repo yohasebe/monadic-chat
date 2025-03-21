@@ -11,7 +11,7 @@ module MonadicHelper
     send_command(command: command, container: "ruby")
   end
 
-  def analyze_audio(audio: "", model: "gpt-4o-mini-transcribe")
+  def analyze_audio(audio: "", model: "gpt-4o-transcribe")
     command = <<~CMD
       bash -c 'simple_stt_query.rb "#{audio}" "." "json" "" "#{model}"'
     CMD

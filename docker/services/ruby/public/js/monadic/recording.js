@@ -108,12 +108,12 @@ voiceButton.on("click", function () {
         localStream = stream;
         // Check which STT model is selected
         const sttModelSelect = $("#stt-model");
-        const currentSttModel = sttModelSelect.length ? sttModelSelect.val() : "gpt-4o-mini-transcribe";
+        const currentSttModel = sttModelSelect.length ? sttModelSelect.val() : "gpt-4o-transcribe";
         
         // Choose audio formats based on the selected STT model
         let mimeTypes;
         
-        if (currentSttModel === "whisper-1") {
+        if (currentSttModel === "whisper-1" || currentSttModel === "gpt-4o-transcribe") {
           // WebM works well with whisper-1 and has good compression
           mimeTypes = [
             "audio/webm;codecs=opus", // Excellent compression, works with whisper-1
@@ -147,7 +147,7 @@ voiceButton.on("click", function () {
         
         // If no supported type was found, use appropriate fallback
         if (!options) {
-          const currentSttModel = $("#stt-model").val() || "gpt-4o-mini-transcribe";
+          const currentSttModel = $("#stt-model").val() || "gpt-4o-transcribe";
           
           if (currentSttModel === "whisper-1") {
             // For whisper-1, try WebM first, then WAV
@@ -256,7 +256,7 @@ voiceButton.on("click", function () {
 function soundToBase64(blob, callback) {
   // Get current STT model to determine if MP3 conversion would be beneficial
   const sttModelSelect = $("#stt-model");
-  const currentSttModel = sttModelSelect.length ? sttModelSelect.val() : "gpt-4o-mini-transcribe";
+  const currentSttModel = sttModelSelect.length ? sttModelSelect.val() : "gpt-4o-transcribe";
   
   
   // If blob is already in a compressed format (MP3, WebM) or we're using whisper-1 with WebM, use as-is

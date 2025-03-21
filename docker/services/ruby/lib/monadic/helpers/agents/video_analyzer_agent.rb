@@ -42,7 +42,7 @@ module MonadicAgent
 
     if audio_file
       # Get STT model from configuration or use default
-      stt_model = CONFIG["STT_MODEL"] || "gpt-4o-mini-transcribe"
+      stt_model = CONFIG["STT_MODEL"] || "gpt-4o-transcribe"
       
       audio_command = <<~CMD
         bash -c 'simple_stt_query.rb "#{audio_file}" "." "json" "" "#{stt_model}"'

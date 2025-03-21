@@ -13,7 +13,7 @@
 - PDF Reader<br />PDFファイル
 - Video Description<br />動画ファイル（MP4, MOV）
 
-`Speech Input`ボタンをクリックして音声入力を行うこともできます。音声入力はWhisper APIを使用しており、すべてのアプリで利用可能です。
+`Speech Input`ボタンをクリックして音声入力を行うこともできます。音声入力はSpeech-to-Text APIを使用しており、すべてのアプリで利用可能です。
 
 ---
 

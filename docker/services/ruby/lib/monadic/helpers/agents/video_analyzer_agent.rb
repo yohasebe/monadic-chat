@@ -41,8 +41,11 @@ module MonadicAgent
     description = send_command(command: video_command, container: "ruby")
 
     if audio_file
+      # Get STT model from configuration or use default
+      stt_model = CONFIG["STT_MODEL"] || "gpt-4o-mini-transcribe"
+      
       audio_command = <<~CMD
-        bash -c 'simple_whisper_query.rb "#{audio_file}"'
+        bash -c 'simple_stt_query.rb "#{audio_file}" "." "json" "" "#{stt_model}"'
       CMD
       audio_description = send_command(command: audio_command, container: "ruby")
       description += "\n\n---\n\n"

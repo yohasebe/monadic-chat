@@ -109,7 +109,7 @@ Monadic Chatの設定パネルを開きます。
 ここでの設定はすべて `~/monadic/config/env` ファイルに保存されます。
 
 **OPENAI_API_KEY**<br />
-OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、Whisper 音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
+OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
 
 **ANTHROPIC_API_KEY**<br />
 Anthropic APIキーを入力してください。このキーはAnthropic Claude モデルを使用するのに必要です。[https://console.anthropic.com] で取得できます。
@@ -132,6 +132,9 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 
 **Syntax Highlighting Theme**<br />
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
+
+**STT_MODEL**<br />
+音声認識に使用するモデルを選択します。現在は `gpt-4o-mini-transcribe` と `whisper-1` が利用可能です。デフォルトは `gpt-4o-mini-transcribe` です。
 
 **AI_USER_MODEL**<br />
 AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`o1`, `o1-mini`, `o3-mini`、`gpt-4o`、`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o`です。

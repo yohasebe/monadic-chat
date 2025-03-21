@@ -169,6 +169,13 @@
           <option value="pastie:light">pastie</option>
         </select>
 
+        <label for="ai-user-model">STT_MODEL (Speech-to-Text)</label>
+        <select id="stt-model" name="stt-model">
+          <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+          <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
+          <option value="whisper-1">whisper-1</option>
+        </select>
+
         <label for="ai-user-model">AI_USER_MODEL</label>
         <select id="ai-user-model" name="ai-user-model">
           <option value="gpt-4o-mini">gpt-4o-mini</option>
@@ -229,6 +236,7 @@
           ELEVENLABS_API_KEY: document.getElementById('elevenlabs-api-key').value,
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
+          STT_MODEL: document.getElementById('stt-model').value,
           AI_USER_MODEL: document.getElementById('ai-user-model').value,
           EMBEDDING_MODEL: document.getElementById('embedding-model').value,
           WEBSEARCH_MODEL: document.getElementById('websearch-model').value,
@@ -269,6 +277,7 @@
         document.getElementById('elevenlabs-api-key').value = data.ELEVENLABS_API_KEY || '';
         document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'monokai:dark';
+        document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-mini-transcribe';
         document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o';
         document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';
         document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4o-mini-search-preview';

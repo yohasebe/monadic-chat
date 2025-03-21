@@ -920,7 +920,7 @@ $(function () {
     if (params["tts_provider"] === "elevenlabs") {
       $("#elevenlabs-voices").show();
       $("#openai-voices").hide();
-    } else if (params["tts_provider"] === "openai" || params["tts_provider"] === "openai-hd") {
+    } else {
       $("#elevenlabs-voices").hide();
       $("#openai-voices").show();
     }

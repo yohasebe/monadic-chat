@@ -59,7 +59,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Voice Interaction
 
 - 🔈 **Text-to-speech** for AI assistant responses (OpenAI or Elevenlabs)
-- 🎙️ **Speech recognition** using the Whisper API (+ display of p-values)
+- 🎙️ **Speech recognition** using the Speech-to-Text API (+ display of p-values)
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech

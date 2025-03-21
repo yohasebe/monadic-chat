@@ -4,7 +4,7 @@ After starting the server and selecting an app and configuring it, click the `St
 
 ![](./assets/images/monadic-chat-message-input.png ':size=700')
 
-Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via the Whisper API and displayed in the text area.
+Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via Speech-to-Text API and displayed in the text area.
 
 ?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the web settings. These are enabled by default in the [Voice Chat](./basic-apps?id=voice-chat) app.
 
@@ -56,10 +56,19 @@ Click the `Extract from URL` button to enter a URL. The content at that URL is l
 
 ?> Currently, voice input is supported in Chrome, Edge, and Safari browsers.
 
-To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Whisper API and displayed in the text area.
+To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Speech-to-Text API and displayed in the text area.
 
 ![](./assets/images/voice-input-stop.png ':size=400')
 
 After voice input, a `p-value` indicating the confidence of the voice input is displayed. The `p-value` is an indicator of the confidence of the voice input, expressed in the range from 0 to 1. The closer the `p-value` is to 1, the higher the confidence of the voice input.
 
 ![](./assets/images/voice-p-value.png ':size=400')
+
+## Speech-to-Text Model Selection
+
+You can select the Speech-to-Text (STT) model in the settings. Monadic Chat supports the following OpenAI STT models:
+- whisper-1
+- gpt-4o-mini-transcribe
+- gpt-4o-transcribe
+
+The newer models (gpt-4o-mini-transcribe, gpt-4o-transcribe) provide improved accuracy and transcription quality. Monadic Chat automatically optimizes the audio format for each STT model to ensure the best possible transcription results.

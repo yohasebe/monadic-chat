@@ -11,7 +11,7 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
-def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
+def stt_api_request(audiofile, response_format = "text", lang_code = nil, model = "gpt-4o-mini-transcribe")
   num_retrial = 0
 
   begin
@@ -26,7 +26,7 @@ def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
   begin
     options = {
       file: HTTP::FormData::File.new(audiofile),
-      model: "whisper-1",
+      model: model,
       response_format: response_format
     }
     options["language"] = lang_code if lang_code
@@ -49,14 +49,15 @@ def whisper_api_request(audiofile, response_format = "text", lang_code = nil)
     response.body
   else
     pp "Error: #{response.status} - #{response.body}"
-    { type: "error", content: "Whisper API Error" }
+    { type: "error", content: "Speech-to-Text API Error" }
   end
 end
 
 audiofile = ARGV[0]
 outpath = ARGV[1] || "."
-response_format = ARGV[2] || "srt"
+response_format = ARGV[2] || "json"  # Changed default from srt to json
 lang_code = ARGV[3] || nil
+model = ARGV[4] || "gpt-4o-mini-transcribe"  # Added model parameter with default
 
 if audiofile.nil?
   puts "ERROR: No audio file provided."
@@ -64,9 +65,33 @@ if audiofile.nil?
 end
 
 begin
-  response = whisper_api_request(audiofile, response_format, lang_code)
-  outfile = "#{outpath}/whisper_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json"
-  # res = JSON.parse(response)["text"]
+  # Detect the file format from the extension
+  format = File.extname(audiofile).sub(/^\./, '') # Remove leading dot
+  
+  # Normalize format to one that OpenAI API supports
+  # OpenAI API supports: "mp3", "mp4", "mpeg", "mpga", "m4a", "wav", or "webm"
+  format = "mp3" if format == "mpeg" || format == "audio/mpeg"
+  format = "mp4" if format == "mp4a-latm"
+  format = "wav" if %w[x-wav wave].include?(format)
+  
+  # For gpt-4o models, always use mp3 for maximum compatibility
+  # For whisper-1, keep original formats (especially webm which works well)
+  if model.to_s.include?("gpt-4o")
+    if format != "mp3"
+      puts "⚠️ Format #{format} detected with gpt-4o model (#{model}). Forcing mp3 for compatibility."
+      format = "mp3"
+    end
+  else
+    puts "✅ Original format #{format} retained for model: #{model}"
+  end
+  
+  # Default to mp3 for empty or unsupported formats for better compatibility
+  format = "mp3" if format.empty? || !%w[mp3 mp4 mpeg mpga m4a wav webm].include?(format)
+  
+  puts "Using audio format: #{format}, model: #{model}"
+  
+  response = stt_api_request(audiofile, response_format, lang_code, model)
+  outfile = "#{outpath}/stt_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json"
   File.write(outfile, response)
   puts response
 rescue StandardError => e

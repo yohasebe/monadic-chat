@@ -138,7 +138,7 @@ Enter your Tavily API key. This key is used for two purposes: 1) For "Extract fr
 Select the theme for code syntax highlighting. The default is `monokai`.
 
 **STT_MODEL** <br />
-Select the model used for speech-to-text. Currently, `gpt-4o-mini-transcribe` and `whisper-1` are available. The default is `gpt-4o-mini-transcribe`.
+Select the model used for speech-to-text. Currently, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` and `whisper-1` are available. The default is `gpt-4o-transcribe`.
 
 **AI_USER_MODEL** <br />
 Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `o1`, `o1-mini`, `o3-mini`, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o`.

@@ -470,20 +470,27 @@ module WebSocketHelper
             @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
           else
             blob = Base64.decode64(obj["content"])
-            res = whisper_api_request(blob, obj["format"], obj["lang_code"])
+            model = CONFIG["STT_MODEL"] || "gpt-4o-mini-transcribe"
+            format = obj["format"] || "webm"
+            res = stt_api_request(blob, format, obj["lang_code"], model)
             if res["text"] && res["text"] == ""
               @channel.push({ "type" => "error", "content" => "The text input is empty" }.to_json)
             elsif res["type"] && res["type"] == "error"
-              @channel.push({ "type" => "error", "content" => res["content"] }.to_json)
+              # Include format information in error message for debugging
+              error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
+              @channel.push({ "type" => "error", "content" => error_message }.to_json)
             else
               # get mean score of "avg_logprob" of res["content"]["segments"]
-              avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
-              logprob = Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+              # it only works with verboze_json format, which is not available with gpt-4o-mini-transcribe
+              
+              # avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
+              # logprob = Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
               @channel.push({
-                "type" => "whisper",
+                "type" => "stt",
                 "content" => res["text"],
-                "logprob" => logprob
+                # "logprob" => logprob
               }.to_json)
+
             end
           end
         else # fragment

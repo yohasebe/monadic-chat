@@ -106,7 +106,7 @@ Clicking the `Export` button saves the current settings and conversation data to
 
 ![](./assets/images/monadic-chat-tts.png ':size=400')
 
-!> To use the speech feature, you need to use the Google Chrome or Microsoft Edge browser.
+!> To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
 **Text-to-Speech Provider**<br />
 Select the provider used for speech synthesis. If you can choose between OpenAI (Normal or HD) and ElevenLabs voices if API Tokens for these providers are set.
@@ -118,7 +118,7 @@ You can specify the voice used for speech synthesis.
 You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices.
 
 **Automatic Speech Recognition (ASR) Language**<br />
-Whisper API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector.
+Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector.
 Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 

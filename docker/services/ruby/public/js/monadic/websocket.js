@@ -846,10 +846,7 @@ function connect_websocket(callback) {
         if (voices.length > 0) {
           // set #elevenlabs-provider-option enabled
           $("#elevenlabs-provider-option").prop("disabled", false);
-          // Set ElevenLabs as the selected provider if no cookie exists for tts-provider
-          if (!getCookie("tts-provider")) {
-            $("#tts-provider").val("elevenlabs").trigger("change");
-          }
+          // Do not set ElevenLabs as default - prefer openai-tts-4o
         } else {
           // set #elevenlabs-provider-option disabled
           $("#elevenlabs-provider-option").prop("disabled", true);
@@ -876,7 +873,7 @@ function connect_websocket(callback) {
         }
         break;
       }
-      case "whisper": {
+      case "stt": {
         $("#message").val($("#message").val() + " " + data["content"]);
         let logprob = "Last ASR p-value: " + data["logprob"];
         $("#asr-p-value").text(logprob);

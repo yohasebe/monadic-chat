@@ -1370,6 +1370,10 @@ function checkAndUpdateEnvFile() {
         envConfig.ROUGE_THEME = 'monokai:dark';
     }
 
+    if (!envConfig.STT_MODEL) {
+        envConfig.STT_MODEL = 'gpt-4o-mini-transcribe';
+    }
+
     if (!envConfig.AI_USER_MODEL) {
         envConfig.AI_USER_MODEL = 'gpt-4o';
     }

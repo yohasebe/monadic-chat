@@ -22,3 +22,9 @@
 
 **A**: Yes, you can. Enable both `Auto speech` and `Easy submit` in the `Chat Interaction Controls` on the web interface. You can start and complete voice message input by pressing the Enter key (without clicking a button). Also, when the input is complete, the message is automatically sent, and the synthesized voice of the response from the AI agent is played. In other words, you can have a voice conversation with the AI agent just by pressing the Enter key at the right time.
 
+---
+
+**Q**: Which speech-to-text models are available, and how do I select them?
+
+**A**: Monadic Chat supports multiple OpenAI speech-to-text models including 'whisper-1', 'gpt-4o-mini-transcribe', and 'gpt-4o-transcribe'. You can select your preferred model in the settings panel under the STT_MODEL option. The newer models (gpt-4o-mini-transcribe, gpt-4o-transcribe) generally provide improved accuracy and transcription quality. Monadic Chat automatically optimizes the audio format based on which model you select.
+

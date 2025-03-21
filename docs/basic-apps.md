@@ -41,7 +41,7 @@ This is a chat application that is "monadic" and has additional features compare
 
 ![Voice Chat app icon](./assets/icons/voice-chat.png ':size=40')
 
-This application allows you to chat using voice, utilizing OpenAI's Whisper voice recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
+This application allows you to chat using voice, utilizing OpenAI's Speech-to-Text recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
 
 ![Voice input](./assets/images/voice-input-stop.png ':size=400')
 

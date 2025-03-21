@@ -557,8 +557,9 @@ module WebSocketHelper
                 buffer << text unless text.empty? || text == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
-                if !cutoff && segments.size > 1
-                  candidate = segments.first
+                if !cutoff && segments.size > 2
+                  # candidate = segments.first
+                  candidate = segments[0...-1].join
                   split = candidate.split("---")
                   if split.empty?
                     cutoff = true
@@ -580,7 +581,7 @@ module WebSocketHelper
                     end
                   end
 
-                  buffer = segments[1..]
+                  buffer = [segments[-1]]
                 end
               end
               @channel.push(fragment.to_json)

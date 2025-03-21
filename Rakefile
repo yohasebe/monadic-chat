@@ -24,6 +24,66 @@ task :download_vendor_assets do
   puts "Vendor assets downloaded successfully."
 end
 
+# Server management tasks
+namespace :server do
+  desc "Start the Monadic server in daemonized mode"
+  task :start do
+    puts "Starting Monadic server..."
+    sh "./bin/monadic_dev start"
+  end
+  
+  desc "Start the Monadic server in debug mode (non-daemonized)"
+  task :debug do
+    puts "Starting Monadic server in debug mode..."
+    sh "./bin/monadic_dev debug"
+  end
+  
+  desc "Stop the Monadic server"
+  task :stop do
+    puts "Stopping Monadic server..."
+    sh "./bin/monadic_dev stop"
+  end
+  
+  desc "Restart the Monadic server"
+  task :restart do
+    puts "Restarting Monadic server..."
+    sh "./bin/monadic_dev restart"
+  end
+  
+  desc "Show the status of the Monadic server and containers"
+  task :status do
+    sh "./bin/monadic_dev status"
+  end
+end
+
+# Database tasks
+namespace :db do
+  desc "Export the document database"
+  task :export do
+    puts "Exporting document database..."
+    sh "./bin/monadic_dev export"
+  end
+  
+  desc "Import the document database"
+  task :import do
+    puts "Importing document database..."
+    sh "./bin/monadic_dev import"
+  end
+end
+
+# Convenience shortcuts
+desc "Start the Monadic server in daemonized mode (alias for server:start)"
+task :start => "server:start"
+
+desc "Start the Monadic server in debug mode (alias for server:debug)"
+task :debug => "server:debug"
+
+desc "Stop the Monadic server (alias for server:stop)"
+task :stop => "server:stop"
+
+desc "Show server status (alias for server:status)"
+task :status => "server:status"
+
 # Define the list of files that should have consistent version numbers
 def version_files
   [

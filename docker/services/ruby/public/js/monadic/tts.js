@@ -73,16 +73,21 @@ function ttsSpeak(text, stream, callback) {
     return;
   }
 
-  ws.send(JSON.stringify({
+  const voiceData = {
     provider: provider,
     message: mode,
     text: text,
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,
-    speed: speed,
-    // model: model,
     response_format: response_format
-  }));
+  }
+
+  // add speed if it is defined and it is not 1.0
+  if (speed && speed !== 1.0) {
+    voiceData.speed = speed;
+  }
+
+  ws.send(JSON.stringify(voiceData));
 
   audio.play();
 }

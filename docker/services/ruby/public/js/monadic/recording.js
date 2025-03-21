@@ -113,7 +113,7 @@ voiceButton.on("click", function () {
         // Choose audio formats based on the selected STT model
         let mimeTypes;
         
-        if (currentSttModel === "whisper-1" || currentSttModel === "gpt-4o-transcribe") {
+        if (currentSttModel === "whisper-1") {
           // WebM works well with whisper-1 and has good compression
           mimeTypes = [
             "audio/webm;codecs=opus", // Excellent compression, works with whisper-1
@@ -147,7 +147,7 @@ voiceButton.on("click", function () {
         
         // If no supported type was found, use appropriate fallback
         if (!options) {
-          const currentSttModel = $("#stt-model").val() || "gpt-4o-transcribe";
+          const currentSttModel = $("#stt-model").val() || "gpt-4o-mini-transcribe";
           
           if (currentSttModel === "whisper-1") {
             // For whisper-1, try WebM first, then WAV

@@ -69,6 +69,10 @@ function setCookieValues() {
       else if (property === "elevenlabs-tts-voice") {
         // We'll handle this when voices are loaded
       }
+    } else if (property === "tts-provider" && CONFIG["ELEVENLABS_API_KEY"]) {
+      // If ELEVENLABS_API_KEY is set but no cookie exists for tts-provider,
+      // default to "openai-tts-4o" instead of "elevenlabs"
+      $(`#${property}`).val("openai-tts-4o").trigger("change");
     }
   });
 }

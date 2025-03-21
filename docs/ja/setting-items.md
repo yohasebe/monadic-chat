@@ -137,3 +137,27 @@ AIエージェントのレスポンスの一部（メタ情報、ツール使用
 
 JSON形式で出力する場合の出力形式を指定します。詳細については[OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs)を参照してください。
 
+## システムレベルの設定
+
+以下の設定項目はシステムレベルで管理され、レシピファイルで直接設定することはできません。これらはMonadic Chatの設定UI画面で設定されます。
+
+`STT_MODEL` (string)
+
+アプリケーション全体で使用される音声認識（Speech-to-Text）モデルを指定します。利用可能なオプションにはwhisper-1、gpt-4o-mini-transcribe、gpt-4o-transcribeがあります。選択したモデルに基づいて音声フォーマットが自動的に最適化されます。
+
+`AI_USER_MODEL` (string)
+
+AI生成によるユーザーメッセージに使用されるモデルを指定します。利用可能なオプションにはgpt-4o-mini、gpt-4o、o3-mini、o1-mini、o1があります。
+
+`EMBEDDING_MODEL` (string)
+
+テキスト埋め込み生成に使用されるモデルを指定します。利用可能なオプションにはtext-embedding-3-small、text-embedding-3-largeがあります。
+
+`WEBSEARCH_MODEL` (string)
+
+ウェブ検索機能に使用されるモデルを指定します。利用可能なオプションにはgpt-4o-mini-search-preview、gpt-4o-search-previewがあります。
+
+`ROUGE_THEME` (string)
+
+アプリケーション全体で使用されるシンタックスハイライトのテーマを指定します。
+

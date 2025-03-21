@@ -117,8 +117,9 @@
             <div class="my-1">
               <label for="tts-provider" class="div-label my-2">Text-to-Speech Provider</label>
               <select class="form-select form-select-sm" id="tts-provider">
-                <option id="openai-provider-option" value="openai">OpenAI (TTS)</option>
-                <option id="openai-hd-provider-option" value="openai-hd">OpenAI (TTS HD)</option>
+                <option id="openai-tts-4o" value="openai-tts-4o" selected>OpenAI (4o TTS)</option>
+                <option id="openai-tts" value="openai-tts">OpenAI (TTS)</option>
+                <option id="openai-tts-hd" value="openai-tts-hd">OpenAI (TTS HD)</option>
                 <option id="elevenlabs-provider-option" value="elevenlabs" disabled>ElevenLabs</option>
               </select>
             </div>
@@ -698,6 +699,9 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <script src="/js/monadic/audio_encoder.js"></script>
 
     <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>

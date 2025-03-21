@@ -3,7 +3,8 @@
 
 # Load the shared assets configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/assets_list.sh"
+ASSETS_LIST_PATH="${SCRIPT_DIR}/../docker/services/ruby/bin/assets_list.sh"
+source "${ASSETS_LIST_PATH}"
 
 # Set base path for the project
 BASE_PATH="$(pwd)"

@@ -704,12 +704,20 @@ function connect_websocket(callback) {
             }
           }
 
-          // Sort regular apps alphabetically
-          regularApps.sort((a, b) => a[1]["app_name"].localeCompare(b[1]["app_name"]));
+          // Sort regular apps alphabetically by displayed text value
+          regularApps.sort((a, b) => {
+            const textA = a[1]["display_name"] || a[1]["app_name"];
+            const textB = b[1]["display_name"] || b[1]["app_name"];
+            return textA.localeCompare(textB);
+          });
 
-          // Sort apps within each special group alphabetically
+          // Sort apps within each special group alphabetically by displayed text value
           for (const group of Object.keys(specialApps)) {
-            specialApps[group].sort((a, b) => a[1]["app_name"].localeCompare(b[1]["app_name"]));
+            specialApps[group].sort((a, b) => {
+              const textA = a[1]["display_name"] || a[1]["app_name"];
+              const textB = b[1]["display_name"] || b[1]["app_name"];
+              return textA.localeCompare(textB);
+            });
           }
 
           // Add apps to selector

@@ -223,25 +223,12 @@ voiceButton.on("click", function () {
 
 // Enhanced sound processing function that can convert to MP3 when needed
 function soundToBase64(blob, callback) {
-  // If blob is already in a compressed format (MP3, WebM)
-  if (blob.type.includes('mp3') || blob.type.includes('mpeg') || (blob.type.includes('webm'))) {
-    const reader = new FileReader();
-    reader.onload = function() {
-      const dataUrl = reader.result;
-      const base64 = dataUrl.split(',')[1];
-      callback(base64);
-    };
-    reader.readAsDataURL(blob);
-    return;
-  }
-  
-  // Default handling for when MP3 conversion is not available
+  // Process audio blob directly without conversion
   const reader = new FileReader();
   reader.onload = function() {
     const dataUrl = reader.result;
     const base64 = dataUrl.split(',')[1];
     callback(base64);
   };
-  
   reader.readAsDataURL(blob);
 }

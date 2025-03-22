@@ -23,13 +23,13 @@ download_file() {
   
   echo "Downloading: $url to $destination"
   if [ -f "$destination" ]; then
-    # echo "File already exists: $destination"
+    echo "File already exists: $destination"
     return 0
   fi
   
   curl -L --silent "$url" -o "$destination"
   if [ $? -eq 0 ]; then
-    # echo "Downloaded successfully: $destination"
+    echo "Downloaded successfully: $destination"
   else
     echo "Failed to download: $url"
     exit 1
@@ -67,7 +67,7 @@ done
 
 # Fix Font Awesome webfont paths in the CSS file
 if [ -f "${VENDOR_PATH}/css/all.min.css" ]; then
-  # echo "Fixing Font Awesome webfont paths in CSS file..."
+  echo "Fixing Font Awesome webfont paths in CSS file..."
   # Use different sed syntax for macOS vs Linux
   if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS version
@@ -76,12 +76,12 @@ if [ -f "${VENDOR_PATH}/css/all.min.css" ]; then
     # Linux version
     sed -i 's|url("../webfonts/|url("/vendor/webfonts/|g' "${VENDOR_PATH}/css/all.min.css"
   fi
-  # echo "Font Awesome paths fixed successfully"
+  echo "Font Awesome paths fixed successfully"
 fi
 
 # Create a CSS file for local Montserrat font
-# echo "Creating Montserrat CSS file..."
-# echo "$MONTSERRAT_CSS" > "${VENDOR_PATH}/css/montserrat.css"
+echo "Creating Montserrat CSS file..."
+echo "$MONTSERRAT_CSS" > "${VENDOR_PATH}/css/montserrat.css"
 
 echo "All vendor files have been downloaded"
-# echo "These files will be available for both development and production use"
+echo "These files will be available for both development and production use"

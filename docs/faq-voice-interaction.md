@@ -2,7 +2,7 @@
 
 **Q**: Sometimes the text is played back in a different language than the actual language during speech synthesis. What should I do?
 
-**A**: The `Automatic-Speech-Recognition (ASR) Language` selector on the web interface is set to `Automatic` by default. By setting it to a specific language, the text will be played back in the specified language during speech synthesis.
+**A**: The `Speech-to-Text (STT) Language` selector on the web interface is set to `Automatic` by default. By setting it to a specific language, the text will be played back in the specified language during speech synthesis.
 
 ---
 

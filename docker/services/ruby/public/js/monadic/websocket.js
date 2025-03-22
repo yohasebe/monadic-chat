@@ -958,7 +958,7 @@ function connect_websocket(callback) {
       }
       case "stt": {
         $("#message").val($("#message").val() + " " + data["content"]);
-        let logprob = "Last ASR p-value: " + data["logprob"];
+        let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
         $("#asr-p-value").text(logprob);
         $("#send, #clear, #voice").prop("disabled", false);
         if ($("#check-easy-submit").is(":checked")) {

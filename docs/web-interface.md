@@ -117,7 +117,7 @@ You can specify the voice used for speech synthesis.
 **Text-to-Speech Speed**<br />
 You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices.
 
-**Automatic Speech Recognition (ASR) Language**<br />
+**Speech-to-Text (STT) Language**<br />
 Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector.
 Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 

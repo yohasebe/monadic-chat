@@ -477,13 +477,79 @@ function connect_websocket(callback) {
     if (!mediaSource) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
-        // Though TTS on FireFox is not supported, the following is needed to prevent an error
-        if (runningOnFirefox) {
-          sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-        } else {
-          sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        try {
+          // Try different MIME types based on browser compatibility
+          if (runningOnFirefox) {
+            // Firefox has specific codec requirements
+            try {
+              // Firefox prefers webm with opus codec
+              sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs=opus');
+            } catch (e) {
+              console.log("Firefox primary format failed, trying alternate", e);
+              try {
+                // Second option for Firefox
+                sourceBuffer = mediaSource.addSourceBuffer('audio/webm');
+              } catch (e2) {
+                console.log("Firefox secondary format failed, trying basic format", e2);
+                // Last attempt for Firefox - basic audio format
+                sourceBuffer = mediaSource.addSourceBuffer('audio/basic');
+              }
+            }
+          } else if (runningOnSafari) {
+            // Safari prefers mp4
+            sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+          } else {
+            // Chrome and others work well with mpeg
+            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+          }
+          sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+        } catch (e) {
+          console.error("Error setting up MediaSource: ", e);
+          // Create alternate approach for Firefox
+          if (runningOnFirefox) {
+            console.log("Using alternative audio approach for Firefox");
+            // For Firefox, we'll use a different approach without MediaSource
+            // Instead of streaming through MediaSource API, we'll play complete audio chunks
+            audio = new Audio();
+            
+            // We'll override the processAudioDataQueue function for Firefox
+            window.firefoxAudioMode = true;
+            
+            // This will be our queue of audio data
+            window.firefoxAudioQueue = [];
+            
+            // Override the regular queue processing
+            processAudioDataQueue = function() {
+              if (window.firefoxAudioQueue && window.firefoxAudioQueue.length > 0) {
+                const audioData = window.firefoxAudioQueue.shift();
+                try {
+                  const blob = new Blob([audioData], { type: 'audio/mpeg' });
+                  const url = URL.createObjectURL(blob);
+                  
+                  const tempAudio = new Audio(url);
+                  tempAudio.onended = function() {
+                    URL.revokeObjectURL(url);
+                    if (window.firefoxAudioQueue.length > 0) {
+                      processAudioDataQueue();
+                    }
+                  };
+                  
+                  tempAudio.play().catch(e => console.error("Firefox audio playback error:", e));
+                } catch (e) {
+                  console.error("Firefox audio processing error:", e);
+                }
+              }
+            };
+          } else {
+            // For other browsers, try the most widely supported format
+            try {
+              sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+              sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+            } catch (fallbackError) {
+              console.error("Failed to create audio source buffer: ", fallbackError);
+            }
+          }
         }
-        sourceBuffer.addEventListener('updateend', processAudioDataQueue);
       });
     }
 
@@ -594,8 +660,17 @@ function connect_websocket(callback) {
           }
 
           const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-          audioDataQueue.push(audioData);
-          processAudioDataQueue();
+          
+          // Handle Firefox special case
+          if (window.firefoxAudioMode) {
+            // Add to the Firefox queue instead
+            window.firefoxAudioQueue.push(audioData);
+            processAudioDataQueue();
+          } else {
+            // Regular MediaSource approach for other browsers
+            audioDataQueue.push(audioData);
+            processAudioDataQueue();
+          }
         } catch (e) {
           console.error("Error processing audio data:", e);
           // Don't show an alert, just log the error

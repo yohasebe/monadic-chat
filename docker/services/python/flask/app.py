@@ -56,7 +56,7 @@ def get_tokens_sequence():
     model_name = data.get('model_name', default_model)
     encoding_name = model_to_encoding_map[model_name]
     encoding = get_encoding(encoding_name)
-    tokens = encoding.encode(text)  # encode_ordinaryの代わりにencodeを使用
+    tokens = encoding.encode(text)  # Using encode instead of encode_ordinary
     return jsonify({'tokens_sequence': ",".join(map(str, tokens))})
 
 @app.route('/decode_tokens', methods=['POST'])

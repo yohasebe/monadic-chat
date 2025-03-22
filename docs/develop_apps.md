@@ -85,8 +85,13 @@ The following modules are available for use in the recipe file:
 - `CohereHelper` to use the Cohere API
 - `MistralHelper` to use the Mistral AI API
 - `GeminiHelper` to use the Google Gemini API
+- `GrokHelper` to use the xAI Grok API
+- `PerplexityHelper` to use the Perplexity API
+- `DeepSeekHelper` to use the DeepSeek API
 
-?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, and `MistralHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Currently, these functions are not available in `GeminiHelper`.
+For a complete overview of which apps are compatible with which models, see the [Model Compatibility](./basic-apps.md#model-compatibility) section in the Basic Apps documentation.
+
+?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, and `MistralHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Currently, these functions are not available in `GeminiHelper`, `GrokHelper`, `PerplexityHelper`, or `DeepSeekHelper`.
 
 !> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed. Details of the specific error are recorded in a log file saved in the shared folder (`~/monadic/data/error.log`).
 
@@ -133,7 +138,7 @@ The ways to specify the function name and arguments in `tools` are somewhat diff
 
 ### Execute Commands or Shell Scripts
 
-You can execute commands or shell scripts in the app. The `send_command` method is used to execute commands or shell scripts. The `send_command` method is defined in the `MonadicApp` module, which is the base class for all additional apps. Commands or shell scripts are executed with the shared folder (./monadic/data`) as the current working directory in each container. Shell scripts saved in the `scripts` directory in the shared folder on the host computer are executable in the container, and you can execute them by specifying the script name.
+You can execute commands or shell scripts in the app. The `send_command` method is used to execute commands or shell scripts. The `send_command` method is defined in the `MonadicApp` module, which is the base class for all additional apps. Commands or shell scripts are executed with the shared folder (`/monadic/data`) as the current working directory in each container. Shell scripts saved in the `scripts` directory in the shared folder on the host computer are executable in the container, and you can execute them by specifying the script name.
 
 The `send_command` method takes the following arguments: the name of the command or shell script to execute (`command`), the container name (`container`), and an optional message to display when the command is executed successfully (`success`). The `container` argument uses short string notation; for example, `python` represents `monadic-chat-python-container`.
 

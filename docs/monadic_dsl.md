@@ -91,6 +91,8 @@ Supported providers:
 - `perplexity` (Perplexity models)
 - `xai` (Grok models)
 
+For a complete overview of which apps are compatible with which models, see the [Model Compatibility](./basic-apps.md#model-compatibility) section in the Basic Apps documentation.
+
 ### 3. System Prompt
 
 ```ruby
@@ -355,10 +357,10 @@ end
 The DSL automatically formats function definitions appropriately for different AI providers, handling the specific requirements and formats for each model provider:
 
 - OpenAI: Converts to OpenAI's function calling format with `type: "function"` wrapper
-- Anthropic: Adapts to Claude's tool format with input_schema property
-- Cohere: Maps to Cohere's Command models parameter_definitions format
+- Anthropic: Adapts to Claude's tool format with `input_schema` property
+- Cohere: Maps to Cohere's Command models `parameter_definitions` format
 - Mistral: Formats for Mistral's function calling API
-- Gemini: Structures for Google Gemini models with function_declarations wrapper
+- Gemini: Structures for Google Gemini models with `function_declarations` wrapper
 - DeepSeek: Converts to DeepSeek's function calling format
 - Perplexity: Adapts to Perplexity's function format
 - Grok (xAI): Maps to Grok's function format with strict validation

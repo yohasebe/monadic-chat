@@ -12,7 +12,7 @@ MAX_RETRIES = 5
 RETRY_DELAY = 1
 
 def list_openai_voices
-  %w(alloy ash coral echo fable onyx nova sage shimmer).map do |voice|
+  %w(alloy ash ballad coral echo fable onyx nova sage shimmer).map do |voice|
     {
       "name" => voice.capitalize,
       "voice_id" => voice
@@ -39,7 +39,7 @@ def list_elevenlabs_voices
     voices = response.read_body
     JSON.parse(voices)&.dig("voices")&.map do |voice|
       {
-        "name" => voice["name"],
+        "display_name" => voice["name"],
         "voice_id" => voice["voice_id"]
       }
     end
@@ -51,11 +51,11 @@ end
 def list_providers
   providers = {
     "openai" => {
-      "name" => "OpenAI",
+      "name" => "openai",
       "voices" => list_openai_voices,
     },
     "elevenlabs" => {
-      "name" => "ElevenLabs",
+      "name" => "elevenlabs",
       "voices" => list_elevenlabs_voices
     }
   }
@@ -69,42 +69,13 @@ def tts_api_request(text,
                     response_format: "mp3",
                     speed: "1.0",
                     voice: "alloy",
-                    language: "auto")
+                    language: "auto",
+                    instructions: ""
+                   )
   num_retrial = 0
   response = nil
 
   case provider
-  when "openai", "openai-hd"
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-    rescue Errno::ENOENT
-      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-    end
-
-    if api_key.nil?
-      return { type: "error", content: "ERROR: OPENAI_API_KEY is not set." }
-    end
-
-    headers = {
-      "Content-Type": "application/json",
-      Authorization: "Bearer #{api_key}"
-    }
-
-    model = provider == "openai-hd" ? "tts-1-hd" : "tts-1"
-
-    body = {
-      input: text,
-      model: model,
-      voice: voice,
-      speed: speed,
-      response_format: response_format
-    }
-
-    unless language == "auto"
-      body["language"] = language
-    end
-
-    target_uri = "#{API_ENDPOINT}/audio/speech"
   when "elevenlabs"
     api_key = nil
     begin
@@ -130,8 +101,43 @@ def tts_api_request(text,
       body["language_code"] = language
     end
 
+    unless instructions == ""
+      body["instructions"] = instructions
+    end
+
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+  else # openai
+    begin
+      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
+    rescue Errno::ENOENT
+      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
+    end
+
+    if api_key.nil?
+      return { type: "error", content: "ERROR: OPENAI_API_KEY is not set." }
+    end
+
+    headers = {
+      "Content-Type": "application/json",
+      Authorization: "Bearer #{api_key}"
+    }
+
+    model = "gpt-4o-mini-tts"
+
+    body = {
+      input: text,
+      model: model,
+      voice: voice,
+      speed: speed,
+      response_format: response_format
+    }
+
+    unless language == "auto"
+      body["language"] = language
+    end
+
+    target_uri = "#{API_ENDPOINT}/audio/speech"
   end
 
   http = HTTP.headers(headers)

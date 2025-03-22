@@ -26,7 +26,8 @@ class SpeechDraftHelper < MonadicApp
 
     - `text`: The speech text to convert to speech.
     - `provider`: Provider of the speech. Default is "openai".
-    - `voice_id`: Voice ID of the speech (CRITICAL: You MUST use the exact voice_id value from list_providers_and_voices, NOT the display name).
+    - `voice_id`: Voice ID of the speech (CRITICAL: You MUST use the exact voice_id value from list_providers_and_voices, NOT display_name).
+    - `instructions`: Instructions for the speech generation (tone, style, etc.). This is optional. Always use English for instructions. Available only for OpenAI.
     - `language`: Language of the speech in the format "en", "es", "ja", etc.
 
     CRITICAL INSTRUCTION: When using the text_to_speech function, always:
@@ -35,7 +36,7 @@ class SpeechDraftHelper < MonadicApp
     3. Use ONLY the voice_id value from the results, never the display name
     4. If the user specifies a voice by name (like "Ken"), you must find its corresponding voice_id
 
-    TTS providers include "openai" and its high-definition version "openai-hd". Other provides such as "elevenlabs" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
+    TTS providers are "openai" and "elevenlabs" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
 
     If you have generated an MP3, present it using the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
   TEXT
@@ -181,7 +182,7 @@ class SpeechDraftHelper < MonadicApp
               },
               provider: {
                 type: "string",
-                enum: ["openai", "openai-hd", "elevenlabs"],
+                enum: ["openai", "elevenlabs"],
                 description: "Provider of the speech."
               },
               voice_id: {
@@ -191,6 +192,10 @@ class SpeechDraftHelper < MonadicApp
               language: {
                 type: "string",
                 description: "Language of the speech."
+              },
+              instructions: {
+                type: "string",
+                description: "Instructions for the speech generation (optional; tone, style, etc.)."
               }
             },
             required: ["text"]

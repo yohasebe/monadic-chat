@@ -576,9 +576,6 @@ class MonadicApp
     sleep COMMAND_DELAY
 
     if status.success?
-      # stdout.to_s.encode('UTF-8').gsub(/\\u([0-9a-fA-F]{4})/) { 
-      #   [$1.to_i(16)].pack('U*') 
-      # }
       stdout
     else
       stdout.strip.empty? ? stderr : stdout

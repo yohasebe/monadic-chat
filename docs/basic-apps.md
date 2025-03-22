@@ -6,7 +6,35 @@ Basic apps use OpenAI's models. If you want to use models from other providers, 
 
 For information on how to develop your own apps, refer to the [App Development](./develop_apps.md) section.
 
-Some apps are available for models by multiple providers. If not specified, the app is available for OpenAI's models.
+## Model Compatibility
+
+The table below shows which apps are available for which AI model providers. If not specified in the app's description, the app is available for OpenAI's models only.
+
+| App | OpenAI | Claude | Cohere | DeepSeek | Gemini | Grok | Mistral | Perplexity |
+|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
+| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | | | | | | | |
+| Voice Chat | ✅ | | | | | | | |
+| Wikipedia | ✅ | | | | | | | |
+| Math Tutor | ✅ | | | | | | | |
+| Second Opinion | ✅ | | | | | | | |
+| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ |
+| Language Practice | ✅ | | | | | | | |
+| Language Practice Plus | ✅ | | | | | | | |
+| Translate | ✅ | | | | | | | |
+| Voice Interpreter | ✅ | | | | | | | |
+| Novel Writer | ✅ | | | | | | | |
+| Image Generator | ✅ | | | | ✅ | | | |
+| Mail Composer | ✅ | | | | | | | |
+| Mermaid Grapher | ✅ | | | | | | | |
+| DrawIO Grapher | | ✅ | | | | | | |
+| Speech Draft Helper | ✅ | | | | | | | |
+| Video Describer | ✅ | | | | | | | |
+| PDF Navigator | ✅ | | | | | | | |
+| Content Reader | ✅ | | | | | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | | ✅ | | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Jupyter Notebook | ✅ | ✅ | | | | | | |
 
 ## Assistant
 
@@ -16,7 +44,7 @@ Some apps are available for models by multiple providers. If not specified, the 
 
 This is a standard chat application. The AI responds to the text input by the user. Emojis corresponding to the content are also displayed.
 
-Coding Assistant apps are also available for the following models:
+Chat apps are also available for the following models:
 
 - OpenAI
 - Anthropic Claude
@@ -73,8 +101,16 @@ This app generates an answer to your question. To verify the validity of that an
 
 ![Research Assistant app icon](./assets/icons/research-assistant.png ':size=40')
 
-
 This app is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
+
+Research Assistant apps are also available for the following models:
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
 
 ?> The Research Assistant app needs an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with a 1,000 free API calls per month.
 
@@ -142,7 +178,11 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 
 ![DrawIO Grapher app icon](./assets/icons/diagram-draft.png ':size=40')
 
-This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder. (Note: Currently available for Anthropic Claude 3.7 models only)
+This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder.
+
+DrawIO Grapher apps are available for the following models:
+
+- Anthropic Claude
 
 ### Speech Draft Helper
 
@@ -204,8 +244,10 @@ This application allows the AI to create and execute program code. The execution
 
 Code Interpreter apps are also available for the following models:
 
+- OpenAI
 - Anthropic Claude
 - Cohere
+- Google Gemini
 
 ### Coding Assistant
 

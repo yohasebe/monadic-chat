@@ -170,8 +170,6 @@ module MonadicDSL
     end
   end
   
-  # These configuration classes were for the old DSL format
-  # and have been removed since we're using only the simplified format
   
   # Base class for tool definitions with provider-specific validation
 
@@ -580,7 +578,7 @@ module MonadicDSL
       mistral: ToolFormatters::MistralFormatter,
       deepseek: ToolFormatters::DeepSeekFormatter,
       perplexity: ToolFormatters::PerplexityFormatter,
-      xai: ToolFormatters::GrokFormatter  # XAIFormatterからGrokFormatterに変更
+      xai: ToolFormatters::GrokFormatter
     }
     
     PROVIDER_WRAPPERS = {
@@ -655,8 +653,6 @@ module MonadicDSL
     end
   end
 
-  # No longer needed - removed the old AppDefinition class as we're 
-  # focusing on the simplified DSL format
 
   # Custom error classes
 

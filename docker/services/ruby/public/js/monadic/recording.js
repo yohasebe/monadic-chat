@@ -166,6 +166,16 @@ voiceButton.on("click", function () {
       try {
         // Set the event listener before stopping the mediaRecorder
         mediaRecorder.ondataavailable = function (event) {
+          // Check if the blob size is too small (indicates no sound captured)
+          if (event.data.size <= 44) { // 44 bytes is typical header size for audio files with no content
+            console.log("No audio data detected. Canceling speech-to-text processing.");
+            setAlert("<i class='fas fa-exclamation-triangle'></i> NO AUDIO DETECTED: Check your microphone settings", "error");
+            $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
+            $("#send, #clear, #voice").prop("disabled", false);
+            $("#amplitude").hide();
+            return;
+          }
+          
           soundToBase64(event.data, function (base64) {
             let lang_code = $("#asr-lang").val();
             // Extract format from the MIME type
@@ -212,7 +222,6 @@ voiceButton.on("click", function () {
     isListening = false;
 
     mediaRecorder.stop();
-    // console.log("Status: " + mediaRecorder.state);
     localStream.getTracks().forEach(track => track.stop());
 
     // Add this line to close the audio context

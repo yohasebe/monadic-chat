@@ -6,7 +6,35 @@
 
 独自のアプリを作る方法については[アプリの開発](develop_apps.md)を参照してください。
 
-一部のアプリは複数のベンダーによるAIモデルで利用できます。特に明記されていない場合、アプリはOpenAIモデルで利用可能です。
+## モデル互換性
+
+以下の表は、各アプリケーションがどのAIモデルプロバイダで利用可能かを示しています。アプリの説明で特に記載がない場合は、OpenAIモデルのみで利用可能です。
+
+| アプリ | OpenAI | Claude | Cohere | DeepSeek | Gemini | Grok | Mistral | Perplexity |
+|-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
+| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | | | | | | | |
+| Voice Chat | ✅ | | | | | | | |
+| Wikipedia | ✅ | | | | | | | |
+| Math Tutor | ✅ | | | | | | | |
+| Second Opinion | ✅ | | | | | | | |
+| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ |
+| Language Practice | ✅ | | | | | | | |
+| Language Practice Plus | ✅ | | | | | | | |
+| Translate | ✅ | | | | | | | |
+| Voice Interpreter | ✅ | | | | | | | |
+| Novel Writer | ✅ | | | | | | | |
+| Image Generator | ✅ | | | | ✅ | | | |
+| Mail Composer | ✅ | | | | | | | |
+| Mermaid Grapher | ✅ | | | | | | | |
+| DrawIO Grapher | | ✅ | | | | | | |
+| Speech Draft Helper | ✅ | | | | | | | |
+| Video Describer | ✅ | | | | | | | |
+| PDF Navigator | ✅ | | | | | | | |
+| Content Reader | ✅ | | | | | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | | ✅ | | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Jupyter Notebook | ✅ | ✅ | | | | | | |
 
 ## アシスタント
 
@@ -16,7 +44,7 @@
 
 標準的なチャットアプリケーションです。ユーザーが入力したテキストに対して、AIが応答します。内容に応じた絵文字も表示されます。
 
-下記の言語モデルでCoding Assistantアプリが利用可能です。
+下記の言語モデルでChatアプリが利用可能です。
 
 - OpenAI
 - Anthropic Claude
@@ -45,7 +73,7 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 
 ![Voice input](./assets/images/voice-input-stop.png ':size=400')
 
-音声入力中は波形が表示され、音声入力が終了すると、認識の「確らしさ」を示すp-value（0〜1の値）が表示されます。
+音声入力中は波形が表示され、音声入力が終了すると、認識の「確からしさ」を示すp-value（0〜1の値）が表示されます。
 
 ![Voice p-value](./assets/images/voice-p-value.png ':size=400')
 
@@ -53,7 +81,7 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 
 ![Wikipedia app icon](./assets/icons/wikipedia.png ':size=40')
 
-基本的にChatと同じですが、言語モデルのカットオフ日時以降に発生したイベントに関する質問など、GPTが回答できない質問に対しては、Wikipediaを検索して回答します。問いq合わせが英語以外の言語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
+基本的にChatと同じですが、言語モデルのカットオフ日時以降に発生したイベントに関する質問など、GPTが回答できない質問に対しては、Wikipediaを検索して回答します。問い合わせが英語以外の言語の場合、Wikipediaの検索は英語で行われ、結果は元の言語に翻訳されます。
 
 ### Math Tutor
 
@@ -74,6 +102,15 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 ![Research Assistant app icon](./assets/icons/research-assistant.png ':size=40')
 
 アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、インテリジェントな研究アシスタントとして機能します。Tavily APIを使用してウェブ検索を行い、ウェブページ、画像、音声ファイル、ドキュメントなどの情報を取得し、分析します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、科学的な問い合わせを進めます。
+
+下記の言語モデルでResearch Assistantアプリが利用可能です。
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
 
 ?> このアプリの利用にはTavily API Keyが必要です。[Tavily](https://tavily.com/)のウェブサイトで取得できます。月に1,000回の無料リクエストが利用可能です。
 
@@ -140,7 +177,11 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 ![DrawIO Grapher app icon](./assets/icons/diagram-draft.png ':size=40')
 
-Draw.io ダイアグラムを作成するためのアプリケーションです。要件を伝えると、AIエージェントがDraw.io XMLファイルを生成し、共有フォルダに保存します。生成されたファイルはDraw.ioにインポートして編集することができます。フローチャート、UMLダイアグラム、ER図、ネットワーク図、組織図、マインドマップ、BPMNダイアグラム、ベン図、ワイヤフレームなど、様々な種類の図を作成できます。（注：現在は Anthropic Claude 3.7 モデルのみで利用可能です）
+Draw.io ダイアグラムを作成するためのアプリケーションです。必要な図の仕様を説明すると、AIエージェントがDraw.io XMLファイルを生成し、共有フォルダに保存します。生成されたファイルはDraw.ioにインポートして編集することができます。フローチャート、UMLダイアグラム、ER図、ネットワーク図、組織図、マインドマップ、BPMNダイアグラム、ベン図、ワイヤフレームなど、様々な種類の図を作成できます。
+
+下記の言語モデルでDrawIO Grapherアプリが利用可能です。
+
+- Anthropic Claude
 
 ### Speech Draft Helper
 
@@ -203,10 +244,12 @@ AIにプログラムコードを作成・実行させるアプリケーション
 
 AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
 
-下記の言語モデルでもCode Interpreterアプリが利用可能です。
+下記の言語モデルでCode Interpreterアプリが利用可能です。
 
+- OpenAI
 - Anthropic Claude
 - Cohere
+- Google Gemini
 
 ### Coding Assistant
 

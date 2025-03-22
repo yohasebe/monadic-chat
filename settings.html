@@ -296,7 +296,7 @@
       const inputs = document.querySelectorAll('input');
       inputs.forEach(input => {
         input.addEventListener('keydown', (e) => {
-          if (e.ctrlKey || e.metaKey) {  // Windows/LinuxのCtrlキーとmacOSのCommandキーの両方に対応
+          if (e.ctrlKey || e.metaKey) {  // Support both Ctrl key (Windows/Linux) and Command key (macOS)
             switch (e.key.toLowerCase()) {
               case 'a':
                 e.preventDefault();

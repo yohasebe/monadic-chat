@@ -1,5 +1,7 @@
 # Language Models
 
+Monadic Chat supports multiple AI model providers. Each provider offers different capabilities and model types. For a complete overview of which apps are compatible with which models, see the [Model Compatibility](./basic-apps.md#model-compatibility) section in the Basic Apps documentation.
+
 ## OpenAI Models
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.

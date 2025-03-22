@@ -91,6 +91,8 @@ end
 - `perplexity` (Perplexityモデル)
 - `xai` (Grokモデル)
 
+どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](./basic-apps.md#モデル互換性)セクションを参照してください。
+
 ### 3. システムプロンプト
 
 ```ruby
@@ -355,10 +357,10 @@ end
 DSLは異なるAIプロバイダーに対して適切な関数定義形式に自動的に変換し、各モデルプロバイダーの特定の要件とフォーマットを処理します：
 
 - OpenAI: `type: "function"`構造を使用してOpenAIの関数呼び出し形式に変換
-- Anthropic: input_schemaプロパティを持つClaudeのツール形式に適応
-- Cohere: Cohereのコマンドモデルのparameter_definitions形式にマッピング
+- Anthropic: `input_schema`プロパティを持つClaudeのツール形式に適応
+- Cohere: Cohereのコマンドモデルの`parameter_definitions`形式にマッピング
 - Mistral: Mistralの関数呼び出しAPIに対応したフォーマット
-- Gemini: function_declarations構造を使用してGoogle Geminiモデル向けに構造化
+- Gemini: `function_declarations`構造を使用してGoogle Geminiモデル向けに構造化
 - DeepSeek: DeepSeekの関数呼び出し形式に変換
 - Perplexity: Perplexityの関数形式に適応
 - Grok (xAI): 厳格な検証を持つGrokの関数形式にマッピング

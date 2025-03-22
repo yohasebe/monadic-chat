@@ -1,5 +1,7 @@
 # 言語モデル
 
+Monadic Chatは複数のAIモデルプロバイダをサポートしています。各プロバイダは異なる機能とモデルタイプを提供しています。どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](./basic-apps.md#モデル互換性)セクションを参照してください。
+
 ## OpenAI Models
 
 Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのためOpenAIのAPIキーを設定することをお勧めします。ただし、チャットで使いたいモデルがOpenAIのモデルでない場合、必ずしもOpenAIのAPIキーを設定する必要はありません。
@@ -18,7 +20,7 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 
 ![Anthropic apps icon](./assets/icons/a.png ':size=40')
 
-ANthropic APIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
+Anthropic APIキーを設定すると、Claudeを用いたアプリを使用することができます。APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
 ```
 ANTHROPIC_API_KEY=api_key

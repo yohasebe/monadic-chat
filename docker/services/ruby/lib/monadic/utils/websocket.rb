@@ -480,17 +480,22 @@ module WebSocketHelper
               error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
               @channel.push({ "type" => "error", "content" => error_message }.to_json)
             else
-              # get mean score of "avg_logprob" of res["content"]["segments"]
-              # it only works with verboze_json format, which is not available with gpt-4o-mini-transcribe
-              
-              # avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
-              # logprob = Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
-              @channel.push({
-                "type" => "stt",
-                "content" => res["text"],
-                # "logprob" => logprob
-              }.to_json)
-
+              begin
+                case model
+                when "whisper-1"
+                  avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
+                else
+                  avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
+                end
+                logprob = Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+              rescue StandardError
+                logprob = nil
+              end
+                @channel.push({
+                  "type" => "stt",
+                  "content" => res["text"],
+                  "logprob" => logprob
+                }.to_json)
             end
           end
         else # fragment

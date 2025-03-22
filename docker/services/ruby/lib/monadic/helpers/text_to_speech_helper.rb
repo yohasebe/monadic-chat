@@ -6,7 +6,7 @@ module MonadicHelper
     send_command(command: command, container: "ruby")
   end
 
-  def text_to_speech(provider: "openai", text: "", speed: 1.0, voice_id: "alloy", language: "auto")
+  def text_to_speech(provider: "openai", text: "", speed: 1.0, voice_id: "alloy", language: "auto", instructions: "")
     if CONFIG["TTS_DICT"]
       text = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
     end
@@ -27,7 +27,7 @@ module MonadicHelper
     end
 
     command = <<~CMD
-      bash -c 'simple_tts_query.rb "#{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language}'
+      bash -c 'simple_tts_query.rb "#{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language} --instructions="#{instructions}"'
     CMD
     send_command(command: command, container: "ruby")
   end

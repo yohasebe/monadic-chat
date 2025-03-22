@@ -120,6 +120,8 @@ module InteractionUtils
       }
 
       model = case provider
+              when "openai-tts-4o"
+                "gpt-4o-mini-tts"
               when "openai-tts-hd"
                 "tts-1-hd"
               when "openai-tts"
@@ -250,12 +252,20 @@ module InteractionUtils
       temp_file = Tempfile.new([file_name, ".#{normalized_format}"])
       temp_file.write(blob)
       temp_file.flush
-
+      
       options = {
         "file" => HTTP::FormData::File.new(temp_file.path),
         "model" => model,
-        "response_format" => "json"
       }
+
+      case model
+      when "whisper-1"
+        options["response_format"] = "verbose_json"
+      else
+        options["response_format"] = "json"
+        options["include[]"] = ["logprobs"]
+      end
+
       options["language"] = lang_code if lang_code
       form_data = HTTP::FormData.create(options)
       response = HTTP.headers(

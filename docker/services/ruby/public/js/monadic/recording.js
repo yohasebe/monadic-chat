@@ -108,60 +108,29 @@ voiceButton.on("click", function () {
         localStream = stream;
         // Check which STT model is selected
         const sttModelSelect = $("#stt-model");
-        const currentSttModel = sttModelSelect.length ? sttModelSelect.val() : "gpt-4o-transcribe";
         
         // Choose audio formats based on the selected STT model
         let mimeTypes;
         
-        if (currentSttModel === "whisper-1") {
-          // WebM works well with whisper-1 and has good compression
-          mimeTypes = [
-            "audio/webm;codecs=opus", // Excellent compression, works with whisper-1
-            "audio/webm",             // Good compression, works with whisper-1
-            "audio/mp3",              // Fallback option
-            "audio/mpeg",             // Same as mp3
-            "audio/mpga",             // Same as mp3
-            "audio/m4a",              // Good compression
-            "audio/mp4",              // Good compression
-            "audio/mp4a-latm",        // AAC in MP4 container
-            "audio/wav",              // Last resort, uncompressed
-            "audio/x-wav",            // Last resort, uncompressed
-            "audio/wave"              // Last resort, uncompressed
-          ];
-        } else {
-          // For gpt-4o models, ONLY use MP3 as maximum compatibility option
-          mimeTypes = [
-            "audio/mp3",           // Highly compatible, good compression
-            "audio/mpeg",          // Same as mp3
-            "audio/mpga"           // Same as mp3
-          ];
-        }
+        mimeTypes = [
+          "audio/webm;codecs=opus", // Excellent compression
+          "audio/webm",             // Good compression
+          "audio/mp3",              // Fallback option
+          "audio/mpeg",             // Same as mp3
+          "audio/mpga",             // Same as mp3
+          "audio/m4a",              // Good compression
+          "audio/mp4",              // Good compression
+          "audio/mp4a-latm",        // AAC in MP4 container
+          "audio/wav",              // Last resort, uncompressed
+          "audio/x-wav",            // Last resort, uncompressed
+          "audio/wave"              // Last resort, uncompressed
+        ];
         
         let options;
         for (const mimeType of mimeTypes) {
           if (MediaRecorder.isTypeSupported(mimeType)) {
             options = {mimeType: mimeType};
             break;
-          }
-        }
-        
-        // If no supported type was found, use appropriate fallback
-        if (!options) {
-          const currentSttModel = $("#stt-model").val() || "gpt-4o-mini-transcribe";
-          
-          if (currentSttModel === "whisper-1") {
-            // For whisper-1, try WebM first, then WAV
-            if (MediaRecorder.isTypeSupported("audio/webm")) {
-              options = {mimeType: "audio/webm"};
-            } else if (MediaRecorder.isTypeSupported("audio/wav")) {
-              options = {mimeType: "audio/wav"};
-            } else {
-              // Absolute fallback
-              options = {};
-            }
-          } else {
-            // For gpt-4o models, use default format
-            options = {};
           }
         }
         
@@ -254,15 +223,8 @@ voiceButton.on("click", function () {
 
 // Enhanced sound processing function that can convert to MP3 when needed
 function soundToBase64(blob, callback) {
-  // Get current STT model to determine if MP3 conversion would be beneficial
-  const sttModelSelect = $("#stt-model");
-  const currentSttModel = sttModelSelect.length ? sttModelSelect.val() : "gpt-4o-transcribe";
-  
-  
-  // If blob is already in a compressed format (MP3, WebM) or we're using whisper-1 with WebM, use as-is
-  if (blob.type.includes('mp3') || 
-      blob.type.includes('mpeg') || 
-      (blob.type.includes('webm') && currentSttModel === "whisper-1")) {
+  // If blob is already in a compressed format (MP3, WebM)
+  if (blob.type.includes('mp3') || blob.type.includes('mpeg') || (blob.type.includes('webm'))) {
     const reader = new FileReader();
     reader.onload = function() {
       const dataUrl = reader.result;
@@ -270,22 +232,6 @@ function soundToBase64(blob, callback) {
       callback(base64);
     };
     reader.readAsDataURL(blob);
-    return;
-  }
-  
-  // For WAV formats or any other format with gpt-4o models, convert to MP3
-  // Only attempt conversion if lamejs is available (loaded from CDN)
-  
-  if (typeof lamejs !== 'undefined' && (blob.type.includes('wav') || currentSttModel.includes('gpt-4o'))) {
-    convertToMP3(blob, function(mp3Blob) {
-      const reader = new FileReader();
-      reader.onload = function() {
-        const dataUrl = reader.result;
-        const base64 = dataUrl.split(',')[1];
-        callback(base64);
-      };
-      reader.readAsDataURL(mp3Blob);
-    });
     return;
   }
   
@@ -299,4 +245,3 @@ function soundToBase64(blob, callback) {
   
   reader.readAsDataURL(blob);
 }
-

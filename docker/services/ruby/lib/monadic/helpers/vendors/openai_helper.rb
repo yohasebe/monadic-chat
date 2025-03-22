@@ -3,7 +3,6 @@
 module OpenAIHelper
   MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.openai.com/v1"
-  TEMP_AUDIO_FILE = "temp_audio_file"
 
   OPEN_TIMEOUT = 20
   READ_TIMEOUT = 60

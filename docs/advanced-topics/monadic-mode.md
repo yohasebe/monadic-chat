@@ -1,8 +1,8 @@
 # Monadic Mode
 
-Monadic Mode is a distinctive feature of Monadic Chat. In Monadic Mode, you can maintain and update the context of the conversation, referencing it as you chat.  This allows for more meaningful and coherent interactions with the AI agent.
+?> This document has not yet been updated to the new MDSL format. For more information on the MDSL format, please refer to [Monadic DSL](./monadic_dsl.md). An update is planned soon.
 
-![Monadic Chat Architecture](../assets/images/monadic-messaging.svg ':size=200')
+Monadic Mode is a distinctive feature of Monadic Chat. In Monadic Mode, you can maintain and update the context of the conversation, referencing it as you chat.  This allows for more meaningful and coherent interactions with the AI agent.
 
 ## Basic Structure
 
@@ -40,12 +40,11 @@ The Jupyter Notebook app maintains the following information as an object, updat
 If more detailed information about defined variables or functions is needed, the source code of the notebook is read. The AI agent can also verify which programs or libraries are available in the current execution environment.
 
 <details>
-<summary>Recipe File (jupyter_notebook_app.rb)</summary>
+<summary>Recipe File (jupyter_notebook_openai.rb)</summary>
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
+![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_openai.rb ':include :type=code')
 
 </details>
-
 
 ### Example of Novel Writer app
 

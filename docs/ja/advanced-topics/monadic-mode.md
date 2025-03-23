@@ -1,8 +1,8 @@
 # Monadicモード
 
-MonadicモードはMonadic Chatの特徴的な機能の一つです。Monadicモードでは、それまでのチャットでなされたやり取り、すなわち文脈を、定義された形式で随時更新しながら保持し、それを参照しながらチャットを行うことができます。
+?> このページで示すコードは、まだ新しいMDSL形式になっていません。MDSL形式の詳細については、[Monadic DSL](./monadic_dsl)を参照してください。近日中に更新を行う予定です。
 
-![Monadic Chat Architecture](../assets/images/monadic-messaging.svg ':size=200')
+MonadicモードはMonadic Chatの特徴的な機能の一つです。Monadicモードでは、それまでのチャットでなされたやり取り、すなわち文脈を、定義された形式で随時更新しながら保持し、それを参照しながらチャットを行うことができます。
 
 ## 基本的な構造
 
@@ -42,9 +42,9 @@ Jupyter Notebookアプリでは、次のような情報をオブジェクトと�
 定義されている変数や関数の詳細について、さらに情報が必要な場合は、ノートブック自体のソースコードを読み込みます。また、現在の実行環境でどのようなプログラムやライブラリが利用可能かについても、AIエージェントは自ら確認する方法が与えられています。
 
 <details>
-<summary>Recipe File (jupyter_notebook_app.rb)</summary>
+<summary>Recipe File (jupyter_notebook_openai.rb)</summary>
 
-![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_app.rb ':include :type=code')
+![language_practice_plus_app.rb](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_openai.rb ':include :type=code')
 
 </details>
 

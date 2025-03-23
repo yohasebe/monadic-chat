@@ -86,15 +86,20 @@ task :status => "server:status"
 
 # Define the list of files that should have consistent version numbers
 def version_files
-  [
+  # Static files that always need version updates
+  static_files = [
     "./docker/services/ruby/lib/monadic/version.rb",
     "./package.json",
     "./package-lock.json",
     "./docker/monadic.sh",
-    "./docs/_coverpage.md",
-    "./docs/installation.md",
-    "./docs/ja/installation.md"
+    "./docs/_coverpage.md"
   ]
+  
+  # Dynamically find all installation.md files in the docs directories
+  installation_files = Dir.glob("./docs/**/installation.md").uniq
+  
+  # Combine the static files with the dynamically found installation files
+  static_files + installation_files
 end
 
 # Get the current version from version.rb (considered the source of truth)
@@ -107,6 +112,70 @@ def get_current_version
     end
   end
   nil
+end
+
+# Different files need different, very specific replacement patterns for the version number
+def update_version_in_file(file, from_version, to_version)
+  return unless File.exist?(file)
+  
+  content = File.read(file)
+  original_content = content.dup
+  updated_content = nil
+  
+  case File.basename(file)
+  when "version.rb"
+    # For version.rb, update the VERSION constant
+    updated_content = content.gsub(/^(\s*VERSION\s*=\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
+  
+  when "installation.md"
+    # For installation.md files, carefully update only version numbers in download URLs and version indicators
+    updated_content = content.dup
+    
+    # Fix macOS ARM64 URL
+    updated_content = updated_content.gsub(/(Monadic%20Chat-)#{Regexp.escape(from_version)}(-arm64\.dmg)/, "\\1#{to_version}\\2")
+    
+    # Fix macOS x64 URL
+    updated_content = updated_content.gsub(/(Monadic%20Chat-)#{Regexp.escape(from_version)}(\.dmg)/, "\\1#{to_version}\\2")
+    
+    # Fix Windows URL
+    updated_content = updated_content.gsub(/(Monadic%20Chat%20Setup%20)#{Regexp.escape(from_version)}(\.exe)/, "\\1#{to_version}\\2")
+    
+    # Fix Linux amd64 URL
+    updated_content = updated_content.gsub(/(monadic-chat_)#{Regexp.escape(from_version)}(_amd64\.deb)/, "\\1#{to_version}\\2")
+    
+    # Fix Linux arm64 URL
+    updated_content = updated_content.gsub(/(monadic-chat_)#{Regexp.escape(from_version)}(_arm64\.deb)/, "\\1#{to_version}\\2")
+    
+    # Update version indicators in parentheses (the version shown next to download links)
+    updated_content = updated_content.gsub(/\(#{Regexp.escape(from_version)}\)/, "(#{to_version})")
+  
+  when "_coverpage.md"
+    # For _coverpage.md, update the version in the header only
+    updated_content = content.gsub(/<small><b>#{Regexp.escape(from_version)}<\/b><\/small>/, "<small><b>#{to_version}</b></small>")
+  
+  when "package.json"
+    # For package.json, only update the main version field, not dependency versions
+    updated_content = content.gsub(/^(\s*"version":\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
+  
+  when "package-lock.json"
+    # For package-lock.json, only update the main version field, not any dependency versions
+    updated_content = content.gsub(/^(\s*"version":\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
+    updated_content = updated_content.gsub(/^(\s*"name":\s*"monadic-chat",\s*"version":\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
+    
+  when "monadic.sh"
+    # For monadic.sh, only update the MONADIC_VERSION declaration
+    updated_content = content.gsub(/^(export MONADIC_VERSION=)#{Regexp.escape(from_version)}/, "\\1#{to_version}")
+  end
+  
+  # Only write back if something actually changed
+  if updated_content && updated_content != original_content
+    puts "Updating version in #{file} from #{from_version} to #{to_version}"
+    File.write(file, updated_content)
+    return true
+  else
+    puts "No version update needed in #{file} or pattern not recognized"
+    return false
+  end
 end
 
 desc "Check version number consistency across all relevant files. Verifies that all files have the same version as version.rb"
@@ -126,10 +195,35 @@ task :check_version do
   missing_files = []
   
   version_files.each do |file|
-    
     if File.exist?(file)
       content = File.read(file)
-      if content.include?(official_version)
+      file_basename = File.basename(file)
+
+      version_found = false
+      
+      case file_basename
+      when "version.rb"
+        version_found = content =~ /^\s*VERSION\s*=\s*"#{Regexp.escape(official_version)}"/
+      when "installation.md"
+        # Check for version in URLs and parentheses
+        version_found = content.include?("Monadic%20Chat-#{official_version}") || 
+                        content.include?("Monadic%20Chat%20Setup%20#{official_version}") ||
+                        content.include?("monadic-chat_#{official_version}_") ||
+                        content =~ /\(#{Regexp.escape(official_version)}\)/
+      when "_coverpage.md"
+        version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
+      when "package.json"
+        version_found = content =~ /^\s*"version":\s*"#{Regexp.escape(official_version)}"/
+      when "package-lock.json"
+        version_found = content =~ /^\s*"version":\s*"#{Regexp.escape(official_version)}"/
+      when "monadic.sh"
+        version_found = content =~ /^export MONADIC_VERSION=#{Regexp.escape(official_version)}/
+      else
+        # Generic check for other files
+        version_found = content.include?(official_version)
+      end
+      
+      if version_found
         puts "✓ #{file}: Version matches official version"
       else
         inconsistent_files << file
@@ -171,9 +265,14 @@ task :update_version, [:from_version, :to_version] do |_t, args|
   from_version = args[:from_version]
   to_version = args[:to_version]
   
+  # Check if this is a dry run
+  dry_run = ENV['DRYRUN'] == 'true'
+  dry_run_message = dry_run ? " (DRY RUN - no files will be modified)" : ""
+  
   if from_version.nil? || to_version.nil?
-    puts "Usage: rake update_version[from_version,to_version]"
+    puts "Usage: rake update_version[from_version,to_version] [DRYRUN=true]"
     puts "Example: rake update_version[0.9.63,0.9.64]"
+    puts "Example (dry run): rake update_version[0.9.63,0.9.64] DRYRUN=true"
     exit 1
   end
   
@@ -181,28 +280,66 @@ task :update_version, [:from_version, :to_version] do |_t, args|
   current_date = Date.today
   month_year = "#{current_date.strftime('%B')}, #{current_date.year}"
   
-  # Files to update with exact replacements
+  # Files to update
   files = version_files
   
-  from_version_regex = Regexp.escape(from_version)
+  # Update each file using file-specific patterns
+  updated_files = []
+  not_updated_files = []
+  missing_files = []
   
-  # Update each file
   files.each do |file|
     if File.exist?(file)
-      content = File.read(file)
-      if content.include?(from_version)
-        puts "Updating version in #{file} from #{from_version} to #{to_version}"
-        updated_content = content.gsub(/#{from_version_regex}/, to_version)
-        File.write(file, updated_content)
+      # If it's a dry run, don't actually modify files
+      if dry_run
+        # Read the file and check if we can find the version
+        content = File.read(file)
+        file_basename = File.basename(file)
+        
+        # Check for version patterns based on file type
+        version_found = false
+        case file_basename
+        when "version.rb"
+          version_found = content.include?("VERSION = \"#{from_version}\"")
+        when "installation.md"
+          version_found = content.include?("Monadic%20Chat-#{from_version}") || 
+                          content.include?("Monadic%20Chat%20Setup%20#{from_version}") ||
+                          content.include?("monadic-chat_#{from_version}_") ||
+                          content.include?("(#{from_version})")
+        when "_coverpage.md"
+          version_found = content.include?("<small><b>#{from_version}</b></small>")
+        when "package.json"
+          version_found = content.include?("\"version\": \"#{from_version}\"")
+        when "package-lock.json"
+          version_found = content.include?("\"version\": \"#{from_version}\"")
+        when "monadic.sh"
+          version_found = content.include?("MONADIC_VERSION=#{from_version}")
+        else
+          version_found = content.include?(from_version)
+        end
+        
+        if version_found
+          puts "Would update version in #{file} from #{from_version} to #{to_version}#{dry_run_message}"
+          updated_files << file
+        else
+          puts "No version #{from_version} found in #{file}#{dry_run_message}"
+          not_updated_files << file
+        end
       else
-        puts "Version #{from_version} not found in #{file}"
+        # Normal mode - actually update files
+        if update_version_in_file(file, from_version, to_version)
+          updated_files << file
+        else
+          not_updated_files << file
+        end
       end
     else
+      missing_files << file
       puts "File not found: #{file}"
     end
   end
   
-  # Add an entry to CHANGELOG.md if it doesn't already exist
+  # Update CHANGELOG.md
   changelog = "./CHANGELOG.md"
   if File.exist?(changelog)
     content = File.read(changelog)
@@ -213,23 +350,54 @@ task :update_version, [:from_version, :to_version] do |_t, args|
       first_line = lines[0].strip
       if first_line.include?("[#{month_year}]") && first_line.include?(from_version)
         # Update the version number in the current month's entry
-        lines[0] = first_line.gsub(from_version, to_version) + "\n"
-        puts "Updating current month entry in CHANGELOG.md from #{from_version} to #{to_version}"
+        if dry_run
+          puts "Would update current month entry in CHANGELOG.md from #{from_version} to #{to_version}#{dry_run_message}"
+        else
+          lines[0] = first_line.gsub(from_version, to_version) + "\n"
+          puts "Updating current month entry in CHANGELOG.md from #{from_version} to #{to_version}"
+          File.write(changelog, lines.join)
+        end
       else
         # Create a new entry for the current month
-        new_entry = "- [#{month_year}] #{to_version}\n  - Version updated from #{from_version}\n\n"
-        lines.unshift(new_entry)
-        puts "Adding new entry to CHANGELOG.md for version #{to_version}"
+        if dry_run
+          puts "Would add new entry to CHANGELOG.md for version #{to_version}#{dry_run_message}"
+        else
+          new_entry = "- [#{month_year}] #{to_version}\n  - Version updated from #{from_version}\n\n"
+          lines.unshift(new_entry)
+          puts "Adding new entry to CHANGELOG.md for version #{to_version}"
+          File.write(changelog, lines.join)
+        end
       end
-      File.write(changelog, lines.join)
     end
   end
   
-  puts "Version update completed!"
+  # Print a summary
+  puts "\nVersion Update Summary#{dry_run_message}:"
+  puts "From version: #{from_version}"
+  puts "To version: #{to_version}"
   
-  # Run check_version to verify the update
-  puts "\nVerifying version consistency after update:"
-  Rake::Task["check_version"].invoke
+  if !updated_files.empty?
+    puts "\nFiles updated#{dry_run ? " (would be)" : ""}:"
+    updated_files.each { |file| puts "  ✓ #{file}" }
+  end
+  
+  if !not_updated_files.empty?
+    puts "\nFiles not updated (version pattern not found):"
+    not_updated_files.each { |file| puts "  ✗ #{file}" }
+  end
+  
+  if !missing_files.empty?
+    puts "\nFiles not found:"
+    missing_files.each { |file| puts "  ! #{file}" }
+  end
+  
+  puts "\nVersion update #{dry_run ? "simulation" : "operation"} completed!"
+  
+  # Run check_version to verify the update (only if not a dry run)
+  unless dry_run
+    puts "\nVerifying version consistency after update:"
+    Rake::Task["check_version"].invoke
+  end
 end
 
 # task to build win/mac x64/mac arm64 packages

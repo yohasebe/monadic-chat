@@ -11,7 +11,7 @@
 ## はじめよう
 
 - [**ドキュメント**](https://yohasebe.github.io/monadic-chat) (英語/日本語)
-- [**インストール**](https://yohasebe.github.io/monadic-chat/#/installation)
+- [**インストール**](https://yohasebe.github.io/monadic-chat/#/ja/getting-started/installation)
 
 ## 接地とは？
 

@@ -14,7 +14,7 @@ The table below shows which apps are available for which AI model providers. If 
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | | | | | | | |
-| Voice Chat | ✅ | | | | | | | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | |
 | Math Tutor | ✅ | | | | | | | |
 | Second Opinion | ✅ | | | | | | | |
@@ -69,13 +69,23 @@ This is a chat application that is "monadic" and has additional features compare
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-This application allows you to chat using voice, utilizing OpenAI's Speech-to-Text recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
+This application allows you to chat using voice, utilizing OpenAI's Speech-to-Text recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. The app can use different AI models to generate responses. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
 
 ![Voice input](../assets/images/voice-input-stop.png ':size=400')
 
 While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
+
+Voice Chat apps are also available for the following models:
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Cohere
+- DeepSeek
 
 ### Wikipedia
 

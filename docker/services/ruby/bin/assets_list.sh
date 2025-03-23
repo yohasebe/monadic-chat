@@ -6,7 +6,7 @@
 # - url: Full URL to the asset on CDN
 # - filename: Local filename to save the asset as
 
-# This file is imported by both download_vendor_assets.sh and download_assets.sh
+# This file is imported by both assets.sh and download_assets.sh
 
 ASSETS=(
   # CSS libraries

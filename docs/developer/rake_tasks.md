@@ -52,18 +52,6 @@ rake check_version
 rake update_version[from_version,to_version]
 ```
 
-## Testing & Linting
-
-```bash
-# Run specs
-rake spec
-
-# Run RuboCop
-rake rubocop
-rake rubocop:autocorrect
-rake rubocop:autocorrect_all
-```
-
 ## Build
 
 ```bash

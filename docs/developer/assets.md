@@ -2,7 +2,7 @@
 
 ## Overview
 
-These scripts handle downloading third-party libraries from CDNs for local use in the application.
+Monadic Chat provides CDN asset management scripts for local development and Docker builds.
 
 ## Files
 

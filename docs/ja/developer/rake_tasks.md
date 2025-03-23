@@ -52,18 +52,6 @@ rake check_version
 rake update_version[from_version,to_version]
 ```
 
-## テスト＆リンティング
-
-```bash
-# スペックを実行
-rake spec
-
-# RuboCopを実行
-rake rubocop
-rake rubocop:autocorrect
-rake rubocop:autocorrect_all
-```
-
 ## ビルド
 
 ```bash

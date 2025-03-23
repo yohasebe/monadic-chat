@@ -2,13 +2,11 @@
 
 This document contains guidelines and instructions for developers contributing to the Monadic Chat project.
 
-## Managing Setup Scripts
+?> This document is for developers of Monadic Chat itself, not for developers of Monadic Chat recipe files.
 
-The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` respectively can be customized by users to install additional packages during container build. When building locally, these files might be replaced with user-provided versions from the `~/monadic/config/` directory.
+## Important: Managing Setup Scripts
 
-### Important: Reset Setup Scripts Before Committing
-
-For version control consistency, we always want to commit the original versions of these scripts. Before committing changes to the repository, please reset these files using one of the methods below:
+The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:
 
 #### Method 1: Using the Reset Script
 
@@ -77,13 +75,3 @@ Users who want to customize their containers should place custom scripts in:
 - `~/monadic/config/rbsetup.sh` for Ruby customizations
 
 These will be automatically used when building containers locally, but won't affect the repository files.
-
-## Avoiding Duplicate Container Builds
-
-The Monadic Chat build system is optimized to avoid building containers multiple times unnecessarily. Recent improvements include:
-
-1. Removing redundant `build_docker_compose` calls in container-specific build functions
-2. Improving the logic in `start_docker_compose` to only rebuild when necessary
-3. Using a boolean flag to track when rebuilds are needed
-
-These changes make the build process more efficient by preventing duplicate builds and reducing unnecessary checks.

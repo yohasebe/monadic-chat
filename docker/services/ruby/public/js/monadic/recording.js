@@ -167,16 +167,30 @@ voiceButton.on("click", function () {
         // Set the event listener before stopping the mediaRecorder
         mediaRecorder.ondataavailable = function (event) {
           // Check if the blob size is too small (indicates no sound captured)
-          if (event.data.size <= 44) { // 44 bytes is typical header size for audio files with no content
-            console.log("No audio data detected. Canceling speech-to-text processing.");
+          // Increased threshold to 100 bytes to better detect empty recordings
+          if (event.data.size <= 100) { // Increased from 44 bytes for better detection
+            console.log("No audio data detected or recording too small. Size: " + event.data.size + " bytes");
             setAlert("<i class='fas fa-exclamation-triangle'></i> NO AUDIO DETECTED: Check your microphone settings", "error");
             $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
             $("#send, #clear, #voice").prop("disabled", false);
             $("#amplitude").hide();
-            return;
+            return; // This prevents further processing
           }
           
+          // Only process if we have sufficient audio data
+          console.log("Audio data size: " + event.data.size + " bytes - Processing...");
+          
           soundToBase64(event.data, function (base64) {
+            // Double-check the base64 length to ensure we have actual content
+            if (!base64 || base64.length < 100) {
+              console.log("Base64 audio data too small. Canceling STT processing.");
+              setAlert("<i class='fas fa-exclamation-triangle'></i> AUDIO PROCESSING FAILED", "error");
+              $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
+              $("#send, #clear, #voice").prop("disabled", false);
+              $("#amplitude").hide();
+              return;
+            }
+            
             let lang_code = $("#asr-lang").val();
             // Extract format from the MIME type
             let format = "webm"; // Default fallback

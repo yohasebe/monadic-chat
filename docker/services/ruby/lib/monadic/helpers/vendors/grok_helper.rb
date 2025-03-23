@@ -509,18 +509,32 @@ module GrokHelper
               choice["message"]["content"] ||= ""
               fragment = json.dig("choices", 0, "delta", "content").to_s
 
+              # Grok only treatment for the first chunk as metadata
+              if !started
+                started = true
+                
+                # For first Grok fragment, add an invisible zero-width space at the start
+                # This will display correctly but have a different "signature" for TTS
+                # Zero-width space won't be visible but will make the fragment unique
+                # to avoid being played twice
+                res = {
+                  "type" => "fragment",
+                  "content" => "\u200B" + fragment
+                }
+                block&.call res
+                
+                # Store original fragment (without zero-width space) in message content
+                choice["message"]["content"] = fragment
+                next
+              end
+              
               res = {
                 "type" => "fragment",
                 "content" => fragment
               }
               block&.call res
-
-              # Grok only treatment for the first chunk as metadata
-              if !started
-                started = true
-                next
-              end
-
+              
+              # Append to existing content
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
 

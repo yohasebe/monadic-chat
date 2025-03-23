@@ -14,7 +14,7 @@
 |-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | | | | | | | |
-| Voice Chat | ✅ | | | | | | | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | |
 | Math Tutor | ✅ | | | | | | | |
 | Second Opinion | ✅ | | | | | | | |
@@ -69,13 +69,23 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。このアプリは異なるAIモデルを使用して応答を生成できます。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
 
 ![Voice input](../assets/images/voice-input-stop.png ':size=400')
 
 音声入力中は波形が表示され、音声入力が終了すると、認識の「確からしさ」を示すp-value（0〜1の値）が表示されます。
 
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
+
+下記の言語モデルでVoice Chatアプリが利用可能です。
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Cohere
+- DeepSeek
 
 ### Wikipedia
 

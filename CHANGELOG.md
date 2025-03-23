@@ -1,4 +1,4 @@
-- [March, 2025] 0.9.64
+- [March, 2025] 0.9.65a
   - Add support for new OpenAI speech-to-text models (gpt-4o-mini-transcribe, gpt-4o-transcribe)
   - Update audio format handling for optimal compatibility with different STT models
   - Add STT_MODEL selection in settings

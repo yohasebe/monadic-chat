@@ -30,6 +30,11 @@ def stt_api_request(audiofile, response_format = "text", lang_code = nil, model 
       response_format: response_format
     }
     options["language"] = lang_code if lang_code
+
+    if response_format == "json"
+      options["include[]"] = ["logprobs"]
+    end
+
     form_data = HTTP::FormData.create(options)
     response = HTTP.headers(
       "Content-Type": form_data.content_type,
@@ -73,17 +78,6 @@ begin
   format = "mp3" if format == "mpeg" || format == "audio/mpeg"
   format = "mp4" if format == "mp4a-latm"
   format = "wav" if %w[x-wav wave].include?(format)
-  
-  # For gpt-4o models, always use mp3 for maximum compatibility
-  # For whisper-1, keep original formats (especially webm which works well)
-  if model.to_s.include?("gpt-4o")
-    if format != "mp3"
-      puts "⚠️ Format #{format} detected with gpt-4o model (#{model}). Forcing mp3 for compatibility."
-      format = "mp3"
-    end
-  else
-    puts "✅ Original format #{format} retained for model: #{model}"
-  end
   
   # Default to mp3 for empty or unsupported formats for better compatibility
   format = "mp3" if format.empty? || !%w[mp3 mp4 mpeg mpga m4a wav webm].include?(format)

@@ -296,7 +296,10 @@ module MistralHelper
       message
     end
 
-    body["model"] = /pixtral/ =~ obj["model"] ? obj["model"] : "pixtral-large-latest"
+    # Only override the model with pixtral-large-latest if using image content with a non-pixtral model
+    if messages_containing_img && !(/pixtral/ =~ obj["model"])
+      body["model"] = "pixtral-large-latest"
+    end
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

@@ -20,7 +20,7 @@ end
 desc "Download vendor assets from CDN for local use"
 task :download_vendor_assets do
   puts "Downloading vendor assets from CDN for local use..."
-  sh "./bin/download_vendor_assets.sh"
+  sh "./bin/assets.sh"
   puts "Vendor assets downloaded successfully."
 end
 
@@ -29,30 +29,30 @@ namespace :server do
   desc "Start the Monadic server in daemonized mode"
   task :start do
     puts "Starting Monadic server..."
-    sh "./bin/monadic_dev start"
+    sh "./bin/monadic_server.sh start"
   end
   
   desc "Start the Monadic server in debug mode (non-daemonized)"
   task :debug do
     puts "Starting Monadic server in debug mode..."
-    sh "./bin/monadic_dev debug"
+    sh "./bin/monadic_server.sh debug"
   end
   
   desc "Stop the Monadic server"
   task :stop do
     puts "Stopping Monadic server..."
-    sh "./bin/monadic_dev stop"
+    sh "./bin/monadic_server.sh stop"
   end
   
   desc "Restart the Monadic server"
   task :restart do
     puts "Restarting Monadic server..."
-    sh "./bin/monadic_dev restart"
+    sh "./bin/monadic_server.sh restart"
   end
   
   desc "Show the status of the Monadic server and containers"
   task :status do
-    sh "./bin/monadic_dev status"
+    sh "./bin/monadic_server.sh status"
   end
 end
 
@@ -61,13 +61,13 @@ namespace :db do
   desc "Export the document database"
   task :export do
     puts "Exporting document database..."
-    sh "./bin/monadic_dev export"
+    sh "./bin/monadic_server.sh export"
   end
   
   desc "Import the document database"
   task :import do
     puts "Importing document database..."
-    sh "./bin/monadic_dev import"
+    sh "./bin/monadic_server.sh import"
   end
 end
 

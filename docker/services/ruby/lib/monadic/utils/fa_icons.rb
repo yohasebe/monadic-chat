@@ -1594,6 +1594,13 @@ module IconHelper
     # Try direct matching first (for performance)
     icons = []
     
+    # Special case for single letters that should use custom icons
+    # These should be considered custom icons with their own img source
+    # For example "m" should use the Mistral logo, not an ambulance icon
+    if search_term.length == 1
+      return "fa-solid fa-#{search_term}"
+    end
+    
     # Check if it's a brand icon
     if BRAND_ICONS.include?(search_term.downcase)
       return "fab fa-#{search_term.downcase}"

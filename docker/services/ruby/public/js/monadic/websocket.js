@@ -686,8 +686,12 @@ function connect_websocket(callback) {
 
       case "error": {
         console.log(data);
-        $("#send, #clear, #voice").prop("disabled", false);
+        // Reset ALL UI controls to match the successful case (html) and the cancel case
+        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+        $("#select-role").prop("disabled", false);
         $("#alert-message").html("Input a message.");
+        
+        // Reset UI panels and indicators
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
@@ -695,15 +699,26 @@ function connect_websocket(callback) {
         
         // Show message input and hide spinner
         $("#message").show();
+        $("#message").prop("disabled", false);
         $("#monadic-spinner").hide();
 
+        // Remove user message that caused error (if it exists)
         const lastCard = $("#discourse .card").last();
         if (lastCard.find(".user-color").length !== 0) {
           deleteMessage(lastCard.attr('id'));
         }
 
+        // Restore the message content so user can edit and retry
         $("#message").val(params["message"]);
+        
+        // Display error message to user
         displayErrorMessage(data["content"]);
+        
+        // Reset response tracking flags to ensure clean state
+        responseStarted = false;
+        callingFunction = false;
+        
+        // Set focus back to input field
         setInputFocus();
         break;
       }

@@ -32,7 +32,7 @@ app "MailComposerPerplexity" do
   end
   
   features do
-    initiate_from_assistant true
+    initiate_from_assistant false
     easy_submit false
     auto_speech false
     group "Perplexity"

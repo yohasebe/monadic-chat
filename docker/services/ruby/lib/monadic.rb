@@ -106,6 +106,11 @@ begin
     # Trim any whitespace and quotes from values
     value = value.strip.gsub(/^['"]|['"]$/, '') if value
     
+    # Skip empty API keys
+    if key.end_with?("_API_KEY") && (value.nil? || value.empty?)
+      next
+    end
+    
     converted_value = case value
                       when "true"
                         true
@@ -118,7 +123,7 @@ begin
                       when nil
                         # Handle nil value
                         puts "Warning: Empty value for key '#{key}'"
-                        ""
+                        next # Skip empty values instead of storing them as empty strings
                       else
                         value
                       end

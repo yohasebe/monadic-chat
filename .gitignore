@@ -73,3 +73,5 @@ rsync.sh
 
 # Vendor assets (downloaded during build)
 /docker/services/ruby/public/vendor/
+
+CLAUDE.md

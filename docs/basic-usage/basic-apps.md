@@ -19,7 +19,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Math Tutor | ✅ | | | | | | | |
 | Second Opinion | ✅ | | | | | | | |
 | Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ |
-| Language Practice | ✅ | | | | | | | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Language Practice Plus | ✅ | | | | | | | |
 | Translate | ✅ | | | | | | | |
 | Voice Interpreter | ✅ | | | | | | | |
@@ -131,6 +131,17 @@ Research Assistant apps are also available for the following models:
 ![Language Practice app icon](../assets/icons/language-practice.png ':size=40')
 
 This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again.
+
+Language Practice apps are available for the following models:
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
+- Cohere
+- DeepSeek
 
 ### Language Practice Plus
 

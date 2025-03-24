@@ -43,14 +43,12 @@ app "VideoDescriberOpenAI" do
     presence_penalty 0.2
     easy_submit false
     auto_speech false
-    sourcecode true
     image true
     initiate_from_assistant true
-    pdf false
   end
   
   tools do
-    define_tool "analyze_video", "Analyze the video content and provide a description of the contents of the video. The function takes the JSON file containing the list of base64 images of the frames extracted from the video as input." do
+    define_tool "analyze_video", "Analyze the video content and provide a description of the contents of the video." do
       parameter :file, "string", "File name or file path", required: true
       parameter :fps, "number", "Frames per second to extract from the video", required: true
       parameter :query, "string", "Query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used."

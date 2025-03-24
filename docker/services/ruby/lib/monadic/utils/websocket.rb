@@ -620,8 +620,13 @@ module WebSocketHelper
               end
 
               if response.key?("type") && response["type"] == "error"
-                content = response.dig("choices", 0, "message", "content")
-                @channel.push({ "type" => "error", "content" => response.to_s }.to_json)
+                # Extract error message if available, otherwise use the full response
+                error_content = if response.key?("content") && !response["content"].to_s.empty?
+                                 response["content"].to_s
+                               else
+                                 "API Error: " + response.to_s
+                               end
+                @channel.push({ "type" => "error", "content" => error_content }.to_json)
               else
                 unless response.dig("choices", 0, "message", "content")
                   @channel.push({ "type" => "error", "content" => "Content not found in response" }.to_json)

@@ -19,7 +19,7 @@
 | Math Tutor | ✅ | | | | | | | |
 | Second Opinion | ✅ | | | | | | | |
 | Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ |
-| Language Practice | ✅ | | | | | | | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Language Practice Plus | ✅ | | | | | | | |
 | Translate | ✅ | | | | | | | |
 | Voice Interpreter | ✅ | | | | | | | |
@@ -131,6 +131,17 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 ![Language Practice app icon](../assets/icons/language-practice.png ':size=40')
 
 アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。
+
+下記の言語モデルでLanguage Practiceアプリが利用可能です。
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
+- Cohere
+- DeepSeek
 
 ### Language Practice Plus
 

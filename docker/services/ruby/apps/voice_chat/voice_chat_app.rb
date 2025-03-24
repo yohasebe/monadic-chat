@@ -29,3 +29,7 @@ end
 class VoiceChatDeepSeek < MonadicApp
   include VoiceChat
 end
+
+class VoiceChatPerplexity < MonadicApp
+  include VoiceChat
+end

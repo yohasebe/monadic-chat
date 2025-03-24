@@ -156,6 +156,7 @@ module IconHelper
   'fas fa-chair',
   'fas fa-chalkboard',
   'fas fa-chalkboard-teacher',
+  'fas fa-chalkboard-user',
   'fas fa-charging-station',
   'fas fa-chart-area',
   'fas fa-chart-bar',
@@ -1600,6 +1601,7 @@ module IconHelper
     if search_term.length == 1
       return "fa-solid fa-#{search_term}"
     end
+    
     
     # Check if it's a brand icon
     if BRAND_ICONS.include?(search_term.downcase)

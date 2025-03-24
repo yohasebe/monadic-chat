@@ -25,7 +25,7 @@
 | Voice Interpreter | ✅ | | | | | | | |
 | Novel Writer | ✅ | | | | | | | |
 | Image Generator | ✅ | | | | ✅ | | | |
-| Mail Composer | ✅ | | | | | | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
@@ -176,6 +176,17 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
 アシスタントと共同でメールの草稿を作成するためのアプリケーションです。ユーザーの要望や指定に応じて、アシスタントがメールの草稿を作成します。
+
+下記の言語モデルでMail Composerアプリが利用可能です。
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
+- Cohere
+- DeepSeek
 
 ### Mermaid Grapher
 

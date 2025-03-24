@@ -25,7 +25,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Voice Interpreter | ✅ | | | | | | | |
 | Novel Writer | ✅ | | | | | | | |
 | Image Generator | ✅ | | | | ✅ | | | |
-| Mail Composer | ✅ | | | | | | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
@@ -177,6 +177,17 @@ Image Generator apps are also available for the following models:
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
 This application is for drafting emails in collaboration with the assistant. The assistant drafts emails based on the user's requests and specifications.
+
+Mail Composer apps are available for the following models:
+
+- OpenAI
+- Anthropic Claude
+- xAI Grok
+- Google Gemini
+- Mistral AI
+- Perplexity
+- Cohere
+- DeepSeek
 
 ### Mermaid Grapher
 

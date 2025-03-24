@@ -1,4 +1,4 @@
-- [March, 2025] 0.9.66
+- [March, 2025] 0.9.67
   - Voice Chat/Mail Composer apps support multiple model providers
   - Mistral model handling issue fixed
   - Add support for new OpenAI speech-to-text models (gpt-4o-mini-transcribe, gpt-4o-transcribe)

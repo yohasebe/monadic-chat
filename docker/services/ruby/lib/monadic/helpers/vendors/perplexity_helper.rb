@@ -218,6 +218,32 @@ module PerplexityHelper
       end
       message
     end
+    
+    # Get the roles in the message list
+    roles = body["messages"].map { |msg| msg["role"] }
+    
+    # Case 1: If only system message exists (initiate_from_assistant=true at the start)
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      body["messages"] << {
+        "role" => "user",
+        "content" => [{ "type" => "text", "text" => "Let's start" }]
+      }
+    # Case 2: If there's a system message followed by an assistant message
+    # (This happens on second turn when the inserted user message is lost)
+    elsif roles.length >= 2 && 
+          roles[0] == "system" && roles.find_index("assistant") &&
+          roles.find_index("assistant") > 0 &&
+          roles[0...roles.find_index("assistant")].all? { |r| r == "system" }
+      
+      # Find the first assistant message
+      assistant_index = roles.find_index("assistant")
+      
+      # Insert user message right before the first assistant message
+      body["messages"].insert(assistant_index, {
+        "role" => "user",
+        "content" => [{ "type" => "text", "text" => "Let's start" }]
+      })
+    end
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

@@ -1,5 +1,6 @@
-- [March, 2025] 0.9.67
-  - Voice Chat/Mail Composer apps support multiple model providers
+- [March, 2025] 0.9.68
+  - Perplexity apps support "initiate_from_assistant"
+  - Voice Chat/Mail Composer/Language Practice apps support multiple model providers
   - Mistral model handling issue fixed
   - Add support for new OpenAI speech-to-text models (gpt-4o-mini-transcribe, gpt-4o-transcribe)
   - Update audio format handling for optimal compatibility with different STT models

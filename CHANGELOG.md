@@ -1,4 +1,4 @@
-- [March, 2025] 0.9.68
+- [March, 2025] 0.9.69
   - Perplexity apps support "initiate_from_assistant"
   - Voice Chat/Mail Composer/Language Practice apps support multiple model providers
   - Mistral model handling issue fixed

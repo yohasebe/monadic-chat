@@ -671,6 +671,7 @@ function connect_websocket(callback) {
             audioDataQueue.push(audioData);
             processAudioDataQueue();
           }
+          
         } catch (e) {
           console.error("Error processing audio data:", e);
           // Don't show an alert, just log the error
@@ -1162,6 +1163,55 @@ function connect_websocket(callback) {
         }
 
         setInputFocus();
+        break;
+      }
+      
+      case "success": {
+        // Handle success messages from the server
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
+        break;
+      }
+      
+      case "edit_success": {
+        // Handle successful message edit
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
+        
+        // Get the message card by mid
+        const $card = $(`#${data.mid}`);
+        if (!$card.length) return;
+        
+        const $cardText = $card.find(".card-text");
+        
+        // Update the HTML content for assistant messages
+        if (data.role === "assistant" && data.html) {
+          // Update the card with the HTML from server
+          $cardText.html(data.html);
+          
+          // Apply all the required processing for assistant messages
+          const htmlContent = $card;
+          
+          if (params["toggle"] === "true") {
+            applyToggle(htmlContent);
+          }
+          
+          if (params["mermaid"] === "true") {
+            applyMermaid(htmlContent);
+          }
+          
+          if (params["mathjax"] === "true") {
+            applyMathJax(htmlContent);
+          }
+          
+          if (params["abc"] === "true") {
+            applyAbc(htmlContent);
+          }
+          
+          if (params["sourcecode"] === "true") {
+            formatSourceCode(htmlContent);
+          }
+          
+          setCopyCodeButton(htmlContent);
+        }
         break;
       }
 

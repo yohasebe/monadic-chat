@@ -197,25 +197,26 @@ function attachEventListeners($card) {
     const content = $card.find(".card-text");
     let text;
     try {
-      // Create a temporary DOM element to safely parse HTML
-      const tempDiv = document.createElement('div');
-      // Use textContent to prevent execution of scripts when extracting HTML
-      tempDiv.textContent = content.html();
-      // Safely parse and extract content
-      const safeHtml = tempDiv.innerHTML;
+      // Direct approach - use text() to get plain text
+      // This avoids double-encoding HTML entities
+      text = content.text() || "";
       
-      // Remove <style> and <script> tags using regex
-      let cleanText = safeHtml.replace(/<style>[\s\S]*?<\/style>/g, "");
-      cleanText = cleanText.replace(/<script>[\s\S]*?<\/script>/g, "");
+      // Alternative approach if we need to handle HTML content properly:
+      // Clone the element to avoid modifying the original
+      const contentClone = content.clone();
       
-      // Get only content before any <hr> tag, if present
-      const hrSplit = cleanText.split(/<hr\s*\/?>/);
-      const firstPart = hrSplit.length > 0 ? hrSplit[0] : cleanText;
+      // Remove any <style> and <script> tags from the clone
+      contentClone.find("style, script").remove();
       
-      // Use DOMParser to safely extract text content
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(firstPart, 'text/html');
-      text = doc.body.textContent || "";
+      // Remove content after <hr> if present
+      const hrElement = contentClone.find("hr").first();
+      if (hrElement.length) {
+        hrElement.nextAll().remove();
+        hrElement.remove();
+      }
+      
+      // Get the plain text content
+      text = contentClone.text() || "";
     } catch (e) {
       console.error("Error extracting text for TTS:", e);
       text = content.text() || "";

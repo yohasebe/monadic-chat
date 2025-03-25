@@ -91,7 +91,7 @@ module InteractionUtils
     end
   end
 
-  def tts_api_request(text,
+    def tts_api_request(text,
                       provider:,
                       voice:,
                       response_format:,
@@ -202,6 +202,7 @@ module InteractionUtils
         t_index += 1
         finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
         block&.call finish
+        return nil
       else
         { "type" => "audio", "content" => Base64.strict_encode64(res) }
       end

@@ -10,7 +10,7 @@
 - **Play**<br />Plays the message text using speech synthesis.
 - **Stop**<br />Stops playback of synthesized speech.
 - **Delete**<br />Opens a dialog with options to either "Delete this and all subsequent messages", "Delete this message only", or "Cancel". The first option deletes the selected message and all messages that appear after it in the conversation, which can be useful in certain cases but should be used with caution. The "Delete this message only" option should also be used carefully, as it may disrupt the alternating user-assistant message pattern required by some API providers (like Perplexity), which can lead to API errors.
-- **Edit**<br />Edits the message.
+- **Edit**<br />Edits the message. Note that editing a message will always delete all subsequent messages, as the conversation flow depends on the content of previous messages.
 - **Active/Inactive**<br />The message turns green when active.
 
 The active/inactive status of a message changes depending on the context size and maximum token settings on the web interface. Active messages are used as part of the context sent to the LLM via the API.

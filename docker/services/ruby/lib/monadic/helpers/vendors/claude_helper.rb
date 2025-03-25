@@ -356,6 +356,8 @@ module ClaudeHelper
               }
             }
             doc["cache_control"] = { "type" => "ephemeral" } if obj["prompt_caching"]
+            # PDF is better inserted before the text 
+            # https://docs.anthropic.com/en/docs/build-with-claude/pdf-support#optimize-pdf-processing
             content.unshift(doc)
           else
             # Handle images

@@ -391,12 +391,27 @@ blockquote p:last-child {
 
 #message,
 #initial-prompt,
-#ai-user-initial-prompt {
+#ai-user-initial-prompt,
+.inline-edit-textarea {
   overflow-y: scroll;
   min-height: 100px;
   overflow-y: hidden;
   resize: vertical;
   transition: height 0.2s ease;
+  font-size: 1em;
+}
+
+/* Role-specific styling for inline edit textarea */
+.role-user .inline-edit-textarea {
+  background-color: #f6f8ff;
+}
+
+.role-assistant .inline-edit-textarea {
+  background-color: #fcedee;
+}
+
+.role-system .inline-edit-textarea {
+  background-color: #f7fff6;
 }
 
 div.diagram {
@@ -470,7 +485,7 @@ legend {
 }
 
 .card-text {
-  padding-bottom: 10px;
+  padding-bottom: 5px;
 }
 
 .toggle-open {

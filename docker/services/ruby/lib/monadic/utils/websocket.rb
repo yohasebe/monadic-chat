@@ -265,6 +265,50 @@ module WebSocketHelper
           # Reuse filtered_messages for change_status
           @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed] 
           @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+        when "EDIT"
+          # Find the message to edit
+          message_to_edit = session[:messages].find { |m| m["mid"] == obj["mid"] }
+          
+          if message_to_edit
+            # Update the message text
+            message_to_edit["text"] = obj["content"]
+            
+            # If it's an assistant message, update the HTML representation too
+            html_content = nil
+            if message_to_edit["role"] == "assistant"
+              if session["parameters"] && session["parameters"]["monadic"]
+                html_content = APPS[session["parameters"]["app_name"]].monadic_html(obj["content"])
+              else
+                html_content = markdown_to_html(obj["content"])
+              end
+              message_to_edit["html"] = html_content
+            end
+            
+            # Create response with updated HTML for the client to use
+            response = {
+              "type" => "edit_success",
+              "content" => "Message updated successfully",
+              "mid" => obj["mid"],
+              "role" => message_to_edit["role"],
+              "html" => html_content
+            }
+            
+            # Push the response with updated HTML
+            @channel.push(response.to_json)
+            
+            # Recheck message token counts if needed
+            past_messages_data = check_past_messages(session[:parameters])
+            
+            # Filter messages only once and store in filtered_messages
+            filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+            
+            # Update status to reflect any changes
+            @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
+            @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+          else
+            # Message not found
+            @channel.push({ "type" => "error", "content" => "Message not found for editing" }.to_json)
+          end
         when "AI_USER_QUERY"
           thread&.join
 

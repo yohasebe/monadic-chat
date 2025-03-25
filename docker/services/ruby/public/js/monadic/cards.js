@@ -264,15 +264,7 @@ function attachEventListeners($card) {
 
     const text = currentMessage.text;
 
-    // Handle attached files
-    if (currentMessage.images) {
-      images = [...currentMessage.images];
-      updateFileDisplay(images);
-    } else {
-      images = [];
-      $("#image-used").empty();
-    }
-
+    // Check if message is JSON (which can't be edited)
     let json = false;
     try {
       JSON.parse(text);
@@ -286,31 +278,105 @@ function attachEventListeners($card) {
       return;
     }
 
-    const confirmed = confirm(`Are you sure to edit this message?\nThis will delete all the messages after it.`);
-    if (confirmed) {
-      $this.find("i").removeClass("fa-square-pen").addClass("fa-check").css("color", "#DC4C64");
-      $("#message").val(text).trigger("input").focus();
-
-      let role = currentMessage.role;
-      if (role !== "user") {
-        role = "sample-" + role;
+    // Create an inline editing textarea
+    const $cardText = $card.find(".card-text");
+    const $editArea = $(`<textarea class="form-control inline-edit-textarea">${text}</textarea>`);
+    
+    // Style the textarea to match the #message textarea
+    $editArea.css({
+      'width': '100%',
+      'min-height': '100px', 
+      'margin-bottom': '10px',
+      'white-space': 'pre-wrap',
+      'font-family': 'inherit',
+      'font-size': '1em',
+      'color': '#333',
+      'line-height': '1.8',
+      'padding': '0.375rem 0.75rem',
+      'border': '1px solid #ced4da',
+      'border-radius': '0.25rem',
+      'overflow-y': 'auto'
+    });
+    
+    // Store original content and hide it
+    const originalContent = $cardText.html();
+    $cardText.html($editArea);
+    
+    // Create save and cancel buttons
+    const $buttonRow = $(`
+      <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-sm btn-secondary me-2 cancel-edit">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button class="btn btn-sm btn-primary save-edit">
+          <i class="fas fa-check"></i> Save
+        </button>
+      </div>
+    `);
+    
+    $cardText.append($buttonRow);
+    
+    // Focus on the textarea
+    $editArea.focus();
+    
+    // Auto-resize the textarea
+    const autoResize = function(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = (textarea.scrollHeight) + 'px';
+    };
+    
+    $editArea.on('input', function() {
+      autoResize(this);
+    });
+    
+    // Trigger initial resize
+    autoResize($editArea[0]);
+    
+    // Handle cancel button
+    $cardText.on('click', '.cancel-edit', function(e) {
+      e.stopPropagation();
+      $cardText.html(originalContent);
+      $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+    });
+    
+    // Handle save button
+    $cardText.on('click', '.save-edit', function(e) {
+      e.stopPropagation();
+      
+      const newText = $editArea.val();
+      
+      // Update message in the messages array
+      currentMessage.text = newText;
+      
+      // For user messages, we can update the display directly
+      if (currentMessage.role === "user") {
+        // Format user text with simple line breaks
+        const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+        $cardText.html("<p>" + displayText + "</p>");
+        
+        // Change the icon back to the edit icon immediately for user messages
+        $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+      } else {
+        // For assistant and system messages, we'll show a loading indicator
+        // while we wait for the server to process the markdown and send back the HTML
+        $cardText.html("<div class='text-center'><i class='fas fa-circle-notch fa-spin'></i> Processing...</div>");
       }
-      $("#select-role").val(role).trigger("change");
-
-      // Delete all subsequent messages
-      const subsequentMessages = messages.slice(messageIndex + 1);
-      subsequentMessages.forEach((m) => {
-        $(`#${m.mid}`).remove();
-        ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
-        mids.delete(m.mid);
-      });
-
-      // Delete current message
-      messages.splice(messageIndex);
-      $card.remove();
-      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
-      mids.delete(mid);
-    }
+      
+      // Notify the server about the change (without deleting the message)
+      // The server will send back properly formatted HTML through the websocket
+      ws.send(JSON.stringify({ 
+        "message": "EDIT", 
+        "mid": mid, 
+        "content": newText,
+        "role": currentMessage.role
+      }));
+      
+      // Change the icon back to the edit icon (for non-user messages, this will be updated again when the server responds)
+      $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+    });
+    
+    // Change the icon to indicate edit mode
+    $this.find("i").removeClass("fa-pen-to-square").addClass("fa-check").css("color", "#DC4C64");
   });
 
   // No duplicate click handler for .func-delete needed

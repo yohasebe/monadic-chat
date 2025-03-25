@@ -1,4 +1,5 @@
 - [March, 2025] 0.9.69
+  - Two ways to delete a message: "this message and subsequent messages" and "this message only"
   - Perplexity apps support "initiate_from_assistant"
   - Voice Chat/Mail Composer/Language Practice apps support multiple model providers
   - Mistral model handling issue fixed

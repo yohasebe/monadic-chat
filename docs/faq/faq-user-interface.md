@@ -9,7 +9,7 @@
 - **Copy**<br />Copies the message text to the clipboard.
 - **Play**<br />Plays the message text using speech synthesis.
 - **Stop**<br />Stops playback of synthesized speech.
-- **Delete**<br />Deletes the message.
+- **Delete**<br />Opens a dialog with options to either "Delete this and all subsequent messages", "Delete this message only", or "Cancel". The first option deletes the selected message and all messages that appear after it in the conversation, which can be useful in certain cases but should be used with caution. The "Delete this message only" option should also be used carefully, as it may disrupt the alternating user-assistant message pattern required by some API providers (like Perplexity), which can lead to API errors.
 - **Edit**<br />Edits the message.
 - **Active/Inactive**<br />The message turns green when active.
 

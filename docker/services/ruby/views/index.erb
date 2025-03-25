@@ -532,6 +532,27 @@
       </div>
     </div>
 
+    <!-- Message Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteConfirmation" tabindex="-1" aria-labelledby="deleteConfirmationLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteConfirmationTitle"><i class="fas fa-trash"></i> Delete Message</h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>How would you like to delete this message?</p>
+            <p><strong>Message:</strong> <span id="messageToDelete" style="font-weight: normal; color: #777;"></span></p>
+          </div>
+          <div class="modal-footer flex-column align-items-stretch">
+            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-warning mb-2">Delete this and all subsequent messages</button>
+            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2">Delete this message only</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <!-- loading procedure is implemented in monadic.rb -->
     <div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">

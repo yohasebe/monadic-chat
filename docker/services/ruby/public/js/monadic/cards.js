@@ -96,6 +96,99 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
 
 // Function to attach all event listeners
 function attachEventListeners($card) {
+  // Direct event handler for the delete button
+  // This will intercept the click before it bubbles up to the card handler
+  $card.find(".func-delete").on("click", function(event) {
+    // Stop event propagation to prevent other handlers from firing
+    event.stopPropagation();
+    
+    const $parentCard = $(this).closest(".card");
+    const mid = $parentCard.attr('id');
+    
+    if (!mid) return; // Safety check
+    
+    // For all cards, try to find if there's a corresponding message
+    const messageIndex = messages.findIndex((m) => m.mid === mid);
+    
+    // Extra handling for error messages - check multiple error patterns
+    const cardText = $parentCard.find(".card-text").text();
+    const isApiError = cardText.includes("API ERROR:") || 
+                      cardText.includes("Error:") || 
+                      cardText.includes("invalid_message") ||
+                      cardText.includes("Bad Request");
+                      
+    if (isApiError) {
+      // Just directly detach the element from DOM without animation
+      $parentCard.detach();
+      
+      // Force the browser to redraw
+      document.body.offsetHeight;
+      
+      // Then completely remove it
+      $parentCard.remove();
+      
+      // Also add this in case it's a temporary message
+      $(`#${mid}`).remove();
+      
+      // If the message is in the messages array, remove it
+      if (messageIndex !== -1) {
+        messages.splice(messageIndex, 1);
+      }
+      
+      // Notify the server
+      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+      mids.delete(mid);
+      
+      // Add explicit visual feedback for the user
+      setAlert("<i class='fas fa-circle-check'></i> Message deleted", "success");
+      return;
+    }
+    
+    // For system messages that might not be in the messages array
+    if ($parentCard.find(".role-system").length > 0) {
+      // Get message text for the modal
+      const systemText = $parentCard.find(".card-text").text().substring(0, 100) + 
+                        ($parentCard.find(".card-text").text().length > 100 ? "..." : "");
+      
+      // Store card data and any additional info needed for deletion
+      $("#deleteConfirmation").data({
+        "mid": mid,
+        "messageIndex": messageIndex, 
+        "isSystemMessage": true,
+        "cardSelector": `#${mid}` // Store selector for later use
+      });
+      
+      // Update modal contents
+      $("#messageToDelete").text(systemText);
+      
+      // Show the confirmation modal
+      $("#deleteConfirmation").modal("show");
+      return;
+    }
+    
+    // For regular messages, show the delete modal
+    if (messageIndex !== -1) {
+      // Store card data
+      $("#deleteConfirmation").data({
+        "mid": mid,
+        "messageIndex": messageIndex
+      });
+      
+      // Update modal contents
+      const text = messages[messageIndex].text || "";
+      const truncatedText = text.length > 100 ? text.substring(0, 100) + "..." : text;
+      $("#messageToDelete").text(truncatedText);
+      
+      // Show the modal
+      $("#deleteConfirmation").modal("show");
+    } else {
+      // If no message found, just delete the card
+      $parentCard.remove();
+      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+      mids.delete(mid);
+    }
+  });
+  
   $card.on("click", ".func-play", function () {
     $(this).tooltip('hide');
 
@@ -220,38 +313,121 @@ function attachEventListeners($card) {
     }
   });
 
-  $card.on("click", ".func-delete", function () {
-    const mid = $card.attr('id');
-    const messageIndex = messages.findIndex((m) => m.mid === mid);
+  // No duplicate click handler for .func-delete needed
+  
+// Function to delete system messages with our improved approach
+window.deleteSystemMessage = function(mid, messageIndex) {
+  // Find the card
+  const $card = $(`#${mid}`);
+  
+  if (!$card.length) {
+    return;
+  }
+  
+  // Hide any tooltips
+  $card.find(".tooltip").tooltip('hide');
+  $('.tooltip').remove();
+  
+  // Immediately detach from DOM (visually removes it)
+  $card.detach();
+  
+  // Force browser redraw
+  document.body.offsetHeight;
+  
+  // Completely remove
+  $card.remove();
+  
+  // Extra cleanup for any remaining elements
+  $(`#${mid}`).remove();
+  
+  // Clean up messages array if needed
+  if (messageIndex !== -1 && messages[messageIndex]) {
+    messages.splice(messageIndex, 1);
+  }
+  
+  // Notify server
+  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+  mids.delete(mid);
+  
+  // Success feedback
+  setAlert("<i class='fas fa-circle-check'></i> Message deleted", "success");
+};
 
-    let confirmed = false
-
-    if (!messages[messageIndex] || !messages[messageIndex].text) {
-      confirmed = true;
-    } else {
-      const text = messages[messageIndex].text;
-      ttsStop();
-      confirmed = confirm(`Are you sure to delete the message "${text}"?`);
-    }
-
-    if (confirmed) {
-      $(this).tooltip('hide');
-
-      // Delete all subsequent messages
-      const subsequentMessages = messages.slice(messageIndex + 1);
-      subsequentMessages.forEach((m) => {
-        $(`#${m.mid}`).remove();
-        ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
-        mids.delete(m.mid);
-      });
-
-      // Delete current message
-      messages.splice(messageIndex);
-      $card.remove();
-      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
-      mids.delete(mid);
-    }
+// Expose these functions globally so they can be called from other scripts
+window.deleteMessageAndSubsequent = function(mid, messageIndex) {
+  // First check if this is a system message
+  const $card = $(`#${mid}`);
+  
+  if ($card.find(".role-system").length > 0) {
+    // Use specialized system message deletion
+    deleteSystemMessage(mid, messageIndex);
+    return;
+  }
+  
+  // Regular message handling continues...
+  // Hide any open tooltips
+  $card.find(".tooltip").tooltip('hide');
+  
+  // Delete all subsequent messages
+  const subsequentMessages = messages.slice(messageIndex + 1);
+  subsequentMessages.forEach((m) => {
+    $(`#${m.mid}`).remove();
+    ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
+    mids.delete(m.mid);
   });
+
+  // Delete current message
+  messages.splice(messageIndex);
+  $card.remove();
+  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+  mids.delete(mid);
+};
+
+window.deleteMessageOnly = function(mid, messageIndex) {
+  // Try to find the card with this mid, even if it's not in the messages array
+  const $card = $(`#${mid}`);
+  if (!$card.length) {
+    console.error("Card not found:", mid);
+    return;
+  }
+  
+  // Hide any open tooltips
+  $card.find(".tooltip").tooltip('hide');
+  
+  // Special case: handle system role messages with our specialized function
+  if ($card.find(".role-system").length > 0) {
+    // Use the specialized system message deletion to maintain consistency
+    deleteSystemMessage(mid, messageIndex);
+    return;
+  }
+  
+  // Check if message exists in the array
+  if (messageIndex === -1 || !messages[messageIndex]) {
+    // Just delete the card without touching the messages array
+    $card.remove();
+    ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+    mids.delete(mid);
+    return;
+  }
+  
+  // Show a confirmation dialog with clear warning
+  const confirmDeletion = confirm(
+    "Warning: Deleting just this message may break the role alternation pattern " +
+    "(user → assistant → user → assistant) required by some models, " +
+    "which could cause API errors.\n\n" +
+    "Are you sure you want to delete only this message?"
+  );
+  
+  if (!confirmDeletion) {
+    return;
+  }
+  
+  // Remove just this message, preserving subsequent messages
+  messages.splice(messageIndex, 1);
+  $card.remove();
+  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+  mids.delete(mid);
+};
 
   // Combine mouse events into a single listener
   $card.on("mouseenter", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {

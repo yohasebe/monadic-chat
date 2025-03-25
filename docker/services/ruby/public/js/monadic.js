@@ -1055,5 +1055,33 @@ $(function () {
     setCookieValues();
     adjustImageUploadButton($("#model").val());
     $("#monadic-spinner").show();
+    
+    // Event handlers for the message deletion confirmation dialog
+    $("#deleteMessageOnly").on("click", function() {
+      const data = $("#deleteConfirmation").data();
+      if (data && data.mid) {
+        // Check if it's a system message that needs special handling
+        if (data.isSystemMessage) {
+          deleteSystemMessage(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
+        } else {
+          deleteMessageOnly(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
+        }
+        $("#deleteConfirmation").modal("hide");
+      }
+    });
+    
+    // Handle deletion of the current message and all subsequent messages
+    $("#deleteMessageAndSubsequent").on("click", function() {
+      const data = $("#deleteConfirmation").data();
+      if (data && data.mid) {
+        // Check if it's a system message that needs special handling
+        if (data.isSystemMessage) {
+          deleteSystemMessage(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
+        } else {
+          deleteMessageAndSubsequent(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
+        }
+        $("#deleteConfirmation").modal("hide");
+      }
+    });
   });
 });

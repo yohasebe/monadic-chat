@@ -48,7 +48,7 @@ class PDFNavigator < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "PDF Navigator",
+    display_name: "PDF Navigator",
     description: description,
     icon: icon,
     initiate_from_assistant: false,

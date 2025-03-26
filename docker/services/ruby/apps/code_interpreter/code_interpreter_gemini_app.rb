@@ -220,6 +220,7 @@ class CodeInterpreterGemini < MonadicApp
 
   @settings = {
     group: "Google",
+    display_name: "Code Interpreter",
     disabled: !CONFIG["GEMINI_API_KEY"],
     temperature: 0.0,
     initial_prompt: initial_prompt,
@@ -229,7 +230,6 @@ class CodeInterpreterGemini < MonadicApp
     easy_submit: false,
     auto_speech: false,
     mathjax: true,
-    display_name: "Code Interpreter",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

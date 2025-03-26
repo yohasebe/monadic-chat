@@ -34,7 +34,7 @@ class VoiceInterpreter < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: true,
     auto_speech: true,
-    app_name: "Voice Interpreter",
+    display_name: "Voice Interpreter",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

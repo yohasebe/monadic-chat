@@ -64,13 +64,13 @@ The above file structure is an example of a plugin that includes an app, a helpe
 
 !> The documentation below describes the traditional Ruby class-based approach for creating apps. For simpler app development, consider using the new [Monadic DSL format](/advanced-topics/monadic_dsl.md), which provides a more concise and readable syntax.
 
-In the recipe file, define a class that inherits from `MonadicApp` and describe the application settings in the instance variable `@settings`.
+In the recipe file, define a class that inherits from `MonadicApp` and describe the application settings in the instance variable `@settings`. The class name must be unique across all recipe files, as it is used internally as an identifier for registration.
 
 ```ruby
 class RobotApp < MonadicApp
   include OpenAIHelper
   @settings = {
-    app_name: "Robot App",
+    display_name: "Robot App",
     icon: "🤖",
     description: "This is a sample robot app.",
     initial_prompt: "You are a friendly robot that can help with anything the user needs. You talk like a robot, always ending your sentences with '...beep boop'.",
@@ -99,8 +99,8 @@ For a complete overview of which apps are compatible with which models, see the 
 
 There are required and optional settings. If the required settings are not specified, an error message will be displayed on the browser screen when the application starts. Here are the required settings:
 
-`app_name` (string, required)
-Specify the name of the application (required).
+`display_name` (string, required)
+Specify the display name of the application that appears in the UI (required).
 
 `icon` (string, required)
 Specify the icon for the application (emoji or HTML).

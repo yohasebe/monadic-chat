@@ -50,7 +50,7 @@ class SpeechDraftHelper < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Speech Draft Helper",
+    display_name: "Speech Draft Helper",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

@@ -20,7 +20,7 @@ The `.mdsl` format is recommended for most applications as it's more concise and
 A basic MDSL application definition looks like this:
 
 ```ruby
-app "Application Name" do
+app "Application Name" do  # This name is used to generate a unique class name internally
   description "A brief description of what this application does"
   
   icon "fa-solid fa-icon-name"  # FontAwesome icon or custom HTML
@@ -62,9 +62,8 @@ app "Application Name" do
   
   # For available icons, see: https://fontawesome.com/v5/search?ic=free
 
-  # App naming options:
-  app_name "Application Full Name"     # Legacy parameter for backward compatibility
-  display_name "Application Name"      # Name shown in the UI (recommended)
+  # App naming option:
+  display_name "Application Name"      # Name shown in the UI (required)
   
   group "Category Name"  # Optional grouping for the UI
 end
@@ -401,7 +400,7 @@ class MathTutorApp < MonadicApp
   include ClaudeHelper
   
   @settings = {
-    app_name: "Math Tutor",
+    display_name: "Math Tutor",
     icon: "fa-solid fa-calculator",
     description: "AI assistant that helps solve math problems step-by-step",
     initial_prompt: "You are a helpful math tutor...",

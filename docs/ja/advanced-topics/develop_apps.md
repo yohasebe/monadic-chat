@@ -68,7 +68,7 @@ Monadic Chatでは、オリジナルのシステムプロンプトを用いたAI
 
 レシピ・ファイルでは次のことを行います。
 
-1. `MonadicApp`を継承したクラスを定義する。
+1. `MonadicApp`を継承したクラスを定義する。クラス名は内部的な識別子として使用されるため、すべてのレシピファイル間で一意である必要があります。
 2. 言語モデルと連携するためのモジュール（`OpenAIHelper`など）をインクルードする。
 3. インスタンス変数`@settings`にアプリケーションの設定を記述する。
 
@@ -76,7 +76,7 @@ Monadic Chatでは、オリジナルのシステムプロンプトを用いたAI
 class RobotApp < MonadicApp
   include OpenAIHelper
   @settings = {
-    app_name: "Robot App",
+    display_name: "Robot App",
     icon: "🤖",
     description: "This is a sample robot app.",
     initial_prompt: "You are a friendly robot that can help with anything the user needs. You talk like a robot, always ending your sentences with '...beep boop'.",
@@ -105,9 +105,9 @@ end
 
 設定項目には必須のものと任意の物があります。必須の設定項目が指定されていない場合は、アプリケーションの起動時にブラウザ画面上にエラーメッセージが表示されます。下記は必須の設定項目の例です。
 
-`app_name` (string, 必須)
+`display_name` (string, 必須)
 
-アプリケーションの名前（必須）を指定します。
+ユーザーインターフェースに表示されるアプリケーションの名前（必須）を指定します。
 
 `icon` (string, 必須)
 

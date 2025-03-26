@@ -23,7 +23,7 @@ class SecondOpinion < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Second Opinion",
+    display_name: "Second Opinion",
     icon: icon,
     description: description,
     initiate_from_assistant: false,

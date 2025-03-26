@@ -36,7 +36,7 @@ class ContentReader < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Content Reader",
+    display_name: "Content Reader",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

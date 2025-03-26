@@ -82,7 +82,7 @@ class MathTutor < MonadicApp
     prompt_suffix: "",
     easy_submit: false,
     auto_speech: false,
-    app_name: "Math Tutor",
+    display_name: "Math Tutor",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

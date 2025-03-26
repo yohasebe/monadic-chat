@@ -4,8 +4,8 @@ The setting items for the application are described in the recipe file, where th
 
 ## Required Settings
 
-`app_name` (string, required)
-Specify the name of the application (required).
+`display_name` (string, required)
+Specify the display name of the application that appears in the UI (required).
 
 `icon` (string, required)
 Specify the icon for the application (emoji or HTML).

@@ -20,7 +20,7 @@ Monadic Chatは2つの形式のアプリ定義をサポートしています：
 基本的なMDSLアプリケーション定義は次のようになります：
 
 ```ruby
-app "アプリケーション名" do
+app "アプリケーション名" do  # この名前は内部的に一意のクラス名を生成するために使用されます
   description "このアプリケーションが何をするかの簡単な説明"
   
   icon "fa-solid fa-icon-name"  # FontAwesomeアイコンまたはカスタムHTML
@@ -63,8 +63,7 @@ app "アプリケーション名" do
   # 利用可能なアイコンは次をご覧ください: https://fontawesome.com/v5/search?ic=free
 
   # アプリの命名オプション：
-  app_name "アプリケーション完全名"     # 後方互換性のための従来のパラメータ
-  display_name "アプリケーション名"    # UI上に表示される名前（推奨）
+  display_name "アプリケーション名"    # UI上に表示される名前（必須）
   
   group "カテゴリ名"  # UI上でのグループ化（オプション）
 end
@@ -401,7 +400,7 @@ class MathTutorApp < MonadicApp
   include ClaudeHelper
   
   @settings = {
-    app_name: "数学チューター",
+    display_name: "数学チューター",
     icon: "fa-solid fa-calculator",
     description: "数学問題を段階的に解決するAIアシスタント",
     initial_prompt: "あなたは有能な数学チューターです...",

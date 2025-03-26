@@ -244,8 +244,6 @@ def init_apps
       MonadicApp.register_models(vendor, models)
     end
 
-    MonadicApp.register_app_settings(app.settings["app_name"], app)
-
     app.settings["description"] = app.settings["description"] ? app.settings["description"].dup : ""
     if !app.settings["initial_prompt"]
       app.settings["initial_prompt"] = "You are an AI assistant but the initial prompt is missing. Tell the user they should provide a prompt."
@@ -259,11 +257,20 @@ def init_apps
       app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The icon is missing.</p>"
     end
     if !app.settings["app_name"]
-      app.settings["app_name"] = "User App (#{SecureRandom.hex(4)})"
-      app.settings["description"] << "<p><i class='fa-solid fa-triangle-exclamation'></i> The app name is missing.</p>"
+      # Use class name as app_name if not specified (for both rb and mdsl formats)
+      app.settings["app_name"] = app.class.name || "UserApp_#{SecureRandom.hex(4)}"
+    end
+    
+    # Set display_name if not specified by converting app_name to readable format
+    if !app.settings["display_name"]
+      app_name = app.settings["app_name"].to_s
+      # Convert camelCase to space-separated words (e.g., 'CodeInterpreterGemini' -> 'Code Interpreter Gemini')
+      app.settings["display_name"] = app_name.gsub(/([A-Z])/) { " #{$1}" }.lstrip
     end
 
     next if app.settings["disabled"]
+
+    MonadicApp.register_app_settings(app.settings["app_name"], app)
 
     app_name = app.settings["app_name"]
 

@@ -14,8 +14,6 @@ class CodeInterpreterGemini < MonadicApp
 
       Before your first response, use the check_environment() function to silently learn about the system. After doing this, don't mention this check in your response. Just start with a simple greeting like: "Hello! I'm ready to help you with coding tasks. What would you like me to do today?"
       
-      NEVER include the check_environment() function call or display in your response to the user. Don't show code block with check_environment(). The check_environment() function helps you understand the system's Dockerfile and shell scripts, but the user doesn't need to see this technical information.
-      
       If a user asks if you've checked the environment, simply confirm that you did examine it at the start of your conversation and that you're aware of the available libraries and tools.
       
       After internally running the environment check, briefly ask the user what they would like you to do. If the user asks you to do a task that consists of multiple steps, do not try to complete all the steps at once. Present the plan and ask the user to specify which step they would like to execute.
@@ -36,13 +34,7 @@ class CodeInterpreterGemini < MonadicApp
 
     ### Basic Procedure:
 
-    To execute Python code for users, use the run_script function like this:
-    
-    run_script(command="python", code="print('Hello world')", extension="py")
-    
-    NEVER start your conversation by showing check_environment() in your response. Instead, begin with a simple greeting.
-    
-    When showing code examples to users, show the actual Python code (inside the code parameter), not the run_script function call itself. For example:
+    To execute Python code for users, use the run_script function. When showing code examples to users, show the actual Python code, not the function call. For example:
     
     ```python
     import matplotlib.pyplot as plt
@@ -195,15 +187,9 @@ class CodeInterpreterGemini < MonadicApp
   TEXT
 
   prompt_suffix = <<~TEXT
-    IMPORTANT: Never show check_environment() in your responses to users. Instead, use the information you've learned to help users better.
-    
-    When users ask you to run code, use the run_script function like:
-    
-    run_script(command="python", code="print('Hello world')", extension="py")
+    #{GeminiHelper.function_usage_instructions}
     
     Make sure to use run_script whenever possible so users can see the results of their code. When showing code examples to users, include actual Python code they should run, not function calls.
-    
-    When demonstrating code examples to users, show the actual Python code they should run, not the function call syntax. Make sure to call `run_script` whenever possible to execute code. Otherwise, the user cannot see the resulting output, charts, or images.
 
     Return your response in the same language as the prompt. If you need to switch to another language, please inform the user.
   TEXT

@@ -25,6 +25,7 @@
 
     - [Development of Extra Apps](/advanced-topics/develop_apps.md)
     - [Monadic DSL Reference](/advanced-topics/monadic_dsl.md)
+    - [MDSL Internals (Dev)](/advanced-topics/mdsl-internals.md)
     - [Application Setting Items](/advanced-topics/setting-items.md)
     - [Recipe Examples](/advanced-topics/recipe-examples.md)
     - [Monadic Mode](/advanced-topics/monadic-mode.md)

@@ -631,4 +631,29 @@ module GeminiHelper
       role.downcase
     end
   end
+  
+  # Helper method to get standard function handling instructions for Gemini models
+  # Particularly important for "thinking" models but beneficial for all Gemini integrations
+  def self.function_usage_instructions
+    <<~INSTRUCTIONS
+      IMPORTANT FUNCTION HANDLING GUIDELINES:
+      
+      1. For internal functions (like check_environment), execute them silently and don't mention them in your response to users.
+         Never show these function calls in your response or include them in code blocks.
+      
+      2. For execution functions (like run_script), call them directly without printing them or storing their results:
+         run_script(command="python", code="print('Hello world')", extension="py")
+      
+      3. When showing code examples to users, display the actual code they should run (e.g., Python code),
+         not the function calls you use to execute that code.
+      
+      4. Begin your conversations with a simple greeting, not with function calls or outputs.
+      
+      5. All function calls should be made directly without print statements or variable assignments
+         for their results. The system automatically handles displaying function results.
+         
+      6. Important: Always place HTML elements (img, div, video, audio tags) OUTSIDE of markdown code blocks.
+         HTML will only render properly when not enclosed in code block markers (```).
+    INSTRUCTIONS
+  end
 end

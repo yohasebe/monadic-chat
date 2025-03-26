@@ -35,7 +35,7 @@ class ChatPlus < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Chat Plus",
+    display_name: "Chat Plus",
     icon: icon,
     description: description,
     initiate_from_assistant: false,

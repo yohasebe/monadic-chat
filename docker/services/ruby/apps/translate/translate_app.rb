@@ -41,7 +41,7 @@ class Translate < MonadicApp
     initial_prompt: initial_prompt,
     easy_submit: false,
     auto_speech: false,
-    app_name: "Translate",
+    display_name: "Translate",
     description: description,
     icon: icon,
     initiate_from_assistant: true,

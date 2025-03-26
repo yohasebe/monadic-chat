@@ -25,6 +25,7 @@
 
     - [アプリの開発](/ja/advanced-topics/develop_apps.md)
     - [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
+    - [Monadic DSLの内部実装](/ja/advanced-topics/mdsl-internals.md)
     - [アプリの設定項目](/ja/advanced-topics/setting-items.md)
     - [レシピ・ファイルの例](/ja/advanced-topics/recipe-examples.md)
     - [Monadicモード](/ja/advanced-topics/monadic-mode.md)

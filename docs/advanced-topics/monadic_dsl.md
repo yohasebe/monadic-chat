@@ -222,6 +222,8 @@ end
 
 ## Advanced Features
 
+> For developers interested in understanding the internal implementation of MDSL and how it works behind the scenes, see [MDSL Internals](mdsl-internals.md).
+
 ### Tool/Function Calling
 
 The DSL supports defining tools (functions) that the AI can call. These automatically get translated to the appropriate format for each provider.

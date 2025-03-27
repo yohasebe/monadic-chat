@@ -168,6 +168,10 @@ function attachEventListeners($card) {
     
     // For regular messages, show the delete modal
     if (messageIndex !== -1) {
+      // Check if this is the last message in the conversation
+      const isLastMessage = messageIndex === messages.length - 1;
+      const currentMessage = messages[messageIndex];
+      
       // Store card data
       $("#deleteConfirmation").data({
         "mid": mid,
@@ -175,9 +179,17 @@ function attachEventListeners($card) {
       });
       
       // Update modal contents
-      const text = messages[messageIndex].text || "";
+      const text = currentMessage.text || "";
       const truncatedText = text.length > 100 ? text.substring(0, 100) + "..." : text;
       $("#messageToDelete").text(truncatedText);
+      
+      // For the last message in the conversation that is an assistant or system message,
+      // hide the "Delete this and all subsequent messages" button
+      if (isLastMessage && (currentMessage.role === "assistant" || currentMessage.role === "system")) {
+        $("#deleteMessageAndSubsequent").hide();
+      } else {
+        $("#deleteMessageAndSubsequent").show();
+      }
       
       // Show the modal
       $("#deleteConfirmation").modal("show");
@@ -237,7 +249,36 @@ function attachEventListeners($card) {
   $card.on("click", ".func-copy", function () {
     $(this).tooltip('hide');
     const $this = $(this);
-    const text = $card.find(".card-text").text();
+    
+    // Get the message ID from the card
+    const mid = $card.attr('id');
+    
+    // Find the message in the messages array
+    const messageIndex = messages.findIndex((m) => m.mid === mid);
+    let text = "";
+    
+    if (messageIndex !== -1) {
+      // Get the original text from the message object
+      const message = messages[messageIndex];
+      
+      // Use the text property which contains the original content
+      if (message.text) {
+        text = message.text;
+      } else if (message.content) {
+        // Fallback if text is not available but content is
+        text = message.content;
+      }
+    }
+    
+    // If no text was found in the messages array, fall back to the displayed text
+    // but with minimal cleanup
+    if (!text) {
+      const content = $card.find(".card-text");
+      const contentClone = content.clone();
+      contentClone.find("style, script").remove();
+      text = contentClone.text();
+    }
+    
     navigator.clipboard.writeText(text).then(function () {
       $this.find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
       setTimeout(function () {
@@ -276,6 +317,22 @@ function attachEventListeners($card) {
 
     if (json) {
       alert("The current app is monadic. You can't edit JSON messages");
+      return;
+    }
+
+    // Check if this is the last message and it's a user message
+    const isLastMessage = messageIndex === messages.length - 1;
+    const isUserMessage = currentMessage.role === "user";
+    
+    if (isLastMessage && isUserMessage) {
+      // Copy text to the message textarea instead of inline editing
+      $("#message").val(text);
+      $("#message").focus();
+      
+      // Remove the card
+      deleteMessage(mid);
+      
+      // No need to create inline editor or notify server - just return
       return;
     }
 

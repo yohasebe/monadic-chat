@@ -32,7 +32,7 @@
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
 | Content Reader | ✅ | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | | ✅ | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | | | | |
 
@@ -281,6 +281,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 - OpenAI
 - Anthropic Claude
 - Cohere
+- DeepSeek
 - Google Gemini
 
 ### Coding Assistant

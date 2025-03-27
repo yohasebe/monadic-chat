@@ -1,6 +1,9 @@
 - [March, 2025] 0.9.72
+  - Improved message editing: last message now moves to input area with role selected
+  - Simplified message deletion with clearer options ("Delete this message and below")
+  - Fixed copy functionality to avoid CSS artifacts
   - TTS related bug fixes
-  - Two ways to delete a message: "this message and subsequent messages" and "this message only"
+  - Two ways to delete a message: "Delete this message and below" and "Delete this message only"
   - Perplexity apps support "initiate_from_assistant"
   - Voice Chat/Mail Composer/Language Practice apps support multiple model providers
   - Mistral model handling issue fixed

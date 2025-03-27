@@ -320,13 +320,22 @@ function attachEventListeners($card) {
       return;
     }
 
-    // Check if this is the last message and it's a user message
+    // Check if this is the last message
     const isLastMessage = messageIndex === messages.length - 1;
-    const isUserMessage = currentMessage.role === "user";
     
-    if (isLastMessage && isUserMessage) {
+    if (isLastMessage) {
       // Copy text to the message textarea instead of inline editing
       $("#message").val(text);
+      
+      // Set the appropriate role in the selector based on the current message role
+      if (currentMessage.role === "user") {
+        $("#select-role").val("user");
+      } else if (currentMessage.role === "assistant") {
+        $("#select-role").val("sample-assistant");
+      } else if (currentMessage.role === "system") {
+        $("#select-role").val("sample-system");
+      }
+      
       $("#message").focus();
       
       // Remove the card

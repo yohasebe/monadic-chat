@@ -1,4 +1,4 @@
-- [March, 2025] 0.9.71
+- [March, 2025] 0.9.72
   - TTS related bug fixes
   - Two ways to delete a message: "this message and subsequent messages" and "this message only"
   - Perplexity apps support "initiate_from_assistant"

@@ -32,7 +32,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
 | Content Reader | ✅ | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | | ✅ | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | | | | |
 
@@ -279,6 +279,7 @@ Code Interpreter apps are also available for the following models:
 - OpenAI
 - Anthropic Claude
 - Cohere
+- DeepSeek
 - Google Gemini
 
 ### Coding Assistant

@@ -5,14 +5,43 @@
 // Notice that PDF is only for Anthropic Claude models (Nov 2024)
 
 const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
+const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 const selectFileButton = $("#image-file");
 let images = []; // Store multiple images/PDFs
+
+// Function to limit the number of images in memory
+function limitImageCount() {
+  // Keep only the last MAX_IMAGES images
+  if (images.length > MAX_IMAGES) {
+    // Remove oldest non-PDF images first (keep PDFs as they're often needed for context)
+    const nonPdfImages = images.filter(img => img.type !== 'application/pdf');
+    const pdfImages = images.filter(img => img.type === 'application/pdf');
+    
+    if (nonPdfImages.length > 0) {
+      // Keep newest non-PDF images plus all PDFs
+      const newestNonPdfImages = nonPdfImages.slice(-MAX_IMAGES);
+      images = [...pdfImages, ...newestNonPdfImages].slice(-MAX_IMAGES);
+    } else {
+      // If only PDFs, just keep the newest MAX_IMAGES
+      images = images.slice(-MAX_IMAGES);
+    }
+    
+    // Update the display to reflect the limited images
+    updateFileDisplay(images);
+  }
+}
 
 // Modal event listener for cleanup when hidden
 $("#imageModal").on("hidden.bs.modal", function () {
   $('#imageFile').val('');
   $('#uploadImage').prop('disabled', true);
   $(this).find(".size-error").html("");
+});
+
+// Clear images array when page is unloaded to free memory
+$(window).on("beforeunload", function() {
+  images = [];
+  currentPdfData = null;
 });
 
 // File selection event listener
@@ -87,6 +116,7 @@ $("#uploadImage").on("click", function () {
           };
           currentPdfData = fileData; // Store the most recent PDF data globally
           images.push(fileData); // Add the PDF to existing images array
+          limitImageCount();     // Limit the number of images in memory
           updateFileDisplay(images);
           $("#imageModal").modal("hide");
           $("#imageModal button").prop("disabled", false);
@@ -100,6 +130,7 @@ $("#uploadImage").on("click", function () {
             type: file.type
           };
           images.push(imageData);
+          limitImageCount();     // Limit the number of images in memory
           updateFileDisplay(images);
           $("#imageModal").modal("hide");
           $("#imageModal button").prop("disabled", false);

@@ -103,7 +103,8 @@ $(function () {
     });
 
     // Add MutationObserver for handling image errors
-    const observer = new MutationObserver((mutations) => {
+    // Store the observer in the window object to ensure it can be accessed globally for cleanup
+    window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.addedNodes.length) {
           mutation.addedNodes.forEach((node) => {
@@ -111,7 +112,8 @@ $(function () {
               $(node).find(".generated_image img").each(function() {
                 const $img = $(this);
 
-                $img.on("error", function() {
+                // Use one-time event handler to avoid memory leak from multiple handlers
+                $img.one("error", function() {
                   const $errorMessage = $("<div>", {
                     class: "image-error-message",
                     text: "NO IMAGE GENERATED"
@@ -130,11 +132,18 @@ $(function () {
     // Start observing the discourse element
     const discourseElement = document.getElementById('discourse');
     if (discourseElement) {
-      observer.observe(discourseElement, {
+      window.imageErrorObserver.observe(discourseElement, {
         childList: true,
         subtree: true
       });
     }
+    
+    // Clean up the observer when the page is unloaded
+    $(window).on("beforeunload", function() {
+      if (window.imageErrorObserver) {
+        window.imageErrorObserver.disconnect();
+      }
+    });
 
     $document.on("click", ".yesBtn", function () {
       $("#message").val("Yes");
@@ -161,6 +170,12 @@ $(function () {
     $(window).on("resize", function () {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(adjustScrollButtons, 250);
+    });
+    
+    // Clean up timers when window is unloaded
+    $(window).on("beforeunload", function() {
+      clearTimeout(scrollTimer);
+      clearTimeout(resizeTimer);
     });
   }
 
@@ -702,6 +717,11 @@ $(function () {
 
   $("#load").on("click", function (event) {
     event.preventDefault();
+    // Reset the file input and disable the import button
+    $("#file-load").val('');
+    $("#import-button").prop('disabled', true);
+    
+    // Show the modal and focus on file selection
     $("#loadModal").modal("show");
     setTimeout(function () {
       $("#file-load").focus();
@@ -710,6 +730,13 @@ $(function () {
 
   $("#loadModal").on("shown.bs.modal", function () {
     $("#file-title").focus();
+  });
+  
+  $("#loadModal").on("hidden.bs.modal", function () {
+    // Reset form state when modal is closed
+    $('#file-load').val('');
+    $('#import-button').prop('disabled', true);
+    $("#load-spinner").hide();
   });
 
   $("#file").on("click", function (event) {
@@ -1078,12 +1105,66 @@ $(function () {
 
   const fileInput = $('#file-load');
   const loadButton = $('#import-button');
+  const loadForm = $('#loadModal form');
 
-  // loadButton click event handler
-  loadButton.on('click', function () {
-    $("#monadic-spinner").show();
+  // Handle form submission with async/await pattern
+  loadForm.on('submit', async function(event) {
+    event.preventDefault();
+    
+    const file = fileInput[0].files[0];
+    if (!file) {
+      setAlert("Please select a file to import", "error");
+      return;
+    }
+    
+    try {
+      // Show loading spinner
+      $("#monadic-spinner").show();
+      $("#loadModal button").prop("disabled", true);
+      $("#load-spinner").show();
+      
+      // Create FormData object and append file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Use Promise-based AJAX with timeout
+      const importPromise = new Promise((resolve, reject) => {
+        $.ajax({
+          url: "/load",
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false,
+          timeout: 30000, // 30 second timeout
+          success: resolve,
+          error: reject
+        });
+      });
+      
+      // Wait for the import to complete
+      await importPromise;
+      
+      // Clean up UI after successful import
+      $("#loadModal").modal("hide");
+      setAlert("<i class='fa-solid fa-circle-check'></i> Session imported successfully", "success");
+      
+    } catch (error) {
+      console.error("Error importing session:", error);
+      
+      // Show error message
+      const errorMessage = error.statusText || error.message || "Unknown error";
+      setAlert(`Error importing session: ${errorMessage}`, "error");
+      
+    } finally {
+      // Always clean up UI elements
+      $("#monadic-spinner").hide();
+      $("#loadModal button").prop("disabled", false);
+      $("#load-spinner").hide();
+      fileInput.val('');
+    }
   });
-
+  
+  // Enable/disable load button based on file selection
   fileInput.on('change', function () {
     if (fileInput[0].files.length > 0) {
       loadButton.prop('disabled', false);

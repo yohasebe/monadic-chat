@@ -95,11 +95,11 @@ def version_files
     "./docs/_coverpage.md"
   ]
   
-  # Dynamically find all installation.md files in the docs directories
-  installation_files = Dir.glob("./docs/**/installation.md").uniq
+  # Note: installation.md files are excluded from version checks
+  # since they now use "latest" links instead of hardcoded version numbers
   
-  # Combine the static files with the dynamically found installation files
-  static_files + installation_files
+  # Return only the static files
+  static_files
 end
 
 # Get the current version from version.rb (considered the source of truth)
@@ -131,23 +131,39 @@ def update_version_in_file(file, from_version, to_version)
     # For installation.md files, carefully update only version numbers in download URLs and version indicators
     updated_content = content.dup
     
-    # Fix macOS ARM64 URL
+    # Fix macOS ARM64 URL (both old and new formats)
     updated_content = updated_content.gsub(/(Monadic%20Chat-)#{Regexp.escape(from_version)}(-arm64\.dmg)/, "\\1#{to_version}\\2")
+    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-arm64\.dmg)/, "\\1#{to_version}\\2")
     
-    # Fix macOS x64 URL
+    # Fix macOS x64 URL (both old and new formats)
     updated_content = updated_content.gsub(/(Monadic%20Chat-)#{Regexp.escape(from_version)}(\.dmg)/, "\\1#{to_version}\\2")
+    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-x64\.dmg)/, "\\1#{to_version}\\2")
     
-    # Fix Windows URL
+    # Fix Windows URL (both old and new formats)
     updated_content = updated_content.gsub(/(Monadic%20Chat%20Setup%20)#{Regexp.escape(from_version)}(\.exe)/, "\\1#{to_version}\\2")
+    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-win\.exe)/, "\\1#{to_version}\\2")
     
-    # Fix Linux amd64 URL
+    # Fix Linux amd64 URL (both old and new formats)
     updated_content = updated_content.gsub(/(monadic-chat_)#{Regexp.escape(from_version)}(_amd64\.deb)/, "\\1#{to_version}\\2")
+    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-amd64\.deb)/, "\\1#{to_version}\\2")
     
-    # Fix Linux arm64 URL
+    # Fix Linux arm64 URL (both old and new formats)
     updated_content = updated_content.gsub(/(monadic-chat_)#{Regexp.escape(from_version)}(_arm64\.deb)/, "\\1#{to_version}\\2")
+    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-arm64\.deb)/, "\\1#{to_version}\\2")
     
     # Update version indicators in parentheses (the version shown next to download links)
     updated_content = updated_content.gsub(/\(#{Regexp.escape(from_version)}\)/, "(#{to_version})")
+    
+    # Update version in HTML comments or add a new one if not present
+    if updated_content =~ /<!--\s*version:\s*#{Regexp.escape(from_version)}\s*-->/
+      # Update existing version comment
+      updated_content = updated_content.gsub(/<!--\s*version:\s*#{Regexp.escape(from_version)}\s*-->/, "<!-- version: #{to_version} -->")
+    else
+      # Add version comment at the top of the file if not already present
+      unless updated_content =~ /<!--\s*version:\s*\S+\s*-->/
+        updated_content = "<!-- version: #{to_version} -->\n" + updated_content
+      end
+    end
   
   when "_coverpage.md"
     # For _coverpage.md, update the version in the header only
@@ -205,11 +221,13 @@ task :check_version do
       when "version.rb"
         version_found = content =~ /^\s*VERSION\s*=\s*"#{Regexp.escape(official_version)}"/
       when "installation.md"
-        # Check for version in URLs and parentheses
+        # Check for version in URLs, parentheses, or in HTML comments
         version_found = content.include?("Monadic%20Chat-#{official_version}") || 
                         content.include?("Monadic%20Chat%20Setup%20#{official_version}") ||
                         content.include?("monadic-chat_#{official_version}_") ||
-                        content =~ /\(#{Regexp.escape(official_version)}\)/
+                        content.include?("monadic-chat-#{official_version}-") ||
+                        content =~ /\(#{Regexp.escape(official_version)}\)/ ||
+                        content =~ /<!--\s*version:\s*#{Regexp.escape(official_version)}\s*-->/
       when "_coverpage.md"
         version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
       when "package.json"
@@ -258,21 +276,38 @@ task :check_version do
   end
 end
 
-desc "Update version number in all relevant files. Usage: rake update_version[0.9.63,0.9.64] - Updates all version references and adds a changelog entry"
+desc "Update version number in all relevant files. Usage: rake update_version[to_version] or rake update_version[from_version,to_version]"
 task :update_version, [:from_version, :to_version] do |_t, args|
   require 'date'
   
-  from_version = args[:from_version]
-  to_version = args[:to_version]
+  # Handle both forms of invocation:
+  # 1. rake update_version[0.7.74]         - Use current version as from_version
+  # 2. rake update_version[0.7.73a,0.7.74] - Explicitly specify from_version
+  
+  if args[:to_version].nil?
+    # If only one argument is provided, it's the to_version
+    to_version = args[:from_version]
+    from_version = get_current_version()
+    
+    if from_version.nil?
+      puts "Error: Could not determine current version from version.rb"
+      exit 1
+    end
+  else
+    # Both arguments provided
+    from_version = args[:from_version]
+    to_version = args[:to_version]
+  end
   
   # Check if this is a dry run
   dry_run = ENV['DRYRUN'] == 'true'
   dry_run_message = dry_run ? " (DRY RUN - no files will be modified)" : ""
   
-  if from_version.nil? || to_version.nil?
-    puts "Usage: rake update_version[from_version,to_version] [DRYRUN=true]"
-    puts "Example: rake update_version[0.9.63,0.9.64]"
-    puts "Example (dry run): rake update_version[0.9.63,0.9.64] DRYRUN=true"
+  if to_version.nil?
+    puts "Usage: rake update_version[to_version] or rake update_version[from_version,to_version] [DRYRUN=true]"
+    puts "Example: rake update_version[0.7.74]"
+    puts "Example: rake update_version[0.7.73a,0.7.74]"
+    puts "Example (dry run): rake update_version[0.7.74] DRYRUN=true"
     exit 1
   end
   
@@ -401,6 +436,7 @@ task :update_version, [:from_version, :to_version] do |_t, args|
 end
 
 # task to build win/mac x64/mac arm64 packages
+desc "Build installation packages for all supported platforms"
 task :build do
   # remove /docker/services/python/pysetup.py
   FileUtils.rm_f("docker/services/python/pysetup.py")
@@ -423,11 +459,11 @@ task :build do
   sh "npm run build:mac-arm64"
 
   necessary_files = [
-    "Monadic Chat-#{version}-arm64.dmg",
-    "Monadic Chat-#{version}.dmg",
-    "Monadic Chat Setup #{version}.exe",
-    "monadic-chat_#{version}_amd64.deb",
-    "monadic-chat_#{version}_arm64.deb"
+    "Monadic Chat-#{version}-arm64.dmg",  # macOS arm64
+    "Monadic Chat-#{version}.dmg",        # macOS x64
+    "Monadic Chat Setup #{version}.exe",  # Windows
+    "monadic-chat_#{version}_amd64.deb",  # Linux x64
+    "monadic-chat_#{version}_arm64.deb"   # Linux arm64
   ].map { |file| File.expand_path("dist/#{file}") }
 
   Dir.glob("dist/*").each do |file|
@@ -441,4 +477,197 @@ end
 # Test ruby code with rspec ./docker/services/ruby/spec
 task :spec do
   sh "rspec ./docker/services/ruby/spec"
+end
+
+# GitHub Release Management Tasks
+namespace :release do
+  desc "Build, package, and create a new GitHub release"
+  task :github, [:version, :prerelease] do |_t, args|
+    version = args[:version] || get_current_version
+    prerelease = args[:prerelease] == 'true'
+    
+    if version.nil?
+      puts "Error: Version required. Use rake release:github[version] or ensure version.rb contains a valid version."
+      exit 1
+    end
+    
+    prerelease_flag = prerelease ? "--prerelease" : ""
+    
+    puts "Preparing GitHub release for version #{version} (#{prerelease ? 'prerelease' : 'stable'})"
+
+    # Step 1: Verify the current version matches the requested version
+    current_version = get_current_version
+    unless current_version == version
+      puts "Warning: Requested version #{version} doesn't match current version in version.rb (#{current_version})"
+      puts "Use rake update_version[#{current_version},#{version}] first to update all version references"
+      
+      print "Continue anyway? (y/N): "
+      response = STDIN.gets.chomp.downcase
+      exit 1 unless response == 'y'
+    end
+    
+    # Step 2: Build all packages if needed
+    if Dir.glob("dist/Monadic Chat*#{version}*").empty?
+      puts "Building packages for version #{version}..."
+      Rake::Task["build"].invoke
+    else
+      puts "Found existing packages for version #{version}"
+    end
+    
+    # Step 3: Create a release draft with release notes from CHANGELOG.md
+    changelog_entry = extract_changelog_entry(version)
+    
+    if changelog_entry.empty?
+      puts "Warning: No changelog entry found for version #{version}"
+      changelog_entry = "Release #{version}"
+    end
+    
+    # Write release notes to a temporary file
+    release_notes_file = "release_notes_#{version}.md"
+    File.write(release_notes_file, changelog_entry)
+    
+    # Step 4: Check if GitHub CLI is installed
+    unless system("which gh > /dev/null 2>&1")
+      puts "Error: GitHub CLI (gh) is not installed. Please install it first with:"
+      puts "  brew install gh     # macOS"
+      puts "  apt install gh      # Ubuntu/Debian"
+      puts "  choco install gh    # Windows"
+      exit 1
+    end
+    
+    # Step 5: Check if user is authenticated with GitHub
+    unless system("gh auth status > /dev/null 2>&1")
+      puts "Error: Not authenticated with GitHub. Please run 'gh auth login' first."
+      exit 1
+    end
+    
+    # Step 6: Get release assets
+    release_assets = []
+    
+    ["Monadic Chat-#{version}-arm64.dmg",  # macOS arm64
+     "Monadic Chat-#{version}.dmg",        # macOS x64
+     "Monadic Chat Setup #{version}.exe",  # Windows
+     "monadic-chat_#{version}_amd64.deb",  # Linux x64
+     "monadic-chat_#{version}_arm64.deb"].each do |file|
+      path = File.join("dist", file)
+      if File.exist?(path)
+        release_assets << path
+      else
+        puts "Warning: Release asset not found: #{path}"
+      end
+    end
+    
+    if release_assets.empty?
+      puts "Error: No release assets found for version #{version}"
+      exit 1
+    end
+    
+    # Step 7: Create GitHub release
+    begin
+      puts "Creating GitHub release v#{version} with #{release_assets.length} assets..."
+      prerelease_arg = prerelease ? "--prerelease" : ""
+      
+      # Prepare files list with proper escaping for files with spaces
+      escaped_assets = release_assets.map do |asset|
+        # Escape spaces in file paths for shell
+        "\"#{asset.gsub('"', '\\"')}\""
+      end.join(' ')
+      
+      # Create the release command
+      release_cmd = "gh release create v#{version} #{escaped_assets} --title 'Monadic Chat #{version}' --notes-file #{release_notes_file} #{prerelease_arg}"
+      
+      # If it's a draft, add the draft flag
+      if ENV['DRAFT'] == 'true'
+        release_cmd += " --draft"
+        puts "Creating as DRAFT release (won't be visible to users)"
+      end
+      
+      # Execute the command
+      sh release_cmd
+      
+      puts "Release published successfully!"
+      puts "URL: https://github.com/yohasebe/monadic-chat/releases/tag/v#{version}"
+    rescue => e
+      puts "Error publishing release: #{e.message}"
+    ensure
+      # Clean up
+      File.unlink(release_notes_file) if File.exist?(release_notes_file)
+    end
+  end
+  
+  desc "Create a new draft release without publishing build artifacts"
+  task :draft, [:version, :prerelease] do |_t, args|
+    # Set the DRAFT environment variable to true
+    ENV['DRAFT'] = 'true'
+    
+    # Call the github release task with the draft flag
+    Rake::Task["release:github"].invoke(*args)
+  end
+  
+  desc "List all GitHub releases for the repository"
+  task :list do
+    puts "Fetching GitHub releases..."
+    sh "gh release list"
+  end
+  
+  desc "Delete a GitHub release and its assets"
+  task :delete, [:version] do |_t, args|
+    version = args[:version]
+    
+    if version.nil?
+      puts "Error: Version required. Use rake release:delete[version]"
+      exit 1
+    end
+    
+    # Confirm deletion
+    print "Are you sure you want to delete release v#{version}? This cannot be undone! (y/N): "
+    response = STDIN.gets.chomp.downcase
+    exit 1 unless response == 'y'
+    
+    # Delete the release
+    puts "Deleting GitHub release v#{version}..."
+    sh "gh release delete v#{version}"
+    puts "Release deleted successfully!"
+  end
+  
+  # Helper method to extract changelog entry for specific version
+  def extract_changelog_entry(version)
+    changelog_file = "./CHANGELOG.md"
+    return "" unless File.exist?(changelog_file)
+    
+    content = File.read(changelog_file)
+    lines = content.lines
+    
+    # Find the line containing the target version
+    version_line_index = lines.find_index { |line| line.include?(version) }
+    return "" unless version_line_index
+    
+    # Find the next version entry or the end of the file
+    next_version_line_index = lines[version_line_index+1..-1].find_index { |line| line.match(/^\s*-\s*\[\w+,\s*\d+\]/) }
+    next_version_line_index = next_version_line_index ? version_line_index + 1 + next_version_line_index : lines.length
+    
+    # Extract the changelog entry
+    changelog_entry = lines[version_line_index...next_version_line_index].join("").strip
+    
+    # Process the changelog entry for GitHub release format
+    processed_entry = "## Monadic Chat #{version}\n\n"
+    
+    # Remove the version header and format as bullet points
+    cleaned_entry = changelog_entry.sub(/^\s*-\s*\[[\w\s,]+\]\s*#{Regexp.escape(version)}/, "").strip
+    
+    # Format each line item
+    cleaned_entry.lines.each do |line|
+      line = line.strip
+      if line.start_with?('-')
+        processed_entry += line + "\n"
+      elsif !line.empty?
+        processed_entry += "- " + line + "\n"
+      end
+    end
+    
+    # Add a footer
+    processed_entry += "\n\n---\nGenerated on #{Time.now.strftime('%Y-%m-%d')}"
+    
+    processed_entry
+  end
 end

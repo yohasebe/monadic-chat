@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
     Monadic Chat is a web client application program that uses OpenAI's Chat API to enable chat-style conversations with OpenAI's artificial intelligence system in a ChatGPT-like style.
   DESC
   spec.homepage = "https://github.com/yohasebe/monadic-chat"
-  spec.license = "MIT"
+  spec.license = "Apache-2.0"
   spec.required_ruby_version = ">= 2.6.10"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"

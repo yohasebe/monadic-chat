@@ -217,8 +217,7 @@
     </div>
 
     <script>
-      const { ipcRenderer } = require('electron');
-
+      // Use the APIs exposed via preload.js instead of direct require
       document.getElementById('settings-form').addEventListener('submit', (event) => {
         event.preventDefault();
 
@@ -244,7 +243,7 @@
           EXTRA_LOGGING: document.getElementById('extra-logging').checked
         };
 
-        ipcRenderer.send('save-settings', data);
+        window.electronAPI.saveSettings(data);
 
         // Show the save message
         const saveMessage = document.getElementById('save-message');
@@ -257,15 +256,11 @@
       });
 
       document.getElementById('cancel').addEventListener('click', () => {
-        ipcRenderer.send('close-settings');
+        window.electronAPI.closeSettings();
       });
 
-      ipcRenderer.on('request-settings', () => {
-        ipcRenderer.send('request-settings');
-      });
-
-
-      ipcRenderer.on('load-settings', (_event, data) => {
+      // Listen for settings load event from the main process
+      window.electronAPI.onLoadSettings((_event, data) => {
         document.getElementById('openai-api-key').value = data.OPENAI_API_KEY || '';
         document.getElementById('anthropic-api-key').value = data.ANTHROPIC_API_KEY || '';
         document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
@@ -285,10 +280,13 @@
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
       });
 
-      ipcRenderer.send('request-settings');
+      window.electronAPI.requestSettings();
 
       document.getElementById('select-tts-dict').addEventListener('click', async () => {
-        const filePath = await ipcRenderer.invoke('select-tts-dict');
+        // Since ipcRenderer.invoke isn't exposed via preload, we need to call an exposed API
+        // that will handle this operation through the main process
+        // NOTE: Need to add this function to preload.js
+        const filePath = await window.electronAPI.selectTTSDict();
         document.getElementById('tts-dict-path').value = filePath;
       });
 

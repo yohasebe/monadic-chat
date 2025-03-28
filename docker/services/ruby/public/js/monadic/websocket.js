@@ -57,19 +57,29 @@ function setCopyCodeButton(element) {
   if (!element) {
     return;
   }
-  element.find("div.card-text pre > code").each(function () {
-    const codeElement = $(this);
-    const copyButton = `<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`;
-    codeElement.after(copyButton);
-    codeElement.next().click(function () {
-      const text = codeElement.text();
-      navigator.clipboard.writeText(text).then(function () {
-        codeElement.next().find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-        setTimeout(function () {
-          codeElement.next().find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
-        }, 1000);
-      });
-    });
+  element.find("div.card-text div.highlighter-rouge").each(function () {
+    const highlighterElement = $(this);
+    // Only add the button if it doesn't already exist
+    if (highlighterElement.find(".copy-code-button").length === 0) {
+      // Find the code element inside highlighter-rouge
+      const codeElement = highlighterElement.find("code");
+      if (codeElement.length) {
+        // Add the copy button directly to the highlighter-rouge container
+        const copyButton = $(`<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`);
+        highlighterElement.append(copyButton);
+        
+        // Add click event to the button
+        copyButton.click(function () {
+          const text = codeElement.text();
+          navigator.clipboard.writeText(text).then(function () {
+            copyButton.find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+            setTimeout(function () {
+              copyButton.find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+            }, 1000);
+          });
+        });
+      }
+    }
   });
 }
 

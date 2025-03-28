@@ -36,4 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),
+  
+  // Select TTS dictionary file
+  selectTTSDict: () => ipcRenderer.invoke('select-tts-dict'),
 });

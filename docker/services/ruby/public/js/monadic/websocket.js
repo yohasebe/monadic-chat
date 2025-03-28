@@ -476,39 +476,24 @@ function clearAudioQueue() {
 }
 
 function processAudioDataQueue() {
-  try {
-    // Make sure we have all required elements before processing
-    if (!mediaSource || !sourceBuffer) {
-      console.warn("MediaSource or SourceBuffer not available, skipping audio processing");
-      return;
-    }
-    
-    // Only process if media source is open, we have data, and buffer isn't being updated
-    if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && !sourceBuffer.updating) {
-      const audioData = audioDataQueue.shift();
-      try {
-        sourceBuffer.appendBuffer(audioData);
-      } catch (e) {
-        console.error('Error appending buffer:', e);
-        
-        // Error recovery - if we get an exception, try to reset the audio system
-        if (e.name === 'QuotaExceededError') {
-          // Clear the buffer if we exceed quota
-          try {
-            if (sourceBuffer.buffered.length > 0) {
-              sourceBuffer.remove(0, sourceBuffer.buffered.end(0));
-            }
-            // Also clear the queue to prevent further issues
-            clearAudioQueue();
-          } catch (clearError) {
-            console.error('Error clearing buffer:', clearError);
-          }
+  if (!mediaSource || !sourceBuffer) {
+    return;
+  }
+  
+  if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && !sourceBuffer.updating) {
+    const audioData = audioDataQueue.shift();
+    try {
+      sourceBuffer.appendBuffer(audioData);
+    } catch (e) {
+      console.error('Error appending buffer:', e);
+      
+      if (e.name === 'QuotaExceededError') {
+        if (sourceBuffer.buffered.length > 0) {
+          sourceBuffer.remove(0, sourceBuffer.buffered.end(0));
         }
+        audioDataQueue = [];
       }
     }
-  } catch (e) {
-    console.error('Critical error in processAudioDataQueue:', e);
-    // Don't show error to user, just log it
   }
 }
 
@@ -530,47 +515,10 @@ function connect_websocket(callback) {
       mediaSource = new MediaSource();
       mediaSource.addEventListener('sourceopen', () => {
         try {
-          // Try different MIME types based on browser compatibility
           if (runningOnFirefox) {
-            // Firefox has specific codec requirements
-            try {
-              // Firefox prefers webm with opus codec
-              sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs=opus');
-            } catch (e) {
-              console.log("Firefox primary format failed, trying alternate", e);
-              try {
-                // Second option for Firefox
-                sourceBuffer = mediaSource.addSourceBuffer('audio/webm');
-              } catch (e2) {
-                console.log("Firefox secondary format failed, trying basic format", e2);
-                // Last attempt for Firefox - basic audio format
-                sourceBuffer = mediaSource.addSourceBuffer('audio/basic');
-              }
-            }
-          } else if (runningOnSafari) {
-            // Safari prefers mp4
-            sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-          } else {
-            // Chrome and others work well with mpeg
-            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-          }
-          sourceBuffer.addEventListener('updateend', processAudioDataQueue);
-        } catch (e) {
-          console.error("Error setting up MediaSource: ", e);
-          // Create alternate approach for Firefox
-          if (runningOnFirefox) {
-            console.log("Using alternative audio approach for Firefox");
-            // For Firefox, we'll use a different approach without MediaSource
-            // Instead of streaming through MediaSource API, we'll play complete audio chunks
-            audio = new Audio();
-            
-            // We'll override the processAudioDataQueue function for Firefox
             window.firefoxAudioMode = true;
-            
-            // This will be our queue of audio data
             window.firefoxAudioQueue = [];
             
-            // Override the regular queue processing
             processAudioDataQueue = function() {
               if (window.firefoxAudioQueue && window.firefoxAudioQueue.length > 0) {
                 const audioData = window.firefoxAudioQueue.shift();
@@ -593,14 +541,12 @@ function connect_websocket(callback) {
               }
             };
           } else {
-            // For other browsers, try the most widely supported format
-            try {
-              sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-              sourceBuffer.addEventListener('updateend', processAudioDataQueue);
-            } catch (fallbackError) {
-              console.error("Failed to create audio source buffer: ", fallbackError);
-            }
+            // Chrome and others work well with mpeg
+            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+            sourceBuffer.addEventListener('updateend', processAudioDataQueue);
           }
+        } catch (e) {
+          console.error("Error setting up MediaSource: ", e);
         }
       });
     }
@@ -703,7 +649,6 @@ function connect_websocket(callback) {
               const errorData = JSON.parse(data.content);
               if (errorData.error) {
                 console.error("TTS error:", errorData.error);
-                // Just log the error, don't show an alert to the user
                 break;
               }
             } catch (e) {
@@ -727,14 +672,17 @@ function connect_websocket(callback) {
             processAudioDataQueue();
           } else {
             // Regular MediaSource approach for other browsers
-            addToAudioQueue(audioData); // Use the new function instead of direct push
+            audioDataQueue.push(audioData);
             processAudioDataQueue();
+            
+            // Make sure audio is playing
+            if (audio && audio.paused) {
+              audio.play();
+            }
           }
           
         } catch (e) {
           console.error("Error processing audio data:", e);
-          // Don't show an alert, just log the error
-          // This prevents interrupting the user experience
         }
         break;
       }

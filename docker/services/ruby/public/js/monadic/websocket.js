@@ -117,12 +117,16 @@ let reconnectDelay = 1000;
 let pingInterval;
 
 function startPing() {
-  if (pingInterval) {
-    clearInterval(pingInterval);
-  }
+  // Clear any existing ping interval to avoid duplicates
+  stopPing();
+  
+  // Start new ping interval
   pingInterval = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ message: 'PING' }));
+    } else {
+      // If the websocket is no longer open, stop pinging
+      stopPing();
     }
   }, 30000);
 }
@@ -130,6 +134,7 @@ function startPing() {
 function stopPing() {
   if (pingInterval) {
     clearInterval(pingInterval);
+    pingInterval = null; // Properly null out the reference
   }
 }
 
@@ -1500,3 +1505,14 @@ function handleVisibilityChange() {
 }
 
 document.addEventListener('visibilitychange', handleVisibilityChange);
+
+// Clean up WebSocket when page is unloaded
+window.addEventListener('beforeunload', function() {
+  // Stop pinging
+  stopPing();
+  
+  // Close WebSocket connection if it's open
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    ws.close();
+  }
+});

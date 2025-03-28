@@ -116,6 +116,13 @@ function attachEventListeners($card) {
     
     if (!mid) return; // Safety check
     
+    // Check if this card is currently in edit mode and cancel it first
+    if (activeEditSession && activeEditSession.mid === mid) {
+      // Cancel the edit mode before proceeding with delete
+      cancelEditMode(activeEditSession.cardText, activeEditSession.editButton);
+      activeEditSession = null; // Clear the global reference
+    }
+    
     // For all cards, try to find if there's a corresponding message
     const messageIndex = messages.findIndex((m) => m.mid === mid);
     
@@ -333,40 +340,9 @@ function attachEventListeners($card) {
         $cancelBtn.trigger("click");
       } else {
         // If we can't find the cancel button but there's an edit area,
-        // restore from stored content if available
-        const storedContent = $activeEditCard.data('originalContent');
-        if (storedContent) {
-          $activeEditCard.html(storedContent);
-          $activeEditCard.removeData('originalContent');
-        }
-        
-        // Reset any edit icons to normal state
-        $activeEditCard.closest(".card").find(".func-edit i")
-          .removeClass("fa-check")
-          .addClass("fa-pen-to-square")
-          .css("color", "");
-        
-        // Clean up any lingering edit-related event handlers
-        cleanupCardTextListeners($activeEditCard);
-        
-        // If we couldn't restore from stored content, request a refresh from server
-        if (!storedContent) {
-          // Force redraw of all cards to restore their original state
-          $(".card").each(function() {
-            const $c = $(this);
-            const mid = $c.attr("id");
-            if (mid) {
-              const msgIdx = messages.findIndex((m) => m.mid === mid);
-              if (msgIdx !== -1) {
-                // This will cause the server to re-render the message
-                ws.send(JSON.stringify({ 
-                  "message": "REFRESH", 
-                  "mid": mid
-                }));
-              }
-            }
-          });
-        }
+        // use our helper function to cancel edit mode
+        const $editButton = $activeEditCard.closest(".card").find(".func-edit");
+        cancelEditMode($activeEditCard, $editButton);
       }
     }
 
@@ -442,6 +418,14 @@ function attachEventListeners($card) {
     $cardText.data('originalContent', originalContent);
     $cardText.html($editArea);
     
+    // Update the global edit session tracker
+    activeEditSession = {
+      cardText: $cardText,
+      editButton: $this,
+      mid: mid,
+      messageIndex: messageIndex
+    };
+    
     // Create save and cancel buttons
     const $buttonRow = $(`
       <div class="d-flex justify-content-end mb-2">
@@ -479,15 +463,8 @@ function attachEventListeners($card) {
     // Handle cancel button
     $cardText.on('click', '.cancel-edit', function(e) {
       e.stopPropagation();
-      // Restore the original content
-      const storedContent = $cardText.data('originalContent') || originalContent;
-      $cardText.html(storedContent);
-      // Clean up the data attribute
-      $cardText.removeData('originalContent');
-      // Reset the edit button icon
-      $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
-      // Clean up any edit-specific event listeners to prevent memory leaks
-      cleanupCardTextListeners($cardText);
+      // Use our helper function to handle edit cancellation
+      cancelEditMode($cardText, $this);
     });
     
     // Handle save button
@@ -547,6 +524,13 @@ window.deleteSystemMessage = function(mid, messageIndex) {
     return;
   }
   
+  // Check if this card is currently in edit mode and cancel it first
+  if (activeEditSession && activeEditSession.mid === mid) {
+    // Cancel the edit mode before proceeding with delete
+    cancelEditMode(activeEditSession.cardText, activeEditSession.editButton);
+    activeEditSession = null; // Clear the global reference
+  }
+  
   // First detach event listeners to prevent memory leaks
   detachEventListeners($card);
   
@@ -588,6 +572,13 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
     // Use specialized system message deletion
     deleteSystemMessage(mid, messageIndex);
     return;
+  }
+  
+  // Check if this card is currently in edit mode and cancel it first
+  if (activeEditSession && activeEditSession.mid === mid) {
+    // Cancel the edit mode before proceeding with delete
+    cancelEditMode(activeEditSession.cardText, activeEditSession.editButton);
+    activeEditSession = null; // Clear the global reference
   }
   
   // Regular message handling continues...
@@ -635,6 +626,13 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     return;
   }
   
+  // Check if this card is currently in edit mode and cancel it first
+  if (activeEditSession && activeEditSession.mid === mid) {
+    // Cancel the edit mode before proceeding with delete
+    cancelEditMode(activeEditSession.cardText, activeEditSession.editButton);
+    activeEditSession = null; // Clear the global reference
+  }
+  
   // Detach event listeners before doing anything else
   detachEventListeners($card);
   
@@ -680,13 +678,88 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   });
 }
 
+// Global variable to track active edit state
+let activeEditSession = null;
+
+// Helper function to cancel edit mode for a card
+function cancelEditMode($cardText, $editButton) {
+  if ($cardText && $cardText.length) {
+    try {
+      // Restore original content if available
+      const storedContent = $cardText.data('originalContent');
+      if (storedContent) {
+        $cardText.html(storedContent);
+      } else {
+        // If original content not available, request refresh from server
+        const $card = $cardText.closest('.card');
+        const mid = $card.attr('id');
+        if (mid) {
+          ws.send(JSON.stringify({ 
+            "message": "REFRESH", 
+            "mid": mid
+          }));
+        }
+      }
+      
+      // Clean up data attribute
+      $cardText.removeData('originalContent');
+      
+      // Reset edit button icon if provided
+      if ($editButton && $editButton.length) {
+        $editButton.find("i")
+          .removeClass("fa-check fa-spinner fa-spin")
+          .addClass("fa-pen-to-square")
+          .css("color", "");
+      }
+      
+      // Clean up any edit-specific event listeners
+      cleanupCardTextListeners($cardText);
+      
+      // Clear the global edit session reference
+      if (activeEditSession && 
+          activeEditSession.cardText && 
+          activeEditSession.cardText.is($cardText)) {
+        activeEditSession = null;
+      }
+    } catch (err) {
+      console.error("Error during edit mode cancellation:", err);
+      // Still attempt to reset UI state even if error occurs
+      try {
+        $cardText.find('.inline-edit-textarea, .cancel-edit, .save-edit').remove();
+        if ($editButton && $editButton.length) {
+          $editButton.find("i")
+            .removeClass("fa-check fa-spinner fa-spin")
+            .addClass("fa-pen-to-square")
+            .css("color", "");
+        }
+      } catch (e) {
+        // Last resort fallback - ignore any errors in the error handler
+        console.error("Failed to reset UI after error:", e);
+      }
+      
+      // Clear the global edit session reference
+      activeEditSession = null;
+    }
+  }
+}
+
 // Helper function to clean up edit-specific event listeners
 function cleanupCardTextListeners($cardText) {
   if ($cardText && $cardText.length) {
     // Remove click handlers for edit operation buttons
     $cardText.off('click', '.cancel-edit');
     $cardText.off('click', '.save-edit');
+    
+    // Remove listeners from the buttons themselves
     $cardText.find('.cancel-edit, .save-edit').off();
+    
+    // Clean up input event listeners from any textareas
+    $cardText.find('.inline-edit-textarea').off('input');
+    
+    // Ensure the buttons are completely removed to prevent memory leaks
+    $cardText.find('.cancel-edit, .save-edit, .inline-edit-textarea').each(function() {
+      $(this).data('events', null);
+    });
   }
 }
 

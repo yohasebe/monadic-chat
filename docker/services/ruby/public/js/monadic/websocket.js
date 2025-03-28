@@ -456,6 +456,24 @@ let mediaSource = null;
 let audio = null;
 let sourceBuffer = null;
 let audioDataQueue = [];
+const MAX_AUDIO_QUEUE_SIZE = 50; // Maximum number of audio chunks to keep in queue
+
+// Function to add audio data to queue with size limit enforcement
+function addToAudioQueue(data) {
+  // Limit the queue size to prevent memory leaks
+  if (audioDataQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
+    // Remove oldest audio data (half of the queue) to make room for new data
+    audioDataQueue = audioDataQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
+    console.log(`Audio queue exceeded max size, removed oldest ${Math.floor(MAX_AUDIO_QUEUE_SIZE / 2)} chunks`);
+  }
+  audioDataQueue.push(data);
+}
+
+// Function to clear the audio queue
+function clearAudioQueue() {
+  audioDataQueue = [];
+  console.log("Audio queue cleared");
+}
 
 function processAudioDataQueue() {
   try {
@@ -480,6 +498,8 @@ function processAudioDataQueue() {
             if (sourceBuffer.buffered.length > 0) {
               sourceBuffer.remove(0, sourceBuffer.buffered.end(0));
             }
+            // Also clear the queue to prevent further issues
+            clearAudioQueue();
           } catch (clearError) {
             console.error('Error clearing buffer:', clearError);
           }
@@ -696,11 +716,18 @@ function connect_websocket(callback) {
           // Handle Firefox special case
           if (window.firefoxAudioMode) {
             // Add to the Firefox queue instead
+            if (!window.firefoxAudioQueue) {
+              window.firefoxAudioQueue = [];
+            }
+            // Limit Firefox queue size as well
+            if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
+              window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
+            }
             window.firefoxAudioQueue.push(audioData);
             processAudioDataQueue();
           } else {
             // Regular MediaSource approach for other browsers
-            audioDataQueue.push(audioData);
+            addToAudioQueue(audioData); // Use the new function instead of direct push
             processAudioDataQueue();
           }
           
@@ -1510,6 +1537,39 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('beforeunload', function() {
   // Stop pinging
   stopPing();
+  
+  // Clear audio resources
+  clearAudioQueue();
+  if (window.firefoxAudioQueue) {
+    window.firefoxAudioQueue = [];
+  }
+  
+  // Release MediaSource and SourceBuffer
+  if (sourceBuffer) {
+    try {
+      if (sourceBuffer.updating) {
+        sourceBuffer.abort();
+      }
+    } catch (e) {
+      console.error("Error aborting source buffer:", e);
+    }
+  }
+  
+  if (mediaSource && mediaSource.readyState === 'open') {
+    try {
+      mediaSource.endOfStream();
+    } catch (e) {
+      console.error("Error ending media source stream:", e);
+    }
+  }
+  
+  // Release audio element
+  if (audio) {
+    audio.pause();
+    audio.src = '';
+    audio.load();
+    audio = null;
+  }
   
   // Close WebSocket connection if it's open
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {

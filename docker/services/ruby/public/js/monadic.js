@@ -1,17 +1,22 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const textareas = [
-    document.getElementById('message'),
-    document.getElementById('initial-prompt'),
-    document.getElementById('ai-user-initial-prompt')
-  ];
-
+  // Directly get textareas and set them up - avoid storing array reference
   const initialHeight = 100;
-
-  textareas.forEach(textarea => {
-    if (textarea) {
-      setupTextarea(textarea, initialHeight);
-    }
-  });
+  
+  // Process each textarea individually to avoid keeping references
+  const messageTextarea = document.getElementById('message');
+  if (messageTextarea) {
+    setupTextarea(messageTextarea, initialHeight);
+  }
+  
+  const initialPromptTextarea = document.getElementById('initial-prompt');
+  if (initialPromptTextarea) {
+    setupTextarea(initialPromptTextarea, initialHeight);
+  }
+  
+  const aiUserInitialPromptTextarea = document.getElementById('ai-user-initial-prompt');
+  if (aiUserInitialPromptTextarea) {
+    setupTextarea(aiUserInitialPromptTextarea, initialHeight);
+  }
 
   document.addEventListener('hide.bs.modal', function (_event) {
     if (document.activeElement) {
@@ -59,11 +64,11 @@ function autoResize(textarea, initialHeight) {
 }
 
 $(function () {
+  // Make alert draggable immediately when needed instead of storing reference
+  $("#alert").draggable({ cursor: "move" });
 
-  elemAlert.draggable({ cursor: "move" });
-
-  const backToTop = $("#back_to_top");
-  const backToBottom = $("#back_to_bottom");
+  // Don't store persistent references to DOM elements
+  // Access them only when needed
 
   // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
@@ -158,24 +163,45 @@ $(function () {
     $document.on("click", ".card-text img", function () {
       window.open().document.write(this.outerHTML);
     });
-    // Optimize scroll event
-    let scrollTimer;
+    // Improved scroll event - store timer in data attribute to prevent leaks
     $main.on("scroll", function () {
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(adjustScrollButtons, 100);
+      const $this = $(this);
+      // Clear any existing timer stored in the element's data
+      const existingTimer = $this.data('scrollTimer');
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      // Store new timer reference in the element's data
+      $this.data('scrollTimer', setTimeout(adjustScrollButtons, 100));
     });
 
-    // Optimize resize event
-    let resizeTimer;
+    // Improved resize event - store timer in data attribute
     $(window).on("resize", function () {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(adjustScrollButtons, 250);
+      const $window = $(window);
+      const existingTimer = $window.data('resizeTimer');
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      $window.data('resizeTimer', setTimeout(adjustScrollButtons, 250));
     });
     
     // Clean up timers when window is unloaded
     $(window).on("beforeunload", function() {
-      clearTimeout(scrollTimer);
-      clearTimeout(resizeTimer);
+      // Clean up any stored timers
+      const $main = $("#main");
+      const $window = $(window);
+      
+      const mainScrollTimer = $main.data('scrollTimer');
+      if (mainScrollTimer) {
+        clearTimeout(mainScrollTimer);
+        $main.removeData('scrollTimer');
+      }
+      
+      const windowResizeTimer = $window.data('resizeTimer');
+      if (windowResizeTimer) {
+        clearTimeout(windowResizeTimer);
+        $window.removeData('resizeTimer');
+      }
     });
   }
 
@@ -721,11 +747,24 @@ $(function () {
     $("#file-load").val('');
     $("#import-button").prop('disabled', true);
     
-    // Show the modal and focus on file selection
+    // Show the modal
     $("#loadModal").modal("show");
-    setTimeout(function () {
+    
+    // Store focus timer in modal's data to ensure cleanup
+    const $modal = $("#loadModal");
+    const existingTimer = $modal.data('focusTimer');
+    
+    // Clear any existing timer
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // Set new timer and store reference
+    $modal.data('focusTimer', setTimeout(function () {
       $("#file-load").focus();
-    }, 500);
+      // Clear reference after use
+      $modal.removeData('focusTimer');
+    }, 500));
   });
 
   $("#loadModal").on("shown.bs.modal", function () {
@@ -819,15 +858,37 @@ $(function () {
     event.preventDefault();
     $("#docLabel").val("");
     $("#docFile").val("");
+    // Show the modal
     $("#docModal").modal("show");
-    setTimeout(() => {
+    
+    // Store focus timer in modal's data to ensure cleanup
+    const $modal = $("#docModal");
+    const existingTimer = $modal.data('focusTimer');
+    
+    // Clear any existing timer
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // Set new timer and store reference
+    $modal.data('focusTimer', setTimeout(function () {
       $("#docFile").focus();
-    }, 500);
+      // Clear reference after use
+      $modal.removeData('focusTimer');
+    }, 500));
   });
 
   $("#docModal").on("hidden.bs.modal", function () {
     $('#docFile').val('');
     $('#convertDoc').prop('disabled', true);
+    
+    // Ensure any remaining timers are cleared
+    const $modal = $(this);
+    const existingTimer = $modal.data('focusTimer');
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      $modal.removeData('focusTimer');
+    }
   });
 
   $("#docFile").on("change", function() {
@@ -910,16 +971,37 @@ $(function () {
     event.preventDefault();
     $("#urlLabel").val("");
     $("#pageURL").val("");
+    // Show the modal
     $("#urlModal").modal("show");
-    // sleep 1 second before focusing on the input field
-    setTimeout(() => {
+    
+    // Store focus timer in modal's data to ensure cleanup
+    const $modal = $("#urlModal");
+    const existingTimer = $modal.data('focusTimer');
+    
+    // Clear any existing timer
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // Set new timer and store reference
+    $modal.data('focusTimer', setTimeout(function () {
       $("#pageURL").focus();
-    }, 500);
+      // Clear reference after use
+      $modal.removeData('focusTimer');
+    }, 500));
   });
 
   $("#urlModal").on("hidden.bs.modal", function () {
     $('#pageURL').val('');
     $('#fetchPage').prop('disabled', true);
+    
+    // Ensure any remaining timers are cleared
+    const $modal = $(this);
+    const existingTimer = $modal.data('focusTimer');
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      $modal.removeData('focusTimer');
+    }
   });
 
   $("#pageURL").on("change keyup input", function() {
@@ -1008,12 +1090,13 @@ $(function () {
   // Set up the initial state of the UI
   //////////////////////////////
 
-  backToTop.click(function (e) {
+  // Direct DOM access without storing references
+  $("#back_to_top").on("click", function (e) {
     e.preventDefault();
     $("#main").animate({ scrollTop: 0 }, 500);
   });
 
-  backToBottom.click(function (e) {
+  $("#back_to_bottom").on("click", function (e) {
     e.preventDefault();
     $("#main").animate({ scrollTop: $("#main").prop("scrollHeight") }, 500);
   });
@@ -1060,7 +1143,7 @@ $(function () {
 
   $("#alert-close").on("click", function (event) {
     event.preventDefault();
-    elemAlert.hide();
+    $("#alert-box").hide();
   })
 
   $("#initial-prompt-toggle").on("change", function () {

@@ -1,0 +1,123 @@
+/* 
+ * Syntax theme handling CSS
+ * This file contains the CSS for all syntax highlighting themes
+ * It uses theme-specific classes to apply styles to the code blocks
+ */
+
+/* Base styling for all highlight blocks */
+.highlight {
+  position: relative;
+  overflow: auto;
+  border-radius: 4px;
+  margin: 0; /* Reset margins since they're handled by highlighter-rouge */
+  padding: 0;
+  box-sizing: border-box; /* Ensure padding is included in the element's total width and height */
+}
+
+/* Make sure the code inside has proper spacing */
+.highlight pre {
+  padding: 1em; /* Consistent padding all around */
+  margin: 0; /* Reset all margins */
+  overflow: auto;
+  position: relative; /* Added for copy button positioning */
+  box-sizing: border-box; /* Ensure padding is included in the element's total width and height */
+}
+
+/* Make sure no background colors bleed through from inline styles */
+.highlight span, 
+.highlight code {
+  background-color: transparent !important;
+}
+
+/* Ensure code doesn't add extra space at the bottom */
+.highlight code {
+  display: inline-block;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Fix spacing for the last line of code */
+.highlight pre code:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Theme-specific container classes */
+/* These will be applied by the JS based on the selected theme */
+
+/* Light Themes */
+.highlight-github-light {
+  background-color: #f8f8f8 !important;
+  border: 1px solid #ddd;
+}
+
+.highlight-pastie {
+  background-color: #f8f8f8 !important;
+  border: 1px solid #ddd;
+}
+
+.highlight-colorful {
+  background-color: #ffffff !important;
+  border: 1px solid #ddd;
+}
+
+.highlight-base16-light {
+  background-color: #f5f5f5 !important;
+  border: 1px solid #ddd;
+}
+
+.highlight-gruvbox-light {
+  background-color: #fbf1c7 !important;
+  border: 1px solid #bdae93;
+}
+
+/* Dark Themes */
+.highlight-monokai, 
+.highlight-monokai_sublime {
+  background-color: #272822 !important;
+  color: #f8f8f2;
+  border: 1px solid #1d1e19;
+}
+
+.highlight-base16-dark, 
+.highlight-github-dark {
+  background-color: #151515 !important;
+  color: #e0e0e0;
+  border: 1px solid #0d0d0d;
+}
+
+.highlight-gruvbox-dark {
+  background-color: #282828 !important;
+  color: #ebdbb2;
+  border: 1px solid #1d2021;
+}
+
+.highlight-molokai {
+  background-color: #1b1d1e !important;
+  color: #f8f8f2;
+  border: 1px solid #121314;
+}
+
+.highlight-tulip {
+  background-color: #2d2d2d !important;
+  color: #f8f8f2;
+  border: 1px solid #1a1a1a;
+}
+
+.highlight-thankful_eyes {
+  background-color: #2a2a2a !important;
+  color: #eeeeee;
+  border: 1px solid #1a1a1a;
+}
+
+.highlight-bw {
+  background-color: #ffffff !important;
+  border: 1px solid #ddd;
+}
+
+/* Last child margin handling is now handled by the highlighter-rouge container */
+
+/* Adjustments for Markdown blocks to maintain proper spacing */
+.language-markdown .highlight code {
+  white-space: pre-wrap;
+}

@@ -1,7 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "0.9.72",
+  "version": "0.9.73",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "main.js",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "keywords": [],
   "author": "Yoichiro Hasebe <yohasebe@gmail.com>",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@electron/notarize": "",
     "@eslint/js": "^9.11.1",
@@ -27,6 +27,13 @@
   "build": {
     "asar": true,
     "appId": "com.yohasebe.monadic",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yohasebe",
+        "repo": "monadic-chat"
+      }
+    ],
     "extraResources": [
       {
         "from": "./bin",

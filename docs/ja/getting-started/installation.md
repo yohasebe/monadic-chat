@@ -9,10 +9,12 @@
 macOSの場合、以下の手順でMonadic Chatをインストールします。
 
 1. Docker Desktop for Macをインストールします。
-2. Monadic Chat のインストーラーをダウンロードしてインストールします。
+2. Monadic Chatのインストーラーをダウンロードしてインストールします：
 
-- [📦 Installer package for macOS ARM64 (Apple Silicon)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.72-arm64.dmg) (0.9.72)
-- [📦 Installer package for macOS x64 (Intel)](https://yohasebe.com/assets/apps/Monadic%20Chat-0.9.72.dmg) (0.9.72)
+- 📦 [macOS ARM64 (Apple Silicon) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/Monadic%20Chat-latest-arm64.dmg)
+- 📦 [macOS x64 (Intel) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/Monadic%20Chat-latest.dmg)
+
+*[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、すべての利用可能なバージョンを確認することもできます。*
 
 ### **Windows**
 
@@ -20,9 +22,11 @@ Windowsの場合、以下の手順でMonadic Chatをインストールします�
 
 1. WSL2をインストールします。
 2. Docker Desktop for Windowsをインストールします。
-3. Monadic Chat のインストーラーをダウンロードしてインストールします。
+3. Monadic Chatのインストーラーをダウンロードしてインストールします：
 
-- [📦 Installer package for Windows](https://yohasebe.com/assets/apps/Monadic%20Chat%20Setup%200.9.72.exe) (0.9.72)
+- 📦 [Windows用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/Monadic%20Chat%20Setup%20latest.exe)
+
+*[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、すべての利用可能なバージョンを確認することもできます。*
 
 ### **Linux**
 
@@ -32,15 +36,17 @@ Linux (Ubuntu/Debian) の場合、以下の手順でMonadic Chatをインスト�
 
 参考：[LinuxにDocker Desktopをインストール](https://docs.docker.jp/desktop/install/linux-install.html)
 
-2. Monadic Chat のインストーラーをダウンロードします。
+2. Monadic Chatのインストーラーをダウンロードします：
 
-- [📦 Installer package for Linux (Ubuntu/Debian) x64](https://yohasebe.com/assets/apps/monadic-chat_0.9.72_amd64.deb) (0.9.72)
-- [📦 Installer package for Linux (Ubuntu/Debian) arm64](https://yohasebe.com/assets/apps/monadic-chat_0.9.72_arm64.deb) (0.9.72)
+- 📦 [Linux (Ubuntu/Debian) x64用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/monadic-chat_latest_amd64.deb)
+- 📦 [Linux (Ubuntu/Debian) arm64用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/monadic-chat_latest_arm64.deb)
 
-3. ターミナルで以下のコマンドを実行します。
+*[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、すべての利用可能なバージョンを確認することもできます。*
+
+3. ターミナルで以下のコマンドを実行してダウンロードしたパッケージをインストールします：
 
 ```shell
-$ sudo apt install ./monadic-chat_xx.xx.xx_xxx64.deb
+$ sudo apt install ./monadic-chat-*.deb
 ```
 
 <!-- tabs:end -->
@@ -120,5 +126,7 @@ Linux (Ubuntu/Debian) の場合、下記のページを参照してDocker Deskto
 
 <img src="../assets/images/monadic-chat-menu.png" width="240px"/>
 
-Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューの`Check for Updates`を実行してください。もし新しいバージョンがある場合、ダウンロードリンクが表示されます。ダウンロードリンクをクリックして、新しいバージョンのインストーラーをダウンロードしてください。
+Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューの`Check for Updates`を実行してください。もし新しいバージョンがある場合、通知が表示されます。
+
+最新版は[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)から直接ダウンロードすることもできます。
 

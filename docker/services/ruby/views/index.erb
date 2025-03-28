@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="rouge-theme" content="<%= CONFIG["ROUGE_THEME"] || "pastie:light" %>">
     <title>Monadic Chat</title>
 
     <!-- Local Montserrat font, with Google Fonts as fallback -->
@@ -28,6 +29,7 @@
     -->
 
     <link href="css/pigments-default.css?timestamp=<%= @timestamp %>" rel="stylesheet">
+    <link href="css/syntax-themes.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
   </head>
@@ -724,6 +726,7 @@
     <script src="js/monadic/tts.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/recording.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/select_image.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
   </body>
 </html>

@@ -297,6 +297,9 @@ module GeminiHelper
       else
         body["tools"] = settings["tools"]
       end
+      
+      # Ensure function_declarations exists
+      body["tools"]["function_declarations"] ||= []
       body["tools"]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
       body["tools"]["function_declarations"].uniq!
 

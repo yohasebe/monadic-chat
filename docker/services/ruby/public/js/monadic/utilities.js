@@ -3,11 +3,8 @@ const runningOnEdge = navigator.userAgent.includes("Edge");
 const runningOnFirefox = navigator.userAgent.includes("Firefox");
 const runningOnSafari = navigator.userAgent.includes("Safari");
 
-const textError = $("#error-message")
-
-const elemAlert = $("#alert-box")
-const textAlert = $("#alert-message")
-const textStats = $("#stats-message")
+// Remove global DOM references to prevent memory leaks
+// Instead access DOM elements directly when needed
 
 const DEFAULT_MAX_INPUT_TOKENS = 4000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 4000;
@@ -286,15 +283,17 @@ function removeEmojis(text) {
 
 function setAlertClass(alertType = "error") {
   if (alertType === "error") {
-    elemAlert.removeClass(function (_index, className) {
+    // Direct DOM access without global references
+    $("#alert-box").removeClass(function (_index, className) {
       return (className.match(/\balert-\S+/g) || []).join(' ');
     });
-    elemAlert.addClass(`alert-${alertType}`);
+    $("#alert-box").addClass(`alert-${alertType}`);
   } else {
-    textAlert.removeClass(function (_index, className) {
+    // Direct DOM access without global references
+    $("#alert-message").removeClass(function (_index, className) {
       return (className.match(/\btext-\S+/g) || []).join(' ');
     });
-    textAlert.addClass(`text-${alertType}`);
+    $("#alert-message").addClass(`text-${alertType}`);
   }
 }
 
@@ -338,8 +337,8 @@ function setAlert(text = "", alertType = "success") {
         mids.delete(mid);
       }
       
-      // Success message
-      textAlert.html("<i class='fas fa-circle-check'></i> Error message removed");
+      // Success message - direct DOM access
+      $("#alert-message").html("<i class='fas fa-circle-check'></i> Error message removed");
       setAlertClass("success");
       
       return false;
@@ -351,13 +350,15 @@ function setAlert(text = "", alertType = "success") {
     // Append to discourse area
     $("#discourse").append(errorCard);
   } else {
-    textAlert.html(`${text}`);
+    // Direct DOM access
+    $("#alert-message").html(`${text}`);
     setAlertClass(alertType);
   }
 }
 
 function setStats(text = "") {
-  textStats.html(`${text}`);
+  // Direct DOM access without global reference
+  $("#stats-message").html(`${text}`);
 }
 
 function deleteMessage(mid) {

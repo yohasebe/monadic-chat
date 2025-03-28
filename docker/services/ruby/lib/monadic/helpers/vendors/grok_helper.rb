@@ -268,9 +268,12 @@ module GrokHelper
     end
 
     if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings["tools"]
-      body["tools"].push(*WEBSEARCH_TOOLS) if websearch
-      body["tools"].uniq!
+      body["tools"] = APPS[app].settings["tools"] || []
+      if websearch
+        websearch_tools = WEBSEARCH_TOOLS.dup
+        body["tools"].concat(websearch_tools)
+        body["tools"].uniq!
+      end
 
       body["tool_choice"] = "auto"
     elsif websearch

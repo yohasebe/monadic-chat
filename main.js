@@ -1096,7 +1096,7 @@ function createMainWindow() {
     minHeight: 480,
     webPreferences: {
       nodeIntegration: false,
-      contentIsolation: false,
+      contextIsolation: true,
       preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
       contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
     },
@@ -1297,8 +1297,8 @@ function openSettingsWindow() {
       show: false,
       frame: false,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
+        nodeIntegration: false,
+        contextIsolation: true,
         preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
         contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
       }
@@ -1367,7 +1367,7 @@ function checkAndUpdateEnvFile() {
 
     // Set default values if not already specified
     if (!envConfig.ROUGE_THEME) {
-        envConfig.ROUGE_THEME = 'monokai:dark';
+        envConfig.ROUGE_THEME = 'github:light';
     }
 
     if (!envConfig.STT_MODEL) {

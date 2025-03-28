@@ -1,4 +1,6 @@
-- [March, 2025] 0.9.72
+- [March, 2025] 0.9.73
+  - Changed project license from MIT to Apache License 2.0
+  - Improved Electron security with contextIsolation enabled
   - Default syntax highlighting theme changed to pastie for better readability
   - Fixed display issues with code blocks in dark themes
   - Improved message editing: last message now moves to input area with role selected

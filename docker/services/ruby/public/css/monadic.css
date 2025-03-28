@@ -15,9 +15,7 @@ body {
   font-size: 0.95em;
 }
 
-.card {
-  word-wrap: normal;
-}
+/* Card styles */
 
 img, .generated_image img {
   max-width: 100%;
@@ -75,7 +73,7 @@ a:hover {
 
 div.card-body {
   font-size: 1em;
-  padding-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
 }
 
 div.card-body.role-assistant {
@@ -292,7 +290,6 @@ h5 i,
   z-index: 1100;
   font-size: 1.25rem;
   line-height: 1.25;
-  background-color: #777;
   border: 1px solid rgba(0, 0, 0, .1);
   border-radius: 0.25rem;
   transition: background-color 0.2s ease;
@@ -329,17 +326,13 @@ h5 i,
 
 .scrollable {
   overflow-y: scroll;
-  height: auto;
+  height: calc(100vh - 122px);
 }
 
-@media (min-width: 0px) {
-  .scrollable {
-    height: calc(100vh - 122px);
-  }
-  body,
-  html {
-    overflow: hidden;
-  }
+/* Global rule for all viewport sizes */
+body,
+html {
+  overflow: hidden;
 }
 
 textarea {
@@ -393,7 +386,6 @@ blockquote p:last-child {
 #initial-prompt,
 #ai-user-initial-prompt,
 .inline-edit-textarea {
-  overflow-y: scroll;
   min-height: 100px;
   overflow-y: hidden;
   resize: vertical;
@@ -440,11 +432,16 @@ div.diagram {
 }
 
 .unselectable {
-  -webkit-touch-callout: none;
   user-select: none;
 }
 
-.syntree_image img,
+.syntree_image img {
+  border: 1px solid #ccc;
+  width: 100%;
+  background-color: #fff;
+  margin: 20px 0;
+}
+
 .card-body table {
   border: 1px solid #ccc;
   border-collapse: collapse;
@@ -488,6 +485,30 @@ legend {
   padding-bottom: 5px;
 }
 
+/* Adjust spacing for paragraphs in card-text */
+.card-text p {
+  margin-bottom: 1em;
+}
+
+/* Reduce bottom margin for last paragraph in card-text */
+.card-text p:last-child {
+  margin-bottom: 0.25em;
+}
+
+/* Special handling for cards with pb-1 class, with role-specific adjustments */
+.card-body.pb-1 .card-text p:last-child {
+  margin-bottom: 0.15em;
+}
+
+/* Role-specific margin adjustments */
+.card-body.role-user .card-text p:last-child {
+  margin-bottom: 0.3em;
+}
+
+.card-body.role-user.pb-1 .card-text p:last-child {
+  margin-bottom: 0.2em;
+}
+
 /* Add proper margins for code blocks in card-text */
 .card-text pre {
   margin-bottom: 1.5em;
@@ -518,11 +539,18 @@ legend {
 .copy-code-button {
   color: #888;
   text-align: right;
-  margin: 0 10px 0 0;
+  margin: 0;
   padding: 0;
   cursor: pointer;
-  position: relative;
-  z-index: 1;
+  position: absolute; /* Changed to absolute positioning */
+  z-index: 10; /* Increase z-index to ensure it's above other elements */
+  bottom: 8px; /* Positioned from bottom edge */
+  right: 8px; /* Positioned from right edge */
+  height: 14px; /* Reduced height */
+  line-height: 1; /* Reset line height */
+  font-size: 0.85em; /* Reduced font size */
+  display: inline-block;
+  opacity: 0.8; /* Add slight transparency */
 }
 
 .image-container {
@@ -550,6 +578,21 @@ legend {
 .json-header {
   cursor: pointer;
   user-select: none;
+  margin-bottom: 2px;
+}
+
+.toggle-text {
+  user-select: none;
+  font-size: 0.85em;
+  color: #777;
+}
+
+.json-item {
+  margin-bottom: 6px;
+}
+
+.json-toggle {
+  margin-bottom: 4px;
 }
 
 .no-bullets {
@@ -640,23 +683,32 @@ legend {
 .highlighter-rouge {
   border-radius: 4px;
   border: 1px solid #ced4da;
-  overflow: hidden;
-  margin: 1em 0 1.5em 0;
+  overflow: visible; /* Allow copy button to be visible */
+  margin: 1.25em 0; /* No left/right margin */
   background-color: #f8f8f8;
+  padding: 0.75em !important; /* Ensure padding is applied directly */
+  position: relative; /* Added for copy button positioning */
 }
 
 .highlighter-rouge .highlight {
   margin: 0;
-  padding: 1em;
+  padding: 0; /* Reset padding since we're applying it to the container */
 }
 
 .highlighter-rouge pre.highlight {
   margin: 0;
+  padding: 0.5em 0.5em 0.75em 0.5em; /* Adjusted padding for pre */
+  position: relative; /* Ensure proper positioning */
+}
+
+/* Set margins for code blocks within card-text */
+.card-text .highlighter-rouge {
+  margin: 1.25em 0; /* Vertical margins only, no horizontal margins */
 }
 
 /* Ensure last code block has appropriate spacing */
 .card-text .highlighter-rouge:last-child {
-  margin-bottom: 0.75em;
+  margin-bottom: 0.75em; /* Adjusted bottom margin for last code block */
 }
 .card-text img {
     border-radius: 4px;
@@ -679,23 +731,22 @@ legend {
 .json-content {
   font-size: 0.9rem;
   font-weight: 400;
-  line-height: 1;
-  margin: 0px;
   margin-top: 8px;
+  margin-bottom: 10px;
   padding: 10px;
-  background-color: white; 
+  background-color: #fff;
   border: 1px solid #ccc;
   border-radius: 4px;
   line-height: 1.8;
-  background-color: #fff
 }
 
 .json-content table {
-  padding: 20px;
+  padding: 8px;
+  margin-bottom: 0;
 }
 
 .json-content tbody {
-  padding: 20px;
+  padding: 8px;
   background-color: #f0f0f0;
 }
 
@@ -806,7 +857,7 @@ code {
 }
 
 ul, ol {
-  margin-bottom: 16px !important;
+  margin-bottom: 16px;
 }
 
 h1 {

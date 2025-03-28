@@ -169,11 +169,19 @@ module StringUtils
       css = theme_obj.render(scope: ".highlight")
     end
 
-    <<~HTML
+    # Always include the necessary CSS for syntax highlighting
+    # But avoid duplicating it in each message by using a minimal inline style
+    html_with_css = <<~HTML
     <style>
-    #{css}
+    /* Minimal placeholder to reference the theme's CSS */
+    .highlight {
+      position: relative;  /* Ensure proper positioning of content */
+      overflow: auto;      /* Handle overflow properly */
+      border-radius: 4px;  /* Consistent styling */
+    }
     </style>
     #{html}
     HTML
+    html_with_css
   end
 end

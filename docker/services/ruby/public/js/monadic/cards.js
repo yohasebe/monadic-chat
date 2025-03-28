@@ -320,6 +320,56 @@ function attachEventListeners($card) {
     const messageIndex = messages.findIndex((m) => m.mid === mid);
     const currentMessage = messages[messageIndex];
 
+    // Check if any message is currently being edited and handle it first
+    const $existingEditArea = $(".inline-edit-textarea");
+    if ($existingEditArea.length > 0) {
+      // Find the current active edit card
+      const $activeEditCard = $existingEditArea.closest(".card-text");
+      
+      // Get the cancel button from the active edit card
+      const $cancelBtn = $activeEditCard.find(".cancel-edit");
+      if ($cancelBtn.length > 0) {
+        // Trigger the cancel event to restore the original content
+        $cancelBtn.trigger("click");
+      } else {
+        // If we can't find the cancel button but there's an edit area,
+        // restore from stored content if available
+        const storedContent = $activeEditCard.data('originalContent');
+        if (storedContent) {
+          $activeEditCard.html(storedContent);
+          $activeEditCard.removeData('originalContent');
+        }
+        
+        // Reset any edit icons to normal state
+        $activeEditCard.closest(".card").find(".func-edit i")
+          .removeClass("fa-check")
+          .addClass("fa-pen-to-square")
+          .css("color", "");
+        
+        // Clean up any lingering edit-related event handlers
+        cleanupCardTextListeners($activeEditCard);
+        
+        // If we couldn't restore from stored content, request a refresh from server
+        if (!storedContent) {
+          // Force redraw of all cards to restore their original state
+          $(".card").each(function() {
+            const $c = $(this);
+            const mid = $c.attr("id");
+            if (mid) {
+              const msgIdx = messages.findIndex((m) => m.mid === mid);
+              if (msgIdx !== -1) {
+                // This will cause the server to re-render the message
+                ws.send(JSON.stringify({ 
+                  "message": "REFRESH", 
+                  "mid": mid
+                }));
+              }
+            }
+          });
+        }
+      }
+    }
+
     if (!currentMessage || !currentMessage.text) {
       alert("The current message can't be edited");
       return;
@@ -388,6 +438,8 @@ function attachEventListeners($card) {
     
     // Store original content and hide it
     const originalContent = $cardText.html();
+    // Store the original content for retrieval
+    $cardText.data('originalContent', originalContent);
     $cardText.html($editArea);
     
     // Create save and cancel buttons
@@ -420,11 +472,22 @@ function attachEventListeners($card) {
     // Trigger initial resize
     autoResize($editArea[0]);
     
+    // Clean up any existing handlers first to prevent duplicates
+    $cardText.off('click', '.cancel-edit');
+    $cardText.off('click', '.save-edit');
+    
     // Handle cancel button
     $cardText.on('click', '.cancel-edit', function(e) {
       e.stopPropagation();
-      $cardText.html(originalContent);
+      // Restore the original content
+      const storedContent = $cardText.data('originalContent') || originalContent;
+      $cardText.html(storedContent);
+      // Clean up the data attribute
+      $cardText.removeData('originalContent');
+      // Reset the edit button icon
       $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+      // Clean up any edit-specific event listeners to prevent memory leaks
+      cleanupCardTextListeners($cardText);
     });
     
     // Handle save button
@@ -449,6 +512,12 @@ function attachEventListeners($card) {
         // while we wait for the server to process the markdown and send back the HTML
         $cardText.html("<div class='text-center'><i class='fas fa-circle-notch fa-spin'></i> Processing...</div>");
       }
+      
+      // Clean up the data attribute
+      $cardText.removeData('originalContent');
+      
+      // Clean up any edit-specific event listeners to prevent memory leaks
+      cleanupCardTextListeners($cardText);
       
       // Notify the server about the change (without deleting the message)
       // The server will send back properly formatted HTML through the websocket
@@ -611,6 +680,16 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   });
 }
 
+// Helper function to clean up edit-specific event listeners
+function cleanupCardTextListeners($cardText) {
+  if ($cardText && $cardText.length) {
+    // Remove click handlers for edit operation buttons
+    $cardText.off('click', '.cancel-edit');
+    $cardText.off('click', '.save-edit');
+    $cardText.find('.cancel-edit, .save-edit').off();
+  }
+}
+
 // Function to remove all event listeners - helps prevent memory leaks
 function detachEventListeners($card) {
   // Remove all namespaced event listeners
@@ -620,6 +699,13 @@ function detachEventListeners($card) {
     
     // Remove events from child elements
     $card.find(".func-delete, .func-play, .func-stop, .func-copy, .func-edit").off(".cardEvent");
+    
+    // Clean up card text edit button events
+    const $cardText = $card.find(".card-text");
+    cleanupCardTextListeners($cardText);
+    
+    // Clean up any stored data attributes
+    $card.find(".card-text").removeData('originalContent');
     
     // Remove any lingering tooltip effects
     $card.find("[title]").tooltip("dispose");

@@ -344,6 +344,7 @@ module OpenAIHelper
     else
       if obj["tools"] && !obj["tools"].empty?
         body["tools"] = APPS[app].settings["tools"]
+        body["tools"] = [] if body["tools"].nil?
         body["tools"].push(*WEBSEARCH_TOOLS) if websearch
         body["tools"].uniq!
       elsif websearch

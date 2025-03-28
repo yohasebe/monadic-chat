@@ -267,9 +267,12 @@ module DeepSeekHelper
     end
 
     if settings["tools"]
-      body["tools"] = settings["tools"]
-      body["tools"].push(*WEBSEARCH_TOOLS).flatten if websearch
-      body["tools"].uniq!
+      body["tools"] = settings["tools"] || []
+      if websearch
+        websearch_tools = WEBSEARCH_TOOLS.dup
+        body["tools"].concat(websearch_tools)
+        body["tools"].uniq!
+      end
       body["tool_choice"] = "auto"
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS

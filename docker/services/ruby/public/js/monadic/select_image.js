@@ -114,14 +114,36 @@ $("#uploadImage").on("click", function () {
   }
 });
 
-// Convert file to base64
+// Convert file to base64 - with Promise-based option
 function fileToBase64(blob, callback) {
-  const reader = new FileReader();
-  reader.onload = function() {
-    const base64 = reader.result.split(',')[1];
-    callback(base64);
-  };
-  reader.readAsDataURL(blob);
+  // Legacy callback version for backward compatibility
+  if (typeof callback === 'function') {
+    const reader = new FileReader();
+    reader.onload = function() {
+      const base64 = reader.result.split(',')[1];
+      callback(base64);
+    };
+    reader.onerror = function(error) {
+      console.error('Error reading file:', error);
+      callback(null);
+    };
+    reader.readAsDataURL(blob);
+    return;
+  }
+  
+  // Return a promise for modern usage
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function() {
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = function(error) {
+      console.error('Error reading file:', error);
+      reject(error);
+    };
+    reader.readAsDataURL(blob);
+  });
 }
 
 // Update display for both images and PDFs
@@ -169,46 +191,131 @@ function updateFileDisplay(files) {
   });
 }
 
-// Convert and resize image to base64
+// Convert and resize image to base64 - with Promise-based option
 function imageToBase64(blob, callback) {
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const dataUrl = reader.result;
-    const image = new Image();
-    image.onload = function () {
-      let width = image.width;
-      let height = image.height;
-      const MAX_LONG_SIDE = 2000;
-      const MAX_SHORT_SIDE = 768;
+  // Legacy callback version for backward compatibility
+  if (typeof callback === 'function') {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const dataUrl = reader.result;
+      const image = new Image();
+      
+      image.onload = function () {
+        try {
+          let width = image.width;
+          let height = image.height;
+          const MAX_LONG_SIDE = 2000;
+          const MAX_SHORT_SIDE = 768;
 
-      // Determine the long and short sides
-      const longSide = Math.max(width, height);
-      const shortSide = Math.min(width, height);
+          // Determine the long and short sides
+          const longSide = Math.max(width, height);
+          const shortSide = Math.min(width, height);
 
-      // Check if the image needs resizing
-      if (longSide > MAX_LONG_SIDE || shortSide > MAX_SHORT_SIDE) {
-        const longSideScale = MAX_LONG_SIDE / longSide;
-        const shortSideScale = MAX_SHORT_SIDE / shortSide;
-        const scale = Math.min(longSideScale, shortSideScale);
-        width = width * scale;
-        height = height * scale;
+          // Check if the image needs resizing
+          if (longSide > MAX_LONG_SIDE || shortSide > MAX_SHORT_SIDE) {
+            const longSideScale = MAX_LONG_SIDE / longSide;
+            const shortSideScale = MAX_SHORT_SIDE / shortSide;
+            const scale = Math.min(longSideScale, shortSideScale);
+            width = width * scale;
+            height = height * scale;
 
-        // Resize the image using canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(image, 0, 0, width, height);
-        const resizedDataUrl = canvas.toDataURL(blob.type);
-        const base64 = resizedDataUrl.split(',')[1];
-        callback(base64);
-      } else {
-        // Use original base64 if no resizing needed
-        const base64 = dataUrl.split(',')[1];
-        callback(base64);
-      }
+            // Resize the image using canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0, width, height);
+            const resizedDataUrl = canvas.toDataURL(blob.type);
+            const base64 = resizedDataUrl.split(',')[1];
+            callback(base64);
+          } else {
+            // Use original base64 if no resizing needed
+            const base64 = dataUrl.split(',')[1];
+            callback(base64);
+          }
+        } catch (error) {
+          console.error('Error processing image:', error);
+          callback(null);
+        }
+      };
+      
+      image.onerror = function(error) {
+        console.error('Error loading image:', error);
+        callback(null);
+      };
+      
+      image.src = dataUrl;
     };
-    image.src = dataUrl;
-  };
-  reader.readAsDataURL(blob);
+    
+    reader.onerror = function(error) {
+      console.error('Error reading file:', error);
+      callback(null);
+    };
+    
+    reader.readAsDataURL(blob);
+    return;
+  }
+  
+  // Return a promise for modern usage
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = function (e) {
+      const dataUrl = reader.result;
+      const image = new Image();
+      
+      image.onload = function () {
+        try {
+          let width = image.width;
+          let height = image.height;
+          const MAX_LONG_SIDE = 2000;
+          const MAX_SHORT_SIDE = 768;
+
+          // Determine the long and short sides
+          const longSide = Math.max(width, height);
+          const shortSide = Math.min(width, height);
+
+          // Check if the image needs resizing
+          if (longSide > MAX_LONG_SIDE || shortSide > MAX_SHORT_SIDE) {
+            const longSideScale = MAX_LONG_SIDE / longSide;
+            const shortSideScale = MAX_SHORT_SIDE / shortSide;
+            const scale = Math.min(longSideScale, shortSideScale);
+            width = width * scale;
+            height = height * scale;
+
+            // Resize the image using canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0, width, height);
+            const resizedDataUrl = canvas.toDataURL(blob.type);
+            const base64 = resizedDataUrl.split(',')[1];
+            resolve(base64);
+          } else {
+            // Use original base64 if no resizing needed
+            const base64 = dataUrl.split(',')[1];
+            resolve(base64);
+          }
+        } catch (error) {
+          console.error('Error processing image:', error);
+          reject(error);
+        }
+      };
+      
+      image.onerror = function(error) {
+        console.error('Error loading image:', error);
+        reject(error);
+      };
+      
+      image.src = dataUrl;
+    };
+    
+    reader.onerror = function(error) {
+      console.error('Error reading file:', error);
+      reject(error);
+    };
+    
+    reader.readAsDataURL(blob);
+  });
 }

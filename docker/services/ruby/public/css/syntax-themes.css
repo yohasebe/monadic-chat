@@ -42,6 +42,12 @@
   padding-bottom: 0;
 }
 
+/* Prevent double borders on language-specific highlight containers */
+.highlighter-rouge .highlight,
+[class*="language-"] .highlight {
+  border: none !important;
+}
+
 /* Theme-specific container classes */
 /* These will be applied by the JS based on the selected theme */
 

@@ -721,43 +721,70 @@ $(function () {
 
   let fileTitle = "";
 
-  $("#uploadFile").on("click", function () {
+  $("#uploadFile").on("click", async function () {
     const fileInput = $("#fileFile")[0];
     const file = fileInput.files[0];
 
-    if (file) {
-      // check if the file is a PDF file
-      if (file.type === "application/pdf") {
-        fileTitle = $("#file-title").val()
-        $("#fileModal button").prop("disabled", true);
-        $("#file-spinner").show();
-        const formData = new FormData();
-        formData.append("pdfFile", file);
-        formData.append("pdfTitle", fileTitle);
+    if (!file) {
+      alert("Please select a PDF file to upload");
+      return;
+    }
+    
+    // Validate file type
+    if (file.type !== "application/pdf") {
+      setAlert("Please select a PDF file", "error");
+      return;
+    }
+    
+    try {
+      fileTitle = $("#file-title").val();
+      
+      // Disable UI elements during upload
+      $("#fileModal button").prop("disabled", true);
+      $("#file-spinner").show();
+      
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("pdfFile", file);
+      formData.append("pdfTitle", fileTitle);
 
+      // Use Promise-based AJAX with timeout handling
+      const uploadPromise = new Promise((resolve, reject) => {
         $.ajax({
           url: "/pdf",
           type: "POST",
           data: formData,
           processData: false,
-          contentType: false
-        }).done(function (_filename) {
-          $("#file-spinner").hide();
-          $("#fileModal button").prop('disabled', false);
-          $("#fileModal").modal("hide");
-          ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-          setAlert("<i class='fa-solid fa-circle-check'></i> File uploaded successfully", "success");
-        }).fail(function (error) {
-          $("#file-spinner").hide();
-          $("#fileModal button").prop("disabled", false);
-          $("#fileModal").modal("hide");
-          setAlert(`Error uploading file: ${error}`, "error");
-        }).always(function () {
-          console.log('complete');
+          contentType: false,
+          timeout: 120000, // 2 minute timeout (PDF processing can take time)
+          success: resolve,
+          error: reject
         });
-      }
-    } else {
-      alert("Please select a PDF file to upload");
+      });
+      
+      // Wait for upload to complete
+      await uploadPromise;
+      
+      // Clean up UI
+      $("#file-spinner").hide();
+      $("#fileModal button").prop('disabled', false);
+      $("#fileModal").modal("hide");
+      
+      // Refresh PDF titles and show success message
+      ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+      setAlert("<i class='fa-solid fa-circle-check'></i> File uploaded successfully", "success");
+      
+    } catch (error) {
+      console.error("Error uploading PDF:", error);
+      
+      // Clean up UI on error
+      $("#file-spinner").hide();
+      $("#fileModal button").prop("disabled", false);
+      $("#fileModal").modal("hide");
+      
+      // Show appropriate error message
+      const errorMessage = error.statusText || error.message || "Unknown error";
+      setAlert(`Error uploading file: ${errorMessage}`, "error");
     }
   });
 
@@ -781,47 +808,74 @@ $(function () {
     $('#convertDoc').prop('disabled', !file);
   });
 
-  $("#convertDoc").on("click", function () {
+  $("#convertDoc").on("click", async function () {
     const docInput = $("#docFile")[0];
     const doc = docInput.files[0];
 
-    if (doc) {
-      // check if the file is a doc file (pdf, docx, xlsx, pptx, and any text-based file such as rb, py, etc.)
-      if (doc.type !== "application/octet-stream") {
-        const docLabel = $("#doc-label").val() || ""
-        $("#docModal button").prop("disabled", true);
-        $("#doc-spinner").show();
-        const formData = new FormData();
-        formData.append("docFile", doc);
-        formData.append("docLabel", docLabel);
+    if (!doc) {
+      alert("Please select a document file to convert");
+      return;
+    }
+    
+    // Check if the file is a valid document type
+    // Octet-stream files might cause issues, so we skip them
+    if (doc.type === "application/octet-stream") {
+      setAlert("Unsupported file type", "error");
+      return;
+    }
+    
+    try {
+      const docLabel = $("#doc-label").val() || "";
+      
+      // Disable UI elements during processing
+      $("#docModal button").prop("disabled", true);
+      $("#doc-spinner").show();
+      
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("docFile", doc);
+      formData.append("docLabel", docLabel);
 
+      // Use Promise-based AJAX with timeout handling
+      const convertPromise = new Promise((resolve, reject) => {
         $.ajax({
           url: "/document",
           type: "POST",
           data: formData,
           processData: false,
-          contentType: false
-        }).done(function (markdown) {
-          const message = $("#message").val().replace(/\n+$/, "");
-          $("#message").val(`${message}\n\n${markdown}`);
-          autoResize(document.getElementById('message'), 100);
-          $("#doc-spinner").hide();
-          $("#docModal button").prop('disabled', false);
-          $("#docModal").modal("hide");
-          // $("#select-role").val("sample-system").trigger("change");
-          $("#back_to_bottom").trigger("click");
-          $("#message").focus();
-        }).fail(function (error) {
-          $("#doc-spinner").hide();
-          $("#docModal button").prop("disabled", false);
-          $("#docModal").modal("hide");
-          setAlert(`Error converting file: ${error}`, "error");
-        }).always(function () {
-          // console.log('complete');
+          contentType: false,
+          timeout: 60000, // 60 second timeout (document conversion can take longer)
+          success: resolve,
+          error: reject
         });
-      }
-    } else {
-      alert("Please select a document file to convert");
+      });
+      
+      // Wait for the conversion to complete
+      const markdown = await convertPromise;
+      
+      // Append the converted content to the message
+      const message = $("#message").val().replace(/\n+$/, "");
+      $("#message").val(`${message}\n\n${markdown}`);
+      autoResize(document.getElementById('message'), 100);
+      
+      // Clean up UI
+      $("#doc-spinner").hide();
+      $("#docModal button").prop('disabled', false);
+      $("#docModal").modal("hide");
+      $("#back_to_bottom").trigger("click");
+      $("#message").focus();
+      
+    } catch (error) {
+      console.error("Error converting document:", error);
+      
+      // Clean up UI on error
+      $("#doc-spinner").hide();
+      $("#docModal button").prop("disabled", false);
+      $("#docModal").modal("hide");
+      
+      // Show appropriate error message
+      const errorMessage = error.statusText || error.message || "Unknown error";
+      setAlert(`Error converting document: ${errorMessage}`, "error");
     }
   });
 
@@ -848,42 +902,66 @@ $(function () {
     $('#fetchPage').prop('disabled', !validUrl);
   });
 
-  $("#fetchPage").on("click", function () {
+  $("#fetchPage").on("click", async function () {
     const url = $("#pageURL").val();
 
-    if (url) {
-      const urlLabel =$("#urlLabel").val() || ""
+    if (!url) {
+      alert("Please specify the URL of the page to fetch");
+      return;
+    }
+    
+    try {
+      const urlLabel = $("#urlLabel").val() || "";
+      
+      // Disable UI elements during processing
       $("#urlModal button").prop("disabled", true);
       $("#url-spinner").show();
+      
+      // Prepare form data
       const formData = new FormData();
       formData.append("pageURL", url);
       formData.append("urlLabel", urlLabel);
 
-      $.ajax({
-        url: "/fetch_webpage",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false
-      }).done(function (markdown) {
-        const message = $("#message").val().replace(/\n+$/, "");
-        $("#message").val(`${message}\n\n${markdown}`);
-        autoResize(document.getElementById('message'), 100);
-        $("#url-spinner").hide();
-        $("#urlModal button").prop('disabled', false);
-        $("#urlModal").modal("hide");
-        $("#back_to_bottom").trigger("click");
-        $("#message").focus();
-      }).fail(function (error) {
-        $("#url-spinner").hide();
-        $("#urlModal button").prop("disabled", false);
-        $("#urlModal").modal("hide");
-        setAlert(`Error converting file: ${error}`, "error");
-      }).always(function () {
-        // console.log('complete');
+      // Use Promise-based AJAX with timeout handling
+      const fetchPromise = new Promise((resolve, reject) => {
+        $.ajax({
+          url: "/fetch_webpage",
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false,
+          timeout: 30000, // 30 second timeout
+          success: resolve,
+          error: reject
+        });
       });
-    } else {
-      alert("Please specify the URL of the page to fetch");
+      
+      // Use Promise.race to handle potential timeouts
+      const markdown = await fetchPromise;
+      
+      // Append the fetched content to the message
+      const message = $("#message").val().replace(/\n+$/, "");
+      $("#message").val(`${message}\n\n${markdown}`);
+      autoResize(document.getElementById('message'), 100);
+      
+      // Clean up UI
+      $("#url-spinner").hide();
+      $("#urlModal button").prop('disabled', false);
+      $("#urlModal").modal("hide");
+      $("#back_to_bottom").trigger("click");
+      $("#message").focus();
+      
+    } catch (error) {
+      console.error("Error fetching webpage:", error);
+      
+      // Clean up UI on error
+      $("#url-spinner").hide();
+      $("#urlModal button").prop("disabled", false);
+      $("#urlModal").modal("hide");
+      
+      // Show appropriate error message
+      const errorMessage = error.statusText || error.message || "Unknown error";
+      setAlert(`Error fetching webpage: ${errorMessage}`, "error");
     }
   });
 

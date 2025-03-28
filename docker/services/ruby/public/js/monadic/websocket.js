@@ -1430,38 +1430,71 @@ function reconnect_websocket(ws, callback) {
   // Use exponential backoff for retry delay
   const delay = baseReconnectDelay * Math.pow(1.5, reconnectAttempts);
   
-  switch (ws.readyState) {
-    case WebSocket.CLOSED:
-      reconnectAttempts++;
-      console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
-      ws = connect_websocket(callback);
-      break;
-    case WebSocket.CLOSING:
-      setTimeout(() => {
-        reconnect_websocket(ws, callback);
-      }, delay);
-      break;
-    case WebSocket.CONNECTING:
-      setTimeout(() => {
-        reconnect_websocket(ws, callback);
-      }, delay);
-      break;
-    case WebSocket.OPEN:
-      // Reset reconnection attempts counter on successful connection
-      reconnectAttempts = 0;
-      if (callback) {
-        callback(ws);
-      }
-      break;
+  try {
+    switch (ws.readyState) {
+      case WebSocket.CLOSED:
+        reconnectAttempts++;
+        console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
+        // Clear any existing ping interval before creating a new connection
+        stopPing();
+        ws = connect_websocket(callback);
+        break;
+      case WebSocket.CLOSING:
+        setTimeout(() => {
+          reconnect_websocket(ws, callback);
+        }, delay);
+        break;
+      case WebSocket.CONNECTING:
+        setTimeout(() => {
+          reconnect_websocket(ws, callback);
+        }, delay);
+        break;
+      case WebSocket.OPEN:
+        // Reset reconnection attempts counter on successful connection
+        reconnectAttempts = 0;
+        // Ensure ping is running for this connection
+        startPing();
+        if (callback) {
+          callback(ws);
+        }
+        break;
+    }
+  } catch (error) {
+    console.error("Error during WebSocket reconnection:", error);
+    // Schedule another attempt on error
+    setTimeout(() => {
+      reconnect_websocket(ws, callback);
+    }, delay);
   }
 }
 
 function handleVisibilityChange() {
+  // When the tab becomes visible again
   if (!document.hidden) {
-    if (ws.readyState === WebSocket.CLOSED) {
-      ws = connect_websocket(() => {
-        ws.send(JSON.stringify({ message: "LOAD" }));
-      });
+    try {
+      // Check the current WebSocket state
+      if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        console.log("Tab visible again, reconnecting WebSocket...");
+        // Reset reconnection attempts when user actively returns to tab
+        reconnectAttempts = 0;
+        
+        // Establish a new connection
+        ws = connect_websocket((newWs) => {
+          if (newWs && newWs.readyState === WebSocket.OPEN) {
+            // Reload data from server
+            newWs.send(JSON.stringify({ message: "LOAD" }));
+            // Restart ping to keep connection alive
+            startPing();
+          }
+        });
+      } else if (ws.readyState === WebSocket.OPEN) {
+        // Connection is already open, just send a ping to verify it's still active
+        ws.send(JSON.stringify({ message: "PING" }));
+      }
+    } catch (error) {
+      console.error("Error handling visibility change:", error);
+      // Attempt to reconnect on error
+      reconnect_websocket(ws);
     }
   }
 }

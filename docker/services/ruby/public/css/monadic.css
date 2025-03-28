@@ -45,7 +45,6 @@ div.highlight pre,
 pre {
   padding: 0.5em;
   margin: 0;
-  margin-bottom: 0;
   white-space: pre;
   overflow: auto;
   scrollbar-width: thin;
@@ -76,6 +75,7 @@ a:hover {
 
 div.card-body {
   font-size: 1em;
+  padding-bottom: 1.25rem;
 }
 
 div.card-body.role-assistant {
@@ -488,6 +488,15 @@ legend {
   padding-bottom: 5px;
 }
 
+/* Add proper margins for code blocks in card-text */
+.card-text pre {
+  margin-bottom: 1.5em;
+}
+
+.card-text pre:last-child {
+  margin-bottom: 0.5em;
+}
+
 .toggle-open {
   padding: 0.5em;
   margin-bottom: 20px;
@@ -512,6 +521,8 @@ legend {
   margin: 0 10px 0 0;
   padding: 0;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
 .image-container {
@@ -630,7 +641,7 @@ legend {
   border-radius: 4px;
   border: 1px solid #ced4da;
   overflow: hidden;
-  margin: 1em 0;
+  margin: 1em 0 1.5em 0;
   background-color: #f8f8f8;
 }
 
@@ -641,6 +652,11 @@ legend {
 
 .highlighter-rouge pre.highlight {
   margin: 0;
+}
+
+/* Ensure last code block has appropriate spacing */
+.card-text .highlighter-rouge:last-child {
+  margin-bottom: 0.75em;
 }
 .card-text img {
     border-radius: 4px;

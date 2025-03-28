@@ -1,4 +1,6 @@
 - [March, 2025] 0.9.72
+  - Default syntax highlighting theme changed to pastie for better readability
+  - Fixed display issues with code blocks in dark themes
   - Improved message editing: last message now moves to input area with role selected
   - Simplified message deletion with clearer options ("Delete this message and below")
   - Fixed copy functionality to avoid CSS artifacts

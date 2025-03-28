@@ -1,6 +1,49 @@
 # frozen_string_literal: true
 
 module StringUtils
+  # Custom theme wrapper that removes background colors
+  class DarkThemeFixer
+    # Theme background color mapping
+    THEME_BACKGROUNDS = {
+      "monokai" => "#272822",
+      "monokai_sublime" => "#272822",
+      "base16" => "#151515",
+      "gruvbox" => "#282828",
+      "molokai" => "#1b1d1e",
+      "colorful" => "#222222",
+      "tulip" => "#2d2d2d",
+      "thankful_eyes" => "#2a2a2a"
+    }
+    
+    def initialize(theme, theme_name)
+      @theme = theme
+      @theme_name = theme_name
+    end
+    
+    def render(scope: "")
+      # Get the original CSS
+      css = @theme.render(scope: scope)
+      
+      # Get appropriate background color for this theme (default to a dark gray if unknown)
+      bg_color = THEME_BACKGROUNDS[@theme_name] || "#282c34"
+      
+      # Preserve the theme's background color but make token backgrounds transparent
+      css += "\n/* Fix for dark theme backgrounds */\n"
+      
+      # Only add specific background if we have it in our mapping
+      if THEME_BACKGROUNDS.key?(@theme_name)
+        css += "\n#{scope} { background-color: #{bg_color} !important; }\n"
+      end
+      
+      # Ensure all tokens and code elements have transparent background while preserving foreground colors
+      css += <<~CSS
+        #{scope} span, #{scope} pre, #{scope} code, pre#{scope} code { background-color: transparent !important; }
+      CSS
+      
+      css
+    end
+  end
+
   module_function
 
   # language detection using CLD gem
@@ -94,7 +137,7 @@ module StringUtils
       "thankful_eyes" => "ThankfulEyes"
     }
 
-    theme_mode = CONFIG["ROUGE_THEME"] || "monokai:dark"
+    theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
 
     theme, mode = theme_mode.split(":")
     mode = mode || "dark"
@@ -111,8 +154,20 @@ module StringUtils
     end
 
 
+    # Setup formatter and determine if this is a dark theme
     formatter = Rouge::Formatters::HTML.new(css_class: "highlight", inline_theme: theme)
-    css = Rouge::Themes.const_get(theme_class).render(scope: ".highlight")
+    is_dark_theme = mode == "dark"
+    
+    # Get theme object and apply fixes for dark themes if needed
+    theme_obj = Rouge::Themes.const_get(theme_class)
+    if is_dark_theme
+      # Use our custom theme fixer for dark themes
+      wrapped_theme = StringUtils::DarkThemeFixer.new(theme_obj, theme)
+      css = wrapped_theme.render(scope: ".highlight")
+    else
+      # Normal theme rendering for light themes
+      css = theme_obj.render(scope: ".highlight")
+    end
 
     <<~HTML
     <style>

@@ -246,7 +246,7 @@ function attachEventListeners($card) {
     ttsStop();
   });
 
-  $card.on("click", ".func-copy", function () {
+  $card.on("click", ".func-copy", async function () {
     $(this).tooltip('hide');
     const $this = $(this);
     
@@ -279,17 +279,29 @@ function attachEventListeners($card) {
       text = contentClone.text();
     }
     
-    navigator.clipboard.writeText(text).then(function () {
-      $this.find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-      setTimeout(function () {
-        $this.find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+    try {
+      await navigator.clipboard.writeText(text);
+      
+      // Show success indicator
+      const icon = $this.find("i");
+      icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+      
+      // Return to normal state after delay
+      setTimeout(() => {
+        icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
       }, 1000);
-    }, function () {
-      $this.find("i").removeClass("fa-copy").addClass("fa-times").css("color", "#DC4C64");
-      setTimeout(function () {
-        $this.find("i").removeClass("fa-times").addClass("fa-copy").css("color", "");
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      
+      // Show error indicator
+      const icon = $this.find("i");
+      icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
+      
+      // Return to normal state after delay
+      setTimeout(() => {
+        icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
       }, 1000);
-    });
+    }
   });
 
   $card.on("click", ".func-edit", function () {

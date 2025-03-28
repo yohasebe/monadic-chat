@@ -69,14 +69,31 @@ function setCopyCodeButton(element) {
         highlighterElement.append(copyButton);
         
         // Add click event to the button
-        copyButton.click(function () {
-          const text = codeElement.text();
-          navigator.clipboard.writeText(text).then(function () {
-            copyButton.find("i").removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-            setTimeout(function () {
-              copyButton.find("i").removeClass("fa-check").addClass("fa-copy").css("color", "");
+        copyButton.click(async function () {
+          try {
+            const text = codeElement.text();
+            await navigator.clipboard.writeText(text);
+            
+            // Show success indicator
+            const icon = copyButton.find("i");
+            icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+            
+            // Return to normal state after delay
+            setTimeout(() => {
+              icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
             }, 1000);
-          });
+          } catch (err) {
+            console.error("Failed to copy text: ", err);
+            
+            // Show error indicator
+            const icon = copyButton.find("i");
+            icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
+            
+            // Return to normal state after delay
+            setTimeout(() => {
+              icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
+            }, 1000);
+          }
         });
       }
     }

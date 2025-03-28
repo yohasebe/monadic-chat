@@ -49,22 +49,24 @@ function audioInit() {
 }
 
 function ttsSpeak(text, stream, callback) {
-
+  // Get settings from UI
   const provider = $("#tts-provider").val();
   const voice = $("#tts-voice").val();
   const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
-  let mode = "TTS"
-
-  if(stream){
-    mode = "TTS_STREAM"
+  // Determine mode based on streaming flag
+  let mode = "TTS";
+  if(stream) {
+    mode = "TTS_STREAM";
   }
 
-  let response_format = "mp3"
+  let response_format = "mp3";
 
+  // Initialize audio
   audioInit();
 
+  // Early returns for invalid conditions
   if (runningOnFirefox) {
     return false;
   }
@@ -73,6 +75,7 @@ function ttsSpeak(text, stream, callback) {
     return;
   }
 
+  // Prepare voice data for sending
   const voiceData = {
     provider: provider,
     message: mode,
@@ -80,16 +83,23 @@ function ttsSpeak(text, stream, callback) {
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,
     response_format: response_format
-  }
+  };
 
-  // add speed if it is defined and it is not 1.0
+  // Add speed if it is defined and it is not 1.0
   if (speed && speed !== 1.0) {
     voiceData.speed = speed;
   }
 
+  // Send the request to the server
   ws.send(JSON.stringify(voiceData));
 
+  // Start playback (keeping the original behavior)
   audio.play();
+  
+  // Call the callback if provided
+  if (typeof callback === 'function') {
+    callback(true);
+  }
 }
 
 function ttsStop() {

@@ -83,6 +83,12 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
     </div>
     `);
 
+  // Check if this card already exists (could happen during refresh/updates)
+  if (mid !== "" && $(`#${mid}`).length > 0) {
+    // Remove existing card to avoid duplicates
+    $(`#${mid}`).remove();
+  }
+
   // Attach event listeners
   attachEventListeners(card);
 
@@ -94,11 +100,14 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   return card;
 }
 
-// Function to attach all event listeners
+// Function to attach all event listeners - uses namespaced events for easy cleanup
 function attachEventListeners($card) {
+  // First ensure we remove any existing listeners to prevent duplicates
+  detachEventListeners($card);
+  
   // Direct event handler for the delete button
   // This will intercept the click before it bubbles up to the card handler
-  $card.find(".func-delete").on("click", function(event) {
+  $card.find(".func-delete").on("click.cardEvent", function(event) {
     // Stop event propagation to prevent other handlers from firing
     event.stopPropagation();
     
@@ -201,7 +210,7 @@ function attachEventListeners($card) {
     }
   });
   
-  $card.on("click", ".func-play", function () {
+  $card.on("click.cardEvent", ".func-play", function () {
     $(this).tooltip('hide');
 
     $("#monadic-spinner").show();
@@ -240,13 +249,13 @@ function attachEventListeners($card) {
     ttsSpeak(text, true);
   });
 
-  $card.on("click", ".func-stop", function () {
+  $card.on("click.cardEvent", ".func-stop", function () {
     $(this).tooltip('hide');
     $("#monadic-spinner").hide();
     ttsStop();
   });
 
-  $card.on("click", ".func-copy", async function () {
+  $card.on("click.cardEvent", ".func-copy", async function () {
     $(this).tooltip('hide');
     const $this = $(this);
     
@@ -304,7 +313,7 @@ function attachEventListeners($card) {
     }
   });
 
-  $card.on("click", ".func-edit", function () {
+  $card.on("click.cardEvent", ".func-edit", function () {
     $(this).tooltip('hide');
     const $this = $(this);
     const mid = $card.attr('id');
@@ -469,6 +478,9 @@ window.deleteSystemMessage = function(mid, messageIndex) {
     return;
   }
   
+  // First detach event listeners to prevent memory leaks
+  detachEventListeners($card);
+  
   // Hide any tooltips
   $card.find(".tooltip").tooltip('hide');
   $('.tooltip').remove();
@@ -513,10 +525,18 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   // Hide any open tooltips
   $card.find(".tooltip").tooltip('hide');
   
+  // First detach event listeners from the current card
+  detachEventListeners($card);
+  
   // Delete all subsequent messages
   const subsequentMessages = messages.slice(messageIndex + 1);
   subsequentMessages.forEach((m) => {
-    $(`#${m.mid}`).remove();
+    const $subsequentCard = $(`#${m.mid}`);
+    // Detach event listeners before removal
+    if ($subsequentCard.length) {
+      detachEventListeners($subsequentCard);
+      $subsequentCard.remove();
+    }
     ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
     mids.delete(m.mid);
   });
@@ -545,6 +565,9 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     deleteSystemMessage(mid, messageIndex);
     return;
   }
+  
+  // Detach event listeners before doing anything else
+  detachEventListeners($card);
   
   // Check if message exists in the array
   if (messageIndex === -1 || !messages[messageIndex]) {
@@ -575,15 +598,30 @@ window.deleteMessageOnly = function(mid, messageIndex) {
 };
 
   // Combine mouse events into a single listener
-  $card.on("mouseenter", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
+  $card.on("mouseenter.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
     $(this).tooltip('show');
     const $icon = $(this).find("i");
     $icon.css("color", "#DC4C64");
   });
 
-  $card.on("mouseleave", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
+  $card.on("mouseleave.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
     $(this).tooltip('hide');
     const $icon = $(this).find("i");
     $icon.css("color", "");
   });
+}
+
+// Function to remove all event listeners - helps prevent memory leaks
+function detachEventListeners($card) {
+  // Remove all namespaced event listeners
+  if ($card && $card.length) {
+    // Remove card-level events
+    $card.off(".cardEvent");
+    
+    // Remove events from child elements
+    $card.find(".func-delete, .func-play, .func-stop, .func-copy, .func-edit").off(".cardEvent");
+    
+    // Remove any lingering tooltip effects
+    $card.find("[title]").tooltip("dispose");
+  }
 }

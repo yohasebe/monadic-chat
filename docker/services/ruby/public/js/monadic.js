@@ -828,17 +828,30 @@ $(function () {
         });
       });
       
-      // Wait for upload to complete
-      await uploadPromise;
+      // Wait for upload to complete and get the response
+      const response = await uploadPromise;
       
-      // Clean up UI
-      $("#file-spinner").hide();
-      $("#fileModal button").prop('disabled', false);
-      $("#fileModal").modal("hide");
-      
-      // Refresh PDF titles and show success message
-      ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-      setAlert("<i class='fa-solid fa-circle-check'></i> File uploaded successfully", "success");
+      // Process the response
+      if (response && response.success) {
+        // Clean up UI
+        $("#file-spinner").hide();
+        $("#fileModal button").prop('disabled', false);
+        $("#fileModal").modal("hide");
+        
+        // Refresh PDF titles and show success message
+        ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+        setAlert("<i class='fa-solid fa-circle-check'></i> File uploaded successfully", "success");
+      } else {
+        // Show error message from API
+        const errorMessage = response && response.error ? response.error : "Failed to process PDF";
+        
+        // Clean up UI
+        $("#file-spinner").hide();
+        $("#fileModal button").prop('disabled', false);
+        $("#fileModal").modal("hide");
+        
+        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+      }
       
     } catch (error) {
       console.error("Error uploading PDF:", error);
@@ -938,20 +951,34 @@ $(function () {
         });
       });
       
-      // Wait for the conversion to complete
-      const markdown = await convertPromise;
+      // Wait for the conversion to complete and get the response
+      const response = await convertPromise;
       
-      // Append the converted content to the message
-      const message = $("#message").val().replace(/\n+$/, "");
-      $("#message").val(`${message}\n\n${markdown}`);
-      autoResize(document.getElementById('message'), 100);
-      
-      // Clean up UI
-      $("#doc-spinner").hide();
-      $("#docModal button").prop('disabled', false);
-      $("#docModal").modal("hide");
-      $("#back_to_bottom").trigger("click");
-      $("#message").focus();
+      // Process the response
+      if (response && response.success) {
+        // Extract content and append it to the message
+        const content = response.content;
+        const message = $("#message").val().replace(/\n+$/, "");
+        $("#message").val(`${message}\n\n${content}`);
+        autoResize(document.getElementById('message'), 100);
+        
+        // Clean up UI
+        $("#doc-spinner").hide();
+        $("#docModal button").prop('disabled', false);
+        $("#docModal").modal("hide");
+        $("#back_to_bottom").trigger("click");
+        $("#message").focus();
+      } else {
+        // Show error message from API
+        const errorMessage = response && response.error ? response.error : "Failed to convert document";
+        
+        // Clean up UI
+        $("#doc-spinner").hide();
+        $("#docModal button").prop('disabled', false);
+        $("#docModal").modal("hide");
+        
+        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+      }
       
     } catch (error) {
       console.error("Error converting document:", error);
@@ -1045,20 +1072,34 @@ $(function () {
         });
       });
       
-      // Use Promise.race to handle potential timeouts
-      const markdown = await fetchPromise;
+      // Wait for the fetch to complete and get the response
+      const response = await fetchPromise;
       
-      // Append the fetched content to the message
-      const message = $("#message").val().replace(/\n+$/, "");
-      $("#message").val(`${message}\n\n${markdown}`);
-      autoResize(document.getElementById('message'), 100);
-      
-      // Clean up UI
-      $("#url-spinner").hide();
-      $("#urlModal button").prop('disabled', false);
-      $("#urlModal").modal("hide");
-      $("#back_to_bottom").trigger("click");
-      $("#message").focus();
+      // Process the response
+      if (response && response.success) {
+        // Extract content and append it to the message
+        const content = response.content;
+        const message = $("#message").val().replace(/\n+$/, "");
+        $("#message").val(`${message}\n\n${content}`);
+        autoResize(document.getElementById('message'), 100);
+        
+        // Clean up UI
+        $("#url-spinner").hide();
+        $("#urlModal button").prop('disabled', false);
+        $("#urlModal").modal("hide");
+        $("#back_to_bottom").trigger("click");
+        $("#message").focus();
+      } else {
+        // Show error message from API
+        const errorMessage = response && response.error ? response.error : "Failed to fetch webpage";
+        
+        // Clean up UI
+        $("#url-spinner").hide();
+        $("#urlModal button").prop('disabled', false);
+        $("#urlModal").modal("hide");
+        
+        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+      }
       
     } catch (error) {
       console.error("Error fetching webpage:", error);
@@ -1224,19 +1265,36 @@ $(function () {
         });
       });
       
-      // Wait for the import to complete
-      await importPromise;
+      // Wait for the import to complete and get the response
+      const response = await importPromise;
       
-      // Clean up UI after successful import
-      $("#loadModal").modal("hide");
-      setAlert("<i class='fa-solid fa-circle-check'></i> Session imported successfully", "success");
+      // Process the response
+      if (response && response.success) {
+        // Clean up UI after successful import
+        $("#loadModal").modal("hide");
+        setAlert("<i class='fa-solid fa-circle-check'></i> Session imported successfully", "success");
+        
+        // Force reload page to load the imported session
+        window.location.reload();
+      } else {
+        // Show error message from API
+        const errorMessage = response && response.error ? response.error : "Unknown error occurred";
+        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+        
+        // Keep modal open to allow another attempt
+        $("#loadModal button").prop("disabled", false);
+        $("#load-spinner").hide();
+      }
       
     } catch (error) {
       console.error("Error importing session:", error);
       
       // Show error message
       const errorMessage = error.statusText || error.message || "Unknown error";
-      setAlert(`Error importing session: ${errorMessage}`, "error");
+      setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> Error importing session: ${errorMessage}`, "error");
+      
+      // Hide modal since there was an AJAX error
+      $("#loadModal").modal("hide");
       
     } finally {
       // Always clean up UI elements
@@ -1267,10 +1325,26 @@ $(function () {
     }
   });
 
+  // Initialize tooltips with better configuration
   $("#discourse").tooltip({
     selector: '.card-header [title]',
     delay: { show: 0, hide: 0 },
-    show: 100
+    show: 100,
+    container: 'body' // Place tooltips in body for easier management
+  });
+
+  // Add global function to clean up all tooltips
+  window.cleanupAllTooltips = function() {
+    $('.tooltip').remove(); // Directly remove all tooltip elements
+    $('[data-bs-original-title]').tooltip('dispose'); // Bootstrap 5
+    $('[data-original-title]').tooltip('dispose'); // Bootstrap 4
+  };
+
+  // Remove tooltips when clicking anywhere in the document
+  $(document).on('click', function(e) {
+    if (!$(e.target).closest('.func-play, .func-stop, .func-copy, .func-delete, .func-edit').length) {
+      cleanupAllTooltips();
+    }
   });
 
   $("#message").on("keydown", function (event) {

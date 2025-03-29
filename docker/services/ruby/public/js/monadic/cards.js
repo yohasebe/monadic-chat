@@ -160,65 +160,51 @@ function attachEventListeners($card) {
       return;
     }
     
-    // For system messages that might not be in the messages array
+    // For system messages, use direct deletion without confirmation
     if ($parentCard.find(".role-system").length > 0) {
-      // Get message text for the modal
-      const systemText = $parentCard.find(".card-text").text().substring(0, 100) + 
-                        ($parentCard.find(".card-text").text().length > 100 ? "..." : "");
-      
-      // Store card data and any additional info needed for deletion
-      $("#deleteConfirmation").data({
-        "mid": mid,
-        "messageIndex": messageIndex, 
-        "isSystemMessage": true,
-        "cardSelector": `#${mid}` // Store selector for later use
-      });
-      
-      // Update modal contents
-      $("#messageToDelete").text(systemText);
-      
-      // Show the confirmation modal
-      $("#deleteConfirmation").modal("show");
+      deleteSystemMessage(mid, messageIndex);
       return;
     }
     
-    // For regular messages, show the delete modal
+    // For regular messages, check if it's in the messages array
     if (messageIndex !== -1) {
       // Check if this is the last message in the conversation
       const isLastMessage = messageIndex === messages.length - 1;
-      const currentMessage = messages[messageIndex];
       
+      // For the last message in the conversation, directly delete it
+      if (isLastMessage) {
+        deleteMessageOnly(mid, messageIndex);
+        return;
+      }
+      
+      // For messages in the middle of a conversation, show simple delete options
       // Store card data
       $("#deleteConfirmation").data({
         "mid": mid,
         "messageIndex": messageIndex
       });
       
-      // Update modal contents
-      const text = currentMessage.text || "";
-      const truncatedText = text.length > 100 ? text.substring(0, 100) + "..." : text;
-      $("#messageToDelete").text(truncatedText);
-      
-      // For the last message in the conversation that is an assistant or system message,
-      // hide the "Delete this and all subsequent messages" button
-      if (isLastMessage && (currentMessage.role === "assistant" || currentMessage.role === "system")) {
-        $("#deleteMessageAndSubsequent").hide();
-      } else {
-        $("#deleteMessageAndSubsequent").show();
-      }
-      
-      // Show the modal
+      // Show the modal with simplified options
       $("#deleteConfirmation").modal("show");
     } else {
       // If no message found, just delete the card
       $parentCard.remove();
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
       mids.delete(mid);
+      
+      // Add explicit visual feedback for the user
+      setAlert("<i class='fas fa-circle-check'></i> Message deleted", "success");
     }
   });
   
   $card.on("click.cardEvent", ".func-play", function () {
-    $(this).tooltip('hide');
+    // Use the more robust tooltip cleanup method
+    if (typeof cleanupAllTooltips === 'function') {
+      cleanupAllTooltips();
+    } else {
+      $(this).tooltip('hide');
+      $('.tooltip').remove();
+    }
 
     $("#monadic-spinner").show();
 
@@ -257,13 +243,27 @@ function attachEventListeners($card) {
   });
 
   $card.on("click.cardEvent", ".func-stop", function () {
-    $(this).tooltip('hide');
+    // Use the more robust tooltip cleanup method
+    if (typeof cleanupAllTooltips === 'function') {
+      cleanupAllTooltips();
+    } else {
+      $(this).tooltip('hide');
+      $('.tooltip').remove();
+    }
+    
     $("#monadic-spinner").hide();
     ttsStop();
   });
 
   $card.on("click.cardEvent", ".func-copy", async function () {
-    $(this).tooltip('hide');
+    // Use the more robust tooltip cleanup method
+    if (typeof cleanupAllTooltips === 'function') {
+      cleanupAllTooltips();
+    } else {
+      $(this).tooltip('hide');
+      $('.tooltip').remove();
+    }
+    
     const $this = $(this);
     
     // Get the message ID from the card
@@ -321,7 +321,14 @@ function attachEventListeners($card) {
   });
 
   $card.on("click.cardEvent", ".func-edit", function () {
-    $(this).tooltip('hide');
+    // Use the more robust tooltip cleanup method
+    if (typeof cleanupAllTooltips === 'function') {
+      cleanupAllTooltips();
+    } else {
+      $(this).tooltip('hide');
+      $('.tooltip').remove();
+    }
+    
     const $this = $(this);
     const mid = $card.attr('id');
     const messageIndex = messages.findIndex((m) => m.mid === mid);
@@ -534,9 +541,14 @@ window.deleteSystemMessage = function(mid, messageIndex) {
   // First detach event listeners to prevent memory leaks
   detachEventListeners($card);
   
-  // Hide any tooltips
-  $card.find(".tooltip").tooltip('hide');
-  $('.tooltip').remove();
+  // Properly clean up all tooltips to prevent orphaned tooltip elements
+  if (typeof cleanupAllTooltips === 'function') {
+    cleanupAllTooltips();
+  } else {
+    // Fallback cleanup method if global function isn't available
+    $card.find("[title]").tooltip('hide').tooltip('dispose');
+    $('.tooltip').remove();
+  }
   
   // Immediately detach from DOM (visually removes it)
   $card.detach();
@@ -582,8 +594,14 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   }
   
   // Regular message handling continues...
-  // Hide any open tooltips
-  $card.find(".tooltip").tooltip('hide');
+  // Properly clean up all tooltips to prevent orphaned tooltip elements
+  if (typeof cleanupAllTooltips === 'function') {
+    cleanupAllTooltips();
+  } else {
+    // Fallback cleanup method if global function isn't available
+    $card.find("[title]").tooltip('hide').tooltip('dispose');
+    $('.tooltip').remove();
+  }
   
   // First detach event listeners from the current card
   detachEventListeners($card);
@@ -616,8 +634,14 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     return;
   }
   
-  // Hide any open tooltips
-  $card.find(".tooltip").tooltip('hide');
+  // Properly clean up all tooltips to prevent orphaned tooltip elements
+  if (typeof cleanupAllTooltips === 'function') {
+    cleanupAllTooltips();
+  } else {
+    // Fallback cleanup method if global function isn't available
+    $card.find("[title]").tooltip('hide').tooltip('dispose');
+    $('.tooltip').remove();
+  }
   
   // Special case: handle system role messages with our specialized function
   if ($card.find(".role-system").length > 0) {
@@ -645,17 +669,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     return;
   }
   
-  // Show a confirmation dialog with clear warning
-  const confirmDeletion = confirm(
-    "Warning: Deleting just this message may break the role alternation pattern " +
-    "(user → assistant → user → assistant) required by some models, " +
-    "which could cause API errors.\n\n" +
-    "Are you sure you want to delete only this message?"
-  );
-  
-  if (!confirmDeletion) {
-    return;
-  }
+  // Remove the extra confirmation dialog to simplify the deletion process
   
   // Remove just this message, preserving subsequent messages
   messages.splice(messageIndex, 1);
@@ -781,6 +795,20 @@ function detachEventListeners($card) {
     $card.find(".card-text").removeData('originalContent');
     
     // Remove any lingering tooltip effects
-    $card.find("[title]").tooltip("dispose");
+    try {
+      // Use the global cleanup function if available
+      if (typeof cleanupAllTooltips === 'function') {
+        cleanupAllTooltips();
+      } else {
+        // Otherwise use a more aggressive approach
+        $card.find("[title]").tooltip("dispose");
+        $('[data-bs-original-title]').tooltip('dispose');
+        $('[data-original-title]').tooltip('dispose');
+        $('.tooltip').remove();
+      }
+    } catch (e) {
+      // If there's an error in tooltip disposal, force remove all tooltips
+      $('.tooltip').remove();
+    }
   }
 }

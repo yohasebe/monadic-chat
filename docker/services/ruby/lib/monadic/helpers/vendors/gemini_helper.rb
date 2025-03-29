@@ -498,9 +498,15 @@ module GeminiHelper
     end
 
     result = []
-    if texts.empty? 
-      # result << "\n\nNo response from the AI agent."
-      finish_reason = nil
+    
+    # Special handling for tool calls - don't show an error message yet if we have tool calls
+    # because we might get a response after processing the function calls
+    if texts.empty? && !tool_calls.any?
+      # Only show error message when no text AND no tool calls
+      result << "No response was received from the model. This might be due to a processing issue."
+      res = { "type" => "fragment", "content" => "No response received from model" }
+      block&.call res
+      finish_reason = "error"
     else 
       result = texts
     end
@@ -525,15 +531,72 @@ module GeminiHelper
 
       if result && new_results
         begin
-          result = result.join("").strip + "\n\n" + new_results.dig(0, "choices", 0, "message", "content").strip
-        rescue StandardError
-          result = result.join("").strip + "\n\n" + new_results.to_s.strip
+          # More robust handling of different response structures
+          if new_results.is_a?(Array) && new_results[0].is_a?(Hash) && new_results[0]["choices"]
+            tool_result_content = new_results.dig(0, "choices", 0, "message", "content").to_s.strip
+          else
+            tool_result_content = new_results.to_s.strip
+          end
+          
+          # If no actual content was returned from the function call, add a notice
+          if tool_result_content.empty?
+            tool_result_content = "[No additional content received from function call]"
+          end
+          
+          # Clean up any "No response" messages that might be in the results
+          if result.is_a?(Array) && result.length == 1 && 
+             result[0].to_s.include?("No response was received")
+            # Replace error message with actual content
+            result = []
+          end
+          
+          final_result = result.join("").strip
+          
+          # If we have both initial text and function results, combine them
+          if !final_result.empty? && !tool_result_content.empty?
+            final_result += "\n\n" + tool_result_content
+          # If we only have function results, use those
+          elsif final_result.empty? && !tool_result_content.empty?
+            final_result = tool_result_content
+          # If we have nothing, provide a fallback message
+          elsif final_result.empty? && tool_result_content.empty?
+            final_result = "Function was called but no content was returned."
+          end
+          
+          # Notification of function call completion has been removed
+          
+          [{ "choices" => [{ "message" => { "content" => final_result } }] }]
+        rescue StandardError => e
+          # Log the error and send a more informative message
+          pp "Error processing function results: #{e.message}"
+          result_text = result.join("").strip
+          
+          # Clean up any "No response" messages that might be in the results
+          if result_text.include?("No response was received")
+            result_text = ""
+          end
+          
+          error_message = "[Error processing function results: #{e.message}]"
+          final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
+          
+          [{ "choices" => [{ "message" => { "content" => final_result } }] }]
         end
-        [{ "choices" => [{ "message" => { "content" => result } }] }]
       elsif new_results
+        # Notification of function call completion has been removed
         new_results
       elsif result
-        [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
+        # Don't return error messages if they were generated due to initial empty response
+        # that was followed by function calls
+        if result.is_a?(Array) && result.length == 1 && 
+           result[0].to_s.include?("No response was received") && tool_calls.any?
+          # Return empty result instead of error message
+          [{ "choices" => [{ "message" => { "content" => "" } }] }]
+        else
+          [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
+        end
+      else
+        # Ensure we always return something meaningful
+        [{ "choices" => [{ "message" => { "content" => "No response was received from the model or function calls." } }] }]
       end
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
@@ -591,29 +654,41 @@ module GeminiHelper
           }
         else
           # Error handling
-          tool_results << {
+          error_message = "ERROR: Function (#{function_name}) called with #{argument_hash} returned nil."
+        tool_results << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
                 "name" => function_name,
-                "content" => "ERROR: Function (#{function_name}) called with #{argument_hash} returned nil."
+                "content" => error_message
               }
             }
           }
+        # Send error message to client for better visibility
+        res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>" }
+        block&.call res
         end
       rescue StandardError => e
         pp "ERROR: Function call failed: #{function_name}"
         pp e.message
         pp e.backtrace
-        context << {
+        
+        error_message = "ERROR: Function call failed: #{function_name}. #{e.message}"
+        
+        # Add error to tool_results (not context) to ensure it's properly processed
+        tool_results << {
           "functionResponse" => {
             "name" => function_name,
             "response" => {
               "name" => function_name,
-              "content" => "ERROR: Function call failed: #{function_name}. #{e.message}"
+              "content" => error_message
             }
           }
         }
+        
+        # Send error message to client for better visibility
+        res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>" }
+        block&.call res
       end
     end
 

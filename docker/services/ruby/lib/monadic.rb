@@ -459,148 +459,373 @@ end
 
 # Upload a Session JSON file to load past messages
 post "/load" do
-  if params[:file]
-    begin
-      file = params[:file][:tempfile]
-      content = file.read
-      json_data = JSON.parse(content)
-      session[:status] = "loaded"
-      session[:parameters] = json_data["parameters"]
-
-      # Check if the first message is a system message
-      if json_data["messages"].first && json_data["messages"].first["role"] == "system"
-        session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
-      end
-
-      session[:messages] = json_data["messages"].uniq.map do |msg|
-        if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant"
-          text = msg["text"]
-          html = APPS[json_data["parameters"]["app_name"]].monadic_html(msg["text"])
-        else
-          text = msg["text"]
-          html = text
+  # For AJAX requests, respond with JSON
+  if request.xhr?
+    content_type :json
+    
+    if params[:file]
+      begin
+        file = params[:file][:tempfile]
+        content = file.read
+        json_data = JSON.parse(content)
+        
+        # Validate required fields
+        unless json_data["parameters"] && json_data["messages"]
+          return { success: false, error: "Invalid format: missing parameters or messages" }.to_json
         end
-        message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
-        message_obj["thinking"] = msg["thinking"] if msg["thinking"]
-        message_obj["images"] = msg["images"] if msg["images"]
-        message_obj
+        
+        # Set session data
+        session[:status] = "loaded"
+        session[:parameters] = json_data["parameters"]
+
+        # Check if the first message is a system message
+        if json_data["messages"].first && json_data["messages"].first["role"] == "system"
+          session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
+        end
+
+        # Process messages
+        app_name = json_data["parameters"]["app_name"]
+        session[:messages] = json_data["messages"].uniq.map do |msg|
+          # Skip invalid messages
+          next unless msg["role"] && msg["text"]
+          
+          text = msg["text"]
+          
+          # Handle HTML conversion based on role and settings
+          if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant" && APPS[app_name]
+            begin
+              html = APPS[app_name].monadic_html(text)
+            rescue => e
+              # Fallback to standard markdown if monadic_html fails
+              html = markdown_to_html(text)
+            end
+          elsif msg["role"] == "assistant"
+            html = markdown_to_html(text)
+          else
+            html = text
+          end
+          
+          # Create message object with required fields
+          mid = msg["mid"] || SecureRandom.hex(4)
+          message_obj = { 
+            "role" => msg["role"], 
+            "text" => text, 
+            "html" => html, 
+            "lang" => detect_language(text), 
+            "mid" => mid, 
+            "active" => true 
+          }
+          
+          # Add optional fields if present
+          message_obj["thinking"] = msg["thinking"] if msg["thinking"]
+          message_obj["images"] = msg["images"] if msg["images"]
+          message_obj
+        end.compact # Remove nil values from invalid messages
+        
+        { success: true }.to_json
+      rescue JSON::ParserError => e
+        { success: false, error: "Invalid JSON format" }.to_json
+      rescue => e
+        { success: false, error: "Import error: #{e.message}" }.to_json
       end
-    rescue JSON::ParserError
-      handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
+    else
+      { success: false, error: "No file selected" }.to_json
     end
   else
-    handle_error("Error: No file selected. Please choose a JSON file to upload.")
+    # For regular form submissions, maintain original behavior
+    if params[:file]
+      begin
+        file = params[:file][:tempfile]
+        content = file.read
+        json_data = JSON.parse(content)
+        session[:status] = "loaded"
+        session[:parameters] = json_data["parameters"]
+
+        # Check if the first message is a system message
+        if json_data["messages"].first && json_data["messages"].first["role"] == "system"
+          session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
+        end
+
+        session[:messages] = json_data["messages"].uniq.map do |msg|
+          if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant"
+            text = msg["text"]
+            html = APPS[json_data["parameters"]["app_name"]].monadic_html(msg["text"])
+          else
+            text = msg["text"]
+            html = text
+          end
+          message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+          message_obj["thinking"] = msg["thinking"] if msg["thinking"]
+          message_obj["images"] = msg["images"] if msg["images"]
+          message_obj
+        end
+      rescue JSON::ParserError
+        handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
+      end
+    else
+      handle_error("Error: No file selected. Please choose a JSON file to upload.")
+    end
+    redirect "/"
   end
-  redirect "/"
 end
 
 # Convert a document file to text
 post "/document" do
-  if params["docFile"]
-    doc_file_handler = params["docFile"]["tempfile"]
-    # name the file based on datetime if no title is provided
-    doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-    # get filename from the file handler
-    filename = params["docFile"]["filename"]
+  # For AJAX requests, respond with JSON
+  if request.xhr?
+    content_type :json
+    
+    if params["docFile"]
+      begin
+        doc_file_handler = params["docFile"]["tempfile"]
+        # name the file based on datetime if no title is provided
+        doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+        # get filename from the file handler
+        filename = params["docFile"]["filename"]
 
-    user_data_dir = if IN_CONTAINER
-                      "/monadic/data"
-                    else
-                      Dir.home + "/monadic/data"
-                    end
+        user_data_dir = if IN_CONTAINER
+                          "/monadic/data"
+                        else
+                          Dir.home + "/monadic/data"
+                        end
 
-    # Copy the file to user data directory
-    doc_file_path = File.join(user_data_dir, filename)
-    File.open(doc_file_path, "wb") do |f|
-      f.write(doc_file_handler.read)
-    end
+        # Copy the file to user data directory
+        doc_file_path = File.join(user_data_dir, filename)
+        File.open(doc_file_path, "wb") do |f|
+          f.write(doc_file_handler.read)
+        end
 
-    utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-    doc_file_handler.close
+        utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
+        doc_file_handler.close
 
-    markdown = MonadicApp.doc2markdown(utf8_filename)
+        markdown = MonadicApp.doc2markdown(utf8_filename)
+        
+        # Check if we got any meaningful content
+        if markdown.to_s.strip.empty?
+          return { success: false, error: "No content could be extracted from the document" }.to_json
+        end
 
-    doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
-    if doc_label.to_s != ""
-      "\n---\n" + doc_label + "\n---\n" + doc_text
+        doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
+        result = if doc_label.to_s != ""
+                  "\n---\n" + doc_label + "\n---\n" + doc_text
+                else
+                  "\n---\n" + doc_text
+                end
+        
+        { success: true, content: result }.to_json
+      rescue => e
+        { success: false, error: "Error processing document: #{e.message}" }.to_json
+      end
     else
-      "\n---\n" + doc_text
+      { success: false, error: "No file selected. Please choose a document file to convert." }.to_json
     end
   else
-    session[:error] = "Error: No file selected. Please choose a document file to convert."
+    # For regular form submissions, maintain original behavior
+    if params["docFile"]
+      doc_file_handler = params["docFile"]["tempfile"]
+      # name the file based on datetime if no title is provided
+      doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+      # get filename from the file handler
+      filename = params["docFile"]["filename"]
+
+      user_data_dir = if IN_CONTAINER
+                        "/monadic/data"
+                      else
+                        Dir.home + "/monadic/data"
+                      end
+
+      # Copy the file to user data directory
+      doc_file_path = File.join(user_data_dir, filename)
+      File.open(doc_file_path, "wb") do |f|
+        f.write(doc_file_handler.read)
+      end
+
+      utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
+      doc_file_handler.close
+
+      markdown = MonadicApp.doc2markdown(utf8_filename)
+
+      doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
+      if doc_label.to_s != ""
+        "\n---\n" + doc_label + "\n---\n" + doc_text
+      else
+        "\n---\n" + doc_text
+      end
+    else
+      session[:error] = "Error: No file selected. Please choose a document file to convert."
+    end
   end
 end
 
 
 # Fetch the webpage content
 post "/fetch_webpage" do
-  if params["pageURL"]
-    url = params["pageURL"]
-    url_decoded = CGI.unescape(url)
-    label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+  # For AJAX requests, respond with JSON
+  if request.xhr?
+    content_type :json
+    
+    if params["pageURL"]
+      begin
+        url = params["pageURL"]
+        url_decoded = CGI.unescape(url)
+        label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-    user_data_dir = if IN_CONTAINER
-                      "/monadic/data"
-                    else
-                      Dir.home + "/monadic/data"
-                    end
+        user_data_dir = if IN_CONTAINER
+                          "/monadic/data"
+                        else
+                          Dir.home + "/monadic/data"
+                        end
 
-    tavily_api_key = CONFIG["TAVILY_API_key"]
-    if tavily_api_key
-      markdown = tavily_fetch(url: url)
+        tavily_api_key = CONFIG["TAVILY_API_key"]
+        if tavily_api_key
+          markdown = tavily_fetch(url: url)
+        else
+          markdown = MonadicApp.fetch_webpage(url)
+        end
+        
+        # Check if we got any meaningful content
+        if markdown.to_s.strip.empty?
+          return { success: false, error: "No content could be extracted from the webpage" }.to_json
+        end
+
+        webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
+        result = if label.to_s != ""
+                  "---\n" + label + "\n---\n" + webpage_text
+                else
+                  "---\n" + webpage_text
+                end
+        
+        { success: true, content: result }.to_json
+      rescue => e
+        { success: false, error: "Error fetching webpage: #{e.message}" }.to_json
+      end
     else
-      markdown = MonadicApp.fetch_webpage(url)
-    end
-
-    webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
-    if label.to_s != ""
-      "---\n" + label + "\n---\n" + webpage_text
-    else
-      "---\n" + webpage_text
+      { success: false, error: "No URL provided" }.to_json
     end
   else
-    session[:error] = "Error: No file selected. Please choose a document file to convert."
+    # For regular form submissions, maintain original behavior
+    if params["pageURL"]
+      url = params["pageURL"]
+      url_decoded = CGI.unescape(url)
+      label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+
+      user_data_dir = if IN_CONTAINER
+                        "/monadic/data"
+                      else
+                        Dir.home + "/monadic/data"
+                      end
+
+      tavily_api_key = CONFIG["TAVILY_API_key"]
+      if tavily_api_key
+        markdown = tavily_fetch(url: url)
+      else
+        markdown = MonadicApp.fetch_webpage(url)
+      end
+
+      webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
+      if label.to_s != ""
+        "---\n" + label + "\n---\n" + webpage_text
+      else
+        "---\n" + webpage_text
+      end
+    else
+      session[:error] = "Error: No URL provided"
+    end
   end
 end
 
 # Upload a PDF file
 post "/pdf" do
-  if params["pdfFile"]
-    pdf_file_handler = params["pdfFile"]["tempfile"]
-    temp_file = Tempfile.new("temp_pdf")
-    temp_file.binmode
-    temp_file.write(pdf_file_handler.read)
-    temp_file.rewind
+  # For AJAX requests, respond with JSON
+  if request.xhr?
+    content_type :json
+    
+    if params["pdfFile"]
+      begin
+        pdf_file_handler = params["pdfFile"]["tempfile"]
+        temp_file = Tempfile.new("temp_pdf")
+        temp_file.binmode
+        temp_file.write(pdf_file_handler.read)
+        temp_file.rewind
 
-    # Close the original file handler
-    pdf_file_handler.close
+        # Close the original file handler
+        pdf_file_handler.close
 
-    pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
-    pdf.extract
+        pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
+        pdf.extract
 
-    # Close and delete the temporary file
-    temp_file.close
-    temp_file.unlink
+        # Close and delete the temporary file
+        temp_file.close
+        temp_file.unlink
 
-    doc_data = { items: 0, metadata: {} }
-    items_data = []
+        doc_data = { items: 0, metadata: {} }
+        items_data = []
 
-    pdf.split_text.each do |i|
-      title = if params["pdfTitle"].to_s != ""
-                params["pdfTitle"]
-              else
-                params["pdfFile"]["filename"]
-              end
+        # Check if text was extracted successfully
+        if pdf.split_text.empty?
+          return { success: false, error: "No text could be extracted from the PDF file" }.to_json
+        end
 
-      doc_data[:title] = title
-      doc_data[:items] += 1
+        pdf.split_text.each do |i|
+          title = if params["pdfTitle"].to_s != ""
+                    params["pdfTitle"]
+                  else
+                    params["pdfFile"]["filename"]
+                  end
 
-      items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
+          doc_data[:title] = title
+          doc_data[:items] += 1
+
+          items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
+        end
+        
+        EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
+        return { success: true, filename: params["pdfFile"]["filename"] }.to_json
+      rescue => e
+        return { success: false, error: "Error processing PDF: #{e.message}" }.to_json
+      end
+    else
+      return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json
     end
-    EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
-    return params["pdfFile"]["filename"]
   else
-    session[:error] = "Error: No file selected. Please choose a PDF file to upload."
+    # For regular form submissions, maintain original behavior
+    if params["pdfFile"]
+      pdf_file_handler = params["pdfFile"]["tempfile"]
+      temp_file = Tempfile.new("temp_pdf")
+      temp_file.binmode
+      temp_file.write(pdf_file_handler.read)
+      temp_file.rewind
+
+      # Close the original file handler
+      pdf_file_handler.close
+
+      pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
+      pdf.extract
+
+      # Close and delete the temporary file
+      temp_file.close
+      temp_file.unlink
+
+      doc_data = { items: 0, metadata: {} }
+      items_data = []
+
+      pdf.split_text.each do |i|
+        title = if params["pdfTitle"].to_s != ""
+                  params["pdfTitle"]
+                else
+                  params["pdfFile"]["filename"]
+                end
+
+        doc_data[:title] = title
+        doc_data[:items] += 1
+
+        items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
+      end
+      EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
+      return params["pdfFile"]["filename"]
+    else
+      session[:error] = "Error: No file selected. Please choose a PDF file to upload."
+    end
   end
 end
 

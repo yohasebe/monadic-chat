@@ -3,7 +3,7 @@
 require "dotenv/load"
 require "pg"
 require_relative "./spec_helper"
-require_relative "../lib/embeddings/text_embeddings"
+require_relative "../lib/monadic/utils/text_embeddings"
 
 API_KEY = ENV["OPENAI_API_KEY"]
 IN_CONTAINER = false
@@ -21,8 +21,18 @@ RSpec.describe "get_embeddings" do
     context "when given valid input text" do
       it "returns a non-empty text embedding" do
         text = "This is a test sentence."
-        expect(API_KEY).not_to be_nil
-        embedding = @text_db.get_embeddings(text, api_key: API_KEY)
+        
+        # Mock the HTTP response
+        mock_response = double('response')
+        allow(mock_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+        allow(mock_response).to receive(:body).and_return(
+          { data: [{ embedding: Array.new(1536) { rand } }] }.to_json
+        )
+        
+        # Mock the HTTP request
+        allow(Net::HTTP).to receive(:start).and_return(mock_response)
+        
+        embedding = @text_db.get_embeddings(text)
         expect(embedding).to be_a(Array)
         expect(embedding).not_to be_empty
       end
@@ -30,7 +40,7 @@ RSpec.describe "get_embeddings" do
 
     context "when given empty input text" do
       it "raises an error" do
-        expect { @text_db.get_embeddings("") }.to raise_error(StandardError)
+        expect { @text_db.get_embeddings("") }.to raise_error(ArgumentError)
       end
     end
 

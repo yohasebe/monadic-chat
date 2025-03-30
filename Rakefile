@@ -551,37 +551,63 @@ namespace :release do
         updated_content = content.dup
         
         # Update macOS ARM64 URL
-        updated_content = updated_content.gsub(/\/Monadic%20Chat-latest-arm64\.dmg/, "/Monadic%20Chat-#{version}-arm64.dmg")
+        updated_content = updated_content.gsub(/\/Monadic%20Chat-[^\/]+-arm64\.dmg/, "/Monadic%20Chat-#{version}-arm64.dmg")
         
         # Update macOS x64 URL
-        updated_content = updated_content.gsub(/\/Monadic%20Chat-latest\.dmg/, "/Monadic%20Chat-#{version}.dmg")
+        updated_content = updated_content.gsub(/\/Monadic%20Chat-[^-][^\/]*\.dmg/, "/Monadic%20Chat-#{version}.dmg")
         
         # Update Windows URL
-        updated_content = updated_content.gsub(/\/Monadic%20Chat%20Setup%20latest\.exe/, "/Monadic%20Chat%20Setup%20#{version}.exe")
+        updated_content = updated_content.gsub(/\/Monadic%20Chat%20Setup%20[^\/]*\.exe/, "/Monadic%20Chat%20Setup%20#{version}.exe")
         
         # Update Linux x64 URL
-        updated_content = updated_content.gsub(/\/monadic-chat_latest_amd64\.deb/, "/monadic-chat_#{version}_amd64.deb")
+        updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_amd64\.deb/, "/monadic-chat_#{version}_amd64.deb")
         
         # Update Linux arm64 URL
-        updated_content = updated_content.gsub(/\/monadic-chat_latest_arm64\.deb/, "/monadic-chat_#{version}_arm64.deb")
+        updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_arm64\.deb/, "/monadic-chat_#{version}_arm64.deb")
         
         # Update version notes in documentation
         if install_doc.include?('/ja/')
-          # Japanese documentation
-          updated_content = updated_content.gsub(/\*\[GitHub.*?\)\で、すべての利用可能なバージョンを確認することもできます。\*/, 
-            "*バージョン #{version}。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*")
+          # Japanese documentation - more flexible pattern matching
+          if updated_content =~ /\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/
+            updated_content = updated_content.gsub(/\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/, 
+              "*バージョン #{version}。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*")
+          else
+            # If no version text is found, log warning
+            puts "Warning: Could not find version text pattern in Japanese documentation"
+          end
         else
-          # English documentation
-          updated_content = updated_content.gsub(/\*You can also visit the \[GitHub.*?\) to see all available versions.\*/, 
-            "*Version #{version}. You can also visit the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest) to see other versions.*")
+          # English documentation - more flexible pattern matching
+          if updated_content =~ /\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/
+            updated_content = updated_content.gsub(/\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/, 
+              "*Version #{version}. You can also visit the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest) to see other versions.*")
+          else
+            # If no version text is found, log warning
+            puts "Warning: Could not find version text pattern in English documentation"
+          end
         end
         
-        # Only write back if something changed
+        # Check if content actually changed
         if updated_content != content
           puts "Updating download links in #{install_doc} to version #{version}"
           File.write(install_doc, updated_content)
+          
+          # Verify that the changes were applied correctly
+          verification_content = File.read(install_doc)
+          
+          # Check for specific version in the updated file
+          if verification_content.include?(version)
+            puts "✓ Successfully updated version references in #{install_doc}"
+          else
+            puts "⚠ Warning: Updated file doesn't contain version #{version}. Changes may not have been applied correctly."
+          end
         else
-          puts "No updates needed for #{install_doc}"
+          # Check if file already contains the current version
+          if content.include?(version)
+            puts "No updates needed for #{install_doc} (already contains version #{version})"
+          else
+            puts "⚠ Warning: No changes were made to #{install_doc}, but it doesn't contain version #{version}"
+            puts "   This might indicate that URL patterns were not matched correctly."
+          end
         end
       else
         puts "Warning: Installation documentation file not found: #{install_doc}"

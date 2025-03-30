@@ -11,5 +11,14 @@ module.exports = {
   transform: {},
   testPathIgnorePatterns: ['/node_modules/'],
   setupFilesAfterEnv: ['./test/setup.js'],
-  moduleDirectories: ['node_modules', 'docker/services/ruby/public/js']
+  moduleDirectories: ['node_modules', 'docker/services/ruby/public/js'],
+  moduleNameMapper: {
+    // Improve module resolution for client-side JS
+    '^monadic/(.*)$': '<rootDir>/docker/services/ruby/public/js/monadic/$1',
+    '^monadic$': '<rootDir>/docker/services/ruby/public/js/monadic.js'
+  },
+  // Enable source map support for better stack traces
+  globals: {
+    '__DEV__': true
+  }
 };

@@ -545,73 +545,78 @@ namespace :release do
     puts "Total assets for release: #{release_assets.length}"
     
     # Update installation documentation with the current version number
-    ["./docs/getting-started/installation.md", "./docs/ja/getting-started/installation.md"].each do |install_doc|
-      if File.exist?(install_doc)
-        content = File.read(install_doc)
-        updated_content = content.dup
-        
-        # Update macOS ARM64 URL
-        updated_content = updated_content.gsub(/\/Monadic%20Chat-[^\/]+-arm64\.dmg/, "/Monadic%20Chat-#{version}-arm64.dmg")
-        
-        # Update macOS x64 URL
-        updated_content = updated_content.gsub(/\/Monadic%20Chat-[^-][^\/]*\.dmg/, "/Monadic%20Chat-#{version}.dmg")
-        
-        # Update Windows URL
-        updated_content = updated_content.gsub(/\/Monadic%20Chat%20Setup%20[^\/]*\.exe/, "/Monadic%20Chat%20Setup%20#{version}.exe")
-        
-        # Update Linux x64 URL
-        updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_amd64\.deb/, "/monadic-chat_#{version}_amd64.deb")
-        
-        # Update Linux arm64 URL
-        updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_arm64\.deb/, "/monadic-chat_#{version}_arm64.deb")
-        
-        # Update version notes in documentation
-        if install_doc.include?('/ja/')
-          # Japanese documentation - more flexible pattern matching
-          if updated_content =~ /\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/
-            updated_content = updated_content.gsub(/\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/, 
-              "*バージョン #{version}。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*")
+    # Skip documentation updates if NO_DOC_UPDATE is set to true
+    unless ENV['NO_DOC_UPDATE'] == 'true'
+      ["./docs/getting-started/installation.md", "./docs/ja/getting-started/installation.md"].each do |install_doc|
+        if File.exist?(install_doc)
+          content = File.read(install_doc)
+          updated_content = content.dup
+          
+          # Update macOS ARM64 URL
+          updated_content = updated_content.gsub(/\/Monadic%20Chat-[^\/]+-arm64\.dmg/, "/Monadic%20Chat-#{version}-arm64.dmg")
+          
+          # Update macOS x64 URL
+          updated_content = updated_content.gsub(/\/Monadic%20Chat-[^-][^\/]*\.dmg/, "/Monadic%20Chat-#{version}.dmg")
+          
+          # Update Windows URL
+          updated_content = updated_content.gsub(/\/Monadic%20Chat%20Setup%20[^\/]*\.exe/, "/Monadic%20Chat%20Setup%20#{version}.exe")
+          
+          # Update Linux x64 URL
+          updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_amd64\.deb/, "/monadic-chat_#{version}_amd64.deb")
+          
+          # Update Linux arm64 URL
+          updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_arm64\.deb/, "/monadic-chat_#{version}_arm64.deb")
+          
+          # Update version notes in documentation
+          if install_doc.include?('/ja/')
+            # Japanese documentation - more flexible pattern matching
+            if updated_content =~ /\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/
+              updated_content = updated_content.gsub(/\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/, 
+                "*バージョン #{version}。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*")
+            else
+              # If no version text is found, log warning
+              puts "Warning: Could not find version text pattern in Japanese documentation"
+            end
           else
-            # If no version text is found, log warning
-            puts "Warning: Could not find version text pattern in Japanese documentation"
+            # English documentation - more flexible pattern matching
+            if updated_content =~ /\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/
+              updated_content = updated_content.gsub(/\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/, 
+                "*Version #{version}. You can also visit the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest) to see other versions.*")
+            else
+              # If no version text is found, log warning
+              puts "Warning: Could not find version text pattern in English documentation"
+            end
+          end
+          
+          # Check if content actually changed
+          if updated_content != content
+            puts "Updating download links in #{install_doc} to version #{version}"
+            File.write(install_doc, updated_content)
+            
+            # Verify that the changes were applied correctly
+            verification_content = File.read(install_doc)
+            
+            # Check for specific version in the updated file
+            if verification_content.include?(version)
+              puts "✓ Successfully updated version references in #{install_doc}"
+            else
+              puts "⚠ Warning: Updated file doesn't contain version #{version}. Changes may not have been applied correctly."
+            end
+          else
+            # Check if file already contains the current version
+            if content.include?(version)
+              puts "No updates needed for #{install_doc} (already contains version #{version})"
+            else
+              puts "⚠ Warning: No changes were made to #{install_doc}, but it doesn't contain version #{version}"
+              puts "   This might indicate that URL patterns were not matched correctly."
+            end
           end
         else
-          # English documentation - more flexible pattern matching
-          if updated_content =~ /\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/
-            updated_content = updated_content.gsub(/\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/, 
-              "*Version #{version}. You can also visit the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest) to see other versions.*")
-          else
-            # If no version text is found, log warning
-            puts "Warning: Could not find version text pattern in English documentation"
-          end
+          puts "Warning: Installation documentation file not found: #{install_doc}"
         end
-        
-        # Check if content actually changed
-        if updated_content != content
-          puts "Updating download links in #{install_doc} to version #{version}"
-          File.write(install_doc, updated_content)
-          
-          # Verify that the changes were applied correctly
-          verification_content = File.read(install_doc)
-          
-          # Check for specific version in the updated file
-          if verification_content.include?(version)
-            puts "✓ Successfully updated version references in #{install_doc}"
-          else
-            puts "⚠ Warning: Updated file doesn't contain version #{version}. Changes may not have been applied correctly."
-          end
-        else
-          # Check if file already contains the current version
-          if content.include?(version)
-            puts "No updates needed for #{install_doc} (already contains version #{version})"
-          else
-            puts "⚠ Warning: No changes were made to #{install_doc}, but it doesn't contain version #{version}"
-            puts "   This might indicate that URL patterns were not matched correctly."
-          end
-        end
-      else
-        puts "Warning: Installation documentation file not found: #{install_doc}"
       end
+    else
+      puts "Skipping documentation updates because NO_DOC_UPDATE=true"
     end
     
     # Step 7: Create GitHub release
@@ -651,6 +656,9 @@ namespace :release do
   task :draft, [:version, :prerelease] do |_t, args|
     # Set the DRAFT environment variable to true
     ENV['DRAFT'] = 'true'
+    
+    # Set NO_DOC_UPDATE to skip documentation updates
+    ENV['NO_DOC_UPDATE'] = 'true'
     
     # Call the github release task with the draft flag
     Rake::Task["release:github"].invoke(*args)

@@ -11,7 +11,7 @@ macOSの場合、以下の手順でMonadic Chatをインストールします。
 1. Docker Desktop for Macをインストールします。
 2. Monadic Chatのインストーラーをダウンロードしてインストールします：
 
-- 📦 [macOS ARM64 (Apple Silicon) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/Monadic%20Chat-0.9.74.dmg)
+- 📦 [macOS ARM64 (Apple Silicon) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/Monadic%20Chat-0.9.74-arm64.dmg)
 - 📦 [macOS x64 (Intel) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/latest/download/Monadic%20Chat-0.9.74.dmg)
 
 *バージョン 0.9.74。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*

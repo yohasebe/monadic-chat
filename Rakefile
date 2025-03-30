@@ -576,6 +576,28 @@ namespace :release do
       exit 1
     end
     
+    # Step 6.5: Create "latest" versions of each asset
+    latest_assets = []
+    release_assets.each do |asset|
+      basename = File.basename(asset)
+      # Replace version number with "latest" in the filename
+      latest_basename = if basename.include?(version)
+        basename.gsub(version, "latest")
+      else
+        puts "Warning: Asset #{basename} does not contain version number, skipping latest creation"
+        next
+      end
+      
+      latest_path = File.join(File.dirname(asset), latest_basename)
+      puts "Creating latest version: #{latest_basename}"
+      FileUtils.cp(asset, latest_path)
+      latest_assets << latest_path
+    end
+    
+    # Add latest assets to the release assets
+    release_assets.concat(latest_assets)
+    puts "Total assets for release: #{release_assets.length} (including #{latest_assets.length} 'latest' versions)"
+    
     # Step 7: Create GitHub release
     begin
       puts "Creating GitHub release v#{version} with #{release_assets.length} assets..."

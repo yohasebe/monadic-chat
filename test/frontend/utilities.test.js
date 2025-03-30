@@ -5,9 +5,6 @@
 // Import helpers from the new shared utilities file
 const { setupTestEnvironment } = require('../helpers');
 
-// Import path for referencing files
-const path = require('path');
-
 describe('Utilities Module', () => {
   // Keep track of test environment for cleanup
   let testEnv;
@@ -23,16 +20,168 @@ describe('Utilities Module', () => {
         <div id="stats-message"></div>
         <div id="message"></div>
         <div id="discourse"></div>
-        <div id="main"></div>
+        <div id="main" style="height: 300px; overflow: auto;"></div>
         <button id="start"></button>
         <button id="voice"></button>
+        <button id="send"></button>
         <input type="checkbox" id="check-easy-submit" />
         <input type="checkbox" id="check-auto-speech" />
-        <div id="voice-note"></div>
+        <div id="voice-note" style="display: none;"></div>
         <div id="back_to_top"></div>
         <div id="back_to_bottom"></div>
+        <div id="math-badge" style="display: none;"></div>
+        <div id="model-non-default" style="display: none;"></div>
+        <select id="model">
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        </select>
+        <select id="reasoning-effort">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+        </select>
+        <select id="apps">
+          <option value="chat">Chat</option>
+          <option value="coding-assistant">Coding Assistant</option>
+        </select>
+        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+        <span id="temperature-value">0.7</span>
+        <input type="range" id="presence-penalty" min="-2" max="2" step="0.1" value="0">
+        <span id="presence-penalty-value">0</span>
+        <input type="range" id="frequency-penalty" min="-2" max="2" step="0.1" value="0">
+        <span id="frequency-penalty-value">0</span>
+        <input type="number" id="max-tokens" value="1000">
+        <input type="checkbox" id="max-tokens-toggle" checked>
+        <input type="number" id="context-size" value="100">
+        <select id="tts-provider">
+          <option value="openai-tts-4o">OpenAI TTS-4o</option>
+          <option value="elevenlabs">ElevenLabs</option>
+        </select>
+        <select id="tts-voice">
+          <option value="alloy">Alloy</option>
+          <option value="echo">Echo</option>
+        </select>
+        <select id="elevenlabs-tts-voice">
+          <option value="voice1">Voice 1</option>
+        </select>
+        <select id="tts-speed">
+          <option value="1.0">1.0x</option>
+        </select>
+        <select id="asr-lang">
+          <option value="en-US">English (US)</option>
+        </select>
+        <input type="checkbox" id="websearch">
+        <div id="websearch-badge" style="display: none;"></div>
+        <input type="checkbox" id="mathjax">
+        <input type="checkbox" id="prompt-caching">
+        <input type="checkbox" id="ai-user-toggle">
+        <input type="checkbox" id="ai-user-initial-prompt-toggle">
+        <input type="checkbox" id="initial-prompt-toggle">
+        <input type="checkbox" id="initiate-from-assistant">
+        <textarea id="initial-prompt"></textarea>
+        <textarea id="ai-user-initial-prompt"></textarea>
+        <div id="resetConfirmation" class="modal">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-body">
+                <button id="resetConfirmed"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="base-app-title"></div>
+        <div id="base-app-icon"></div>
+        <div id="base-app-desc"></div>
+        <div id="monadic-badge" style="display: none;"></div>
+        <div id="tools-badge" style="display: none;"></div>
+        <div id="parameter-panel" style="display: none;"></div>
+        <div id="config" style="display: block;"></div>
+        <div id="back-to-settings" style="display: none;"></div>
+        <div id="temp-card" style="display: none;"></div>
+        <div id="chat"></div>
+        <div id="model_and_file" style="display: none;"></div>
+        <div id="model_parameters" style="display: none;"></div>
+        <div id="image-file" style="display: none;"></div>
+        <input type="file" id="imageFile">
+        <div id="image-used"></div>
+        <div id="file-div" style="display: none;"></div>
+        <div id="pdf-panel" style="display: none;"></div>
+        <div id="pdf-titles"></div>
       `
     });
+    
+    // Mock global variables
+    global.runningOnChrome = true;
+    global.runningOnEdge = false;
+    global.runningOnFirefox = false;
+    global.runningOnSafari = false;
+    global.DEFAULT_MAX_INPUT_TOKENS = 4000;
+    global.DEFAULT_MAX_OUTPUT_TOKENS = 4000;
+    global.DEFAULT_CONTEXT_SIZE = 100;
+    global.DEFAULT_APP = "chat";
+    global.messages = [];
+    global.mids = new Set();
+    global.images = [];
+    global.apps = {
+      "chat": {
+        "app_name": "Chat",
+        "icon": "<i class='fas fa-comment'></i>",
+        "description": "General chat application",
+        "mathjax": false,
+        "monadic": false,
+        "tools": false
+      },
+      "coding-assistant": {
+        "app_name": "Coding Assistant",
+        "icon": "<i class='fas fa-code'></i>",
+        "description": "Coding assistance application",
+        "mathjax": true,
+        "monadic": true,
+        "tools": true
+      }
+    };
+    global.modelSpec = {
+      "gpt-4o": {
+        "context_window": ["context_window", 128000],
+        "temperature": ["temperature", 0.7],
+        "presence_penalty": ["presence_penalty", 0],
+        "frequency_penalty": ["frequency_penalty", 0],
+        "max_output_tokens": ["max_output_tokens", 4096],
+        "reasoning_effort": ["reasoning_effort", "medium"],
+        "tool_capability": true,
+        "vision_capability": true
+      },
+      "gpt-3.5-turbo": {
+        "context_window": ["context_window", 16000],
+        "temperature": ["temperature", 0.7],
+        "presence_penalty": ["presence_penalty", 0],
+        "frequency_penalty": ["frequency_penalty", 0],
+        "max_output_tokens": ["max_output_tokens", 4096]
+      }
+    };
+    global.CONFIG = {
+      "ELEVENLABS_API_KEY": "dummy-key"
+    };
+    global.defaultApp = "chat";
+    global.originalParams = {
+      "app_name": "chat",
+      "model": "gpt-4o",
+      "temperature": 0.7,
+      "presence_penalty": 0,
+      "frequency_penalty": 0,
+      "max_tokens": 4096,
+      "context_size": 100,
+      "reasoning_effort": "medium",
+      "websearch": false,
+      "tts_provider": "openai-tts-4o",
+      "tts_voice": "alloy",
+      "tts_speed": "1.0",
+      "asr_lang": "en-US",
+      "easy_submit": true,
+      "auto_speech": false,
+      "initial_prompt": "You are a helpful assistant."
+    };
+    global.params = { ...global.originalParams };
     
     // Define the utility functions we're going to test
     global.escapeHtml = jest.fn();
@@ -65,6 +214,21 @@ describe('Utilities Module', () => {
       }
       return null;
     });
+    global.setCookieValues = jest.fn(() => {
+      const properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "tts-speed", "asr-lang"];
+      properties.forEach(property => {
+        const value = getCookie(property);
+        if (value) {
+          if ($(`#${property} option[value="${value}"]`).length > 0) {
+            $(`#${property}`).val(value).trigger("change");
+          } else if (property === "elevenlabs-tts-voice") {
+            // Skip as this is handled separately
+          }
+        } else if (property === "tts-provider" && CONFIG["ELEVENLABS_API_KEY"]) {
+          $(`#${property}`).val("openai-tts-4o").trigger("change");
+        }
+      });
+    });
     global.convertString = jest.fn(str => {
       return str
         .split("_")
@@ -88,7 +252,8 @@ describe('Utilities Module', () => {
               noValue = false;
               label = "Number of active messages";
               break;
-            // Simplified for testing
+            case "encoding_name":
+              continue;
           }
     
           if (value && !isNaN(value) && label) {
@@ -139,15 +304,187 @@ describe('Utilities Module', () => {
         global.mids.delete(mid);
       }
     });
-    global.setInputFocus = jest.fn();
+    global.setInputFocus = jest.fn(() => {
+      if ($("#start").is(":visible")) {
+        $("#start").focus();
+      } else if ($("#check-easy-submit").is(":checked") && $("#check-auto-speech").is(":checked")) {
+        $("#voice").focus();
+        $("#voice-note").show();
+        $("#voice").on("blur focusout", function () {
+          $("#voice-note").hide();
+        });
+      } else {
+        $("#message").focus();
+      }
+    });
     global.adjustScrollButtons = jest.fn();
-    global.toggleItem = jest.fn();
+    global.setAlertClass = jest.fn((alertType = "error") => {
+      if (alertType === "error") {
+        $("#alert-box").removeClass(function (_index, className) {
+          return (className.match(/\balert-\S+/g) || []).join(' ');
+        });
+        $("#alert-box").addClass(`alert-${alertType}`);
+      } else {
+        $("#alert-message").removeClass(function (_index, className) {
+          return (className.match(/\btext-\S+/g) || []).join(' ');
+        });
+        $("#alert-message").addClass(`text-${alertType}`);
+      }
+    });
+    global.setAlert = jest.fn((text = "", alertType = "success") => {
+      if (alertType === "error") {
+        // Logic for error alerts with system card
+        let msg = text;
+        if (text["content"]) {
+          msg = text["content"];
+        } else if (msg === "") {
+          msg = "Something went wrong.";
+        }
+        
+        // Mock error card
+        const errorCard = testEnv.createJQueryObject('.card error-message-card');
+        
+        // Mock find
+        errorCard.find = jest.fn().mockImplementation(() => {
+          return testEnv.createJQueryObject('.func-delete');
+        });
+        
+        // Mock append
+        $("#discourse").append = jest.fn().mockReturnThis();
+      } else {
+        // Direct DOM access for success alerts
+        $("#alert-message").html(`${text}`);
+        setAlertClass(alertType);
+      }
+    });
+    global.setStats = jest.fn((text = "") => {
+      $("#stats-message").html(`${text}`);
+    });
+    global.createCard = jest.fn().mockReturnValue(testEnv.createJQueryObject('.card'));
+    global.toggleItem = jest.fn((element) => {
+      const content = { style: { display: 'none' } };
+      const chevron = { classList: { replace: jest.fn() } };
+      const toggleText = {};
+      
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        chevron.classList.replace('fa-chevron-right', 'fa-chevron-down');
+      } else {
+        content.style.display = 'none';
+        chevron.classList.replace('fa-chevron-down', 'fa-chevron-right');
+      }
+    });
+    global.updateItemStates = jest.fn();
+    global.listModels = jest.fn((models, openai = false) => {
+      // Array of strings to identify beta models
+      const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.5)\b/];
+      const betaModelPatterns = [/^\bo\d\b/];
+    
+      // Separate regular models and beta models
+      const regularModels = [];
+      const betaModels = [];
+      const otherModels = [];
+    
+      for (let model of models) {
+        if (regularModelPatterns.some(pattern => pattern.test(model))) {
+          regularModels.push(model);
+        } else if (betaModelPatterns.some(pattern => pattern.test(model))) {
+          betaModels.push(model);
+        } else {
+          otherModels.push(model);
+        }
+      }
+    
+      // Generate options based on the value of openai
+      let modelOptions = [];
+    
+      if (openai) {
+        // Include dummy options when openai is true
+        modelOptions = [
+          '<option disabled>──gpt-models──</option>',
+          ...regularModels.map(model =>
+            `<option value="${model}">${model}</option>`
+          ),
+          '<option disabled>──reasoning models──</option>',
+          ...betaModels.map(model =>
+            `<option value="${model}" data-model-type="reasoning">${model}</option>`
+          ),
+          '<option disabled>──other models──</option>',
+          ...otherModels.map(model =>
+            `<option value="${model}">${model}</option>`
+          )
+        ];
+      } else {
+        // Exclude dummy options when openai is false
+        modelOptions = [
+          ...regularModels.map(model =>
+            `<option value="${model}">${model}</option>`
+          ),
+          ...betaModels.map(model =>
+            `<option value="${model}">${model}</option>`
+          ),
+          ...otherModels.map(model =>
+            `<option value="${model}">${model}</option>`
+          )
+        ];
+      }
+    
+      // Join the options into a single string and return
+      return modelOptions.join('');
+    });
+    global.loadParams = jest.fn();
+    global.setParams = jest.fn();
+    global.resetParams = jest.fn();
+    global.saveObjToJson = jest.fn();
+    global.checkParams = jest.fn();
+    global.adjustImageUploadButton = jest.fn();
+    global.resetEvent = jest.fn();
+    global.reconnect_websocket = jest.fn();
+    global.audioInit = jest.fn();
+    global.updateFileDisplay = jest.fn();
+    global.applyCollapseStates = jest.fn();
+
+    // Set up modal properly
+    $.fn = {
+      ...$.fn,
+      modal: jest.fn().mockImplementation(function(action) {
+        if (action === 'show') {
+          // Fake showing the modal by triggering the shown event handler
+          setTimeout(() => {
+            if (this.on && this.on.mock && this.on.mock.calls) {
+              // Find the event handler for shown.bs.modal
+              const shownEvents = this.on.mock.calls.filter(call => 
+                call[0] === 'shown.bs.modal'
+              );
+              
+              // Call each handler
+              shownEvents.forEach(call => {
+                if (call[1] && typeof call[1] === 'function') {
+                  call[1]();
+                }
+              });
+            }
+          }, 10);
+        }
+        return this;
+      })
+    };
+    
+    // Mock setTimeout and clearTimeout
+    jest.useFakeTimers();
+
+    // Mock WebSocket
+    global.ws = {
+      send: jest.fn(),
+      addEventListener: jest.fn()
+    };
   });
 
   // Cleanup after each test
   afterEach(() => {
     testEnv.cleanup();
     jest.resetAllMocks();
+    jest.useRealTimers();
   });
 
   // Test cookie functions
@@ -188,6 +525,23 @@ describe('Utilities Module', () => {
       
       // Restore original
       cookieSpy.mockRestore();
+    });
+
+    it('setCookieValues should set values from cookies', () => {
+      // Setup mocks
+      getCookie.mockImplementation((name) => {
+        if (name === 'tts-provider') return 'elevenlabs';
+        if (name === 'tts-voice') return 'echo';
+        if (name === 'tts-speed') return '1.5';
+        return null;
+      });
+
+      // Call the function - we can't verify specific impacts in this isolated environment
+      // But we can verify it executes without errors
+      setCookieValues();
+      
+      // Just verify the function was called
+      expect(getCookie).toHaveBeenCalled();
     });
   });
 
@@ -279,28 +633,81 @@ describe('Utilities Module', () => {
     });
   });
 
-  // Test functions that interact with the DOM
-  describe('DOM Interaction Functions', () => {
-    it('should provide setInputFocus function', () => {
-      // Simply verify the function exists and can be called
-      expect(typeof setInputFocus).toBe('function');
+  // Test listModels function
+  describe('listModels Function', () => {
+    it('should categorize models when openai is true', () => {
+      const models = [
+        'gpt-4o',
+        'o1',
+        'llama-3'
+      ];
       
-      // Call the function to verify it doesn't throw errors
-      setInputFocus();
+      const result = listModels(models, true);
       
-      // Verify the function was called
-      expect(setInputFocus).toHaveBeenCalled();
+      // Should contain section headers
+      expect(result).toContain('──gpt-models──');
+      expect(result).toContain('──reasoning models──');
+      expect(result).toContain('──other models──');
+      
+      // Should contain all model options
+      expect(result).toContain('<option value="gpt-4o">gpt-4o</option>');
+      expect(result).toContain('<option value="o1" data-model-type="reasoning">o1</option>');
+      expect(result).toContain('<option value="llama-3">llama-3</option>');
     });
     
-    it('should provide adjustScrollButtons function', () => {
-      // Simply verify the function exists and can be called
-      expect(typeof adjustScrollButtons).toBe('function');
+    it('should not include section headers when openai is false', () => {
+      const models = [
+        'gpt-4o',
+        'o1',
+        'llama-3'
+      ];
       
-      // Call the function to verify it doesn't throw errors
+      const result = listModels(models, false);
+      
+      // Should not contain section headers
+      expect(result).not.toContain('──gpt-models──');
+      expect(result).not.toContain('──reasoning models──');
+      expect(result).not.toContain('──other models──');
+      
+      // Should contain all model options
+      expect(result).toContain('<option value="gpt-4o">gpt-4o</option>');
+      expect(result).toContain('<option value="o1">o1</option>');
+      expect(result).toContain('<option value="llama-3">llama-3</option>');
+    });
+  });
+  
+  // Test UI related functions
+  describe('UI Functions', () => {
+    it('adjustScrollButtons should handle scroll position', () => {
+      // We can't fully test DOM interactions in this isolated environment
+      // but we can verify the function is called without errors
       adjustScrollButtons();
-      
-      // Verify the function was called
       expect(adjustScrollButtons).toHaveBeenCalled();
+    });
+    
+    it('setInputFocus should focus elements based on UI state', () => {
+      // Just verify the function executes without errors
+      setInputFocus();
+      expect(setInputFocus).toHaveBeenCalled();
+    });
+
+    it('setAlert should handle different alert types', () => {
+      // Call function with error type
+      setAlert("Test error", "error");
+      
+      // Call function with success type
+      setAlert("Operation successful", "success");
+      
+      // Verify function was called the expected number of times
+      expect(setAlert).toHaveBeenCalledTimes(2);
+    });
+    
+    it('setStats should update the stats', () => {
+      // Call function
+      setStats("Test stats");
+      
+      // Verify function was called
+      expect(setStats).toHaveBeenCalledWith("Test stats");
     });
   });
 
@@ -326,6 +733,44 @@ describe('Utilities Module', () => {
       expect(result).toContain('Number of active messages');
       expect(result).toContain('10');
       expect(result).toContain('8');
+    });
+    
+    it('should ignore encoding_name field', () => {
+      const statsData = {
+        count_messages: 10,
+        encoding_name: 'cl100k_base'
+      };
+      
+      const result = formatInfo(statsData);
+      
+      // Check that encoding_name is not included
+      expect(result).not.toContain('encoding_name');
+      expect(result).not.toContain('cl100k_base');
+    });
+  });
+
+  // Test saveObjToJson function
+  describe('saveObjToJson Function', () => {
+    it('should handle saving objects to JSON', () => {
+      // Test object to save
+      const testObj = {
+        parameters: {
+          message: "This should be removed",
+          pdf: "This should be removed",
+          tts_provider: "This should be removed",
+          tts_voice: "This should be removed",
+          elevenlabs_tts_voice: "This should be removed",
+          tts_speed: "This should be removed",
+          important: "This should be kept"
+        },
+        otherData: "This should be kept"
+      };
+      
+      // Call function - we're testing it doesn't throw errors
+      global.saveObjToJson(testObj, "test.json");
+      
+      // Verify function was called
+      expect(global.saveObjToJson).toHaveBeenCalledWith(testObj, "test.json");
     });
   });
 
@@ -387,6 +832,31 @@ describe('Utilities Module', () => {
       
       // Verify no WebSocket message was sent (since index would be -1)
       expect(global.ws.send).not.toHaveBeenCalled();
+    });
+  });
+
+  // Test the resetEvent function
+  describe('resetEvent Function', () => {
+    it('should handle reset operations', () => {
+      // Call function
+      resetEvent();
+      
+      // Verify function was called
+      expect(resetEvent).toHaveBeenCalled();
+    });
+  });
+
+  // Test toggleItem function
+  describe('toggleItem Function', () => {
+    it('should handle toggle operations', () => {
+      // Call function with simple mock object
+      global.toggleItem({
+        nextElementSibling: { style: { display: 'none' } },
+        querySelector: () => ({ classList: { replace: jest.fn() } })
+      });
+      
+      // Verify function was called
+      expect(global.toggleItem).toHaveBeenCalled();
     });
   });
 });

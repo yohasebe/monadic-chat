@@ -4,6 +4,37 @@ This document contains guidelines and instructions for developers contributing t
 
 ?> This document is for developers of Monadic Chat itself, not for developers of Monadic Chat recipe files.
 
+## Testing
+
+### Test Frameworks
+- **JavaScript**: Uses Jest for frontend code testing
+- **Ruby**: Uses RSpec for backend code testing
+
+### Test Structure
+- JavaScript tests are in `test/frontend/`
+- Ruby tests are in `docker/services/ruby/spec/`
+- Jest configuration in `jest.config.js`
+- Global test setup for JavaScript in `test/setup.js`
+
+### Running Tests
+#### Ruby Tests
+```bash
+rake spec
+```
+
+#### JavaScript Tests
+```bash
+rake jstest        # Run passing JavaScript tests
+npm test           # Same as above
+rake jstest_all    # Run all JavaScript tests
+npm run test:watch # Run tests in watch mode
+npm run test:coverage # Run tests with coverage report
+```
+
+#### All Tests
+```bash
+rake test  # Run both Ruby and JavaScript tests
+```
 ## Important: Managing Setup Scripts
 
 The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:

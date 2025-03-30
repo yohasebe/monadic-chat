@@ -1,21 +1,70 @@
+// Import modules - try/catch for compatibility with both browser and CommonJS environments
+let uiUtils;
+let formHandlers;
+try {
+  // In CommonJS environment (Node.js, testing)
+  uiUtils = require('./monadic/ui-utilities');
+  formHandlers = require('./monadic/form-handlers');
+} catch (e) {
+  // In browser environment, will be defined globally or via script tag
+  console.log('Running in browser environment, using global modules');
+  // We'll set these later when window modules are available
+}
+
 document.addEventListener("DOMContentLoaded", function () {
+  // Get modules from window if available
+  if (typeof uiUtils === 'undefined' && typeof window.uiUtils !== 'undefined') {
+    uiUtils = window.uiUtils;
+  }
+  
+  if (typeof formHandlers === 'undefined' && typeof window.formHandlers !== 'undefined') {
+    formHandlers = window.formHandlers;
+  }
+  
+  // If UI module still not available, use fallback behavior
+  if (!uiUtils || !uiUtils.setupTextarea) {
+    console.warn('UI utilities module not available, using fallback implementation');
+    uiUtils = {
+      setupTextarea: setupTextareaFallback,
+      autoResize: autoResizeFallback,
+      adjustScrollButtons: adjustScrollButtonsFallback,
+      setupTooltips: setupTooltipsFallback,
+      cleanupAllTooltips: cleanupAllTooltipsFallback,
+      adjustImageUploadButton: adjustImageUploadButtonFallback
+    };
+  }
+  
+  // If form handlers module not available, use fallback behavior
+  if (!formHandlers) {
+    console.warn('Form handlers module not available, using fallback implementation');
+    formHandlers = {
+      uploadPdf: uploadPdfFallback,
+      convertDocument: convertDocumentFallback,
+      fetchWebpage: fetchWebpageFallback,
+      importSession: importSessionFallback,
+      setupUrlValidation: setupUrlValidationFallback,
+      setupFileValidation: setupFileValidationFallback,
+      showModalWithFocus: showModalWithFocusFallback
+    };
+  }
+  
   // Directly get textareas and set them up - avoid storing array reference
   const initialHeight = 100;
   
   // Process each textarea individually to avoid keeping references
   const messageTextarea = document.getElementById('message');
   if (messageTextarea) {
-    setupTextarea(messageTextarea, initialHeight);
+    uiUtils.setupTextarea(messageTextarea, initialHeight);
   }
   
   const initialPromptTextarea = document.getElementById('initial-prompt');
   if (initialPromptTextarea) {
-    setupTextarea(initialPromptTextarea, initialHeight);
+    uiUtils.setupTextarea(initialPromptTextarea, initialHeight);
   }
   
   const aiUserInitialPromptTextarea = document.getElementById('ai-user-initial-prompt');
   if (aiUserInitialPromptTextarea) {
-    setupTextarea(aiUserInitialPromptTextarea, initialHeight);
+    uiUtils.setupTextarea(aiUserInitialPromptTextarea, initialHeight);
   }
 
   document.addEventListener('hide.bs.modal', function (_event) {
@@ -30,7 +79,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
-function setupTextarea(textarea, initialHeight) {
+// Fallback implementations in case the module is not available
+// These are identical to the extracted functions but kept for compatibility
+
+function setupTextareaFallback(textarea, initialHeight) {
   let isIMEActive = false;
 
   textarea.style.height = initialHeight + 'px';
@@ -41,26 +93,260 @@ function setupTextarea(textarea, initialHeight) {
 
   textarea.addEventListener('compositionend', function() {
     isIMEActive = false;
-    autoResize(textarea, initialHeight);
+    autoResizeFallback(textarea, initialHeight);
   });
 
   textarea.addEventListener('input', function() {
     if (!isIMEActive) {
-      autoResize(textarea, initialHeight);
+      autoResizeFallback(textarea, initialHeight);
     }
   });
 
   textarea.addEventListener('focus', function() {
-    autoResize(textarea, initialHeight);
+    autoResizeFallback(textarea, initialHeight);
   });
 
-  autoResize(textarea, initialHeight);
+  autoResizeFallback(textarea, initialHeight);
 }
 
-function autoResize(textarea, initialHeight) {
+function autoResizeFallback(textarea, initialHeight) {
   textarea.style.height = 'auto';
   const newHeight = Math.max(textarea.scrollHeight, initialHeight);
   textarea.style.height = newHeight + 'px';
+}
+
+function adjustScrollButtonsFallback() {
+  const mainPanel = $("#main");
+  const mainHeight = mainPanel.height();
+  const mainScrollHeight = mainPanel.prop("scrollHeight");
+  const mainScrollTop = mainPanel.scrollTop();
+  
+  // Get scroll button elements
+  const backToTopBtn = $("#back_to_top");
+  const backToBottomBtn = $("#back_to_bottom");
+  
+  // Show/hide the scroll to top button
+  if (mainScrollTop > mainHeight / 2) {
+    if (backToTopBtn.show) backToTopBtn.show();
+  } else {
+    if (backToTopBtn.hide) backToTopBtn.hide();
+  }
+  
+  // Show/hide the scroll to bottom button
+  if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
+    if (backToBottomBtn.show) backToBottomBtn.show();
+  } else {
+    if (backToBottomBtn.hide) backToBottomBtn.hide();
+  }
+}
+
+function setupTooltipsFallback(container) {
+  container.tooltip({
+    selector: '.card-header [title]',
+    delay: { show: 0, hide: 0 },
+    show: 100,
+    container: 'body'
+  });
+}
+
+function cleanupAllTooltipsFallback() {
+  $('.tooltip').remove();
+  $('[data-bs-original-title]').tooltip('dispose');
+  $('[data-original-title]').tooltip('dispose');
+}
+
+function adjustImageUploadButtonFallback(selectedModel) {
+  if (!modelSpec || !selectedModel) return;
+  
+  const modelData = modelSpec[selectedModel];
+  const imageFileElement = $("#image-file");
+  
+  if (modelData && modelData.vision_capability) {
+    // Enable the button
+    imageFileElement.prop("disabled", false);
+    
+    // Update button text based on PDF support
+    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.5/.test(selectedModel);
+    
+    if (isPdfEnabled) {
+      imageFileElement.html('<i class="fas fa-file"></i> Use Image/PDF');
+    } else {
+      imageFileElement.html('<i class="fas fa-image"></i> Use Image');
+    }
+    
+    if (imageFileElement.show) {
+      imageFileElement.show();
+    }
+  } else {
+    imageFileElement.prop("disabled", true);
+    if (imageFileElement.hide) {
+      imageFileElement.hide();
+    }
+  }
+}
+
+// Form Handlers Fallback Implementations
+
+function uploadPdfFallback(file, fileTitle) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error("Please select a PDF file to upload"));
+      return;
+    }
+    
+    if (file.type !== "application/pdf") {
+      reject(new Error("Please select a PDF file"));
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("pdfFile", file);
+    formData.append("pdfTitle", fileTitle);
+
+    $.ajax({
+      url: "/pdf",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      timeout: 120000,
+      success: resolve,
+      error: reject
+    });
+  });
+}
+
+function convertDocumentFallback(doc, docLabel) {
+  return new Promise((resolve, reject) => {
+    if (!doc) {
+      reject(new Error("Please select a document file to convert"));
+      return;
+    }
+    
+    if (doc.type === "application/octet-stream") {
+      reject(new Error("Unsupported file type"));
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("docFile", doc);
+    formData.append("docLabel", docLabel || "");
+
+    $.ajax({
+      url: "/document",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      timeout: 60000,
+      success: resolve,
+      error: reject
+    });
+  });
+}
+
+function fetchWebpageFallback(url, urlLabel) {
+  return new Promise((resolve, reject) => {
+    if (!url) {
+      reject(new Error("Please specify the URL of the page to fetch"));
+      return;
+    }
+    
+    if (!url.match(/^(http|https):\/\/[^ "]+$/)) {
+      reject(new Error("Please enter a valid URL"));
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("pageURL", url);
+    formData.append("urlLabel", urlLabel || "");
+
+    $.ajax({
+      url: "/fetch_webpage",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      timeout: 30000,
+      success: resolve,
+      error: reject
+    });
+  });
+}
+
+function importSessionFallback(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error("Please select a file to import"));
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    $.ajax({
+      url: "/load",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      timeout: 30000,
+      success: resolve,
+      error: reject
+    });
+  });
+}
+
+function setupUrlValidationFallback(urlInput, submitButton) {
+  const validateUrl = function() {
+    const url = urlInput.value;
+    const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
+    submitButton.disabled = !validUrl;
+  };
+  
+  urlInput.addEventListener("change", validateUrl);
+  urlInput.addEventListener("keyup", validateUrl);
+  urlInput.addEventListener("input", validateUrl);
+}
+
+function setupFileValidationFallback(fileInput, submitButton) {
+  fileInput.addEventListener("change", function() {
+    submitButton.disabled = !fileInput.files || fileInput.files.length === 0;
+  });
+}
+
+function showModalWithFocusFallback(modalId, focusElementId, cleanupFn) {
+  const modal = document.getElementById(modalId);
+  const focusElement = document.getElementById(focusElementId);
+  
+  if (!modal || !focusElement) return;
+  
+  $(modal).modal("show");
+  
+  const timerKey = 'focusTimer';
+  const existingTimer = $(modal).data(timerKey);
+  
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    $(modal).removeData(timerKey);
+  }
+  
+  $(modal).data(timerKey, setTimeout(function() {
+    focusElement.focus();
+    $(modal).removeData(timerKey);
+  }, 500));
+  
+  if (typeof cleanupFn === 'function') {
+    $(modal).one('hidden.bs.modal', function() {
+      cleanupFn();
+      
+      const remainingTimer = $(modal).data(timerKey);
+      if (remainingTimer) {
+        clearTimeout(remainingTimer);
+        $(modal).removeData(timerKey);
+      }
+    });
+  }
 }
 
 $(function () {
@@ -172,7 +458,14 @@ $(function () {
         clearTimeout(existingTimer);
       }
       // Store new timer reference in the element's data
-      $this.data('scrollTimer', setTimeout(adjustScrollButtons, 100));
+      $this.data('scrollTimer', setTimeout(function() {
+        // Use the UI utilities module if available, otherwise fall back
+        if (uiUtils && uiUtils.adjustScrollButtons) {
+          uiUtils.adjustScrollButtons();
+        } else {
+          adjustScrollButtonsFallback();
+        }
+      }, 100));
     });
 
     // Improved resize event - store timer in data attribute
@@ -182,7 +475,14 @@ $(function () {
       if (existingTimer) {
         clearTimeout(existingTimer);
       }
-      $window.data('resizeTimer', setTimeout(adjustScrollButtons, 250));
+      $window.data('resizeTimer', setTimeout(function() {
+        // Use the UI utilities module if available, otherwise fall back
+        if (uiUtils && uiUtils.adjustScrollButtons) {
+          uiUtils.adjustScrollButtons();
+        } else {
+          adjustScrollButtonsFallback();
+        }
+      }, 250));
     });
     
     // Clean up timers when window is unloaded
@@ -296,7 +596,12 @@ $(function () {
       $("#max-tokens-toggle").prop("disabled", false).prop("checked", true)
       $("#model-selected").text(selectedModel);
     }
-    adjustImageUploadButton(selectedModel);
+    // Use UI utilities module if available, otherwise fallback
+    if (uiUtils && uiUtils.adjustImageUploadButton) {
+      uiUtils.adjustImageUploadButton(selectedModel);
+    } else {
+      adjustImageUploadButtonFallback(selectedModel);
+    }
   });
 
   $("#reasoning-effort").on("change", function () {
@@ -389,7 +694,12 @@ $(function () {
       }
 
       $("#model").val(model);
-      adjustImageUploadButton(model);
+      // Use UI utilities module if available, otherwise fallback
+      if (uiUtils && uiUtils.adjustImageUploadButton) {
+        uiUtils.adjustImageUploadButton(model);
+      } else {
+        adjustImageUploadButtonFallback(model);
+      }
 
     } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
       $("#model_and_file").hide();
@@ -747,24 +1057,33 @@ $(function () {
     $("#file-load").val('');
     $("#import-button").prop('disabled', true);
     
-    // Show the modal
-    $("#loadModal").modal("show");
-    
-    // Store focus timer in modal's data to ensure cleanup
-    const $modal = $("#loadModal");
-    const existingTimer = $modal.data('focusTimer');
-    
-    // Clear any existing timer
-    if (existingTimer) {
-      clearTimeout(existingTimer);
+    // Use the form handlers module if available, otherwise fallback
+    if (formHandlers && formHandlers.showModalWithFocus) {
+      const cleanupFn = function() {
+        $('#file-load').val('');
+        $('#import-button').prop('disabled', true);
+      };
+      formHandlers.showModalWithFocus('loadModal', 'file-load', cleanupFn);
+    } else {
+      // Show the modal using the fallback
+      $("#loadModal").modal("show");
+      
+      // Store focus timer in modal's data to ensure cleanup
+      const $modal = $("#loadModal");
+      const existingTimer = $modal.data('focusTimer');
+      
+      // Clear any existing timer
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      
+      // Set new timer and store reference
+      $modal.data('focusTimer', setTimeout(function () {
+        $("#file-load").focus();
+        // Clear reference after use
+        $modal.removeData('focusTimer');
+      }, 500));
     }
-    
-    // Set new timer and store reference
-    $modal.data('focusTimer', setTimeout(function () {
-      $("#file-load").focus();
-      // Clear reference after use
-      $modal.removeData('focusTimer');
-    }, 500));
   });
 
   $("#loadModal").on("shown.bs.modal", function () {
@@ -790,46 +1109,16 @@ $(function () {
   $("#uploadFile").on("click", async function () {
     const fileInput = $("#fileFile")[0];
     const file = fileInput.files[0];
-
-    if (!file) {
-      alert("Please select a PDF file to upload");
-      return;
-    }
-    
-    // Validate file type
-    if (file.type !== "application/pdf") {
-      setAlert("Please select a PDF file", "error");
-      return;
-    }
     
     try {
-      fileTitle = $("#file-title").val();
-      
       // Disable UI elements during upload
       $("#fileModal button").prop("disabled", true);
       $("#file-spinner").show();
       
-      // Prepare form data
-      const formData = new FormData();
-      formData.append("pdfFile", file);
-      formData.append("pdfTitle", fileTitle);
-
-      // Use Promise-based AJAX with timeout handling
-      const uploadPromise = new Promise((resolve, reject) => {
-        $.ajax({
-          url: "/pdf",
-          type: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          timeout: 120000, // 2 minute timeout (PDF processing can take time)
-          success: resolve,
-          error: reject
-        });
-      });
+      fileTitle = $("#file-title").val();
       
-      // Wait for upload to complete and get the response
-      const response = await uploadPromise;
+      // Use the form handlers module if available, otherwise fallback
+      const response = await formHandlers.uploadPdf(file, fileTitle);
       
       // Process the response
       if (response && response.success) {
@@ -871,24 +1160,34 @@ $(function () {
     event.preventDefault();
     $("#docLabel").val("");
     $("#docFile").val("");
-    // Show the modal
-    $("#docModal").modal("show");
     
-    // Store focus timer in modal's data to ensure cleanup
-    const $modal = $("#docModal");
-    const existingTimer = $modal.data('focusTimer');
-    
-    // Clear any existing timer
-    if (existingTimer) {
-      clearTimeout(existingTimer);
+    // Use the form handlers module if available, otherwise fallback
+    if (formHandlers && formHandlers.showModalWithFocus) {
+      const cleanupFn = function() {
+        $('#docFile').val('');
+        $('#convertDoc').prop('disabled', true);
+      };
+      formHandlers.showModalWithFocus('docModal', 'docFile', cleanupFn);
+    } else {
+      // Show the modal using fallback
+      $("#docModal").modal("show");
+      
+      // Store focus timer in modal's data to ensure cleanup
+      const $modal = $("#docModal");
+      const existingTimer = $modal.data('focusTimer');
+      
+      // Clear any existing timer
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      
+      // Set new timer and store reference
+      $modal.data('focusTimer', setTimeout(function () {
+        $("#docFile").focus();
+        // Clear reference after use
+        $modal.removeData('focusTimer');
+      }, 500));
     }
-    
-    // Set new timer and store reference
-    $modal.data('focusTimer', setTimeout(function () {
-      $("#docFile").focus();
-      // Clear reference after use
-      $modal.removeData('focusTimer');
-    }, 500));
   });
 
   $("#docModal").on("hidden.bs.modal", function () {
@@ -904,26 +1203,23 @@ $(function () {
     }
   });
 
-  $("#docFile").on("change", function() {
-    const file = this.files[0];
-    $('#convertDoc').prop('disabled', !file);
-  });
+  // Use the form handlers module for file input validation
+  if (formHandlers && formHandlers.setupFileValidation) {
+    formHandlers.setupFileValidation(
+      document.getElementById('docFile'), 
+      document.getElementById('convertDoc')
+    );
+  } else {
+    // Fallback to direct event handler
+    $("#docFile").on("change", function() {
+      const file = this.files[0];
+      $('#convertDoc').prop('disabled', !file);
+    });
+  }
 
   $("#convertDoc").on("click", async function () {
     const docInput = $("#docFile")[0];
     const doc = docInput.files[0];
-
-    if (!doc) {
-      alert("Please select a document file to convert");
-      return;
-    }
-    
-    // Check if the file is a valid document type
-    // Octet-stream files might cause issues, so we skip them
-    if (doc.type === "application/octet-stream") {
-      setAlert("Unsupported file type", "error");
-      return;
-    }
     
     try {
       const docLabel = $("#doc-label").val() || "";
@@ -932,27 +1228,8 @@ $(function () {
       $("#docModal button").prop("disabled", true);
       $("#doc-spinner").show();
       
-      // Prepare form data
-      const formData = new FormData();
-      formData.append("docFile", doc);
-      formData.append("docLabel", docLabel);
-
-      // Use Promise-based AJAX with timeout handling
-      const convertPromise = new Promise((resolve, reject) => {
-        $.ajax({
-          url: "/document",
-          type: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          timeout: 60000, // 60 second timeout (document conversion can take longer)
-          success: resolve,
-          error: reject
-        });
-      });
-      
-      // Wait for the conversion to complete and get the response
-      const response = await convertPromise;
+      // Use the form handlers module if available, otherwise fallback
+      const response = await formHandlers.convertDocument(doc, docLabel);
       
       // Process the response
       if (response && response.success) {
@@ -960,7 +1237,13 @@ $(function () {
         const content = response.content;
         const message = $("#message").val().replace(/\n+$/, "");
         $("#message").val(`${message}\n\n${content}`);
-        autoResize(document.getElementById('message'), 100);
+        
+        // Use the UI utilities module for resizing
+        if (uiUtils && uiUtils.autoResize) {
+          uiUtils.autoResize(document.getElementById('message'), 100);
+        } else {
+          autoResizeFallback(document.getElementById('message'), 100);
+        }
         
         // Clean up UI
         $("#doc-spinner").hide();
@@ -998,24 +1281,34 @@ $(function () {
     event.preventDefault();
     $("#urlLabel").val("");
     $("#pageURL").val("");
-    // Show the modal
-    $("#urlModal").modal("show");
     
-    // Store focus timer in modal's data to ensure cleanup
-    const $modal = $("#urlModal");
-    const existingTimer = $modal.data('focusTimer');
-    
-    // Clear any existing timer
-    if (existingTimer) {
-      clearTimeout(existingTimer);
+    // Use the form handlers module if available, otherwise fallback
+    if (formHandlers && formHandlers.showModalWithFocus) {
+      const cleanupFn = function() {
+        $('#pageURL').val('');
+        $('#fetchPage').prop('disabled', true);
+      };
+      formHandlers.showModalWithFocus('urlModal', 'pageURL', cleanupFn);
+    } else {
+      // Show the modal using fallback
+      $("#urlModal").modal("show");
+      
+      // Store focus timer in modal's data to ensure cleanup
+      const $modal = $("#urlModal");
+      const existingTimer = $modal.data('focusTimer');
+      
+      // Clear any existing timer
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      
+      // Set new timer and store reference
+      $modal.data('focusTimer', setTimeout(function () {
+        $("#pageURL").focus();
+        // Clear reference after use
+        $modal.removeData('focusTimer');
+      }, 500));
     }
-    
-    // Set new timer and store reference
-    $modal.data('focusTimer', setTimeout(function () {
-      $("#pageURL").focus();
-      // Clear reference after use
-      $modal.removeData('focusTimer');
-    }, 500));
   });
 
   $("#urlModal").on("hidden.bs.modal", function () {
@@ -1031,20 +1324,24 @@ $(function () {
     }
   });
 
-  $("#pageURL").on("change keyup input", function() {
-    const url = this.value;
-    // check if url is a valid url starting with http or https
-    const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
-    $('#fetchPage').prop('disabled', !validUrl);
-  });
+  // Use the form handlers module for URL input validation
+  if (formHandlers && formHandlers.setupUrlValidation) {
+    formHandlers.setupUrlValidation(
+      document.getElementById('pageURL'), 
+      document.getElementById('fetchPage')
+    );
+  } else {
+    // Fallback to direct event handler
+    $("#pageURL").on("change keyup input", function() {
+      const url = this.value;
+      // check if url is a valid url starting with http or https
+      const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
+      $('#fetchPage').prop('disabled', !validUrl);
+    });
+  }
 
   $("#fetchPage").on("click", async function () {
     const url = $("#pageURL").val();
-
-    if (!url) {
-      alert("Please specify the URL of the page to fetch");
-      return;
-    }
     
     try {
       const urlLabel = $("#urlLabel").val() || "";
@@ -1053,27 +1350,8 @@ $(function () {
       $("#urlModal button").prop("disabled", true);
       $("#url-spinner").show();
       
-      // Prepare form data
-      const formData = new FormData();
-      formData.append("pageURL", url);
-      formData.append("urlLabel", urlLabel);
-
-      // Use Promise-based AJAX with timeout handling
-      const fetchPromise = new Promise((resolve, reject) => {
-        $.ajax({
-          url: "/fetch_webpage",
-          type: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          timeout: 30000, // 30 second timeout
-          success: resolve,
-          error: reject
-        });
-      });
-      
-      // Wait for the fetch to complete and get the response
-      const response = await fetchPromise;
+      // Use the form handlers module if available, otherwise fallback
+      const response = await formHandlers.fetchWebpage(url, urlLabel);
       
       // Process the response
       if (response && response.success) {
@@ -1081,7 +1359,13 @@ $(function () {
         const content = response.content;
         const message = $("#message").val().replace(/\n+$/, "");
         $("#message").val(`${message}\n\n${content}`);
-        autoResize(document.getElementById('message'), 100);
+        
+        // Use the UI utilities module for resizing
+        if (uiUtils && uiUtils.autoResize) {
+          uiUtils.autoResize(document.getElementById('message'), 100);
+        } else {
+          autoResizeFallback(document.getElementById('message'), 100);
+        }
         
         // Clean up UI
         $("#url-spinner").hide();
@@ -1247,26 +1531,8 @@ $(function () {
       $("#loadModal button").prop("disabled", true);
       $("#load-spinner").show();
       
-      // Create FormData object and append file
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Use Promise-based AJAX with timeout
-      const importPromise = new Promise((resolve, reject) => {
-        $.ajax({
-          url: "/load",
-          type: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          timeout: 30000, // 30 second timeout
-          success: resolve,
-          error: reject
-        });
-      });
-      
-      // Wait for the import to complete and get the response
-      const response = await importPromise;
+      // Use the form handlers module if available, otherwise fallback
+      const response = await formHandlers.importSession(file);
       
       // Process the response
       if (response && response.success) {
@@ -1306,24 +1572,41 @@ $(function () {
   });
   
   // Enable/disable load button based on file selection
-  fileInput.on('change', function () {
-    if (fileInput[0].files.length > 0) {
-      loadButton.prop('disabled', false);
-    } else {
-      loadButton.prop('disabled', true);
-    }
-  });
+  if (formHandlers && formHandlers.setupFileValidation) {
+    formHandlers.setupFileValidation(
+      document.getElementById('file-load'), 
+      document.getElementById('import-button')
+    );
+  } else {
+    // Fallback to direct event handler
+    fileInput.on('change', function () {
+      if (fileInput[0].files.length > 0) {
+        loadButton.prop('disabled', false);
+      } else {
+        loadButton.prop('disabled', true);
+      }
+    });
+  }
 
   const fileFile = $('#fileFile');
   const fileButton = $('#uploadFile');
 
-  fileFile.on('change', function () {
-    if (fileFile[0].files.length > 0) {
-      fileButton.prop('disabled', false);
-    } else {
-      fileButton.prop('disabled', true);
-    }
-  });
+  // Use the form handlers module for file upload validation
+  if (formHandlers && formHandlers.setupFileValidation) {
+    formHandlers.setupFileValidation(
+      document.getElementById('fileFile'), 
+      document.getElementById('uploadFile')
+    );
+  } else {
+    // Fallback to direct event handler
+    fileFile.on('change', function () {
+      if (fileFile[0].files.length > 0) {
+        fileButton.prop('disabled', false);
+      } else {
+        fileButton.prop('disabled', true);
+      }
+    });
+  }
 
   // Initialize tooltips with better configuration
   $("#discourse").tooltip({
@@ -1367,9 +1650,19 @@ $(function () {
     $("#ai-user-initial-prompt").css("display", "none");
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
-    adjustScrollButtons();
+    // Use UI utilities module if available, otherwise fallback
+    if (uiUtils && uiUtils.adjustScrollButtons) {
+      uiUtils.adjustScrollButtons();
+    } else {
+      adjustScrollButtonsFallback();
+    }
     setCookieValues();
-    adjustImageUploadButton($("#model").val());
+    // Use UI utilities module if available, otherwise fallback
+    if (uiUtils && uiUtils.adjustImageUploadButton) {
+      uiUtils.adjustImageUploadButton($("#model").val());
+    } else {
+      adjustImageUploadButtonFallback($("#model").val());
+    }
     $("#monadic-spinner").show();
     
     // Event handlers for the message deletion confirmation dialog

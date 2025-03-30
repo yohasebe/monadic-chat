@@ -37,20 +37,6 @@ message.addEventListener("keydown", function (event) {
   }
 });
 
-// Function to handle visibility change
-function handleVisibilityChange() {
-  if (document.hidden) {
-    // If the document is not visible, close the WebSocket connection
-    // ws.close();
-  } else {
-    // If the document becomes visible again, you can reconnect the WebSocket if needed
-    // Make sure to check if the socket is already connected before attempting to reconnect
-    if (ws.readyState === WebSocket.CLOSED) {
-      ws = connect_websocket();
-    }
-  }
-}
-
 // Set the copy code button for each code block
 function setCopyCodeButton(element) {
   // check element if it exists
@@ -100,12 +86,22 @@ function setCopyCodeButton(element) {
   });
 }
 
-// Add event listener for visibility change
-document.addEventListener('visibilitychange', handleVisibilityChange);
+// Note: Visibility change handler is defined later in the file
 
 //////////////////////////////
 // WebSocket event handlers
 //////////////////////////////
+
+// Import websocket message handlers (if in a CommonJS environment)
+let wsHandlers;
+try {
+  wsHandlers = require('./websocket-handlers');
+} catch (e) {
+  // If require fails, we're in a browser environment
+  // Handlers will be defined inline as before
+  console.log('Running in browser environment, handlers defined inline');
+  wsHandlers = null;
+}
 
 const apps = {}
 let messages = [];
@@ -640,49 +636,84 @@ function connect_websocket(callback) {
       }
 
       case "audio": {
-        $("#monadic-spinner").hide();
-
-        try {
-          // Check if response contains an error
-          if (data.content && typeof data.content === 'string' && data.content.includes('error')) {
-            try {
-              const errorData = JSON.parse(data.content);
-              if (errorData.error) {
-                console.error("TTS error:", errorData.error);
-                break;
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleAudioMessage === 'function') {
+          // Custom audio processor for the extracted handler
+          const processAudio = (audioData) => {
+            // Handle Firefox special case
+            if (window.firefoxAudioMode) {
+              // Add to the Firefox queue instead
+              if (!window.firefoxAudioQueue) {
+                window.firefoxAudioQueue = [];
               }
-            } catch (e) {
-              // If not valid JSON, continue with regular processing
+              // Limit Firefox queue size as well
+              if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
+                window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
+              }
+              window.firefoxAudioQueue.push(audioData);
+              processAudioDataQueue();
+            } else {
+              // Regular MediaSource approach for other browsers
+              audioDataQueue.push(audioData);
+              processAudioDataQueue();
+              
+              // Make sure audio is playing
+              if (audio && audio.paused) {
+                audio.play();
+              }
             }
-          }
+          };
+          
+          handled = wsHandlers.handleAudioMessage(data, processAudio);
+        }
+        
+        if (!handled) {
+          // Fallback to inline handling
+          $("#monadic-spinner").hide();
 
-          const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-          
-          // Handle Firefox special case
-          if (window.firefoxAudioMode) {
-            // Add to the Firefox queue instead
-            if (!window.firefoxAudioQueue) {
-              window.firefoxAudioQueue = [];
+          try {
+            // Check if response contains an error
+            if (data.content && typeof data.content === 'string' && data.content.includes('error')) {
+              try {
+                const errorData = JSON.parse(data.content);
+                if (errorData.error) {
+                  console.error("TTS error:", errorData.error);
+                  break;
+                }
+              } catch (e) {
+                // If not valid JSON, continue with regular processing
+              }
             }
-            // Limit Firefox queue size as well
-            if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-              window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-            }
-            window.firefoxAudioQueue.push(audioData);
-            processAudioDataQueue();
-          } else {
-            // Regular MediaSource approach for other browsers
-            audioDataQueue.push(audioData);
-            processAudioDataQueue();
+
+            const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
             
-            // Make sure audio is playing
-            if (audio && audio.paused) {
-              audio.play();
+            // Handle Firefox special case
+            if (window.firefoxAudioMode) {
+              // Add to the Firefox queue instead
+              if (!window.firefoxAudioQueue) {
+                window.firefoxAudioQueue = [];
+              }
+              // Limit Firefox queue size as well
+              if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
+                window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
+              }
+              window.firefoxAudioQueue.push(audioData);
+              processAudioDataQueue();
+            } else {
+              // Regular MediaSource approach for other browsers
+              audioDataQueue.push(audioData);
+              processAudioDataQueue();
+              
+              // Make sure audio is playing
+              if (audio && audio.paused) {
+                audio.play();
+              }
             }
+            
+          } catch (e) {
+            console.error("Error processing audio data:", e);
           }
-          
-        } catch (e) {
-          console.error("Error processing audio data:", e);
         }
         break;
       }
@@ -694,54 +725,71 @@ function connect_websocket(callback) {
 
       case "error": {
         console.log(data);
-        // Reset ALL UI controls to match the successful case (html) and the cancel case
-        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
-        $("#alert-message").html("Input a message.");
         
-        // Reset UI panels and indicators
-        $("#temp-card").hide();
-        $("#indicator").hide();
-        $("#user-panel").show();
-        $("#cancel_query").hide();
-        
-        // Show message input and hide spinner
-        $("#message").show();
-        $("#message").prop("disabled", false);
-        $("#monadic-spinner").hide();
-
-        // Remove user message that caused error (if it exists)
-        const lastCard = $("#discourse .card").last();
-        if (lastCard.find(".user-color").length !== 0) {
-          deleteMessage(lastCard.attr('id'));
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleErrorMessage === 'function') {
+          handled = wsHandlers.handleErrorMessage(data);
+        } else {
+          // Fallback to inline handling
+          $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+          $("#message").show();
+          $("#message").prop("disabled", false);
+          $("#monadic-spinner").hide();
+          setAlert(data.content, 'error');
+          handled = true;
         }
-
-        // Restore the message content so user can edit and retry
-        $("#message").val(params["message"]);
         
-        // Display error message to user
-        displayErrorMessage(data["content"]);
+        // Additional UI operations specific to our application context
+        if (handled) {
+          $("#select-role").prop("disabled", false);
+          $("#alert-message").html("Input a message.");
+          
+          // Reset UI panels and indicators
+          $("#temp-card").hide();
+          $("#indicator").hide();
+          $("#user-panel").show();
+          $("#cancel_query").hide();
+  
+          // Remove user message that caused error (if it exists)
+          const lastCard = $("#discourse .card").last();
+          if (lastCard.find(".user-color").length !== 0) {
+            deleteMessage(lastCard.attr('id'));
+          }
+  
+          // Restore the message content so user can edit and retry
+          $("#message").val(params["message"]);
+          
+          // Reset response tracking flags to ensure clean state
+          responseStarted = false;
+          callingFunction = false;
+          
+          // Set focus back to input field
+          setInputFocus();
+        }
         
-        // Reset response tracking flags to ensure clean state
-        responseStarted = false;
-        callingFunction = false;
-        
-        // Set focus back to input field
-        setInputFocus();
         break;
       }
 
       case "token_verified": {
-        $("#api-token").val(data["token"]);
-        $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleTokenVerification === 'function') {
+          handled = wsHandlers.handleTokenVerification(data);
+        } else {
+          // Fallback to inline handling
+          $("#api-token").val(data["token"]);
+          $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
+          handled = true;
+        }
 
-        verified = "full";
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
-
-        $("#start").prop("disabled", false);
-        $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
-
-        // console.log("Token verified");
+        // These operations are still needed regardless of which path handled the message
+        if (handled) {
+          verified = "full";
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+          $("#start").prop("disabled", false);
+          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+        }
 
         break;
       }
@@ -980,15 +1028,24 @@ function connect_websocket(callback) {
         break;
       }
       case "stt": {
-        $("#message").val($("#message").val() + " " + data["content"]);
-        let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
-        $("#asr-p-value").text(logprob);
-        $("#send, #clear, #voice").prop("disabled", false);
-        if ($("#check-easy-submit").is(":checked")) {
-          $("#send").click();
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
+          handled = wsHandlers.handleSTTMessage(data);
         }
-        setAlert("<i class='fa-solid fa-circle-check'></i> Voice recognition finished", "secondary");
-        setInputFocus()
+        
+        if (!handled) {
+          // Fallback to inline handling
+          $("#message").val($("#message").val() + " " + data["content"]);
+          let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
+          $("#asr-p-value").text(logprob);
+          $("#send, #clear, #voice").prop("disabled", false);
+          if ($("#check-easy-submit").is(":checked")) {
+            $("#send").click();
+          }
+          setAlert("<i class='fa-solid fa-circle-check'></i> Voice recognition finished", "secondary");
+          setInputFocus()
+        }
         break;
       }
       case "info": {
@@ -1225,27 +1282,37 @@ function connect_websocket(callback) {
       case "html": {
         responseStarted = false;
         callingFunction = false;
-        messages.push(data["content"]);
-
-        let html = data["content"]["html"];
-
-        if (data["content"]["thinking"]) {
-          html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html
-        } else if(data["content"]["reasoning_content"]) {
-          html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html
+        
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
+          handled = wsHandlers.handleHtmlMessage(data, messages, appendCard);
         }
         
-        if (data["content"]["role"] === "assistant") {
-          appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
+        if (!handled) {
+          // Fallback to inline handling
+          messages.push(data["content"]);
 
-          // Show message input and hide spinner
-          $("#message").show();
-          $("#message").val(""); // Clear the message after successful response
-          $("#message").prop("disabled", false);
-          // Re-enable all input controls
-          $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
-          $("#select-role").prop("disabled", false);
-          $("#monadic-spinner").hide();
+          let html = data["content"]["html"];
+
+          if (data["content"]["thinking"]) {
+            html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html
+          } else if(data["content"]["reasoning_content"]) {
+            html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html
+          }
+          
+          if (data["content"]["role"] === "assistant") {
+            appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
+
+            // Show message input and hide spinner
+            $("#message").show();
+            $("#message").val(""); // Clear the message after successful response
+            $("#message").prop("disabled", false);
+            // Re-enable all input controls
+            $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+            $("#select-role").prop("disabled", false);
+            $("#monadic-spinner").hide();
+          }
 
           if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
             $("#message").attr("placeholder", "Waiting for AI-user input . . .");
@@ -1340,20 +1407,28 @@ function connect_websocket(callback) {
       }
 
       case "cancel": {
-        // Don't clear the message so users can edit and resubmit
-        $("#message").attr("placeholder", "Type your message...");
-        $("#message").prop("disabled", false);
-        // Re-enable all the UI elements that were disabled
-        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
-        $("#alert-message").html("Input a message.");
-        $("#cancel_query").hide();
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleCancelMessage === 'function') {
+          handled = wsHandlers.handleCancelMessage(data);
+        }
         
-        // Show message input and hide spinner
-        $("#message").show();
-        $("#monadic-spinner").hide();
-        
-        setInputFocus();
+        if (!handled) {
+          // Don't clear the message so users can edit and resubmit
+          $("#message").attr("placeholder", "Type your message...");
+          $("#message").prop("disabled", false);
+          // Re-enable all the UI elements that were disabled
+          $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+          $("#select-role").prop("disabled", false);
+          $("#alert-message").html("Input a message.");
+          $("#cancel_query").hide();
+          
+          // Show message input and hide spinner
+          $("#message").show();
+          $("#monadic-spinner").hide();
+          
+          setInputFocus();
+        }
         break;
       }
 

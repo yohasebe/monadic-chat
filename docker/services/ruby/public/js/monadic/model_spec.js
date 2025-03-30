@@ -335,14 +335,16 @@ const modelSpec = {
     "max_output_tokens" : [1, 64000],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gemini-2.5-pro-exp-03-25": {
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 64000],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "gemini-2.0-pro-exp-02-05": {
     "context_window" : [1, 1048576],

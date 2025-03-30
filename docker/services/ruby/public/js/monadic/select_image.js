@@ -56,7 +56,7 @@ $("#imageFile").on("change", function() {
 // File selection button click handler
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
-  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1/.test(selectedModel);
+  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.5/.test(selectedModel);
 
   // Update modal UI based on model capabilities
   if (isPdfEnabled) {
@@ -80,7 +80,7 @@ $("#uploadImage").on("click", function () {
   const fileInput = $('#imageFile')[0];
   const file = fileInput.files[0];
   const selectedModel = $("#model").val();
-  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1/.test(selectedModel);
+  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.5/.test(selectedModel);
 
   if (file) {
     // Check file size for PDF files (35MB limit)
@@ -98,7 +98,7 @@ $("#uploadImage").on("click", function () {
 
     // Validate PDF compatibility with selected model
     if (file.type === 'application/pdf' && !isPdfEnabled) {
-      setAlert("PDF files can only be uploaded when using a Sonnet model", "error");
+      setAlert("PDF files can only be uploaded when using a model that supports PDF input", "error");
       $("#imageModal").modal("hide");
       return;
     }

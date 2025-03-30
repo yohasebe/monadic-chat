@@ -35,6 +35,7 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
+  spec.add_development_dependency "rspec"
 
   spec.add_dependency "activesupport"
   spec.add_dependency "cld"
@@ -46,6 +47,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "i18n_data"
   spec.add_dependency "kramdown"
   spec.add_dependency "kramdown-parser-gfm"
+  spec.add_dependency "matrix"
   spec.add_dependency "method_source"
   spec.add_dependency "nokogiri"
   # spec.add_dependency "oj"

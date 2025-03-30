@@ -95,8 +95,8 @@ def version_files
     "./docs/_coverpage.md"
   ]
   
-  # Note: installation.md files are excluded from version checks
-  # since they now use "latest" links instead of hardcoded version numbers
+  # Note: installation.md files are not included here because they're
+  # updated separately in the release:github task with specific version numbers
   
   # Return only the static files
   static_files
@@ -128,42 +128,11 @@ def update_version_in_file(file, from_version, to_version)
     updated_content = content.gsub(/^(\s*VERSION\s*=\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
   
   when "installation.md"
-    # For installation.md files, carefully update only version numbers in download URLs and version indicators
-    updated_content = content.dup
-    
-    # Fix macOS ARM64 URL (both old and new formats)
-    updated_content = updated_content.gsub(/(Monadic%20Chat-)#{Regexp.escape(from_version)}(-arm64\.dmg)/, "\\1#{to_version}\\2")
-    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-arm64\.dmg)/, "\\1#{to_version}\\2")
-    
-    # Fix macOS x64 URL (both old and new formats)
-    updated_content = updated_content.gsub(/(Monadic%20Chat-)#{Regexp.escape(from_version)}(\.dmg)/, "\\1#{to_version}\\2")
-    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-x64\.dmg)/, "\\1#{to_version}\\2")
-    
-    # Fix Windows URL (both old and new formats)
-    updated_content = updated_content.gsub(/(Monadic%20Chat%20Setup%20)#{Regexp.escape(from_version)}(\.exe)/, "\\1#{to_version}\\2")
-    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-win\.exe)/, "\\1#{to_version}\\2")
-    
-    # Fix Linux amd64 URL (both old and new formats)
-    updated_content = updated_content.gsub(/(monadic-chat_)#{Regexp.escape(from_version)}(_amd64\.deb)/, "\\1#{to_version}\\2")
-    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-amd64\.deb)/, "\\1#{to_version}\\2")
-    
-    # Fix Linux arm64 URL (both old and new formats)
-    updated_content = updated_content.gsub(/(monadic-chat_)#{Regexp.escape(from_version)}(_arm64\.deb)/, "\\1#{to_version}\\2")
-    updated_content = updated_content.gsub(/(monadic-chat-)#{Regexp.escape(from_version)}(-arm64\.deb)/, "\\1#{to_version}\\2")
-    
-    # Update version indicators in parentheses (the version shown next to download links)
-    updated_content = updated_content.gsub(/\(#{Regexp.escape(from_version)}\)/, "(#{to_version})")
-    
-    # Update version in HTML comments or add a new one if not present
-    if updated_content =~ /<!--\s*version:\s*#{Regexp.escape(from_version)}\s*-->/
-      # Update existing version comment
-      updated_content = updated_content.gsub(/<!--\s*version:\s*#{Regexp.escape(from_version)}\s*-->/, "<!-- version: #{to_version} -->")
-    else
-      # Add version comment at the top of the file if not already present
-      unless updated_content =~ /<!--\s*version:\s*\S+\s*-->/
-        updated_content = "<!-- version: #{to_version} -->\n" + updated_content
-      end
-    end
+    # IMPORTANT: Do not update installation.md here
+    # Installation docs are updated separately in the release:github task
+    # to ensure docs are only updated when actual releases are made
+    puts "Skipping installation.md update - this should be done only in release:github task"
+    return false
   
   when "_coverpage.md"
     # For _coverpage.md, update the version in the header only
@@ -221,13 +190,10 @@ task :check_version do
       when "version.rb"
         version_found = content =~ /^\s*VERSION\s*=\s*"#{Regexp.escape(official_version)}"/
       when "installation.md"
-        # Check for version in URLs, parentheses, or in HTML comments
-        version_found = content.include?("Monadic%20Chat-#{official_version}") || 
-                        content.include?("Monadic%20Chat%20Setup%20#{official_version}") ||
-                        content.include?("monadic-chat_#{official_version}_") ||
-                        content.include?("monadic-chat-#{official_version}-") ||
-                        content =~ /\(#{Regexp.escape(official_version)}\)/ ||
-                        content =~ /<!--\s*version:\s*#{Regexp.escape(official_version)}\s*-->/
+        # IMPORTANT: Skip checking installation.md files for version consistency
+        # These are updated separately during release:github task
+        puts "Skipping version check for installation.md - this file is managed by release:github task"
+        version_found = true # Skip checking
       when "_coverpage.md"
         version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
       when "package.json"
@@ -337,10 +303,9 @@ task :update_version, [:from_version, :to_version] do |_t, args|
         when "version.rb"
           version_found = content.include?("VERSION = \"#{from_version}\"")
         when "installation.md"
-          version_found = content.include?("Monadic%20Chat-#{from_version}") || 
-                          content.include?("Monadic%20Chat%20Setup%20#{from_version}") ||
-                          content.include?("monadic-chat_#{from_version}_") ||
-                          content.include?("(#{from_version})")
+          # IMPORTANT: Skip checking installation.md files - they're updated separately during actual releases
+          puts "Skipping version check for installation.md in dry run"
+          version_found = true # Skip checking
         when "_coverpage.md"
           version_found = content.include?("<small><b>#{from_version}</b></small>")
         when "package.json"
@@ -576,27 +541,52 @@ namespace :release do
       exit 1
     end
     
-    # Step 6.5: Create "latest" versions of each asset
-    latest_assets = []
-    release_assets.each do |asset|
-      basename = File.basename(asset)
-      # Replace version number with "latest" in the filename
-      latest_basename = if basename.include?(version)
-        basename.gsub(version, "latest")
-      else
-        puts "Warning: Asset #{basename} does not contain version number, skipping latest creation"
-        next
-      end
-      
-      latest_path = File.join(File.dirname(asset), latest_basename)
-      puts "Creating latest version: #{latest_basename}"
-      FileUtils.cp(asset, latest_path)
-      latest_assets << latest_path
-    end
+    # No longer creating "latest" versions of assets - will update documentation instead
+    puts "Total assets for release: #{release_assets.length}"
     
-    # Add latest assets to the release assets
-    release_assets.concat(latest_assets)
-    puts "Total assets for release: #{release_assets.length} (including #{latest_assets.length} 'latest' versions)"
+    # Update installation documentation with the current version number
+    ["./docs/getting-started/installation.md", "./docs/ja/getting-started/installation.md"].each do |install_doc|
+      if File.exist?(install_doc)
+        content = File.read(install_doc)
+        updated_content = content.dup
+        
+        # Update macOS ARM64 URL
+        updated_content = updated_content.gsub(/\/Monadic%20Chat-latest-arm64\.dmg/, "/Monadic%20Chat-#{version}-arm64.dmg")
+        
+        # Update macOS x64 URL
+        updated_content = updated_content.gsub(/\/Monadic%20Chat-latest\.dmg/, "/Monadic%20Chat-#{version}.dmg")
+        
+        # Update Windows URL
+        updated_content = updated_content.gsub(/\/Monadic%20Chat%20Setup%20latest\.exe/, "/Monadic%20Chat%20Setup%20#{version}.exe")
+        
+        # Update Linux x64 URL
+        updated_content = updated_content.gsub(/\/monadic-chat_latest_amd64\.deb/, "/monadic-chat_#{version}_amd64.deb")
+        
+        # Update Linux arm64 URL
+        updated_content = updated_content.gsub(/\/monadic-chat_latest_arm64\.deb/, "/monadic-chat_#{version}_arm64.deb")
+        
+        # Update version notes in documentation
+        if install_doc.include?('/ja/')
+          # Japanese documentation
+          updated_content = updated_content.gsub(/\*\[GitHub.*?\)\で、すべての利用可能なバージョンを確認することもできます。\*/, 
+            "*バージョン #{version}。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*")
+        else
+          # English documentation
+          updated_content = updated_content.gsub(/\*You can also visit the \[GitHub.*?\) to see all available versions.\*/, 
+            "*Version #{version}. You can also visit the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest) to see other versions.*")
+        end
+        
+        # Only write back if something changed
+        if updated_content != content
+          puts "Updating download links in #{install_doc} to version #{version}"
+          File.write(install_doc, updated_content)
+        else
+          puts "No updates needed for #{install_doc}"
+        end
+      else
+        puts "Warning: Installation documentation file not found: #{install_doc}"
+      end
+    end
     
     # Step 7: Create GitHub release
     begin

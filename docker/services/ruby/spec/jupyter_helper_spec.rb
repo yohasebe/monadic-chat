@@ -1,19 +1,6 @@
 # frozen_string_literal: true
 
 require_relative 'spec_helper'
-require 'ostruct'
-require 'json'
-require 'yaml'
-require 'tempfile'
-
-# Define necessary constants
-IN_CONTAINER = false unless defined?(IN_CONTAINER)
-
-# Define mock MonadicApp with necessary constants
-module MonadicApp
-  SHARED_VOL = "/monadic/data"
-  LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
-end
 
 # Include the module to test
 require_relative '../lib/monadic/helpers/jupyter_helper'

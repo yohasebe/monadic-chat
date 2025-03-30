@@ -7,18 +7,9 @@ require "json"
 require_relative "./spec_helper"
 require_relative "../lib/monadic/utils/websocket"
 
-# Define the MonadicApp module for testing
+# All necessary constants and mocks are now defined in spec_helper.rb
 module MonadicApp
-  class TokenizerMock
-    def count_tokens(text, encoding_name = nil)
-      return text.to_s.length < 20 ? 10 : 20 # Simulate different token counts based on length
-    end
-  end
-  
-  TOKENIZER = TokenizerMock.new
-  
-  # Mock constant to prevent test failures
-  AI_USER_INITIAL_PROMPT = "Default AI user prompt for testing"
+  AI_USER_INITIAL_PROMPT = "Default AI user prompt for testing" unless defined?(AI_USER_INITIAL_PROMPT)
 end
 
 RSpec.describe WebSocketHelper do

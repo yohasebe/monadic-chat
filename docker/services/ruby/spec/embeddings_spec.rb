@@ -6,7 +6,7 @@ require_relative "./spec_helper"
 require_relative "../lib/monadic/utils/text_embeddings"
 
 API_KEY = ENV["OPENAI_API_KEY"]
-IN_CONTAINER = false
+# IN_CONTAINER is already defined in spec_helper.rb so we don't redefine it here
 
 RSpec.describe "get_embeddings" do
   before(:all) do

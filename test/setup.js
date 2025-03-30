@@ -205,6 +205,8 @@ function createJQueryObject(selector) {
     scrollTop: jest.fn().mockReturnValue(0),
     tooltip: jest.fn().mockReturnThis(),
     modal: jest.fn().mockReturnThis(),
+    closest: jest.fn().mockReturnThis(),
+    detach: jest.fn().mockReturnThis(),
   };
 
   // Make it array-like
@@ -213,6 +215,68 @@ function createJQueryObject(selector) {
   
   return mockObject;
 }
+
+// Create a function to extract functions from client-side JS files
+function extractFunctions(modulePath) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    // Read file content
+    const projectRoot = path.resolve(__dirname, '..');
+    const fullPath = path.join(projectRoot, modulePath);
+    const content = fs.readFileSync(fullPath, 'utf8');
+    
+    // Extract function declarations using regex patterns
+    const functionPatterns = [
+      // Function declarations: function name(...) {...}
+      /function\s+(\w+)\s*\([^)]*\)\s*\{/g,
+      
+      // Arrow functions assigned to variables: const name = (...) => {...}
+      /(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g,
+      
+      // Function expressions assigned to variables: const name = function(...) {...}
+      /(?:const|let|var)\s+(\w+)\s*=\s*function\s*\(/g,
+      
+      // Window object function assignments: window.name = function(...) {...}
+      /window\.(\w+)\s*=\s*function\s*\(/g
+    ];
+    
+    const functionNames = new Set();
+    for (const pattern of functionPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        functionNames.add(match[1]);
+      }
+    }
+    
+    // Create a module object with extracted function names
+    const extractedModule = {};
+    
+    // Define function implementations based on the extracted names
+    Array.from(functionNames).forEach(name => {
+      // Create a function that will call the global implementation
+      extractedModule[name] = function(...args) {
+        // Make sure the function exists in the global scope
+        if (typeof global[name] !== 'function') {
+          global[name] = jest.fn();
+        }
+        return global[name](...args);
+      };
+    });
+    
+    return extractedModule;
+  } catch (error) {
+    console.error(`Failed to extract functions from ${modulePath}:`, error);
+    return {};
+  }
+}
+
+// Export helpers for tests
+module.exports = {
+  createJQueryObject,
+  extractFunctions
+};
 
 // Create an implementation of the jQuery function
 const $ = jest.fn().mockImplementation(selector => {

@@ -2,42 +2,15 @@
 
 require_relative 'spec_helper'
 require 'open3'
-require 'json'
 require 'fileutils'
 
-# Define stub constant for IN_CONTAINER before requiring the file
-if !defined?(IN_CONTAINER)
-  IN_CONTAINER = true 
-end
+# Set IN_CONTAINER for this test specifically
+# This does not redefine the constant but sets a specific value for this test
+# Note that we're not redefining it if it's already defined
+IN_CONTAINER = true unless defined?(IN_CONTAINER)
 
-# Create a mock class for the tokenizer rather than changing the existing one
-# This avoids the constant redefinition warning
-module MonadicApp
-  # Only create this for our test file
-  class TokenizerMock
-    def self.get_tokens_sequence(text)
-      # Simple token counting for testing purposes
-      text.split(/\s+/).map { |word| "t_#{word}" }
-    end
-  end
-  
-  # Override TOKENIZER constant with our mock only within this test
-  # Use `instance_exec` to avoid warning about redefining constants
-  if !defined?(MonadicApp::TOKENIZER_ORIGINAL)
-    # Backup original if it exists
-    if defined?(MonadicApp::TOKENIZER)
-      MonadicApp.instance_exec do
-        TOKENIZER_ORIGINAL = TOKENIZER
-      end
-    end
-    
-    # Set our mock
-    MonadicApp.instance_exec do
-      remove_const(:TOKENIZER) if defined?(TOKENIZER)
-      TOKENIZER = TokenizerMock
-    end
-  end
-end
+# For RSpec Support Differ error
+require 'rspec/support/differ'
 
 # Now require the file after defining the constants it needs
 require_relative '../lib/monadic/utils/pdf_text_extractor'

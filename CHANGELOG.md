@@ -1,4 +1,6 @@
-- [March, 2025] 0.9.73
+- [March, 2025] 0.9.74
+  - Removed "latest" installers in favor of explicit version numbers in download links
+  - Release process now updates documentation with specific version numbers
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0
   - Improved Electron security with contextIsolation enabled

@@ -476,8 +476,22 @@ end
 
 # Test ruby code with rspec ./docker/services/ruby/spec
 task :spec do
-  sh "rspec ./docker/services/ruby/spec"
+  sh "rspec ./docker/services/ruby/spec --format documentation --no-fail-fast --no-profile"
 end
+
+# Test JavaScript code with Jest
+desc "Run JavaScript tests using Jest"
+task :jstest do
+  sh "npm test"
+end
+
+# For backward compatibility
+desc "Run all JavaScript tests using Jest"
+task :jstest_all => :jstest
+
+# Run both Ruby and JavaScript tests
+desc "Run all tests (Ruby and JavaScript)"
+task :test => [:spec, :jstest]
 
 # GitHub Release Management Tasks
 namespace :release do

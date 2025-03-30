@@ -148,9 +148,14 @@ def handle_error(message)
   redirect "/"
 end
 
-# list PDF titles in the database
+# List PDF titles in the database with error handling
 def list_pdf_titles
-  EMBEDDINGS_DB.list_titles.map { |t| t[:title] }
+  begin
+    EMBEDDINGS_DB.list_titles.map { |t| t[:title] }
+  rescue StandardError => e
+    puts "Error listing PDF titles: #{e.message}"
+    []
+  end
 end
 
 # Load app files

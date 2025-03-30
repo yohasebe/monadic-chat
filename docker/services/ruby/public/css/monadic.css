@@ -34,7 +34,9 @@ img.base64-image {
 .func-stop,
 .func-delete,
 .func-edit,
-div.sourcecode-toggle {
+div.sourcecode-toggle,
+#interaction-check-all,
+#interaction-uncheck-all {
   cursor: pointer;
 }
 
@@ -380,6 +382,27 @@ blockquote p:last-child {
 .textbox-caption {
   font-size: 0.9em;
   color: #777;
+}
+
+#interaction-check-all,
+#interaction-uncheck-all {
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+#interaction-check-all:hover,
+#interaction-uncheck-all:hover {
+  color: #495057;
+  text-decoration: underline;
+}
+
+div.sourcecode-toggle:hover {
+  color: #555;
+  text-decoration: underline;
+}
+
+.toggle-text:hover {
+  color: #555;
+  text-decoration: underline;
 }
 
 #message,

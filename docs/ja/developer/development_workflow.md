@@ -4,6 +4,37 @@
 
 ?> このドキュメントは、Monadic Chat のレシピファイルの開発者ではなく、Monadic Chat自体の開発者向けです。
 
+## テスト
+
+### テストフレームワーク
+- **JavaScript**: フロントエンドコードのテストにJestを使用
+- **Ruby**: バックエンドコードのテストにRSpecを使用
+
+### テスト構造
+- JavaScriptテストは `test/frontend/` に配置
+- Rubyテストは `docker/services/ruby/spec/` に配置
+- Jestの設定は `jest.config.js` に定義
+- JavaScriptのグローバルテスト設定は `test/setup.js` に定義
+
+### テスト実行方法
+#### Rubyテスト
+```bash
+rake spec
+```
+
+#### JavaScriptテスト
+```bash
+rake jstest        # 成功するJavaScriptテストを実行
+npm test           # 上記と同じ
+rake jstest_all    # すべてのJavaScriptテストを実行
+npm run test:watch # ウォッチモードでテストを実行
+npm run test:coverage # カバレッジレポート付きでテストを実行
+```
+
+#### すべてのテスト
+```bash
+rake test  # RubyとJavaScriptの両方のテストを実行
+```
 ## 重要：セットアップスクリプトの管理
 
 `docker/services/python/`と`docker/services/ruby/`にある`pysetup.sh`と`rbsetup.sh`ファイルは、コンテナビルド中、追加パッケージをインストールするためにユーザーが共有フォルダの`config`ディレクトリに配置したものに置き換えられます。バージョン管理システム（Git）には、常にこれらのスクリプトのオリジナルバージョンをコミットする必要があります。リポジトリに変更をコミットする前に、以下のいずれかの方法でこれらのファイルをリセットします。

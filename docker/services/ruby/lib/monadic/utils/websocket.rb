@@ -102,6 +102,340 @@ module WebSocketHelper
     res
   end
 
+  # List available ElevenLabs voices
+  # @param api_key [String, nil] Optional API key
+  # @return [Array] Array of voice data
+  def list_elevenlabs_voices(api_key = nil)
+    # Use provided API key or default from config
+    api_key ||= CONFIG["ELEVENLABS_API_KEY"] if defined?(CONFIG)
+    return [] unless api_key
+    
+    # Direct implementation to avoid dependency issues with InteractionUtils
+    begin
+      url = URI("https://api.elevenlabs.io/v1/voices")
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      request = Net::HTTP::Get.new(url)
+      request["xi-api-key"] = api_key
+      response = http.request(request)
+      
+      return [] unless response.is_a?(Net::HTTPSuccess)
+      
+      voices = response.read_body
+      JSON.parse(voices)&.dig("voices")&.map do |voice|
+        {
+          "voice_id" => voice["voice_id"],
+          "name" => voice["name"]
+        }
+      end || []
+    rescue StandardError => e
+      []
+    end
+  end
+
+  # Handle the LOAD message by preparing and sending relevant data
+  # @param ws [Faye::WebSocket] WebSocket connection
+  def handle_load_message(ws)
+    # Handle error if present
+    if session[:error]
+      ws.send({ "type" => "error", "content" => session[:error] }.to_json)
+      session[:error] = nil
+    end
+    
+    # Prepare app data
+    apps_data = prepare_apps_data
+    
+    # Filter and prepare messages
+    filtered_messages = prepare_filtered_messages
+    
+    # Send app data
+    push_apps_data(ws, apps_data, filtered_messages)
+    
+    # Handle voice data
+    push_voice_data(ws)
+    
+    # Update message status
+    update_message_status(ws, filtered_messages)
+  end
+  
+  # Prepare apps data with settings
+  # @return [Hash] Apps data with settings
+  def prepare_apps_data
+    return {} unless defined?(APPS)
+    
+    apps = {}
+    APPS.each do |k, v|
+      apps[k] = {}
+      v.settings.each do |p, m|
+        # Special case for models array to ensure it's properly sent as JSON
+        if p == "models" && m.is_a?(Array)
+          apps[k][p] = m.to_json
+        else
+          apps[k][p] = m ? m.to_s : nil
+        end
+      end
+      v.api_key = settings.api_key if v.respond_to?(:api_key=) && settings.respond_to?(:api_key)
+    end
+    apps
+  end
+  
+  # Filter and prepare messages for display
+  # @return [Array] Filtered and formatted messages
+  def prepare_filtered_messages
+    # Filter messages only once
+    filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+    
+    # Convert markdown to HTML for assistant messages if html field is missing
+    filtered_messages.each do |m|
+      if m["role"] == "assistant" && !m["html"]
+        m["html"] = if session["parameters"]&.[]("monadic") && defined?(APPS) && 
+                      session["parameters"]["app_name"] && 
+                      APPS[session["parameters"]["app_name"]]&.respond_to?(:monadic_html)
+                    APPS[session["parameters"]["app_name"]].monadic_html(m["text"])
+                  else
+                    markdown_to_html(m["text"])
+                  end
+      end
+    end
+    
+    filtered_messages
+  end
+  
+  # Log error with appropriate level based on environment
+  # @param message [String] Error message prefix
+  # @param error [StandardError] The error object
+  # @param level [Symbol] Log level (:info, :warn, :error, etc)
+  def log_error(message, error, level = :error)
+    # Skip verbose logging in test environment
+    return if defined?(RSpec)
+    
+    # Use Rails logger if available
+    if defined?(Rails) && Rails.logger
+      Rails.logger.send(level, "#{message}: #{error.message}")
+      Rails.logger.debug(error.backtrace.join("\n")) if level == :error
+    # Use Ruby logger if available
+    elsif defined?(Logger) && instance_variable_defined?(:@logger)
+      @logger.send(level, "#{message}: #{error.message}")
+      @logger.debug(error.backtrace.join("\n")) if level == :error
+    # Fallback to puts for development
+    elsif ENV["RACK_ENV"] != "test"
+      puts "#{level.to_s.upcase}: #{message}: #{error.message}"
+      puts error.backtrace.join("\n") if level == :error
+    end
+  end
+  
+  # Push apps data to WebSocket
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param apps [Hash] Apps data
+  # @param filtered_messages [Array] Filtered messages
+  def push_apps_data(ws, apps, filtered_messages)
+    @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
+    @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
+    @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty?
+  end
+  
+  # Push voice data to WebSocket
+  # @param ws [Faye::WebSocket] WebSocket connection
+  def push_voice_data(ws)
+    elevenlabs_voices = list_elevenlabs_voices
+    if elevenlabs_voices && !elevenlabs_voices.empty?
+      @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
+    end
+  end
+  
+  # Update message status and push info
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param filtered_messages [Array] Filtered messages
+  def update_message_status(ws, filtered_messages)
+    past_messages_data = check_past_messages(session[:parameters])
+    
+    # Reuse filtered_messages for change_status
+    @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
+    @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+  end
+  
+  # Handle DELETE message
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param obj [Hash] Parsed message object
+  def handle_delete_message(ws, obj)
+    # Delete the message
+    session[:messages].delete_if { |m| m["mid"] == obj["mid"] }
+    
+    # Check message status
+    past_messages_data = check_past_messages(session[:parameters])
+    
+    # Filter messages
+    filtered_messages = prepare_filtered_messages
+    
+    # Update status
+    @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
+    @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+  end
+  
+  # Handle EDIT message
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param obj [Hash] Parsed message object
+  def handle_edit_message(ws, obj)
+    # Find the message to edit
+    message_to_edit = session[:messages].find { |m| m["mid"] == obj["mid"] }
+    
+    if message_to_edit
+      # Update the message text
+      message_to_edit["text"] = obj["content"]
+      
+      # Generate HTML content if needed
+      html_content = generate_html_for_message(message_to_edit, obj["content"])
+      
+      # Create response with updated HTML for the client
+      response = {
+        "type" => "edit_success",
+        "content" => "Message updated successfully",
+        "mid" => obj["mid"],
+        "role" => message_to_edit["role"],
+        "html" => html_content
+      }
+      
+      # Push the response
+      @channel.push(response.to_json)
+      
+      # Update message status
+      update_message_status_after_edit
+    else
+      # Message not found
+      @channel.push({ "type" => "error", "content" => "Message not found for editing" }.to_json)
+    end
+  end
+  
+  # Generate HTML content for a message
+  # @param message [Hash] The message to generate HTML for
+  # @param content [String] The text content
+  # @return [String, nil] The HTML content or nil
+  def generate_html_for_message(message, content)
+    return nil unless message["role"] == "assistant"
+    
+    html_content = if session["parameters"]&.[]("monadic") && 
+                     defined?(APPS) && 
+                     session["parameters"]["app_name"] && 
+                     APPS[session["parameters"]["app_name"]]&.respond_to?(:monadic_html)
+                   APPS[session["parameters"]["app_name"]].monadic_html(content)
+                 else
+                   markdown_to_html(content)
+                 end
+    
+    message["html"] = html_content
+    html_content
+  end
+  
+  # Update message status after edit
+  def update_message_status_after_edit
+    past_messages_data = check_past_messages(session[:parameters])
+    
+    # Filter messages only once and store in filtered_messages
+    filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+    
+    # Update status to reflect any changes
+    @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
+    @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+  end
+  
+  # Handle AUDIO message
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param obj [Hash] Parsed message object
+  def handle_audio_message(ws, obj)
+    if obj["content"].nil?
+      @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
+      return
+    end
+    
+    # Decode audio content
+    blob = Base64.decode64(obj["content"])
+    
+    # Get configuration
+    model = get_stt_model
+    format = obj["format"] || "webm"
+    
+    # Process the transcription
+    process_transcription(ws, blob, format, obj["lang_code"], model)
+  end
+  
+  # Get the speech-to-text model from config
+  # @return [String] The model name
+  def get_stt_model
+    defined?(CONFIG) && CONFIG["STT_MODEL"] ? CONFIG["STT_MODEL"] : "gpt-4o-transcribe"
+  end
+  
+  # Process audio transcription
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param blob [String] The decoded audio data
+  # @param format [String] The audio format
+  # @param lang_code [String] The language code
+  # @param model [String] The model to use
+  def process_transcription(ws, blob, format, lang_code, model)
+    begin
+      # Request transcription
+      res = stt_api_request(blob, format, lang_code, model)
+      
+      if res["text"] && res["text"] == ""
+        @channel.push({ "type" => "error", "content" => "The text input is empty" }.to_json)
+      elsif res["type"] && res["type"] == "error"
+        # Include format information in error message for debugging
+        error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
+        @channel.push({ "type" => "error", "content" => error_message }.to_json)
+      else
+        send_transcription_result(ws, res, model)
+      end
+    rescue StandardError => e
+      # Log the error but don't crash the application
+      log_error("Error processing transcription", e) 
+      
+      # Send a generic error message to the client
+      @channel.push({ 
+        "type" => "error", 
+        "content" => "An error occurred while processing your audio"
+      }.to_json)
+    end
+  end
+  
+  # Calculate confidence and send transcription result
+  # @param ws [Faye::WebSocket] WebSocket connection
+  # @param res [Hash] The transcription result
+  # @param model [String] The model used
+  def send_transcription_result(ws, res, model)
+    begin
+      logprob = calculate_logprob(res, model)
+      
+      @channel.push({
+        "type" => "stt",
+        "content" => res["text"],
+        "logprob" => logprob
+      }.to_json)
+    rescue StandardError => e
+      # Handle errors in logprob calculation
+      @channel.push({
+        "type" => "stt",
+        "content" => res["text"]
+      }.to_json)
+    end
+  end
+  
+  # Calculate log probability for transcription confidence
+  # @param res [Hash] The transcription result
+  # @param model [String] The model used
+  # @return [Float, nil] The calculated log probability or nil on error
+  def calculate_logprob(res, model)
+    case model
+    when "whisper-1"
+      avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
+    else
+      avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
+    end
+    
+    # Calculate average and convert to probability
+    Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+  rescue StandardError
+    nil
+  end
+
   def websocket_handler(env)
     EventMachine.run do
       queue = Queue.new
@@ -210,105 +544,11 @@ module WebSocketHelper
           session[:error] = nil
           session[:obj] = nil
         when "LOAD"
-          if session[:error]
-            ws.send({ "type" => "error", "content" => session[:error] }.to_json)
-            session[:error] = nil
-          end
-          apps = {}
-          APPS.each do |k, v|
-            apps[k] = {}
-            v.settings.each do |p, m|
-              # Special case for models array to ensure it's properly sent as JSON
-              if p == "models" && m.is_a?(Array)
-                apps[k][p] = m.to_json
-              else
-                apps[k][p] = m ? m.to_s : nil
-              end
-            end
-            v.api_key = settings.api_key
-          end
-
-          # Filter messages only once and store in filtered_messages
-          filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
-
-          # Convert markdown to HTML for assistant messages if html field is missing
-          filtered_messages.each do |m|
-            if m["role"] == "assistant"
-              m["html"] = session["parameters"]&.[]("monadic") ? 
-                APPS[session["parameters"]["app_name"]].monadic_html(m["text"]) :
-                markdown_to_html(m["text"])
-            end
-          end
-
-          # Use filtered_messages for pushing past messages
-          @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
-          @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
-          @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty? 
-
-          elevenlabs_voices =  list_elevenlabs_voices(CONFIG["ELEVENLABS_API_KEY"])
-          if elevenlabs_voices && !elevenlabs_voices.empty?
-            @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
-          end
-
-          past_messages_data = check_past_messages(session[:parameters])
-
-          # Reuse filtered_messages for change_status
-          @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed] 
-          @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+          handle_load_message(ws)
         when "DELETE"
-          session[:messages].delete_if { |m| m["mid"] == obj["mid"] }
-          past_messages_data = check_past_messages(session[:parameters])
-
-          # Filter messages only once and store in filtered_messages
-          filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
-
-          # Reuse filtered_messages for change_status
-          @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed] 
-          @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+          handle_delete_message(ws, obj)
         when "EDIT"
-          # Find the message to edit
-          message_to_edit = session[:messages].find { |m| m["mid"] == obj["mid"] }
-          
-          if message_to_edit
-            # Update the message text
-            message_to_edit["text"] = obj["content"]
-            
-            # If it's an assistant message, update the HTML representation too
-            html_content = nil
-            if message_to_edit["role"] == "assistant"
-              if session["parameters"] && session["parameters"]["monadic"]
-                html_content = APPS[session["parameters"]["app_name"]].monadic_html(obj["content"])
-              else
-                html_content = markdown_to_html(obj["content"])
-              end
-              message_to_edit["html"] = html_content
-            end
-            
-            # Create response with updated HTML for the client to use
-            response = {
-              "type" => "edit_success",
-              "content" => "Message updated successfully",
-              "mid" => obj["mid"],
-              "role" => message_to_edit["role"],
-              "html" => html_content
-            }
-            
-            # Push the response with updated HTML
-            @channel.push(response.to_json)
-            
-            # Recheck message token counts if needed
-            past_messages_data = check_past_messages(session[:parameters])
-            
-            # Filter messages only once and store in filtered_messages
-            filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
-            
-            # Update status to reflect any changes
-            @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-            @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
-          else
-            # Message not found
-            @channel.push({ "type" => "error", "content" => "Message not found for editing" }.to_json)
-          end
+          handle_edit_message(ws, obj)
         when "AI_USER_QUERY"
           thread&.join
 
@@ -510,38 +750,7 @@ module WebSocketHelper
           @channel.push({ "type" => "html", "content" => new_data }.to_json)
           session[:messages] << new_data
         when "AUDIO"
-          if obj["content"].nil?
-            @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
-          else
-            blob = Base64.decode64(obj["content"])
-            model = CONFIG["STT_MODEL"] || "gpt-4o-transcribe"
-            format = obj["format"] || "webm"
-            res = stt_api_request(blob, format, obj["lang_code"], model)
-            if res["text"] && res["text"] == ""
-              @channel.push({ "type" => "error", "content" => "The text input is empty" }.to_json)
-            elsif res["type"] && res["type"] == "error"
-              # Include format information in error message for debugging
-              error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
-              @channel.push({ "type" => "error", "content" => error_message }.to_json)
-            else
-              begin
-                case model
-                when "whisper-1"
-                  avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
-                else
-                  avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
-                end
-                logprob = Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
-              rescue StandardError
-                logprob = nil
-              end
-                @channel.push({
-                  "type" => "stt",
-                  "content" => res["text"],
-                  "logprob" => logprob
-                }.to_json)
-            end
-          end
+          handle_audio_message(ws, obj)
         else # fragment
           session[:parameters].merge! obj
           

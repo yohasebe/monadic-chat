@@ -82,7 +82,7 @@ module InteractionUtils
         retry
       else
         error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
-        pp error_message
+        # Debug output removed
         error_result = { "type" => "error", "content" => "ERROR: #{error_message}" }
         # Cache the error result as well
         InteractionUtils.api_key_cache.set(api_key, error_result)
@@ -280,8 +280,7 @@ module InteractionUtils
         sleep RETRY_DELAY
         retry
       else
-        pp e.message
-        pp e.backtrace
+        # Debug output removed
         return { "type" => "error", "content" => "ERROR: #{e.message}" }
       end
     ensure
@@ -290,10 +289,10 @@ module InteractionUtils
     end
 
     if response.status.success?
-      # puts "Audio file uploaded successfully"
+      # Audio file uploaded successfully
       JSON.parse(response.body)
     else
-      pp "Error: #{response.status} - #{response.body}"
+      # Debug output removed
       { "type" => "error", "content" => "Speech-to-Text API Error" }
     end
   end
@@ -320,9 +319,9 @@ module InteractionUtils
       if res.status.success?
         res = JSON.parse(res.body)
       else
-        JSON.parse(res.body)
+        # Parse the response body only once
         error_report = JSON.parse(res.body)
-        res ="ERROR: #{error_report}"
+        res = "ERROR: #{error_report}"
       end
 
       res.dig("results", 0, "raw_content") || "No content found"

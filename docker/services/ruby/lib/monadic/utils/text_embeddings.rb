@@ -258,9 +258,7 @@ class TextEmbeddings
     puts "Error during deletion process: #{e.message}"
     false
   end
-
-  private
-
+  
   def combine_embeddings(snippets_embeddings)
     return Vector.zero(1536) if snippets_embeddings.empty?
 

@@ -552,23 +552,25 @@ namespace :release do
           content = File.read(install_doc)
           updated_content = content.dup
           
-          # Update macOS ARM64 URL - replacing spaces with dots for GitHub releases
-          updated_content = updated_content.gsub(/\/Monadic%20Chat-[^\/]+-arm64\.dmg/, "/Monadic.Chat-#{version}-arm64.dmg")
-          updated_content = updated_content.gsub(/\/Monadic Chat-[^\/]+-arm64\.dmg/, "/Monadic.Chat-#{version}-arm64.dmg")
+          # Update URLs to GitHub releases download paths
+          github_base_url = "https://github.com/yohasebe/monadic-chat/releases/download/v#{version}"
           
-          # Update macOS x64 URL - replacing spaces with dots for GitHub releases
-          updated_content = updated_content.gsub(/\/Monadic%20Chat-[^-][^\/]*\.dmg/, "/Monadic.Chat-#{version}.dmg")
-          updated_content = updated_content.gsub(/\/Monadic Chat-[^-][^\/]*\.dmg/, "/Monadic.Chat-#{version}.dmg")
+          # Replace all installer URLs to use GitHub releases format
           
-          # Update Windows URL - replacing spaces with dots for GitHub releases
-          updated_content = updated_content.gsub(/\/Monadic%20Chat%20Setup%20[^\/]*\.exe/, "/Monadic.Chat.Setup.#{version}.exe")
-          updated_content = updated_content.gsub(/\/Monadic Chat Setup [^\/]*\.exe/, "/Monadic.Chat.Setup.#{version}.exe")
+          # Update macOS ARM64 URL
+          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/Monadic(?:\.|\s)Chat-[^\/]+-arm64\.dmg/, "#{github_base_url}/Monadic.Chat-#{version}-arm64.dmg")
+          
+          # Update macOS x64 URL
+          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/Monadic(?:\.|\s)Chat-[^-][^\/]*\.dmg/, "#{github_base_url}/Monadic.Chat-#{version}.dmg")
+          
+          # Update Windows URL
+          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/Monadic(?:\.|\s)Chat(?:\.|\s)Setup(?:\.|\s)[^\/]*\.exe/, "#{github_base_url}/Monadic.Chat.Setup.#{version}.exe")
           
           # Update Linux x64 URL
-          updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_amd64\.deb/, "/monadic-chat_#{version}_amd64.deb")
+          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/monadic-chat_[^\/]*_amd64\.deb/, "#{github_base_url}/monadic-chat_#{version}_amd64.deb")
           
           # Update Linux arm64 URL
-          updated_content = updated_content.gsub(/\/monadic-chat_[^\/]*_arm64\.deb/, "/monadic-chat_#{version}_arm64.deb")
+          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/monadic-chat_[^\/]*_arm64\.deb/, "#{github_base_url}/monadic-chat_#{version}_arm64.deb")
           
           # Update version notes in documentation
           if install_doc.include?('/ja/')

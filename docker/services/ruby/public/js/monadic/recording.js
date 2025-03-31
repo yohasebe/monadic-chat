@@ -255,3 +255,15 @@ function soundToBase64(blob, callback) {
   };
   reader.readAsDataURL(blob);
 }
+
+// Export functions to window for browser environment
+window.detectSilence = detectSilence;
+window.soundToBase64 = soundToBase64;
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    detectSilence,
+    soundToBase64
+  };
+}

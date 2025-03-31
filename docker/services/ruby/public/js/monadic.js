@@ -1,15 +1,7 @@
-// Import modules - try/catch for compatibility with both browser and CommonJS environments
+// In browser environment, modules are imported via script tags
+// These will be assigned when DOM is loaded
 let uiUtils;
 let formHandlers;
-try {
-  // In CommonJS environment (Node.js, testing)
-  uiUtils = require('./monadic/ui-utilities');
-  formHandlers = require('./monadic/form-handlers');
-} catch (e) {
-  // In browser environment, will be defined globally or via script tag
-  console.log('Running in browser environment, using global modules');
-  // We'll set these later when window modules are available
-}
 
 document.addEventListener("DOMContentLoaded", function () {
   // Get modules from window if available

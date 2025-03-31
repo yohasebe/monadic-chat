@@ -188,8 +188,8 @@ function handleCancelMessage(data) {
   return false;
 }
 
-// Export handlers for CommonJS environments
-module.exports = {
+// Export handlers for browser environments
+window.wsHandlers = {
   handleTokenVerification,
   handleErrorMessage,
   handleAudioMessage,
@@ -197,3 +197,8 @@ module.exports = {
   handleSTTMessage,
   handleCancelMessage
 };
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = window.wsHandlers;
+}

@@ -92,13 +92,12 @@ def version_files
     "./package.json",
     "./package-lock.json",
     "./docker/monadic.sh",
-    "./docs/_coverpage.md"
+    "./docs/_coverpage.md",
+    "./docs/getting-started/installation.md",
+    "./docs/ja/getting-started/installation.md"
   ]
   
-  # Note: installation.md files are not included here because they're
-  # updated separately in the release:github task with specific version numbers
-  
-  # Return only the static files
+  # Return the files
   static_files
 end
 
@@ -128,11 +127,17 @@ def update_version_in_file(file, from_version, to_version)
     updated_content = content.gsub(/^(\s*VERSION\s*=\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
   
   when "installation.md"
-    # IMPORTANT: Do not update installation.md here
-    # Installation docs are updated separately in the release:github task
-    # to ensure docs are only updated when actual releases are made
-    puts "Skipping installation.md update - this should be done only in release:github task"
-    return false
+    # For installation.md, update version numbers in download URLs
+    
+    # Replace version in the GitHub release path
+    updated_content = content.gsub(/\/v#{Regexp.escape(from_version)}\//, "/v#{to_version}/")
+    
+    # Replace version in file names for all platforms
+    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}-arm64\.dmg/, "#{to_version}-arm64.dmg")
+    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}\.dmg/, "#{to_version}.dmg")
+    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}\.exe/, "#{to_version}.exe")
+    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}_amd64\.deb/, "#{to_version}_amd64.deb")
+    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}_arm64\.deb/, "#{to_version}_arm64.deb")
   
   when "_coverpage.md"
     # For _coverpage.md, update the version in the header only
@@ -190,10 +195,11 @@ task :check_version do
       when "version.rb"
         version_found = content =~ /^\s*VERSION\s*=\s*"#{Regexp.escape(official_version)}"/
       when "installation.md"
-        # IMPORTANT: Skip checking installation.md files for version consistency
-        # These are updated separately during release:github task
-        puts "Skipping version check for installation.md - this file is managed by release:github task"
-        version_found = true # Skip checking
+        # Check if the file contains the current version in download URLs
+        version_found = content.include?("/v#{official_version}/") &&
+                        content.include?("#{official_version}.dmg") &&
+                        content.include?("#{official_version}.exe") &&
+                        content.include?("#{official_version}_amd64.deb")
       when "_coverpage.md"
         version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
       when "package.json"
@@ -303,9 +309,11 @@ task :update_version, [:from_version, :to_version] do |_t, args|
         when "version.rb"
           version_found = content.include?("VERSION = \"#{from_version}\"")
         when "installation.md"
-          # IMPORTANT: Skip checking installation.md files - they're updated separately during actual releases
-          puts "Skipping version check for installation.md in dry run"
-          version_found = true # Skip checking
+          # Check if the file contains the current version in download URLs
+          version_found = content.include?("/v#{from_version}/") &&
+                          content.include?("#{from_version}.dmg") &&
+                          content.include?("#{from_version}.exe") &&
+                          content.include?("#{from_version}_amd64.deb")
         when "_coverpage.md"
           version_found = content.include?("<small><b>#{from_version}</b></small>")
         when "package.json"
@@ -544,85 +552,8 @@ namespace :release do
     # No longer creating "latest" versions of assets - will update documentation instead
     puts "Total assets for release: #{release_assets.length}"
     
-    # Update installation documentation with the current version number
-    # Skip documentation updates if NO_DOC_UPDATE is set to true
-    unless ENV['NO_DOC_UPDATE'] == 'true'
-      ["./docs/getting-started/installation.md", "./docs/ja/getting-started/installation.md"].each do |install_doc|
-        if File.exist?(install_doc)
-          content = File.read(install_doc)
-          updated_content = content.dup
-          
-          # Update URLs to GitHub releases download paths
-          github_base_url = "https://github.com/yohasebe/monadic-chat/releases/download/v#{version}"
-          
-          # Replace all installer URLs to use GitHub releases format
-          
-          # Update macOS ARM64 URL
-          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/Monadic(?:\.|\s)Chat-[^\/]+-arm64\.dmg/, "#{github_base_url}/Monadic.Chat-#{version}-arm64.dmg")
-          
-          # Update macOS x64 URL
-          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/Monadic(?:\.|\s)Chat-[^-][^\/]*\.dmg/, "#{github_base_url}/Monadic.Chat-#{version}.dmg")
-          
-          # Update Windows URL
-          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/Monadic(?:\.|\s)Chat(?:\.|\s)Setup(?:\.|\s)[^\/]*\.exe/, "#{github_base_url}/Monadic.Chat.Setup.#{version}.exe")
-          
-          # Update Linux x64 URL
-          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/monadic-chat_[^\/]*_amd64\.deb/, "#{github_base_url}/monadic-chat_#{version}_amd64.deb")
-          
-          # Update Linux arm64 URL
-          updated_content = updated_content.gsub(/https:\/\/[^\/]+\/(?:assets\/apps|releases\/download\/v[^\/]+)\/monadic-chat_[^\/]*_arm64\.deb/, "#{github_base_url}/monadic-chat_#{version}_arm64.deb")
-          
-          # Update version notes in documentation
-          if install_doc.include?('/ja/')
-            # Japanese documentation - more flexible pattern matching
-            if updated_content =~ /\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/
-              updated_content = updated_content.gsub(/\*(?:バージョン [^。]+。)?(?:\[GitHub|\[GitHubリリースページ).*?(?:すべての利用可能なバージョン|他のバージョン).*?\*/, 
-                "*バージョン #{version}。[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)で、他のバージョンも確認できます。*")
-            else
-              # If no version text is found, log warning
-              puts "Warning: Could not find version text pattern in Japanese documentation"
-            end
-          else
-            # English documentation - more flexible pattern matching
-            if updated_content =~ /\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/
-              updated_content = updated_content.gsub(/\*(?:Version [^.]+\.)?(?:\[GitHub|\[GitHub Releases).*?(?:all available versions|other versions).*?\*/, 
-                "*Version #{version}. You can also visit the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest) to see other versions.*")
-            else
-              # If no version text is found, log warning
-              puts "Warning: Could not find version text pattern in English documentation"
-            end
-          end
-          
-          # Check if content actually changed
-          if updated_content != content
-            puts "Updating download links in #{install_doc} to version #{version}"
-            File.write(install_doc, updated_content)
-            
-            # Verify that the changes were applied correctly
-            verification_content = File.read(install_doc)
-            
-            # Check for specific version in the updated file
-            if verification_content.include?(version)
-              puts "✓ Successfully updated version references in #{install_doc}"
-            else
-              puts "⚠ Warning: Updated file doesn't contain version #{version}. Changes may not have been applied correctly."
-            end
-          else
-            # Check if file already contains the current version
-            if content.include?(version)
-              puts "No updates needed for #{install_doc} (already contains version #{version})"
-            else
-              puts "⚠ Warning: No changes were made to #{install_doc}, but it doesn't contain version #{version}"
-              puts "   This might indicate that URL patterns were not matched correctly."
-            end
-          end
-        else
-          puts "Warning: Installation documentation file not found: #{install_doc}"
-        end
-      end
-    else
-      puts "Skipping documentation updates because NO_DOC_UPDATE=true"
-    end
+    # Note: installation.md files are now updated via the update_version task
+    # We no longer need to update them explicitly in the release:github task
     
     # Step 7: Create GitHub release
     begin
@@ -661,9 +592,6 @@ namespace :release do
   task :draft, [:version, :prerelease] do |_t, args|
     # Set the DRAFT environment variable to true
     ENV['DRAFT'] = 'true'
-    
-    # Set NO_DOC_UPDATE to skip documentation updates
-    ENV['NO_DOC_UPDATE'] = 'true'
     
     # Call the github release task with the draft flag
     Rake::Task["release:github"].invoke(*args)

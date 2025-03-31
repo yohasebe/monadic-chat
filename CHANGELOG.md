@@ -1,4 +1,4 @@
-- [March, 2025] 0.9.74
+- [March, 2025] 0.9.75
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0
   - Default syntax highlighting theme changed to pastie for better readability

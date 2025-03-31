@@ -171,20 +171,23 @@ function attachEventListeners($card) {
       // Check if this is the last message in the conversation
       const isLastMessage = messageIndex === messages.length - 1;
       
-      // For the last message in the conversation, directly delete it
-      if (isLastMessage) {
-        deleteMessageOnly(mid, messageIndex);
-        return;
-      }
-      
-      // For messages in the middle of a conversation, show simple delete options
+      // Always show modal for delete confirmation, even for last message
       // Store card data
       $("#deleteConfirmation").data({
         "mid": mid,
         "messageIndex": messageIndex
       });
       
-      // Show the modal with simplified options
+      // Configure modal based on message position
+      if (isLastMessage) {
+        // If it's the last message, hide the "Delete this and below" button since there's nothing below
+        $("#deleteMessageAndSubsequent").hide();
+      } else {
+        // For messages in the middle, show both options
+        $("#deleteMessageAndSubsequent").show();
+      }
+      
+      // Show the modal
       $("#deleteConfirmation").modal("show");
     } else {
       // If no message found, just delete the card

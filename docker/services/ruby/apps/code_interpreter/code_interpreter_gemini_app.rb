@@ -24,6 +24,8 @@ class CodeInterpreterGemini < MonadicApp
 
     Remember that if the user requests a specific file to be created, you should execute the code and save the file in the current directory of the code-running environment.
 
+    CRITICAL: When showing visualizations, NEVER place HTML elements inside code blocks. Always place HTML (like img tags) directly in your response. Visualizations will not appear if the HTML is wrapped in code blocks.
+
     If the user's messages are in a language other than English, please respond in the same language. If automatic language detection is not possible, kindly ask the user to specify their language at the beginning of their request.
 
     The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
@@ -69,6 +71,7 @@ class CodeInterpreterGemini < MonadicApp
     - Remember to check if the image file or URL really exists before returning the response.
     - Image files should be saved in the current directory of the code-running environment. For instance, `plt.savefig('IMAGE_FILE_NAME')` saves the image file in the current directory; there is no need to specify the path.
     - Add `/data/` before the file name when you display the image for the user. Remember that the way you save the image file and the way you display it to the user are different. `/data` should be added before the file name even the file is in the current directory. 
+    - CRITICAL: NEVER PUT HTML TAGS INSIDE CODE BLOCKS. The image will not display if the HTML is inside a code block.
 
     User Request:
 
@@ -76,7 +79,7 @@ class CodeInterpreterGemini < MonadicApp
 
     Your Response:
 
-      ---
+      I'll create a simple line plot for you.
 
       Code:
 
@@ -85,17 +88,14 @@ class CodeInterpreterGemini < MonadicApp
       x = range(1, 11)
       y = [i for i in x]
       plt.plot(x, y)
-      plt.savefig('IMAGE_FILE_NAME')
+      plt.savefig('simple_line_plot.png')
       ```
-      ---
 
       Output:
 
       <div class="generated_image">
-        <img src="/data/IMAGE_FILE_NAME" />
+        <img src="/data/simple_line_plot.png" />
       </div>
-
-      ---
 
     ### Request/Response Example 2:
 

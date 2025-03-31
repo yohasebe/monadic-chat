@@ -603,7 +603,7 @@ namespace :release do
     sh "gh release list"
   end
   
-  desc "Delete a GitHub release and its assets"
+  desc "Delete a GitHub release, its assets, and the corresponding tag"
   task :delete, [:version] do |_t, args|
     version = args[:version]
     
@@ -613,14 +613,21 @@ namespace :release do
     end
     
     # Confirm deletion
-    print "Are you sure you want to delete release v#{version}? This cannot be undone! (y/N): "
+    print "Are you sure you want to delete release v#{version} AND its tag? This cannot be undone! (y/N): "
     response = STDIN.gets.chomp.downcase
     exit 1 unless response == 'y'
     
-    # Delete the release
-    puts "Deleting GitHub release v#{version}..."
-    sh "gh release delete v#{version}"
-    puts "Release deleted successfully!"
+    # Delete the release with --cleanup-tag option to also delete the tag
+    puts "Deleting GitHub release v#{version} and its tag..."
+    sh "gh release delete v#{version} --cleanup-tag"
+    
+    # Double-check if local tag still exists and delete it if necessary
+    if system("git tag -l v#{version} | grep -q .")
+      puts "Local tag v#{version} still exists. Removing local tag..."
+      sh "git tag -d v#{version}"
+    end
+    
+    puts "Release and tag deleted successfully!"
   end
   
   # Helper method to extract changelog entry for specific version

@@ -344,6 +344,8 @@ describe('WebSocket Handlers', () => {
       expect(messages).toHaveLength(1);
       expect(createCard).toHaveBeenCalled();
       expect($).toHaveBeenCalledWith('#message');
+      expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
+      expect($).toHaveBeenCalledWith('#select-role');
       expect($).toHaveBeenCalledWith('#monadic-spinner');
     });
     
@@ -419,6 +421,8 @@ describe('WebSocket Handlers', () => {
       // Should still process the message and update UI
       expect(result).toBe(true);
       expect($).toHaveBeenCalledWith('#message');
+      expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
+      expect($).toHaveBeenCalledWith('#select-role');
       expect($).toHaveBeenCalledWith('#monadic-spinner');
     });
     

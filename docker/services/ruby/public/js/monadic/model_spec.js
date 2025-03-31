@@ -710,3 +710,11 @@ const modelSpec = {
     // "tool_capability": true
   },
 }
+
+// Expose modelSpec globally for browser environment
+window.modelSpec = modelSpec;
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = modelSpec;
+}

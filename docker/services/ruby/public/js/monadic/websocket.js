@@ -92,16 +92,8 @@ function setCopyCodeButton(element) {
 // WebSocket event handlers
 //////////////////////////////
 
-// Import websocket message handlers (if in a CommonJS environment)
-let wsHandlers;
-try {
-  wsHandlers = require('./websocket-handlers');
-} catch (e) {
-  // If require fails, we're in a browser environment
-  // Handlers will be defined inline as before
-  console.log('Running in browser environment, handlers defined inline');
-  wsHandlers = null;
-}
+// In browser environments, wsHandlers is defined globally in websocket-handlers.js
+let wsHandlers = window.wsHandlers;
 
 const apps = {}
 let messages = [];
@@ -1688,3 +1680,21 @@ window.addEventListener('beforeunload', function() {
     ws.close();
   }
 });
+
+// Export functions for browser environment
+window.connect_websocket = connect_websocket;
+window.reconnect_websocket = reconnect_websocket;
+window.handleVisibilityChange = handleVisibilityChange;
+window.startPing = startPing;
+window.stopPing = stopPing;
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    connect_websocket,
+    reconnect_websocket,
+    handleVisibilityChange,
+    startPing,
+    stopPing
+  };
+}

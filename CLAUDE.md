@@ -1,5 +1,11 @@
 # Claude Code Documentation
 
+## Code Style Guidelines
+
+1. **Code Comments**: All comments in the codebase should be written in English, regardless of the primary language used for communication.
+
+2. **Version Consistency**: When updating version numbers, ensure all relevant files are updated consistently using the `rake update_version` task.
+
 ## Testing Commands
 
 The Monadic Chat project uses both Ruby and JavaScript tests. You can run the tests using the following Rake tasks:

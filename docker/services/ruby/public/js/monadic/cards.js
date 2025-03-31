@@ -576,6 +576,25 @@ window.deleteSystemMessage = function(mid, messageIndex) {
 };
 
 // Expose these functions globally so they can be called from other scripts
+window.createCard = createCard;
+window.attachEventListeners = attachEventListeners;
+window.detachEventListeners = detachEventListeners;
+window.cancelEditMode = cancelEditMode;
+window.cleanupCardTextListeners = cleanupCardTextListeners;
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    createCard,
+    attachEventListeners,
+    detachEventListeners,
+    cancelEditMode,
+    cleanupCardTextListeners,
+    deleteSystemMessage,
+    deleteMessageAndSubsequent,
+    deleteMessageOnly
+  };
+}
 window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   // First check if this is a system message
   const $card = $(`#${mid}`);

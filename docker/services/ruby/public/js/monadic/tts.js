@@ -98,3 +98,17 @@ function ttsStop() {
   audio.src = URL.createObjectURL(mediaSource);
   audio.load();
 }
+
+// Export functions to window for browser environment
+window.audioInit = audioInit;
+window.ttsSpeak = ttsSpeak;
+window.ttsStop = ttsStop;
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    audioInit,
+    ttsSpeak,
+    ttsStop
+  };
+}

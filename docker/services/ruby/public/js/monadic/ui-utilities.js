@@ -131,17 +131,17 @@ function adjustImageUploadButton(selectedModel) {
   }
 }
 
-// Export functions for CommonJS environments
-try {
-  module.exports = {
-    autoResize,
-    setupTextarea,
-    adjustScrollButtons,
-    setupTooltips,
-    cleanupAllTooltips,
-    adjustImageUploadButton
-  };
-} catch (e) {
-  // In browser environment, exports will be attached to window
-  console.log('Running in browser environment, modules will be attached to window object');
+// Export functions to window for browser environment
+window.uiUtils = {
+  autoResize,
+  setupTextarea,
+  adjustScrollButtons,
+  setupTooltips,
+  cleanupAllTooltips,
+  adjustImageUploadButton
+};
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = window.uiUtils;
 }

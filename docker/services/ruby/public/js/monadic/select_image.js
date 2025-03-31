@@ -222,6 +222,22 @@ function updateFileDisplay(files) {
   });
 }
 
+// Export functions to window for browser environment
+window.fileToBase64 = fileToBase64;
+window.imageToBase64 = imageToBase64;
+window.updateFileDisplay = updateFileDisplay;
+window.limitImageCount = limitImageCount;
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    fileToBase64,
+    imageToBase64,
+    updateFileDisplay,
+    limitImageCount
+  };
+}
+
 // Convert and resize image to base64 - with Promise-based option
 function imageToBase64(blob, callback) {
   // Legacy callback version for backward compatibility

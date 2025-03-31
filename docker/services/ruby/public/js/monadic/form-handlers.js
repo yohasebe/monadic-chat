@@ -217,18 +217,18 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
   }
 }
 
-// Export functions for CommonJS environments
-try {
-  module.exports = {
-    uploadPdf,
-    convertDocument,
-    fetchWebpage,
-    importSession,
-    setupUrlValidation,
-    setupFileValidation,
-    showModalWithFocus
-  };
-} catch (e) {
-  // In browser environment, exports will be attached to window
-  console.log('Running in browser environment, modules will be attached to window object');
+// Export functions to window for browser environment
+window.formHandlers = {
+  uploadPdf,
+  convertDocument,
+  fetchWebpage,
+  importSession,
+  setupUrlValidation,
+  setupFileValidation,
+  showModalWithFocus
+};
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = window.formHandlers;
 }

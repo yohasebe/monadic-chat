@@ -66,7 +66,7 @@ $ sysctl -n machdep.cpu.brand_string
 
 [Install Docker Desktop on Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac)からDocker Desktopをダウンロードしてインストールしますが、その際、Intelの場合は`Docker Desktop Installer.dmg`を、Apple Siliconの場合は`Docker Desktop Installer Apple Silicon.dmg`をダウンロードしてください。
 
-<img src="../assets/images/mac-docker-download.png" width="800px"/>
+![](../assets/images/mac-docker-download.png ':size=800')
 
 ダウンロードしたdmgファイルをダブルクリックするとウィンドウが表示されるので、DockerのアイコンをApplicationsフォルダーにドラッグしてください。インストールが完了したら、Docker Desktopを起動しましょう。その際、service agreementへの同意が求められます（acceptしてください）。また、推奨設定を使用するかどうかを確認されます（特にこだわりがなければ推奨設定を用いてください）。また、内部でosascriptを使用するため、Macのユーザ名とパスワードの入力が求められます。
 
@@ -82,7 +82,7 @@ Windows 11でMonadic Chatを使用するためには、Windows Subsystem for Lin
 
 PowerShellを管理者モードで開きます。Windowsの検索ボックスでPowerShellを検索し、"管理者として実行"を選択してpowershell.exeを起動してください。
 
-<img src="../assets/images/win-powershell.png" width="800px"/>
+![](../assets/images/win-powershell.png ':size=800')
 
 次にPowerShell上で次のコマンドを実行します（最初の`>`はコマンドラインのプロンプトを表します）。
 
@@ -90,13 +90,13 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 > wsl --install -d Ubuntu
 ```
 
-<img src="../assets/images/win-wsl-install.png" width="800px"/>
+![](../assets/images/win-wsl-install.png ':size=800')
 
 そしてコンピュータを再起動します。再起動後、WSL2とUbuntuがインストールされます。このプロセスの中で、Linux環境のユーザ名とパスワードを入力するよう求められます。任意のユーザ名とパスワードを入力してください。このユーザ名とパスワードは覚えておく必要があります。
 
 これでWSL2のインストールは完了です。Windows上でUbuntuが使えるようになりました。Windowsの検索ボックスで"Ubuntu"を検索し、Ubuntuのターミナルを開いてみてください。
 
-<img src="../assets/images/win-ubuntu.png" width="800px"/>
+![](../assets/images/win-ubuntu.png ':size=800')
 
 #### Docker Desktopのインストール
 
@@ -104,7 +104,7 @@ PowerShellを管理者モードで開きます。Windowsの検索ボックスで
 
 [Install Docker Desktop on Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows)からDocker Desktopをダウンロードします。
 
-<img src="../assets/images/win-docker-download.png" width="800px"/>
+![](../assets/images/win-docker-download.png ':size=800')
 
 ダウンロードしたexeファイルをダブルクリックしてインストールを開始します。インストールが完了したら、Docker Desktopを起動します。Docker Desktopを初めて起動するとき、サービス契約に同意するかどうか（→同意する）、設定を選択するかどうか（→推奨設定を使用する）を求められます。
 
@@ -121,7 +121,7 @@ Linux (Ubuntu/Debian) の場合、下記のページを参照してDocker Deskto
 
 ## アップデート
 
-<img src="../assets/images/monadic-chat-menu.png" width="240px"/>
+![](../assets/images/monadic-chat-menu.png ':size=240')
 
 Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューの`Check for Updates`を実行してください。もし新しいバージョンがある場合、通知が表示されます。
 

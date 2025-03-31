@@ -453,17 +453,55 @@ module GeminiHelper
                 fragment = part["text"]
                 
                 # Special processing for image generator app to strip code blocks
-                if is_image_generator && fragment.include?("```")
-                  # Remove code block markers and extract HTML
-                  if fragment.include?("```html") && fragment.include?("```\n")
-                    # Extract HTML between code markers
-                    html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
-                    fragment = html_content
-                  elsif fragment.match(/```(\w+)?/)
-                    # Remove any code block markers
-                    fragment = fragment.gsub(/```(\w+)?/, "").gsub(/```/, "")
-                  end
-                end
+                # Extract HTML from code blocks - for both image generator and code interpreter apps
+    if (is_image_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter")) && fragment.include?("```")
+      # Check for HTML tags enclosed in code blocks
+      if fragment =~ /<div class="generated_image">.*?<img src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg)".*?>.*?<\/div>/im
+        # First try the clean approach - extract HTML content from any code block that contains visualization HTML
+        html_sections = []
+        code_sections = []
+        
+        # Extract HTML sections
+        fragment.scan(/<div class="generated_image">.*?<img src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg)".*?>.*?<\/div>/im) do |match|
+          html_sections << match
+        end
+        
+        # Extract code blocks (without the HTML)
+        if fragment.match(/```(\w+)?.*?```/m)
+          fragment.scan(/```(\w+)?(.*?)```/m) do |lang, code|
+            # Skip if the code block contains HTML visualization
+            unless code =~ /<div class="generated_image">.*?<img src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg)".*?>.*?<\/div>/im
+              code_sections << "```#{lang}#{code}```"
+            end
+          end
+        end
+        
+        # Rebuild the fragment with HTML outside of code blocks
+        if !html_sections.empty? || !code_sections.empty?
+          new_fragment = fragment.dup
+          
+          # Remove all code blocks and HTML sections first
+          new_fragment.gsub!(/```(\w+)?.*?```/m, '')
+          html_sections.each { |html| new_fragment.gsub!(html, '') }
+          
+          # Add back the code sections and HTML sections in the right order
+          new_fragment = new_fragment.strip
+          code_sections.each { |code| new_fragment += "\n\n#{code}" }
+          html_sections.each { |html| new_fragment += "\n\n#{html}" }
+          
+          fragment = new_fragment.strip
+        end
+      elsif fragment.include?("```html") && fragment.include?("```")
+        # Extract HTML between code markers
+        html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
+        fragment = html_content
+      elsif fragment.match(/```(\w+)?/)
+        # For image generator app only, remove any code block markers
+        if is_image_generator
+          fragment = fragment.gsub(/```(\w+)?/, "").gsub(/```/, "")
+        end
+      end
+    end
                 
                 texts << fragment
 
@@ -730,8 +768,15 @@ module GeminiHelper
       5. All function calls should be made directly without print statements or variable assignments
          for their results. The system automatically handles displaying function results.
          
-      6. Important: Always place HTML elements (img, div, video, audio tags) OUTSIDE of markdown code blocks.
-         HTML will only render properly when not enclosed in code block markers (```).
+      6. CRITICAL: HTML elements (img, div, video, audio tags) MUST NEVER be enclosed in code blocks (```).
+         When displaying images, plots, or visualizations, place the HTML directly in your response like this:
+         
+         <div class="generated_image">
+           <img src="/data/image_filename.png" />
+         </div>
+         
+         Do NOT place this HTML inside a code block. The image will only display if the HTML is outside of code blocks.
+         Users will not see visualizations if you wrap HTML in code blocks.
     INSTRUCTIONS
   end
 end

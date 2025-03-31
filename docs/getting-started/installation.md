@@ -66,7 +66,7 @@ $ sysctl -n machdep.cpu.brand_string
 
 Download and install Docker Desktop from [Install Docker Desktop on Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac). For Intel, download `Docker Desktop Installer.dmg`, and for Apple Silicon, download `Docker Desktop Installer Apple Silicon.dmg`.
 
-<img src="../assets/images/mac-docker-download.png" width="800px"/>
+![](../assets/images/mac-docker-download.png ':size=800')
 
 Double-click the downloaded dmg file to display a window, then drag the Docker icon to the Applications folder. Once the installation is complete, launch Docker Desktop. You will be asked to agree to the service agreement (accept it). You will also be asked whether to use the recommended settings (use the recommended settings unless you have specific preferences). You will also be prompted to enter your Mac username and password for internal use of osascript.
 
@@ -82,7 +82,7 @@ First, install [WSL2](https://brew.sh), which is a mechanism to realize a Linux 
 
 Open PowerShell in administrator mode. Search for PowerShell in the Windows search box and select "Run as administrator" to launch powershell.exe.
 
-<img src="../assets/images/win-powershell.png" width="800px"/>
+![](../assets/images/win-powershell.png ':size=800')
 
 Next, execute the following command in PowerShell (the initial `>` represents the command line prompt).
 
@@ -90,13 +90,13 @@ Next, execute the following command in PowerShell (the initial `>` represents th
 > wsl --install -d Ubuntu 
 ```
 
-<img src="../assets/images/win-wsl-install.png" width="800px"/>
+![](../assets/images/win-wsl-install.png ':size=800')
 
 Then restart your computer. After restarting, WSL2 and Ubuntu will be installed. During this process, you will be prompted to enter a username and password for the Linux environment. Enter any username and password. You will need to remember this username and password for later use.
 
 This completes the installation of WSL2. Ubuntu is now available on Windows. Search for "Ubuntu" in the Windows search box and open the Ubuntu terminal.
 
-<img src="../assets/images/win-ubuntu.png" width="800px"/>
+![](../assets/images/win-ubuntu.png ':size=800')
 
 #### Installing Docker Desktop
 
@@ -104,7 +104,7 @@ Next, install Docker Desktop, software for creating virtual environments using c
 
 Download Docker Desktop from [Install Docker Desktop on Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows).
 
-<img src="../assets/images/win-docker-download.png" width="800px"/>
+![](../assets/images/win-docker-download.png ':size=800')
 
 Double-click the downloaded exe file to start the installation. Once the installation is complete, launch Docker Desktop. When you first launch Docker Desktop, you will be asked to agree to the service agreement (agree) and whether to select settings (use recommended settings).
 
@@ -121,7 +121,7 @@ For Linux (Ubuntu/Debian), refer to the following pages to install Docker Deskto
 
 ## Update
 
-<img src="../assets/images/monadic-chat-menu.png" width="240px"/>
+![](../assets/images/monadic-chat-menu.png ':size=240')
 
 To check if there is a newer version of Monadic Chat, run `Check for Updates` from the menu. If there is a new version, a notification will be displayed.
 

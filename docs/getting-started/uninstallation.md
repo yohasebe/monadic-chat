@@ -34,7 +34,7 @@ $ sudo apt remove monadic-chat
 
 <!-- tabs:end -->
 
-<img src="../assets/images/monadic-chat-menu.png" width="250px"/>
+![](../assets/images/monadic-chat-menu.png ':size=250')
 
 ## Cleanup (Optional)
 

@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // If UI module still not available, use fallback behavior
   if (!uiUtils || !uiUtils.setupTextarea) {
-    console.warn('UI utilities module not available, using fallback implementation');
     uiUtils = {
       setupTextarea: setupTextareaFallback,
       autoResize: autoResizeFallback,
@@ -28,7 +27,6 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // If form handlers module not available, use fallback behavior
   if (!formHandlers) {
-    console.warn('Form handlers module not available, using fallback implementation');
     formHandlers = {
       uploadPdf: uploadPdfFallback,
       convertDocument: convertDocumentFallback,
@@ -880,8 +878,7 @@ $(function () {
           // Ensure critical parameters are correctly set based on checkboxes
           params["auto_speech"] = $("#check-auto-speech").is(":checked");
           params["initiate_from_assistant"] = true;
-          console.log("Start from assistant with auto_speech:", params["auto_speech"]);
-          ws.send(JSON.stringify(params));
+              ws.send(JSON.stringify(params));
         });
       } else {
         $("#user-panel").show();
@@ -905,19 +902,28 @@ $(function () {
   });
 
   $("#cancel_query").on("click", function () {
+    console.log("Cancel button clicked");
     setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
     ttsStop();
 
     responseStarted = false;
     callingFunction = false;
 
-    // send cancel message to server
+    // Reset AI user state if active
+    $("#message").attr("placeholder", "Type your message . . .");
+    $("#message").prop("disabled", false);
+    $("#send, #clear, #image-file, #voice").prop("disabled", false);
+
+    // Send cancel message to server
     ws.send(JSON.stringify({ message: "CANCEL" }));
-    // reset UI
+    
+    // Reset UI
     $("#chat").html("");
     $("#temp-card").hide();
     $("#user-panel").show();
     $("#cancel_query").hide();
+    
+    // Set focus back to input
     setInputFocus();
   });
 

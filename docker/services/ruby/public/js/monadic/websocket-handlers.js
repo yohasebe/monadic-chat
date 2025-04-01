@@ -113,6 +113,7 @@ function handleHtmlMessage(data, messages, createCardFunc) {
       $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
       $('#select-role').prop('disabled', false);
       $('#monadic-spinner').hide();
+      $('#cancel_query').hide();
       return true;
     }
     return false;

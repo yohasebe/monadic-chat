@@ -594,6 +594,7 @@ module WebSocketHelper
             messages: reversed_messages
           }
 
+          # Ensure the ai_user_initial_prompt is used as initial_prompt
           mini_session[:parameters]["initial_prompt"] = mini_session[:parameters]["ai_user_initial_prompt"]
           mini_session[:parameters]["monadic"] = false
           mini_session[:parameters]["temperature"] = 0.0
@@ -601,18 +602,25 @@ module WebSocketHelper
           mini_session[:parameters]["frequency_penalty"] = 1.0
           mini_session[:parameters].delete("prompt_suffix")
 
-          responses = api_request.call("user", mini_session) do |fragment|
-            if fragment["type"] == "error"
-              @channel.push({ "type" => "error", "content" => "E1:#{fragment}" }.to_json)
-            elsif fragment["type"] == "fragment"
-              text = fragment["content"]
-              @channel.push({ "type" => "ai_user", "content" => text }.to_json)
-              aiu_buffer << text unless text.empty? || text == "DONE"
+          # Start by sending a notification that processing has begun
+          @channel.push({ "type" => "wait", "content" => "Generating AI user response..." }.to_json)
+          
+          begin
+            responses = api_request.call("user", mini_session) do |fragment|
+              if fragment["type"] == "error"
+                @channel.push({ "type" => "error", "content" => "AI User error: #{fragment}" }.to_json)
+              elsif fragment["type"] == "fragment"
+                text = fragment["content"]
+                @channel.push({ "type" => "ai_user", "content" => text }.to_json)
+                aiu_buffer << text unless text.empty? || text == "DONE"
+              end
             end
+            
+            ai_user_response = aiu_buffer.join
+            @channel.push({ "type" => "ai_user_finished", "content" => ai_user_response }.to_json)
+          rescue => e
+            @channel.push({ "type" => "error", "content" => "AI User error: #{e.message}" }.to_json)
           end
-
-          ai_user_response = aiu_buffer.join
-          @channel.push({ "type" => "ai_user_finished", "content" => ai_user_response }.to_json)
         when "HTML"
           thread&.join
           until queue.empty?

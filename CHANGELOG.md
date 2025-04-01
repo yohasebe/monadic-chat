@@ -1,3 +1,6 @@
+- [April, 2025] 0.9.77
+  - Version updated from 0.9.76
+
 - [March, 2025] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0

@@ -165,7 +165,6 @@ function applyMathJax(element) {
   // Typeset the element using MathJax
   MathJax.typesetPromise([domElement])
     .then(() => {
-      // console.log('MathJax element re-rendered successfully.');
     })
     .catch((err) => {
       console.error('Error re-rendering MathJax element:', err);
@@ -452,15 +451,13 @@ function addToAudioQueue(data) {
   if (audioDataQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
     // Remove oldest audio data (half of the queue) to make room for new data
     audioDataQueue = audioDataQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-    console.log(`Audio queue exceeded max size, removed oldest ${Math.floor(MAX_AUDIO_QUEUE_SIZE / 2)} chunks`);
-  }
+    }
   audioDataQueue.push(data);
 }
 
 // Function to clear the audio queue
 function clearAudioQueue() {
   audioDataQueue = [];
-  console.log("Audio queue cleared");
 }
 
 function processAudioDataQueue() {
@@ -495,7 +492,6 @@ function connect_websocket(callback) {
   let infoHtml = "";
 
   ws.onopen = function () {
-    // console.log('WebSocket connected');
     setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
     ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
@@ -611,12 +607,18 @@ function connect_websocket(callback) {
     if (message === "") {
       message = "Something went wrong.";
     }
-    console.log("Error message:", message);
     setAlert(message, "error");
   }
 
   ws.onmessage = function (event) {
-    const data = JSON.parse(event.data);
+    
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (error) {
+      console.error("Error parsing WebSocket message:", error, event.data);
+      return;
+    }
     switch (data["type"]) {
       case "wait": {
         callingFunction = true;
@@ -711,12 +713,10 @@ function connect_websocket(callback) {
       }
 
       case "pong": {
-        // console.log("Received PONG");
         break;
       }
 
       case "error": {
-        console.log(data);
         
         // Use the handler if available, otherwise use inline code
         let handled = false;
@@ -792,7 +792,6 @@ function connect_websocket(callback) {
         $("#start").prop("disabled", false);
         $("#send, #clear").prop("disabled", false);
 
-        // console.log("OpenAI API error");
         $("#api-token").val("");
 
         setAlert("<i class='fa-solid fa-bolt'></i> Cannot connect to OpenAI API", "warning");
@@ -805,7 +804,6 @@ function connect_websocket(callback) {
         $("#start").prop("disabled", false);
         $("#send, #clear").prop("disabled", false);
 
-        // console.log("Token not verified");
         $("#api-token").val("");
 
         setAlert("<i class='fa-solid fa-bolt'></i> Valid OpenAI token not set", "warning");
@@ -1202,22 +1200,31 @@ function connect_websocket(callback) {
         break;
       }
       case "ai_user": {
+        // Append AI user content to the message field
         $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
+        
+        // Make sure the message panel is visible
         if (autoScroll && !isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
-        break
+        
+        // Show the cancel button while AI user is typing
+        $("#cancel_query").show();
+        break;
       }
       case "ai_user_finished": {
+        // Reset UI state
         $("#message").attr("placeholder", "Type your message . . .");
         $("#message").prop("disabled", false);
         $("#cancel_query").hide();
         $("#send, #clear, #image-file, #voice").prop("disabled", false);
 
+        // Ensure the panel is visible
         if (!isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
 
+        // Focus on the input field
         setInputFocus();
         break;
       }
@@ -1279,6 +1286,9 @@ function connect_websocket(callback) {
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
           handled = wsHandlers.handleHtmlMessage(data, messages, appendCard);
+          if (handled) {
+            $("#cancel_query").hide();
+          }
         }
         
         if (!handled) {
@@ -1304,24 +1314,59 @@ function connect_websocket(callback) {
             $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
             $("#select-role").prop("disabled", false);
             $("#monadic-spinner").hide();
+            $("#cancel_query").hide();
           }
 
           if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
-            $("#message").attr("placeholder", "Waiting for AI-user input . . .");
-            $("#message").prop("disabled", true);
-            let simple_messages = messages.map(msg => {
-              return { "role": msg["role"], "text": msg["text"] }
-            });
-            let ai_user_query = {
-              message: "AI_USER_QUERY",
-              contents: {
-                params: params,
-                messages: simple_messages
-              }
-            };
-            $("#send, #clear, #image-file, #voice").prop("disabled", true);
-            ws.send(JSON.stringify(ai_user_query));
+            try {
+                  
+              // Clear message field first
+              document.getElementById('message').value = "";
+              
+              // Disable UI and prepare for AI user input
+              $("#message").attr("placeholder", "Waiting for AI-user input . . .");
+              $("#message").prop("disabled", true);
+              $("#send, #clear, #image-file, #voice").prop("disabled", true);
+              
+              // Show cancel button while waiting for AI user
+              $("#cancel_query").show();
+              
+              // Format messages for the AI user query
+              let simple_messages = messages.map(msg => {
+                return { "role": msg["role"], "text": msg["text"] }
+              });
+              
+              // Prepare the AI user query
+              let ai_user_query = {
+                message: "AI_USER_QUERY",
+                contents: {
+                  params: params,
+                  messages: simple_messages
+                }
+              };
+              
+              setAlert("<i class='fas fa-pencil-alt'></i> Generating AI user input...", "warning");
+              
+              // Send the query after a brief delay to ensure UI updates
+              setTimeout(() => {
+                // Check if query was cancelled before sending
+                if ($("#cancel_query").is(":visible")) {
+                  // Send AI user query
+                  ws.send(JSON.stringify(ai_user_query));
+                }
+              }, 100);
+            } catch (error) {
+              console.error("Error starting AI user generation:", error);
+              setAlert("<i class='fa-solid fa-circle-exclamation'></i> AI user generation failed", "error");
+              
+              // Reset UI on error
+              $("#message").attr("placeholder", "Type your message . . .");
+              $("#message").prop("disabled", false);
+              $("#send, #clear, #image-file, #voice").prop("disabled", false);
+              $("#cancel_query").hide();
+            }
           } else {
+            // No AI user prompt, set to ready state
             $("#cancel_query").hide();
             setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
           }
@@ -1447,7 +1492,6 @@ function connect_websocket(callback) {
   }
 
   ws.onclose = function (_e) {
-    // console.log(`Socket is closed. Reconnect will be attempted in ${reconnectDelay} second.`, e.reason);
     initialLoadComplete = false;
     reconnect_websocket(ws);
   }
@@ -1502,7 +1546,6 @@ function reconnect_websocket(ws, callback) {
       case WebSocket.CLOSED:
         // Socket is closed, create a new one
         ws._reconnectAttempts++;
-        console.log(`Attempting to reconnect (${ws._reconnectAttempts}/${maxReconnectAttempts})...`);
         
         // Show connecting status to user
         setAlert("<i class='fa-solid fa-spinner fa-spin'></i> Reconnecting...", "warning");
@@ -1573,7 +1616,6 @@ function handleVisibilityChange() {
       switch (ws.readyState) {
         case WebSocket.CLOSED:
         case WebSocket.CLOSING:
-          console.log("Tab visible again, reconnecting WebSocket...");
           
           // Reset reconnection attempts for a fresh start when user returns to tab
           if (ws._reconnectAttempts !== undefined) {
@@ -1598,12 +1640,10 @@ function handleVisibilityChange() {
           
         case WebSocket.CONNECTING:
           // Already attempting to connect, let the process continue
-          console.log("WebSocket is already connecting. Waiting...");
           break;
           
         case WebSocket.OPEN:
           // Connection is already open, verify it's still active
-          console.log("Tab visible again, connection is open. Sending ping to verify...");
           ws.send(JSON.stringify({ message: "PING" }));
           setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "success");
           break;

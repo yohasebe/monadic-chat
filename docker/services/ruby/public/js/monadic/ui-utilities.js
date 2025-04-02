@@ -3,6 +3,8 @@
  * This module contains functions related to UI manipulation and user interface handling
  */
 
+// AI User toggle functionality has been removed
+
 /**
  * Resizes a textarea element based on its content
  * @param {HTMLElement} textarea - The textarea element to resize

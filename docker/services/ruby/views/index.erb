@@ -32,6 +32,26 @@
     <link href="css/syntax-themes.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+    <style>
+      /* Custom styles for AI User provider selector */
+      #ai_user_provider {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 8.5L0 2.5h12z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 8px;
+        padding-right: 28px !important;
+        text-overflow: ellipsis;
+      }
+      
+      /* Remove focus outline */
+      #ai_user_provider:focus {
+        outline: none;
+        box-shadow: none;
+      }
+    </style>
   </head>
   <body>
 
@@ -343,10 +363,6 @@
                   <input class="form-check-input" type="checkbox" id="ai-user-initial-prompt-toggle">&nbsp;
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="ai-user-toggle">Enable AI-User <sup>3</sup></label>
-                  <input class="form-check-input" type="checkbox" value="" id="ai-user-toggle">
-                </div>
-                <div style="display:inline-block;" class="form-check form-switch me-3">
                   <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                 </div>
@@ -384,10 +400,6 @@
                 <div class="textbox-caption mt-0 mb-0">
                   <sup>2</sup> <code>Web Search</code> takes effect when Tavily API Key is set in the settings.
                 </div>
-                <div class="textbox-caption mt-0 mb-0">
-                  <sup>3</sup> <code>AI-User</code> feature can only be enabled if <code>Start from assistant</code> is disabled
-                </div>
-
               </div>
             </div>
 
@@ -475,6 +487,19 @@
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
+                    <div class="btn-group me-2">
+                      <select id="ai_user_provider" class="btn btn-sm btn-warning" style="border-right: 1px solid rgba(0,0,0,0.1); width: 120px;">
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="gemini">Gemini</option>
+                        <option value="cohere">Cohere</option>
+                        <option value="mistral">Mistral</option>
+                        <option value="perplexity">Perplexity</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="grok">Grok</option>
+                      </select>
+                      <button id="ai_user" class="btn btn-sm btn-warning"><i class="fas fa-robot"></i> AI User</button>
+                    </div>
                   </div>
                 </div>
                 <div class="col-auto p-0">

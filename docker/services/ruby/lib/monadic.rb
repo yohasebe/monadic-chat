@@ -91,6 +91,13 @@ PROMPT
 CONFIG = {}
 
 begin
+  # Prepare a log for CONFIG contents
+  config_log_path = File.join(Dir.home, "monadic", "log", "config_load.log")
+  File.open(config_log_path, "w") do |log|
+    log.puts("Loading configuration at #{Time.now}")
+    log.puts("ENV_PATH: #{Paths::ENV_PATH}")
+  end
+  
   File.read(Paths::ENV_PATH).split("\n").each do |line|
     next if line.strip.empty? || line.strip.start_with?("#")
     
@@ -128,6 +135,21 @@ begin
                         value
                       end
     CONFIG[key] = converted_value
+    
+    # Log AI_USER_PROVIDER specifically
+    if key == "AI_USER_PROVIDER"
+      File.open(config_log_path, "a") do |log|
+        log.puts("Setting AI_USER_PROVIDER to: #{converted_value.inspect}")
+      end
+    end
+  end
+  
+  # Log the final CONFIG contents
+  File.open(config_log_path, "a") do |log|
+    log.puts("\nFinal CONFIG contents:")
+    log.puts("AI_USER_PROVIDER: #{CONFIG['AI_USER_PROVIDER'].inspect}")
+    log.puts("ANTHROPIC_API_KEY present: #{CONFIG.key?('ANTHROPIC_API_KEY')}")
+    log.puts("CONFIG keys: #{CONFIG.keys.sort.join(', ')}")
   end
 rescue Errno::ENOENT
   puts "Environment file not found at #{Paths::ENV_PATH}"

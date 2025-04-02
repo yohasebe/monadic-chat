@@ -146,7 +146,19 @@ module OpenAIHelper
 
   # No streaming plain text completion/chat call
   def send_query(options, model: "gpt-4o")
-    api_key = ENV["OPENAI_API_KEY"]
+    api_key = ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"]
+    
+    # For debugging purpose
+    begin
+      log_dir = File.join(Dir.home, "monadic", "log")
+      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+      File.open(File.join(log_dir, "openai_helper_debug.log"), "a") do |f|
+        f.puts("[#{Time.now}] OPENAI_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
+        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
 
     # Set the headers for the API request
     headers = {
@@ -170,14 +182,30 @@ module OpenAIHelper
       body.delete("frequency_penalty")
       target_uri = API_ENDPOINT + "/chat/completions"
     else
+      # For AI User functionality, we only need model and messages - keep it simple
       body = {
         "model" => model,
-        "n" => 1,
         "stream" => false,
-        "stop" => nil,
         "messages" => []
       }
-      body.merge!(options)
+      
+      # Only add essential parameters - messages and model
+      if options["messages"]
+        body["messages"] = options["messages"]
+        
+        # Log for debugging
+        begin
+          log_dir = File.join(Dir.home, "monadic", "log")
+          FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+          File.open(File.join(log_dir, "openai_ai_user_debug.log"), "a") do |f|
+            f.puts("[#{Time.now}] Using messages from options for OpenAI API call")
+            f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
+          end
+        rescue => e
+          # Silent fail for logging
+        end
+      end
+      
       target_uri = API_ENDPOINT + "/chat/completions"
     end
 

@@ -176,14 +176,6 @@
           <option value="whisper-1">whisper-1</option>
         </select>
 
-        <label for="ai-user-model">AI_USER_MODEL</label>
-        <select id="ai-user-model" name="ai-user-model">
-          <option value="gpt-4o-mini">gpt-4o-mini</option>
-          <option value="gpt-4o">gpt-4o</option>
-          <option value="o3-mini">o3-mini</option>
-          <option value="o1-mini">o1-mini</option>
-          <option value="o1">o1</option>
-        </select>
 
         <label for="embedding-model">EMBEDDING_MODEL</label>
         <select id="embedding-model" name="embedding-model">
@@ -236,7 +228,6 @@
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           STT_MODEL: document.getElementById('stt-model').value,
-          AI_USER_MODEL: document.getElementById('ai-user-model').value,
           EMBEDDING_MODEL: document.getElementById('embedding-model').value,
           WEBSEARCH_MODEL: document.getElementById('websearch-model').value,
           TTS_DICT_PATH: ttsDictPath,
@@ -273,7 +264,6 @@
         document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
-        document.getElementById('ai-user-model').value = data.AI_USER_MODEL || 'gpt-4o';
         document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';
         document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4o-mini-search-preview';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';

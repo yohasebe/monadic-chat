@@ -127,19 +127,48 @@ module GeminiHelper
 
   # No streaming plain text completion/chat call
   def send_query(options, model: "gemini-2.0-flash-exp")
-    api_key = ENV["GEMINI_API_KEY"]
+    api_key = CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]
+    
+    # For debugging purpose
+    begin
+      log_dir = File.join(Dir.home, "monadic", "log")
+      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+      File.open(File.join(log_dir, "gemini_helper_debug.log"), "a") do |f|
+        f.puts("[#{Time.now}] GEMINI_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
+        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
 
     headers = {
       "content-type" => "application/json"
     }
 
+    # For AI User functionality, only use essential parameters - keep it simple
     body = {
       "safety_settings" => SAFETY_SETTINGS
     }
 
-    body["contents"] = options["messages"]
-    options.delete("messages")
-    body["generationConfig"] = options
+    # Only add the messages - keep it simple for AI User
+    if options["messages"]
+      body["contents"] = options["messages"]
+      
+      # Log for debugging
+      begin
+        log_dir = File.join(Dir.home, "monadic", "log")
+        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+        File.open(File.join(log_dir, "gemini_ai_user_debug.log"), "a") do |f|
+          f.puts("[#{Time.now}] Using messages from options for Gemini API call")
+          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
+        end
+      rescue => e
+        # Silent fail for logging
+      end
+    end
+    
+    # Empty generationConfig to avoid errors
+    body["generationConfig"] = {}
 
     target_uri = "#{API_ENDPOINT}/models/#{model}:streamGenerateContent?key=#{api_key}"
 

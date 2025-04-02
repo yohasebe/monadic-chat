@@ -18,6 +18,7 @@ app "ChatPerplexity" do
     model "sonar"
   end
   
+  app_name "Chat (Perplexity)"
   display_name "Chat"
   
   features do

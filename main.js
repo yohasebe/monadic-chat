@@ -150,13 +150,13 @@ function loadContainerVersions() {
 
 /**
  * Determine which containers need to be rebuilt
- * @returns {string|string[]} 'all' for full rebuild or array of container names
+ * @returns {string|boolean} 'all' for full rebuild, 'ruby' for only Ruby, or false if no rebuild needed
  */
 function determineContainersToBuild() {
   // Load saved container information
   const storedVersions = loadContainerVersions();
   
-  // If no stored information exists, perform full build
+  // If no stored information exists, perform full build (first installation)
   if (!storedVersions) {
     console.log('No stored version information, performing full build');
     return 'all';
@@ -171,18 +171,21 @@ function determineContainersToBuild() {
     
     // If no hash information in stored version, perform full build
     if (!storedVersions.dockerfileHashes) {
+      // Update container information (before build)
+      containerVersions.currentVersion = app.getVersion();
+      containerVersions.dockerfileHashes = currentHashes;
+      containerVersions.lastUpdated = new Date().toISOString();
       return 'all';
     }
     
-    // Ruby container is always rebuilt
-    const toBuild = ['ruby'];
+    // Check if any container other than Ruby has changed Dockerfile
+    let nonRubyChanged = false;
     
-    // Check each container for Dockerfile changes
     Object.keys(currentHashes).forEach(container => {
       if (container !== 'ruby' && 
           storedVersions.dockerfileHashes[container] !== currentHashes[container]) {
-        console.log(`Container ${container} has changed Dockerfile, will rebuild`);
-        toBuild.push(container);
+        console.log(`Container ${container} has changed Dockerfile, will rebuild all`);
+        nonRubyChanged = true;
       }
     });
     
@@ -191,11 +194,16 @@ function determineContainersToBuild() {
     containerVersions.dockerfileHashes = currentHashes;
     containerVersions.lastUpdated = new Date().toISOString();
     
-    return toBuild;
+    // If any non-ruby container has changed, rebuild all; otherwise only rebuild Ruby
+    if (nonRubyChanged) {
+      return 'all';
+    } else {
+      console.log('Only Ruby container needs to be rebuilt');
+      return 'ruby';
+    }
   }
   
   // For restarts within the same version, check if containers exist before rebuilding
-  // Check if all required containers already exist
   try {
     // Use synchronous command to check if containers exist
     const containerCheck = execSync('docker ps -a').toString();
@@ -203,14 +211,14 @@ function determineContainersToBuild() {
     // Check if Ruby container exists
     if (containerCheck.includes('monadic-chat-ruby-container')) {
       console.log('All required containers exist, no rebuild needed');
-      return []; // Return empty array if all containers exist
+      return false; // No rebuild needed if containers exist
     } else {
-      console.log('Ruby container missing, needs rebuild');
-      return ['ruby']; // Only rebuild Ruby container if missing
+      console.log('Containers missing, needs rebuild');
+      return 'all'; // Full rebuild needed if containers are missing
     }
   } catch (error) {
     console.error('Error checking container existence:', error);
-    return []; // If we can't check, assume no rebuild needed
+    return false; // If we can't check, assume no rebuild needed
   }
 }
 
@@ -663,10 +671,10 @@ const menuItems = [
       openMainWindow();
       dockerManager.checkRequirements()
         .then(() => {
-          // First determine which containers need to be rebuilt
-          const containersToBuild = determineContainersToBuild();
+          // Determine if a rebuild is needed
+          const needsRebuild = determineContainersToBuild();
           
-          if (containersToBuild === 'all') {
+          if (needsRebuild === 'all') {
             // Full rebuild needed
             writeToScreen('[HTML]: <p>Running full rebuild for all containers...</p>');
             dockerManager.runCommand('build', '[HTML]: <p>Building all containers...</p>', 'Building', 'Stopped')
@@ -676,11 +684,10 @@ const menuItems = [
                 // Then start containers
                 return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
               });
-          } else if (containersToBuild.length > 0) {
-            // Selective rebuild needed
-            const containers = containersToBuild.join(',');
-            writeToScreen(`[HTML]: <p>Rebuilding selected containers: ${containers}</p>`);
-            dockerManager.runCommand('build_selected', `[HTML]: <p>Building selected containers...</p>`, 'Building', 'Stopped', containers)
+          } else if (needsRebuild === 'ruby') {
+            // Only Ruby container needs to be rebuilt
+            writeToScreen('[HTML]: <p>Rebuilding Ruby container...</p>');
+            dockerManager.runCommand('build_ruby_container', '[HTML]: <p>Building Ruby container...</p>', 'Building', 'Stopped')
               .then(() => {
                 // After successful build, update container information
                 updateContainerVersionsAfterBuild();
@@ -883,10 +890,10 @@ function initializeApp() {
       try {
         switch (command) {
           case 'start':
-            // First determine which containers need to be rebuilt
-            const containersToBuild = determineContainersToBuild();
+            // Determine if a rebuild is needed
+            const needsRebuild = determineContainersToBuild();
             
-            if (containersToBuild === 'all') {
+            if (needsRebuild === 'all') {
               // Full rebuild needed
               writeToScreen('[HTML]: <p>Running full rebuild for all containers...</p>');
               dockerManager.runCommand('build', '[HTML]: <p>Building all containers...</p>', 'Building', 'Stopped')
@@ -896,11 +903,10 @@ function initializeApp() {
                   // Then start containers
                   return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
                 });
-            } else if (containersToBuild.length > 0) {
-              // Selective rebuild needed
-              const containers = containersToBuild.join(',');
-              writeToScreen(`[HTML]: <p>Rebuilding selected containers: ${containers}</p>`);
-              dockerManager.runCommand('build_selected', `[HTML]: <p>Building selected containers...</p>`, 'Building', 'Stopped', containers)
+            } else if (needsRebuild === 'ruby') {
+              // Only Ruby container needs to be rebuilt
+              writeToScreen('[HTML]: <p>Rebuilding Ruby container...</p>');
+              dockerManager.runCommand('build_ruby_container', '[HTML]: <p>Building Ruby container...</p>', 'Building', 'Stopped')
                 .then(() => {
                   // After successful build, update container information
                   updateContainerVersionsAfterBuild();
@@ -1196,10 +1202,10 @@ function updateApplicationMenu() {
           label: 'Start',
           click: () => {
             openMainWindow();
-            // First determine which containers need to be rebuilt
-            const containersToBuild = determineContainersToBuild();
+            // Determine if a rebuild is needed
+            const needsRebuild = determineContainersToBuild();
             
-            if (containersToBuild === 'all') {
+            if (needsRebuild === 'all') {
               // Full rebuild needed
               writeToScreen('[HTML]: <p>Running full rebuild for all containers...</p>');
               dockerManager.runCommand('build', '[HTML]: <p>Building all containers...</p>', 'Building', 'Stopped')
@@ -1209,11 +1215,10 @@ function updateApplicationMenu() {
                   // Then start containers
                   return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
                 });
-            } else if (containersToBuild.length > 0) {
-              // Selective rebuild needed
-              const containers = containersToBuild.join(',');
-              writeToScreen(`[HTML]: <p>Rebuilding selected containers: ${containers}</p>`);
-              dockerManager.runCommand('build_selected', `[HTML]: <p>Building selected containers...</p>`, 'Building', 'Stopped', containers)
+            } else if (needsRebuild === 'ruby') {
+              // Only Ruby container needs to be rebuilt
+              writeToScreen('[HTML]: <p>Rebuilding Ruby container...</p>');
+              dockerManager.runCommand('build_ruby_container', '[HTML]: <p>Building Ruby container...</p>', 'Building', 'Stopped')
                 .then(() => {
                   // After successful build, update container information
                   updateContainerVersionsAfterBuild();

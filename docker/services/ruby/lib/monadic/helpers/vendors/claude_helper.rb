@@ -1,3 +1,5 @@
+require 'fileutils'
+
 module ClaudeHelper
   MAX_FUNC_CALLS = 8
   API_ENDPOINT = "https://api.anthropic.com/v1"
@@ -117,10 +119,40 @@ module ClaudeHelper
     super
   end
 
+  # Function to write logs to file
+  def log_to_file(message)
+    begin
+      log_file_path = File.join(Dir.home, "monadic", "log", "claude_debug.log")
+      # Ensure the directory exists
+      FileUtils.mkdir_p(File.dirname(log_file_path)) unless File.directory?(File.dirname(log_file_path))
+      File.open(log_file_path, "a") do |f|
+        f.puts("[#{Time.now}] #{message}")
+      end
+    rescue => e
+      # Write to a fallback location if there's an error
+      fallback_path = "/tmp/claude_debug_fallback.log"
+      File.open(fallback_path, "a") do |f|
+        f.puts("[#{Time.now}] ERROR in log_to_file: #{e.message}")
+        f.puts("[#{Time.now}] Original message: #{message}")
+      end
+    end
+  end
+
   # No streaming plain text completion/chat call
   def send_query(options, model: "claude-3-5-sonnet-20241022")
-    api_key = ENV["ANTHROPIC_API_KEY"]
-
+    log_message = "DEBUG CLAUDE SEND_QUERY OPTIONS: #{options.inspect}"
+    log_to_file(log_message)
+    
+    # First try CONFIG, then fall back to ENV for the API key
+    api_key = CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]
+    log_to_file("ANTHROPIC_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
+    
+    # Log the sources of configurations
+    log_to_file("API_KEY SOURCE CHECK:")
+    log_to_file("  CONFIG['ANTHROPIC_API_KEY']: #{CONFIG['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
+    log_to_file("  ENV['ANTHROPIC_API_KEY']: #{ENV['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
+    log_to_file("  CONFIG['AI_USER_PROVIDER']: #{CONFIG['AI_USER_PROVIDER'].inspect}")
+    
     # Set the headers for the API request
     headers = {
       "content-type" => "application/json",
@@ -128,14 +160,26 @@ module ClaudeHelper
       "x-api-key" => api_key
     }
 
-    # Set the body for the API request
+    # Set the body for the API request with only essential parameters
     body = {
       "model" => model,
       "stream" => false,
-      "messages" => [],
+      "messages" => []
     }
-
-    body.merge!(options)
+    
+    # Extract only the messages from options
+    if options["messages"]
+      body["messages"] = options["messages"]
+      log_to_file("Using messages from options for Claude API call")
+    end
+    
+    # Allow system message if present
+    if options["system"]
+      body["system"] = options["system"]
+      log_to_file("Using system message from options for Claude API call")
+    end
+    
+    # We don't pass other parameters to avoid compatibility issues
     target_uri = "#{API_ENDPOINT}/messages"
     http = HTTP.headers(headers)
 
@@ -177,10 +221,31 @@ module ClaudeHelper
     num_retrial = 0
 
     begin
-      api_key = CONFIG["ANTHROPIC_API_KEY"]
+      # Write to debug log at the start
+      log_to_file("\n==== DEBUG CLAUDE API_REQUEST START ====")
+      log_to_file("Role: #{role.inspect}")
+      log_to_file("Session parameters: #{session[:parameters].inspect}")
+      
+      # Check for AI_USER_PROVIDER parameter
+      if session[:parameters]["ai_user_provider"]
+        log_to_file("AI_USER_PROVIDER in session: #{session[:parameters]['ai_user_provider']}")
+      end
+      
+      # First check CONFIG, then ENV for API key
+      api_key = CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]
+      log_to_file("DEBUG CLAUDE API_REQUEST: Using API KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
+      
+      # Log API key source
+      log_to_file("API key from CONFIG: #{CONFIG['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
+      log_to_file("API key from ENV: #{ENV['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
+      
       raise if api_key.nil?
-    rescue StandardError
-      pp error_message = "ERROR: ANTHROPIC_API_KEY not found.  Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/config/env file."
+    rescue StandardError => e
+      error_message = "ERROR: ANTHROPIC_API_KEY not found. Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/config/env file."
+      log_to_file("DEBUG CLAUDE ERROR: #{error_message}")
+      log_to_file("Exception: #{e.message}")
+      log_to_file("Backtrace: #{e.backtrace.join("\n")}")
+      
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []

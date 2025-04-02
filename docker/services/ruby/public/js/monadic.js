@@ -4,6 +4,8 @@ let uiUtils;
 let formHandlers;
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Disable AI User button initially until conversation starts
+  $("#ai_user").prop("disabled", true).attr("title", "Start a conversation first to enable AI User").addClass("disabled");
   // Get modules from window if available
   if (typeof uiUtils === 'undefined' && typeof window.uiUtils !== 'undefined') {
     uiUtils = window.uiUtils;
@@ -370,10 +372,78 @@ $(function () {
     $("#context-size-toggle").on("change", function () {
       $("#context-size").prop("disabled", !$(this).is(":checked"));
     });
+    
+    // Add handler for AI User toggle to ensure the value gets set in params
+    $("#ai-user-toggle").on("change", function () {
+      // Update the params directly when the checkbox changes
+      params["ai_user"] = $(this).is(":checked") ? "true" : "false";
+    });
   }
 
   // Setup optimized event listeners
   function setupEventListeners() {
+    // Make AI User button always visible
+    setTimeout(function() {
+      $("#ai_user").show();
+    }, 1000);
+    
+    // Setup AI User provider selector
+    $("#ai_user_provider").on("change", function() {
+      const provider = $(this).val();
+      setCookie("ai_user_provider", provider, 30);
+      updateProviderStyle(provider);
+    });
+    
+    // Function that does nothing now - we're keeping the default btn-warning style
+    function updateProviderStyle(provider) {
+      // Intentionally left empty - we want to maintain the original btn-warning style
+    }
+    
+    // Load saved provider from cookie
+    const savedProvider = getCookie("ai_user_provider");
+    if (savedProvider) {
+      $("#ai_user_provider").val(savedProvider);
+      updateProviderStyle(savedProvider);
+    } else {
+      // Use default provider style (OpenAI)
+      updateProviderStyle("openai");
+    }
+    
+    // Setup AI User button
+    $("#ai_user").off("click").on("click", function () {
+      console.log("AI User button clicked");
+      
+      // Force enable AI User
+      params["ai_user"] = "true";
+      
+      // Get the provider from the selector
+      const provider = $("#ai_user_provider").val();
+      params["ai_user_provider"] = provider;
+      
+      // Create an AI User query
+      let ai_user_query = {
+        message: "AI_USER_QUERY",
+        contents: {
+          params: params,
+          messages: messages.map(msg => {
+            return { "role": msg["role"], "text": msg["text"] }
+          })
+        }
+      };
+      
+      // Send the request via WebSocket
+      ws.send(JSON.stringify(ai_user_query));
+      
+      // Ensure the button stays visible
+      $(this).show();
+      
+      // Show a message to the user with the current provider if specified
+      const alertMessage = provider 
+        ? `<i class='fas fa-spinner fa-spin'></i> Using AI User functionality (${provider})...`
+        : `<i class='fas fa-spinner fa-spin'></i> Using AI User functionality...`;
+      setAlert(alertMessage, "warning");
+    });
+  
     const $document = $(document);
     const $main = $("#main");
 
@@ -1648,6 +1718,19 @@ $(function () {
     $("#ai-user-initial-prompt").css("display", "none");
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
+    
+    // Load AI User provider from cookie
+    const savedProvider = getCookie("ai_user_provider");
+    if (savedProvider) {
+      $("#ai_user_provider").val(savedProvider);
+      
+      // Apply provider styling if updateProviderStyle is available
+      if (typeof updateProviderStyle === 'function') {
+        updateProviderStyle(savedProvider);
+      }
+    } else if (typeof updateProviderStyle === 'function') {
+      updateProviderStyle("openai");
+    }
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustScrollButtons) {
       uiUtils.adjustScrollButtons();

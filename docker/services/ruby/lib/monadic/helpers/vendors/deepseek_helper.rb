@@ -115,20 +115,25 @@ module DeepSeekHelper
 
   # No streaming plain text completion/chat call
   def send_query(options, model: "deepseek-chat")
-    api_key = ENV["DEEPSEEK_API_KEY"]
+    api_key = CONFIG["DEEPSEEK_API_KEY"] || ENV["DEEPSEEK_API_KEY"]
 
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
 
+    # For AI User functionality, only use model and messages - keep it simple
     body = {
       "model" => model,
       "stream" => false,
       "messages" => []
     }
-
-    body.merge!(options)
+    
+    # Only add the messages parameter
+    if options["messages"]
+      body["messages"] = options["messages"]
+    end
+    
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
 

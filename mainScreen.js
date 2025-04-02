@@ -168,6 +168,24 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onUpdateStatusIndicator((_event, status) => {
     updateMonadicChatStatusUI(status);
   });
+  
+  // Handle controls update from main process
+  window.electronAPI.onUpdateControls((_event, data) => {
+    const { status, disableControls } = data;
+    if (disableControls) {
+      // Disable all controls during operations
+      const buttons = {
+        start: document.getElementById('start'),
+        stop: document.getElementById('stop'),
+        restart: document.getElementById('restart'),
+        browser: document.getElementById('browser')
+      };
+      Object.values(buttons).forEach(button => button.disabled = true);
+    } else {
+      // Update controls based on status
+      updateMonadicChatStatusUI(status);
+    }
+  });
 
   // Enable browser button when server is ready
   window.electronAPI.onServerReady(() => {

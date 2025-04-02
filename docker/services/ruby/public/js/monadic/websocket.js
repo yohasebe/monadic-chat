@@ -935,6 +935,15 @@ function connect_websocket(callback) {
         loadedApp = data["content"]["app_name"];
         setAlert("<i class='fa-solid fa-hourglass-half'></i> Please wait . . .", "warning");
         loadParams(data["content"], "loadParams");
+        
+        // Debug logging for AI User settings as they are received from server
+        console.log("DEBUG: Parameters loaded from server:", {
+          ai_user: data["content"]["ai_user"],
+          ai_user_initial_prompt: data["content"]["ai_user_initial_prompt"] ? "present" : "missing",
+          ai_user_provider: data["content"]["ai_user_provider"],
+          ai_user_model: data["content"]["ai_user_model"]
+        });
+        
         const currentApp = apps[$("#apps").val()] || apps[defaultApp];
 
         let models = [];
@@ -1184,6 +1193,9 @@ function connect_websocket(callback) {
         } else {
           $("#start-label").text("Start Session");
         }
+        
+        // Update AI User button state
+        updateAIUserButtonState(messages);
 
         // After loading past messages, set initialLoadComplete to true
         initialLoadComplete = true;
@@ -1213,6 +1225,12 @@ function connect_websocket(callback) {
         break;
       }
       case "ai_user_finished": {
+        // Trim extra whitespace from the final message
+        const trimmedContent = data["content"].trim();
+        
+        // Replace entire message content with trimmed version
+        $("#message").val(trimmedContent);
+        
         // Reset UI state
         $("#message").attr("placeholder", "Type your message . . .");
         $("#message").prop("disabled", false);
@@ -1291,6 +1309,9 @@ function connect_websocket(callback) {
           }
         }
         
+        // Update AI User button state
+        updateAIUserButtonState(messages);
+        
         if (!handled) {
           // Fallback to inline handling
           messages.push(data["content"]);
@@ -1317,59 +1338,9 @@ function connect_websocket(callback) {
             $("#cancel_query").hide();
           }
 
-          if (params["ai_user_initial_prompt"] && params["ai_user_initial_prompt"] !== "") {
-            try {
-                  
-              // Clear message field first
-              document.getElementById('message').value = "";
-              
-              // Disable UI and prepare for AI user input
-              $("#message").attr("placeholder", "Waiting for AI-user input . . .");
-              $("#message").prop("disabled", true);
-              $("#send, #clear, #image-file, #voice").prop("disabled", true);
-              
-              // Show cancel button while waiting for AI user
-              $("#cancel_query").show();
-              
-              // Format messages for the AI user query
-              let simple_messages = messages.map(msg => {
-                return { "role": msg["role"], "text": msg["text"] }
-              });
-              
-              // Prepare the AI user query
-              let ai_user_query = {
-                message: "AI_USER_QUERY",
-                contents: {
-                  params: params,
-                  messages: simple_messages
-                }
-              };
-              
-              setAlert("<i class='fas fa-pencil-alt'></i> Generating AI user input...", "warning");
-              
-              // Send the query after a brief delay to ensure UI updates
-              setTimeout(() => {
-                // Check if query was cancelled before sending
-                if ($("#cancel_query").is(":visible")) {
-                  // Send AI user query
-                  ws.send(JSON.stringify(ai_user_query));
-                }
-              }, 100);
-            } catch (error) {
-              console.error("Error starting AI user generation:", error);
-              setAlert("<i class='fa-solid fa-circle-exclamation'></i> AI user generation failed", "error");
-              
-              // Reset UI on error
-              $("#message").attr("placeholder", "Type your message . . .");
-              $("#message").prop("disabled", false);
-              $("#send, #clear, #image-file, #voice").prop("disabled", false);
-              $("#cancel_query").hide();
-            }
-          } else {
-            // No AI user prompt, set to ready state
-            $("#cancel_query").hide();
-            setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
-          }
+          // AI User is no longer automatically triggered
+          $("#cancel_query").hide();
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         } else if (data["content"]["role"] === "user") {
           let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
@@ -1728,6 +1699,27 @@ window.handleVisibilityChange = handleVisibilityChange;
 window.startPing = startPing;
 window.stopPing = stopPing;
 
+// Function to update AI User button enabled state based on conversation status
+function updateAIUserButtonState(messages) {
+  const aiUserBtn = $("#ai_user");
+  if (!aiUserBtn) return;
+  
+  // AI User should only be enabled if there are at least 2 messages in the conversation
+  // (meaning user and assistant have exchanged at least one message)
+  const hasConversation = Array.isArray(messages) && messages.length >= 2;
+  
+  // Set disabled state and add tooltip for better UX
+  if (hasConversation) {
+    aiUserBtn.prop("disabled", false);
+    aiUserBtn.attr("title", "Generate AI user response based on conversation");
+    aiUserBtn.removeClass("disabled");
+  } else {
+    aiUserBtn.prop("disabled", true);
+    aiUserBtn.attr("title", "Start a conversation first to enable AI User");
+    aiUserBtn.addClass("disabled");
+  }
+}
+
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1735,6 +1727,7 @@ if (typeof module !== 'undefined' && module.exports) {
     reconnect_websocket,
     handleVisibilityChange,
     startPing,
-    stopPing
+    stopPing,
+    updateAIUserButtonState
   };
 }

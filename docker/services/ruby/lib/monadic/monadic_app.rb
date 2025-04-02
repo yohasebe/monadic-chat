@@ -582,10 +582,32 @@ class MonadicApp
     end
   end
 
+  # ファイルにログを書き出すための関数
+  def log_to_file(message)
+    log_file_path = File.join(Dir.home, "monadic", "log", "monadic_app_debug.log")
+    File.open(log_file_path, "a") do |f|
+      f.puts("[#{Time.now}] #{message}")
+    end
+  end
+
   def markdownify(text)
-    model = CONFIG["AI_USER_MODEL"] || "gpt-4o"
+    provider = CONFIG["AI_USER_PROVIDER"] || "openai"
+    
+    # Default model based on provider
+    provider_defaults = {
+      "openai" => "gpt-4o",
+      "anthropic" => "claude-3-5-sonnet-20240620",
+      "cohere" => "command-r-plus",
+      "gemini" => "gemini-2.0-flash-exp",
+      "mistral" => "mistral-large-latest",
+      "grok" => "grok-2-1212",
+      "perplexity" => "sonar",
+      "deepseek" => "deepseek-chat"
+    }
+    
+    model = provider_defaults[provider.downcase] || "gpt-4o"
     sys_prompt = <<~PROMPT
-    Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. The text is extracted from the webpage: #{url}. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
+    Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
       PROMPT
     parameters = {
       "model" => model,
@@ -603,6 +625,11 @@ class MonadicApp
         }
       ]
     }
+    
+    # For debugging purpose
+    log_to_file("DEBUG MARKDOWNIFY: Using provider #{provider} with model #{model}")
+    log_to_file("DEBUG MARKDOWNIFY CONFIG: #{CONFIG.inspect}")
+    
     send_query(parameters)
   end
 

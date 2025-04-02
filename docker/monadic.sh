@@ -655,6 +655,48 @@ build_python_container)
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
+build_selected)
+  # Build specified containers passed as comma-separated list in $2
+  if [[ -z "$2" ]]; then
+    echo "[HTML]: <p>No containers specified for selective build. Skipping.</p>"
+    return 0
+  fi
+  
+  ensure_data_dir "" &&
+  
+  echo "[HTML]: <p>Selective build for containers: $2</p>"
+  
+  # Convert comma-separated list to array
+  IFS=',' read -r -a SELECTED_CONTAINERS <<< "$2"
+  
+  # Build each specified container
+  for container in "${SELECTED_CONTAINERS[@]}"; do
+    case "$container" in
+      "ruby")
+        echo "[HTML]: <p>Building Ruby container...</p>"
+        build_ruby_container
+        ;;
+      "python")
+        echo "[HTML]: <p>Building Python container...</p>"
+        build_python_container
+        ;;
+      "pgvector")
+        echo "[HTML]: <p>Building PGVector container...</p>"
+        build_pgvector_container
+        ;;
+      "selenium")
+        echo "[HTML]: <p>Building Selenium container...</p>"
+        build_selenium_container
+        ;;
+      *)
+        echo "[HTML]: <p>Unknown container: $container. Skipping.</p>"
+        ;;
+    esac
+  done
+  
+  echo "[HTML]: <p>Selective build completed.</p>"
+  ;;
+
 build_user_containers)
   ensure_data_dir "" &&
 

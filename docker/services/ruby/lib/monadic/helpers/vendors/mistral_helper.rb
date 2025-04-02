@@ -132,17 +132,47 @@ module MistralHelper
   # Non-streaming plain text completion/chat call
 
   def send_query(options, model: "mistral-large-latest")
-    api_key = CONFIG["MISTRAL_API_KEY"]
+    api_key = CONFIG["MISTRAL_API_KEY"] || ENV["MISTRAL_API_KEY"]
+    
+    # For debugging purpose
+    begin
+      log_dir = File.join(Dir.home, "monadic", "log")
+      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+      File.open(File.join(log_dir, "mistral_helper_debug.log"), "a") do |f|
+        f.puts("[#{Time.now}] MISTRAL_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
+        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
 
     headers = {
       "Content-Type"  => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
 
+    # For AI User functionality, only use model and messages - keep it simple
     body = {
       "model"  => model,
       "stream" => false
-    }.merge(options)
+    }
+    
+    # Only add the messages parameter
+    if options["messages"]
+      body["messages"] = options["messages"]
+      
+      # Log for debugging
+      begin
+        log_dir = File.join(Dir.home, "monadic", "log")
+        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+        File.open(File.join(log_dir, "mistral_ai_user_debug.log"), "a") do |f|
+          f.puts("[#{Time.now}] Using messages from options for Mistral API call")
+          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
+        end
+      rescue => e
+        # Silent fail for logging
+      end
+    end
 
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)

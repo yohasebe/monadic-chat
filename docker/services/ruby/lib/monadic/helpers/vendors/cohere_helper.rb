@@ -114,7 +114,19 @@ module CohereHelper
 
   # No streaming plain text completion/chat call
   def send_query(options, model: "command-a-03-2025")
-    api_key = CONFIG["COHERE_API_KEY"]
+    api_key = CONFIG["COHERE_API_KEY"] || ENV["COHERE_API_KEY"]
+    
+    # For debugging purpose
+    begin
+      log_dir = File.join(Dir.home, "monadic", "log")
+      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+      File.open(File.join(log_dir, "cohere_helper_debug.log"), "a") do |f|
+        f.puts("[#{Time.now}] COHERE_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
+        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
 
     headers = {
       "accept" => "application/json",
@@ -122,13 +134,30 @@ module CohereHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
+    # Set the body for the API request with only essential parameters
+    # For AI User functionality, only use model and messages - keep it simple
     body = {
       "model" => model,
       "stream" => false,
       "messages" => []
     }
-
-    body.merge!(options)
+    
+    # Extract only the messages from options
+    if options["messages"]
+      body["messages"] = options["messages"]
+      
+      # Log for debugging
+      begin
+        log_dir = File.join(Dir.home, "monadic", "log")
+        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+        File.open(File.join(log_dir, "cohere_ai_user_debug.log"), "a") do |f|
+          f.puts("[#{Time.now}] Using messages from options for Cohere API call")
+          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
+        end
+      rescue => e
+        # Silent fail for logging
+      end
+    end
 
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)

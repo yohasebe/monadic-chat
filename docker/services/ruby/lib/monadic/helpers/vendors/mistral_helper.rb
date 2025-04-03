@@ -129,488 +129,469 @@ module MistralHelper
     end
   end
 
-  # Non-streaming plain text completion/chat call
-
+  # Simple non-streaming chat completion
   def send_query(options, model: "mistral-large-latest")
+    # Get API key
     api_key = CONFIG["MISTRAL_API_KEY"] || ENV["MISTRAL_API_KEY"]
+    return "Error: MISTRAL_API_KEY not found" if api_key.nil?
     
-    # For debugging purpose
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      File.open(File.join(log_dir, "mistral_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] MISTRAL_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-
+    # Set headers
     headers = {
-      "Content-Type"  => "application/json",
+      "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
-
-    # For AI User functionality, only use model and messages - keep it simple
+    
+    # Get the requested model
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "MistralHelper.send_query: Using model: #{model}"
+    end
+    
+    # Format messages with validation
+    messages = []
+    
+    if options["messages"]
+      # Debug logging is handled by dedicated log files
+      
+      # Validate and normalize messages
+      options["messages"].each do |msg|
+        content = msg["content"] || msg["text"] || ""
+        next if content.to_s.strip.empty? # Skip empty messages
+        
+        # Normalize role to valid Mistral roles
+        role = msg["role"].to_s.downcase
+        
+        # Mistral only supports user, assistant, and system roles
+        unless ["user", "assistant", "system"].include?(role)
+          role = "user" # Default unknown roles to user
+        end
+        
+        messages << {
+          "role" => role,
+          "content" => content.to_s
+        }
+      end
+      
+      # Ensure we have at least one message and that the last message is from user
+      if messages.empty?
+        messages << {
+          "role" => "user",
+          "content" => "Hello, I'd like to have a conversation."
+        }
+      elsif messages.last["role"] != "user"
+        # Add a user message if the last message is not from user
+        messages << {
+          "role" => "user",
+          "content" => "Please continue with this conversation."
+        }
+      end
+      
+      # Detailed logs are maintained in dedicated log files
+    end
+    
+    # Prepare request body
     body = {
-      "model"  => model,
-      "stream" => false
+      "model" => model,
+      "max_tokens" => options["max_tokens"] || 1000,
+      "temperature" => options["temperature"] || 0.7,
+      "messages" => messages,
+      "safe_prompt" => false
     }
     
-    # Only add the messages parameter
-    if options["messages"]
-      body["messages"] = options["messages"]
-      
-      # Log for debugging
-      begin
-        log_dir = File.join(Dir.home, "monadic", "log")
-        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-        File.open(File.join(log_dir, "mistral_ai_user_debug.log"), "a") do |f|
-          f.puts("[#{Time.now}] Using messages from options for Mistral API call")
-          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
-        end
-      rescue => e
-        # Silent fail for logging
-      end
-    end
-
+    # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
-
+    
+    # Simple retry logic
     response = nil
     MAX_RETRIES.times do
-      response = http.timeout(connect: OPEN_TIMEOUT,
-                              write: WRITE_TIMEOUT,
-                              read: READ_TIMEOUT)
-        .post(target_uri, json: body)
-      break if response.status.success?
-
+      begin
+        response = http.timeout(
+          connect: OPEN_TIMEOUT,
+          write: WRITE_TIMEOUT,
+          read: READ_TIMEOUT
+        ).post(target_uri, json: body)
+        
+        break if response && response.status && response.status.success?
+      rescue HTTP::Error, HTTP::TimeoutError
+        # Continue to next retry
+      end
+      
       sleep RETRY_DELAY
     end
-
+    
+    # Process response
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        "ERROR: Failed to parse response JSON: #{e.message}"
+        
+        # Standard OpenAI-compatible format
+        if parsed_response["choices"] && 
+           parsed_response["choices"][0] && 
+           parsed_response["choices"][0]["message"]
+          
+          return parsed_response["choices"][0]["message"]["content"].to_s
+        end
+        
+        return "Error: Unexpected response format"
+      rescue => e
+        return "Error: #{e.message}"
       end
     else
-      error_response = begin
-                         response && response.body ? JSON.parse(response.body) : { "error" => "No response received" }
-                       rescue JSON::ParserError => e
-                         { "error" => "Failed to parse error response JSON: #{e.message}" }
+      begin
+        # Error details are logged to dedicated log files
+        
+        error_data = response && response.body ? JSON.parse(response.body.to_s) : {}
+        error_message = if error_data["error"] && error_data["error"].is_a?(Hash)
+                         error_data["error"]["message"] || "Unknown error"
+                       else
+                         error_data["error"] || "Unknown error"
                        end
-      pp error_response
-      "ERROR: #{error_response["error"]}"
+        return "Error: #{error_message}"
+      rescue => e
+        return "Error: Failed to parse error response"
+      end
     end
-  rescue StandardError => e
-    "Error: The request could not be completed. (#{e.message})"
+  rescue => e
+    return "Error: #{e.message}"
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    # Validate API key presence
-
+    num_retrial = 0
     begin
       api_key = CONFIG["MISTRAL_API_KEY"]
-      raise "API key missing" if api_key.nil?
+      raise if api_key.nil?
     rescue StandardError
-      error_msg = "ERROR: MISTRAL_API_KEY not found. Please set the MISTRAL_API_KEY environment variable in the ~/monadic/config/env file."
-      pp error_msg
-      res = { "type" => "error", "content" => error_msg }
+      error_message = "ERROR: MISTRAL_API_KEY not found. Please set the MISTRAL_API_KEY environment variable in the ~/monadic/config/env file."
+      res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
     end
 
+    # Get parameters from session
     obj = session[:parameters]
     app = obj["app_name"]
 
-    max_tokens   = obj["max_tokens"]&.to_i
-    temperature  = obj["temperature"].to_f
-    context_size = obj["context_size"].to_i
-    request_id   = SecureRandom.hex(4)
+    # Handle max_tokens with AI_USER_MAX_TOKENS for AI User mode
+    if obj["ai_user"] == "true"
+      max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_tokens"]&.to_i
+    else
+      max_tokens = obj["max_tokens"]&.to_i
+    end
 
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    temperature = obj["temperature"].to_f
+    context_size = obj["context_size"].to_i
+    request_id = SecureRandom.hex(4)
+
+    websearch = obj["websearch"] == "true"
 
     if role != "tool"
       message = obj["message"].to_s
-      html = message.empty? ? message : markdown_to_html(message)
-      if !message.empty? && role == "user"
-        res = {
-          "type"    => "user",
-          "content" => {
-            "mid"  => request_id,
-            "role" => role,
-            "text" => message,
-            "html" => html,
-            "lang" => detect_language(obj["message"])
-          }
-        }
-        res["content"]["images"] = obj["images"] if obj["images"]
-        block&.call res
-        session[:messages] << res["content"]
+
+      if message != ""
+        html = markdown_to_html(message)
+
+        if message != "" && role == "user"
+          res = { "type" => "user",
+                  "content" => {
+                    "mid" => request_id,
+                    "role" => role,
+                    "text" => message,
+                    "html" => html,
+                    "lang" => detect_language(message)
+                  } }
+          res["content"]["images"] = obj["images"] if obj["images"]
+
+          block&.call res
+          session[:messages] << res["content"]
+        end
       end
     end
 
-    # Mark all previous messages as inactive
-
+    # Old messages in the session are set to inactive
+    # and set active messages are added to the context
     session[:messages].each { |msg| msg["active"] = false }
-    # Build conversation context
-
     context = [session[:messages].first]
     if session[:messages].length > 1
-      context += session[:messages][1..].last(context_size + 1)
+      context += session[:messages][1..].last(context_size)
     end
     context.each { |msg| msg["active"] = true }
 
+    # Set headers for API request
     headers = {
-      "Content-Type"  => "application/json",
+      "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
 
-    websearch_prompto_added = false
-    messages = context.compact.map do |msg|
-      if websearch && !websearch_prompto_added && msg["role"] == "system"
-        text = msg["text"] + "\n\n" + WEBSEARCH_PROMPT
-        websearch_prompto_added = true
-      else
-        text = msg["text"]
-      end
-      { "role" => msg["role"], "content" => text }
-    end
-
+    # Set body for the API request
     body = {
-      "model"       => obj["model"],
-      "temperature" => temperature,
-      "safe_prompt" => false,
-      "stream"      => true,
-      "messages"    => messages
+      "model" => obj["model"],
+      "temperature" => temperature || 0.7,
+      "messages" => []
     }
-    body["max_tokens"] = max_tokens if max_tokens
 
-    # Add tool settings if available
+    body["stream"] = true
+
+    # Set the max tokens
+    body["max_tokens"] = max_tokens || 4096
+
+    # Add tools if available
     if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = settings["tools"]
-      body["tools"].push(*WEBSEARCH_TOOLS) if websearch
-      body["tools"].uniq!
+      body["tools"] = APPS[app].settings["tools"]
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
-    else
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
 
-    # The context is added to the body
-    messages_containing_img = false
-    body["messages"] = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-      if msg["images"] && role == "user"
-        msg["images"].each do |img|
-          messages_containing_img = true
-          # if /\.pdf\z/ =~ img["title"]
-          #   message["content"] << {
-          #     "type" => "document_url",
-          #     "document_url" => img["data"]
-          #   }
-          # else
-            message["content"] << {
-              "type" => "image_url",
-              "image_url" => {
-                "url" => img["data"],
-                "detail" => "high"
-              }
-            }
-          # end
-        end
+      # Add websearch prompt to system message
+      system_msg = context.first
+      if system_msg && system_msg["role"] == "system"
+        system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
       end
-      message
     end
 
-    # Only override the model with pixtral-large-latest if using image content with a non-pixtral model
-    if messages_containing_img && !(/pixtral/ =~ obj["model"])
-      body["model"] = "pixtral-large-latest"
+    # Add all messages to body
+    body["messages"] = context.reject do |msg|
+                         msg["role"] == "tool"
+                       end.map do |msg|
+      { "role" => msg["role"],
+        "content" => msg["text"] }
     end
 
     if role == "tool"
-      body["messages"] += obj["function_returns"]
-    elsif role == "user" && settings["prompt_suffix"]
-      prompt_suffix_added = false
-      body["messages"].reverse_each do |msg|
-        msg["content"].each do |content|
-          if content["type"] == "text"
-            content["text"] += "\n\n" + settings["prompt_suffix"]
-            prompt_suffix_added = true
-            break
-          end
-        end
-        break if prompt_suffix_added
+      # Add the function response to the body
+      body["messages"] += obj["function_returns"].map do |resp|
+        { "role" => "tool",
+          "content" => resp["content"],
+          "tool_call_id" => resp["tool_call_id"],
+          "name" => resp["name"] }
       end
     end
 
+    # Set up API endpoint
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    response = nil
-    MAX_RETRIES.times do
-      response = http.timeout(connect: OPEN_TIMEOUT,
-                              write: WRITE_TIMEOUT,
-                              read: READ_TIMEOUT)
-        .post(target_uri, json: body)
-      break if response.status.success?
+    begin
+      res = http.timeout(connect: OPEN_TIMEOUT,
+                        write: WRITE_TIMEOUT,
+                        read: READ_TIMEOUT).post(target_uri, json: body)
 
-      sleep RETRY_DELAY
-    end
-
-    unless response.status.success?
-      error_report = JSON.parse(response.body) rescue { "error" => "Invalid JSON error response" }
-      pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
+      unless res.status.success?
+        err_json = JSON.parse(res.body)
+        error_message = "API ERROR: #{err_json["error"]["message"]}" rescue "API ERROR: API call failed: #{res.status}"
+        res = { "type" => "error", "content" => error_message }
         block&.call res
-      return [res]
-    end
-
-    process_json_data(app: app,
-                      session: session,
-                      query: body,
-                      res: response.body,
-                      call_depth: call_depth, &block)
-
-  rescue HTTP::Error, HTTP::TimeoutError
-    @num_retrial ||= 0
-    if @num_retrial < MAX_RETRIES
-      @num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      error_msg = "The request has timed out."
-      pp error_msg
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_msg}" }
+        return [res]
+      end
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        error_message = "ERROR: The request has timed out."
+        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
         block&.call res
-      [res]
-    end
-  rescue StandardError => e
-    pp e.message, e.backtrace, e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
-      block&.call res
-    [res]
-  end
-
-  def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+        return [res]
+      end
     end
 
+    # Process the response line by line
     buffer = ""
-    texts  = {}
-    tools  = {}
+    content_buffer = ""
+    thinking_buffer = ""
+    tool_calls = []
+    tool_use_content = nil
+    last_tool_use_start_idx = nil
+    error_buffer = []
     finish_reason = nil
 
-    # Process each chunk from the streaming response
-
-    res.each do |chunk|
-      # Ensure valid UTF-8 encoding; replace invalid sequences if needed
-
+    res.body.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
-      chunk = chunk.encode("UTF-8", "UTF-8", invalid: :replace, undef: :replace)
-      buffer << chunk
 
-      # Process complete SSE events (events are delimited with double newline)
+      if /\A\s*data:\s+\[DONE\]\s*\z/ =~ chunk
+        # Handle stream end
+        break
+      end
 
-      while buffer.include?("\n\n")
-        # Extract one complete event from the buffer
+      # Skip empty data chunks
+      next if /\A\s*data:\s*\z/ =~ chunk || chunk.strip.empty?
 
-        event_end_index = buffer.index("\n\n")
-        event_data = buffer.slice!(0, event_end_index + 2)
+      # Remove data: prefix if present
+      chunk.sub!(/\A\s*data:\s+/, "")
 
-        # Split lines and extract those starting with "data:"
+      buffer += chunk
+      scanner = StringScanner.new(buffer)
 
-        event_lines = event_data.split("\n").map(&:strip).reject(&:empty?)
-        data_lines  = event_lines.select { |line| line.start_with?("data:") }
-        # Concatenate the data payload from all "data:" fields
-
-        data_payload = data_lines.map { |line| line.sub(/^data:\s*/, "") }.join
-
-        # Skip if payload is empty
-
-        next if data_payload.empty?
-
-        # Attempt to parse JSON payload; if incomplete, re-append back to buffer
-
+      while scanner.scan_until(/\{.*?\}(?=\n|\z)/m)
+        json_str = scanner.matched
         begin
-          json = JSON.parse(data_payload)
+          json = JSON.parse(json_str)
 
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log.puts(JSON.pretty_generate(json))
+          # Extract id for future reference
+          chunk_id = json["id"]
+
+          # Check for errors
+          if json["error"]
+            error_buffer << json["error"]["message"] || "Unknown error"
+            next
           end
 
+          # Extract content from delta if present
+          if json["choices"] && json["choices"][0] && json["choices"][0]["delta"]
+            delta = json["choices"][0]["delta"]
+
+            # Check if this delta contains content
+            if delta["content"]
+              content = delta["content"]
+              content_buffer += content
+
+              # Send content to the client
+              res = { "type" => "fragment", "content" => content }
+              block&.call res
+            end
+
+            # Check for tool calls
+            if delta["tool_calls"] && !delta["tool_calls"].empty?
+              tool_call = delta["tool_calls"][0]
+
+              # If this is a new tool call, create a new entry
+              if tool_call["index"] && (tool_calls[tool_call["index"]].nil? || tool_call["id"])
+                tool_calls[tool_call["index"]] = {
+                  "id" => tool_call["id"],
+                  "function" => {
+                    "name" => tool_call.dig("function", "name"),
+                    "arguments" => tool_call.dig("function", "arguments") || ""
+                  }
+                }
+              # Otherwise append to existing tool call
+              elsif tool_call["index"]
+                index = tool_call["index"]
+                if tool_call.dig("function", "arguments")
+                  tool_calls[index]["function"]["arguments"] += tool_call.dig("function", "arguments")
+                end
+              end
+
+              # If this is a new tool call, inform the client
+              if tool_call["index"] && tool_call["id"]
+                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                block&.call res
+              end
+            end
+
+            # Check for finish reason
+            if json["choices"] && json["choices"][0] && json["choices"][0]["finish_reason"]
+              finish_reason = json["choices"][0]["finish_reason"]
+            end
+          end
         rescue JSON::ParserError
-          buffer = data_payload + buffer
-          break
+          # Skip malformed JSON
+        end
+      end
+
+      # Keep any unprocessed content for next iteration
+      buffer = scanner.rest
+    end
+
+    # Once done with the main content, process any tool calls
+    if tool_calls && !tool_calls.empty?
+      # Process each tool call
+      call_depth += 1
+
+      if call_depth > MAX_FUNC_CALLS
+        # Avoid excessive function calls
+        res = { "type" => "fragment", "content" => "\n\nMAXIMUM FUNCTION CALL DEPTH EXCEEDED" }
+        block&.call res
+        return []
+      end
+
+      # Process tool calls
+      function_returns = []
+      tool_calls.each do |tool_call|
+        next unless tool_call # Skip nil entries
+
+        # Extract function details
+        function_name = tool_call.dig("function", "name")
+        function_args = tool_call.dig("function", "arguments")
+
+        # Parse arguments
+        begin
+          args = JSON.parse(function_args)
+        rescue JSON::ParserError
+          # Handle malformed JSON
+          args = {}
         end
 
-        # Determine finish_reason from JSON payload if provided
+        # Convert to symbols
+        args_hash = {}
+        args.each do |k, v|
+          args_hash[k.to_sym] = v
+        end
 
-        if json.dig("choices", 0, "finish_reason")
-          case json["choices"][0]["finish_reason"]
-          when "length"
-            finish_reason = "length"
-          when "stop"
-            finish_reason = "stop"
-          when "tool_calls"
-            finish_reason = "function_call"
+        # Call the function
+        begin
+          if args_hash.empty?
+            function_return = APPS[app].send(function_name.to_sym)
+          else
+            function_return = APPS[app].send(function_name.to_sym, **args_hash)
           end
+        rescue StandardError => e
+          # Function call failed
+          function_return = "ERROR: #{e.message}"
         end
 
-        # Process text fragment if available in delta content
-
-        if json.dig("choices", 0, "delta", "content")
-          id = json["id"]
-          texts[id] ||= json
-          choice = texts[id]["choices"][0]
-          # Initialize message content if not already present
-
-          choice["message"] ||= {}
-          choice["message"]["content"] ||= ""
-          fragment = json.dig("choices", 0, "delta", "content").to_s
-          choice["message"]["content"] << fragment
-
-          # Callback with the text fragment
-
-          res = { "type" => "fragment", "content" => fragment }
-          block&.call res
-
-          # Remove the delta field after processing
-
-          texts[id]["choices"][0].delete("delta")
-        end
-
-        # Process function call instructions if any are present
-
-        if json.dig("choices", 0, "delta", "tool_calls")
-          res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-          block&.call res
-          id = json["id"]
-          tools[id] ||= json
-          # Optionally initialize tool message if needed
-
-          tools[id]["choices"][0]["message"] ||= {}
-        end
-      end
-    end
-
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log.close
-    end
-
-    if !tools.empty?
-      # Process tool/function calls if any exist
-      tool_call_data = tools.values.first
-      tool_calls = tool_call_data.dig("choices", 0, "delta", "tool_calls")
-      if tool_calls
-        context = []
-        res = {
-          "role"    => "assistant",
-          "content" => "The AI model is calling functions to process the data."
+        # Add to function returns
+        function_returns << {
+          tool_call_id: tool_call["id"],
+          role: "tool",
+          name: function_name,
+          content: function_return.to_s
         }
-        res["tool_calls"] = tool_calls.map do |tool|
-          {
-            "id"       => tool["id"],
-            "type"     => "function",
-            "function" => tool["function"]
-          }
-        end
-        context << res
-
-        # Increase call depth and check against max allowed calls
-
-        call_depth += 1
-        if call_depth > MAX_FUNC_CALLS
-          error_res = [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
-          block&.call error_res.first
-          return error_res
-        end
-
-        # Process the functions and get new results recursively
-
-        new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
-        return new_results if new_results
-        return [texts.values.first] unless texts.empty?
       end
-    elsif !texts.empty?
-      # Return the final result if text fragments have been accumulated
 
-      final_text = texts.values.first
+      # Update session with function returns
+      session[:parameters]["function_returns"] = function_returns
+
+      # Make recursive API call with tool responses
+      new_results = api_request("tool", session, call_depth: call_depth, &block)
+      
+      # Wrap up the call with "DONE" message
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
-      final_text["choices"][0]["finish_reason"] = finish_reason
-      return [final_text]
-    else
-      # If no data processed, return a done message
-
-      res = { "type" => "message", "content" => "DONE" }
-      block&.call res
-      return [res]
-    end
-  end
-
-  def process_functions(app, session, tools, context, call_depth, &block)
-    obj = session[:parameters]
-    # Process each tool call
-
-    tools.each do |tool_call|
-      function_call = tool_call["function"]
-      function_name = function_call["name"]
-
-      # Safely parse function call arguments
-
-      begin
-        argument_hash = JSON.parse(function_call["arguments"])
-      rescue JSON::ParserError
-        argument_hash = {}
-      end
-
-      # Convert argument keys to symbols
-
-      converted = {}
-      argument_hash.each { |k, v| converted[k.to_sym] = v }
-
-      # Call the corresponding function and rescue errors if any
-
-      begin
-        function_return = APPS[app].send(function_name.to_sym, **converted)
-      rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
-      end
-
-      # Append the function result to the context
-
-      context << {
-        role:         "tool",
-        tool_call_id: tool_call["id"],
-        name:         function_name,
-        content:      function_return.to_s
-      }
+      
+      return new_results
     end
 
-    # Add function returns to the session parameters
+    # Finish up the standard response
+    res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
+    block&.call res
 
-    obj["function_returns"] = context
+    # Prepare the result to return
+    response = {
+      "id" => SecureRandom.hex(12),
+      "choices" => [
+        {
+          "message" => {
+            "content" => content_buffer,
+            "role" => "assistant"
+          },
+          "finish_reason" => finish_reason || "stop"
+        }
+      ]
+    }
 
-    # Wait briefly before re-invoking the API request with updated context
-
-    sleep RETRY_DELAY
-    api_request("tool", session, call_depth: call_depth, &block)
-  end
-
-  def replace_references(text)
-    text.gsub(/\[\{"type"=>"reference", "reference_ids"=>\[(.*?)\]\}\]/) do
-      ids_str = $1
-      ids = ids_str.split(',').map(&:strip)
-      "[#{ids.join(', ')}]"
+    # Add thinking if collected
+    if thinking_buffer && !thinking_buffer.empty?
+      response["choices"][0]["message"]["thinking"] = thinking_buffer
     end
-  end
 
+    [response]
+  rescue StandardError => e
+    # Log and return error
+    error_message = "ERROR: #{e.message}"
+    res = { "type" => "error", "content" => error_message }
+    block&.call res
+    [res]
+  end
 end

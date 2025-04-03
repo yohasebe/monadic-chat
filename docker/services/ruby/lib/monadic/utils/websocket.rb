@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 require 'timeout'
+require_relative '../helpers/agents/ai_user_agent'
 
 module WebSocketHelper
+  include AIUserAgent
   # Handle websocket connection
   
   # Initialize token counting in a background thread
@@ -451,105 +453,11 @@ module WebSocketHelper
       end
 
       ws.on :message do |event|
-        # Raw message logging - write to a dedicated file to ensure we see all websocket messages
-        begin
-          websocket_log_path = File.join(Dir.home, "monadic", "log", "websocket_messages.log")
-          File.open(websocket_log_path, "a") do |f|
-            f.puts("[#{Time.now}] WEBSOCKET MESSAGE: #{event.data}")
-            
-            # Extra detailed logging for AI_USER_QUERY messages
-            if event.data.include?("AI_USER_QUERY")
-              f.puts("\n[#{Time.now}] DETECTED AI_USER_QUERY MESSAGE")
-              f.puts("FULL DATA: #{event.data}")
-              
-              begin
-                parsed_data = JSON.parse(event.data)
-                if parsed_data["contents"] && parsed_data["contents"]["params"]
-                  f.puts("AI_USER SETTINGS:")
-                  f.puts("  ai_user: #{parsed_data["contents"]["params"]["ai_user"].inspect}")
-                  f.puts("  ai_user_provider: #{parsed_data["contents"]["params"]["ai_user_provider"].inspect}")
-                  f.puts("  ai_user_model: #{parsed_data["contents"]["params"]["ai_user_model"].inspect}")
-                  f.puts("  ai_user_initial_prompt: #{parsed_data["contents"]["params"]["ai_user_initial_prompt"] ? "present" : "missing"}")
-                end
-              rescue => parse_error
-                f.puts("ERROR PARSING JSON: #{parse_error.message}")
-              end
-              f.puts("\n")
-            end
-          end
-        rescue => e
-          # Do nothing on error - this is just diagnostic logging
-        end
+        # Websocket message logging removed for performance
         
         obj = JSON.parse(event.data)
         msg = obj["message"] || ""
         
-        # If this is an AI_USER_QUERY message, log it to its own file and enhance debugging
-        if msg == "AI_USER_QUERY"
-          begin
-            # Ensure log directory exists
-            log_dir = File.join(Dir.home, "monadic", "log")
-            FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-              
-            ai_user_msg_log_path = File.join(log_dir, "ai_user_message.log")
-              
-            File.open(ai_user_msg_log_path, "w") do |f|
-              f.puts("=== AI_USER_QUERY MESSAGE RECEIVED ===")
-              f.puts("[#{Time.now}] AI_USER_QUERY received")
-              f.puts("Full message (abbreviated): #{event.data[0..500]}...")
-              f.puts("\nCONFIGURATION:")
-              f.puts("CONFIG['AI_USER_PROVIDER']: #{CONFIG['AI_USER_PROVIDER'].inspect}")
-              f.puts("ENV['AI_USER_PROVIDER']: #{ENV['AI_USER_PROVIDER'].inspect}")
-              f.puts("CONFIG['ANTHROPIC_API_KEY']: #{CONFIG['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
-              f.puts("ENV['ANTHROPIC_API_KEY']: #{ENV['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
-                
-              # Parse the data to modify params for force-enabling AI User
-              begin
-                # Force ai_user parameter to true in obj (which was parsed from event.data)
-                if obj["contents"] && obj["contents"]["params"]
-                  f.puts("\nOriginal parameters:")
-                  f.puts("ai_user: #{obj['contents']['params']['ai_user'].inspect}")
-                  f.puts("ai_user_provider: #{obj['contents']['params']['ai_user_provider'].inspect}")
-                    
-                  # Force the AI User to be enabled
-                  obj["contents"]["params"]["ai_user"] = "true"
-                  f.puts("\nFORCED ai_user to 'true'")
-                    
-                  # Force the provider to be Anthropic if not set
-                  if !obj["contents"]["params"]["ai_user_provider"] || obj["contents"]["params"]["ai_user_provider"].empty?
-                    obj["contents"]["params"]["ai_user_provider"] = "anthropic" 
-                    f.puts("FORCED ai_user_provider to 'anthropic'")
-                  end
-                    
-                  # Re-stringify for logging
-                  event.instance_variable_set(:@data, obj.to_json)
-                  f.puts("\nUpdated event data with forced parameters")
-                end
-              rescue => e
-                f.puts("ERROR modifying params: #{e.message}")
-                f.puts(e.backtrace.join("\n"))
-              end
-            end
-              
-            # Create a separate global indicator file that's easy to check
-            File.open(File.join(log_dir, "ai_user_triggered.txt"), "w") do |f|
-              f.puts("AI User was triggered at #{Time.now}")
-            end
-          rescue => e
-            # Create an error log
-            begin
-              error_log_path = File.join(Dir.home, "monadic", "log", "ai_user_error.log")
-              File.open(error_log_path, "a") do |f|
-                f.puts("[#{Time.now}] Error logging AI_USER_QUERY: #{e.message}")
-                f.puts(e.backtrace.join("\n"))
-              end
-            rescue => nested_error
-              # Last resort - print to STDERR
-              STDERR.puts("CRITICAL ERROR: Failed to log AI_USER_QUERY: #{nested_error.message}")
-            end
-          end
-        end
-
         case msg
         when "TTS"
           provider = obj["provider"]
@@ -654,214 +562,31 @@ module WebSocketHelper
             }.to_json)
             next
           end
-        
-          # Force ai_user parameter to true
-          if obj["contents"] && obj["contents"]["params"]
-            obj["contents"]["params"]["ai_user"] = "true"
-          end
           
           thread&.join
-
-          aiu_buffer = []
-
-          reversed_messages = []
-
-          session[:messages].each do |m|
-            r = m.dup
-            case m["role"]
-            when "assistant"
-              r["role"] = "user"
-            when "user"
-              r["role"] = "assistant"
-            when "system"
-              next
-            end
-
-            if obj["contents"]["params"]["monadic"].to_s == "true"
-              begin
-                parsed = JSON.parse(r["text"])
-                r["text"] = parsed["message"] || parsed["response"]
-              rescue JSON::ParserError
-                # do nothing
-              end
-            end
-            reversed_messages << r
-          end
-
-          # copy obj["contents"]["params"] to parameters_modified
-          parameters_modified = obj["contents"]["params"].dup
-          parameters_modified.delete("tools")
           
-          # Check if reversed_messages has any items before attempting to pop
-          message_text = if reversed_messages.any?
-                          reversed_messages.pop["text"]
-                        else
-                          # Default message if no previous messages exist
-                          "Hello! Please assist me with this conversation."
-                        end
-
-          parameters_modified["message"] = message_text
-
+          # Get parameters
+          params = obj["contents"]["params"]
           
-          # Get the provider from UI dropdown selection
-          provider = obj["contents"]["params"]["ai_user_provider"]
-                    
-          # Ensure the provider parameter is set in the session
-          obj["contents"]["params"]["ai_user_provider"] = provider
-          
-          # Set flag to indicate this is for AI User feature
-          obj["contents"]["params"]["is_ai_user"] = true
-          
-          # Provider name mapping to handle different formats
-          provider_keywords = case provider
-            when "openai" then ["openai"]
-            when "anthropic" then ["anthropic", "claude"]
-            when "cohere" then ["cohere"]
-            when "gemini" then ["gemini", "google"]
-            when "mistral" then ["mistral"]
-            when "grok" then ["grok", "xai", "xai grok"]
-            when "perplexity" then ["perplexity"]
-            when "deepseek" then ["deepseek"]
-            else [provider]
-          end
-          
-          # Find a Chat app that matches the selected provider
-          chat_app = nil
-          APPS.each do |key, app|
-            next unless app.respond_to?(:settings) && app.settings["group"]
-            
-            app_group = app.settings["group"].downcase.strip
-            app_display_name = app.settings["display_name"]
-            
-            # Find an app that matches both the provider and has "Chat" as display name
-            if provider_keywords.any? { |keyword| app_group.include?(keyword) } && 
-               app_display_name == "Chat"
-              chat_app = [key, app]
-              break
-            end
-          end
-          
-          # Provider-specific default models
-          provider_defaults = {
-            "openai" => "gpt-4o",
-            "anthropic" => "claude-3-5-sonnet-20241022", # Updated to latest model version
-            "cohere" => "command-r-plus",
-            "gemini" => "gemini-2.0-flash-exp",
-            "mistral" => "mistral-large-latest",
-            "grok" => "grok-2-1212",
-            "perplexity" => "sonar",
-            "deepseek" => "deepseek-chat"
-          }
-          
-          # Set up the API request
-          if chat_app
-            app_instance = chat_app[1]
-            api_request = app_instance.method(:api_request)
-            
-            # Try to get the model from app settings, otherwise use default
-            model = app_instance.settings["model"]
-            
-            # If no model found, use provider default
-            model ||= provider_defaults[provider] || "gpt-4o"
-            
-            parameters_modified["model"] = model
-            
-            # No need to inform the user about internal app selection process
-          else
-            # If no matching app found, use default provider model
-            # Find any app that can handle API requests as fallback
-            APPS.each do |key, app|
-              if app.respond_to?(:api_request)
-                chat_app = [key, app]
-                break
-              end
-            end
-            
-            if chat_app
-              api_request = chat_app[1].method(:api_request)
-              parameters_modified["model"] = provider_defaults[provider] || "gpt-4o"
-            else
-              # Last resort error if no suitable app found at all
-              @channel.push({ "type" => "error", "content" => "Failed to initialize AI User functionality" }.to_json)
-              return
-            end
-          end
-
-          # For AI User, we only need essential parameters
-          simplified_parameters = {
-            "model" => parameters_modified["model"],
-            "ai_user" => "true",
-            "ai_user_provider" => provider,
-            "is_ai_user" => true
-          }
-          
-          # Add initial prompt if available
-          if parameters_modified["ai_user_initial_prompt"]
-            simplified_parameters["initial_prompt"] = parameters_modified["ai_user_initial_prompt"]
-          end
-          
-          mini_session = {
-            parameters: simplified_parameters,
-            messages: reversed_messages
-          }
-          
-          # For AI User, we don't need to handle max_tokens as it will be 
-          # excluded from the API request in the respective helper modules
-
-          # Start by sending a notification that processing has begun
+          # UI feedback
           @channel.push({ "type" => "wait", "content" => "Generating AI user response..." }.to_json)
+          @channel.push({ "type" => "ai_user_started" }.to_json)
           
-
+          # Process the request
           begin
-              
-            # Make sure the app was found and provider is specified
-            if !provider
-              error_message = "No AI provider specified. Please set AI_USER_PROVIDER in your configuration."
-              @channel.push({ "type" => "error", "content" => error_message }.to_json)
-              raise error_message
-            elsif !chat_app
-              error_message = "No compatible chat app found for provider: #{provider}. Please check your AI_USER_PROVIDER setting."
-              @channel.push({ "type" => "error", "content" => error_message }.to_json)
-              raise error_message
-            end
+            # Get AI user response
+            result = process_ai_user(session, params)
             
-            # Ensure the API method is callable
-            if !api_request.respond_to?(:call)
-              error_message = "API request method is not callable. Please check your configuration."
-              @channel.push({ "type" => "error", "content" => error_message }.to_json)
-              raise error_message
+            # Handle result
+            if result["type"] == "error"
+              @channel.push({ "type" => "error", "content" => result["content"] }.to_json)
+            else
+              # Send response to client
+              @channel.push({ "type" => "ai_user", "content" => result["content"] }.to_json)
+              @channel.push({ "type" => "ai_user_finished", "content" => result["content"] }.to_json)
             end
-            # Make the API request
-            responses = api_request.call("user", mini_session) do |fragment|
-              if fragment["type"] == "error"
-                error_content = fragment["content"].to_s
-                
-                # For a cleaner error message, try to extract just the important part
-                if error_content.include?("API ERROR")
-                  begin
-                    if error_content =~ /message"=>"([^"]+)"/
-                      error_content = $1
-                    end
-                  rescue
-                    # Keep original if extraction fails
-                  end
-                end
-                
-                @channel.push({ "type" => "error", "content" => "AI User error: #{error_content}" }.to_json)
-              elsif fragment["type"] == "fragment"
-                text = fragment["content"].to_s
-                # Remove leading/trailing whitespace from individual fragments only if they're at beginning or end
-                clean_text = text
-                # Add to buffer if not empty or DONE marker
-                @channel.push({ "type" => "ai_user", "content" => clean_text }.to_json)
-                aiu_buffer << clean_text unless clean_text.empty? || clean_text == "DONE"
-              end
-            end
-            
-            # Join buffer contents and trim excess whitespace
-            ai_user_response = aiu_buffer.join.strip
-            @channel.push({ "type" => "ai_user_finished", "content" => ai_user_response }.to_json)
           rescue => e
+            # Error handling
             @channel.push({ "type" => "error", "content" => "AI User error: #{e.message}" }.to_json)
           end
         when "HTML"
@@ -1169,7 +894,6 @@ module WebSocketHelper
         end
 
       ws.on :close do |event|
-        pp [:close, event.code, event.reason]
         ws = nil
         @channel.unsubscribe(sid)
       end
@@ -1177,8 +901,6 @@ module WebSocketHelper
       ws.rack_response
     end
   rescue StandardError => e
-    # show the details of the error on the console
-    puts e.inspect
-    puts e.backtrace
+    # Error logging handled by main application
   end
 end

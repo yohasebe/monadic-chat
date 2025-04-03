@@ -387,11 +387,14 @@ $(function () {
       $("#ai_user").show();
     }, 1000);
     
-    // Setup AI User provider selector
+    // Setup AI User provider selector - updated to filter by available API keys
     $("#ai_user_provider").on("change", function() {
       const provider = $(this).val();
       setCookie("ai_user_provider", provider, 30);
       updateProviderStyle(provider);
+      // Update the UI to show selected provider
+      const providerName = $("#ai_user_provider option:selected").text();
+      $("#ai-user-provider-selected").text(providerName);
     });
     
     // Function that does nothing now - we're keeping the default btn-warning style
@@ -399,15 +402,96 @@ $(function () {
       // Intentionally left empty - we want to maintain the original btn-warning style
     }
     
+    // Function to update available providers in dropdown based on API keys
+    function updateAvailableProviders() {
+      // Hide all options first
+      $("#ai_user_provider option").hide();
+      
+      // Loop through providers to check which ones have API keys available
+      if (verified === "full") {
+        // OpenAI is available for sure if verified is full
+        $("#ai_user_provider option[value='openai']").show();
+      }
+      
+      // Check for other providers' API keys
+      for (const [key, app] of Object.entries(apps)) {
+        if (!app.group) continue;
+        
+        const group = app.group.toLowerCase();
+        
+        // Match provider dropdown options to available app groups
+        if (group.includes("anthropic")) {
+          $("#ai_user_provider option[value='anthropic']").show();
+        } else if (group.includes("gemini") || group.includes("google")) {
+          $("#ai_user_provider option[value='gemini']").show();
+        } else if (group.includes("cohere")) {
+          $("#ai_user_provider option[value='cohere']").show();
+        } else if (group.includes("mistral")) {
+          // Mistral now supports AI User
+          $("#ai_user_provider option[value='mistral']").show();
+        } else if (group.includes("deepseek")) {
+          $("#ai_user_provider option[value='deepseek']").show();
+        } else if (group.includes("grok") || group.includes("xai")) {
+          $("#ai_user_provider option[value='grok']").show();
+        }
+      }
+      
+      // If the currently selected provider is not available, select first available
+      const currentProvider = $("#ai_user_provider").val();
+      if ($("#ai_user_provider option[value='" + currentProvider + "']:visible").length === 0) {
+        // Select first visible option
+        const firstVisible = $("#ai_user_provider option:visible").first().val();
+        if (firstVisible) {
+          $("#ai_user_provider").val(firstVisible);
+          setCookie("ai_user_provider", firstVisible, 30);
+        }
+      }
+    }
+    
     // Load saved provider from cookie
     const savedProvider = getCookie("ai_user_provider");
     if (savedProvider) {
       $("#ai_user_provider").val(savedProvider);
       updateProviderStyle(savedProvider);
+      // Set the display text in status panel
+      const providerName = $("#ai_user_provider option:selected").text();
+      $("#ai-user-provider-selected").text(providerName);
     } else {
       // Use default provider style (OpenAI)
       updateProviderStyle("openai");
+      // Set default display text
+      $("#ai-user-provider-selected").text("OpenAI");
     }
+    
+    // Set up model change handler to update the AI Assistant info badge
+    $("#model").on("change", function() {
+      const selectedModel = $(this).val();
+      // Extract provider from the current app group
+      let provider = "OpenAI";
+      const currentApp = $("#apps").val();
+      if (apps[currentApp] && apps[currentApp].group) {
+        const group = apps[currentApp].group.toLowerCase();
+        if (group.includes("anthropic") || group.includes("claude")) {
+          provider = "Anthropic";
+        } else if (group.includes("gemini") || group.includes("google")) {
+          provider = "Gemini";
+        } else if (group.includes("cohere")) {
+          provider = "Cohere";
+        } else if (group.includes("mistral")) {
+          provider = "Mistral";
+        } else if (group.includes("perplexity")) {
+          provider = "Perplexity";
+        } else if (group.includes("deepseek")) {
+          provider = "DeepSeek";
+        } else if (group.includes("grok") || group.includes("xai")) {
+          provider = "Grok";
+        }
+      }
+      // Update the badge in the AI User section with provider name
+      $("#ai-assistant-info").text("AI Assistant: " + provider).attr("data-model", selectedModel);
+    });
+    
+    // Initial availability update will be done when models are loaded
     
     // Setup AI User button
     $("#ai_user").off("click").on("click", function () {
@@ -437,11 +521,21 @@ $(function () {
       // Ensure the button stays visible
       $(this).show();
       
-      // Show a message to the user with the current provider if specified
-      const alertMessage = provider 
-        ? `<i class='fas fa-spinner fa-spin'></i> Using AI User functionality (${provider})...`
-        : `<i class='fas fa-spinner fa-spin'></i> Using AI User functionality...`;
+      // Disable the button temporarily to prevent double-clicking
+      $(this).prop("disabled", true);
+      
+      // Provide better user feedback
+      const providerName = $("#ai_user_provider option:selected").text();
+      const alertMessage = `<i class='fas fa-spinner fa-spin'></i> Analyzing conversation`;
       setAlert(alertMessage, "warning");
+      
+      // Show a tooltip explaining the process
+      $("#alert-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");
+      
+      // Enable button after a delay to prevent rapid clicking
+      setTimeout(() => {
+        $("#ai_user").prop("disabled", false);
+      }, 3000);
     });
   
     const $document = $(document);
@@ -677,6 +771,17 @@ $(function () {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
       return
+    }
+
+    // All providers now support AI User functionality
+    const selectedApp = apps[$(this).val()];
+    
+    // Always enable AI User toggle for all providers
+    $("#ai-user-toggle").prop("disabled", false);
+    
+    // Only enable AI User button if there's a conversation
+    if (messages.length >= 2) {
+      $("#ai_user").prop("disabled", false).attr("title", "Generate AI user response based on conversation");
     }
 
     $("#model-additional-info").text("default").css("color", "#777")
@@ -982,7 +1087,9 @@ $(function () {
     // Reset AI user state if active
     $("#message").attr("placeholder", "Type your message . . .");
     $("#message").prop("disabled", false);
-    $("#send, #clear, #image-file, #voice").prop("disabled", false);
+    $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+    $("#ai_user_provider").prop("disabled", false);
+    $("#ai_user").prop("disabled", false);
 
     // Send cancel message to server
     ws.send(JSON.stringify({ message: "CANCEL" }));

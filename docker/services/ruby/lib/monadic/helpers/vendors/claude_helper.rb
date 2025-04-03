@@ -119,39 +119,33 @@ module ClaudeHelper
     super
   end
 
-  # Function to write logs to file
-  def log_to_file(message)
+  # Function to write logs to file - enabled for debugging AI User issues
+  def log_to_file(message, type="general")
+    return unless CONFIG["DEBUG_AI_USER"]
+    
     begin
-      log_file_path = File.join(Dir.home, "monadic", "log", "claude_debug.log")
-      # Ensure the directory exists
-      FileUtils.mkdir_p(File.dirname(log_file_path)) unless File.directory?(File.dirname(log_file_path))
-      File.open(log_file_path, "a") do |f|
+      log_dir = File.join(Dir.home, "monadic", "log")
+      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+      
+      file_name = case type
+                  when "ai_user"
+                    "claude_ai_user_debug.log"
+                  else
+                    "claude_debug.log"
+                  end
+      
+      File.open(File.join(log_dir, file_name), "a") do |f|
         f.puts("[#{Time.now}] #{message}")
       end
     rescue => e
-      # Write to a fallback location if there's an error
-      fallback_path = "/tmp/claude_debug_fallback.log"
-      File.open(fallback_path, "a") do |f|
-        f.puts("[#{Time.now}] ERROR in log_to_file: #{e.message}")
-        f.puts("[#{Time.now}] Original message: #{message}")
-      end
+      # Silent fail for logging
     end
   end
 
-  # No streaming plain text completion/chat call
+  # Simple non-streaming chat completion
   def send_query(options, model: "claude-3-5-sonnet-20241022")
-    log_message = "DEBUG CLAUDE SEND_QUERY OPTIONS: #{options.inspect}"
-    log_to_file(log_message)
-    
     # First try CONFIG, then fall back to ENV for the API key
     api_key = CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]
-    log_to_file("ANTHROPIC_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-    
-    # Log the sources of configurations
-    log_to_file("API_KEY SOURCE CHECK:")
-    log_to_file("  CONFIG['ANTHROPIC_API_KEY']: #{CONFIG['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
-    log_to_file("  ENV['ANTHROPIC_API_KEY']: #{ENV['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
-    log_to_file("  CONFIG['AI_USER_PROVIDER']: #{CONFIG['AI_USER_PROVIDER'].inspect}")
     
     # Set the headers for the API request
     headers = {
@@ -160,92 +154,136 @@ module ClaudeHelper
       "x-api-key" => api_key
     }
 
-    # Set the body for the API request with only essential parameters
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Model details are logged to dedicated log files
+    
+    # Basic request body
     body = {
       "model" => model,
-      "stream" => false,
-      "messages" => []
+      "max_tokens" => options["max_tokens"] || 1000,
+      "temperature" => options["temperature"] || 0.7
     }
     
-    # Extract only the messages from options
-    if options["messages"]
-      body["messages"] = options["messages"]
-      log_to_file("Using messages from options for Claude API call")
-    end
-    
-    # Allow system message if present
+    # Extract system message - Claude API expects this as a top-level parameter
     if options["system"]
       body["system"] = options["system"]
-      log_to_file("Using system message from options for Claude API call")
+    elsif options["ai_user_system_message"]
+      body["system"] = options["ai_user_system_message"]
     end
     
-    # We don't pass other parameters to avoid compatibility issues
+    # Simple AI User message for more reliable responses
+    body["messages"] = [{
+      "role" => "user",
+      "content" => [
+        {
+          "type" => "text",
+          "text" => "What might the user say next in this conversation? Please respond as if you were the user."
+        }
+      ]
+    }]
+    
+    # Set API endpoint
     target_uri = "#{API_ENDPOINT}/messages"
-    http = HTTP.headers(headers)
 
+    # Make the request
+    http = HTTP.headers(headers)
+    
     res = nil
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
-      # Check that res exists and has a successful status.
+                       write: WRITE_TIMEOUT,
+                       read: READ_TIMEOUT).post(target_uri, json: body)
       break if res && res.status && res.status.success?
-
       sleep RETRY_DELAY
     end
 
+    # Process response
     if res && res.status && res.status.success?
       begin
-        # Parse response only once in the success case.
         parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
+        
+        # Log full response for debugging
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "Claude API raw response: #{parsed_response.inspect[0..500]}..."
+        end
+        
+        # Extract content from response - try all known formats
+        
+        # Format 1: Direct content array in response root
+        if parsed_response["content"] && parsed_response["content"].is_a?(Array)
+          text_blocks = parsed_response["content"].select { |item| item["type"] == "text" }
+          return text_blocks.map { |block| block["text"] }.join("\n") if text_blocks.any?
+        end
+        
+        # Format 2: Content in message.content
+        if parsed_response["message"] && parsed_response["message"]["content"].is_a?(Array)
+          text_blocks = parsed_response["message"]["content"].select { |item| item["type"] == "text" }
+          return text_blocks.map { |block| block["text"] }.join("\n") if text_blocks.any?
+        end
+        
+        # Format 3: Direct completion in response
+        if parsed_response["completion"]
+          return parsed_response["completion"]
+        end
+        
+        # Format 4: Text in response
+        if parsed_response["text"]
+          return parsed_response["text"]
+        end
+        
+        # Extract any content from anywhere in the response
+        def extract_text_from_hash(hash, depth=0)
+          return nil if depth > 3 || !hash.is_a?(Hash)
+          
+          hash.each do |key, value|
+            if key == "text" && value.is_a?(String)
+              return value
+            elsif value.is_a?(Hash)
+              result = extract_text_from_hash(value, depth+1)
+              return result if result
+            elsif value.is_a?(Array)
+              value.each do |item|
+                if item.is_a?(Hash)
+                  if item["type"] == "text" && item["text"]
+                    return item["text"]
+                  end
+                  
+                  result = extract_text_from_hash(item, depth+1)
+                  return result if result
+                end
+              end
+            end
+          end
+          nil
+        end
+        
+        # Try recursive extraction
+        text = extract_text_from_hash(parsed_response)
+        return text if text
+        
+        # If all else fails, return the entire response for debugging
+        return "ERROR: Could not extract text content from Claude API response. Full response: #{parsed_response.inspect[0..200]}..."
+      rescue => e
+        return "ERROR: Failed to process Claude API response: #{e.message}"
       end
     else
-      error_response = nil
-      begin
-        # Attempt to parse the error body only once.
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
-      end
-      pp error_response
-      return "ERROR: #{error_response["error"]}"
+      error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      return "ERROR: #{error_response.dig("error", "message") || error_response["error"]}"
     end
   rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+    return "Error: #{e.message}"
   end
 
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
     begin
-      # Write to debug log at the start
-      log_to_file("\n==== DEBUG CLAUDE API_REQUEST START ====")
-      log_to_file("Role: #{role.inspect}")
-      log_to_file("Session parameters: #{session[:parameters].inspect}")
-      
-      # Check for AI_USER_PROVIDER parameter
-      if session[:parameters]["ai_user_provider"]
-        log_to_file("AI_USER_PROVIDER in session: #{session[:parameters]['ai_user_provider']}")
-      end
-      
       # First check CONFIG, then ENV for API key
       api_key = CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]
-      log_to_file("DEBUG CLAUDE API_REQUEST: Using API KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-      
-      # Log API key source
-      log_to_file("API key from CONFIG: #{CONFIG['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
-      log_to_file("API key from ENV: #{ENV['ANTHROPIC_API_KEY'] ? 'present' : 'missing'}")
       
       raise if api_key.nil?
     rescue StandardError => e
       error_message = "ERROR: ANTHROPIC_API_KEY not found. Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/config/env file."
-      log_to_file("DEBUG CLAUDE ERROR: #{error_message}")
-      log_to_file("Exception: #{e.message}")
-      log_to_file("Backtrace: #{e.backtrace.join("\n")}")
-      
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -279,7 +317,13 @@ module ClaudeHelper
     end
 
     temperature = obj["temperature"]&.to_f
-    max_tokens = obj["max_tokens"]&.to_i
+    
+    # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
+    if obj["ai_user"] == "true"
+      max_tokens = (CONFIG["AI_USER_MAX_TOKENS"] || obj["max_tokens"])&.to_i
+    else
+      max_tokens = obj["max_tokens"]&.to_i
+    end
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -393,7 +437,9 @@ module ClaudeHelper
       { "role" => msg["role"], "content" => [content] }
     end
 
-    if messages.empty?
+    # Only add a default message for regular chat mode, not for AI User mode
+    # This ensures AI User can work with the conversation history properly
+    if messages.empty? && obj["ai_user"] != "true"
       messages << {
         "role" => "user",
         "content" => [

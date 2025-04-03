@@ -32,6 +32,7 @@ module VideoAnalyzeAgent
     query = query ? " \"#{query}\"" : ""
 
     model = settings["model"] || settings[:model]
+
     model = check_vision_capability(model) || "gpt-4o"
 
     video_command = <<~CMD
@@ -48,6 +49,7 @@ module VideoAnalyzeAgent
         bash -c 'simple_stt_query.rb "#{audio_file}" "." "srt" "" "#{stt_model}"'
       CMD
       audio_description = send_command(command: audio_command, container: "ruby")
+
       description += "\n\n---\n\n"
       description += "Audio Transcript:\n#{audio_description}"
     end

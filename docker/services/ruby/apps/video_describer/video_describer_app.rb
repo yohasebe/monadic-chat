@@ -1,3 +1,3 @@
-class VideoDescriberOpenAI < MonadicApp
+class VideoDescriberApp < MonadicApp
   include VideoAnalyzeAgent
 end

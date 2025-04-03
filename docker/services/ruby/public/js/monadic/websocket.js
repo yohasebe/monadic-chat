@@ -976,10 +976,38 @@ function connect_websocket(callback) {
           model = currentApp["model"];
         }
         
-        if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-          $("#model-selected").text(model + " (" + modelSpec[model]["reasoning_effort"] + ")");
+        // Extract provider name from current app group using shared function if available
+        let provider;
+        if (typeof getProviderFromGroup === 'function') {
+          provider = getProviderFromGroup(currentApp["group"]);
         } else {
-          $("#model-selected").text(model);
+          // Fallback implementation if the function is not available
+          provider = "OpenAI";
+          if (currentApp["group"]) {
+            const group = currentApp["group"].toLowerCase();
+            if (group.includes("anthropic") || group.includes("claude")) {
+              provider = "Anthropic";
+            } else if (group.includes("gemini") || group.includes("google")) {
+              provider = "Gemini";
+            } else if (group.includes("cohere")) {
+              provider = "Cohere";
+            } else if (group.includes("mistral")) {
+              provider = "Mistral";
+            } else if (group.includes("perplexity")) {
+              provider = "Perplexity";
+            } else if (group.includes("deepseek")) {
+              provider = "DeepSeek";
+            } else if (group.includes("grok") || group.includes("xai")) {
+              provider = "Grok";
+            }
+          }
+        }
+        
+        // Update model display with Provider (Model) format
+        if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+          $("#model-selected").text(`${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`);
+        } else {
+          $("#model-selected").text(`${provider} (${model})`);
         }
 
         $("#model").val(model);

@@ -45,7 +45,7 @@ Specify whether to cache the system prompt sent to the API. Enabling caching all
 Request the AI agent to use MathJax format when displaying mathematical expressions and render mathematical expressions in the response using MathJax.
 
 **AI User Provider**<br />
-Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. This feature cannot be used together with the `Start from assistant` feature.
+Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. The AI User feature automatically generates responses as if they were written by a human user, helping to test conversations and see how the assistant responds to different inputs. After the assistant has replied, clicking the AI User button will generate a natural follow-up message based on the conversation history, which you can edit before sending. This feature supports multiple providers (OpenAI, Claude, Gemini, Cohere, Mistral, Perplexity, DeepSeek, and Grok) and intelligently handles provider-specific formatting requirements.
 
 **Start from assistant**<br />
 When on, the assistant makes the first utterance when starting a conversation.

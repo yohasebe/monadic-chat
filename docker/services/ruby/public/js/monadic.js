@@ -3,6 +3,30 @@
 let uiUtils;
 let formHandlers;
 
+// Helper function to get formatted provider name from group
+function getProviderFromGroup(group) {
+  if (!group) return "OpenAI";
+  
+  const groupLower = group.toLowerCase();
+  if (groupLower.includes("anthropic") || groupLower.includes("claude")) {
+    return "Anthropic";
+  } else if (groupLower.includes("gemini") || groupLower.includes("google")) {
+    return "Gemini";
+  } else if (groupLower.includes("cohere")) {
+    return "Cohere";
+  } else if (groupLower.includes("mistral")) {
+    return "Mistral";
+  } else if (groupLower.includes("perplexity")) {
+    return "Perplexity";
+  } else if (groupLower.includes("deepseek")) {
+    return "DeepSeek";
+  } else if (groupLower.includes("grok") || groupLower.includes("xai")) {
+    return "Grok";
+  } else {
+    return "OpenAI";
+  }
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   // Disable AI User button initially until conversation starts
   $("#ai_user").prop("disabled", true).attr("title", "Start a conversation first to enable AI User").addClass("disabled");
@@ -392,15 +416,46 @@ $(function () {
       const provider = $(this).val();
       setCookie("ai_user_provider", provider, 30);
       updateProviderStyle(provider);
-      // Update the UI to show selected provider
+      // Get provider name from the dropdown
       const providerName = $("#ai_user_provider option:selected").text();
-      $("#ai-user-provider-selected").text(providerName);
+      // Get model for the selected provider
+      const model = getDefaultModelForProvider(provider);
+      // Update the UI to show selected provider and model
+      $("#ai-user-model").text(`${providerName} (${model})`);
     });
     
     // Function that does nothing now - we're keeping the default btn-warning style
     function updateProviderStyle(provider) {
       // Intentionally left empty - we want to maintain the original btn-warning style
     }
+    
+    // Helper function to get default model for AI User based on provider
+    function getDefaultModelForProvider(provider) {
+      // Match this with the server-side model selection in ai_user_agent.rb
+      const providerLower = provider.toLowerCase();
+      
+      if (providerLower.includes("anthropic") || providerLower.includes("claude")) {
+        return "claude-3-5-sonnet-20241022";
+      } else if (providerLower.includes("openai") || providerLower.includes("gpt")) {
+        return "gpt-4o";
+      } else if (providerLower.includes("cohere") || providerLower.includes("command")) {
+        return "command-r-plus";
+      } else if (providerLower.includes("gemini") || providerLower.includes("google")) {
+        return "mini-2.0-flash";
+      } else if (providerLower.includes("mistral")) {
+        return "mistral-large-latest";
+      } else if (providerLower.includes("grok") || providerLower.includes("xai")) {
+        return "grok-2";
+      } else if (providerLower.includes("perplexity")) {
+        return "sonar";
+      } else if (providerLower.includes("deepseek")) {
+        return "deepseek-chat";
+      } else {
+        // Fallback to default model
+        return "gpt-4o";
+      }
+    }
+    
     
     // Function to update available providers in dropdown based on API keys
     function updateAvailableProviders() {
@@ -455,12 +510,14 @@ $(function () {
       updateProviderStyle(savedProvider);
       // Set the display text in status panel
       const providerName = $("#ai_user_provider option:selected").text();
-      $("#ai-user-provider-selected").text(providerName);
+      const model = getDefaultModelForProvider(savedProvider);
+      $("#ai-user-model").text(`${providerName} (${model})`);
     } else {
       // Use default provider style (OpenAI)
       updateProviderStyle("openai");
       // Set default display text
-      $("#ai-user-provider-selected").text("OpenAI");
+      const model = getDefaultModelForProvider("openai");
+      $("#ai-user-model").text(`OpenAI (${model})`);
     }
     
     // Set up model change handler to update the AI Assistant info badge
@@ -487,8 +544,15 @@ $(function () {
           provider = "Grok";
         }
       }
-      // Update the badge in the AI User section with provider name
+      // Update the badge in the AI User section with provider name and model
       $("#ai-assistant-info").text("AI Assistant: " + provider).attr("data-model", selectedModel);
+      
+      // Update model-selected text to follow the same pattern as AI-user (Provider (Model))
+      if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
+        $("#model-selected").text(`${provider} (${selectedModel} - ${modelSpec[selectedModel]["reasoning_effort"]})`);
+      } else {
+        $("#model-selected").text(`${provider} (${selectedModel})`);
+      }
     });
     
     // Initial availability update will be done when models are loaded
@@ -740,15 +804,19 @@ $(function () {
     }
 
     // check if selected mode has data-model-type attribute and its value is "reasoning"
+    // Get current app's provider
+    const currentApp = $("#apps").val();
+    const provider = getProviderFromGroup(apps[currentApp]["group"]);
+    
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
       $("#max-tokens").prop("disabled", true);
       $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
-      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
+      $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
     } else {
       $("#max-tokens").prop("disabled", false)
       $("#max-tokens-toggle").prop("disabled", false).prop("checked", true)
-      $("#model-selected").text(selectedModel);
+      $("#model-selected").text(`${provider} (${selectedModel})`);
     }
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
@@ -760,9 +828,13 @@ $(function () {
 
   $("#reasoning-effort").on("change", function () {
     const selectedModel = $("#model").val();
+    // Get current app's provider
+    const currentApp = $("#apps").val();
+    const provider = getProviderFromGroup(apps[currentApp]["group"]);
+    
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
-      $("#model-selected").text(selectedModel + " (" + reasoningEffort + ")");
+      $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
     }
   });
 
@@ -845,10 +917,13 @@ $(function () {
         model = params["model"];
       }
 
+      // Get provider from app group
+      const provider = getProviderFromGroup(apps[$(this).val()]["group"]);
+      
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+        $("#model-selected").text(`${provider} (${model} - ${$("#reasoning-effort").val()})`);
       } else {
-        $("#model-selected").text(model);
+        $("#model-selected").text(`${provider} (${model})`);
       }
 
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
@@ -884,10 +959,13 @@ $(function () {
         $("#model").html(model_options);
       }
 
+      // Get provider from app group
+      const provider = getProviderFromGroup(apps[$(this).val()]["group"]);
+      
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+        $("#model-selected").text(`${provider} (${model} - ${$("#reasoning-effort").val()})`);
       } else {
-        $("#model-selected").text(params["model"]);
+        $("#model-selected").text(`${provider} (${params["model"]})`);
       }
 
       $("#model_and_file").show();

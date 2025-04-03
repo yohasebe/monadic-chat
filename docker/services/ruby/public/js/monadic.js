@@ -28,8 +28,8 @@ function getProviderFromGroup(group) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  // Disable AI User button initially until conversation starts
-  $("#ai_user").prop("disabled", true).attr("title", "Start a conversation first to enable AI User").addClass("disabled");
+  // No longer disable AI User button initially - we'll show an error message if conversation hasn't started
+  $("#ai_user").attr("title", "Generate AI user response based on conversation");
   // Get modules from window if available
   if (typeof uiUtils === 'undefined' && typeof window.uiUtils !== 'undefined') {
     uiUtils = window.uiUtils;
@@ -851,11 +851,9 @@ $(function () {
     // Always enable AI User toggle for all providers
     $("#ai-user-toggle").prop("disabled", false);
     
-    // Only enable AI User button if there's a conversation
-    if (messages.length >= 2) {
-      $("#ai_user").prop("disabled", false).attr("title", "Generate AI user response based on conversation");
-    }
-
+    // Always enable AI User button (error message will be shown if conversation not started)
+    $("#ai_user").prop("disabled", false).attr("title", "Generate AI user response based on conversation");
+    
     $("#model-additional-info").text("default").css("color", "#777")
 
     event.preventDefault();

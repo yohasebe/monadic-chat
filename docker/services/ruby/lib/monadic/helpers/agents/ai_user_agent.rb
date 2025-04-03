@@ -242,7 +242,7 @@ module AIUserAgent
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
       return "command-r-plus"
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
-      return "mini-2.0-flash"
+      return "gemini-2.0-flash"
     elsif provider_downcase.include?("mistral")
       return "mistral-large-latest"
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")

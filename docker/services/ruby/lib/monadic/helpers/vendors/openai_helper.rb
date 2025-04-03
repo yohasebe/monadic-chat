@@ -13,6 +13,7 @@ module OpenAIHelper
 
   MODELS_N_LATEST = -1
 
+  # partial string match
   EXCLUDED_MODELS = [
     "vision",
     "instruct",
@@ -29,7 +30,9 @@ module OpenAIHelper
     "gpt-3.5",
     "gpt-4-",
     "o1-preview",
-    "search"
+    "search",
+    "trascribe",
+    "computer-use"
   ]
 
   # partial string match

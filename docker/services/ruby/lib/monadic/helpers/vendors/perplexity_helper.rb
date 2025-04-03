@@ -27,98 +27,135 @@ module PerplexityHelper
     ]
   end
 
-  # No streaming plain text completion/chat call
-  def send_query(options, model: "sonar-chat")
+  # Simple non-streaming chat completion
+  def send_query(options, model: "sonar-pro")
+    # Get API key
     api_key = CONFIG["PERPLEXITY_API_KEY"] || ENV["PERPLEXITY_API_KEY"]
+    return "Error: PERPLEXITY_API_KEY not found" if api_key.nil?
     
-    # For debugging purpose
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      File.open(File.join(log_dir, "perplexity_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] PERPLEXITY_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-
+    # Set headers
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
-
-    # For AI User functionality, only use model and messages - keep it simple
-    body = {
-      "model" => model,
-      "stream" => false,
-      "messages" => []
-    }
     
-    # Only add the messages parameter
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    # Model details are logged to dedicated log files
+    
+    # Format messages
+    messages = []
+    
     if options["messages"]
-      body["messages"] = options["messages"]
+      # First, collect all messages with valid content
+      valid_msgs = options["messages"].map do |msg|
+        content = msg["content"] || msg["text"] || ""
+        next if content.to_s.strip.empty?
+        
+        # Normalize roles to either "user" or "assistant"
+        role = case msg["role"].to_s.downcase
+               when "user" then "user"
+               when "assistant" then "assistant"
+               when "system" then "system"
+               else "user"  # Default other roles to user
+               end
+        
+        {"role" => role, "content" => content.to_s}
+      end.compact
+
+      # Handle system message specially
+      system_msgs = valid_msgs.select { |m| m["role"] == "system" }
+      conversation_msgs = valid_msgs.reject { |m| m["role"] == "system" }
       
-      # Log for debugging
-      begin
-        log_dir = File.join(Dir.home, "monadic", "log")
-        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-        File.open(File.join(log_dir, "perplexity_ai_user_debug.log"), "a") do |f|
-          f.puts("[#{Time.now}] Using messages from options for Perplexity API call")
-          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
+      # Add system messages first if any
+      messages.concat(system_msgs) if system_msgs.any?
+      
+      # Force strictly alternating user/assistant pattern
+      if conversation_msgs.any?
+        # Start with user message
+        if conversation_msgs.first["role"] != "user"
+          # Add a synthetic user message if needed
+          messages << {
+            "role" => "user",
+            "content" => "Let's continue our conversation."
+          }
         end
-      rescue => e
-        # Silent fail for logging
+        
+        # Build properly alternating sequence
+        expected_role = "user"
+        conversation_msgs.each do |msg|
+          if msg["role"] == expected_role
+            messages << msg
+            # Toggle role for next message
+            expected_role = expected_role == "user" ? "assistant" : "user"
+          end
+        end
+        
+        # Make sure we end with a user message
+        if messages.last["role"] != "user"
+          messages << {
+            "role" => "user",
+            "content" => "How would you respond to this conversation as a real user?"
+          }
+        end
+      elsif messages.empty?
+        # Add a default user message if no valid messages
+        messages << {
+          "role" => "user",
+          "content" => "Hello, I'd like to have a conversation."
+        }
       end
     end
-
+    
+    # Prepare request body
+    body = {
+      "model" => model,
+      "max_tokens" => options["max_tokens"] || 1000,
+      "temperature" => options["temperature"] || 0.7,
+      "messages" => messages
+    }
+    
+    # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
-
-    res = nil
-    MAX_RETRIES.times do |i|
+    
+    # Simple retry logic
+    response = nil
+    MAX_RETRIES.times do
       begin
-        res = http.timeout(
+        response = http.timeout(
           connect: OPEN_TIMEOUT,
           write: WRITE_TIMEOUT,
           read: READ_TIMEOUT
         ).post(target_uri, json: body)
-
-        # Check that res is not nil and has a successful status.
-        break if res && res.status && res.status.success?
-
-        sleep RETRY_DELAY * (i + 1)  # Exponential backoff
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        next unless i == MAX_RETRIES - 1
-
-        pp error_message = "Network error: #{e.message}"
-          res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
-          block&.call(res)
-        return [res]
+        
+        break if response && response.status && response.status.success?
+      rescue StandardError
+        # Continue to next retry
       end
+      
+      sleep RETRY_DELAY
     end
-
-    if res && res.status && res.status.success?
+    
+    # Process response
+    if response && response.status && response.status.success?
       begin
-        # Parse response JSON only once.
-        parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
+        parsed_response = JSON.parse(response.body)
+        return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+      rescue => e
+        return "Error: #{e.message}"
       end
     else
-      error_response = nil
       begin
-        # Parse error JSON only once.
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+        error_data = response && response.body ? JSON.parse(response.body) : {}
+        error_message = error_data.dig("error", "message") || error_data["error"] || "Unknown error"
+        return "Error: #{error_message}"
+      rescue => e
+        return "Error: Failed to parse error response"
       end
-      pp error_response
-      return "ERROR: #{error_response['error']}"
     end
-  rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+  rescue => e
+    return "Error: #{e.message}"
   end
 
   # Connect to OpenAI API and get a response
@@ -187,11 +224,28 @@ module PerplexityHelper
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     session[:messages].each { |msg| msg["active"] = false }
-    context = [session[:messages].first]
-    if session[:messages].length > 1
-      context += session[:messages][1..].last(context_size)
+    
+    # Safer context building with nil checks - this was causing the error
+    context = []
+    
+    # Only add first message if it exists
+    if session[:messages] && session[:messages].first
+      context << session[:messages].first
     end
-    context.each { |msg| msg["active"] = true }
+    
+    # Add remaining messages if they exist, with safe navigation
+    if session[:messages] && session[:messages].length > 1 && context_size && context_size > 0
+      # Use safe array access with a range that won't go out of bounds
+      remaining = session[:messages][1..-1]
+      if remaining && !remaining.empty?
+        # Get last N messages based on context_size
+        last_n = remaining.last([context_size, remaining.length].min)
+        context += last_n if last_n
+      end
+    end
+    
+    # Mark all context messages as active
+    context.each { |msg| msg["active"] = true if msg }
 
     # Set the headers for the API request
     headers = {

@@ -33,11 +33,18 @@ module SecondOpinionAgent
         TEXT
       }
     ]
+    
+    # Use explicit string keys consistently
     parameters = {
-      messages: messages,
-      model: model
+      "messages" => messages,
+      "model" => model
     }
+    
+    # Debug logging
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "SecondOpinionAgent: Using model #{model} for second opinion"
+    end
 
-    send_query(parameters)
+    send_query(parameters, model: model)
   end
 end

@@ -112,100 +112,447 @@ module CohereHelper
     end
   end
 
-  # No streaming plain text completion/chat call
-  def send_query(options, model: "command-a-03-2025")
-    api_key = CONFIG["COHERE_API_KEY"] || ENV["COHERE_API_KEY"]
+  # Simple non-streaming chat completion
+  def send_query(options, model: "command-r-plus")
+    # Get the API key
+    api_key = CONFIG["COHERE_API_KEY"]
+    return "Error: COHERE_API_KEY not found" if api_key.nil?
     
-    # For debugging purpose
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      File.open(File.join(log_dir, "cohere_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] COHERE_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-
+    # Set the headers
     headers = {
       "accept" => "application/json",
       "content-type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
-
-    # Set the body for the API request with only essential parameters
-    # For AI User functionality, only use model and messages - keep it simple
+    
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    # Model details are logged to dedicated log files
+    
+    # Format messages for Cohere API
+    messages = []
+    
+    # Process messages
+    if options["messages"]
+      # Add system message
+      system_msg = options["messages"].find { |m| m["role"].to_s.downcase == "system" }
+      if system_msg
+        messages << {
+          "role" => "user",
+          "content" => "I want you to respond as if you were a user, not an assistant. " + system_msg["content"].to_s
+        }
+      end
+      
+      # Process conversation messages
+      options["messages"].each do |msg|
+        next if msg["role"] == "system" # Skip system (already handled)
+        
+        # Map standard roles to Cohere roles
+        role = case msg["role"].to_s.downcase
+               when "user" then "user"
+               when "assistant" then "assistant"
+               when "system" then "system"
+               when "tool" then "tool"
+               else "user" # Default to user for unknown roles
+               end
+        
+        # Get content
+        content = msg["content"] || msg["text"] || ""
+        
+        # Add to messages
+        messages << {
+          "role" => role,
+          "content" => content.to_s
+        }
+      end
+    end
+    
+    # Prepare request body
     body = {
       "model" => model,
-      "stream" => false,
-      "messages" => []
+      "max_tokens" => options["max_tokens"] || 300,
+      "temperature" => options["temperature"] || 0.7,
+      "messages" => messages,
+      "stream" => false
     }
     
-    # Extract only the messages from options
-    if options["messages"]
-      body["messages"] = options["messages"]
-      
-      # Log for debugging
-      begin
-        log_dir = File.join(Dir.home, "monadic", "log")
-        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-        File.open(File.join(log_dir, "cohere_ai_user_debug.log"), "a") do |f|
-          f.puts("[#{Time.now}] Using messages from options for Cohere API call")
-          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
-        end
-      rescue => e
-        # Silent fail for logging
-      end
-    end
-
+    # Make request
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
-
-    res = nil
-    MAX_RETRIES.times do |i|
-      begin
-        res = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
-        ).post(target_uri, json: body)
-        
-        # Check that res exists and that its status is successful
-        break if res && res.status && res.status.success?
-        
-        sleep RETRY_DELAY * (i + 1) # Exponential backoff
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        next unless i == MAX_RETRIES - 1
-        
-        pp error_message = "Network error: #{e.message}"
-        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
-        block&.call res
-        return [res]
-      end
+    response = nil
+    
+    # Simple retry logic
+    MAX_RETRIES.times do |attempt|
+      response = http.timeout(
+        connect: OPEN_TIMEOUT,
+        write: WRITE_TIMEOUT,
+        read: READ_TIMEOUT
+      ).post(target_uri, json: body)
+      
+      break if response&.status&.success?
+      sleep RETRY_DELAY
     end
 
-    if res && res.status && res.status.success?
+    # Process response
+    if response&.status&.success?
       begin
-        # Parse response only once in the success branch
-        parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
+        body_text = response.body.to_s
+        result = JSON.parse(body_text)
+        
+        # Extract text from Cohere's specific response structure
+        if result["message"] && result["message"]["content"] && result["message"]["content"].is_a?(Array)
+          # Get text from content array (v2 API format)
+          text_items = result["message"]["content"].select { |item| item["type"] == "text" }
+          if text_items.any?
+            return text_items.map { |item| item["text"] }.join("\n")
+          end
+        end
+        
+        # Fall back to standard fields
+        return result["text"] || result["message"] || result["generated_text"] || "Error: No text in response"
+      rescue => e
+        return "Error parsing response: #{e.message}"
       end
     else
-      error_response = nil
       begin
-        # Parse error response body only once
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+        error_body = response&.body.to_s
+        error_data = JSON.parse(error_body)
+        error = error_data["message"] || "Unknown error"
+        return "Error: #{error}"
+      rescue => e
+        return "Error: API error response"
       end
-      pp error_response
-      return "ERROR: #{error_response["error"]}"
     end
-  rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+  rescue => e
+    return "Error: #{e.message}"
+  end
+  
+  # Helper method to format messages for Cohere's API format
+  def format_messages_for_cohere(options, model)
+    # Initialize messages array for API request
+    messages = []
+    
+    # Check for custom system message from the AI User feature first
+    custom_system_message = options["custom_system_message"]
+    
+    # If we have a specially formatted conversation string, use that
+    if custom_system_message
+      log_to_extra("Using formatted conversation approach for Cohere")
+      
+      # For Cohere, we use a minimal message structure:
+      # 1. System message containing our formatted conversation with the AI User prompt
+      # 2. A simple user message to get the response
+      
+      # System prompt containing the AI User instructions and formatted conversation
+      messages << {
+        "role" => "SYSTEM",
+        "message" => custom_system_message
+      }
+      
+      # Add a simple query message to get the next user response
+      messages << {
+        "role" => "CHATBOT",
+        "message" => "Based on the conversation history, what would be a natural response from the user now?"
+      }
+      
+      log_to_extra("Created message structure with formatted conversation")
+      log_to_extra("System message length: #{custom_system_message.size}")
+      
+      return messages
+    
+    # Otherwise, use the standard message-based approach
+    elsif options["messages"] && options["messages"].is_a?(Array)
+      # Log for debugging
+      log_to_extra("Processing #{options['messages'].size} messages")
+      
+      # Make a copy of the messages for manipulation
+      conversation_messages = options["messages"].dup
+      
+      # If there's a system prompt, use it (otherwise use the default AI_USER_INITIAL_PROMPT)
+      system_prompt = MonadicApp::AI_USER_INITIAL_PROMPT
+      if options["initial_prompt"]
+        system_prompt = options["initial_prompt"].to_s
+        log_to_extra("Using custom initial prompt")
+      end
+      
+      # Add system prompt first as USER role
+      # NOTE: For Cohere API v2, we need to use USER role with the system prompt
+      # This fixes the issue with the system role treatment in Cohere's API
+      messages << {
+        "role" => "USER",
+        "message" => "I want you to respond as if you were a user, not an assistant. " + system_prompt
+      }
+      
+      # Make sure we add at least one more message
+      # Cohere needs a clear conversation flow to respond properly
+      if conversation_messages.empty?
+        # Add a minimal context message if none exists
+        messages << {
+          "role" => "CHATBOT",
+          "message" => "Hello, I'm here to help. What would you like to talk about?"
+        }
+      else
+        # Process existing messages (use maximum 4 for better reliability)
+        # Process in reverse to ensure we have the most recent messages
+        recent_messages = conversation_messages.last(4)
+        
+        recent_messages.each_with_index do |msg, idx|
+          # Skip empty messages
+          next if (msg["content"].to_s.strip.empty? && msg["text"].to_s.strip.empty?)
+          
+          # Extract the role and convert to Cohere format (uppercase)
+          role = msg["role"].to_s.upcase
+          # Map standard roles to Cohere roles
+          cohere_role = case role
+                        when "USER" then "USER"
+                        when "ASSISTANT" then "CHATBOT"
+                        when "SYSTEM" then "SYSTEM"
+                        when "TOOL" then "TOOL"
+                        else role # Keep as is if already uppercase
+                        end
+          
+          # Extract message content, preferring "content" over "text"
+          message_content = nil
+          if msg["content"] && !msg["content"].to_s.strip.empty?
+            message_content = msg["content"].to_s.strip
+            log_to_extra("  Message #{idx+1}: Using content field")
+          elsif msg["text"] && !msg["text"].to_s.strip.empty?
+            message_content = msg["text"].to_s.strip
+            log_to_extra("  Message #{idx+1}: Using text field")
+          else
+            log_to_extra("  Message #{idx+1}: No content found, skipping")
+            next
+          end
+          
+          # Add message to the array using Cohere format
+          messages << {
+            "role" => cohere_role,
+            "message" => message_content
+          }
+          
+          log_to_extra("  Added message: role=#{cohere_role}, message length=#{message_content.size}")
+        end
+      end
+    else
+      log_to_extra("No valid messages array found in options")
+      return "Error: Invalid options format - no messages found"
+    end
+    
+    # Ensure we have enough context (at least one message besides system prompt)
+    if messages.size < 2
+      log_to_extra("Not enough conversation context (messages size: #{messages.size})")
+      return "Error: Not enough conversation context for Cohere AI User"
+    end
+    
+    # Make sure we end with an assistant message for proper user response generation
+    last_message = messages.last
+    if last_message["role"] != "CHATBOT"
+      log_to_extra("Last message is not from assistant, adding artificial assistant message")
+      # Add a minimal assistant message to allow the AI to respond as a user
+      messages << {
+        "role" => "CHATBOT", 
+        "message" => "I understand. How would you like to respond to that?"
+      }
+    end
+    
+    messages
+  end
+  
+  # Process the Cohere API response to extract the text content
+  def process_cohere_response(response)
+    if response.nil?
+      log_to_extra("No response received from Cohere API")
+      return "Error: No response received from Cohere API"
+    end
+    
+    if !response.status.success?
+      # Handle error response
+      error_message = "Unknown API error"
+      
+      if response && response.body
+        begin
+          error_data = JSON.parse(response.body)
+          error_message = error_data["message"] || error_data["error"] || error_message
+          log_to_extra("API error: #{error_message}")
+        rescue JSON::ParserError
+          log_to_extra("Failed to parse error response")
+          log_to_extra("Raw error response: #{response.body}")
+          error_message = "Failed to parse error response"
+        end
+      end
+      
+      return "Error: Cohere API returned error - #{error_message}"
+    end
+    
+    # Response was successful, process it
+    begin
+      # Parse the response
+      raw_body = response.body.to_s.strip
+      log_to_extra("Raw response body: #{raw_body[0..500]}...")
+      
+      # If empty response, return error
+      if raw_body.empty?
+        log_to_extra("Empty response body")
+        return "Error: Empty response from Cohere API"
+      end
+      
+      # Parse JSON
+      response_data = JSON.parse(raw_body)
+      
+      # Log full response data for debugging
+      log_to_extra("Parsed response: #{response_data.inspect}")
+      
+      # Special case for Cohere responses - very specific to their format
+      # According to Cohere API documentation, v2 responses use these fields:
+      
+      # PRIMARY FORMAT: Current Cohere Chat API format 
+      if response_data["text"].is_a?(String) && !response_data["text"].strip.empty?
+        result = response_data["text"].strip
+        log_to_extra("Found response in primary 'text' field: #{result[0..100]}...")
+        return result
+      end
+      
+      # ALTERNATIVE FORMAT: For legacy or different response structures
+      if response_data["generations"] && response_data["generations"].is_a?(Array) && !response_data["generations"].empty?
+        generation = response_data["generations"][0]
+        if generation.is_a?(Hash) && generation["text"].is_a?(String)
+          result = generation["text"].strip
+          log_to_extra("Found response in generations[0].text field: #{result[0..100]}...")
+          return result
+        end
+      end
+      
+      # Try the other documented response formats:
+      if response_data["message"] && response_data["message"]["text"].is_a?(String)
+        result = response_data["message"]["text"].strip
+        log_to_extra("Found response in message.text field: #{result[0..100]}...")
+        return result
+      end
+      
+      # Try the raw message field (sometimes Cohere returns this)
+      if response_data["message"].is_a?(String) && !response_data["message"].empty?
+        result = response_data["message"].strip
+        log_to_extra("Found response in direct message field: #{result[0..100]}...")
+        return result
+      end
+      
+      # Even more comprehensive fallback search
+      known_fields = ["text", "message", "response", "generation", "output", "answer", "content", "completion", "reply"]
+      
+      # Check top-level fields first
+      known_fields.each do |field|
+        if response_data[field].is_a?(String) && !response_data[field].strip.empty?
+          result = response_data[field].strip
+          log_to_extra("Found response in '#{field}' field: #{result[0..100]}...")
+          return result
+        end
+      end
+      
+      # Deep search - look for nested fields
+      result = extract_text_from_response(response_data)
+      if result
+        log_to_extra("Found response via deep search: #{result[0..100]}...")
+        return result
+      end
+      
+      # Last resort - use the first text field we can find
+      if response_data.is_a?(Hash)
+        response_data.each do |key, value|
+          if value.is_a?(String) && !value.strip.empty?
+            result = value.strip
+            log_to_extra("Found response in '#{key}' field as last resort: #{result[0..100]}...")
+            return result
+          end
+        end
+      end
+      
+      # If we still can't find anything, return a useful message
+      log_to_extra("Could not extract response content from Cohere API")
+      "I couldn't generate a response to continue the conversation."
+      
+    rescue JSON::ParserError => e
+      log_to_extra("Failed to parse JSON response: #{e.message}")
+      log_to_extra("Raw response that failed parsing: #{response.body.to_s[0..500]}")
+      return "Error parsing Cohere API response"
+    end
+  end
+  
+  # Helper for logging debug messages to the extra.log file
+  def log_to_extra(message)
+    begin
+      extra_log = File.join(Dir.home, "monadic", "log", "extra.log")
+      File.open(extra_log, "a") do |f|
+        f.puts("[#{Time.now}] COHERE: #{message}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
+  end
+
+  # Helper for logging debug messages
+  private def log_message(message)
+    begin
+      File.open(File.join(Dir.home, "monadic", "log", "cohere_helper_debug.log"), "a") do |f|
+        f.puts("[#{Time.now}] #{message}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
+  end
+
+  # Helper for logging error messages
+  private def log_error(message)
+    begin
+      File.open(File.join(Dir.home, "monadic", "log", "cohere_helper_debug.log"), "a") do |f|
+        f.puts("[#{Time.now}] ERROR: #{message}")
+      end
+    rescue => e
+      # Silent fail for logging
+    end
+  end
+  
+  # Helper method to extract text from complex response structures
+  def extract_text_from_response(response, depth=0, max_depth=3)
+    return nil if depth > max_depth || response.nil?
+    
+    # For string responses
+    return response if response.is_a?(String) && !response.empty?
+    
+    # For hash responses
+    if response.is_a?(Hash)
+      # Try common text field names
+      ["text", "content", "message", "response"].each do |key|
+        if response[key].is_a?(String) && !response[key].empty?
+          return response[key]
+        elsif response[key].is_a?(Hash)
+          # Look one level deeper
+          result = extract_text_from_response(response[key], depth+1, max_depth)
+          return result if result
+        end
+      end
+      
+      # Look for standard response structures
+      if response["choices"].is_a?(Array) && !response["choices"].empty?
+        choice = response["choices"].first
+        if choice["message"].is_a?(Hash) && choice["message"]["content"].is_a?(String)
+          return choice["message"]["content"]
+        end
+      end
+      
+      # Recursive search in all values
+      response.each_value do |value|
+        result = extract_text_from_response(value, depth+1, max_depth)
+        return result if result
+      end
+    elsif response.is_a?(Array)
+      # Try each array element
+      response.each do |item|
+        result = extract_text_from_response(item, depth+1, max_depth)
+        return result if result
+      end
+    end
+    
+    nil
   end
 
   # Main API request handler
@@ -233,7 +580,14 @@ module CohereHelper
 
     # Parse numerical parameters
     temperature = obj["temperature"]&.to_f
-    max_tokens = obj["max_tokens"]&.to_i
+    
+    # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
+    if obj["ai_user"] == "true"
+      max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_tokens"]&.to_i
+    else
+      max_tokens = obj["max_tokens"]&.to_i
+    end
+    
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 

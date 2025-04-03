@@ -664,8 +664,8 @@ module MonadicDSL
   # App definition method
   def self.app(name, &block)
     state = AppState.new(name.gsub(/\s+/, ''))
-    # Store original name as app_name if it contains spaces
-    state.settings[:app_name] = name if name.include?(' ')
+    # Always store original name as display_name to ensure consistency
+    state.settings[:display_name] = name
     
     # Initialize default values
     state.features = {}
@@ -678,7 +678,7 @@ module MonadicDSL
     app_def.instance_eval(&block)
     
     # Debug the state
-    puts "After DSL eval: #{state.name}, app_name: #{state.settings[:app_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+    puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
     
     convert_to_class(state)
     state
@@ -821,9 +821,9 @@ module MonadicDSL
         display_group: 'Google',
         aliases: ['google', 'googlegemini']
       },
-      # Cohere/Command R
+      # Cohere
       "cohere" => {
-        helper_module: 'CommandRHelper',
+        helper_module: 'CohereHelper',
         api_key: 'COHERE_API_KEY',
         display_group: 'Cohere',
         aliases: ['commandr', 'coherecommandr']

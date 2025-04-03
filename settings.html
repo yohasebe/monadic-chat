@@ -176,6 +176,9 @@
           <option value="whisper-1">whisper-1</option>
         </select>
 
+        <label for="ai-user-max-tokens">AI_USER_MAX_TOKENS</label>
+        <input type="number" id="ai-user-max-tokens" name="ai-user-max-tokens" min="100" max="8000" step="10" value="2000">
+
 
         <label for="embedding-model">EMBEDDING_MODEL</label>
         <select id="embedding-model" name="embedding-model">
@@ -228,6 +231,7 @@
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           STT_MODEL: document.getElementById('stt-model').value,
+          AI_USER_MAX_TOKENS: document.getElementById('ai-user-max-tokens').value,
           EMBEDDING_MODEL: document.getElementById('embedding-model').value,
           WEBSEARCH_MODEL: document.getElementById('websearch-model').value,
           TTS_DICT_PATH: ttsDictPath,
@@ -264,6 +268,7 @@
         document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
+        document.getElementById('ai-user-max-tokens').value = data.AI_USER_MAX_TOKENS || '2000';
         document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';
         document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4o-mini-search-preview';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';

@@ -144,105 +144,75 @@ module OpenAIHelper
     end
   end
 
-  # No streaming plain text completion/chat call
+  # Simple non-streaming chat completion
   def send_query(options, model: "gpt-4o")
     api_key = ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"]
     
-    # For debugging purpose
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      File.open(File.join(log_dir, "openai_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] OPENAI_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-
     # Set the headers for the API request
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
 
-    # Set the body for the API request
-    model = options[:model] || options["model"] || model
-    if /\bsearch\b/ =~ model
-      body = {
-        "model" => "gpt-4o-search-preview",
-        "stream" => false,
-        "messages" => [],
-        "web_search_options": {}
-      }
-      body.merge!(options)
-      body.delete("n")
-      body.delete("temperature")
-      body.delete("presence_penalty")
-      body.delete("frequency_penalty")
-      target_uri = API_ENDPOINT + "/chat/completions"
-    else
-      # For AI User functionality, we only need model and messages - keep it simple
-      body = {
-        "model" => model,
-        "stream" => false,
-        "messages" => []
-      }
-      
-      # Only add essential parameters - messages and model
-      if options["messages"]
-        body["messages"] = options["messages"]
-        
-        # Log for debugging
-        begin
-          log_dir = File.join(Dir.home, "monadic", "log")
-          FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-          File.open(File.join(log_dir, "openai_ai_user_debug.log"), "a") do |f|
-            f.puts("[#{Time.now}] Using messages from options for OpenAI API call")
-            f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
-          end
-        rescue => e
-          # Silent fail for logging
-        end
-      end
-      
-      target_uri = API_ENDPOINT + "/chat/completions"
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    # Model details are logged to dedicated log files
+    
+    # Basic request body
+    body = {
+      "model" => model,
+      "stream" => false
+    }
+    
+    # Add messages from options if available
+    if options["messages"]
+      body["messages"] = options["messages"]
+    elsif options["message"]
+      body["messages"] = [{ "role" => "user", "content" => options["message"] }]
     end
+    
+    # Add temperature if specified
+    body["temperature"] = options["temperature"].to_f if options["temperature"]
+    
+    # Add response_format if specified (for structured JSON output)
+    if options["response_format"] || options[:response_format]
+      response_format = options["response_format"] || options[:response_format]
+      body["response_format"] = response_format.is_a?(Hash) ? response_format : { "type" => "json_object" }
+      
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "OpenAIHelper.send_query: Using response format: #{body['response_format'].inspect}"
+      end
+    end
+    
+    # Set API endpoint
+    target_uri = API_ENDPOINT + "/chat/completions"
 
+    # Make the request
     http = HTTP.headers(headers)
-
+   
     res = nil
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
                          read: READ_TIMEOUT).post(target_uri, json: body)
-      # Ensure res and its status exist before checking success
       break if res && res.status && res.status.success?
-
       sleep RETRY_DELAY
     end
 
+    # Process response
     if res && res.status && res.status.success?
-      begin
-        # Parse response only once in the success branch
-        parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
-      end
+      # Properly read response body content
+      response_body = res.body.respond_to?(:read) ? res.body.read : res.body.to_s
+      parsed_response = JSON.parse(response_body)
+      return parsed_response.dig("choices", 0, "message", "content")
     else
-      error_response = nil
-      begin
-        # Attempt to parse error response body only once
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
-      end
-      pp error_response
-      return "ERROR: #{error_response["error"]}"
+      # Properly read error response body content
+      error_body = res && res.body ? (res.body.respond_to?(:read) ? res.body.read : res.body.to_s) : nil
+      error_response = error_body ? JSON.parse(error_body) : { "error" => "No response received" }
+      return "ERROR: #{error_response["error"]["message"] || error_response["error"]}"
     end
   rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+    return "Error: #{e.message}"
   end
 
   # Connect to OpenAI API and get a response
@@ -266,7 +236,13 @@ module OpenAIHelper
     model = obj["model"]
     reasoning_effort = obj["reasoning_effort"]
 
-    max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
+    # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
+    if obj["ai_user"] == "true"
+      max_completion_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
+    else
+      max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
+    end
+    
     temperature = obj["temperature"].to_f
     presence_penalty = obj["presence_penalty"].to_f
     frequency_penalty = obj["frequency_penalty"].to_f

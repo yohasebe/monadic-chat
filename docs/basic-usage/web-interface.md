@@ -44,8 +44,8 @@ Specify whether to cache the system prompt sent to the API. Enabling caching all
 **Math Rendering**<br />
 Request the AI agent to use MathJax format when displaying mathematical expressions and render mathematical expressions in the response using MathJax.
 
-**Enable AI-User**<br />
-Specify whether to enable the AI User feature. This feature cannot be used together with the `Start from assistant` feature.
+**AI User Provider**<br />
+Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. This feature cannot be used together with the `Start from assistant` feature.
 
 **Start from assistant**<br />
 When on, the assistant makes the first utterance when starting a conversation.

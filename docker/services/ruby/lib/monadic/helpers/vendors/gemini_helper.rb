@@ -125,87 +125,192 @@ module GeminiHelper
     $MODELS[:gemini] = nil
   end
 
-  # No streaming plain text completion/chat call
+  # Simple non-streaming chat completion
   def send_query(options, model: "gemini-2.0-flash-exp")
+    # Get API key
     api_key = CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]
-    
-    # For debugging purpose
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      File.open(File.join(log_dir, "gemini_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] GEMINI_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
+    return "Error: GEMINI_API_KEY not found" if api_key.nil?
 
+    # Set headers
     headers = {
       "content-type" => "application/json"
     }
 
-    # For AI User functionality, only use essential parameters - keep it simple
+    # Basic request body
     body = {
-      "safety_settings" => SAFETY_SETTINGS
+      "safety_settings" => SAFETY_SETTINGS,
+      "generationConfig" => {
+        "maxOutputTokens" => options["max_tokens"] || 800,
+        "temperature" => options["temperature"] || 0.7
+      }
     }
-
-    # Only add the messages - keep it simple for AI User
+    
+    # Format messages for Gemini API
+    formatted_messages = []
+    
+    # Process messages
     if options["messages"]
-      body["contents"] = options["messages"]
+      # Look for system message
+      system_msg = options["messages"].find { |m| m["role"] == "system" }
+      if system_msg
+        # Add system as user message (Gemini has no system role)
+        formatted_messages << {
+          "role" => "user",
+          "parts" => [{ "text" => system_msg["content"].to_s }]
+        }
+      end
       
-      # Log for debugging
-      begin
-        log_dir = File.join(Dir.home, "monadic", "log")
-        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-        File.open(File.join(log_dir, "gemini_ai_user_debug.log"), "a") do |f|
-          f.puts("[#{Time.now}] Using messages from options for Gemini API call")
-          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
-        end
-      rescue => e
-        # Silent fail for logging
+      # Process conversation messages
+      options["messages"].each do |msg|
+        next if msg["role"] == "system" # Skip system (already handled)
+        
+        # Map roles to Gemini format
+        gemini_role = msg["role"] == "assistant" ? "model" : "user"
+        content = msg["content"] || msg["text"] || ""
+        
+        # Add to formatted messages
+        formatted_messages << {
+          "role" => gemini_role,
+          "parts" => [{ "text" => content.to_s }]
+        }
       end
     end
     
-    # Empty generationConfig to avoid errors
-    body["generationConfig"] = {}
-
-    target_uri = "#{API_ENDPOINT}/models/#{model}:streamGenerateContent?key=#{api_key}"
-
+    # Add messages to body
+    body["contents"] = formatted_messages
+    
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    # Model details are logged to dedicated log files
+    
+    # Set up API endpoint
+    target_uri = "#{API_ENDPOINT}/models/#{model}:generateContent?key=#{api_key}"
     http = HTTP.headers(headers)
-
-    MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
-      if res.status.success?
-        break
+    
+    # Make request
+    response = nil
+    
+    # Simple retry logic
+    begin
+      MAX_RETRIES.times do |attempt|
+        response = http.timeout(
+          connect: OPEN_TIMEOUT,
+          write: WRITE_TIMEOUT,
+          read: READ_TIMEOUT
+        ).post(target_uri, json: body)
+        
+        # Break if successful
+        break if response && response.status && response.status.success?
+        
+        # Wait before retrying
+        sleep RETRY_DELAY
       end
 
-      sleep RETRY_DELAY
+      # Check for valid response
+      if !response || !response.status
+        return "Error: No response from Gemini API"
+      end
+      
+      # Process successful response
+      if response.status.success?
+        parsed_response = JSON.parse(response.body)
+        
+        # Extract text from standard response format
+        if parsed_response["candidates"] && 
+           parsed_response["candidates"][0] && 
+           parsed_response["candidates"][0]["content"] && 
+           parsed_response["candidates"][0]["content"]["parts"]
+          
+          text_parts = []
+          parsed_response["candidates"][0]["content"]["parts"].each do |part|
+            text_parts << part["text"] if part["text"]
+          end
+          
+          return text_parts.join(" ") if text_parts.any?
+        end
+        
+        # Nothing found
+        return "Error: Unable to extract text from Gemini response"
+      else
+        # Handle error response
+        error_data = JSON.parse(response.body) rescue {}
+        error_message = error_data.dig("error", "message") || "Unknown error"
+        return "Error: #{error_message}"
+      end
+    rescue StandardError => e
+      return "Error: #{e.message}"
     end
-
-    if res && res.status && res.status.success?
-      begin
-        # Parse response only once in the success branch
-        parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
+  end
+  
+  # Enhanced helper method to extract text from complex response structures
+  def extract_text_from_response(response, depth=0, max_depth=3)
+    return nil if depth > max_depth
+    
+    # For nil responses
+    return nil if response.nil?
+    
+    # For string responses (direct text)
+    return response if response.is_a?(String) && !response.empty?
+    
+    # Handle different response formats
+    if response.is_a?(Hash)
+      # Special handling for Gemini response format
+      if response["candidates"].is_a?(Array) && !response["candidates"].empty?
+        candidate = response["candidates"][0]
+        
+        # Check for content.parts structure (common in Gemini responses)
+        if candidate["content"].is_a?(Hash) && candidate["content"]["parts"].is_a?(Array)
+          text_parts = []
+          candidate["content"]["parts"].each do |part|
+            text_parts << part["text"] if part.is_a?(Hash) && part["text"].is_a?(String)
+          end
+          
+          return text_parts.join(" ") if text_parts.any?
+        end
+        
+        # Check for direct text in candidate
+        return candidate["text"] if candidate["text"].is_a?(String)
+        
+        # Check for content as string
+        return candidate["content"] if candidate["content"].is_a?(String)
+        
+        # Recursively check candidate object 
+        result = extract_text_from_response(candidate, depth+1, max_depth)
+        return result if result
       end
-    else
-      error_response = nil
-      begin
-        # Attempt to parse error response body only once
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+      
+      # Try common text fields with several variations
+      ["text", "content", "message", "output", "result", "answer"].each do |key|
+        if response[key].is_a?(String) && !response[key].empty?
+          return response[key]
+        elsif response[key].is_a?(Hash)
+          # Look one level deeper for text
+          subresult = extract_text_from_response(response[key], depth+1, max_depth)
+          return subresult if subresult
+        end
       end
-      pp error_response
-      return "ERROR: #{error_response["error"]}"
+      
+      # Recursive descent into all nested objects
+      response.each_value do |value|
+        result = extract_text_from_response(value, depth+1, max_depth)
+        return result if result
+      end
+    elsif response.is_a?(Array)
+      # Combine text from array elements if they're all strings
+      if response.all? { |item| item.is_a?(String) }
+        combined = response.join(" ").strip
+        return combined unless combined.empty?
+      end
+      
+      # Otherwise try each array element recursively
+      response.each do |item|
+        result = extract_text_from_response(item, depth+1, max_depth)
+        return result if result
+      end
     end
-  rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+    
+    # Nothing found
+    nil
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -217,7 +322,6 @@ module GeminiHelper
     rescue StandardError
       # ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file.
       error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file."
-      pp error_message
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -228,7 +332,13 @@ module GeminiHelper
     app = obj["app_name"]
 
     temperature = obj["temperature"]&.to_f
-    max_tokens = obj["max_tokens"]&.to_i
+    
+    # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
+    if obj["ai_user"] == "true"
+      max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_tokens"]&.to_i
+    else
+      max_tokens = obj["max_tokens"]&.to_i
+    end
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -384,7 +494,6 @@ module GeminiHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-      pp error_report
       res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
         block&.call res
       return [res]
@@ -402,15 +511,11 @@ module GeminiHelper
       retry
     else
       error_message = e.is_a?(OpenSSL::SSL::SSLError) ? "SSL ERROR: #{e.message}" : "The request has timed out."
-        pp error_message
       res = { "type" => "error", "content" => "HTTP/SSL ERROR: #{error_message}" }
         block&.call res
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
       block&.call res
     [res]
@@ -555,9 +660,6 @@ module GeminiHelper
         buffer = String.new
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -635,7 +737,6 @@ module GeminiHelper
           [{ "choices" => [{ "message" => { "content" => final_result } }] }]
         rescue StandardError => e
           # Log the error and send a more informative message
-          pp "Error processing function results: #{e.message}"
           result_text = result.join("").strip
           
           # Clean up any "No response" messages that might be in the results
@@ -736,9 +837,6 @@ module GeminiHelper
         block&.call res
         end
       rescue StandardError => e
-        pp "ERROR: Function call failed: #{function_name}"
-        pp e.message
-        pp e.backtrace
         
         error_message = "ERROR: Function call failed: #{function_name}. #{e.message}"
         

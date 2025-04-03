@@ -114,11 +114,19 @@
             <h5><span class="text"><i class="fa-solid fa-square-check"></i> Monadic Chat Status</span></h5>
             <div id="alert-message" class="mt-3 mb-3 text">Not started</div>
             
-            <h5><span class="text"><i class="fa-solid fa-robot"></i></span> Model Selected</h5>
-            <div class="mb-4 mt-3 text">
-              <span id="model-selected">Not selected</span>&nbsp;&nbsp;
-              <span id="model-non-default" class="fw-semibold" style="display:none;">non-default model</span>
+            <h5><span class="text"><i class="fa-solid fa-robot"></i></span> AI Assistant & User</h5>
+            <div class="mt-3 text">
+              <div class="d-flex align-items-center mb-2">
+                <span class="me-2"><i class="fas fa-robot"></i> AI Assistant:</span>
+                <span id="model-selected">Not selected</span>&nbsp;&nbsp;
+                <span id="model-non-default" class="fw-semibold" style="display:none;">non-default model</span>
+              </div>
+              <div class="d-flex align-items-center">
+                <span class="me-2"><i class="fas fa-user-robot"></i> AI User:</span>
+                <span id="ai-user-provider-selected">Not configured</span>
+              </div>
             </div>
+            <div class="mb-2"></div>
             <h5><span class="text"><i class="fas fa-chart-line"></i> Statistics</span></h5>
             <div id="stats-message" class="mt-3 text">No data available</div>
           </div>
@@ -477,9 +485,23 @@
                 </div>
               </div>
 
-              <div class="mt-2 mb-0 textbox-caption" >
-                <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
-                <span id="voice-note" style="display: none;">Hit <span class="text-secondary"> Enter ⏎<span> key to start/stop voice input</small>
+              <div class="d-flex align-items-center">
+                <div style="display: inline-block;" class="ms-2 me-2"> <span style="font-size: 1.0em; vertical-align: bottom; color: #777;"><i class="fa-solid fa-robot"></i></span> </div>
+                <span id="ai-assistant-info" data-model=""><i class="fas fa-robot"></i> AI Assistant: OpenAI</span>
+                <span class="text-secondary mx-1"><i class="fas fa-exchange-alt"></i></span>
+                <div style="display: inline-block;" class="ms-2 me-2"> <span style="font-size: 1.0em; vertical-align: bottom; color: #777;"><i class="fa-solid fa-robot"></i></span> </div>
+                AI User:&nbsp;
+                <select id="ai_user_provider" class="form-select form-select-sm me-1" style="width: auto; min-width: 120px;">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="gemini">Gemini</option>
+                  <option value="cohere">Cohere</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="perplexity">Perplexity</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="grok">Grok</option>
+                </select>
+                <button id="ai_user" class="btn btn-sm btn-secondary">Respond</button>
               </div>
 
               <div class="row mt-3">
@@ -487,18 +509,9 @@
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
-                    <div class="btn-group me-2">
-                      <select id="ai_user_provider" class="btn btn-sm btn-warning" style="border-right: 1px solid rgba(0,0,0,0.1); width: 120px;">
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="gemini">Gemini</option>
-                        <option value="cohere">Cohere</option>
-                        <option value="mistral">Mistral</option>
-                        <option value="perplexity">Perplexity</option>
-                        <option value="deepseek">DeepSeek</option>
-                        <option value="grok">Grok</option>
-                      </select>
-                      <button id="ai_user" class="btn btn-sm btn-warning"><i class="fas fa-robot"></i> AI User</button>
+                    <div class="d-flex align-items-center me-2 textbox-caption">
+                      <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
+                      <span id="voice-note" style="display: none;">Hit <span class="text-secondary"> Enter ⏎<span> key to start/stop voice input</small>
                     </div>
                   </div>
                 </div>

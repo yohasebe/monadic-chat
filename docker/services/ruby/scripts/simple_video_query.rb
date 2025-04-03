@@ -35,6 +35,22 @@ def video_query(json_path, query, model = "gpt-4o")
     json_data = balance_images(json_data, MAX_FRAMES)
   end
 
+  # Validate the model name - OpenAI vision-capable models should be used
+  vision_capable_models = ["gpt-4o", "gpt-4-vision", "gpt-4-turbo"]
+  unless model.nil? || model.empty?
+    # Extract base model - remove version numbers
+    base_model = model.gsub(/-\d.*$/, "")
+    
+    # Check if model is vision-capable
+    unless vision_capable_models.any? { |m| model.include?(m) }
+      # Default to gpt-4o if not a vision-capable model
+      puts "WARNING: Model '#{model}' may not have vision capabilities. Using gpt-4o instead."
+      model = "gpt-4o"
+    end
+  else
+    model = "gpt-4o"  # Default model
+  end
+
   headers = {
     "Content-Type": "application/json",
     Authorization: "Bearer #{api_key}"

@@ -396,6 +396,34 @@ function loadParams(params, calledFor = "loadParams") {
   if (Object.keys(params).length === 0) {
     return;
   }
+  
+  // Update AI Assistant info badge when model is loaded
+  if (params.model) {
+    const selectedModel = params.model;
+    // Extract provider from app_name parameter
+    let provider = "OpenAI";
+    if (params.app_name && apps[params.app_name] && apps[params.app_name].group) {
+      const group = apps[params.app_name].group.toLowerCase();
+      if (group.includes("anthropic") || group.includes("claude")) {
+        provider = "Anthropic";
+      } else if (group.includes("gemini") || group.includes("google")) {
+        provider = "Gemini";
+      } else if (group.includes("cohere")) {
+        provider = "Cohere";
+      } else if (group.includes("mistral")) {
+        provider = "Mistral";
+      } else if (group.includes("perplexity")) {
+        provider = "Perplexity";
+      } else if (group.includes("deepseek")) {
+        provider = "DeepSeek";
+      } else if (group.includes("grok") || group.includes("xai")) {
+        provider = "Grok";
+      }
+    }
+    // Update the badge in the AI User section
+    $("#ai-assistant-info").text("AI Assistant: " + provider).attr("data-model", selectedModel);
+  }
+  
   stop_apps_trigger = false;
   if (calledFor === "reset") {
     $("#file-div").hide();

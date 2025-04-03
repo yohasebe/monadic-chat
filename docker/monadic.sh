@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.77
+export MONADIC_VERSION=0.9.79
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -358,7 +358,7 @@ start_docker_compose() {
   local needs_full_rebuild=false
   local needs_user_containers=false
   
-  # Define the list of required containers
+  # Define the list of required containers - these names must match container_name in compose.yml files
   local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
   local missing_containers=()
   
@@ -379,7 +379,8 @@ start_docker_compose() {
   # If we haven't decided on a full rebuild, check individual containers
   if [ "$needs_full_rebuild" = false ]; then
     for container in "${required_containers[@]}"; do
-      if ! ${DOCKER} container ls --all | grep -q "$container"; then
+      # Use more reliable method to check for container existence
+      if ! ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^${container}$"; then
         missing_containers+=("$container")
         echo "[HTML]: <p>Container '$container' not found.</p>"
       fi
@@ -432,9 +433,9 @@ start_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
   
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat-container" up -d 
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat" up -d 
 
-  local containers=$(${DOCKER} ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+  local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
 
   if [[ "$1" != "silent" ]]; then
     echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
@@ -455,7 +456,7 @@ down_docker_compose() {
 
 # Define a function to stop Docker Compose
 stop_docker_compose() {
-  containers=$(${DOCKER} ps --filter "label=project=monadic-chat" --format "{{.Names}}")
+  containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
   for container in ${containers}; do
     stop_container "${container}"
   done
@@ -494,8 +495,8 @@ remove_containers() {
   # Stop the Docker Compose services
   ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
 
-  local images=$(${DOCKER} images --filter "label=project=monadic-chat" --format "{{.Repository}}:{{.Tag}}")
-  local containers=$(${DOCKER} ps -a --filter "label=project=monadic-chat" --format "{{.Names}}")
+  local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
+  local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
 
   # Remove the Docker images and containers of the monadic-chat project
   for image in ${images}; do
@@ -525,7 +526,7 @@ remove_image() {
 
 # Function to remove a container
 remove_container() {
-  if ${DOCKER} container ls --all | grep -q "$1"; then
+  if ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^$1$"; then
     ${DOCKER} container rm -f "$1" >/dev/null
   fi
 }
@@ -655,7 +656,6 @@ build_python_container)
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
-
 build_user_containers)
   ensure_data_dir "" &&
 
@@ -687,9 +687,12 @@ build)
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
   ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
   build_docker_compose "no-cache"
+  
+  # Start the containers after building to match the behavior of 'start' command
+  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat" up -d
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Monadic Chat has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi

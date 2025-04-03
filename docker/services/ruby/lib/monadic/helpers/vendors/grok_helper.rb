@@ -115,86 +115,100 @@ module GrokHelper
     end
   end
 
-  # No streaming plain text completion/chat call
+  # Simple non-streaming chat completion
   def send_query(options, model: "grok-2-1212")
+    # Get API key
     api_key = CONFIG["XAI_API_KEY"] || ENV["XAI_API_KEY"]
+    return "Error: XAI_API_KEY not found" if api_key.nil?
     
-    # For debugging purpose
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      File.open(File.join(log_dir, "grok_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] XAI_API_KEY: #{api_key ? 'FOUND' : 'NOT FOUND'}")
-        f.puts("[#{Time.now}] send_query options: #{options.inspect}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-
     # Set the headers for the API request
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
 
-    # For AI User functionality, only use model and messages - keep it simple
+    # Get the requested model
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    # Model details are logged to dedicated log files
+    
+    # Basic request body
     body = {
       "model" => model,
       "stream" => false,
+      "temperature" => options["temperature"] || 0.7,
       "messages" => []
     }
     
-    # Only add the messages parameter
-    if options["messages"]
-      body["messages"] = options["messages"]
-      
-      # Log for debugging
-      begin
-        log_dir = File.join(Dir.home, "monadic", "log")
-        FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-        File.open(File.join(log_dir, "grok_ai_user_debug.log"), "a") do |f|
-          f.puts("[#{Time.now}] Using messages from options for Grok API call")
-          f.puts("[#{Time.now}] Message count: #{options["messages"].size}")
-        end
-      rescue => e
-        # Silent fail for logging
-      end
+    # Add parameters if specified
+    body["max_tokens"] = options["max_tokens"] if options["max_tokens"]
+    body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
+    body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
+    
+    # Handle system message
+    if options["system"]
+      body["messages"] << {
+        "role" => "system",
+        "content" => options["system"]
+      }
+    elsif options["custom_system_message"]
+      body["messages"] << {
+        "role" => "system",
+        "content" => options["custom_system_message"]
+      }
+    elsif options["initial_prompt"]
+      body["messages"] << {
+        "role" => "system",
+        "content" => options["initial_prompt"]
+      }
     end
-
+    
+    # Add messages from options
+    if options["messages"]
+      options["messages"].each do |msg|
+        # Extract content with fallback to text
+        content = msg["content"] || msg["text"] || ""
+        
+        # Only add non-empty messages
+        if content.to_s.strip.length > 0
+          body["messages"] << {
+            "role" => msg["role"],
+            "content" => content
+          }
+        end
+      end
+    elsif options["message"]
+      body["messages"] << {
+        "role" => "user",
+        "content" => options["message"]
+      }
+    end
+    
+    # Set API endpoint
     target_uri = API_ENDPOINT + "/chat/completions"
-    http = HTTP.headers(headers)
 
+    # Make the request
+    http = HTTP.headers(headers)
+    
     res = nil
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
-      break if res.status.success?
-
+                       write: WRITE_TIMEOUT,
+                       read: READ_TIMEOUT).post(target_uri, json: body)
+      break if res && res.status && res.status.success?
       sleep RETRY_DELAY
     end
 
+    # Process response
     if res && res.status && res.status.success?
-      begin
-        # Parse response only once in the success branch
-        parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
-      end
+      parsed_response = JSON.parse(res.body)
+      return parsed_response.dig("choices", 0, "message", "content")
     else
-      error_response = nil
-      begin
-        # Attempt to parse error response body only once
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
-      end
-      pp error_response
-      return "ERROR: #{error_response["error"]}"
+      error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
+      return "ERROR: #{error_response.dig("error", "message") || error_response["error"]}"
     end
   rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+    return "Error: #{e.message}"
   end
 
   # Connect to OpenAI API and get a response

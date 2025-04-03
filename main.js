@@ -1,7 +1,6 @@
 // process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
-const crypto = require('crypto');
 
 app.disableHardwareAcceleration();
 
@@ -36,205 +35,6 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const net = require('net');
-
-// Container version tracking system
-
-/**
- * Get the path to container versions configuration file
- * @returns {string} Path to container_versions.json
- */
-function getContainerVersionsPath() {
-  // Store in the same config folder as other settings
-  if (os.platform() === 'win32') {
-    try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/config/container_versions.json`;
-      return execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
-    } catch (error) {
-      console.error('Error getting WSL path:', error);
-      return null;
-    }
-  } else {
-    return path.join(os.homedir(), 'monadic', 'config', 'container_versions.json');
-  }
-}
-
-/**
- * Calculate MD5 hash of a Dockerfile
- * @param {string} dockerfilePath - Relative path to Dockerfile
- * @returns {string|null} MD5 hash of the file or null if file not found
- */
-function calculateDockerfileHash(dockerfilePath) {
-  try {
-    const fullPath = path.isPackaged 
-      ? path.join(process.resourcesPath, dockerfilePath.replace('app.asar', 'app')) 
-      : path.join(__dirname, dockerfilePath);
-      
-    if (fs.existsSync(fullPath)) {
-      const fileContent = fs.readFileSync(fullPath);
-      return crypto.createHash('md5').update(fileContent).digest('hex');
-    }
-  } catch (error) {
-    console.error(`Error calculating hash for ${dockerfilePath}:`, error);
-  }
-  return null;
-}
-
-/**
- * Get current hashes for all container Dockerfiles
- * @returns {Object} Object with container names as keys and hashes as values
- */
-function getCurrentDockerfileHashes() {
-  return {
-    ruby: calculateDockerfileHash('docker/services/ruby/Dockerfile'),
-    python: calculateDockerfileHash('docker/services/python/Dockerfile'),
-    selenium: calculateDockerfileHash('docker/services/selenium/Dockerfile'),
-    pgvector: calculateDockerfileHash('docker/services/pgvector/Dockerfile')
-  };
-}
-
-/**
- * Container version tracking object
- */
-const containerVersions = {
-  currentVersion: app.getVersion(),
-  dockerfileHashes: getCurrentDockerfileHashes(),
-  lastUpdated: new Date().toISOString()
-};
-
-/**
- * Save container version information to config file
- * @returns {boolean} True if successful, false otherwise
- */
-function saveContainerVersions() {
-  const versionsPath = getContainerVersionsPath();
-  if (!versionsPath) return false;
-  
-  try {
-    // Create config directory if it doesn't exist
-    const configDir = path.dirname(versionsPath);
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-    
-    fs.writeFileSync(versionsPath, JSON.stringify(containerVersions, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error saving container versions:', error);
-    return false;
-  }
-}
-
-/**
- * Load container version information from config file
- * @returns {Object|null} Container version object or null if not found
- */
-function loadContainerVersions() {
-  const versionsPath = getContainerVersionsPath();
-  if (!versionsPath) return null;
-  
-  try {
-    if (fs.existsSync(versionsPath)) {
-      const data = fs.readFileSync(versionsPath, 'utf8');
-      return JSON.parse(data);
-    } else {
-      console.log('Container versions file not found, defaulting to full build');
-      return null;
-    }
-  } catch (error) {
-    console.error('Error loading container versions:', error);
-    console.log('Defaulting to full build due to error');
-    return null;
-  }
-}
-
-/**
- * Determine which containers need to be rebuilt
- * @returns {string|boolean} 'all' for full rebuild, 'ruby' for only Ruby, or false if no rebuild needed
- */
-function determineContainersToBuild() {
-  // Load saved container information
-  const storedVersions = loadContainerVersions();
-  
-  // If no stored information exists, perform full build (first installation)
-  if (!storedVersions) {
-    console.log('No stored version information, performing full build');
-    return 'all';
-  }
-  
-  // If upgrading from older version
-  if (compareVersions(storedVersions.currentVersion, containerVersions.currentVersion) < 0) {
-    console.log(`Version upgrade detected: ${storedVersions.currentVersion} -> ${containerVersions.currentVersion}`);
-    
-    // Calculate current hashes
-    const currentHashes = getCurrentDockerfileHashes();
-    
-    // If no hash information in stored version, perform full build
-    if (!storedVersions.dockerfileHashes) {
-      // Update container information (before build)
-      containerVersions.currentVersion = app.getVersion();
-      containerVersions.dockerfileHashes = currentHashes;
-      containerVersions.lastUpdated = new Date().toISOString();
-      return 'all';
-    }
-    
-    // Check if any container other than Ruby has changed Dockerfile
-    let nonRubyChanged = false;
-    
-    Object.keys(currentHashes).forEach(container => {
-      if (container !== 'ruby' && 
-          storedVersions.dockerfileHashes[container] !== currentHashes[container]) {
-        console.log(`Container ${container} has changed Dockerfile, will rebuild all`);
-        nonRubyChanged = true;
-      }
-    });
-    
-    // Update container information (before build)
-    containerVersions.currentVersion = app.getVersion();
-    containerVersions.dockerfileHashes = currentHashes;
-    containerVersions.lastUpdated = new Date().toISOString();
-    
-    // If any non-ruby container has changed, rebuild all; otherwise only rebuild Ruby
-    if (nonRubyChanged) {
-      return 'all';
-    } else {
-      console.log('Only Ruby container needs to be rebuilt');
-      return 'ruby';
-    }
-  }
-  
-  // For restarts within the same version, check if containers exist before rebuilding
-  try {
-    // Use synchronous command to check if containers exist
-    const containerCheck = execSync('docker ps -a').toString();
-    
-    // Check if Ruby container exists
-    if (containerCheck.includes('monadic-chat-ruby-container')) {
-      console.log('All required containers exist, no rebuild needed');
-      return false; // No rebuild needed if containers exist
-    } else {
-      console.log('Containers missing, needs rebuild');
-      return 'all'; // Full rebuild needed if containers are missing
-    }
-  } catch (error) {
-    console.error('Error checking container existence:', error);
-    return false; // If we can't check, assume no rebuild needed
-  }
-}
-
-/**
- * Update container version information after successful build
- */
-function updateContainerVersionsAfterBuild() {
-  // Update hashes based on current files
-  containerVersions.dockerfileHashes = getCurrentDockerfileHashes();
-  containerVersions.currentVersion = app.getVersion();
-  containerVersions.lastUpdated = new Date().toISOString();
-  
-  // Save to config file
-  saveContainerVersions();
-  console.log('Container version information updated after successful build');
-}
 
 let tray = null;
 let justLaunched = true;
@@ -367,7 +167,7 @@ class DockerManager {
     });
   }
 
-  async runCommand(command, message, statusWhileCommand, statusAfterCommand, options = "") {
+  async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
     if (command === 'start') {
       const apiKeySet = checkAndUpdateEnvFile();
       if (!apiKeySet) {
@@ -386,8 +186,8 @@ class DockerManager {
         // Update the status indicator in the main window
         updateStatusIndicator(statusWhileCommand);
 
-        // Construct the command to execute with options
-        const cmd = options ? `${monadicScriptPath} ${command} "${options}"` : `${monadicScriptPath} ${command}`;
+        // Construct the command to execute
+        const cmd = `${monadicScriptPath} ${command}`;
 
         // Update the current status and context menu
         currentStatus = statusWhileCommand;
@@ -619,9 +419,6 @@ async function quitApp() {
 }
 
 function cleanupAndQuit() {
-  // Save current container version information before exiting
-  saveContainerVersions();
-
   writeToScreen('[HTML]: <p>Quitting Monadic Chat . . .</p>');
   setTimeout(() => {
     if (tray) {
@@ -671,50 +468,7 @@ const menuItems = [
       openMainWindow();
       dockerManager.checkRequirements()
         .then(() => {
-          // Determine if a rebuild is needed
-          const needsRebuild = determineContainersToBuild();
-          
-          if (needsRebuild === 'all') {
-            // Full rebuild needed
-            writeToScreen('[HTML]: <p>Running full rebuild for all containers...</p>');
-            dockerManager.runCommand('build', '[HTML]: <p>Building all containers...</p>', 'Building', 'Stopped')
-              .then(() => {
-                // After successful build, update container information
-                updateContainerVersionsAfterBuild();
-                // Then start containers
-                return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-              });
-          } else if (needsRebuild === 'ruby') {
-            // Only Ruby container needs to be rebuilt
-            writeToScreen('[HTML]: <p>Rebuilding Ruby container...</p>');
-            dockerManager.runCommand('build_ruby_container', '[HTML]: <p>Building Ruby container...</p>', 'Building', 'Stopped')
-              .then(() => {
-                // After successful build, update container information
-                updateContainerVersionsAfterBuild();
-                // Then start containers
-                return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-              });
-          } else {
-            // No rebuilds needed, check if containers are already running
-            try {
-              const runningCheck = execSync('docker ps').toString();
-              if (runningCheck.includes('monadic-chat-ruby-container')) {
-                // Containers are already running - update UI, display containers and open browser
-                writeToScreen('[HTML]: <p>Monadic Chat is already running</p>');
-                updateStatusIndicator('Running');
-                currentStatus = 'Running';
-                updateContextMenu(false);
-                displayRunningContainers();
-                openBrowser('http://localhost:4567');
-              } else {
-                // Containers exist but not running - start them
-                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-              }
-            } catch (error) {
-              // Fallback to normal start if check fails
-              dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-            }
-          }
+          dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
         })
         .catch((error) => {
           dialog.showErrorBox('Error', error);
@@ -811,21 +565,6 @@ let updateMessage = '';
 
 function initializeApp() {
   app.whenReady().then(async () => {
-    // Initialize container_versions.json if it doesn't exist
-    const versionsPath = getContainerVersionsPath();
-    if (versionsPath && !fs.existsSync(versionsPath)) {
-      // If file doesn't exist, initialize container version info with defaults
-      containerVersions.dockerfileHashes = getCurrentDockerfileHashes();
-      containerVersions.currentVersion = app.getVersion();
-      containerVersions.lastUpdated = new Date().toISOString();
-      saveContainerVersions();
-      console.log('Created initial container_versions.json file');
-    }
-    
-    // Calculate current Dockerfile hashes
-    containerVersions.dockerfileHashes = getCurrentDockerfileHashes();
-    containerVersions.currentVersion = app.getVersion();
-    
     // Check internet connection
     try {
       const response = await fetch('https://api.github.com', { timeout: 5000 });
@@ -890,50 +629,7 @@ function initializeApp() {
       try {
         switch (command) {
           case 'start':
-            // Determine if a rebuild is needed
-            const needsRebuild = determineContainersToBuild();
-            
-            if (needsRebuild === 'all') {
-              // Full rebuild needed
-              writeToScreen('[HTML]: <p>Running full rebuild for all containers...</p>');
-              dockerManager.runCommand('build', '[HTML]: <p>Building all containers...</p>', 'Building', 'Stopped')
-                .then(() => {
-                  // After successful build, update container information
-                  updateContainerVersionsAfterBuild();
-                  // Then start containers
-                  return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-                });
-            } else if (needsRebuild === 'ruby') {
-              // Only Ruby container needs to be rebuilt
-              writeToScreen('[HTML]: <p>Rebuilding Ruby container...</p>');
-              dockerManager.runCommand('build_ruby_container', '[HTML]: <p>Building Ruby container...</p>', 'Building', 'Stopped')
-                .then(() => {
-                  // After successful build, update container information
-                  updateContainerVersionsAfterBuild();
-                  // Then start containers
-                  return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-                });
-            } else {
-              // No rebuilds needed, check if containers are already running
-              try {
-                const runningCheck = execSync('docker ps').toString();
-                if (runningCheck.includes('monadic-chat-ruby-container')) {
-                  // Containers are already running - update UI, display containers and open browser
-                  writeToScreen('[HTML]: <p>Monadic Chat is already running</p>');
-                  updateStatusIndicator('Running');
-                  currentStatus = 'Running';
-                  updateContextMenu(false);
-                  displayRunningContainers();
-                  openBrowser('http://localhost:4567');
-                } else {
-                  // Containers exist but not running - start them
-                  dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-                }
-              } catch (error) {
-                // Fallback to normal start if check fails
-                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-              }
-            }
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
             break;
           case 'stop':
             dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
@@ -1202,50 +898,7 @@ function updateApplicationMenu() {
           label: 'Start',
           click: () => {
             openMainWindow();
-            // Determine if a rebuild is needed
-            const needsRebuild = determineContainersToBuild();
-            
-            if (needsRebuild === 'all') {
-              // Full rebuild needed
-              writeToScreen('[HTML]: <p>Running full rebuild for all containers...</p>');
-              dockerManager.runCommand('build', '[HTML]: <p>Building all containers...</p>', 'Building', 'Stopped')
-                .then(() => {
-                  // After successful build, update container information
-                  updateContainerVersionsAfterBuild();
-                  // Then start containers
-                  return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-                });
-            } else if (needsRebuild === 'ruby') {
-              // Only Ruby container needs to be rebuilt
-              writeToScreen('[HTML]: <p>Rebuilding Ruby container...</p>');
-              dockerManager.runCommand('build_ruby_container', '[HTML]: <p>Building Ruby container...</p>', 'Building', 'Stopped')
-                .then(() => {
-                  // After successful build, update container information
-                  updateContainerVersionsAfterBuild();
-                  // Then start containers
-                  return dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-                });
-            } else {
-              // No rebuilds needed, check if containers are already running
-              try {
-                const runningCheck = execSync('docker ps').toString();
-                if (runningCheck.includes('monadic-chat-ruby-container')) {
-                  // Containers are already running - update UI, display containers and open browser
-                  writeToScreen('[HTML]: <p>Monadic Chat is already running</p>');
-                  updateStatusIndicator('Running');
-                  currentStatus = 'Running';
-                  updateContextMenu(false);
-                  displayRunningContainers();
-                  openBrowser('http://localhost:4567');
-                } else {
-                  // Containers exist but not running - start them
-                  dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-                }
-              } catch (error) {
-                // Fallback to normal start if check fails
-                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing...</p>', 'Starting', 'Running');
-              }
-            }
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
           },
           enabled: currentStatus === 'Stopped'
         },
@@ -1589,30 +1242,6 @@ function openLogFolder() {
   });
 }
 
-// Display running containers in a nice HTML list
-function displayRunningContainers() {
-  try {
-    // Get list of running containers
-    const containerList = execSync('docker ps --filter "label=project=monadic-chat" --format "{{.Names}}"').toString().trim().split('\n');
-    
-    if (containerList.length > 0 && containerList[0] !== '') {
-      writeToScreen('[HTML]: <hr /><p><b>Running Containers</b></p>');
-      writeToScreen('[HTML]: <p>You can directly access the containers using the following commands:</p>');
-      
-      let listHtml = '<ul>';
-      containerList.forEach(container => {
-        listHtml += `<li><i class='fa-solid fa-copy'></i> <code class='command'>docker exec -it ${container} bash</code></li>`;
-      });
-      listHtml += '</ul>';
-      
-      writeToScreen(`[HTML]: ${listHtml}<hr />`);
-    }
-  } catch (error) {
-    console.error('Error displaying containers:', error);
-    // Continue silently on error
-  }
-}
-
 function openBrowser(url, outside = false) {
   const openCommands = {
     win32: ['cmd', ['/c', 'start', url]],
@@ -1745,6 +1374,13 @@ function checkAndUpdateEnvFile() {
         envConfig.STT_MODEL = 'gpt-4o-transcribe';
     }
 
+    if (!envConfig.AI_USER_MODEL) {
+        envConfig.AI_USER_MODEL = 'gpt-4o';
+    }
+
+    if (!envConfig.AI_USER_MAX_TOKENS) {
+        envConfig.AI_USER_MAX_TOKENS = '2000';
+    }
 
     if (!envConfig.EMBEDDING_MODEL) {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';

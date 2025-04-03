@@ -781,6 +781,11 @@ function connect_websocket(callback) {
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
           $("#start").prop("disabled", false);
           $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+          
+          // Update the available AI User providers when token is verified
+          if (typeof updateAvailableProviders === 'function') {
+            updateAvailableProviders();
+          }
         }
 
         break;
@@ -926,6 +931,11 @@ function connect_websocket(callback) {
           if ($("#apps").val() === "PDF") {
             ws.send(JSON.stringify({ message: "PDF_TITLES" }));
           }
+          
+          // Update the AI User provider dropdown (except Perplexity)
+          if (typeof updateAvailableProviders === 'function') {
+            updateAvailableProviders();
+          }
         }
         originalParams = apps["Chat"];
         resetParams();
@@ -943,6 +953,8 @@ function connect_websocket(callback) {
           ai_user_provider: data["content"]["ai_user_provider"],
           ai_user_model: data["content"]["ai_user_model"]
         });
+        
+        // All providers now support AI User functionality
         
         const currentApp = apps[$("#apps").val()] || apps[defaultApp];
 
@@ -972,7 +984,8 @@ function connect_websocket(callback) {
 
         $("#model").val(model);
 
-        $("#base-app-title").text(currentApp["app_name"]);
+        // Use display_name if available, otherwise fall back to app_name
+        $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
         $("#base-app-icon").html(currentApp["icon"]);
 
         if (currentApp["monadic"]) {
@@ -1211,6 +1224,15 @@ function connect_websocket(callback) {
         }
         break;
       }
+      case "ai_user_started": {
+        // Keep just the alert message
+        console.log("AI User started");
+        setAlert("<i class='fas fa-spinner fa-spin'></i> Generating AI user response...", "warning");
+        
+        // Show the cancel button just in case it's needed
+        $("#cancel_query").show();
+        break;
+      }
       case "ai_user": {
         // Append AI user content to the message field
         $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
@@ -1219,23 +1241,22 @@ function connect_websocket(callback) {
         if (autoScroll && !isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
-        
-        // Show the cancel button while AI user is typing
-        $("#cancel_query").show();
         break;
       }
       case "ai_user_finished": {
+        console.log("AI User finished");
+        
         // Trim extra whitespace from the final message
         const trimmedContent = data["content"].trim();
         
-        // Replace entire message content with trimmed version
+        // Simply set the message content
         $("#message").val(trimmedContent);
         
-        // Reset UI state
-        $("#message").attr("placeholder", "Type your message . . .");
-        $("#message").prop("disabled", false);
+        // Hide cancel button
         $("#cancel_query").hide();
-        $("#send, #clear, #image-file, #voice").prop("disabled", false);
+
+        // Update alert message to ready state
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         // Ensure the panel is visible
         if (!isElementInViewport(mainPanel)) {

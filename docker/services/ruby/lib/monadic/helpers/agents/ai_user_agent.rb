@@ -1,0 +1,259 @@
+# frozen_string_literal: true
+
+# AI User Agent
+# Handles the generation of simulated user responses in conversations
+module AIUserAgent
+  # Process AI User request to generate a user message
+  # @param session [Hash] The session information containing message history
+  # @param params [Hash] Parameters for AI User generation
+  # @return [Hash] The result of AI User generation
+  def process_ai_user(session, params)
+    # Check for required parameters and provide fallback
+    provider = params["ai_user_provider"]
+    if provider.nil? || provider.empty?
+      provider = "openai" # Default provider fallback
+    end
+    
+    # Provider details are logged to dedicated log files
+    
+    # Get conversation history
+    max_history = 5
+    conversation_messages = session[:messages].reject { |m| m["role"] == "system" }.last(max_history)
+    
+    # Format conversation history as text
+    conversation_text = format_conversation(conversation_messages, params["monadic"])
+    
+    # Create system message with instruction
+    instruction = "Based on the conversation history above, generate the next natural response from the user."
+    system_message = "#{MonadicApp::AI_USER_INITIAL_PROMPT}\n\nConversation History:\n\n#{conversation_text}\n\n#{instruction}"
+    
+    # Find appropriate chat app for this provider
+    chat_app = find_chat_app_for_provider(provider)
+    
+    # Return error if no suitable app found
+    if !chat_app
+      return { 
+        "type" => "error", 
+        "content" => "No compatible chat app found for provider: #{provider}"
+      }
+    end
+    
+    # Get app instance and force model based on provider (ignore inherited model)
+    app_instance = chat_app[1]
+    
+    # Skip app_instance.settings["model"] to avoid inheriting main conversation model
+    # and directly use our provider-specific model
+    model = default_model_for_provider(provider)
+    
+    # Model details are logged to dedicated log files
+    
+    # Create conversation context for the API
+    context = []
+    conversation_messages.each do |m|
+      context << {
+        "role" => m["role"],
+        "content" => extract_content(m["text"], params["monadic"])
+      }
+    end
+    
+    # For Perplexity, fix messages to ensure alternating user/assistant
+    if provider == "perplexity" && !context.empty?
+      # Create a new context with properly alternating roles
+      perplexity_context = []
+      
+      # First, normalize all roles to either "user" or "assistant"
+      normalized_context = context.map do |msg|
+        role = msg["role"].downcase
+        # Map system or other roles to user
+        if role != "user" && role != "assistant"
+          role = "user" 
+        end
+        {"role" => role, "content" => msg["content"]}
+      end
+      
+      # Force alternating pattern starting with user
+      current_role = "user"
+      normalized_context.each do |msg|
+        if msg["role"] == current_role
+          perplexity_context << msg
+          # Toggle expected next role
+          current_role = (current_role == "user") ? "assistant" : "user"
+        elsif perplexity_context.empty? || perplexity_context.last["role"] != msg["role"]
+          # Only add if it doesn't create consecutive same roles
+          perplexity_context << msg
+          # Toggle expected next role
+          current_role = (current_role == "user") ? "assistant" : "user"
+        end
+        # Skip otherwise (avoid consecutive same roles)
+      end
+      
+      # Ensure we end with a user message
+      if !perplexity_context.empty? && perplexity_context.last["role"] != "user"
+        perplexity_context << {
+          "role" => "user",
+          "content" => "How would you respond to this conversation as the user? Please provide a natural response."
+        }
+      end
+      
+      # Replace the original context
+      context = perplexity_context
+    end
+    
+    # Add system message at the beginning (some APIs handle this differently)
+    # Handle system message based on provider
+    if provider == "anthropic"
+      system_option = { "system" => system_message }
+      # Don't add to context for Anthropic
+    elsif provider == "perplexity"
+      system_option = {}
+      # For Perplexity, add as first user message since they require last message to be user
+      context.unshift({ "role" => "user", "content" => "System instructions: " + system_message })
+    else
+      system_option = {}
+      # For other providers like OpenAI, use standard "system" role
+      # Note: Cohere helper will convert roles properly in its send_query method
+      context.unshift({ "role" => "system", "content" => system_message })
+    end
+    
+    # Prepare options for the API call with provider-specific settings
+    options = { 
+      "messages" => context,
+      "temperature" => 0.7,  # Slightly higher temperature for more natural responses
+      "ai_user_system_message" => system_message,
+      "model" => model  # Explicitly include model in options
+    }.merge(system_option)
+    
+    # Call the API
+    begin
+      # Send query to get AI user response with explicit model parameter
+      result = app_instance.send_query(options, model: model)
+      
+      # Check for provider-specific error patterns
+      if result.is_a?(String) && (result.start_with?("ERROR:") || result.start_with?("Error:"))
+        return {
+          "type" => "error",
+          "content" => result
+        }
+      end
+      
+      # Process result
+      if result.is_a?(String) && !result.empty?
+        # Success
+        return {
+          "type" => "ai_user",
+          "content" => result.strip,
+          "finished" => true
+        }
+      else
+        # Error or empty response
+        return {
+          "type" => "error",
+          "content" => "Failed to generate AI User response"
+        }
+      end
+    rescue => e
+      # Exception with detailed error message
+      return {
+        "type" => "error",
+        "content" => "AI User error with provider #{provider}, model #{model}: #{e.message}"
+      }
+    end
+  end
+  
+  private
+  
+  # Format conversation history as text
+  # @param messages [Array] The messages to format
+  # @param monadic [Boolean] Whether monadic mode is enabled
+  # @return [String] Formatted conversation text
+  def format_conversation(messages, monadic)
+    text = ""
+    messages.each do |m|
+      role = m["role"] == "user" ? "User" : "Assistant"
+      content = extract_content(m["text"], monadic)
+      text = text.dup << "#{role}: #{content}\n\n"
+    end
+    text
+  end
+  
+  # Extract content from message, handling monadic mode
+  # @param text [String] The message text
+  # @param monadic [Boolean] Whether monadic mode is enabled
+  # @return [String] The extracted content
+  def extract_content(text, monadic)
+    return text unless monadic
+
+    begin
+      parsed = JSON.parse(text)
+      parsed["message"] || parsed["response"] || text
+    rescue JSON::ParserError
+      text
+    end
+  end
+  
+  # Find a Chat app that matches the provider
+  # @param provider [String] Provider name
+  # @return [Array, nil] [key, app_instance] or nil if not found
+  def find_chat_app_for_provider(provider)
+    return nil unless provider
+    return nil unless defined?(APPS)
+    
+    # Provider name mapping
+    provider_keywords = case provider
+      when "openai" then ["openai"]
+      when "anthropic" then ["anthropic", "claude"]
+      when "cohere" then ["cohere"]
+      when "gemini" then ["gemini", "google"]
+      when "mistral" then ["mistral"]
+      when "grok" then ["grok", "xai"]
+      when "perplexity" then ["perplexity"]
+      when "deepseek" then ["deepseek"]
+      else [provider]
+    end
+    
+    # Find matching app
+    APPS.each do |key, app|
+      next unless app.respond_to?(:settings) && app.settings["group"]
+      
+      app_group = app.settings["group"].downcase.strip
+      app_name = app.settings["display_name"]
+      
+      if provider_keywords.any? { |keyword| app_group.include?(keyword) } && 
+         app_name == "Chat"
+        return [key, app]
+      end
+    end
+    
+    nil
+  end
+  
+  # Get default model for provider
+  # @param provider [String] Provider name
+  # @return [String] Default model name
+  def default_model_for_provider(provider)
+    # Provider details are logged to dedicated log files
+    provider_downcase = provider.to_s.downcase
+    
+    # Simple conditional logic for reliable detection
+    if provider_downcase.include?("anthropic") || provider_downcase.include?("claude")
+      return "claude-3-5-sonnet-20241022"
+    elsif provider_downcase.include?("openai") || provider_downcase.include?("gpt")
+      return "gpt-4o"
+    elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
+      return "command-r-plus"
+    elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
+      return "mini-2.0-flash"
+    elsif provider_downcase.include?("mistral")
+      return "mistral-large-latest"
+    elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")
+      return "grok-2"
+    elsif provider_downcase.include?("perplexity")
+      return "sonar"
+    elsif provider_downcase.include?("deepseek")
+      return "deepseek-chat"
+    else
+      # Fallback to default model - details logged to dedicated log files
+      return "gpt-4o"
+    end
+  end
+end

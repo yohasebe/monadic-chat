@@ -113,74 +113,97 @@ module DeepSeekHelper
     end
   end
 
-  # No streaming plain text completion/chat call
+  # Simple non-streaming chat completion
   def send_query(options, model: "deepseek-chat")
+    # Get API key
     api_key = CONFIG["DEEPSEEK_API_KEY"] || ENV["DEEPSEEK_API_KEY"]
-
+    return "Error: DEEPSEEK_API_KEY not found" if api_key.nil?
+    
+    # Set headers
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
-
-    # For AI User functionality, only use model and messages - keep it simple
+    
+    # Use the model provided directly - trust default_model_for_provider in AI User Agent
+    # Log the model being used
+    # Model details are logged to dedicated log files
+    
+    # Format messages
+    messages = []
+    
+    if options["messages"]
+      # Look for system message
+      system_msg = options["messages"].find { |m| m["role"] == "system" }
+      if system_msg
+        messages << {
+          "role" => "system",
+          "content" => system_msg["content"].to_s
+        }
+      end
+      
+      # Process conversation messages
+      options["messages"].each do |msg|
+        next if msg["role"] == "system" # Skip system (already handled)
+        
+        content = msg["content"] || msg["text"] || ""
+        messages << {
+          "role" => msg["role"],
+          "content" => content.to_s
+        }
+      end
+    end
+    
+    # Prepare request body
     body = {
       "model" => model,
       "stream" => false,
-      "messages" => []
+      "max_tokens" => options["max_tokens"] || 1000,
+      "temperature" => options["temperature"] || 0.7,
+      "messages" => messages
     }
     
-    # Only add the messages parameter
-    if options["messages"]
-      body["messages"] = options["messages"]
-    end
-    
+    # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
-
-    res = nil
-    MAX_RETRIES.times do |i|
+    
+    # Simple retry logic
+    response = nil
+    MAX_RETRIES.times do
       begin
-        res = http.timeout(
+        response = http.timeout(
           connect: OPEN_TIMEOUT,
           write: WRITE_TIMEOUT,
           read: READ_TIMEOUT
         ).post(target_uri, json: body)
-
-        # Check that res exists and has a successful status.
-        break if res && res.status && res.status.success?
-
-        sleep RETRY_DELAY * (i + 1)  # Exponential backoff
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        next unless i == MAX_RETRIES - 1
-
-        pp error_message = "Network error: #{e.message}"
-          res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
-          block&.call(res)
-        return [res]
+        
+        break if response && response.status && response.status.success?
+      rescue HTTP::Error, HTTP::TimeoutError
+        # Continue to next retry
       end
+      
+      sleep RETRY_DELAY
     end
-
-    if res && res.status && res.status.success?
+    
+    # Process response
+    if response && response.status && response.status.success?
       begin
-        # Parse response only once in the success branch.
-        parsed_response = JSON.parse(res.body)
-        return parsed_response.dig("choices", 0, "message", "content")
-      rescue JSON::ParserError => e
-        return "ERROR: Failed to parse response JSON: #{e.message}"
+        parsed_response = JSON.parse(response.body)
+        return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+      rescue => e
+        return "Error: #{e.message}"
       end
     else
-      error_response = nil
       begin
-        # Parse error response body only once.
-        error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      rescue JSON::ParserError => e
-        error_response = { "error" => "Failed to parse error response JSON: #{e.message}" }
+        error_data = response && response.body ? JSON.parse(response.body) : {}
+        error_message = error_data["error"] || "Unknown error"
+        return "Error: #{error_message}"
+      rescue => e
+        return "Error: Failed to parse error response"
       end
-      pp error_response
-      return "ERROR: #{error_response["error"]}"
     end
-  rescue StandardError => e
-    return "Error: The request could not be completed. (#{e.message})"
+  rescue => e
+    return "Error: #{e.message}"
   end
 
   def api_request(role, session, call_depth: 0, &block)

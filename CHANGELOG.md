@@ -1,13 +1,5 @@
 - [April, 2025] 0.9.79
-  - Fixed Docker container detection issue that caused unnecessary rebuilds
-  - Improved 'Rebuild All' to start containers after building, preventing redundant rebuilds
-  - Fixed container filtering for consistent detection between commands
-  - Fixed AI User feature to show only providers with valid API tokens
-  - Fixed AI User feature for Mistral and Perplexity providers
-  - Improved AI User system prompt to prevent repetitive responses
-  - Enhanced AI User message handling to ensure correct role formats
-  - Fixed handling of response formats in Gemini AI User
-
+  - AI User feature significantly improved
 - [March, 2025] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0

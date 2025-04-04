@@ -321,8 +321,95 @@ build_docker_compose() {
 
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
 
+  # Save container version information after building
+  save_container_versions "silent"
+
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
+}
+
+# Function to calculate hash for Dockerfile
+calculate_docker_hash() {
+  local dockerfile_path="$1"
+  # Handle both packaged app and development paths
+  local alt_path="$(echo "$dockerfile_path" | sed 's/app\.asar/app/')"
+  
+  if [ -f "$dockerfile_path" ]; then
+    shasum -a 256 "$dockerfile_path" | awk '{print $1}'
+  elif [ -f "$alt_path" ]; then
+    shasum -a 256 "$alt_path" | awk '{print $1}'
+  else
+    echo "file_not_found"
+  fi
+}
+
+# Function to save container versions to JSON file in user's config directory
+save_container_versions() {
+  local config_dir="${HOME_DIR}/monadic/config"
+  mkdir -p "$config_dir"
+  
+  local json_file="${config_dir}/container_versions.json"
+  
+  # Calculate hash for Python container Dockerfile
+  local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
+  local python_hash=$(calculate_docker_hash "$python_dockerfile")
+  
+  # Calculate hash for Selenium container Dockerfile
+  local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
+  local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
+  
+  # Calculate hash for PGVector container Dockerfile
+  local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
+  local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
+  
+  # Create JSON file with version information and hashes
+  cat <<EOF > "$json_file"
+{
+  "version": "${MONADIC_VERSION}",
+  "python_hash": "${python_hash}",
+  "selenium_hash": "${selenium_hash}",
+  "pgvector_hash": "${pgvector_hash}"
+}
+EOF
+  
+  if [[ "$1" != "silent" ]]; then
+    echo "[HTML]: <p>Container version information saved to config directory.</p>"
+  fi
+}
+
+# Function to check if Dockerfiles have changed since last build
+check_dockerfiles_changed() {
+  local config_dir="${HOME_DIR}/monadic/config"
+  local json_file="${config_dir}/container_versions.json"
+  
+  # If the file doesn't exist, consider everything changed
+  if [ ! -f "$json_file" ]; then
+    return 0 # true - changes detected
+  fi
+  
+  # Read stored hashes from JSON file
+  local stored_version=$(grep -o '"version": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_pgvector_hash=$(grep -o '"pgvector_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  
+  # Calculate current hashes
+  local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
+  local python_hash=$(calculate_docker_hash "$python_dockerfile")
+  
+  local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
+  local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
+  
+  local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
+  local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
+  
+  # If any hash is different, return true (changes detected)
+  if [[ "$stored_python_hash" != "$python_hash" || "$stored_selenium_hash" != "$selenium_hash" || "$stored_pgvector_hash" != "$pgvector_hash" ]]; then
+    return 0 # true - changes detected
+  fi
+  
+  # If we get here, no changes detected
+  return 1 # false - no changes detected
 }
 
 # Function to start Docker Compose
@@ -356,6 +443,7 @@ start_docker_compose() {
 
   # Check for all required containers and services
   local needs_full_rebuild=false
+  local needs_ruby_rebuild=false
   local needs_user_containers=false
   
   # Define the list of required containers - these names must match container_name in compose.yml files
@@ -368,16 +456,22 @@ start_docker_compose() {
     echo "[HTML]: <p>Building all Monadic Chat containers. This may take a while...</p>"
     needs_full_rebuild=true
   elif [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
-    remove_containers
-    echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Building containers...</p>"
-    ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
-    needs_full_rebuild=true
+    # When we have a version update, check if Dockerfiles for Python, Selenium, PGVector have changed
+    if check_dockerfiles_changed; then
+      remove_containers
+      echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}) with Dockerfile changes. Full rebuild required.</p>"
+      ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
+      needs_full_rebuild=true
+    else
+      echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Only rebuilding Ruby container.</p>"
+      needs_ruby_rebuild=true
+    fi
   elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>Checking container integrity...</p>"
   fi
   
   # If we haven't decided on a full rebuild, check individual containers
-  if [ "$needs_full_rebuild" = false ]; then
+  if [ "$needs_full_rebuild" = false ] && [ "$needs_ruby_rebuild" = false ]; then
     for container in "${required_containers[@]}"; do
       # Use more reliable method to check for container existence
       if ! ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^${container}$"; then
@@ -420,11 +514,17 @@ start_docker_compose() {
     fi
   fi
   
-  # Build all containers if needed
+  # Build containers based on what we need
   if [ "$needs_full_rebuild" = true ]; then
     build_docker_compose "no-cache"
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
+    fi
+  elif [ "$needs_ruby_rebuild" = true ]; then
+    # Only rebuild Ruby container
+    build_ruby_container
+    if [[ "$1" != "silent" ]]; then
+      echo "[HTML]: <p>Starting containers with updated Ruby container...</p>"
     fi
   elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>All containers are available. Moving on...</p>"

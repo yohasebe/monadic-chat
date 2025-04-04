@@ -31,3 +31,15 @@ This container is used to store text embedding vector data on PostgreSQL for usi
 Apps that use this container include: `PDF Navigator`
 
 You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
+
+## Container Rebuilding Process
+
+When the application is updated, Monadic Chat intelligently determines which containers need to be rebuilt:
+
+1. For new installations, all containers are built from scratch
+2. On version updates:
+   - The system checks if Dockerfiles for Python, Selenium, and PGVector containers have changed
+   - If changes are detected, a full rebuild of all containers is performed
+   - If no changes are detected, only the Ruby container is rebuilt
+
+This optimized rebuilding process saves time during updates when only Ruby code has changed, which is the most common update scenario.

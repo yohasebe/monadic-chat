@@ -38,7 +38,7 @@ rescue LoadError
       when /openai|gpt/
         "gpt-4o"
       when /gemini|google/
-        "gemini-1.5-flash"
+        "gemini-2.0-flash"
       else
         "gpt-4o"
       end
@@ -375,7 +375,7 @@ RSpec.describe AIUserAgent do
     it "returns fallback model if ENV not available" do
       # gemini is not in ENV so should return default value
       result = test_instance.send(:default_model_for_provider, "gemini")
-      expect(result).to eq("gemini-1.5-flash")
+      expect(result).to eq("gemini-2.0-flash")
     end
     
     it "handles case variations" do

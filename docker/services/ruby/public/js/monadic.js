@@ -606,7 +606,7 @@ $(function () {
       
       // Show the spinner with robot icon animation
       $("#monadic-spinner").css("display", "block");
-      $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response...');
+      $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response');
       
       // Show a tooltip explaining the process
       $("#alert-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");

@@ -257,8 +257,7 @@ module AIUserAgent
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
       ENV["COHERE_DEFAULT_MODEL"] || "command-r-plus"
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
-      # Temporarily using 1.5 model for AI User until 2.0 response issues are properly fixed
-      ENV["GEMINI_DEFAULT_MODEL"] || "gemini-1.5-flash"
+      ENV["GEMINI_DEFAULT_MODEL"] || "gemini-2.0-flash"
     elsif provider_downcase.include?("mistral")
       ENV["MISTRAL_DEFAULT_MODEL"] || "mistral-large-latest"
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")

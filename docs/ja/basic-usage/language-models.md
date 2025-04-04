@@ -2,6 +2,28 @@
 
 Monadic Chatは複数のAIモデルプロバイダをサポートしています。各プロバイダは異なる機能とモデルタイプを提供しています。どのアプリがどのモデルで利用可能かの完全な概要については、基本アプリのドキュメントの[モデル対応状況](./basic-apps.md#app-availability)セクションを参照してください。
 
+## デフォルトモデルの設定
+
+各プロバイダのデフォルトモデルは、`~/monadic/config/env`ファイルに環境変数を設定することで構成できます。これらのデフォルトモデルは、アプリレシピファイル（MDSLファイル）で特定のモデルが定義されていない場合に使用されます。
+
+```
+# 各プロバイダのデフォルトモデル
+OPENAI_DEFAULT_MODEL=gpt-4o
+ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
+COHERE_DEFAULT_MODEL=command-r-plus
+GEMINI_DEFAULT_MODEL=gemini-2.0-flash
+MISTRAL_DEFAULT_MODEL=mistral-large-latest
+GROK_DEFAULT_MODEL=grok-2
+PERPLEXITY_DEFAULT_MODEL=sonar
+DEEPSEEK_DEFAULT_MODEL=deepseek-chat
+```
+
+これらの環境変数は以下の場合に使用されます：
+1. AI User機能
+2. レシピでモデルが明示的に指定されていないChatアプリ
+
+アプリレシピファイルでモデルが明示的に指定されている場合、その指定されたモデルが環境変数の設定よりも優先されます。
+
 ## OpenAI Models
 
 Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのためOpenAIのAPIキーを設定することをお勧めします。ただし、チャットで使いたいモデルがOpenAIのモデルでない場合、必ずしもOpenAIのAPIキーを設定する必要はありません。

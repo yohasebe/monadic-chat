@@ -77,7 +77,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
         </div>
         `}
     </div>
-    <div class="card-body ${className} pb-1">
+    <div class="card-body ${className}">
     <div class="card-text">${replaced_html}${image_data}</div>
     </div>
     </div>

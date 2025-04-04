@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module GeminiHelper
-  MAX_FUNC_CALLS = 8
+  MAX_FUNC_CALLS = 12
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
   OPEN_TIMEOUT = 10
-  READ_TIMEOUT = 90
-  WRITE_TIMEOUT = 90
+  READ_TIMEOUT = 120
+  WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   SAFETY_SETTINGS = [

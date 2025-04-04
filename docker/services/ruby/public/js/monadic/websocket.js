@@ -625,7 +625,7 @@ function connect_websocket(callback) {
         setAlert(data["content"], "warning");
         
         // Update spinner message for function calls
-        $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Processing request...');
+        $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request...');
         break;
       }
 
@@ -717,6 +717,8 @@ function connect_websocket(callback) {
       }
 
       case "error": {
+        // Check if error during AI User generation (message starts with AI User error)
+        const isAIUserError = data.content && data.content.toString().includes("AI User error");
         
         // Use the handler if available, otherwise use inline code
         let handled = false;
@@ -724,7 +726,7 @@ function connect_websocket(callback) {
           handled = wsHandlers.handleErrorMessage(data);
         } else {
           // Fallback to inline handling
-          $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+          $("#send, #clear, #image-file, #voice, #doc, #url, #ai_user").prop("disabled", false);
           $("#message").show();
           $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
@@ -743,14 +745,20 @@ function connect_websocket(callback) {
           $("#user-panel").show();
           $("#cancel_query").hide();
   
-          // Remove user message that caused error (if it exists)
-          const lastCard = $("#discourse .card").last();
-          if (lastCard.find(".user-color").length !== 0) {
-            deleteMessage(lastCard.attr('id'));
+          // For AI User errors, don't delete messages but re-enable the AI User button
+          if (isAIUserError) {
+            // Also update the AI User button state
+            updateAIUserButtonState(messages);
+          } else {
+            // For non-AI User errors, remove user message that caused error (if it exists)
+            const lastCard = $("#discourse .card").last();
+            if (lastCard.find(".user-color").length !== 0) {
+              deleteMessage(lastCard.attr('id'));
+            }
+    
+            // Restore the message content so user can edit and retry
+            $("#message").val(params["message"]);
           }
-  
-          // Restore the message content so user can edit and retry
-          $("#message").val(params["message"]);
           
           // Reset response tracking flags to ensure clean state
           responseStarted = false;
@@ -945,14 +953,6 @@ function connect_websocket(callback) {
         loadedApp = data["content"]["app_name"];
         setAlert("<i class='fa-solid fa-hourglass-half'></i> Please wait . . .", "warning");
         loadParams(data["content"], "loadParams");
-        
-        // Debug logging for AI User settings as they are received from server
-        console.log("DEBUG: Parameters loaded from server:", {
-          ai_user: data["content"]["ai_user"],
-          ai_user_initial_prompt: data["content"]["ai_user_initial_prompt"] ? "present" : "missing",
-          ai_user_provider: data["content"]["ai_user_provider"],
-          ai_user_model: data["content"]["ai_user_model"]
-        });
         
         // All providers now support AI User functionality
         
@@ -1253,12 +1253,26 @@ function connect_websocket(callback) {
         break;
       }
       case "ai_user_started": {
-        // Keep just the alert message
-        console.log("AI User started");
         setAlert("<i class='fas fa-spinner fa-spin'></i> Generating AI user response...", "warning");
         
-        // Show the cancel button just in case it's needed
-        $("#cancel_query").show();
+        // Show the cancel button
+        $("#cancel_query").css("display", "block");
+        
+        // Show spinner and update its message with robot animation
+        $("#monadic-spinner").css("display", "block");
+        $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response...');
+        
+        // Disable the input elements
+        $("#message").prop("disabled", true);
+        $("#send").prop("disabled", true);
+        $("#clear").prop("disabled", true);
+        $("#image-file").prop("disabled", true);
+        $("#voice").prop("disabled", true);
+        $("#doc").prop("disabled", true);
+        $("#url").prop("disabled", true);
+        $("#ai_user").prop("disabled", true);
+        $("#select-role").prop("disabled", true);
+        
         break;
       }
       case "ai_user": {
@@ -1277,14 +1291,26 @@ function connect_websocket(callback) {
         // Trim extra whitespace from the final message
         const trimmedContent = data["content"].trim();
         
-        // Simply set the message content
+        // Set the message content
         $("#message").val(trimmedContent);
         
-        // Hide cancel button
+        // Hide cancel button and spinner
         $("#cancel_query").hide();
+        $("#monadic-spinner").css("display", "none");
 
-        // Update alert message to ready state
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+        // Re-enable all input elements individually
+        $("#message").prop("disabled", false);
+        $("#send").prop("disabled", false);
+        $("#clear").prop("disabled", false);
+        $("#image-file").prop("disabled", false);
+        $("#voice").prop("disabled", false);
+        $("#doc").prop("disabled", false);
+        $("#url").prop("disabled", false);
+        $("#ai_user").prop("disabled", false);
+        $("#select-role").prop("disabled", false);
+
+        // Update alert message to success state
+        setAlert("<i class='fa-solid fa-circle-check'></i> AI user response generated", "success");
 
         // Ensure the panel is visible
         if (!isElementInViewport(mainPanel)) {
@@ -1456,10 +1482,10 @@ function connect_websocket(callback) {
         $("#message").prop("disabled", true);
         $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
         $("#select-role").prop("disabled", true);
-        $("#cancel_query").show();
+        $("#cancel_query").css("display", "block");
         
-        // Show informative spinner message
-        $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Processing request');
+        // Show informative spinner message with brain animation icon
+        $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request...');
         break;
       }
 
@@ -1474,15 +1500,29 @@ function connect_websocket(callback) {
           // Don't clear the message so users can edit and resubmit
           $("#message").attr("placeholder", "Type your message...");
           $("#message").prop("disabled", false);
-          // Re-enable all the UI elements that were disabled
-          $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+          
+          // Re-enable all the UI elements individually
+          $("#send").prop("disabled", false);
+          $("#clear").prop("disabled", false);
+          $("#image-file").prop("disabled", false);
+          $("#voice").prop("disabled", false);
+          $("#doc").prop("disabled", false);
+          $("#url").prop("disabled", false);
+          $("#ai_user").prop("disabled", false);
           $("#select-role").prop("disabled", false);
+          
           $("#alert-message").html("Input a message.");
           $("#cancel_query").hide();
           
           // Show message input and hide spinner
           $("#message").show();
-          $("#monadic-spinner").hide();
+          $("#monadic-spinner").css("display", "none");
+          
+          // Update AI User button state
+          updateAIUserButtonState(messages);
+          
+          // Show canceled message
+          setAlert("<i class='fa-solid fa-ban' style='color: #ffc107;'></i> Operation canceled", "warning");
           
           setInputFocus();
         }
@@ -1497,7 +1537,7 @@ function connect_websocket(callback) {
           callingFunction = false;
           responseStarted = true;
           // Update spinner message for streaming
-          $("#monadic-spinner span").html('<i class="fas fa-circle-notch fa-spin"></i> Receiving response...');
+          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Receiving response...');
           // remove the leading new line characters from content
           content = content.replace(/^\n+/, "");
         }

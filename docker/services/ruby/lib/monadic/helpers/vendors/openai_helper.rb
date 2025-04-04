@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 module OpenAIHelper
-  MAX_FUNC_CALLS = 8
+  MAX_FUNC_CALLS = 12
   API_ENDPOINT = "https://api.openai.com/v1"
 
   OPEN_TIMEOUT = 20
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  READ_TIMEOUT = 120
+  WRITE_TIMEOUT = 120
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

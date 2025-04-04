@@ -497,7 +497,7 @@ function attachEventListeners($card) {
       } else {
         // For assistant and system messages, we'll show a loading indicator
         // while we wait for the server to process the markdown and send back the HTML
-        $cardText.html("<div class='text-center'><i class='fas fa-circle-notch fa-spin'></i> Processing...</div>");
+        $cardText.html("<div class='text-center'><i class='fas fa-brain fa-pulse'></i> Processing...</div>");
       }
       
       // Clean up the data attribute

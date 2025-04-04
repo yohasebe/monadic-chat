@@ -23,7 +23,7 @@ app "ChatOpenAI" do
     auto_speech false
     image true
     pdf false
-    websearch true
+    websearch false
     group "OpenAI"
   end
 end

@@ -593,6 +593,21 @@ $(function () {
       const alertMessage = `<i class='fas fa-spinner fa-spin'></i> Analyzing conversation`;
       setAlert(alertMessage, "warning");
       
+      // Disable UI elements manually here to ensure they're disabled even if websocket events fail
+      $("#message").prop("disabled", true);
+      $("#send").prop("disabled", true);
+      $("#clear").prop("disabled", true);
+      $("#image-file").prop("disabled", true);
+      $("#voice").prop("disabled", true);
+      $("#doc").prop("disabled", true);
+      $("#url").prop("disabled", true);
+      $("#select-role").prop("disabled", true);
+      $("#cancel_query").css("display", "block");
+      
+      // Show the spinner with robot icon animation
+      $("#monadic-spinner").css("display", "block");
+      $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response...');
+      
       // Show a tooltip explaining the process
       $("#alert-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");
       
@@ -853,31 +868,12 @@ $(function () {
     
     // Always enable AI User button (error message will be shown if conversation not started)
     $("#ai_user").prop("disabled", false).attr("title", "Generate AI user response based on conversation");
-    
-    $("#model-additional-info").text("default").css("color", "#777")
 
     event.preventDefault();
     if (messages.length > 0) {
       if (this.value === lastApp) {
         return;
       }
-
-      // $("#clearConfirmation").modal("show");
-      // setTimeout(function () {
-      //   $("#clearConfirmed").focus();
-      // }, 500);
-
-      // $("#clearConfirmed").on("click", function () {
-      //   ws.send(JSON.stringify({ "message": "RESET" }));
-      //   messages = [];
-      //   $("#discourse").html("");
-      //   $("#clearConfirmation").modal("hide");
-      // });
-
-      // $("#clearNotConfirmed").on("click", function () {
-      //   $("#clearConfirmation").modal("hide");
-      // });
-
     }
     lastApp = this.value;
     Object.assign(params, apps[$(this).val()]);
@@ -1153,8 +1149,7 @@ $(function () {
   });
 
   $("#cancel_query").on("click", function () {
-    console.log("Cancel button clicked");
-    setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+    setAlert("<i class='fa-solid fa-ban' style='color: #ffc107;'></i> Operation canceled", "warning");
     ttsStop();
 
     responseStarted = false;

@@ -549,7 +549,25 @@ namespace :release do
       exit 1
     end
     
-    # No longer creating "latest" versions of assets - will update documentation instead
+    # Check for and include YML files for auto-updates
+    [
+      "latest-mac.yml", 
+      "latest-mac-arm64.yml", 
+      "latest-mac-x64.yml", 
+      "latest-win.yml", 
+      "latest-linux.yml",
+      "latest-linux-arm64.yml", 
+      "latest-linux-x64.yml"
+    ].each do |yml_file|
+      path = File.join("dist", yml_file)
+      if File.exist?(path)
+        release_assets << path
+        puts "Found YML asset for auto-update: #{path}"
+      else
+        puts "Warning: Auto-update YML file not found: #{path}"
+      end
+    end
+    
     puts "Total assets for release: #{release_assets.length}"
     
     # Note: installation.md files are now updated via the update_version task

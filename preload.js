@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Listen for docker status indicator update from the main process
   onUpdateDockerStatusIndicator: (callback) => ipcRenderer.on('docker-desktop-status-update', callback),
+  
+  // Listen for update message from the auto-updater
+  onUpdateMessage: (callback) => ipcRenderer.on('update-message', callback),
 
   // Request settings from the main process
   requestSettings: () => ipcRenderer.send('request-settings'),

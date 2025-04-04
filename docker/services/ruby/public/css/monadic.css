@@ -652,9 +652,13 @@ legend {
   margin-right: 5px;
 }
 
-/* Enhance pulse animation for brain icon */
+/* Enhance pulse animation for icons */
 #monadic-spinner i.fa-brain {
   animation-duration: 1.2s;
+}
+
+#monadic-spinner i.fa-comments {
+  animation-duration: 1.0s;
 }
 
 #monadic-spinner span {

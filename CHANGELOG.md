@@ -1,5 +1,7 @@
 - [April, 2025] 0.9.79
   - AI User feature significantly improved
+  - Optimized container rebuilding process: Only rebuilds affected containers during version updates
+  - Added container version tracking to avoid unnecessary full rebuilds
 - [March, 2025] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0

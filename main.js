@@ -1,6 +1,7 @@
 // process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 
 app.disableHardwareAcceleration();
 
@@ -308,8 +309,44 @@ function compareVersions(version1, version2) {
   return 0;
 }
 
-// Check for updates by comparing the current app version with the latest version on GitHub
+// Check for updates - can be called manually or automatically
 function checkForUpdates() {
+  // First try using electron-updater's autoUpdater
+  try {
+    autoUpdater.on('update-available', () => {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        buttons: ['Download', 'Later'],
+        message: 'Update Available',
+        detail: 'A new version is available. Would you like to download it now?',
+        icon: path.join(iconDir, 'app-icon.png')
+      }).then((result) => {
+        if (result.response === 0) {
+          autoUpdater.downloadUpdate();
+        }
+      });
+    });
+
+    autoUpdater.on('update-not-available', () => {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        buttons: ['OK'],
+        message: 'Up to Date',
+        detail: 'You are using the latest version of the app.',
+        icon: path.join(iconDir, 'app-icon.png')
+      });
+    });
+
+    autoUpdater.checkForUpdates();
+  } catch (err) {
+    // Fall back to old method if autoUpdater fails
+    console.error('Auto-update check failed, falling back to manual check:', err);
+    checkForUpdatesManual();
+  }
+}
+
+// Manual version check as a fallback
+function checkForUpdatesManual() {
   const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
   https.get(url, (res) => {
@@ -568,8 +605,49 @@ const menuItems = [
 
 let updateMessage = '';
 
+// Auto-update related functions
+function setupAutoUpdater() {
+  // Allow pre-release versions to be detected for testing
+  autoUpdater.allowPrerelease = true;
+  // Allow downgrading to lower versions during testing
+  autoUpdater.allowDowngrade = true;
+  
+  // Check for updates
+  autoUpdater.checkForUpdatesAndNotify();
+
+  // Downloading update
+  autoUpdater.on('download-progress', (progressObj) => {
+    let message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+    if (mainWindow) {
+      mainWindow.webContents.send('update-message', message);
+    }
+  });
+
+  // Update downloaded
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: 'A new version has been downloaded. Restart the application to apply the updates?',
+      buttons: ['Restart Now', 'Later']
+    }).then((buttonIndex) => {
+      if (buttonIndex.response === 0) {
+        autoUpdater.quitAndInstall(false, true);
+      }
+    });
+  });
+
+  // Error handling
+  autoUpdater.on('error', (error) => {
+    dialog.showErrorBox('Error', `An error occurred while updating: ${error.message}`);
+  });
+}
+
 function initializeApp() {
   app.whenReady().then(async () => {
+    // Setup auto-updater
+    setupAutoUpdater();
+    
     // Check internet connection
     try {
       const response = await fetch('https://api.github.com', { timeout: 5000 });

@@ -36,6 +36,11 @@ module MonadicApp
   unless defined?(TOKENIZER)
     TOKENIZER = TokenizerMock.new
   end
+  
+  # Define AI_USER_INITIAL_PROMPT if not already defined
+  unless defined?(AI_USER_INITIAL_PROMPT)
+    AI_USER_INITIAL_PROMPT = "You are generating a response from the perspective of the human user in an ongoing conversation with an AI assistant."
+  end
 end
 
 RSpec.configure do |config|

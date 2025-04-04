@@ -743,8 +743,36 @@ module MonadicDSL
       @state.settings[:provider] = value
     end
     
-    def model(value)
-      @state.settings[:model] = value
+    def model(value = nil)
+      provider_name = @state.settings[:provider].to_s.downcase
+      provider_env_var = nil
+
+      # Determine the environment variable based on provider
+      if provider_name.include?("anthropic") || provider_name.include?("claude")
+        provider_env_var = "ANTHROPIC_DEFAULT_MODEL"
+      elsif provider_name.include?("openai") || provider_name.include?("gpt")
+        provider_env_var = "OPENAI_DEFAULT_MODEL"
+      elsif provider_name.include?("cohere") || provider_name.include?("command")
+        provider_env_var = "COHERE_DEFAULT_MODEL"
+      elsif provider_name.include?("gemini") || provider_name.include?("google")
+        provider_env_var = "GEMINI_DEFAULT_MODEL"
+      elsif provider_name.include?("mistral")
+        provider_env_var = "MISTRAL_DEFAULT_MODEL"
+      elsif provider_name.include?("grok") || provider_name.include?("xai")
+        provider_env_var = "GROK_DEFAULT_MODEL"
+      elsif provider_name.include?("perplexity")
+        provider_env_var = "PERPLEXITY_DEFAULT_MODEL"
+      elsif provider_name.include?("deepseek")
+        provider_env_var = "DEEPSEEK_DEFAULT_MODEL"
+      end
+
+      # If a value is provided, it takes precedence over environment variables
+      if value
+        @state.settings[:model] = value
+      # Otherwise, try to use environment variable if available
+      elsif provider_env_var && ENV[provider_env_var]
+        @state.settings[:model] = ENV[provider_env_var]
+      end
     end
     
     def temperature(value)
@@ -939,6 +967,53 @@ module MonadicDSL
     # Use display_name if provided, otherwise use app_name
     display_name = state.settings[:display_name] || app_name
 
+    # Get appropriate environment variable name based on provider
+    provider_name = state.settings[:provider].to_s.downcase
+    provider_env_var = nil
+    
+    if provider_name.include?("anthropic") || provider_name.include?("claude")
+      provider_env_var = "ANTHROPIC_DEFAULT_MODEL"
+    elsif provider_name.include?("openai") || provider_name.include?("gpt")
+      provider_env_var = "OPENAI_DEFAULT_MODEL"
+    elsif provider_name.include?("cohere") || provider_name.include?("command")
+      provider_env_var = "COHERE_DEFAULT_MODEL"
+    elsif provider_name.include?("gemini") || provider_name.include?("google")
+      provider_env_var = "GEMINI_DEFAULT_MODEL"
+    elsif provider_name.include?("mistral")
+      provider_env_var = "MISTRAL_DEFAULT_MODEL"
+    elsif provider_name.include?("grok") || provider_name.include?("xai")
+      provider_env_var = "GROK_DEFAULT_MODEL"
+    elsif provider_name.include?("perplexity")
+      provider_env_var = "PERPLEXITY_DEFAULT_MODEL"
+    elsif provider_name.include?("deepseek")
+      provider_env_var = "DEEPSEEK_DEFAULT_MODEL"
+    end
+
+    # Determine model value for class definition
+    model_value = if state.settings[:model]
+                    # Use model from MDSL file if specified
+                    state.settings[:model].inspect
+                  elsif provider_env_var
+                    # Use environment variable with string interpolation in generated code
+                    # Include provider-specific default fallback value if no env var
+                    default_model = case provider_name
+                                    when /anthropic|claude/ then "claude-3-5-sonnet-20241022"
+                                    when /openai|gpt/ then "gpt-4o"
+                                    when /cohere|command/ then "command-r-plus"
+                                    when /gemini|google/ then "gemini-2.0-flash"
+                                    when /mistral/ then "mistral-large-latest"
+                                    when /grok|xai/ then "grok-2"
+                                    when /perplexity/ then "sonar"
+                                    when /deepseek/ then "deepseek-chat"
+                                    else "gpt-4o" # Default fallback
+                                    end
+                    "ENV['#{provider_env_var}'] || #{default_model.inspect}"
+                  else
+                    # Fallback to default if no model and no environment variable
+                    # This shouldn't typically happen due to initialization in app method
+                    "\"gpt-4o\""
+                  end
+
     class_def = <<~RUBY
       class #{state.name} < MonadicApp
         include #{helper_module} if defined?(#{helper_module})
@@ -951,7 +1026,7 @@ module MonadicDSL
           group: #{provider_config.display_group.inspect},
           disabled: !defined?(CONFIG) || !CONFIG["#{provider_config.api_key_name}"],
           models: #{model_list_code},
-          model: #{state.settings[:model].inspect},
+          model: #{model_value},
           temperature: #{state.settings[:temperature]},
           initial_prompt: initial_prompt,
           app_name: #{app_name.inspect},

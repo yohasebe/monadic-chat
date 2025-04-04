@@ -1489,6 +1489,7 @@ function connect_websocket(callback) {
         break;
       }
 
+      
       default: {
         let content = data["content"];
         if (!responseStarted || callingFunction) {
@@ -1541,7 +1542,7 @@ function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (ws._reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    setAlert("<i class='fa-solid fa-info-circle'></i> Connection lost. Please refresh the page.", "warning");
+    setAlert("<i class='fa-solid fa-server'></i> Server closed", "danger");
     
     // Properly clean up any pending timers
     if (reconnectionTimer) {
@@ -1567,8 +1568,8 @@ function reconnect_websocket(ws, callback) {
         // Socket is closed, create a new one
         ws._reconnectAttempts++;
         
-        // Show connecting status to user
-        setAlert("<i class='fa-solid fa-spinner fa-spin'></i> Reconnecting...", "warning");
+        // Show server closed status instead of reconnecting
+        setAlert("<i class='fa-solid fa-server'></i> Server closed", "danger");
         
         // Stop any active ping interval
         stopPing();
@@ -1642,8 +1643,8 @@ function handleVisibilityChange() {
             ws._reconnectAttempts = 0;
           }
           
-          // Notify the user
-          setAlert("<i class='fa-solid fa-spinner fa-spin'></i> Reconnecting...", "warning");
+          // Notify the user that server is closed
+          setAlert("<i class='fa-solid fa-server'></i> Server closed", "danger");
           
           // Establish a new connection with proper callback
           ws = connect_websocket((newWs) => {

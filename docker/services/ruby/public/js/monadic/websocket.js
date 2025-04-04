@@ -492,7 +492,7 @@ function connect_websocket(callback) {
   let infoHtml = "";
 
   ws.onopen = function () {
-    setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
+    setAlert("<i class='fa-solid fa-bolt'></i> Verifying token", "warning");
     ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
     if (!mediaSource) {
@@ -542,7 +542,7 @@ function connect_websocket(callback) {
 
     // Only verify token once
     if (!verified) {
-      setAlert("<i class='fa-solid fa-bolt'></i> Verifying token . . .", "warning");
+      setAlert("<i class='fa-solid fa-bolt'></i> Verifying token", "warning");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
     }
 
@@ -625,7 +625,7 @@ function connect_websocket(callback) {
         setAlert(data["content"], "warning");
         
         // Update spinner message for function calls
-        $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request...');
+        $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request');
         break;
       }
 
@@ -951,7 +951,7 @@ function connect_websocket(callback) {
       }
       case "parameters": {
         loadedApp = data["content"]["app_name"];
-        setAlert("<i class='fa-solid fa-hourglass-half'></i> Please wait . . .", "warning");
+        setAlert("<i class='fa-solid fa-hourglass-half'></i> Please wait", "warning");
         loadParams(data["content"], "loadParams");
         
         // All providers now support AI User functionality
@@ -1260,7 +1260,7 @@ function connect_websocket(callback) {
         
         // Show spinner and update its message with robot animation
         $("#monadic-spinner").css("display", "block");
-        $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response...');
+        $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response');
         
         // Disable the input elements
         $("#message").prop("disabled", true);
@@ -1537,7 +1537,7 @@ function connect_websocket(callback) {
           callingFunction = false;
           responseStarted = true;
           // Update spinner message for streaming
-          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Receiving response...');
+          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Receiving response');
           // remove the leading new line characters from content
           content = content.replace(/^\n+/, "");
         }

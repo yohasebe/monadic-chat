@@ -158,6 +158,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const versionElement = document.getElementById('version');
     versionElement.textContent = ver;
   });
+  
+  // Handle update messages from auto-updater
+  window.electronAPI.onUpdateMessage((_event, message) => {
+    const updateMessageElement = document.getElementById('updateMessage');
+    updateMessageElement.textContent = message;
+    updateMessageElement.style.display = 'block';
+  });
 
   // Update docker status
   window.electronAPI.onUpdateDockerStatusIndicator((_event, isRunning) => {

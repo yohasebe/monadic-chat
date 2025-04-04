@@ -12,7 +12,7 @@
     "build:linux-arm64": "electron-builder --linux --arm64",
     "build:linux-x64": "electron-builder --linux --x64",
     "test": "jest",
-    "test:passing": "jest", 
+    "test:passing": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
@@ -41,6 +41,14 @@
         "repo": "monadic-chat"
       }
     ],
+    "generateUpdatesFilesForAllChannels": true,
+    "mac": {
+      "icon": "icons/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "category": "public.app-category.developer-tools"
+    },
     "extraResources": [
       {
         "from": "./bin",
@@ -85,7 +93,8 @@
       "target": "nsis",
       "icon": "icons/icon.ico",
       "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
-      "certificateSha1": "a8d4693b31228d10a9da7c2687f5c565928c2a06"
+      "certificateSha1": "a8d4693b31228d10a9da7c2687f5c565928c2a06",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {
       "runAfterFinish": false
@@ -95,12 +104,13 @@
       "target": [
         "deb"
       ],
-      "defaultArch": "x64"
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "electron-context-menu": "^3.6.1"
+    "electron-context-menu": "^3.6.1",
+    "electron-updater": "^6.6.2"
   },
   "overrides": {
     "semver": "^7.5.3"

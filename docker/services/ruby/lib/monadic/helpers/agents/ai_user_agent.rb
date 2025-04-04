@@ -115,9 +115,24 @@ module AIUserAgent
       context.unshift({ "role" => "system", "content" => system_message })
     end
     
+    # Instead of sending all previous messages, we'll only use the system message which contains
+    # all the necessary context and instructions
+    
+    # Create a focused message array with just system message that contains all context
+    focused_messages = []
+    
+    # Add system message - use either the specialized format for Anthropic or standard format for others
+    if provider == "anthropic"
+      # For Anthropic, we don't add the system message to messages array
+      # It's handled via the separate system option
+    else
+      # For other providers, add as a system message
+      focused_messages << { "role" => "system", "content" => system_message }
+    end
+    
     # Prepare options for the API call with provider-specific settings
     options = { 
-      "messages" => context,
+      "messages" => focused_messages,
       "temperature" => 0.7,  # Slightly higher temperature for more natural responses
       "ai_user_system_message" => system_message,
       "model" => model  # Explicitly include model in options
@@ -234,26 +249,27 @@ module AIUserAgent
     # Provider details are logged to dedicated log files
     provider_downcase = provider.to_s.downcase
     
-    # Simple conditional logic for reliable detection
+    # Get model from environment variables with fallbacks
     if provider_downcase.include?("anthropic") || provider_downcase.include?("claude")
-      return "claude-3-5-sonnet-20241022"
+      ENV["ANTHROPIC_DEFAULT_MODEL"] || "claude-3-5-sonnet-20241022"
     elsif provider_downcase.include?("openai") || provider_downcase.include?("gpt")
-      return "gpt-4o"
+      ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4o"
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
-      return "command-r-plus"
+      ENV["COHERE_DEFAULT_MODEL"] || "command-r-plus"
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
-      return "gemini-2.0-flash"
+      # Temporarily using 1.5 model for AI User until 2.0 response issues are properly fixed
+      ENV["GEMINI_DEFAULT_MODEL"] || "gemini-1.5-flash"
     elsif provider_downcase.include?("mistral")
-      return "mistral-large-latest"
+      ENV["MISTRAL_DEFAULT_MODEL"] || "mistral-large-latest"
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")
-      return "grok-2"
+      ENV["GROK_DEFAULT_MODEL"] || "grok-2"
     elsif provider_downcase.include?("perplexity")
-      return "sonar"
+      ENV["PERPLEXITY_DEFAULT_MODEL"] || "sonar"
     elsif provider_downcase.include?("deepseek")
-      return "deepseek-chat"
+      ENV["DEEPSEEK_DEFAULT_MODEL"] || "deepseek-chat"
     else
       # Fallback to default model - details logged to dedicated log files
-      return "gpt-4o"
+      ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4o"
     end
   end
 end

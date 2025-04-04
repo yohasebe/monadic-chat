@@ -2,6 +2,28 @@
 
 Monadic Chat supports multiple AI model providers. Each provider offers different capabilities and model types. For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](./basic-apps.md#app-availability) section in the Basic Apps documentation.
 
+## Default Models Configuration
+
+You can configure default models for each provider by setting environment variables in the `~/monadic/config/env` file. These default models will be used when no specific model is defined in an app recipe file.
+
+```
+# Default models for each provider
+OPENAI_DEFAULT_MODEL=gpt-4o
+ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
+COHERE_DEFAULT_MODEL=command-r-plus
+GEMINI_DEFAULT_MODEL=gemini-2.0-flash
+MISTRAL_DEFAULT_MODEL=mistral-large-latest
+GROK_DEFAULT_MODEL=grok-2
+PERPLEXITY_DEFAULT_MODEL=sonar
+DEEPSEEK_DEFAULT_MODEL=deepseek-chat
+```
+
+These environment variables are used for:
+1. AI User functionality
+2. Chat apps where no model is explicitly specified in the recipe
+
+When a model is explicitly specified in an app recipe file, that specified model takes precedence over the environment variable settings.
+
 ## OpenAI Models
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.

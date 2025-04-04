@@ -419,7 +419,12 @@ async function quitApp() {
 }
 
 function cleanupAndQuit() {
+  // Send a shutdown notification to the web app
   writeToScreen('[HTML]: <p>Quitting Monadic Chat . . .</p>');
+  
+  // No shutdown notification needed with the simplified approach
+  
+  // Delay actual exit to allow message to be processed by browser
   setTimeout(() => {
     if (tray) {
       tray.destroy();
@@ -1388,6 +1393,39 @@ function checkAndUpdateEnvFile() {
 
     if (!envConfig.WEBSEARCH_MODEL) {
         envConfig.WEBSEARCH_MODEL = 'gpt-4o-mini-search-preview';
+    }
+
+    // Set default models for each provider if not already specified
+    if (!envConfig.OPENAI_DEFAULT_MODEL) {
+        envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4o';
+    }
+
+    if (!envConfig.ANTHROPIC_DEFAULT_MODEL) {
+        envConfig.ANTHROPIC_DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+    }
+
+    if (!envConfig.COHERE_DEFAULT_MODEL) {
+        envConfig.COHERE_DEFAULT_MODEL = 'command-r-plus';
+    }
+
+    if (!envConfig.GEMINI_DEFAULT_MODEL) {
+        envConfig.GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
+    }
+
+    if (!envConfig.MISTRAL_DEFAULT_MODEL) {
+        envConfig.MISTRAL_DEFAULT_MODEL = 'mistral-large-latest';
+    }
+
+    if (!envConfig.GROK_DEFAULT_MODEL) {
+        envConfig.GROK_DEFAULT_MODEL = 'grok-2';
+    }
+
+    if (!envConfig.PERPLEXITY_DEFAULT_MODEL) {
+        envConfig.PERPLEXITY_DEFAULT_MODEL = 'sonar';
+    }
+
+    if (!envConfig.DEEPSEEK_DEFAULT_MODEL) {
+        envConfig.DEEPSEEK_DEFAULT_MODEL = 'deepseek-chat';
     }
 
     // Do not override TTS_DICT_PATH if it already exists

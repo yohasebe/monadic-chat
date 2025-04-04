@@ -126,7 +126,7 @@ module GeminiHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "gemini-2.0-flash-exp")
+  def send_query(options, model: "gemini-1.5-flash")
     # Get API key
     api_key = CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]
     return "Error: GEMINI_API_KEY not found" if api_key.nil?
@@ -218,18 +218,40 @@ module GeminiHelper
         # Extract text from standard response format
         if parsed_response["candidates"] && 
            parsed_response["candidates"][0] && 
-           parsed_response["candidates"][0]["content"] && 
-           parsed_response["candidates"][0]["content"]["parts"]
+           parsed_response["candidates"][0]["content"]
           
-          text_parts = []
-          parsed_response["candidates"][0]["content"]["parts"].each do |part|
-            text_parts << part["text"] if part["text"]
+          content = parsed_response["candidates"][0]["content"]
+          
+          # 1. Check for parts array structure (Gemini 1.5 style)
+          if content["parts"]
+            text_parts = []
+            content["parts"].each do |part|
+              text_parts << part["text"] if part["text"]
+            end
+            
+            return text_parts.join(" ") if text_parts.any?
           end
           
-          return text_parts.join(" ") if text_parts.any?
+          # 2. Check for direct text in content (some Gemini versions)
+          if content["text"]
+            return content["text"]
+          end
+          
+          # 3. For backward compatibility, try accessing a potential text field 
+          # that might be nested in another structure
+          content.each do |key, value|
+            if value.is_a?(Hash) && value["text"]
+              return value["text"]
+            end
+          end
+          
+          # 4. Handle response functions (for function calling)
+          if content["functionResponse"] && content["functionResponse"]["response"]
+            return content["functionResponse"]["response"].to_s
+          end
         end
         
-        # Nothing found
+        # Unable to extract text from response
         return "Error: Unable to extract text from Gemini response"
       else
         # Handle error response
@@ -258,20 +280,48 @@ module GeminiHelper
       if response["candidates"].is_a?(Array) && !response["candidates"].empty?
         candidate = response["candidates"][0]
         
+        # Process candidate structure for text extraction
+        
         # Check for content.parts structure (common in Gemini responses)
-        if candidate["content"].is_a?(Hash) && candidate["content"]["parts"].is_a?(Array)
-          text_parts = []
-          candidate["content"]["parts"].each do |part|
-            text_parts << part["text"] if part.is_a?(Hash) && part["text"].is_a?(String)
+        if candidate["content"].is_a?(Hash)
+          content = candidate["content"]
+          
+          # 1. Check for parts array structure first (Gemini 1.5)
+          if content["parts"].is_a?(Array)
+            text_parts = []
+            content["parts"].each do |part|
+              # Handle both string and hash formats
+              if part.is_a?(Hash) && part["text"].is_a?(String)
+                text_parts << part["text"]
+              elsif part.is_a?(String)
+                text_parts << part
+              end
+            end
+            
+            return text_parts.join(" ") if text_parts.any?
           end
           
-          return text_parts.join(" ") if text_parts.any?
+          # 2. Check for direct text in content (some versions)
+          return content["text"] if content["text"].is_a?(String)
+          
+          # 3. Recurse into nested structures looking for text
+          content.each do |key, value|
+            if value.is_a?(Hash) && value["text"].is_a?(String)
+              return value["text"]
+            end
+          end
+          
+          # 4. Handle Gemini 2.0 empty content case
+          if content["role"] == "model" && (!content["parts"] || content["parts"].empty?) && !content["text"]
+            # Special handling for AI User - returning nil here will let the main method handle the error
+            return nil
+          end
         end
         
-        # Check for direct text in candidate
+        # 5. Check for direct text in candidate
         return candidate["text"] if candidate["text"].is_a?(String)
         
-        # Check for content as string
+        # 6. Check for content as string
         return candidate["content"] if candidate["content"].is_a?(String)
         
         # Recursively check candidate object 

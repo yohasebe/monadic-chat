@@ -274,7 +274,7 @@ h5 i,
   cursor: pointer;
   display: none;
   height: 40px;
-  opacity: 0.65;
+  opacity: 0.85;
   padding: 6px 12px;
   position: fixed;
   right: 70px;
@@ -283,6 +283,11 @@ h5 i,
   top: 20px;
   transition: opacity 0.3s ease;
   z-index: 1050;
+}
+
+#cancel_query i {
+  color: #ffc107;
+  margin-right: 3px;
 }
 
 #toggle-menu {
@@ -635,7 +640,7 @@ legend {
   z-index: 1000;
   background-color: #777;
   color: white;
-  opacity: 0.7;
+  opacity: 0.85;
   padding: 12px 12px 8px 12px;
   border-radius: 8px;
 }
@@ -645,6 +650,11 @@ legend {
   color: #ffc107;
   vertical-align: middle;
   margin-right: 5px;
+}
+
+/* Enhance pulse animation for brain icon */
+#monadic-spinner i.fa-brain {
+  animation-duration: 1.2s;
 }
 
 #monadic-spinner span {

@@ -27,6 +27,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Listen for update message from the auto-updater
   onUpdateMessage: (callback) => ipcRenderer.on('update-message', callback),
+  
+  // Listen for update progress from the auto-updater (for progress window)
+  onUpdateProgress: (callback) => {
+    ipcRenderer.on('update-progress', (event, progressObj) => {
+      // Forward the progress info to the renderer via postMessage
+      window.postMessage({ type: 'update-progress', progress: progressObj }, '*');
+      if (callback) callback(event, progressObj);
+    });
+  },
 
   // Request settings from the main process
   requestSettings: () => ipcRenderer.send('request-settings'),

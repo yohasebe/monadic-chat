@@ -311,6 +311,25 @@ function compareVersions(version1, version2) {
 
 // Check for updates - called manually when user clicks "Check for Updates"
 function checkForUpdates() {
+  // Temporarily disable writing update messages to the console
+  // This prevents duplicate messages when manually checking for updates
+  const originalSendCommandOutput = mainWindow.webContents.send;
+  const tempSendFunction = function(channel, ...args) {
+    // Block 'command-output' messages that contain update notifications
+    if (channel === 'command-output' && typeof args[0] === 'string' && 
+       (args[0].includes('A new version') || 
+        args[0].includes('You are using the latest version') ||
+        args[0].includes('Unable to check for updates'))) {
+      // Do not send update messages to console during manual check
+      return;
+    }
+    // Pass through all other messages
+    return originalSendCommandOutput.apply(mainWindow.webContents, [channel, ...args]);
+  };
+  
+  // Replace the send function temporarily
+  mainWindow.webContents.send = tempSendFunction;
+  
   // First try using electron-updater's autoUpdater
   try {
     // Prepare event handlers for user feedback
@@ -320,6 +339,9 @@ function checkForUpdates() {
       autoUpdater.removeAllListeners('error');
       autoUpdater.removeAllListeners('download-progress');
       autoUpdater.removeAllListeners('update-downloaded');
+      
+      // Restore original send function
+      mainWindow.webContents.send = originalSendCommandOutput;
     };
     
     // Set up temporary listeners for this manual check
@@ -329,13 +351,16 @@ function checkForUpdates() {
       // Always show a dialog when an update is available from manual check
       dialog.showMessageBox(mainWindow, {
         type: 'info',
-        buttons: ['Download', 'Later'],
+        buttons: ['Update', 'Cancel'],
         message: 'Update Available',
-        detail: `A new version (${info.version}) is available. Would you like to download it now?`,
+        detail: `A new version (${info.version}) is available. Would you like to update now?`,
         icon: path.join(iconDir, 'app-icon.png')
       }).then((result) => {
         if (result.response === 0) {
-          // Create a progress dialog when user chooses to download
+          // Remove existing listeners before starting download
+          removeUpdateListeners();
+          
+          // Create a progress dialog for the download
           let progressWin = new BrowserWindow({
             width: 400,
             height: 150,
@@ -358,6 +383,7 @@ function checkForUpdates() {
           
           progressWin.loadFile('update-progress.html');
           
+          // Set up new listeners just for this download process
           // Listen for download progress and update UI
           autoUpdater.on('download-progress', (progressObj) => {
             if (!progressWin.isDestroyed()) {
@@ -380,19 +406,21 @@ function checkForUpdates() {
             }).then((btnIdx) => {
               if (btnIdx.response === 0) {
                 forceQuit = true;
-                app.quit();
+                
+                // Use the original app quit mechanism
+                forceQuit = true;
+                cleanupAndQuit();
               }
             });
           });
           
+          // Start the download - this will trigger progress events
           autoUpdater.downloadUpdate();
         }
       });
     });
 
     autoUpdater.on('update-not-available', () => {
-      removeUpdateListeners(); // Clean up listeners
-      
       // Always show a message when no update is available
       dialog.showMessageBox(mainWindow, {
         type: 'info',
@@ -400,38 +428,32 @@ function checkForUpdates() {
         message: 'Up to Date',
         detail: 'You are using the latest version of the application.',
         icon: path.join(iconDir, 'app-icon.png')
+      }).finally(() => {
+        // Remove listeners and restore original send function after dialog is closed
+        removeUpdateListeners();
       });
-      
-      // Also update the message in the main window
-      const currentVersion = app.getVersion();
-      updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: green;"></i>You are using the latest version (${currentVersion}).</p>`;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-message', updateMessage);
-      }
     });
     
     // Special error handler for manual checks
     autoUpdater.on('error', (error) => {
-      removeUpdateListeners(); // Clean up listeners
-      
       dialog.showMessageBox(mainWindow, {
         type: 'warning',
         buttons: ['OK'],
         message: 'Update Check Failed',
         detail: `Unable to check for updates: ${error.message}\n\nYou can still use the application normally and check our website for updates.`,
         icon: path.join(iconDir, 'app-icon.png')
+      }).finally(() => {
+        // Remove listeners and restore original send function after dialog is closed
+        removeUpdateListeners();
       });
-      
-      // Also update the message in the main window
-      updateMessage = `<p><i class="fa-solid fa-circle-info" style="color: blue;"></i>Unable to check for updates. Please try again later.</p>`;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-message', updateMessage);
-      }
     });
 
     // Initiate check
     autoUpdater.checkForUpdates();
   } catch (err) {
+    // Restore original send function in case of error
+    mainWindow.webContents.send = originalSendCommandOutput;
+    
     // Fall back to old method if autoUpdater fails
     console.error('Auto-update check failed, falling back to manual check:', err);
     checkForUpdatesManual();
@@ -440,6 +462,9 @@ function checkForUpdates() {
 
 // Manual version check as a fallback
 function checkForUpdatesManual() {
+  // No specific handling needed for manual check, as it uses different methods
+  // and doesn't trigger the standard update-available/update-not-available events
+  
   const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
   https.get(url, (res) => {
@@ -571,13 +596,23 @@ function cleanupAndQuit() {
       settingsWindow.close();
     }
 
+    // Ensure we bypass any confirmation dialogs
+    forceQuit = true;
+    
+    // Exit the app completely
     app.exit(0);
   }, 3000);
 }
 
 // Update the app's quit handler
 app.on('before-quit', (event) => {
-  if (!isQuittingDialogShown && !forceQuit) {
+  // If forceQuit is true, allow the app to quit normally without showing dialog
+  if (forceQuit) {
+    return; // Exit handler without preventing quit
+  }
+  
+  // Otherwise, prevent quit and show confirmation dialog
+  if (!isQuittingDialogShown) {
     event.preventDefault();
     quitApp();
   }
@@ -704,24 +739,28 @@ function setupAutoUpdater() {
   autoUpdater.allowPrerelease = true;
   // Allow downgrading to lower versions during testing
   autoUpdater.allowDowngrade = true;
+  // Disable automatic downloading of updates
+  autoUpdater.autoDownload = false;
+  // Enable automatic installation of updates when quitting
+  autoUpdater.autoInstallOnAppQuit = true;
   
   // Global error handler for auto-updater
   autoUpdater.on('error', (error) => {
     // Just log errors, don't show dialog for background checks
     console.error('Auto-update error:', error.message);
     // Set update message to indicate there was an error checking
-    updateMessage = `<p><i class="fa-solid fa-circle-info" style="color: blue;"></i>Unable to check for updates. Please check manually later.</p>`;
+    updateMessage = '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: blue;"></i> Unable to check for updates. Please check manually later.</p>';
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-message', updateMessage);
+      mainWindow.webContents.send('command-output', updateMessage);
     }
   });
   
   // Set update notification behavior
   autoUpdater.on('update-available', (info) => {
     // Update the message to indicate an update is available
-    updateMessage = `<p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i>A new version (${info.version}) is available. Please use "Check for Updates" from the menu to update.</p>`;
+    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i> A new version (${info.version}) is available. Use "File" → "Check for Updates" to update.</p>`;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-message', updateMessage);
+      mainWindow.webContents.send('command-output', updateMessage);
     }
     
     // No dialog is shown on startup - user must click "Check for Updates" manually
@@ -730,9 +769,9 @@ function setupAutoUpdater() {
   // Handle the case when no update is available
   autoUpdater.on('update-not-available', () => {
     const currentVersion = app.getVersion();
-    updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: green;"></i>You are using the latest version (${currentVersion}).</p>`;
+    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: green;"></i> You are using the latest version (${currentVersion}).</p>`;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-message', updateMessage);
+      mainWindow.webContents.send('command-output', updateMessage);
     }
   });
   
@@ -803,6 +842,11 @@ function createUpdateProgressHTML() {
 
 function initializeApp() {
   app.whenReady().then(async () => {
+    // Check if there's a pending update that was downloaded before restart
+    if (autoUpdater.isUpdaterActive()) {
+      console.log('Checking for downloaded updates to install...');
+    }
+    
     // Setup auto-updater - this will update the updateMessage variable
     setupAutoUpdater();
     
@@ -1331,8 +1375,7 @@ function createMainWindow() {
     openingText = `
       [HTML]: 
       <p><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></p>
-      ${updateMessage}
-      <p><i class="fa-solid fa-circle-info"></i>Please make sure Docker Desktop is running while using Monadic Chat.</p>
+      <p><i class="fa-solid fa-circle-info"></i> Please make sure Docker Desktop is running while using Monadic Chat.</p>
       <p>Press <b>start</b> button to initialize the server.</p>
       <hr />`
     justLaunched = false;

@@ -159,12 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     versionElement.textContent = ver;
   });
   
-  // Handle update messages from auto-updater
-  window.electronAPI.onUpdateMessage((_event, message) => {
-    const updateMessageElement = document.getElementById('updateMessage');
-    updateMessageElement.innerHTML = message;  // Changed from textContent to innerHTML to render HTML content
-    updateMessageElement.style.display = 'block';
-  });
+  // Note: Update messages are now sent via 'command-output' and displayed in the main message area
 
   // Update docker status
   window.electronAPI.onUpdateDockerStatusIndicator((_event, isRunning) => {

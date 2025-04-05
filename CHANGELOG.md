@@ -1,5 +1,5 @@
-- [April, 2025] 0.9.80
-  - Auto-update system improved with better user experience
+- [April, 2025] 0.9.79
+  - Improved new version notification and update process
   - Added environment variables for configuring default models for each provider (OPENAI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL, etc.)
   - Enhanced Monadic DSL to support default model configuration from environment variables
   - AI User feature significantly improved

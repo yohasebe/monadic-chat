@@ -133,11 +133,20 @@ def update_version_in_file(file, from_version, to_version)
     updated_content = content.gsub(/\/v#{Regexp.escape(from_version)}\//, "/v#{to_version}/")
     
     # Replace version in file names for all platforms
-    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}-arm64\.dmg/, "#{to_version}-arm64.dmg")
-    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}\.dmg/, "#{to_version}.dmg")
-    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}\.exe/, "#{to_version}.exe")
-    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}_amd64\.deb/, "#{to_version}_amd64.deb")
-    updated_content = updated_content.gsub(/#{Regexp.escape(from_version)}_arm64\.deb/, "#{to_version}_arm64.deb")
+    # Mac files
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-arm64\.dmg/, "Monadic.Chat-#{to_version}-arm64.dmg")
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-x64\.dmg/, "Monadic.Chat-#{to_version}-x64.dmg")
+    # Windows files
+    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(from_version)}\.exe/, "Monadic.Chat.Setup.#{to_version}.exe")
+    # Linux files
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_amd64\.deb/, "monadic-chat_#{to_version}_amd64.deb")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_arm64\.deb/, "monadic-chat_#{to_version}_arm64.deb")
+    # ZIP files for updates (all platforms)
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-arm64\.zip/, "Monadic.Chat-#{to_version}-arm64.zip")
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-x64\.zip/, "Monadic.Chat-#{to_version}-x64.zip")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_arm64\.zip/, "monadic-chat_#{to_version}_arm64.zip")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_x64\.zip/, "monadic-chat_#{to_version}_x64.zip")
+    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(from_version)}\.zip/, "Monadic.Chat.Setup.#{to_version}.zip")
   
   when "_coverpage.md"
     # For _coverpage.md, update the version in the header only
@@ -197,9 +206,10 @@ task :check_version do
       when "installation.md"
         # Check if the file contains the current version in download URLs
         version_found = content.include?("/v#{official_version}/") &&
-                        content.include?("#{official_version}.dmg") &&
-                        content.include?("#{official_version}.exe") &&
-                        content.include?("#{official_version}_amd64.deb")
+                        content.include?("Monadic.Chat-#{official_version}-arm64.dmg") &&
+                        content.include?("Monadic.Chat-#{official_version}-x64.dmg") &&
+                        content.include?("Monadic.Chat.Setup.#{official_version}.exe") &&
+                        content.include?("monadic-chat_#{official_version}_amd64.deb")
       when "_coverpage.md"
         version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
       when "package.json"
@@ -311,9 +321,10 @@ task :update_version, [:from_version, :to_version] do |_t, args|
         when "installation.md"
           # Check if the file contains the current version in download URLs
           version_found = content.include?("/v#{from_version}/") &&
-                          content.include?("#{from_version}.dmg") &&
-                          content.include?("#{from_version}.exe") &&
-                          content.include?("#{from_version}_amd64.deb")
+                          content.include?("Monadic.Chat-#{from_version}-arm64.dmg") &&
+                          content.include?("Monadic.Chat-#{from_version}-x64.dmg") &&
+                          content.include?("Monadic.Chat.Setup.#{from_version}.exe") &&
+                          content.include?("monadic-chat_#{from_version}_amd64.deb")
         when "_coverpage.md"
           version_found = content.include?("<small><b>#{from_version}</b></small>")
         when "package.json"
@@ -425,23 +436,91 @@ task :build do
 
   sh "npm cache clean --force"
 
-  sh "npm run build:linux-x64"
-  sh "npm run build:linux-arm64"
-  sh "npm run build:win"
-  sh "npm run build:mac-x64"
-  sh "npm run build:mac-arm64"
+  # Use generate-only flag to create YML files without publishing
+  sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  sh "npm run build:mac-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true" 
+  sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
 
+  # First, get all files in the dist directory to see what was actually generated
+  puts "Listing all files in dist directory before filtering:"
+  Dir.glob("dist/*").each do |f|
+    puts "  #{File.basename(f)}"
+  end
+  
+  # Match the actual generated macOS file patterns but don't add them separately
+  mac_files = Dir.glob("dist/Monadic.Chat-#{version}*")
+  
+  # Debug output to show what macOS files were found
+  puts "Found macOS files:"
+  mac_files.each { |f| puts "  #{File.basename(f)}" }
+  
+  # All needed files will be added to this list
   necessary_files = [
-    "Monadic Chat-#{version}-arm64.dmg",  # macOS arm64
-    "Monadic Chat-#{version}.dmg",        # macOS x64
-    "Monadic Chat Setup #{version}.exe",  # Windows
-    "monadic-chat_#{version}_amd64.deb",  # Linux x64
-    "monadic-chat_#{version}_arm64.deb"   # Linux arm64
+    # Use the same required patterns as release_assets for consistency
+    # Windows files
+    "Monadic.Chat.Setup.#{version}.exe",     # Windows installer
+    "Monadic.Chat.Setup.#{version}.zip",     # Windows ZIP (for updates)
+    
+    # macOS files
+    "Monadic.Chat-#{version}-arm64.dmg",     # macOS arm64 DMG
+    "Monadic.Chat-#{version}-x64.dmg",       # macOS x64 DMG
+    "Monadic.Chat-#{version}-arm64.zip",     # macOS arm64 ZIP (for updates)
+    "Monadic.Chat-#{version}-x64.zip",       # macOS x64 ZIP (for updates)
+    
+    # Linux files
+    "monadic-chat_#{version}_amd64.deb",     # Linux x64 DEB (uses Debian naming)
+    "monadic-chat_#{version}_arm64.deb",     # Linux ARM64 DEB
+    "monadic-chat_#{version}_x64.zip",       # Linux x64 ZIP (uses Node.js naming)
+    "monadic-chat_#{version}_arm64.zip",     # Linux ARM64 ZIP (for updates)
+    
+    # Update YML files
+    "latest.yml",                            # Windows update file
+    "latest-mac.yml",                        # macOS x64 update file
+    "latest-mac-arm64.yml",                  # macOS arm64 update file
+    "latest-linux.yml",                      # Linux x64 update file
+    "latest-linux-arm64.yml"                 # Linux arm64 update file
   ].map { |file| File.expand_path("dist/#{file}") }
+  
+  # Mac files are already included in necessary_files
+  # No need to add them separately
+  
+  # Add all YML files to necessary files list for auto-updates WITHOUT modifying them
+  Dir.glob("dist/*.yml").each do |yml_file|
+    yml_basename = File.basename(yml_file)
+    
+    # Just log the YML file found
+    puts "Found update file: #{yml_basename}"
+    
+    # Do NOT modify the YML files - use them as-is from electron-builder
+    necessary_files << File.expand_path(yml_file)
+    
+    # Only handle the special case for Mac arm64
+    if yml_basename == 'latest-mac.yml'
+      yml_content = File.read(yml_file)
+      if yml_content.include?('arm64')
+        # Create a separate arm64 specific yml file if it doesn't exist
+        arm64_path = File.join(File.dirname(yml_file), "latest-mac-arm64.yml")
+        unless File.exist?(arm64_path)
+          puts "Creating missing arm64 YML file: #{arm64_path}"
+          File.write(arm64_path, yml_content)
+          necessary_files << File.expand_path(arm64_path)
+        end
+      end
+    end
+    
+    puts "Added update file to necessary files: #{File.basename(yml_file)}"
+  end
 
   Dir.glob("dist/*").each do |file|
     filepath = File.expand_path(file)
-    FileUtils.rm_rf(filepath) unless necessary_files.include?(filepath)
+    if necessary_files.include?(filepath)
+      puts "Keeping: #{File.basename(filepath)}"
+    else
+      puts "Removing: #{File.basename(filepath)}"
+      FileUtils.rm_rf(filepath)
+    end
     # move the file to the /docs/assets/download/ directory if it is included in necessary_files
     # FileUtils.mv(filepath, "docs/assets/download/") if necessary_files.include?(filepath)
   end
@@ -493,12 +572,29 @@ namespace :release do
       exit 1 unless response == 'y'
     end
     
-    # Step 2: Build all packages if needed
-    if Dir.glob("dist/Monadic Chat*#{version}*").empty?
-      puts "Building packages for version #{version}..."
+    # Step 2: Build all packages if needed - check for ALL required file types
+    required_patterns = [
+      "dist/Monadic.Chat-#{version}-arm64.dmg",
+      "dist/Monadic.Chat-#{version}-x64.dmg",
+      "dist/Monadic.Chat-#{version}-arm64.zip",
+      "dist/Monadic.Chat-#{version}-x64.zip",
+      "dist/Monadic.Chat.Setup.#{version}.exe",
+      "dist/Monadic.Chat.Setup.#{version}.zip",
+      "dist/monadic-chat_#{version}_amd64.deb",
+      "dist/monadic-chat_#{version}_arm64.deb",
+      "dist/monadic-chat_#{version}_x64.zip",
+      "dist/monadic-chat_#{version}_arm64.zip"
+    ]
+    
+    missing_files = required_patterns.select { |pattern| Dir.glob(pattern).empty? }
+    
+    if !missing_files.empty?
+      puts "Missing required files for version #{version}:"
+      missing_files.each { |f| puts "  - #{f}" }
+      puts "Building all packages..."
       Rake::Task["build"].invoke
     else
-      puts "Found existing packages for version #{version}"
+      puts "Found all required packages for version #{version}"
     end
     
     # Step 3: Create a release draft with release notes from CHANGELOG.md
@@ -531,11 +627,19 @@ namespace :release do
     # Step 6: Get release assets
     release_assets = []
     
-    ["Monadic Chat-#{version}-arm64.dmg",  # macOS arm64
-     "Monadic Chat-#{version}.dmg",        # macOS x64
-     "Monadic Chat Setup #{version}.exe",  # Windows
-     "monadic-chat_#{version}_amd64.deb",  # Linux x64
-     "monadic-chat_#{version}_arm64.deb"].each do |file|
+    # Use the same required patterns as build check for consistency
+    required_patterns = [
+      "Monadic.Chat-#{version}-arm64.dmg",      # macOS arm64
+      "Monadic.Chat-#{version}-x64.dmg",        # macOS x64
+      "Monadic.Chat-#{version}-arm64.zip",      # macOS arm64 ZIP (for updates)
+      "Monadic.Chat-#{version}-x64.zip",        # macOS x64 ZIP (for updates)
+      "Monadic.Chat.Setup.#{version}.exe",      # Windows
+      "Monadic.Chat.Setup.#{version}.zip",      # Windows ZIP (for updates)
+      "monadic-chat_#{version}_amd64.deb",      # Linux x64 (uses Debian naming)
+      "monadic-chat_#{version}_arm64.deb",      # Linux ARM64
+      "monadic-chat_#{version}_x64.zip",        # Linux x64 ZIP (uses Node.js naming)
+      "monadic-chat_#{version}_arm64.zip"       # Linux ARM64 ZIP (for updates)
+    ].each do |file|
       path = File.join("dist", file)
       if File.exist?(path)
         release_assets << path
@@ -550,22 +654,17 @@ namespace :release do
     end
     
     # Check for and include YML files for auto-updates
-    [
-      "latest-mac.yml", 
-      "latest-mac-arm64.yml", 
-      "latest-mac-x64.yml", 
-      "latest-win.yml", 
-      "latest-linux.yml",
-      "latest-linux-arm64.yml", 
-      "latest-linux-x64.yml"
-    ].each do |yml_file|
-      path = File.join("dist", yml_file)
-      if File.exist?(path)
-        release_assets << path
-        puts "Found YML asset for auto-update: #{path}"
-      else
-        puts "Warning: Auto-update YML file not found: #{path}"
-      end
+    puts "Searching for auto-update YML files in dist directory..."
+    Dir.glob("dist/*.yml").each do |yml_path|
+      yml_file = File.basename(yml_path)
+      release_assets << yml_path
+      puts "Found YML asset for auto-update: #{yml_path}"
+    end
+    
+    if Dir.glob("dist/*.yml").empty?
+      puts "Warning: No auto-update YML files found in dist directory."
+      puts "Auto-updates may not work correctly without these files."
+      puts "Consider rebuilding with: rake build"
     end
     
     puts "Total assets for release: #{release_assets.length}"

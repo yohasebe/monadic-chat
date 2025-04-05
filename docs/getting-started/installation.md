@@ -11,8 +11,8 @@ For macOS, follow these steps to install Monadic Chat.
 1. Install Docker Desktop for Mac.
 2. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/Monadic.Chat-0.9.79-arm64.dmg)
-- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/Monadic.Chat-0.9.79.dmg)
+- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/Monadic.Chat-0.9.80-arm64.dmg)
+- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/Monadic.Chat-0.9.80-x64.dmg)
 
 
 ### **Windows**
@@ -23,7 +23,7 @@ For Windows, follow these steps to install Monadic Chat.
 2. Install Docker Desktop for Windows.
 3. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/Monadic.Chat.Setup.0.9.79.exe)
+- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/Monadic.Chat.Setup.0.9.80.exe)
 
 
 ### **Linux**
@@ -36,8 +36,8 @@ Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/insta
 
 2. Download the Monadic Chat installer:
 
-- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/monadic-chat_0.9.79_amd64.deb)
-- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/monadic-chat_0.9.79_arm64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/monadic-chat_0.9.80_amd64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/monadic-chat_0.9.80_arm64.deb)
 
 
 3. Run the following command in the terminal to install the downloaded package:
@@ -123,6 +123,15 @@ For Linux (Ubuntu/Debian), refer to the following pages to install Docker Deskto
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 
-To check if there is a newer version of Monadic Chat, run `Check for Updates` from the menu. If there is a new version, a notification will be displayed.
+Monadic Chat automatically checks for updates when it starts. If a new version is available, a notification will be displayed in the main window's status bar. To update, you can click on the `File` menu and select `Check for Updates`. 
+
+The update process follows these steps:
+
+1. When the application starts, it automatically checks for updates in the background
+2. If an update is available, a message appears in the main console window
+3. To download the update, go to `File` → `Check for Updates`
+4. A dialog will appear asking if you want to download the update now
+5. If you choose to download, a progress dialog will show the download status
+6. Once the download is complete, you'll be asked to restart the application to apply the update
 
 You can also download the latest version directly from the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest).

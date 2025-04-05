@@ -11,8 +11,8 @@ macOSの場合、以下の手順でMonadic Chatをインストールします。
 1. Docker Desktop for Macをインストールします。
 2. Monadic Chatのインストーラーをダウンロードしてインストールします：
 
-- 📦 [macOS ARM64 (Apple Silicon) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/Monadic.Chat-0.9.79-arm64.dmg)
-- 📦 [macOS x64 (Intel) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/Monadic.Chat-0.9.79.dmg)
+- 📦 [macOS ARM64 (Apple Silicon) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/Monadic.Chat-0.9.80-arm64.dmg)
+- 📦 [macOS x64 (Intel) 用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/Monadic.Chat-0.9.80-x64.dmg)
 
 
 ### **Windows**
@@ -23,7 +23,7 @@ Windowsの場合、以下の手順でMonadic Chatをインストールします�
 2. Docker Desktop for Windowsをインストールします。
 3. Monadic Chatのインストーラーをダウンロードしてインストールします：
 
-- 📦 [Windows用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/Monadic.Chat.Setup.0.9.79.exe)
+- 📦 [Windows用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/Monadic.Chat.Setup.0.9.80.exe)
 
 
 ### **Linux**
@@ -36,8 +36,8 @@ Linux (Ubuntu/Debian) の場合、以下の手順でMonadic Chatをインスト�
 
 2. Monadic Chatのインストーラーをダウンロードします：
 
-- 📦 [Linux (Ubuntu/Debian) x64用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/monadic-chat_0.9.79_amd64.deb)
-- 📦 [Linux (Ubuntu/Debian) arm64用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.79/monadic-chat_0.9.79_arm64.deb)
+- 📦 [Linux (Ubuntu/Debian) x64用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/monadic-chat_0.9.80_amd64.deb)
+- 📦 [Linux (Ubuntu/Debian) arm64用インストーラー](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.80/monadic-chat_0.9.80_arm64.deb)
 
 
 3. ターミナルで以下のコマンドを実行してダウンロードしたパッケージをインストールします：
@@ -123,7 +123,16 @@ Linux (Ubuntu/Debian) の場合、下記のページを参照してDocker Deskto
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 
-Monadic Chatのより新しいバージョンがあるかどうかを確認するには、メニューの`Check for Updates`を実行してください。もし新しいバージョンがある場合、通知が表示されます。
+Monadic Chatは起動時に自動的にアップデートの有無を確認します。新しいバージョンが利用可能な場合は、メインウィンドウのステータスバーに通知が表示されます。アップデートするには、`File`メニューをクリックして`Check for Updates`を選択します。
+
+アップデートのプロセスは以下の手順で行われます：
+
+1. アプリケーション起動時、バックグラウンドで自動的にアップデートがチェックされます
+2. アップデートが利用可能な場合、メインコンソールウィンドウにメッセージが表示されます
+3. アップデートをダウンロードするには、`File` → `Check for Updates`を選択します
+4. 今すぐアップデートをダウンロードするかどうかを尋ねるダイアログが表示されます
+5. ダウンロードを選択すると、進行状況を示すダイアログが表示されます
+6. ダウンロードが完了すると、アップデートを適用するためにアプリケーションを再起動するよう促されます
 
 最新版は[GitHubリリースページ](https://github.com/yohasebe/monadic-chat/releases/latest)から直接ダウンロードすることもできます。
 

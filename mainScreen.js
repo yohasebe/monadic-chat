@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Handle update messages from auto-updater
   window.electronAPI.onUpdateMessage((_event, message) => {
     const updateMessageElement = document.getElementById('updateMessage');
-    updateMessageElement.textContent = message;
+    updateMessageElement.innerHTML = message;  // Changed from textContent to innerHTML to render HTML content
     updateMessageElement.style.display = 'block';
   });
 

@@ -309,34 +309,127 @@ function compareVersions(version1, version2) {
   return 0;
 }
 
-// Check for updates - can be called manually or automatically
+// Check for updates - called manually when user clicks "Check for Updates"
 function checkForUpdates() {
   // First try using electron-updater's autoUpdater
   try {
-    autoUpdater.on('update-available', () => {
+    // Prepare event handlers for user feedback
+    const removeUpdateListeners = () => {
+      autoUpdater.removeAllListeners('update-available');
+      autoUpdater.removeAllListeners('update-not-available');
+      autoUpdater.removeAllListeners('error');
+      autoUpdater.removeAllListeners('download-progress');
+      autoUpdater.removeAllListeners('update-downloaded');
+    };
+    
+    // Set up temporary listeners for this manual check
+    autoUpdater.on('update-available', (info) => {
+      removeUpdateListeners(); // Clean up listeners
+      
+      // Always show a dialog when an update is available from manual check
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         buttons: ['Download', 'Later'],
         message: 'Update Available',
-        detail: 'A new version is available. Would you like to download it now?',
+        detail: `A new version (${info.version}) is available. Would you like to download it now?`,
         icon: path.join(iconDir, 'app-icon.png')
       }).then((result) => {
         if (result.response === 0) {
+          // Create a progress dialog when user chooses to download
+          let progressWin = new BrowserWindow({
+            width: 400,
+            height: 150,
+            useContentSize: true,
+            autoHideMenuBar: true,
+            minimizable: false,
+            maximizable: false,
+            resizable: false,
+            alwaysOnTop: true,
+            fullscreenable: false,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
+            },
+            parent: mainWindow,
+            modal: true,
+            title: "Downloading Update"
+          });
+          
+          progressWin.loadFile('update-progress.html');
+          
+          // Listen for download progress and update UI
+          autoUpdater.on('download-progress', (progressObj) => {
+            if (!progressWin.isDestroyed()) {
+              progressWin.webContents.send('update-progress', progressObj);
+            }
+          });
+          
+          // Once download is complete, close progress window and notify user
+          autoUpdater.on('update-downloaded', () => {
+            if (!progressWin.isDestroyed()) {
+              progressWin.close();
+            }
+            
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              buttons: ['Exit Now', 'Later'],
+              message: 'Update Ready',
+              detail: 'The update has been downloaded. Please exit the application and restart it to apply the update.',
+              icon: path.join(iconDir, 'app-icon.png')
+            }).then((btnIdx) => {
+              if (btnIdx.response === 0) {
+                forceQuit = true;
+                app.quit();
+              }
+            });
+          });
+          
           autoUpdater.downloadUpdate();
         }
       });
     });
 
     autoUpdater.on('update-not-available', () => {
+      removeUpdateListeners(); // Clean up listeners
+      
+      // Always show a message when no update is available
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         buttons: ['OK'],
         message: 'Up to Date',
-        detail: 'You are using the latest version of the app.',
+        detail: 'You are using the latest version of the application.',
         icon: path.join(iconDir, 'app-icon.png')
       });
+      
+      // Also update the message in the main window
+      const currentVersion = app.getVersion();
+      updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: green;"></i>You are using the latest version (${currentVersion}).</p>`;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-message', updateMessage);
+      }
+    });
+    
+    // Special error handler for manual checks
+    autoUpdater.on('error', (error) => {
+      removeUpdateListeners(); // Clean up listeners
+      
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['OK'],
+        message: 'Update Check Failed',
+        detail: `Unable to check for updates: ${error.message}\n\nYou can still use the application normally and check our website for updates.`,
+        icon: path.join(iconDir, 'app-icon.png')
+      });
+      
+      // Also update the message in the main window
+      updateMessage = `<p><i class="fa-solid fa-circle-info" style="color: blue;"></i>Unable to check for updates. Please try again later.</p>`;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-message', updateMessage);
+      }
     });
 
+    // Initiate check
     autoUpdater.checkForUpdates();
   } catch (err) {
     // Fall back to old method if autoUpdater fails
@@ -612,40 +705,105 @@ function setupAutoUpdater() {
   // Allow downgrading to lower versions during testing
   autoUpdater.allowDowngrade = true;
   
-  // Check for updates
-  autoUpdater.checkForUpdatesAndNotify();
-
-  // Downloading update
-  autoUpdater.on('download-progress', (progressObj) => {
-    let message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-    if (mainWindow) {
-      mainWindow.webContents.send('update-message', message);
+  // Global error handler for auto-updater
+  autoUpdater.on('error', (error) => {
+    // Just log errors, don't show dialog for background checks
+    console.error('Auto-update error:', error.message);
+    // Set update message to indicate there was an error checking
+    updateMessage = `<p><i class="fa-solid fa-circle-info" style="color: blue;"></i>Unable to check for updates. Please check manually later.</p>`;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-message', updateMessage);
     }
   });
+  
+  // Set update notification behavior
+  autoUpdater.on('update-available', (info) => {
+    // Update the message to indicate an update is available
+    updateMessage = `<p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i>A new version (${info.version}) is available. Please use "Check for Updates" from the menu to update.</p>`;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-message', updateMessage);
+    }
+    
+    // No dialog is shown on startup - user must click "Check for Updates" manually
+  });
+  
+  // Handle the case when no update is available
+  autoUpdater.on('update-not-available', () => {
+    const currentVersion = app.getVersion();
+    updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: green;"></i>You are using the latest version (${currentVersion}).</p>`;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-message', updateMessage);
+    }
+  });
+  
+  // Check for updates on startup, but only notify if available (don't auto-download)
+  autoUpdater.checkForUpdates();
+}
 
-  // Update downloaded
-  autoUpdater.on('update-downloaded', (info) => {
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Ready',
-      message: 'A new version has been downloaded. Restart the application to apply the updates?',
-      buttons: ['Restart Now', 'Later']
-    }).then((buttonIndex) => {
-      if (buttonIndex.response === 0) {
-        autoUpdater.quitAndInstall(false, true);
+// Create update progress HTML file if it doesn't exist
+function createUpdateProgressHTML() {
+  const progressHtmlPath = path.join(__dirname, 'update-progress.html');
+  if (!fs.existsSync(progressHtmlPath)) {
+    const progressHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Downloading Update</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+    progress {
+      width: 100%;
+      height: 20px;
+      margin-top: 15px;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h3>Downloading Update...</h3>
+  <progress id="progressBar" value="0" max="100"></progress>
+  <div id="progressText" class="status">0%</div>
+  <div id="speedText" class="status"></div>
+  
+  <script>
+    // Preload script will expose this method
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'update-progress') {
+        const progress = event.data.progress;
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const speedText = document.getElementById('speedText');
+        
+        progressBar.value = progress.percent || 0;
+        progressText.textContent = \`\${Math.round(progress.percent || 0)}%\`;
+        
+        if (progress.bytesPerSecond) {
+          const speed = (progress.bytesPerSecond / 1024 / 1024).toFixed(2);
+          const transferred = (progress.transferred / 1024 / 1024).toFixed(2);
+          const total = (progress.total / 1024 / 1024).toFixed(2);
+          speedText.textContent = \`\${speed} MB/s - \${transferred} MB / \${total} MB\`;
+        }
       }
     });
-  });
+  </script>
+</body>
+</html>`;
 
-  // Error handling
-  autoUpdater.on('error', (error) => {
-    dialog.showErrorBox('Error', `An error occurred while updating: ${error.message}`);
-  });
+    fs.writeFileSync(progressHtmlPath, progressHtml);
+  }
 }
 
 function initializeApp() {
   app.whenReady().then(async () => {
-    // Setup auto-updater
+    // Setup auto-updater - this will update the updateMessage variable
     setupAutoUpdater();
     
     // Check internet connection
@@ -655,29 +813,9 @@ function initializeApp() {
         throw new Error('Internet connection test failed');
       }
       
-      // If internet connection is available, check for updates
-      try {
-        const versionResponse = await fetch('https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb');
-        if (versionResponse.ok) {
-          const versionData = await versionResponse.text();
-          const versionRegex = /VERSION = "(.*?)"/;
-          const match = versionData.match(versionRegex);
-          
-          if (match && match[1]) {
-            const latestVersion = match[1];
-            const currentVersion = app.getVersion();
-            
-            if (compareVersions(latestVersion, currentVersion) > 0) {
-              updateMessage = `<p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i>A new version (${latestVersion}) is available. Please update to the latest version.</p>`;
-            } else {
-              updateMessage = `<p><i class="fa-solid fa-circle-check" style="color: green;"></i>You are using the latest version (${currentVersion}).</p>`;
-            }
-          }
-        }
-      } catch (error) {
-        console.log('Failed to check for updates:', error);
-        // Continue without update check if GitHub is not accessible
-      }
+      // Note: We no longer perform a separate version check here
+      // The autoUpdater will handle checking for updates and updating the message
+      // This avoids displaying potentially conflicting information
       
     } catch (error) {
       forceQuit = true;

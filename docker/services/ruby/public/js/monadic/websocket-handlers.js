@@ -139,6 +139,9 @@ function handleSTTMessage(data) {
     // Re-enable controls
     $('#send, #clear, #voice').prop('disabled', false);
     
+    // Hide the spinner now that speech recognition is complete
+    $('#monadic-spinner').hide();
+    
     // Auto submit if enabled
     if ($('#check-easy-submit').is(':checked')) {
       $('#send').click();

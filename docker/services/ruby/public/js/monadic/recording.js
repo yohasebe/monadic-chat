@@ -101,6 +101,9 @@ voiceButton.on("click", function () {
     voiceButton.html('<i class="fas fa-microphone"></i> Stop');
     setAlert("<i class='fas fa-microphone'></i> LISTENING . . .", "info");
     $("#send, #clear").prop("disabled", true);
+    // Show speech recognition spinner
+    $("#monadic-spinner").show();
+    $("#monadic-spinner span").html('<i class="fas fa-microphone fa-pulse"></i> Listening...');
     isListening = true;
 
     navigator.mediaDevices.getUserMedia({audio: true})
@@ -160,6 +163,8 @@ voiceButton.on("click", function () {
     voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     setAlert("<i class='fas fa-cogs'></i> PROCESSING ...", "warning");
     $("#send, #clear, #voice").prop("disabled", true);
+    // Update spinner to show processing state
+    $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Processing speech...');
     isListening = false;
 
     if(mediaRecorder){
@@ -174,6 +179,7 @@ voiceButton.on("click", function () {
             $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
             $("#send, #clear, #voice").prop("disabled", false);
             $("#amplitude").hide();
+            $("#monadic-spinner").hide();
             return; // This prevents further processing
           }
           
@@ -188,6 +194,7 @@ voiceButton.on("click", function () {
               $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
               $("#send, #clear, #voice").prop("disabled", false);
               $("#amplitude").hide();
+              $("#monadic-spinner").hide();
               return;
             }
             
@@ -225,6 +232,7 @@ voiceButton.on("click", function () {
       } catch (e) {
         console.log(e);
         $("#send, #clear, #voice").prop("disabled", false);
+        $("#monadic-spinner").hide();
       } 
     }
 
@@ -234,6 +242,9 @@ voiceButton.on("click", function () {
     voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     $("#send, #clear").prop("disabled", false);
     isListening = false;
+    
+    // Hide spinner when silence is detected
+    $("#monadic-spinner").hide();
 
     mediaRecorder.stop();
     localStream.getTracks().forEach(track => track.stop());

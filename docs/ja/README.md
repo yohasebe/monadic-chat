@@ -31,6 +31,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 📦 ユーザーによる**アプリ**と**コンテナ**の追加機能
 - 💬 **Human/AI chat** と **AI/AI** chat 
 - ✨ **複数のAIモデル**を活用したチャット機能
+- 🔄 アプリケーション内の通知とダウンロード管理による**自動アップデート**
 
 ### AI + Linux環境
 
@@ -45,8 +46,11 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 📦 各コンテナは**SSH**接続による管理が可能
 - 📓 **Jupyter Notebook**との連携
 
-### データ管理
+### AIユーザー機能と会話管理
 
+- 🧠 AIが人間ユーザーの代わりに返答を生成する**AIユーザー機能**
+- 🎭 AI生成ユーザーメッセージで実際のユーザーの**口調、スタイル、言語**を維持
+- 🌐 OpenAI、Claude、Gemini、Mistralなど**複数のAIプロバイダー**で動作
 - 💾 チャットデータの**エクスポート/インポート**
 - 📝 チャットデータの**編集**（追加、削除、編集）
 - 💬 文脈データとしてAPIに送信するメッセージ数（**コンテクストサイズ**）の指定
@@ -65,7 +69,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 動画・画像の認識と生成
 
-- 🖼️ DALL·E 3 APIを利用した**画像生成**
+- 🖼️ DALL·E 3 APIとGoogle Imagenを利用した**画像生成**
 - 👀 アップロードされた**画像の認識と説明**
 - 📚 **複数の画像**のアップロードと認識
 - 🎥 アップロードされた**動画の内容および音声の認識と分析**
@@ -73,6 +77,8 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 ### 設定と拡張
 
 - 💡 **APIパラメータ**と**システムプロンプト**の指定・編集
+- 🧩 **Monadic DSL**(ドメイン特化言語)を使用したカスタムアプリケーションの作成
+- 📊 **DrawIO Grapher**と**Mermaid Grapher**アプリを使用した図表作成
 - 💎 プログラミング言語**Ruby**を使用した機能拡張
 - 🐍 プログラミング言語**Python**を使用した機能拡張
 - 🔍 [Tavily](https://tavily.com/) APIとOpenAIの組み込み検索機能を使用した**Web検索**
@@ -92,7 +98,6 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - [Perplexity](https://docs.perplexity.ai/home)
   - [DeepSeek](https://www.deepseek.com/)
 - 🦙 ローカルDocker環境の[Ollama](https://ollama.com/)
-- 🦙 [Ollama](https://ollama.com/) in the local Docker environment
   - Llama
   - Phi
   - Mistral
@@ -111,4 +116,4 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ## ライセンス
 
-This software is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+このソフトウェアは[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)の条件に基づいてオープンソースとして利用可能です。

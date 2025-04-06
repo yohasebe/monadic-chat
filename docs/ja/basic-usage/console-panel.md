@@ -102,6 +102,20 @@ Monadic Chatのコンソールパネルを開きます。
 **Settings** <br />
 Monadic Chatの設定パネルを開きます。
 
+### File メニュー
+
+**About Monadic Chat** <br />
+アプリケーションのバージョン情報を表示します。
+
+**Check for Updates** <br />
+アプリケーションの更新を確認し、ダウンロードします。更新が利用可能な場合は、ダウンロードオプションのダイアログが表示されます。ダウンロード後、更新を適用するためにアプリケーションを再起動するよう促されます。
+
+**Uninstall Images and Containers** <br />
+Monadic ChatのすべてのDockerイメージとコンテナを削除します。
+
+**Quit Monadic Chat** <br />
+アプリケーションを終了します。
+
 ## APIトークン設定パネル
 
 ![Settings Panel](../assets/images/settings-panel.png ':size=600')

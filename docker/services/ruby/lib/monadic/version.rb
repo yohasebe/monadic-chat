@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 class Monadic
-  VERSION = "0.9.79"
+  VERSION = "0.9.80"
 end

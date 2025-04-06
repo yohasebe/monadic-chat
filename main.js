@@ -363,7 +363,7 @@ function checkForUpdates() {
           // Create a progress dialog for the download
           let progressWin = new BrowserWindow({
             width: 400,
-            height: 150,
+            height: 220,
             useContentSize: true,
             autoHideMenuBar: true,
             minimizable: false,
@@ -378,10 +378,17 @@ function checkForUpdates() {
             },
             parent: mainWindow,
             modal: true,
-            title: "Downloading Update"
+            title: "Downloading Update",
+            backgroundColor: '#f8f9fa',
+            show: false, // Hidden initially to prevent flickering
+            frame: false, // Frameless window looks more modern
+            transparent: false
           });
           
           progressWin.loadFile('update-progress.html');
+          progressWin.once('ready-to-show', () => {
+            progressWin.show();
+          });
           
           // Set up new listeners just for this download process
           // Listen for download progress and update UI

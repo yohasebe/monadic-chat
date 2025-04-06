@@ -887,6 +887,10 @@ $(function () {
     $("#appChangeConfirmation").modal("hide");
     // Apply the app change
     $("#apps").val(newAppValue);
+    // Reset messages array
+    messages = [];
+    // Clear the discourse area
+    $("#discourse").html("");
     proceedWithAppChange(newAppValue);
   });
   

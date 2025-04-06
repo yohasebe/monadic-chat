@@ -747,6 +747,152 @@ namespace :release do
     puts "Release and tag deleted successfully!"
   end
   
+  desc "Update assets in an existing GitHub release without deleting it"
+  task :update_assets, [:version, :file_patterns] do |_t, args|
+    version = args[:version]
+    file_patterns = args[:file_patterns]
+    
+    if version.nil?
+      puts "Error: Version required. Use rake release:update_assets[version,\"pattern1 pattern2 ...\"]"
+      puts "Example: rake \"release:update_assets[0.9.79,'dist/*.zip dist/*.dmg']\" (with quotes to escape special characters)"
+      puts "To update all standard release files: rake \"release:update_assets[0.9.79]\""
+      exit 1
+    end
+    
+    # Check if GitHub CLI is installed
+    unless system("which gh > /dev/null 2>&1")
+      puts "Error: GitHub CLI (gh) is not installed. Please install it first with:"
+      puts "  brew install gh     # macOS"
+      puts "  apt install gh      # Ubuntu/Debian"
+      puts "  choco install gh    # Windows"
+      exit 1
+    end
+    
+    # Check if user is authenticated with GitHub
+    unless system("gh auth status > /dev/null 2>&1")
+      puts "Error: Not authenticated with GitHub. Please run 'gh auth login' first."
+      exit 1
+    end
+    
+    # Check if the release exists
+    release_exists = system("gh release view v#{version} >/dev/null 2>&1")
+    unless release_exists
+      puts "Error: Release v#{version} does not exist."
+      exit 1
+    end
+    
+    # Get files to update
+    if file_patterns.nil?
+      # Default patterns if none provided
+      patterns = [
+        "dist/Monadic.Chat-#{version}-arm64.dmg",
+        "dist/Monadic.Chat-#{version}-x64.dmg",
+        "dist/Monadic.Chat-#{version}-arm64.zip",
+        "dist/Monadic.Chat-#{version}-x64.zip",
+        "dist/Monadic.Chat.Setup.#{version}.exe",
+        "dist/Monadic.Chat.Setup.#{version}.zip",
+        "dist/monadic-chat_#{version}_amd64.deb",
+        "dist/monadic-chat_#{version}_arm64.deb",
+        "dist/monadic-chat_#{version}_x64.zip",
+        "dist/monadic-chat_#{version}_arm64.zip",
+        "dist/*.yml"  # Include all YML files for auto-updates
+      ]
+    else
+      patterns = file_patterns.split(/\s+/)
+    end
+    
+    # Expand file patterns
+    files_to_update = []
+    patterns.each do |pattern|
+      expanded_files = Dir.glob(pattern)
+      if expanded_files.empty?
+        puts "Warning: No files found matching pattern '#{pattern}'"
+      else
+        files_to_update.concat(expanded_files)
+      end
+    end
+    
+    if files_to_update.empty?
+      puts "Error: No files found to update. Please check the patterns provided."
+      exit 1
+    end
+    
+    # First, delete the assets we're going to replace
+    assets_to_delete = []
+    files_to_update.each do |file|
+      asset_name = File.basename(file)
+      assets_to_delete << asset_name
+    end
+    
+    # Get list of current assets for reference
+    puts "Checking current assets in release v#{version}..."
+    current_assets_output = `gh release view v#{version} --json assets`
+    current_assets = JSON.parse(current_assets_output)['assets'].map { |a| a['name'] } rescue []
+    
+    # Print summary of what will be updated
+    puts "\nUpdate Summary:"
+    puts "- Release: v#{version}"
+    puts "- Current assets: #{current_assets.join(', ')}"
+    puts "- Assets to be updated: #{assets_to_delete.join(', ')}"
+    puts "\nThis will silently replace the specified files in the GitHub release."
+    print "Are you sure you want to continue? (y/N): "
+    response = STDIN.gets.chomp.downcase
+    exit 1 unless response == 'y'
+    
+    # Delete each asset individually
+    puts "\nRemoving old assets from release..."
+    assets_to_delete.each do |asset|
+      if current_assets.include?(asset)
+        puts "  Deleting asset '#{asset}' from release v#{version}..."
+        system("gh release delete-asset v#{version} \"#{asset}\" -y")
+      end
+    end
+    
+    # Prepare files list with proper escaping for files with spaces
+    escaped_files = files_to_update.map do |file|
+      # Escape spaces in file paths for shell
+      "\"#{file.gsub('"', '\\"')}\""
+    end.join(' ')
+    
+    # Upload the new assets with clobber to overwrite any existing assets
+    puts "\nUploading #{files_to_update.length} assets to release v#{version}..."
+    upload_cmd = "gh release upload v#{version} #{escaped_files} --clobber"
+    
+    begin
+      # Execute the command
+      sh upload_cmd
+      puts "\nAssets updated successfully!"
+      puts "URL: https://github.com/yohasebe/monadic-chat/releases/tag/v#{version}"
+      
+      # Add a note about the update to the changelog if possible
+      if ENV['UPDATE_CHANGELOG'] == 'true'
+        changelog_file = "./CHANGELOG.md"
+        if File.exist?(changelog_file)
+          content = File.read(changelog_file)
+          lines = content.lines
+          
+          # Find the line containing the target version
+          version_line_index = lines.find_index { |line| line.include?(version) }
+          
+          if version_line_index
+            # Add a note about the silent update
+            update_time = Time.now.strftime('%Y-%m-%d %H:%M')
+            update_note = "  - [#{update_time}] Silent update: replaced release assets\n"
+            
+            # Insert the note after the version line
+            lines.insert(version_line_index + 1, update_note)
+            
+            # Write back to the changelog
+            File.write(changelog_file, lines.join)
+            puts "Added update note to CHANGELOG.md"
+          end
+        end
+      end
+    rescue => e
+      puts "Error updating release assets: #{e.message}"
+    end
+  end
+  
   # Helper method to extract changelog entry for specific version
   def extract_changelog_entry(version)
     changelog_file = "./CHANGELOG.md"

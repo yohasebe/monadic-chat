@@ -45,7 +45,7 @@ Specify whether to cache the system prompt sent to the API. Enabling caching all
 Request the AI agent to use MathJax format when displaying mathematical expressions and render mathematical expressions in the response using MathJax.
 
 **AI User Provider**<br />
-Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. The AI User feature automatically generates responses as if they were written by a human user, helping to test conversations and see how the assistant responds to different inputs. After the assistant has replied, clicking the AI User button will generate a natural follow-up message based on the conversation history, which you can edit before sending. This feature supports multiple providers (OpenAI, Claude, Gemini, Cohere, Mistral, Perplexity, DeepSeek, and Grok) and intelligently handles provider-specific formatting requirements.
+Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. The AI User feature automatically generates responses as if they were written by a human user, helping to test conversations and see how the assistant responds to different inputs. After the assistant has replied, clicking the `Run` button next to the AI User provider dropdown will generate a natural follow-up message based on the conversation history, which you can edit before sending. This feature supports multiple providers (OpenAI, Claude, Gemini, Cohere, Mistral, Perplexity, DeepSeek, and Grok) and intelligently handles provider-specific formatting requirements.
 
 **Start from assistant**<br />
 When on, the assistant makes the first utterance when starting a conversation.
@@ -59,8 +59,8 @@ When on, the assistant's response is automatically read aloud using synthesized 
 **Easy submit**<br />
 When on, pressing the Enter key on the keyboard automatically sends the message in the text area without clicking the `Send` button. If you are using voice input, pressing the Enter key or clicking the `Stop` button will automatically send the message.
 
-**Start Session** <br />
-Click this button to start a chat based on the options and parameters specified in the Chat Settings.
+**Start Session / Continue Session** <br />
+Click this button to start a chat based on the options and parameters specified in the Chat Settings. If you have already started a session and click the `Settings` button to return to the Chat Settings panel, this button will be labeled `Continue Session`. Clicking it will return you to your ongoing conversation without resetting it.
 
 ## Info Panel
 
@@ -91,7 +91,7 @@ Shows details such as the number of messages and tokens exchanged in the current
 ![](../assets/images/monadic-chat-session.png ':size=400')
 
 **Reset**<br />
-Clicking the `Reset` button discards the current conversation and returns to the initial state. The app selection will also revert to the default `Chat`.
+Clicking the `Reset` button discards the current conversation and returns to the initial state. The app selection will also revert to the default `Chat`. When changing apps by selecting a different app in the dropdown, a confirmation dialog will appear asking if you want to reset the current conversation, as changing apps will reset all parameters.
 
 **Settings**<br />
 Clicking the `Settings` button returns to the Chat Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.

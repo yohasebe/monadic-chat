@@ -33,6 +33,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📦 User-added **apps** and **containers** functionality
 - 💬 Support for both **Human/AI chat** and **AI/AI chat**
 - ✨ Chat functionality utilizing **multiple AI models**
+- 🔄 **Automatic updates** with in-app notifications and download management
 
 ### AI + Linux Environment
 
@@ -47,8 +48,11 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📦 Each container can be managed via **SSH**
 - 📓 Integration with **Jupyter Notebook**
 
-### Data Management
+### AI User & Conversation Management
 
+- 🧠 **AI User feature** allowing the AI to generate responses as if coming from a human user
+- 🎭 Maintains the user's **tone, style, and language** in AI-generated user messages
+- 🌐 Works with **multiple AI providers** including OpenAI, Claude, Gemini, Mistral, and more
 - 💾 **Export/import** chat data
 - 📝 **Edit** chat data (add, delete, edit)
 - 💬 Specify the number of messages to send to the API as **context size**
@@ -67,7 +71,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Image/Video Recognition and Generation
 
-- 🖼️ **Image generation** using DALL·E 3 API
+- 🖼️ **Image generation** using DALL·E 3 API and Google Imagen
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**
 - 🎥 Recognition and description of **uploaded video content and audio**
@@ -76,6 +80,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 - 💡 Specify and edit **API parameters** and **system prompts**
 - 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
+- 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
 - 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and OpenAI's built-in search feature
@@ -112,4 +117,4 @@ Yoichiro HASEBE<br />
 
 ## License
 
-This software is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+This software is available as open source under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).

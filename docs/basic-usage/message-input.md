@@ -6,7 +6,7 @@ After starting the server and selecting an app and configuring it, click the `St
 
 Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via Speech-to-Text API and displayed in the text area.
 
-?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the web settings. These are enabled by default in the [Voice Chat](./basic-apps.md#voice-chat) app.
+?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the Chat Settings. These are enabled by default in the [Voice Chat](./basic-apps.md#voice-chat) app.
 
 ?> The `Role` selector is used to select the role of the message. Normally, select `User`, but by selecting `Assistant` or `System`, you can add or modify the context of the chat. For more information, see the [FAQ](../faq/faq-user-interface.md).
 
@@ -38,7 +38,7 @@ As with images, when you upload a PDF file, the contents of the PDF are recogniz
 
 ![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
-To continue the conversation about the contents of the PDF in the chat, you need to upload the same PDF file with each message input. Once you upload a PDF during a session, Monadic Chat will send that PDF to the AI agent with each message until the session ends. If you have enabled `Prompt Caching` in the web settings, prompts for the same PDF will be cached, saving on API usage. To end the conversation about the PDF, click the delete `×` button to clear the PDF.
+To continue the conversation about the contents of the PDF in the chat, you need to upload the same PDF file with each message input. Once you upload a PDF during a session, Monadic Chat will send that PDF to the AI agent with each message until the session ends. If you have enabled `Prompt Caching` in the Chat Settings, prompts for the same PDF will be cached, saving on API usage. To end the conversation about the PDF, click the delete `×` button to clear the PDF.
 
 ## Reading Text from Document Files
 

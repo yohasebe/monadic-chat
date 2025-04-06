@@ -857,11 +857,43 @@ $(function () {
   $("#apps").on("change", function (event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
-      return
+      return;
     }
 
+    // Store selected app
+    const selectedAppValue = $(this).val();
+    const previousAppValue = lastApp;
+    
+    // If there are messages and app is changing, show confirmation dialog
+    if (messages.length > 0 && selectedAppValue !== previousAppValue) {
+      // Prevent the dropdown from changing yet
+      event.preventDefault();
+      // Set dropdown back to previous value temporarily
+      $(this).val(previousAppValue);
+      
+      // Show confirmation dialog
+      $("#appChangeConfirmation").data("newApp", selectedAppValue).modal("show");
+      return;
+    }
+
+    // No messages or same app, proceed with change
+    proceedWithAppChange(selectedAppValue);
+  });
+  
+  // Handle confirmation of app change
+  $("#appChangeConfirmed").on("click", function() {
+    const newAppValue = $("#appChangeConfirmation").data("newApp");
+    // Close the modal
+    $("#appChangeConfirmation").modal("hide");
+    // Apply the app change
+    $("#apps").val(newAppValue);
+    proceedWithAppChange(newAppValue);
+  });
+  
+  // Function to handle the actual app change
+  function proceedWithAppChange(appValue) {
     // All providers now support AI User functionality
-    const selectedApp = apps[$(this).val()];
+    const selectedApp = apps[appValue];
     
     // Always enable AI User toggle for all providers
     $("#ai-user-toggle").prop("disabled", false);
@@ -869,17 +901,16 @@ $(function () {
     // Always enable AI User button (error message will be shown if conversation not started)
     $("#ai_user").prop("disabled", false).attr("title", "Generate AI user response based on conversation");
 
-    event.preventDefault();
     if (messages.length > 0) {
-      if (this.value === lastApp) {
+      if (appValue === lastApp) {
         return;
       }
     }
-    lastApp = this.value;
-    Object.assign(params, apps[$(this).val()]);
+    lastApp = appValue;
+    Object.assign(params, apps[appValue]);
     loadParams(params, "changeApp");
 
-    if (apps[$(this).val()]["pdf"]) {
+    if (apps[appValue]["pdf"]) {
       $("#file-div").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
@@ -888,7 +919,7 @@ $(function () {
       $("#pdf-panel").hide();
     }
 
-    if (apps[$(this).val()]["image"]) {
+    if (apps[appValue]["image"]) {
       $("#image-file").show();
     } else {
       $("#image-file").hide();
@@ -897,13 +928,13 @@ $(function () {
     let model;
     let models = [];
 
-    if (apps[$(this).val()]["models"] && apps[$(this).val()]["models"].length > 0) {
-      let models_text = apps[$(this).val()]["models"];
+    if (apps[appValue]["models"] && apps[appValue]["models"].length > 0) {
+      let models_text = apps[appValue]["models"];
       models = JSON.parse(models_text);
     }
 
     if (models.length > 0) {
-      let openai = apps[$(this).val()]["group"].toLowerCase() === "openai";
+      let openai = apps[appValue]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
       $("#model").html(modelList);
       model = models[1];
@@ -912,7 +943,7 @@ $(function () {
       }
 
       // Get provider from app group
-      const provider = getProviderFromGroup(apps[$(this).val()]["group"]);
+      const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
         $("#model-selected").text(`${provider} (${model} - ${$("#reasoning-effort").val()})`);
@@ -935,13 +966,13 @@ $(function () {
         adjustImageUploadButtonFallback(model);
       }
 
-    } else if (!apps[$(this).val()]["model"] || apps[$(this).val()]["model"].length === 0) {
+    } else if (!apps[appValue]["model"] || apps[appValue]["model"].length === 0) {
       $("#model_and_file").hide();
       $("#model_parameters").hide();
     } else {
       // The following code is for backward compatibility
 
-      let models_text = apps[$(this).val()]["models"];
+      let models_text = apps[appValue]["models"];
       let models = JSON.parse(models_text);
       model = params["model"];
 
@@ -954,7 +985,7 @@ $(function () {
       }
 
       // Get provider from app group
-      const provider = getProviderFromGroup(apps[$(this).val()]["group"]);
+      const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
         $("#model-selected").text(`${provider} (${model} - ${$("#reasoning-effort").val()})`);
@@ -967,7 +998,7 @@ $(function () {
       adjustImageUploadButton(model);
     }
 
-    if (apps[$(this).val()]["context_size"]) {
+    if (apps[appValue]["context_size"]) {
       $("#context-size-toggle").prop("checked", true);
       $("#context-size").prop("disabled", false);
     } else {
@@ -976,23 +1007,23 @@ $(function () {
     }
 
     // Use display_name if available, otherwise fall back to app_name
-    const displayText = apps[$(this).val()]["display_name"] || apps[$(this).val()]["app_name"];
+    const displayText = apps[appValue]["display_name"] || apps[appValue]["app_name"];
     $("#base-app-title").text(displayText);
-    $("#base-app-icon").html(apps[$(this).val()]["icon"]);
+    $("#base-app-icon").html(apps[appValue]["icon"]);
 
-    if (apps[$(this).val()]["monadic"]) {
+    if (apps[appValue]["monadic"]) {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
     }
 
-    if (apps[$(this).val()]["tools"]) {
+    if (apps[appValue]["tools"]) {
       $("#tools-badge").show();
     } else {
       $("#tools-badge").hide();
     }
 
-    if (apps[$(this).val()]["websearch"]) {
+    if (apps[appValue]["websearch"]) {
       $("#websearch").prop("checked", true);
       $("#websearch-badge").show();
     } else {
@@ -1000,7 +1031,7 @@ $(function () {
       $("#websearch-badge").hide();
     }
 
-    if (apps[$(this).val()]["mathjax"]) {
+    if (apps[appValue]["mathjax"]) {
       $("#mathjax").prop("checked", true);
       $("#math-badge").show();
     } else {
@@ -1008,13 +1039,13 @@ $(function () {
       $("#math-badge").hide();
     }
 
-    $("#base-app-desc").html(apps[$(this).val()]["description"]);
+    $("#base-app-desc").html(apps[appValue]["description"]);
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
     $("#start").focus();
-  })
+  }
 
   $("#websearch").on("change", function () {
     if ($(this).is(":checked")) {

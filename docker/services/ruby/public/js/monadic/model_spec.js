@@ -329,6 +329,14 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
   // Gemini models
+  "gemini-2.5-pro-preview-03-25": {
+    "context_window" : [11048576],
+    "max_output_tokens" : [1, 65536],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   // Experimental models
   "gemini-2.5-pro-exp": {
     "context_window" : [1, 1000000],

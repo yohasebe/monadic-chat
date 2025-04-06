@@ -101,6 +101,20 @@ Open the Monadic Chat console.
 **Settings** <br />
 Open the Monadic Chat settings panel.
 
+### File Menu
+
+**About Monadic Chat** <br />
+Shows information about the application version.
+
+**Check for Updates** <br />
+Checks for and downloads application updates. When an update is available, you'll see a dialog with the option to download it. After downloading, you'll be prompted to restart the application to apply the update.
+
+**Uninstall Images and Containers** <br />
+Removes all Docker images and containers for Monadic Chat.
+
+**Quit Monadic Chat** <br />
+Exits the application.
+
 ## API Token Settings Panel
 
 ![Settings Panel](../assets/images/settings-panel.png ':size=600')

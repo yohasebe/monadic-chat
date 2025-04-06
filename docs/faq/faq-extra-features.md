@@ -16,3 +16,6 @@
 
 **A**: Yes, many of the apps in Monadic Chat support web search functionality through the `websearch` setting. When enabled (set to `true`), this allows the AI to search the web for current information to provide more accurate responses. If both `OPENAI_API_KEY` and `TAVILY_API_KEY` are configured, web searches in apps using OpenAI's API will be performed using OpenAI's built-in search capabilities. For web searches in other contexts, the Tavily API will be used.
 
+**Q**: How do I update Monadic Chat to the latest version?
+
+**A**: Monadic Chat automatically checks for updates when it starts. If an update is available, a notification will appear in the console. You can manually check for updates by selecting "Check for Updates" from the application menu (File → Check for Updates). When an update is available, you can download it directly from the application. After downloading, you'll be prompted to restart the application to apply the update.

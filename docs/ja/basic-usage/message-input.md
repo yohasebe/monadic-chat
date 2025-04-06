@@ -6,7 +6,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 テキストエリアにメッセージを入力し、`Send` ボタンをクリックすると、メッセージが送信されます。音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了すると、Speech-to-Text API を通じて音声がテキストに変換され、テキストエリアに表示されます。
 
-?> 音声入力と音声合成を使って AI エージェントとのチャットをスムーズに行うためには、Web 設定画面で `Auto Speech` と `Easy Submit` をオンにしておくと便利です。[Voice Chat](./basic-apps.md#voice-chat)アプリではこれらがデフォルトで有効になっています。
+?> 音声入力と音声合成を使って AI エージェントとのチャットをスムーズに行うためには、Chat Settings画面で `Auto Speech` と `Easy Submit` をオンにしておくと便利です。[Voice Chat](./basic-apps.md#voice-chat)アプリではこれらがデフォルトで有効になっています。
 
 ?> `Role` セレクタは、メッセージの役割を選択するためのものです。通常は `User` を選択しますが、`Assistant` や `System` を選択することで、チャットのコンテクストを追加・加工することができます。詳しくは [FAQ](../faq/faq-user-interface.md) を参照してください。
 
@@ -38,7 +38,7 @@ Anthropic の Sonnet モデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル�
 
 ![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
-チャットの中で継続してPDFの内容についてのやり取りを行うためには、毎回のメッセージ入力で同じ PDF をアップロードする必要があります。セッション中にある PDF を一度アップロードすると、Monadic Chat はセッション終了までの間、毎回、AI エージェントにその PDF を送信します。その際、Web 設定画面で `Prompt Caching` を有効にしている場合、同じ PDF に対するプロンプトがキャッシュされ、API の使用量を節約することができます。その PDF についてのやり取りを終了する場合は、削除 `×` ボタンをクリックして、PDF をクリアします。
+チャットの中で継続してPDFの内容についてのやり取りを行うためには、毎回のメッセージ入力で同じ PDF をアップロードする必要があります。セッション中にある PDF を一度アップロードすると、Monadic Chat はセッション終了までの間、毎回、AI エージェントにその PDF を送信します。その際、Chat Settings画面で `Prompt Caching` を有効にしている場合、同じ PDF に対するプロンプトがキャッシュされ、API の使用量を節約することができます。その PDF についてのやり取りを終了する場合は、削除 `×` ボタンをクリックして、PDF をクリアします。
 
 ## 文書ファイルからのテキスト読み込み :id=reading-text-from-document-files
 

@@ -592,6 +592,25 @@
         </div>
       </div>
     </div>
+    
+    <!-- App Change Confirmation Modal -->
+    <div class="modal fade" id="appChangeConfirmation" tabindex="-1" aria-labelledby="appChangeConfirmationLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="appChangeConfirmationTitle"><i class="fas fa-exchange-alt"></i> Change App</h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="appChangeConfirmed" class="btn btn-sm btn-primary">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Modal -->
     <!-- loading procedure is implemented in monadic.rb -->

@@ -174,13 +174,13 @@ module AIUserAgent
   
   # Find a Chat app that matches the provider
   # @param provider [String] Provider name
-  # @return [Array, nil] [key, app_instance] or nil if not found
+  # @return [Array, nil] [key, app_instance] or nil if not found or API_KEY is missing
   def find_chat_app_for_provider(provider)
     return nil unless provider
     return nil unless defined?(APPS)
     
     # Provider name mapping
-    provider_keywords = case provider
+    provider_keywords = case provider.to_s.downcase
       when "openai" then ["openai"]
       when "anthropic" then ["anthropic", "claude"]
       when "cohere" then ["cohere"]
@@ -189,17 +189,34 @@ module AIUserAgent
       when "grok" then ["grok", "xai"]
       when "perplexity" then ["perplexity"]
       when "deepseek" then ["deepseek"]
-      else [provider]
+      else [provider.to_s.downcase]
     end
+    
+    # Check if the required API key exists for the provider
+    has_api_key = case provider.to_s.downcase
+      when "openai" then !ENV["OPENAI_API_KEY"].nil? && !ENV["OPENAI_API_KEY"].empty?
+      when "anthropic" then !ENV["ANTHROPIC_API_KEY"].nil? && !ENV["ANTHROPIC_API_KEY"].empty?
+      when "cohere" then !ENV["COHERE_API_KEY"].nil? && !ENV["COHERE_API_KEY"].empty?
+      when "gemini" then !ENV["GEMINI_API_KEY"].nil? && !ENV["GEMINI_API_KEY"].empty?
+      when "mistral" then !ENV["MISTRAL_API_KEY"].nil? && !ENV["MISTRAL_API_KEY"].empty?
+      when "grok" then !ENV["XAI_API_KEY"].nil? && !ENV["XAI_API_KEY"].empty?
+      when "perplexity" then !ENV["PERPLEXITY_API_KEY"].nil? && !ENV["PERPLEXITY_API_KEY"].empty?
+      when "deepseek" then !ENV["DEEPSEEK_API_KEY"].nil? && !ENV["DEEPSEEK_API_KEY"].empty?
+      else false
+    end
+    
+    # Return nil if API key is missing
+    return nil unless has_api_key
     
     # Find matching app
     APPS.each do |key, app|
       next unless app.respond_to?(:settings) && app.settings["group"]
       
-      app_group = app.settings["group"].downcase.strip
+      app_group = app.settings["group"].to_s.downcase.strip
       app_name = app.settings["display_name"]
       
-      if provider_keywords.any? { |keyword| app_group.include?(keyword) } && 
+      # Check if any keyword is included in the app group
+      if provider_keywords.any? { |keyword| app_group.to_s.include?(keyword) } && 
          app_name == "Chat"
         return [key, app]
       end

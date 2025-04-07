@@ -202,11 +202,6 @@ module ClaudeHelper
       begin
         parsed_response = JSON.parse(res.body)
         
-        # Log full response for debugging
-        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-          puts "Claude API raw response: #{parsed_response.inspect[0..500]}..."
-        end
-        
         # Extract content from response - try all known formats
         
         # Format 1: Direct content array in response root

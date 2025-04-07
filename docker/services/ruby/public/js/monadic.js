@@ -1246,13 +1246,28 @@ $(function () {
     }
 
     if ($("#select-role").val() !== "user") {
+      // Show spinner to indicate processing
+      setAlert("<i class='fas fa-spinner fa-spin'></i> Processing sample message", "warning");
+      
+      // Set a reasonable timeout to avoid UI getting stuck
+      let sampleTimeoutId = setTimeout(function() {
+        $("#monadic-spinner").hide();
+        $("#cancel_query").hide();
+        setAlert("<i class='fas fa-triangle-exclamation'></i> Sample message timed out. Please try again.", "error");
+      }, 5000);
+      
+      // Store timeout ID in window object so it can be cleared in the websocket listener
+      window.currentSampleTimeout = sampleTimeoutId;
+      
       reconnect_websocket(ws, function (ws) {
         const role = $("#select-role").val().split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
         ws.send(JSON.stringify(msg_object));
+        
+        // Clear input field and reset role selector immediately
+        $("#message").css("height", "96px").val("");
+        $("#select-role").val("user").trigger("change");
       });
-      $("#message").css("height", "96px").val("");
-      $("#select-role").val("").trigger("change");
     } else {
       reconnect_websocket(ws, function (ws) {
         // Create a copy of the current images array to preserve the state

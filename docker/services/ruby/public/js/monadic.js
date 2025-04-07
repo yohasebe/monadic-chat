@@ -1218,7 +1218,8 @@ $(function () {
     audioInit();
     setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
     params = setParams();
-    params["message"] = $("#message").val();
+    const userMessageText = $("#message").val();
+    params["message"] = userMessageText;
     
     // This is handled already in setParams(), no need to override here
 
@@ -1227,10 +1228,24 @@ $(function () {
     // Hide message input and show spinner
     $("#monadic-spinner").show();
 
+    // Temporarily push a placeholder message to prevent double display
+    // This will be replaced by the actual message from the server
+    if (messages.length === 0) {
+      // Add a temporary object to messages array to prevent duplicates
+      const tempMid = "temp_" + Math.floor(Math.random() * 100000);
+      messages.push({ role: "user", text: userMessageText, mid: tempMid, temp: true });
+      
+      // Show loading indicators but don't create a card yet
+      // The actual card will be created when server responds
+      $("#temp-card").show();
+      $("#temp-card .status").hide();
+      $("#indicator").show();
+    }
+
     if ($("#select-role").val() !== "user") {
       reconnect_websocket(ws, function (ws) {
         const role = $("#select-role").val().split("-")[1];
-        const msg_object = { message: "SAMPLE", content: $("#message").val(), role: role }
+        const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
         ws.send(JSON.stringify(msg_object));
       });
       $("#message").css("height", "96px").val("");

@@ -710,21 +710,70 @@ module WebSocketHelper
           session[:messages] << new_data
 
         when "SAMPLE"
-          text = obj["content"]
-          images = obj["images"]
-          new_data = { "mid" => SecureRandom.hex(4),
-                       "role" => obj["role"],
-                       "text" => text,
-                       "active" => true }
-          new_data["images"] = images if images
-          if obj["role"] == "assistant"
-            new_data["html"] = markdown_to_html(text)
-          else
-            new_data["html"] = text
+          begin
+            text = obj["content"]
+            images = obj["images"]
+            # Generate a unique message ID
+            message_id = SecureRandom.hex(4)
+            
+            # Create message data
+            new_data = { 
+              "mid" => message_id,
+              "role" => obj["role"],
+              "text" => text,
+              "active" => true 
+            }
+            
+            # Add images if present
+            new_data["images"] = images if images
+            
+            # Format HTML content based on role
+            if obj["role"] == "assistant"
+              new_data["html"] = markdown_to_html(text)
+            else
+              # For user and system roles, preserve line breaks
+              new_data["html"] = text
+            end
+            
+            # First add to session
+            session[:messages] << new_data
+            
+            # Force the system to send a properly formatted message that will be displayed
+            if obj["role"] == "user"
+              badge = "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>"
+              html_content = "<p>" + text.gsub("<", "&lt;").gsub(">", "&gt;").gsub("\n", "<br>").gsub(/\s/, " ") + "</p>"
+            elsif obj["role"] == "assistant"
+              badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>"
+              html_content = new_data["html"]
+            else # system
+              badge = "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>"
+              html_content = new_data["html"]
+            end
+            
+            # Send a dedicated message for immediate display
+            @channel.push({ 
+              "type" => "display_sample", 
+              "content" => {
+                "mid" => message_id,
+                "role" => obj["role"],
+                "html" => html_content,
+                "badge" => badge
+              }
+            }.to_json)
+            
+            # Also send HTML message for session history
+            @channel.push({ "type" => "html", "content" => new_data }.to_json)
+            
+            # Add a success response to confirm message was processed
+            @channel.push({ "type" => "sample_success", "role" => obj["role"] }.to_json)
+          rescue => e
+            # Log the error
+            puts "Error processing SAMPLE message: #{e.message}"
+            puts e.backtrace
+            
+            # Inform the client
+            @channel.push({ "type" => "error", "content" => "Error processing sample message" }.to_json)
           end
-
-          @channel.push({ "type" => "html", "content" => new_data }.to_json)
-          session[:messages] << new_data
         when "AUDIO"
           handle_audio_message(ws, obj)
         else # fragment

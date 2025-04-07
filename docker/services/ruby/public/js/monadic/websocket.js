@@ -1500,6 +1500,91 @@ function connect_websocket(callback) {
         break;
       }
 
+      case "display_sample": {
+        // Immediately display the sample message
+        const content = data.content;
+        if (!content || !content.mid || !content.role || !content.html || !content.badge) {
+          console.error("Invalid display_sample message format:", data);
+          break;
+        }
+        
+        // First check if this message already exists
+        if ($("#" + content.mid).length > 0) {
+          break;
+        }
+        
+        // Create appropriate element based on role
+        const cardElement = createCard(
+          content.role, 
+          content.badge,
+          content.html,
+          "en", // Default language
+          content.mid,
+          true  // Always active
+        );
+        
+        // Append to discourse
+        $("#discourse").append(cardElement);
+        
+        // Apply appropriate styling based on current settings
+        const htmlContent = $("#discourse div.card:last");
+        
+        if (params["toggle"] === "true") {
+          applyToggle(htmlContent);
+        }
+        
+        if (params["mermaid"] === "true") {
+          applyMermaid(htmlContent);
+        }
+        
+        if (params["mathjax"] === "true") {
+          applyMathJax(htmlContent);
+        }
+        
+        if (params["abc"] === "true") {
+          applyAbc(htmlContent);
+        }
+        
+        if (params["sourcecode"] === "true") {
+          formatSourceCode(htmlContent);
+        }
+        
+        setCopyCodeButton(htmlContent);
+        
+        // Scroll to bottom
+        if (autoScroll && !isElementInViewport(chatBottom)) {
+          chatBottom.scrollIntoView(false);
+        }
+        
+        break;
+      }
+      
+      case "sample_success": {
+        // Use the handler if available, otherwise use inline code
+        let handled = false;
+        if (wsHandlers && typeof wsHandlers.handleSampleSuccess === 'function') {
+          handled = wsHandlers.handleSampleSuccess(data);
+        }
+        
+        if (!handled) {
+          // Clear any pending timeout to prevent error message
+          if (window.currentSampleTimeout) {
+            clearTimeout(window.currentSampleTimeout);
+            window.currentSampleTimeout = null;
+          }
+          
+          // Hide UI elements
+          $("#monadic-spinner").hide();
+          $("#cancel_query").hide();
+          
+          // Show success alert
+          const roleText = data.role === "user" ? "User" : 
+                          data.role === "assistant" ? "Assistant" : "System";
+          setAlert(`<i class='fas fa-check-circle'></i> Sample ${roleText} message added`, "success");
+        }
+        break;
+      }
+      
       case "cancel": {
         // Use the handler if available, otherwise use inline code
         let handled = false;

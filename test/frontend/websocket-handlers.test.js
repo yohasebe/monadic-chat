@@ -111,6 +111,38 @@ describe('WebSocket Handlers', () => {
       expect(setAlert).toHaveBeenCalledWith('Test error message', 'error');
     });
     
+    it('should specifically handle AI User error from Perplexity', () => {
+      // Setup mocks for AI User button
+      const mockAiUserButton = { prop: jest.fn() };
+      $.mockImplementation(selector => {
+        if (selector === '#ai_user') {
+          return mockAiUserButton;
+        }
+        return {
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
+      // Test data with Perplexity error
+      const data = {
+        type: 'error',
+        content: 'AI User error with provider perplexity: Last message must have role `user`'
+      };
+      
+      // Call the handler
+      const result = handlers.handleErrorMessage(data);
+      
+      // Verify error is handled and AI User button is re-enabled
+      expect(result).toBe(true);
+      expect(mockAiUserButton.prop).toHaveBeenCalledWith('disabled', false);
+      expect(setAlert).toHaveBeenCalledWith(
+        'AI User error with provider perplexity: Last message must have role `user`', 
+        'error'
+      );
+    });
+    
     it('should return false for non-error messages', () => {
       const result = handlers.handleErrorMessage({ type: 'something-else' });
       expect(result).toBe(false);

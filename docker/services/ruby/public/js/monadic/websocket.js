@@ -793,9 +793,8 @@ function connect_websocket(callback) {
           $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
           
           // Update the available AI User providers when token is verified
-          if (typeof updateAvailableProviders === 'function') {
-            updateAvailableProviders();
-          }
+          // Always call the function directly from window's scope
+          window.updateAvailableProviders();
         }
 
         break;
@@ -942,10 +941,9 @@ function connect_websocket(callback) {
             ws.send(JSON.stringify({ message: "PDF_TITLES" }));
           }
           
-          // Update the AI User provider dropdown (except Perplexity)
-          if (typeof updateAvailableProviders === 'function') {
-            updateAvailableProviders();
-          }
+          // Update the AI User provider dropdown
+          // Always call the function directly from window's scope
+          window.updateAvailableProviders();
         }
         originalParams = apps["Chat"];
         resetParams();

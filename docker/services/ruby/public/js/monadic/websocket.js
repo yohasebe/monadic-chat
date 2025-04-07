@@ -747,7 +747,9 @@ function connect_websocket(callback) {
   
           // For AI User errors, don't delete messages but re-enable the AI User button
           if (isAIUserError) {
-            // Also update the AI User button state
+            // Explicitly re-enable the AI User button - critical fix for Perplexity
+            $("#ai_user").prop("disabled", false);
+            // Also update the AI User button state based on messages
             updateAIUserButtonState(messages);
           } else {
             // For non-AI User errors, remove user message that caused error (if it exists)
@@ -1798,16 +1800,29 @@ function updateAIUserButtonState(messages) {
   // (meaning user and assistant have exchanged at least one message)
   const hasConversation = Array.isArray(messages) && messages.length >= 2;
   
+  // Get the current provider for proper handling
+  const currentProvider = $("#ai-user-provider").val() || "";
+  const isPerplexity = currentProvider.toLowerCase() === "perplexity";
+  
   // Set disabled state and add tooltip for better UX
   if (hasConversation) {
+    // Enable AI User button and update its appearance
     aiUserBtn.prop("disabled", false);
     aiUserBtn.attr("title", "Generate AI user response based on conversation");
     aiUserBtn.removeClass("disabled");
+    
+    // Add special tooltip for Perplexity
+    if (isPerplexity) {
+      aiUserBtn.attr("title", "Generate AI user response (Perplexity requires alternating user/assistant messages)");
+    }
   } else {
+    // Disable AI User button when there's no sufficient conversation
     aiUserBtn.prop("disabled", true);
     aiUserBtn.attr("title", "Start a conversation first to enable AI User");
     aiUserBtn.addClass("disabled");
   }
+  
+  // Button state updated
 }
 
 // Support for Jest testing environment (CommonJS)

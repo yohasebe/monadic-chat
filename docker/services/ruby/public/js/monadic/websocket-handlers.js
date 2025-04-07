@@ -133,6 +133,36 @@ function handleHtmlMessage(data, messages, createCardFunc) {
 }
 
 /**
+ * Handles sample message success confirmations
+ * @param {Object} data - Parsed message data
+ * @returns {boolean} - Whether the message was handled
+ */
+function handleSampleSuccess(data) {
+  if (data && data.type === 'sample_success') {
+    // Clear any pending timeout to prevent error message
+    if (window.currentSampleTimeout) {
+      clearTimeout(window.currentSampleTimeout);
+      window.currentSampleTimeout = null;
+    }
+    
+    // Hide UI elements
+    $("#monadic-spinner").hide();
+    $("#cancel_query").hide();
+    
+    // Show success alert
+    const roleText = data.role === "user" ? "User" : 
+                    data.role === "assistant" ? "Assistant" : "System";
+    
+    if (typeof setAlert === 'function') {
+      setAlert(`<i class='fas fa-check-circle'></i> Sample ${roleText} message added`, "success");
+    }
+    
+    return true;
+  }
+  return false;
+}
+
+/**
  * Handles speech-to-text (STT) messages
  * @param {Object} data - Parsed message data
  * @returns {boolean} - Whether the message was handled
@@ -211,6 +241,7 @@ window.wsHandlers = {
   handleErrorMessage,
   handleAudioMessage,
   handleHtmlMessage,
+  handleSampleSuccess,
   handleSTTMessage,
   handleCancelMessage
 };

@@ -160,10 +160,9 @@ function attachEventListeners($card) {
       return;
     }
     
-    // For system messages, use direct deletion without confirmation
+    // For system messages, treat the same as other messages
     if ($parentCard.find(".role-system").length > 0) {
-      deleteSystemMessage(mid, messageIndex);
-      return;
+      // No special treatment - handle like other messages
     }
     
     // For regular messages, check if it's in the messages array
@@ -436,9 +435,9 @@ function attachEventListeners($card) {
       messageIndex: messageIndex
     };
     
-    // Create save and cancel buttons
+    // Create save and cancel buttons with consistent styling for all roles
     const $buttonRow = $(`
-      <div class="d-flex justify-content-end mb-2">
+      <div class="d-flex justify-content-end">
         <button class="btn btn-sm btn-secondary me-2 cancel-edit">
           <i class="fas fa-times"></i> Cancel
         </button>

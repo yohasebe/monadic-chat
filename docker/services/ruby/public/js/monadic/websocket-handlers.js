@@ -26,13 +26,24 @@ function handleTokenVerification(data) {
  */
 function handleErrorMessage(data) {
   if (data && data.type === 'error') {
+    // First enable all basic controls
     $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
     $('#message').show();
     $('#message').prop('disabled', false);
     $('#monadic-spinner').hide();
+    
+    // Special handling for AI User errors (critical for Perplexity)
+    const isAIUserError = data.content && data.content.toString().includes("AI User error");
+    if (isAIUserError) {
+      // Explicitly re-enable the AI User button 
+      $('#ai_user').prop('disabled', false);
+    }
+    
+    // Show error message
     if (typeof setAlert === 'function') {
       setAlert(data.content, 'error');
     }
+    
     return true;
   }
   return false;

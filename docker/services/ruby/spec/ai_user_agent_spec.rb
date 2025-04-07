@@ -34,7 +34,7 @@ rescue LoadError
     def default_model_for_provider(provider)
       case provider.downcase
       when /anthropic|claude/
-        "claude-3-5-sonnet"
+        "claude-3-5-sonnet-20241022"
       when /openai|gpt/
         "gpt-4o"
       when /gemini|google/
@@ -179,7 +179,7 @@ RSpec.describe AIUserAgent do
         allow(test_instance).to receive(:find_chat_app_for_provider).with("anthropic").and_return(["ChatAnthropicClaude", mock_chat_app])
         
         # Mock the default model for anthropic
-        allow(test_instance).to receive(:default_model_for_provider).with("anthropic").and_return("claude-3-5-sonnet")
+        allow(test_instance).to receive(:default_model_for_provider).with("anthropic").and_return("claude-3-5-sonnet-20241022")
         
         # For Anthropic, system is a separate parameter, not in messages array
         expect(mock_chat_app).to receive(:send_query).with(
@@ -187,7 +187,7 @@ RSpec.describe AIUserAgent do
             "system" => an_instance_of(String),
             "messages" => []
           ), 
-          model: "claude-3-5-sonnet"
+          model: "claude-3-5-sonnet-20241022"
         ).and_return("I'd like to discuss my project")
         
         test_instance.process_ai_user(mock_session, anthropic_params)
@@ -202,17 +202,35 @@ RSpec.describe AIUserAgent do
         # Mock the default model for perplexity 
         allow(test_instance).to receive(:default_model_for_provider).with("perplexity").and_return("sonar")
         
-        # For Perplexity, the system message is added as a user message
+        # For the updated implementation, we expect ai_user_system_message to be passed
+        # We're not concerned with specific message formats in this test,
+        # just that the request is made with the correct parameters
         expect(mock_chat_app).to receive(:send_query).with(
-          hash_including(
-            "messages" => array_including(
-              hash_including("role" => "system", "content" => an_instance_of(String))
-            )
-          ), 
+          hash_including("ai_user_system_message" => an_instance_of(String)), 
           model: "sonar"
         ).and_return("Can you help with this?")
         
         test_instance.process_ai_user(mock_session, perplexity_params)
+      end
+      
+      it "handles Perplexity errors gracefully" do
+        perplexity_params = mock_params.merge("ai_user_provider" => "perplexity")
+        
+        # Mock finding the chat app for perplexity
+        allow(test_instance).to receive(:find_chat_app_for_provider).with("perplexity").and_return(["ChatPerplexity", mock_chat_app])
+        
+        # Mock the default model for perplexity 
+        allow(test_instance).to receive(:default_model_for_provider).with("perplexity").and_return("sonar")
+        
+        # Simulate an error response from Perplexity
+        allow(mock_chat_app).to receive(:send_query).and_return("Error: Last message must have role `user`")
+        
+        result = test_instance.process_ai_user(mock_session, perplexity_params)
+        
+        # Verify error is returned properly
+        expect(result).to be_a(Hash)
+        expect(result["type"]).to eq("error")
+        expect(result["content"]).to include("Error: Last message must have role `user`")
       end
     end
   end

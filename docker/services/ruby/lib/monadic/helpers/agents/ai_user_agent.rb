@@ -56,47 +56,13 @@ module AIUserAgent
       }
     end
     
-    # For Perplexity, fix messages to ensure alternating user/assistant
-    if provider == "perplexity" && !context.empty?
-      # Create a new context with properly alternating roles
-      perplexity_context = []
-      
-      # First, normalize all roles to either "user" or "assistant"
-      normalized_context = context.map do |msg|
-        role = msg["role"].downcase
-        # Map system or other roles to user
-        if role != "user" && role != "assistant"
-          role = "user" 
-        end
-        {"role" => role, "content" => msg["content"]}
-      end
-      
-      # Force alternating pattern starting with user
-      current_role = "user"
-      normalized_context.each do |msg|
-        if msg["role"] == current_role
-          perplexity_context << msg
-          # Toggle expected next role
-          current_role = (current_role == "user") ? "assistant" : "user"
-        elsif perplexity_context.empty? || perplexity_context.last["role"] != msg["role"]
-          # Only add if it doesn't create consecutive same roles
-          perplexity_context << msg
-          # Toggle expected next role
-          current_role = (current_role == "user") ? "assistant" : "user"
-        end
-        # Skip otherwise (avoid consecutive same roles)
-      end
-      
-      # Ensure we end with a user message
-      if !perplexity_context.empty? && perplexity_context.last["role"] != "user"
-        perplexity_context << {
-          "role" => "user",
-          "content" => "How would you respond to this conversation as the user? Please provide a natural response."
-        }
-      end
-      
-      # Replace the original context
-      context = perplexity_context
+    # For Perplexity, we'll use a simplified approach
+    # The actual message formatting will be handled by perplexity_helper.rb using the ai_user_system_message
+    if provider == "perplexity"
+      # We don't need to do complex formatting here anymore 
+      # Just ensure we have the conversation context in the system message
+      # The helper will handle the rest
+      context = []
     end
     
     # Add system message at the beginning (some APIs handle this differently)

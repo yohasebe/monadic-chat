@@ -39,11 +39,78 @@ module PerplexityHelper
       "Authorization" => "Bearer #{api_key}"
     }
     
-    # Use the model provided directly - trust default_model_for_provider in AI User Agent
-    # Log the model being used
-    # Model details are logged to dedicated log files
+    # Special handling for AI User requests (similar to Claude)
+    if options["ai_user_system_message"] 
+      # For AI User, create a simplified sequence that works reliably
+      simple_messages = [
+        # First, always start with a user message (required by Perplexity)
+        {
+          "role" => "user",
+          "content" => "I need you to respond as if you were the user in a conversation."
+        },
+        # Then add an assistant message
+        {
+          "role" => "assistant", 
+          "content" => "I understand. I'll simulate natural user responses based on the conversation context."
+        },
+        # Finally add another user message with instructions (this ensures last message is user)
+        {
+          "role" => "user",
+          "content" => "Based on this conversation context: \"#{options["ai_user_system_message"]}\", provide a natural response as if you were the user. Keep it conversational and authentic."
+        }
+      ]
+      
+      # Prepare simple request body
+      body = {
+        "model" => model,
+        "max_tokens" => options["max_tokens"] || 1000,
+        "temperature" => options["temperature"] || 0.7,
+        "messages" => simple_messages
+      }
+      
+      # Make API request directly
+      target_uri = "#{API_ENDPOINT}/chat/completions"
+      http = HTTP.headers(headers)
+      
+      response = nil
+      MAX_RETRIES.times do
+        begin
+          response = http.timeout(
+            connect: OPEN_TIMEOUT,
+            write: WRITE_TIMEOUT,
+            read: READ_TIMEOUT
+          ).post(target_uri, json: body)
+          
+          break if response && response.status && response.status.success?
+        rescue StandardError
+          # Continue to next retry
+        end
+        
+        sleep RETRY_DELAY
+      end
+      
+      # Process response
+      if response && response.status && response.status.success?
+        begin
+          parsed_response = JSON.parse(response.body)
+          return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+        rescue => e
+          return "Error: #{e.message}"
+        end
+      else
+        begin
+          error_data = response && response.body ? JSON.parse(response.body) : {}
+          error_message = error_data.dig("error", "message") || error_data["error"] || "Unknown error"
+          return "Error: #{error_message}"
+        rescue => e
+          return "Error: Failed to parse error response"
+        end
+      end
+      
+      return "Error: Failed to get AI User response"
+    end
     
-    # Format messages
+    # Regular non-AI User conversation processing
     messages = []
     
     if options["messages"]
@@ -91,11 +158,18 @@ module PerplexityHelper
           end
         end
         
-        # Make sure we end with a user message
-        if messages.last["role"] != "user"
+        # CRITICAL: Always ensure we end with a user message - required by Perplexity API
+        if messages.empty?
+          # If no messages at all, add a default user message
           messages << {
             "role" => "user",
-            "content" => "How would you respond to this conversation as a real user?"
+            "content" => "Hello, I'd like to have a conversation."
+          }
+        elsif messages.last["role"] != "user"
+          # If last message is not from user, add a user message
+          messages << {
+            "role" => "user",
+            "content" => "How would you respond to this conversation?"
           }
         end
       elsif messages.empty?

@@ -1459,17 +1459,27 @@ function connect_websocket(callback) {
         break;
       }
       case "user": {
+        // Check if we have a temporary message to remove first
+        const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
+        if (tempMessageIndex !== -1) {
+          messages.splice(tempMessageIndex, 1);
+        }
+        
+        // Create the proper message object
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
         if (data["content"]["images"] !== undefined) {
           message_obj.images = data["content"]["images"];
         }
         messages.push(message_obj);
+        
+        // Format content for display
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
         let images;
         if (data["content"]["images"] !== undefined) {
           images = data["content"]["images"];
         }
-        // Use the appendCard helper function
+        
+        // Use the appendCard helper function to show the user message
         appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
         
         // Scroll down immediately after showing user message to make it visible
@@ -1477,6 +1487,7 @@ function connect_websocket(callback) {
           mainPanel.scrollIntoView(false);
         }
         
+        // Show loading indicators
         $("#temp-card").show();
         $("#temp-card .status").hide();
         $("#indicator").show();
@@ -1499,6 +1510,17 @@ function connect_websocket(callback) {
         }
         
         if (!handled) {
+          // Remove temporary message if it exists
+          const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
+          if (tempMessageIndex !== -1) {
+            messages.splice(tempMessageIndex, 1);
+          }
+          
+          // Remove any UI cards that may have been created during this initial message
+          if (messages.length === 0) {
+            $("#discourse").empty();
+          }
+          
           // Don't clear the message so users can edit and resubmit
           $("#message").attr("placeholder", "Type your message...");
           $("#message").prop("disabled", false);
@@ -1515,6 +1537,10 @@ function connect_websocket(callback) {
           
           $("#alert-message").html("Input a message.");
           $("#cancel_query").hide();
+          
+          // Hide loading indicators
+          $("#temp-card").hide();
+          $("#indicator").hide();
           
           // Show message input and hide spinner
           $("#message").show();

@@ -666,6 +666,27 @@ legend {
   align-items: center;
 }
 
+/* Improve temp-card styling - reduce unnecessary bottom padding */
+#temp-card .card-body {
+  padding-bottom: 0.5rem;
+}
+
+/* Eliminate extra bottom space in chat area during streaming */
+#chat {
+  min-height: 10px;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Keep chat-bottom marker close to content */
+#chat-bottom {
+  font-size: 0;
+  line-height: 0;
+  margin-top: 0;
+  padding-top: 0;
+  height: 1px;
+}
+
 #main-nav {
   height: 108px;
   border-top: 1px solid #666;

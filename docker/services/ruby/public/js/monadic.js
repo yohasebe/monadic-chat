@@ -458,7 +458,8 @@ $(function () {
     
     
     // Function to update available providers in dropdown based on API keys
-    function updateAvailableProviders() {
+    // Export to window scope for access from websocket.js
+    window.updateAvailableProviders = function() {
       // Hide all options first
       $("#ai_user_provider option").hide();
       
@@ -488,6 +489,8 @@ $(function () {
           $("#ai_user_provider option[value='deepseek']").show();
         } else if (group.includes("grok") || group.includes("xai")) {
           $("#ai_user_provider option[value='grok']").show();
+        } else if (group.includes("perplexity")) {
+          $("#ai_user_provider option[value='perplexity']").show();
         }
       }
       

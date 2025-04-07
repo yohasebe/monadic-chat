@@ -86,7 +86,7 @@ div.card-body.role-user {
   background-color: #f6f8ff;
 }
 
-div.card-body.role-user .card-text p, div.card-body.role-system .card-text{
+div.card-body.role-user .card-text p, div.card-body.role-system .card-text p {
   white-space: pre-wrap;
 }
 
@@ -432,6 +432,13 @@ div.sourcecode-toggle:hover {
 
 .role-system .inline-edit-textarea {
   background-color: #f7fff6;
+}
+
+/* Ensure consistent button styling for all roles */
+.card-body .btn-sm {
+  font-size: 0.875rem !important;
+  padding: 0.25rem 0.5rem !important;
+  line-height: 1.5 !important;
 }
 
 div.diagram {

@@ -101,9 +101,9 @@ function handleHtmlMessage(data, messages, createCardFunc) {
     
     // Handle thinking content if present
     if (data.content.thinking) {
-      finalHtml = `<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>${data.content.thinking}</div></div>${html}`;
+      finalHtml = `<div data-title='Thinking Block' class='toggle'><span class="toggle-text">Show thinking details</span><div class='toggle-open'>${data.content.thinking}</div></div>${html}`;
     } else if (data.content.reasoning_content) {
-      finalHtml = `<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>${data.content.reasoning_content}</div></div>${html}`;
+      finalHtml = `<div data-title='Thinking Block' class='toggle'><span class="toggle-text">Show reasoning process</span><div class='toggle-open'>${data.content.reasoning_content}</div></div>${html}`;
     }
     
     if (data.content.role === 'assistant') {

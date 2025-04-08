@@ -1526,6 +1526,24 @@ function connect_websocket(callback) {
         // Append to discourse
         $("#discourse").append(cardElement);
         
+        // Add message to messages array to ensure edit functionality works correctly
+        // This ensures sample messages are treated consistently with API-generated messages
+        if (content.text) {
+          const messageObj = {
+            "role": content.role,
+            "text": content.text,
+            "mid": content.mid
+          };
+          
+          // For assistant role, also include HTML content
+          if (content.role === "assistant") {
+            messageObj.html = content.html;
+          }
+          
+          // Add to messages array - this ensures last message detection works correctly
+          messages.push(messageObj);
+        }
+        
         // Apply appropriate styling based on current settings
         const htmlContent = $("#discourse div.card:last");
         

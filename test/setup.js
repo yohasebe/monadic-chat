@@ -1,3 +1,15 @@
+/**
+ * Global Jest Test Setup for Monadic Chat
+ *
+ * This file provides the global setup for Jest tests, including:
+ * - Mock global objects (console, document, window)
+ * - Mock browser APIs (fetch, WebSocket)
+ * - Mock DOM elements
+ * - Setup for jQuery and other libraries
+ */
+
+const { createJQueryMock } = require('./helpers');
+
 // Mock global variables and functions needed for tests
 
 // Mock console methods to avoid cluttering test output
@@ -15,294 +27,76 @@ global.window = {
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
   innerHeight: 1080,
-  innerWidth: 1920
+  innerWidth: 1920,
+  localStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
+  sessionStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
+  location: {
+    href: 'http://localhost:8080/',
+    hostname: 'localhost',
+    pathname: '/',
+    search: '',
+    hash: ''
+  }
 };
 
 // Mock document with proper body
 document.body = document.createElement('body');
 
 // Create and add mock elements to the DOM for testing
-const mockElements = {
-  '#message': document.createElement('input'),
-  '#discourse': document.createElement('div'),
-  '#send': document.createElement('button'),
-  '#clear': document.createElement('button'),
-  '#voice': document.createElement('button'),
-  '#image-file': document.createElement('input'),
-  '#doc': document.createElement('button'),
-  '#url': document.createElement('button'),
-  '#monadic-spinner': document.createElement('div'),
-  '#token': document.createElement('input'),
-  '#api-token': document.createElement('input'),
-  '#ai-user-initial-prompt': document.createElement('input'),
-  '#start': document.createElement('button'),
-  '#select-role': document.createElement('select'),
-  '#apps': document.createElement('select'),
-  '#model': document.createElement('select'),
-  '#cancel_query': document.createElement('button'),
-  '#chat-bottom': document.createElement('div'),
-  '#main-panel': document.createElement('div'),
-  '#check-easy-submit': document.createElement('input'),
+const createElementWithId = (type, id) => {
+  const element = document.createElement(type);
+  element.id = id.replace('#', '');
+  document.body.appendChild(element);
+  return element;
 };
 
-// Add elements to document body
-Object.values(mockElements).forEach(el => document.body.appendChild(el));
+// Setup common test elements
+[
+  ['input', 'message'],
+  ['div', 'discourse'],
+  ['button', 'send'],
+  ['button', 'clear'],
+  ['button', 'voice'],
+  ['input', 'image-file'],
+  ['button', 'doc'],
+  ['button', 'url'],
+  ['div', 'monadic-spinner'],
+  ['input', 'token'],
+  ['input', 'api-token'],
+  ['input', 'ai-user-initial-prompt'],
+  ['button', 'start'],
+  ['select', 'select-role'],
+  ['select', 'apps'],
+  ['select', 'model'],
+  ['button', 'cancel_query'],
+  ['div', 'chat-bottom'],
+  ['div', 'main-panel'],
+  ['input', 'check-easy-submit']
+].forEach(([type, id]) => createElementWithId(type, id));
 
-// Create a mocked jQuery interface
-const jQuery = {
-  ajax: jest.fn().mockImplementation(options => {
-    // Simulate async behavior
-    setTimeout(() => {
-      if (options && options.success) {
-        options.success({ success: true });
-      }
-    }, 10);
-    return { 
-      promise: jest.fn(),
-      done: jest.fn().mockReturnThis(),
-      fail: jest.fn().mockReturnThis(),
-      always: jest.fn().mockReturnThis()
-    };
-  }),
-  
-  modal: jest.fn().mockReturnValue({ modal: jest.fn() }),
-  
-  Deferred: jest.fn().mockImplementation(() => ({
-    resolve: jest.fn(),
-    reject: jest.fn(),
-    promise: jest.fn().mockReturnThis(),
-    done: jest.fn().mockReturnThis(),
-    fail: jest.fn().mockReturnThis(),
-    always: jest.fn().mockReturnThis()
-  }))
-};
+// Setup jQuery using helpers
+global.$ = createJQueryMock();
+global.jQuery = global.$;
 
-// Create a shared state store for jQuery selectors
-const selectorStates = new Map();
-
-// Create a function to generate jQuery selector objects
-function createJQueryObject(selector) {
-  // Get or create state for this selector
-  if (!selectorStates.has(selector)) {
-    selectorStates.set(selector, {
-      value: '',
-      placeholder: 'Type your message...',
-      disabled: false,
-      attributes: { placeholder: 'Type your message...' },
-      data: {},
-      properties: {},
-      text: '',
-      html: ''
-    });
-  }
-  
-  const state = selectorStates.get(selector);
-  
-  // Create a chainable object with all jQuery methods
-  const mockObject = {
-    // Improved val() implementation
-    val: jest.fn().mockImplementation(function(newVal) {
-      if (newVal === undefined) return state.value;
-      state.value = newVal;
-      return mockObject;
-    }),
-    
-    // Improved text() implementation
-    text: jest.fn().mockImplementation(function(newText) {
-      if (newText === undefined) return state.text || '';
-      state.text = newText;
-      return mockObject;
-    }),
-    
-    // Improved html() implementation
-    html: jest.fn().mockImplementation(function(newHtml) {
-      if (newHtml === undefined) return state.html || '';
-      state.html = newHtml;
-      return mockObject;
-    }),
-    
-    // Improved attr() implementation - now correctly returns this for chaining
-    attr: jest.fn().mockImplementation(function(name, value) {
-      if (value === undefined) {
-        return state.attributes[name];
-      }
-      state.attributes[name] = value;
-      if (name === 'placeholder') {
-        state.placeholder = value;
-      }
-      return mockObject;
-    }),
-    
-    // Improved prop() implementation
-    prop: jest.fn().mockImplementation(function(name, value) {
-      if (value === undefined) {
-        if (name === 'disabled') return state.disabled;
-        return state.properties?.[name];
-      }
-      if (name === 'disabled') {
-        state.disabled = value;
-      } else {
-        if (!state.properties) state.properties = {};
-        state.properties[name] = value;
-      }
-      return mockObject;
-    }),
-    
-    // Improved data() implementation
-    data: jest.fn().mockImplementation(function(name, value) {
-      if (value === undefined) {
-        return state.data[name];
-      }
-      state.data[name] = value;
-      return mockObject;
-    }),
-    
-    append: jest.fn().mockReturnThis(),
-    appendTo: jest.fn().mockReturnThis(),
-    prepend: jest.fn().mockReturnThis(),
-    find: jest.fn().mockReturnThis(),
-    addClass: jest.fn().mockReturnThis(),
-    removeClass: jest.fn().mockReturnThis(),
-    trigger: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    click: jest.fn().mockImplementation(function(handler) {
-      if (handler) handler();
-      return mockObject;
-    }),
-    on: jest.fn().mockReturnThis(),
-    off: jest.fn().mockReturnThis(),
-    one: jest.fn((event, handler) => {
-      if (handler) handler();
-      return mockObject;
-    }),
-    each: jest.fn().mockImplementation(function(callback) {
-      callback.call(mockObject, 0, mockObject);
-      return mockObject;
-    }),
-    is: jest.fn().mockReturnValue(false),
-    hasClass: jest.fn().mockReturnValue(false),
-    css: jest.fn().mockReturnThis(),
-    length: 1,
-    get: jest.fn().mockImplementation((index) => {
-      if (index === undefined) return [mockElements[selector] || {}];
-      return mockElements[selector] || {};
-    }),
-    prev: jest.fn().mockReturnThis(),
-    next: jest.fn().mockReturnThis(),
-    parent: jest.fn().mockReturnThis(),
-    parents: jest.fn().mockReturnThis(),
-    children: jest.fn().mockReturnThis(),
-    siblings: jest.fn().mockReturnThis(),
-    last: jest.fn().mockReturnThis(),
-    first: jest.fn().mockReturnThis(),
-    before: jest.fn().mockReturnThis(),
-    after: jest.fn().mockReturnThis(),
-    remove: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    height: jest.fn().mockReturnValue(100),
-    width: jest.fn().mockReturnValue(100),
-    scrollTop: jest.fn().mockReturnValue(0),
-    tooltip: jest.fn().mockReturnThis(),
-    modal: jest.fn().mockReturnThis(),
-    closest: jest.fn().mockReturnThis(),
-    detach: jest.fn().mockReturnThis(),
-  };
-
-  // Make it array-like
-  mockObject[0] = {};
-  mockObject.length = 1;
-  
-  return mockObject;
-}
-
-// Create a function to extract functions from client-side JS files
-function extractFunctions(modulePath) {
-  const fs = require('fs');
-  const path = require('path');
-  
-  try {
-    // Read file content
-    const projectRoot = path.resolve(__dirname, '..');
-    const fullPath = path.join(projectRoot, modulePath);
-    const content = fs.readFileSync(fullPath, 'utf8');
-    
-    // Extract function declarations using regex patterns
-    const functionPatterns = [
-      // Function declarations: function name(...) {...}
-      /function\s+(\w+)\s*\([^)]*\)\s*\{/g,
-      
-      // Arrow functions assigned to variables: const name = (...) => {...}
-      /(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g,
-      
-      // Function expressions assigned to variables: const name = function(...) {...}
-      /(?:const|let|var)\s+(\w+)\s*=\s*function\s*\(/g,
-      
-      // Window object function assignments: window.name = function(...) {...}
-      /window\.(\w+)\s*=\s*function\s*\(/g
-    ];
-    
-    const functionNames = new Set();
-    for (const pattern of functionPatterns) {
-      let match;
-      while ((match = pattern.exec(content)) !== null) {
-        functionNames.add(match[1]);
-      }
-    }
-    
-    // Create a module object with extracted function names
-    const extractedModule = {};
-    
-    // Define function implementations based on the extracted names
-    Array.from(functionNames).forEach(name => {
-      // Create a function that will call the global implementation
-      extractedModule[name] = function(...args) {
-        // Make sure the function exists in the global scope
-        if (typeof global[name] !== 'function') {
-          global[name] = jest.fn();
-        }
-        return global[name](...args);
-      };
-    });
-    
-    return extractedModule;
-  } catch (error) {
-    console.error(`Failed to extract functions from ${modulePath}:`, error);
-    return {};
-  }
-}
-
-// Export helpers for tests
-module.exports = {
-  createJQueryObject,
-  extractFunctions
-};
-
-// Create an implementation of the jQuery function
-const $ = jest.fn().mockImplementation(selector => {
-  return createJQueryObject(selector);
-});
-
-// Add all static methods
-Object.assign($, jQuery);
-
-// Make $ and jQuery available globally
-global.$ = $;
-global.jQuery = $;
-
-// Mock MathJax
+// Setup common JavaScript visualization libraries
 global.MathJax = {
   typesetPromise: jest.fn().mockResolvedValue(true)
 };
 
-// Mock mermaid
 global.mermaid = {
   initialize: jest.fn(),
   run: jest.fn().mockResolvedValue(true),
   detectType: jest.fn().mockReturnValue('flowchart')
 };
 
-// Mock ABCJS
 global.ABCJS = {
   renderAbc: jest.fn().mockReturnValue([{}]),
   synth: {
@@ -315,9 +109,14 @@ global.ABCJS = {
   }
 };
 
-// Default constants needed by websocket.js
+// Mock default constants needed by most modules
 global.DEFAULT_APP = 'Chat';
 global.runningOnFirefox = false;
+global.runningOnChrome = true;
+global.runningOnSafari = false;
+global.runningOnEdge = false;
+
+// Common utility functions
 global.setAlert = jest.fn();
 global.setStats = jest.fn();
 global.formatInfo = jest.fn().mockReturnValue('');
@@ -329,7 +128,7 @@ global.setInputFocus = jest.fn();
 global.listModels = jest.fn().mockReturnValue('<option>model1</option>');
 global.modelSpec = { 'gpt-4o': { reasoning_effort: 'high' } };
 
-// Mock Audio constructor
+// Mock browser multimedia APIs
 global.Audio = jest.fn().mockImplementation(() => ({
   src: '',
   play: jest.fn().mockResolvedValue(undefined),
@@ -337,7 +136,6 @@ global.Audio = jest.fn().mockImplementation(() => ({
   load: jest.fn()
 }));
 
-// Mock MediaSource
 global.MediaSource = jest.fn().mockImplementation(() => ({
   addEventListener: jest.fn((event, callback) => {
     if (event === 'sourceopen' && callback) callback();
@@ -351,35 +149,32 @@ global.MediaSource = jest.fn().mockImplementation(() => ({
   readyState: 'open'
 }));
 
-// Mock URL methods
+// Mock URL and file handling methods
 global.URL = {
   createObjectURL: jest.fn().mockReturnValue('blob:test'),
   revokeObjectURL: jest.fn()
 };
 
-// Mock Uint8Array for audio processing
 global.Uint8Array = jest.fn();
 global.Uint8Array.from = jest.fn().mockImplementation(() => new Array(10));
 
-// Mock Base64 functions
 global.atob = jest.fn().mockReturnValue('test-audio-data');
 global.btoa = jest.fn().mockReturnValue('dGVzdC1hdWRpby1kYXRh');
 
-// Mock XMLSerializer for SVG download
 global.XMLSerializer = jest.fn().mockImplementation(() => ({
   serializeToString: jest.fn().mockReturnValue('<svg></svg>')
 }));
 
-// Mock Blob for file operations
 global.Blob = jest.fn().mockImplementation(() => ({}));
 
-// Mock navigator clipboard
+// Navigator APIs
 if (!global.navigator) {
   global.navigator = {};
 }
+
 global.navigator.clipboard = {
   writeText: jest.fn().mockResolvedValue(undefined)
 };
 
-// Mock mids Set used in websocket.js
+// Common global state
 global.mids = new Set();

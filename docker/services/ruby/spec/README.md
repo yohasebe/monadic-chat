@@ -6,9 +6,23 @@ This directory contains tests for the Ruby components of Monadic Chat.
 
 The test suite is organized as follows:
 
-- `spec_helper.rb` - Common setup for all tests
+- `spec_helper.rb` - Common setup and helper utilities for all tests
 - `*_spec.rb` - Individual test files for different components
 - `monadic_app_command_mock.rb` - Mock implementation of MonadicApp for testing command execution
+
+## Shared Testing Utilities
+
+We've implemented several shared testing utilities to improve code reuse and consistency:
+
+1. **TestHelpers Module** - Common helper methods for all tests:
+   - `mock_successful_response` - Creates a standard successful HTTP response
+   - `mock_error_response` - Creates a standard error HTTP response
+   - `mock_status` - Creates a standard OpenStruct for command status
+   - `stub_http_client` - Sets up standard HTTP client mocks
+
+2. **Shared Examples**:
+   - `"a vendor API helper"` - Standard tests for all vendor API helpers
+   - `"command execution"` - Standard tests for command execution scenarios
 
 ## Key Components Tested
 
@@ -26,11 +40,20 @@ The test suite is organized as follows:
    - `embeddings_spec.rb` - Tests for vector embeddings
    - `websocket_spec.rb` - Tests for WebSocket functionality
 
+4. **Vendor Helpers**
+   - `claude_helper_spec.rb` - Tests for Claude API integration
+   - `cohere_helper_spec.rb` - Tests for Cohere API integration
+   - `gemini_helper_spec.rb` - Tests for Google Gemini API integration
+   - `openai_helper_spec.rb` - Tests for OpenAI API integration
+   - `mistral_helper_spec.rb` - Tests for Mistral API integration
+   - `perplexity_helper_spec.rb` - Tests for Perplexity API integration
+
 ## Test Design Principles
 
 1. **Isolation** - Tests use namespaces to avoid conflicts between different test files
 2. **Mocking** - Dependencies are mocked to avoid external service calls
-3. **Comprehensive Coverage** - Edge cases and error conditions are tested
+3. **Shared Utilities** - Common test code is extracted into helper modules and shared examples
+4. **Comprehensive Coverage** - Edge cases and error conditions are tested
 
 ## Running Tests
 

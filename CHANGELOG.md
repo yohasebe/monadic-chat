@@ -5,6 +5,8 @@
   - AI User feature significantly improved
   - Optimized container rebuilding process: Only rebuilds affected containers during version updates
   - Added container version tracking to avoid unnecessary full rebuilds
+  - Reset button behavior change to preserve current app selection
+  - Improved card UI and visual styling for message display, code blocks, and syntax highlighting
   - Many UI improvements and bug fixes (role selection, message editing, etc.)
 - [March, 2025] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites

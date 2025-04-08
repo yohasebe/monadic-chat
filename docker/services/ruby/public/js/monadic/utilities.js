@@ -421,7 +421,7 @@ function loadParams(params, calledFor = "loadParams") {
       }
     }
     // Update the badge in the AI User section
-    $("#ai-assistant-info").text("AI Assistant: " + provider).attr("data-model", selectedModel);
+    $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant:</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
   }
   
   stop_apps_trigger = false;

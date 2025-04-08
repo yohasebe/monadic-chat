@@ -548,7 +548,7 @@ $(function () {
         }
       }
       // Update the badge in the AI User section with provider name and model
-      $("#ai-assistant-info").text("AI Assistant: " + provider).attr("data-model", selectedModel);
+      $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant:</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
       
       // Update model-selected text to follow the new multiline format
       if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {

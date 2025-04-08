@@ -149,6 +149,8 @@ button.fixed-width {
   font-weight: 500;
 }
 
+/* CSS class removed as we now use inline styles */
+
 .user-color {
   color: #4CACDC;
   font-weight: 500;

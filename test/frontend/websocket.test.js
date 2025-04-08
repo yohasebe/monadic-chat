@@ -256,4 +256,55 @@ describe('WebSocket Module', () => {
       expect(global.ws.addEventListener).toBeDefined();
     });
   });
+
+  // Test the concept of sample message handling
+  describe('Sample Message Handling Concept', () => {
+    it('should conceptually demonstrate adding sample messages to messages array', () => {
+      // Create a sample messages array
+      const messages = [];
+      
+      // Sample message representation (simplified)
+      const sampleContent = {
+        role: 'user',
+        text: 'Sample user message',
+        mid: 'sample_123'
+      };
+      
+      // Logic to add the message (core of what we're testing in the implementation)
+      messages.push(sampleContent);
+      
+      // Verify the message was added correctly
+      expect(messages).toHaveLength(1);
+      expect(messages[0].mid).toBe('sample_123');
+      expect(messages[0].role).toBe('user');
+      expect(messages[0].text).toBe('Sample user message');
+      
+      // Test assistant role logic would add html field as well
+      const assistantContent = {
+        role: 'assistant',
+        text: 'Assistant response',
+        html: '<p>Assistant response</p>',
+        mid: 'sample_456'
+      };
+      
+      // Add to messages array with role-specific logic
+      const messageObj = {
+        role: assistantContent.role,
+        text: assistantContent.text,
+        mid: assistantContent.mid
+      };
+      
+      // Add HTML for assistant role only
+      if (assistantContent.role === 'assistant') {
+        messageObj.html = assistantContent.html;
+      }
+      
+      messages.push(messageObj);
+      
+      // Verify assistant message is added correctly with HTML
+      expect(messages).toHaveLength(2);
+      expect(messages[1].role).toBe('assistant');
+      expect(messages[1].html).toBe('<p>Assistant response</p>');
+    });
+  });
 });

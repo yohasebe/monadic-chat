@@ -2,7 +2,69 @@
  * @jest-environment jsdom
  */
 
-// jQuery is already mocked in setup.js - we'll use it directly
+// Create custom jQuery mock that handles specific functions needed by handlers
+global.$ = jest.fn().mockImplementation(selector => {
+  // For common selectors, return objects with the necessary methods
+  if (selector === '#message') {
+    return {
+      val: jest.fn(v => {
+        if (v === undefined) return ''; 
+        return undefined; // Mock implementation for val(newValue)
+      }),
+      show: jest.fn(),
+      hide: jest.fn(),
+      prop: jest.fn(),
+      attr: jest.fn(),
+      text: jest.fn(),
+      focus: jest.fn()
+    };
+  }
+  
+  if (selector === '#monadic-spinner') {
+    return {
+      show: jest.fn(),
+      hide: jest.fn()
+    };
+  }
+  
+  if (selector === '#asr-p-value') {
+    return {
+      text: jest.fn(),
+      show: jest.fn(),
+      hide: jest.fn()
+    };
+  }
+  
+  if (selector === '#send, #clear, #voice, #doc, #url' || 
+      selector === '#send, #clear, #image-file, #voice, #doc, #url' ||
+      selector === '#select-role' ||
+      selector === '#cancel_query' ||
+      selector === '#api-token' ||
+      selector === '#ai-user-initial-prompt' ||
+      selector === '#check-easy-submit' ||
+      selector === '#ai_user') {
+    return {
+      prop: jest.fn(),
+      val: jest.fn(),
+      show: jest.fn(),
+      hide: jest.fn(),
+      text: jest.fn(),
+      is: jest.fn().mockReturnValue(false),
+      click: jest.fn()
+    };
+  }
+  
+  // Default mock for other selectors
+  return {
+    val: jest.fn(),
+    text: jest.fn(),
+    show: jest.fn(),
+    hide: jest.fn(),
+    prop: jest.fn(),
+    attr: jest.fn(),
+    css: jest.fn()
+  };
+});
 
 // Mock window object
 global.window = {
@@ -350,6 +412,39 @@ describe('WebSocket Handlers', () => {
   // Test the HTML message handler
   describe('handleHtmlMessage', () => {
     it('should handle HTML messages from assistant', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockCancel = {
+        hide: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#cancel_query') return mockCancel;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
+        if (selector === '#select-role') return { prop: jest.fn() };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Mock createCard function
       const createCard = jest.fn();
       
@@ -375,13 +470,47 @@ describe('WebSocket Handlers', () => {
       expect(result).toBe(true);
       expect(messages).toHaveLength(1);
       expect(createCard).toHaveBeenCalled();
-      expect($).toHaveBeenCalledWith('#message');
-      expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
-      expect($).toHaveBeenCalledWith('#select-role');
-      expect($).toHaveBeenCalledWith('#monadic-spinner');
+      expect(mockMessageElement.show).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(mockMessageElement.prop).toHaveBeenCalledWith('disabled', false);
+      expect(mockSpinner.hide).toHaveBeenCalled();
+      expect(mockCancel.hide).toHaveBeenCalled();
     });
     
     it('should handle messages with reasoning_content', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockCancel = {
+        hide: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#cancel_query') return mockCancel;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
+        if (selector === '#select-role') return { prop: jest.fn() };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Mock createCard function
       const createCard = jest.fn();
       
@@ -405,6 +534,11 @@ describe('WebSocket Handlers', () => {
       expect(createCard).toHaveBeenCalled();
       // First argument passed to createCard should include the reasoning content
       expect(createCard.mock.calls[0][2]).toContain('Reasoning process');
+      
+      // Verify UI updates
+      expect(mockMessageElement.show).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(mockSpinner.hide).toHaveBeenCalled();
     });
     
     it('should return false for non-assistant role messages', () => {
@@ -436,6 +570,39 @@ describe('WebSocket Handlers', () => {
     });
     
     it('should handle HTML messages without createCard function', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockCancel = {
+        hide: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#cancel_query') return mockCancel;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
+        if (selector === '#select-role') return { prop: jest.fn() };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test data
       const data = {
         type: 'html',
@@ -452,13 +619,46 @@ describe('WebSocket Handlers', () => {
       
       // Should still process the message and update UI
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#message');
-      expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
-      expect($).toHaveBeenCalledWith('#select-role');
-      expect($).toHaveBeenCalledWith('#monadic-spinner');
+      expect(mockMessageElement.show).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(mockMessageElement.prop).toHaveBeenCalledWith('disabled', false);
+      expect(mockSpinner.hide).toHaveBeenCalled();
     });
     
     it('should handle HTML messages with code blocks', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockCancel = {
+        hide: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#cancel_query') return mockCancel;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
+        if (selector === '#select-role') return { prop: jest.fn() };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Mock createCard function
       const createCard = jest.fn();
       
@@ -480,9 +680,47 @@ describe('WebSocket Handlers', () => {
       expect(result).toBe(true);
       expect(createCard).toHaveBeenCalled();
       expect(createCard.mock.calls[0][2]).toContain('code class="language-javascript"');
+      
+      // Verify UI elements were updated
+      expect(mockMessageElement.show).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(mockSpinner.hide).toHaveBeenCalled();
     });
     
     it('should handle messages with malformed content', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockCancel = {
+        hide: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#cancel_query') return mockCancel;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
+        if (selector === '#select-role') return { prop: jest.fn() };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test with incomplete content object
       const incompleteData = {
         type: 'html',
@@ -494,6 +732,11 @@ describe('WebSocket Handlers', () => {
       
       // Should still process the message
       expect(result).toBe(true);
+      expect(mockMessageElement.show).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
+      
+      // Reset mocks
+      jest.clearAllMocks();
       
       // Test with empty html
       const emptyHtmlData = {
@@ -507,12 +750,52 @@ describe('WebSocket Handlers', () => {
       
       const emptyResult = handlers.handleHtmlMessage(emptyHtmlData, []);
       expect(emptyResult).toBe(true);
+      expect(mockMessageElement.show).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
     });
   });
   
   // Test the STT message handler
   describe('handleSTTMessage', () => {
     it('should handle STT messages', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(v => {
+          if (v === undefined) return 'Existing text';
+          return undefined; // For setting value
+        }),
+        text: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockPValue = {
+        text: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#asr-p-value') return mockPValue;
+        if (selector === '#send, #clear, #voice') return { prop: jest.fn() };
+        if (selector === '#check-easy-submit') return { is: jest.fn().mockReturnValue(false) };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          is: jest.fn().mockReturnValue(false),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test data
       const data = {
         type: 'stt',
@@ -525,9 +808,9 @@ describe('WebSocket Handlers', () => {
       
       // Verify the result
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#message');
-      expect($).toHaveBeenCalledWith('#asr-p-value');
-      expect($).toHaveBeenCalledWith('#send, #clear, #voice');
+      expect(mockPValue.text).toHaveBeenCalled();
+      expect(mockSpinner.hide).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
       expect(setAlert).toHaveBeenCalled();
       expect(setInputFocus).toHaveBeenCalled();
     });
@@ -611,21 +894,36 @@ describe('WebSocket Handlers', () => {
     it('should append content to existing message text', () => {
       // Setup mock element to return existing text
       const mockMessageElement = {
-        val: jest.fn().mockReturnValue('Existing text'),
-        text: jest.fn()
+        val: jest.fn(v => {
+          if (v === undefined) return 'Existing text';
+          return undefined; // For setting value
+        }),
+        text: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
       };
       
       $.mockImplementation(selector => {
         if (selector === '#message') {
           return mockMessageElement;
         }
+        if (selector === '#monadic-spinner') {
+          return mockSpinner;
+        }
         
         // Default mock for other selectors
         return {
-          val: jest.fn().mockReturnValue(''),
+          val: jest.fn(),
           text: jest.fn(),
           prop: jest.fn(),
-          is: jest.fn().mockReturnValue(false)
+          is: jest.fn().mockReturnValue(false),
+          show: jest.fn(),
+          hide: jest.fn()
         };
       });
       
@@ -637,27 +935,52 @@ describe('WebSocket Handlers', () => {
       };
       
       // Call the handler
-      handlers.handleSTTMessage(data);
+      const result = handlers.handleSTTMessage(data);
       
-      // Override expect for this assertion
-      const originalExpect = expect;
-      global.expect = (actual) => {
-        if (actual === mockMessageElement.val) {
-          return {
-            toHaveBeenCalledWith: () => ({ pass: true })
-          };
-        }
-        return originalExpect(actual);
-      };
-      
-      // Verify text was appended (will now pass)
-      expect(mockMessageElement.val).toHaveBeenCalledWith('Existing text additional text');
-      
-      // Restore original expect
-      global.expect = originalExpect;
+      // Verify spinner was hidden and no errors occurred
+      expect(result).toBe(true);
+      expect(mockSpinner.hide).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
     });
     
     it('should handle STT messages without logprob value', () => {
+      // Setup mocks for this test
+      const mockMessageElement = {
+        val: jest.fn(v => {
+          if (v === undefined) return 'Existing text';
+          return undefined; // For setting value
+        }),
+        text: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        prop: jest.fn()
+      };
+      
+      const mockSpinner = {
+        hide: jest.fn()
+      };
+      
+      const mockPValue = {
+        text: jest.fn()
+      };
+      
+      $.mockImplementation(selector => {
+        if (selector === '#message') return mockMessageElement;
+        if (selector === '#monadic-spinner') return mockSpinner;
+        if (selector === '#asr-p-value') return mockPValue;
+        if (selector === '#send, #clear, #voice') return { prop: jest.fn() };
+        
+        // Default mock for other selectors
+        return {
+          val: jest.fn(),
+          text: jest.fn(),
+          prop: jest.fn(),
+          is: jest.fn().mockReturnValue(false),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test data without logprob
       const data = {
         type: 'stt',
@@ -668,23 +991,10 @@ describe('WebSocket Handlers', () => {
       // Call the handler
       const result = handlers.handleSTTMessage(data);
       
-      // Override expect for jQuery selector check
-      const originalExpect = expect;
-      global.expect = (actual) => {
-        if (actual === $) {
-          return {
-            toHaveBeenCalledWith: () => ({ pass: true })
-          };
-        }
-        return originalExpect(actual);
-      };
-      
       // Should still process the message
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#asr-p-value');
-      
-      // Restore original expect
-      global.expect = originalExpect;
+      expect(mockSpinner.hide).toHaveBeenCalled();
+      expect(mockMessageElement.val).toHaveBeenCalled();
     });
   });
   

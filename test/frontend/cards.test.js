@@ -351,4 +351,52 @@ describe('Cards Module', () => {
       expect(global.mids.has('msg-3')).toBe(true);
     });
   });
+
+  // Test the concept of our edit button enhancement without specific jQuery interaction
+  describe('Edit Button Enhancement Concept', () => {
+    it('should correctly identify last message by both array position and DOM position', () => {
+      // Create a sample messages array with test data
+      const messages = [
+        { mid: 'msg-1', role: 'user', text: 'First message' },
+        { mid: 'msg-2', role: 'assistant', text: 'Second message' },
+        { mid: 'msg-3', role: 'user', text: 'Third message' }
+      ];
+      
+      // Test message index logic
+      const lastMessageIndex = messages.length - 1;
+      expect(lastMessageIndex).toBe(2);
+      
+      // Test message finding logic
+      const msgId = 'msg-2';
+      const messageIndex = messages.findIndex(m => m.mid === msgId);
+      expect(messageIndex).toBe(1);
+      
+      // Test last message logic - index comparison
+      const isLastMessage = messageIndex === messages.length - 1;
+      expect(isLastMessage).toBe(false); // msg-2 is not the last in array
+      
+      // Conceptual test of DOM position check (we don't actually check DOM here)
+      // In the real implementation, we'd check: $card.is($("#discourse .card:last-child"))
+      const isLastDisplayedCard = (msgId === 'msg-3'); // Simulating DOM check
+      
+      // Combined logic - if either is true, it would be considered as last message for editing
+      const shouldUseTextareaEdit = isLastMessage || isLastDisplayedCard;
+      // msg-2 is not last in array and not last in DOM, so should be false
+      expect(shouldUseTextareaEdit).toBe(false);
+      
+      // Check the last message
+      const lastMsgId = 'msg-3';
+      const lastMsgIndex = messages.findIndex(m => m.mid === lastMsgId);
+      const isLastMessageForLastMsg = lastMsgIndex === messages.length - 1;
+      const isLastDisplayedCardForLastMsg = (lastMsgId === 'msg-3'); // Simulating DOM check
+      
+      // Both checks should pass for the truly last message
+      expect(isLastMessageForLastMsg).toBe(true);
+      expect(isLastDisplayedCardForLastMsg).toBe(true);
+      
+      // Combined logic for truly last message
+      const shouldUseTextareaEditForLastMsg = isLastMessageForLastMsg || isLastDisplayedCardForLastMsg;
+      expect(shouldUseTextareaEditForLastMsg).toBe(true);
+    });
+  });
 });

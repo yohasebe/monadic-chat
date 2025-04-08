@@ -608,10 +608,13 @@ function loadParams(params, calledFor = "loadParams") {
 function resetParams() {
   $("#pdf-titles").empty();
   params = Object.assign({}, originalParams);
+  // Keep the app_name from being reset in loadParams
+  const currentApp = $("#apps").val();
   loadParams(params, "reset");
   // wait for loadParams to finish
   setTimeout(function () {
-    $("#apps select").val(params["app_name"]);
+    // Don't change app selection to default - it will be preserved from the current app
+    // $("#apps select").val(params["app_name"]);
     if (params["pdf"] === "true") {
       $("#file-div").show();
       $("#pdf-panel").show();
@@ -778,6 +781,9 @@ function resetEvent(_event) {
   $("#resetConfirmed").on("click", function (event) {
     event.preventDefault();
 
+    // Store the current app selection before reset
+    const currentApp = $("#apps").val();
+
     $("#message").css("height", "96px").val("");
 
     ws.send(JSON.stringify({ "message": "RESET" }));
@@ -815,28 +821,32 @@ function resetEvent(_event) {
     $("#back-to-settings").hide();
     $("#parameter-panel").hide();
     setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
-    $("#base-app-title").text(apps[$("#apps").val()]["app_name"]);
+    
+    // Set app selection back to current app instead of default
+    $("#apps").val(currentApp);
+    
+    $("#base-app-title").text(apps[currentApp]["app_name"]);
 
-    if (apps[$("#apps").val()]["monadic"]) {
+    if (apps[currentApp]["monadic"]) {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
     }
 
-    if (apps[$("#apps").val()]["tools"]) {
+    if (apps[currentApp]["tools"]) {
       $("#tools-badge").show();
     } else {
       $("#tools-badge").hide();
     }
 
-    if (apps[$("#apps").val()]["mathjax"]) {
+    if (apps[currentApp]["mathjax"]) {
       $("#math-badge").show();
     } else {
       $("#math-badge").hide();
     }
 
-    $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
-    $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
+    $("#base-app-icon").html(apps[currentApp]["icon"]);
+    $("#base-app-desc").html(apps[currentApp]["description"]);
 
     $("#model_and_file").show();
     $("#model_parameters").show();
@@ -848,8 +858,9 @@ function resetEvent(_event) {
 
     setStats("No data available");
 
-    // select the first available (non-disabled) app in the dropdown
-    $("#apps").val($("#apps option:not([disabled]):first").val()).trigger("change");
+    // Instead of selecting the first available app, maintain the current selection
+    // Trigger change to update UI based on this app
+    $("#apps").trigger("change");
 
     adjustImageUploadButton($("#model").val());
     adjustScrollButtons();
@@ -869,7 +880,7 @@ function toggleItem(element) {
   const chevron = element.querySelector('.fa-chevron-down, .fa-chevron-right');
   const toggleText = element.querySelector('.toggle-text');
 
-  if (!content || !chevron || !toggleText) {
+  if (!content || !chevron) {
     console.error("Element not found");
     return;
   }
@@ -879,9 +890,15 @@ function toggleItem(element) {
   if (isOpening) {
     content.style.display = 'block';
     chevron.classList.replace('fa-chevron-right', 'fa-chevron-down');
+    if (toggleText) {
+      toggleText.textContent = toggleText.textContent.replace('Show', 'Hide');
+    }
   } else {
     content.style.display = 'none';
     chevron.classList.replace('fa-chevron-down', 'fa-chevron-right');
+    if (toggleText) {
+      toggleText.textContent = toggleText.textContent.replace('Hide', 'Show');
+    }
   }
 }
 

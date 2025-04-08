@@ -91,7 +91,7 @@ Shows details such as the number of messages and tokens exchanged in the current
 ![](../assets/images/monadic-chat-session.png ':size=400')
 
 **Reset**<br />
-Clicking the `Reset` button discards the current conversation and returns to the initial state. The app selection will also revert to the default `Chat`. When changing apps by selecting a different app in the dropdown, a confirmation dialog will appear asking if you want to reset the current conversation, as changing apps will reset all parameters.
+Clicking the `Reset` button discards the current conversation and returns to the initial state while preserving the current app selection. All app parameters will be reset to their default values. When changing apps by selecting a different app in the dropdown, a confirmation dialog will appear asking if you want to reset the current conversation, as changing apps will reset all parameters.
 
 **Settings**<br />
 Clicking the `Settings` button returns to the Chat Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.

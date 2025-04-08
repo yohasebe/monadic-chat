@@ -40,20 +40,43 @@ div.sourcecode-toggle,
   cursor: pointer;
 }
 
+/* START: SOURCECODE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+div.sourcecode {
+  background-color: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
 div.sourcecode pre,
 div.highlight pre,
 pre {
-  padding: 0.5em;
+  padding: 0.75em;
   margin: 0;
   white-space: pre;
   overflow: auto;
   scrollbar-width: thin;
+  font-size: 0.95em;
+  line-height: 1.5;
 }
+/* END: SOURCECODE STYLE IMPROVEMENTS */
 
+/* START: SOURCECODE TOGGLE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
 div.sourcecode-toggle {
   color: #777;
-  margin-bottom: 10px;
+  margin-top: 0.5em;
+  margin-bottom: 0.75em;
+  font-size: 0.9em;
+  cursor: pointer;
+  user-select: none;
 }
+
+div.sourcecode-toggle i {
+  margin-right: 0.5em;
+}
+/* END: SOURCECODE TOGGLE STYLE IMPROVEMENTS */
 
 .list-group-item {
   color: #777;
@@ -434,6 +457,14 @@ div.sourcecode-toggle:hover {
   text-decoration: underline;
 }
 
+.toggle-text {
+  user-select: none;
+  font-size: 0.9em;
+  color: #777;
+  cursor: pointer;
+  margin-left: 0.5em;
+}
+
 .toggle-text:hover {
   color: #555;
   text-decoration: underline;
@@ -642,19 +673,42 @@ legend {
   margin-bottom: 0.5em;
 }
 
+/* START: TOGGLE SHOW/HIDE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+.toggle {
+  margin-top: 1em;
+  margin-bottom: 1.25em;
+}
+
 .toggle-open {
-  padding: 0.5em;
-  margin-bottom: 20px;
+  padding: 0.75em;
+  margin-top: 0.5em;
+  margin-bottom: 1.25em;
   white-space: pre-wrap;
   background-color: white;
   border: 1px solid #ccc;
   border-radius: 4px;
+  line-height: 1.6;
 }
 
 .toggle-open ul,
 .toggle-open ol {
   white-space: normal;
+  margin: 0.75em 0;
 }
+
+.toggle-open p {
+  margin-top: 0.75em !important;
+  margin-bottom: 0.75em !important;
+}
+
+.toggle-open p:first-child {
+  margin-top: 0.25em !important;
+}
+
+.toggle-open p:last-child {
+  margin-bottom: 0.25em !important;
+}
+/* END: TOGGLE SHOW/HIDE STYLE IMPROVEMENTS */
 
 .code-container {
   position: relative;
@@ -885,9 +939,18 @@ legend {
   visibility: hidden;
 }
 
-.generated_image {
-    margin-bottom: 16px;
+/* START: IMAGE GENERATOR STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+.prompt, 
+.revised_prompt {
+  margin-top: 0.5em;
+  margin-bottom: 0.75em;
 }
+
+.generated_image {
+  margin-top: 0.5em;
+  margin-bottom: 16px;
+}
+/* END: IMAGE GENERATOR STYLE IMPROVEMENTS */
 
 .json-content {
   font-size: 0.9rem;

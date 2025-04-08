@@ -14,7 +14,7 @@
 
 **Q**: Can I use web search capabilities in my conversations?
 
-**A**: Yes, many of the apps in Monadic Chat support web search functionality through the `websearch` setting. When enabled (set to `true`), this allows the AI to search the web for current information to provide more accurate responses. If both `OPENAI_API_KEY` and `TAVILY_API_KEY` are configured, web searches in apps using OpenAI's API will be performed using OpenAI's built-in search capabilities. For web searches in other contexts, the Tavily API will be used.
+**A**: Yes, many of the apps in Monadic Chat support web search functionality through the `websearch` setting. When enabled (set to `true`), this allows the AI to search the web for current information to provide more accurate responses. The behavior varies by model: OpenAI models use their own search capabilities, while other providers (Claude, Gemini, Mistral, etc.) require the `TAVILY_API_KEY` to be configured to use Tavily's search API.
 
 **Q**: How do I update Monadic Chat to the latest version?
 

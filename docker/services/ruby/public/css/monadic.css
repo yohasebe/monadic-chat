@@ -86,9 +86,7 @@ div.card-body.role-user {
   background-color: #f6f8ff;
 }
 
-div.card-body.role-user .card-text p, div.card-body.role-system .card-text p {
-  white-space: pre-wrap;
-}
+/* This rule is replaced by comprehensive role-specific rules below */
 
 div.card-body.role-system {
   background-color: #f7fff6;
@@ -145,17 +143,22 @@ button.fixed-width {
   color: #ffc107;
 }
 
+/* START: ROLE COLOR IMPROVEMENTS - ADDED 2025-04-08 */
 .assistant-color {
   color: #DC4C64;
+  font-weight: 500;
 }
 
 .user-color {
   color: #4CACDC;
+  font-weight: 500;
 }
 
 .system-color {
   color: #22ad50;
+  font-weight: 500;
 }
+/* END: ROLE COLOR IMPROVEMENTS */
 
 #error-box-wrapper,
 #alert-box-wrapper {
@@ -350,15 +353,39 @@ textarea {
   color: #999;
 }
 
+/* START: BLOCKQUOTE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 blockquote {
-  padding: 10px;
+  padding: 12px 16px;
   background-color: #f8f8f8;
   color: #333;
+  border-left: 4px solid #ddd;
+  margin: 1em 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.card-text blockquote {
+  margin: 1.25em 0;
+}
+
+blockquote p {
+  margin-top: 0.75em !important;
+  margin-bottom: 0.75em !important;
+}
+
+blockquote p:first-child {
+  margin-top: 0.25em !important;
 }
 
 blockquote p:last-child {
-  margin-bottom: 0;
+  margin-bottom: 0.25em !important;
 }
+
+blockquote ul,
+blockquote ol {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+/* END: BLOCKQUOTE STYLE IMPROVEMENTS */
 
 #alert-message code {
   color: #0a58ca;
@@ -477,12 +504,18 @@ div.diagram {
   margin: 20px 0;
 }
 
+/* START: TABLE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 .card-body table {
   border: 1px solid #ccc;
   border-collapse: collapse;
   width: 100%;
   background-color: #fff;
-  margin: 20px 0;
+  margin: 1.5em 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.card-text table {
+  margin: 1.25em 0;
 }
 
 .card-body table tr {
@@ -490,17 +523,30 @@ div.diagram {
   padding: 5px;
 }
 
+.card-body table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.card-body table tr:hover {
+  background-color: #f2f2f2;
+}
+
 .card-body table th,
 .card-body table td {
   padding: 10px;
   text-align: center;
+  border: 1px solid #ddd;
 }
 
 .card-body table th {
   font-size: 14px;
   letter-spacing: 1px;
   text-transform: uppercase;
+  background-color: #f2f2f2;
+  color: #555;
+  font-weight: 600;
 }
+/* END: TABLE STYLE IMPROVEMENTS */
 
 fieldset {
   border: 1px solid #999999;
@@ -516,32 +562,74 @@ legend {
   padding: 2px;
 }
 
+/* START: CARD TEXT STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 .card-text {
+  line-height: 1.6;
 }
 
-/* Adjust spacing for paragraphs in card-text */
-.card-text p {
-  margin-bottom: 1em;
+/* Reset and explicitly set equal margins for paragraphs */
+.card-text p,
+.card-text li p,
+.card-text table p,
+.card-text div p {
+  margin-top: 0.75em !important;
+  margin-bottom: 0.75em !important;
+}
+
+/* Special rule for first paragraph to control top spacing */
+.card-text > p:first-child,
+.card-text li > p:first-child,
+.card-text td > p:first-child,
+.card-text th > p:first-child,
+.card-text div > p:first-child {
+  margin-top: 0.25em !important;
 }
 
 /* Reduce bottom margin for last paragraph in card-text */
-.card-text p:last-child {
-  margin-bottom: 0.25em;
+.card-text p:last-child,
+.card-text li > p:last-child,
+.card-text td > p:last-child,
+.card-text th > p:last-child,
+.card-text div > p:last-child {
+  margin-bottom: 0.25em !important;
 }
+/* END: CARD TEXT STYLE IMPROVEMENTS */
 
-/* Special handling for cards with pb-1 class, with role-specific adjustments */
+/* START: ROLE CONSISTENCY IMPROVEMENTS - ADDED 2025-04-08 */
+/* Special handling for cards with pb-1 class */
 .card-body.pb-1 .card-text p:last-child {
-  margin-bottom: 0.15em;
+  margin-bottom: 0.25em !important;
 }
 
-/* Role-specific margin adjustments */
-.card-body.role-user .card-text p:last-child {
-  margin-bottom: 0.3em;
+/* Complete reset and explicit definition for card paragraphs */
+.card-body.role-assistant .card-text p,
+.card-body.role-user .card-text p,
+.card-body.role-system .card-text p {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
-.card-body.role-user.pb-1 .card-text p:last-child {
-  margin-bottom: 0.2em;
+/* First paragraph specific spacing */
+.card-body.role-assistant .card-text p:first-of-type,
+.card-body.role-user .card-text p:first-of-type,
+.card-body.role-system .card-text p:first-of-type {
+  margin-top: 0.2em !important;
 }
+
+/* Last paragraph specific spacing */
+.card-body.role-assistant .card-text p:last-of-type,
+.card-body.role-user .card-text p:last-of-type,
+.card-body.role-system .card-text p:last-of-type {
+  margin-bottom: 0.2em !important;
+}
+
+/* Ensure consistent white-space handling */
+.card-body.role-assistant .card-text p {
+  white-space: pre-wrap;
+}
+/* END: ROLE CONSISTENCY IMPROVEMENTS */
 
 /* Add proper margins for code blocks in card-text */
 .card-text pre {
@@ -744,6 +832,7 @@ legend {
   justify-content: space-between
 }
 
+/* START: CODE BLOCK STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 .highlighter-rouge {
   border-radius: 4px;
   border: 1px solid #ced4da;
@@ -752,7 +841,13 @@ legend {
   background-color: #f8f8f8;
   padding: 0.75em !important; /* Ensure padding is applied directly */
   position: relative; /* Added for copy button positioning */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
+.card-text .highlighter-rouge {
+  font-size: 0.95em;
+}
+/* END: CODE BLOCK STYLE IMPROVEMENTS */
 
 .highlighter-rouge .highlight {
   margin: 0;
@@ -912,10 +1007,27 @@ outline: 2px #FF8C00 solid;
 }
 
 
+/* START: CODE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 code {
   color: #555;
   font-size: 0.90em;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
+
+.card-text p code {
+  white-space: nowrap;
+}
+
+pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  white-space: pre-wrap;
+}
+/* END: CODE STYLE IMPROVEMENTS */
 
 #config, #main-panel, #monadic-info-panel, #api-token-panel, #control-panel, #tts-panel {
   border: 1px solid #666;
@@ -925,10 +1037,93 @@ ul, ol {
   margin-bottom: 16px;
 }
 
+/* START: NESTED LIST STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+/* Card-specific list styling */
+.card-text ul, 
+.card-text ol {
+  margin: 1em 0;
+}
+
+/* Nested list styling */
+.card-text ul ul,
+.card-text ol ol,
+.card-text ul ol,
+.card-text ol ul {
+  margin: 0.6em 0 0.4em 0;
+}
+
+/* List item spacing */
+.card-text li {
+  margin-bottom: 0.5em;
+}
+
+.card-text li:last-child {
+  margin-bottom: 0;
+}
+
+/* Paragraphs within list items */
+.card-text li p {
+  margin: 0.5em 0;
+}
+
+.card-text li p:first-child {
+  margin-top: 0;
+}
+
+.card-text li p:last-child {
+  margin-bottom: 0;
+}
+/* END: NESTED LIST STYLE IMPROVEMENTS */
+
+/* START: HEADINGS STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.4;
+  font-weight: 600;
+  color: #777; /* Lighter color for panel headings */
+}
+
 h1 {
   font-size: 1.6em;
-  margin: 1.2em 0 1em 0;
+  margin: 1.2em 0 0.8em 0;
 }
+
+.card-text h1 {
+  color: #444;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.3em;
+}
+
+.card-text h2 {
+  font-size: 1.4em;
+  margin: 1.2em 0 0.8em 0;
+  color: #505050;
+}
+
+.card-text h3 {
+  font-size: 1.25em;
+  margin: 1.1em 0 0.7em 0;
+  color: #606060;
+}
+
+.card-text h4 {
+  font-size: 1.15em;
+  margin: 1em 0 0.7em 0;
+  color: #707070;
+}
+
+.card-text h5 {
+  font-size: 1.05em;
+  margin: 1em 0 0.5em 0;
+  color: #808080;
+}
+
+.card-text h6 {
+  font-size: 1em;
+  margin: 1em 0 0.5em 0;
+  color: #909090;
+  font-style: italic;
+}
+/* END: HEADINGS STYLE IMPROVEMENTS */
 
 .syntree {
   max-width: 100%; /* Ensure it doesn't exceed the parent container width */

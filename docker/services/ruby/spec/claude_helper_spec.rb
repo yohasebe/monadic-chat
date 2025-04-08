@@ -18,6 +18,13 @@ rescue LoadError
     MAX_RETRIES = 5
     RETRY_DELAY = 2
     
+    WEBSEARCH_TOOLS = [
+      {
+        "name" => "web_search",
+        "description" => "Search the web"
+      }
+    ]
+    
     def self.vendor_name
       "Anthropic"
     end
@@ -46,57 +53,16 @@ end
 RSpec.describe ClaudeHelper do
   let(:helper) { ClaudeHelperTest.new }
   
-  # Mock HTTP and CONFIG for tests
+  # Using shared test utilities
   before do
-    # Mock HTTP module
-    stub_const("HTTP", double)
-    allow(HTTP).to receive(:headers).and_return(HTTP)
-    allow(HTTP).to receive(:timeout).and_return(HTTP)
-    allow(HTTP).to receive(:post).and_return(double("Response", 
-      status: double("Status", success?: true),
-      body: '{"content":[{"type":"text","text":"Test Claude response"}]}'
-    ))
+    stub_http_client
     
     # Mock CONFIG
     stub_const("CONFIG", {"ANTHROPIC_API_KEY" => "mock-api-key"})
   end
   
-  describe ".vendor_name" do
-    it "returns the correct vendor name" do
-      expect(ClaudeHelper.vendor_name).to eq("Anthropic")
-    end
-  end
-  
-  describe ".list_models" do
-    it "returns the available models" do
-      # Directly stub the list_models method to return test models
-      # This avoids dependencies on HTTP and complex mocking
-      original_method = ClaudeHelper.method(:list_models)
-      allow(ClaudeHelper).to receive(:list_models) do
-        test_models = ["claude-3-5-sonnet-20241022", "claude-3-opus", "claude-3-haiku"]
-        # Cache the result in $MODELS for subsequent calls
-        $MODELS ||= {}
-        $MODELS[:anthropic] = test_models
-        test_models
-      end
-      
-      models = ClaudeHelper.list_models
-      expect(models).to include("claude-3-5-sonnet-20241022")
-      expect(models).to include("claude-3-opus")
-      
-      # Restore original method to avoid affecting other tests
-      allow(ClaudeHelper).to receive(:list_models).and_return(original_method.call)
-    end
-    
-    it "returns cached models if available" do
-      # Setup cached models
-      $MODELS ||= {}
-      $MODELS[:anthropic] = ["claude-3-5-sonnet-20241022", "claude-3-opus"]
-      
-      models = ClaudeHelper.list_models
-      expect(models).to include("claude-3-5-sonnet-20241022")
-    end
-  end
+  # Use shared examples for common vendor helper tests
+  it_behaves_like "a vendor API helper", "Anthropic", "claude-3-5-sonnet-20241022"
   
   describe "#send_query" do
     context "with normal conversation" do
@@ -118,10 +84,7 @@ RSpec.describe ClaudeHelper do
               "system" => "You are a helpful assistant"
             )
           )
-        ).and_return(double("Response", 
-          status: double("Status", success?: true),
-          body: '{"content":[{"type":"text","text":"I am Claude, how can I help?"}]}'
-        ))
+        ).and_return(mock_successful_response('{"content":[{"type":"text","text":"I am Claude, how can I help?"}]}'))
         
         result = helper.send_query(options)
         expect(result).to eq("I am Claude, how can I help?")
@@ -157,51 +120,29 @@ RSpec.describe ClaudeHelper do
         options = {"ai_user_system_message" => "Test conversation"}
         
         # Simulate API error
-        error_response = double("Response",
-          status: double("Status", success?: false),
-          body: '{"error":{"message":"Invalid request"}}'
+        allow(HTTP).to receive(:post).and_return(
+          mock_error_response('{"error":{"message":"Invalid request"}}')
         )
-        allow(HTTP).to receive(:post).and_return(error_response)
         
         result = helper.send_query(options)
         expect(result).to include("ERROR")
       end
     end
     
-    it "returns error when API key is missing" do
-      # Remove API key from CONFIG
-      stub_const("CONFIG", {})
-      
-      # Mock ENV call
-      allow(ENV).to receive(:[]).with("ANTHROPIC_API_KEY").and_return(nil)
-      
-      # Simulate error response
-      allow(HTTP).to receive(:post).and_return(double("Response", 
-        status: double("Status", success?: false),
-        body: '{"error":"No API key provided"}'
-      ))
-      
-      result = helper.send_query({})
-      expect(result).to include("Error")
-    end
-    
     it "extracts content from different response formats" do
       # Test with content array format
-      content_response = double("Response",
-        status: double("Status", success?: true),
-        body: '{"content":[{"type":"text","text":"Response from content array"}]}'
+      content_response = mock_successful_response(
+        '{"content":[{"type":"text","text":"Response from content array"}]}'
       )
       
       # Test with message.content format
-      message_response = double("Response",
-        status: double("Status", success?: true),
-        body: '{"message":{"content":[{"type":"text","text":"Response from message.content"}]}}'
+      message_response = mock_successful_response(
+        '{"message":{"content":[{"type":"text","text":"Response from message.content"}]}}'
       )
       
       # Test with completion format (older Claude API)
-      completion_response = double("Response",
-        status: double("Status", success?: true),
-        body: '{"completion":"Response from completion field"}'
+      completion_response = mock_successful_response(
+        '{"completion":"Response from completion field"}'
       )
       
       # Set up HTTP to return different responses in sequence
@@ -227,10 +168,9 @@ RSpec.describe ClaudeHelper do
       }
       
       # Skip examining response structure in detail, just ensure it makes the request
-      allow(HTTP).to receive(:post).and_return(double("Response", 
-        status: double("Status", success?: true),
-        body: '{"content":[{"type":"text","text":"I searched the web for you"}]}'
-      ))
+      allow(HTTP).to receive(:post).and_return(
+        mock_successful_response('{"content":[{"type":"text","text":"I searched the web for you"}]}')
+      )
       
       # Just verify the query includes required components without being strict on structure
       expect(HTTP).to receive(:post).with(

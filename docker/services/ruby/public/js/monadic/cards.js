@@ -376,10 +376,12 @@ function attachEventListeners($card) {
       return;
     }
 
-    // Check if this is the last message
+    // Check if this is the last message - either by message array index or by DOM position
     const isLastMessage = messageIndex === messages.length - 1;
+    // Also check if this is the last card in the DOM (important for sample messages)
+    const isLastDisplayedCard = $card.is($("#discourse .card:last-child"));
     
-    if (isLastMessage) {
+    if (isLastMessage || isLastDisplayedCard) {
       // Copy text to the message textarea instead of inline editing
       $("#message").val(text);
       

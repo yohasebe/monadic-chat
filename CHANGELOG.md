@@ -1,11 +1,11 @@
-- [April, 2025] 0.9.80
+- [April, 2025] 0.9.81
   - Improved new version notification and update process
   - Added environment variables for configuring default models for each provider (OPENAI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL, etc.)
   - Enhanced Monadic DSL to support default model configuration from environment variables
   - AI User feature significantly improved
   - Optimized container rebuilding process: Only rebuilds affected containers during version updates
   - Added container version tracking to avoid unnecessary full rebuilds
-  - Many UI improvements and bug fixes
+  - Many UI improvements and bug fixes (role selection, message editing, etc.)
 - [March, 2025] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0
@@ -38,7 +38,6 @@
   - Monadic DSL system introduced
   - App selection behavior made consistent for startup and reset
   - Setup script management improved
-
 - [February, 2025] 0.9.58
   - Declarative DSL for app authoring with documentation
   - IconHelper utility for simplified app icon management

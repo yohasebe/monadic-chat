@@ -493,10 +493,17 @@ function attachEventListeners($card) {
         
         // Change the icon back to the edit icon immediately for user messages
         $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
-      } else {
-        // For assistant and system messages, we'll show a loading indicator
+      } else if (currentMessage.role === "assistant") {
+        // For assistant messages, we'll show a loading indicator
         // while we wait for the server to process the markdown and send back the HTML
         $cardText.html("<div class='text-center'><i class='fas fa-brain fa-pulse'></i> Processing...</div>");
+      } else if (currentMessage.role === "system") {
+        // System messages are just escaped HTML, so we can update directly
+        const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        $cardText.html(displayText);
+        
+        // Change the icon back to the edit icon immediately for system messages
+        $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
       }
       
       // Clean up the data attribute

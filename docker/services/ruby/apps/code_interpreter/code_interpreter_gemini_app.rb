@@ -3,7 +3,7 @@
 class CodeInterpreterGemini < MonadicApp
   include GeminiHelper
 
-  icon = "<i class='fab fa-google'></i>"
+  icon = "<i class='fab fa-python'></i>"
 
   description = <<~TEXT
     This is an application that allows you to run Python code with Google Gemini. The assistant can help you write and run code, visualize data, and provide detailed instructions on how to do so. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=google" target="_blank"><i class="fa-solid fa-circle-info"></i></a>

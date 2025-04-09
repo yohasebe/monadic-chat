@@ -3,7 +3,7 @@ app "CodingAssistantGrok" do
   This is an application for writing computer programming code. It assists users in writing code by providing suggestions and advice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
-  icon "x"
+  icon "laptop-code"
   
   system_prompt <<~PROMPT
   You are a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to a user's prompt.

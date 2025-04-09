@@ -1225,3 +1225,25 @@ h1 {
 #pdf-panel table td {
   border: none;
 }
+
+/* Custom dropdown styling */
+.custom-dropdown-option {
+  cursor: pointer;
+  padding: 8px 12px;
+  user-select: none;
+}
+
+.custom-dropdown-option.highlighted {
+  background-color: #f2f8ff;
+  position: relative;
+}
+
+.custom-dropdown-option.highlighted:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #3377ff;
+}

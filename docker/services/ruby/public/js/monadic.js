@@ -2035,6 +2035,83 @@ $(function () {
         });
       });
       
+      // Add keyboard navigation to the custom dropdown
+      $(document).on("keydown", function(e) {
+        if ($customDropdown.is(":visible")) {
+          const $options = $(".custom-dropdown-option");
+          const $highlighted = $(".custom-dropdown-option.highlighted");
+          let index = $options.index($highlighted);
+          
+          switch (e.key) {
+            case "ArrowDown":
+              e.preventDefault();
+              // Move to next option
+              if (index < $options.length - 1) {
+                if ($highlighted.length) {
+                  $highlighted.removeClass("highlighted");
+                }
+                const $next = $options.eq(index + 1);
+                $next.addClass("highlighted");
+                
+                // Ensure the element is visible in the dropdown
+                ensureVisibleInDropdown($next, $customDropdown);
+              } else if (index === -1) {
+                // No selection yet, select first
+                const $first = $options.first();
+                $first.addClass("highlighted");
+                ensureVisibleInDropdown($first, $customDropdown);
+              }
+              break;
+              
+            case "ArrowUp":
+              e.preventDefault();
+              // Move to previous option
+              if (index > 0) {
+                $highlighted.removeClass("highlighted");
+                const $prev = $options.eq(index - 1);
+                $prev.addClass("highlighted");
+                
+                // Ensure the element is visible in the dropdown
+                ensureVisibleInDropdown($prev, $customDropdown);
+              }
+              break;
+              
+            case "Enter":
+            case " ": // Space key
+              e.preventDefault();
+              if ($highlighted.length) {
+                // Trigger click on the highlighted option
+                $highlighted.click();
+              }
+              break;
+              
+            case "Escape":
+              e.preventDefault();
+              $customDropdown.hide();
+              break;
+          }
+        }
+      });
+      
+      // Helper function to ensure the highlighted element is visible in the dropdown
+      function ensureVisibleInDropdown($element, $container) {
+        if (!$element.length || !$container.length) return;
+        
+        const containerHeight = $container.height();
+        const containerScrollTop = $container.scrollTop();
+        const elementTop = $element.position().top;
+        const elementHeight = $element.outerHeight();
+        
+        // If element is above the visible area
+        if (elementTop < 0) {
+          $container.scrollTop(containerScrollTop + elementTop);
+        }
+        // If element is below the visible area
+        else if (elementTop + elementHeight > containerHeight) {
+          $container.scrollTop(containerScrollTop + elementTop + elementHeight - containerHeight);
+        }
+      }
+      
       // Handle option selection
       $(document).on("click", ".custom-dropdown-option", function() {
         const value = $(this).data("value");
@@ -2044,6 +2121,12 @@ $(function () {
         
         // Hide dropdown
         $customDropdown.hide();
+      });
+      
+      // Add mouse hover functionality to highlight options
+      $(document).on("mouseenter", ".custom-dropdown-option", function() {
+        $(".custom-dropdown-option.highlighted").removeClass("highlighted");
+        $(this).addClass("highlighted");
       });
       
       // Update dropdown position on window resize

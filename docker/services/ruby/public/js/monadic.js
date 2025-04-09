@@ -552,7 +552,8 @@ $(function () {
       
       // Update model-selected text to follow the new multiline format
       if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-        $("#model-selected").text(`${provider} (${selectedModel} - ${modelSpec[selectedModel]["reasoning_effort"]})`);
+        const reasoningEffort = $("#reasoning-effort").val();
+        $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
       } else {
         $("#model-selected").text(`${provider} (${selectedModel})`);
       }

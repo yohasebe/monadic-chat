@@ -13,6 +13,31 @@ const DEFAULT_APP = ""; // Empty string to select first available app
 
 let currentPdfData = null;
 
+// Function to update app icon in select dropdown
+function updateAppSelectIcon(appValue) {
+  // If no appValue is provided, use current selected app
+  if (!appValue && $("#apps").val()) {
+    appValue = $("#apps").val();
+  }
+  
+  // If apps object is not yet populated or app not found, do nothing
+  if (!appValue || !apps || !apps[appValue] || !apps[appValue]["icon"]) {
+    return;
+  }
+  
+  // Get the icon HTML from the apps object
+  const iconHtml = apps[appValue]["icon"];
+  
+  // Update the icon in the static icon span
+  $("#app-select-icon").html(iconHtml);
+  
+  // Also update the active class in the custom dropdown if it exists
+  if ($("#custom-apps-dropdown").length > 0) {
+    $(".custom-dropdown-option").removeClass("active");
+    $(`.custom-dropdown-option[data-value="${appValue}"]`).addClass("active");
+  }
+}
+
 // Adjust scroll buttons visibility
 function adjustScrollButtons() {
   const $main = $("#main");
@@ -982,6 +1007,7 @@ if (typeof module !== 'undefined' && module.exports) {
     setAlert,
     setCookie,
     getCookie,
+    updateAppSelectIcon,
     adjustScrollButtons,
     deleteMessage,
     applyCollapseStates

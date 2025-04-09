@@ -5,6 +5,7 @@ require "faye/websocket"
 require "json"
 require "net/http"
 require_relative "./spec_helper"
+require_relative "../lib/monadic/helpers/text_to_speech_helper"
 require_relative "../lib/monadic/utils/interaction_utils"
 
 # Mock HTTP library to allow proper testing
@@ -51,12 +52,12 @@ module HTTP
   end
 end
 
-RSpec.describe InteractionUtils do
-  include InteractionUtils
+RSpec.describe MonadicHelper do
+  include MonadicHelper
   
-  # Create a test class that includes the InteractionUtils module
+  # Create a test class that includes the MonadicHelper module
   class TestTTSClass
-    include InteractionUtils
+    include MonadicHelper
     
     # Mock settings object
     def settings
@@ -71,6 +72,19 @@ RSpec.describe InteractionUtils do
       
       settings_obj
     end
+    
+    # Mock send_command implementation
+    def send_command(command:, container: nil)
+      # Return the command to allow inspection in tests
+      command
+    end
+  end
+  
+  # Constants needed for the tests
+  before do
+    stub_const("MonadicApp::SHARED_VOL", "/shared/vol")
+    stub_const("MonadicApp::LOCAL_SHARED_VOL", "/local/shared/vol")
+    stub_const("IN_CONTAINER", false)
   end
   
   let(:test_instance) { TestTTSClass.new }
@@ -88,40 +102,74 @@ RSpec.describe InteractionUtils do
   end
   
   describe "TTS dictionary functionality" do
-    it "applies dictionary substitutions correctly" do
-      # Use a simpler approach - just test that the TTS_DICT is used
+    it "contains the expected dictionary entries" do
+      # Basic test to ensure dictionary entries exist
       expect(CONFIG["TTS_DICT"]["hello"]).to eq("hola")
       expect(CONFIG["TTS_DICT"]["world"]).to eq("mundo")
     end
-  end
-  
-  describe "#list_elevenlabs_voices" do
-    # Simplified test for list_elevenlabs_voices
-    it "returns empty array when API key is nil" do
-      voices = test_instance.list_elevenlabs_voices(nil)
-      expect(voices).to eq([])
+    
+    it "applies dictionary substitutions with the new implementation" do
+      # Mock a text with dictionary entries to replace
+      text = "hello world, hello"
+      
+      # Create a file double to capture the written content
+      file_double = double('file')
+      expect(file_double).to receive(:write) do |content|
+        # Verify the substitution was applied correctly in the content being written
+        expect(content).to eq("hola mundo, hola")
+      end
+      
+      # Stub File.open to yield our file double
+      allow(File).to receive(:open).and_yield(file_double)
+      allow(File).to receive(:join).and_return("/mocked/path")
+      
+      # Call text_to_speech with our test text
+      test_instance.text_to_speech(text: text)
     end
     
-    it "handles basic request to ElevenLabs API" do
-      # Setup a simpler Net::HTTP mock
-      http_mock = double('Net::HTTP')
-      request_mock = double('Net::HTTP::Request')
-      response_mock = double('Net::HTTPResponse')
+    it "handles longer patterns before shorter ones" do
+      # Configure a dictionary with overlapping patterns
+      complex_dict = {
+        "hello" => "hola",
+        "world" => "mundo",
+        "hello world" => "hola mundo"
+      }
       
-      # Configure the mocks with minimal behavior
-      allow(Net::HTTP::Get).to receive(:new).and_return(request_mock)
-      allow(request_mock).to receive(:[]=)
-      allow(Net::HTTP).to receive(:new).and_return(http_mock)
-      allow(http_mock).to receive(:use_ssl=)
-      allow(http_mock).to receive(:request).and_return(response_mock)
-      allow(response_mock).to receive(:is_a?).and_return(true)
-      allow(response_mock).to receive(:read_body).and_return('{"voices":[]}')
+      # Update the CONFIG constant for this test
+      old_dict = CONFIG["TTS_DICT"]
+      CONFIG["TTS_DICT"] = complex_dict
+      
+      # Create a file double to capture the written content
+      file_double = double('file')
+      expect(file_double).to receive(:write) do |content|
+        # Verify the longer pattern was replaced first
+        expect(content).to eq("hola mundo hola")
+      end
+      
+      # Stub File.open to yield our file double
+      allow(File).to receive(:open).and_yield(file_double)
+      allow(File).to receive(:join).and_return("/mocked/path")
+      
+      # Call text_to_speech with text containing overlapping patterns
+      test_instance.text_to_speech(text: "hello world hello")
+      
+      # Restore original dictionary
+      CONFIG["TTS_DICT"] = old_dict
+    end
+  end
+  
+  describe "#list_providers_and_voices" do
+    it "calls the simple_tts_query.rb script" do
+      # Expect send_command to be called with the correct arguments
+      expect(test_instance).to receive(:send_command).with(
+        hash_including(
+          command: /simple_tts_query\.rb --list/,
+          container: "ruby"
+        )
+      )
       
       # Call the method
-      result = test_instance.list_elevenlabs_voices("test_api_key")
-      
-      # Just verify we get an array back
-      expect(result).to be_an(Array)
+      test_instance.list_providers_and_voices
     end
   end
 end

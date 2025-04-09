@@ -86,7 +86,7 @@
       }
       
       .custom-dropdown-option i {
-        color: #ffc107;
+        /* Color is now controlled in monadic.css */
         margin-right: 8px;
         font-size: 1.1em;
       }
@@ -97,7 +97,7 @@
       }
       
       #custom-apps-dropdown::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: #DCDCDC;
         border-radius: 3px;
       }
       
@@ -352,14 +352,14 @@
                 <label class="form-label" for="apps">Base App</label>
                 <div class="position-relative">
                   <div style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;">
-                    <span id="app-select-icon" style="color: #ffc107;"></span>
+                    <span id="app-select-icon" style="color: #777;"></span>
                   </div>
                   <div class="app-select-wrapper" style="position: relative; cursor: pointer;">
                     <select class="form-select form-select-sm" id="apps" style="padding-left: 36px; cursor: pointer; pointer-events: none;">
                     </select>
                     <div id="app-select-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: pointer; background-color: transparent;"></div>
                   </div>
-                  <div id="custom-apps-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 260px; overflow-y: auto; background: white; border: 1px solid #ced4da; border-radius: 0.25rem; z-index: 1100; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                  <div id="custom-apps-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 260px; overflow-y: auto; background: white; border: 1px solid #ced4da; border-radius: 0.25rem; z-index: 1100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); scrollbar-color: #bbb #DCDCDC; scrollbar-width: thin;">
                     <!-- Options will be inserted here by JavaScript -->
                   </div>
                 </div>

@@ -1027,6 +1027,22 @@ legend {
   background-color: #DCDCDC;
 }
 
+/* Custom scrollbar for apps dropdown */
+#custom-apps-dropdown::-webkit-scrollbar {
+  width: 6px;
+  background-color: #DCDCDC;
+}
+
+#custom-apps-dropdown::-webkit-scrollbar-thumb {
+  background-color: #bbb;
+  border-radius: 3px;
+}
+
+#custom-apps-dropdown::-webkit-scrollbar-track {
+  background-color: #DCDCDC;
+  border-radius: 3px;
+}
+
 .language-markdown .highlight code {
   white-space: pre-wrap;
 }
@@ -1229,8 +1245,15 @@ h1 {
 /* Custom dropdown styling */
 .custom-dropdown-option {
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 6px 12px;
   user-select: none;
+  height: 26px;
+  display: flex;
+  align-items: center;
+}
+
+.custom-dropdown-option i {
+  color: #777 !important;
 }
 
 .custom-dropdown-option.highlighted {

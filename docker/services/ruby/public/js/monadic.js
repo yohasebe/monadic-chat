@@ -868,12 +868,19 @@ $(function () {
     const selectedAppValue = $(this).val();
     const previousAppValue = lastApp;
     
+    // Update app icon immediately on selection change
+    updateAppSelectIcon(selectedAppValue);
+    
+    // With customizable select, the selected item styling is handled natively by the browser
+    
     // If there are messages and app is changing, show confirmation dialog
     if (messages.length > 0 && selectedAppValue !== previousAppValue) {
       // Prevent the dropdown from changing yet
       event.preventDefault();
       // Set dropdown back to previous value temporarily
       $(this).val(previousAppValue);
+      // Restore previous icon
+      updateAppSelectIcon(previousAppValue);
       
       // Show confirmation dialog
       $("#appChangeConfirmation").data("newApp", selectedAppValue).modal("show");
@@ -917,6 +924,9 @@ $(function () {
     lastApp = appValue;
     Object.assign(params, apps[appValue]);
     loadParams(params, "changeApp");
+    
+    // Update app icon in the select dropdown
+    updateAppSelectIcon(appValue);
 
     if (apps[appValue]["pdf"]) {
       $("#file-div").show();
@@ -1965,6 +1975,125 @@ $(function () {
     $("#ai-user-initial-prompt").css("display", "none");
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
+    
+    // Run customizable select setup before other UI operations
+    setupCustomDropdown();
+    
+    // Apply enhanced styling to other select elements
+    setupEnhancedSelects();
+    
+    // Initialize app icon in select dropdown
+    updateAppSelectIcon();
+    
+    function setupCustomDropdown() {
+      const $select = $("#apps");
+      const $customDropdown = $("#custom-apps-dropdown");
+      
+      // Show custom dropdown when clicking on the overlay div
+      $("#app-select-overlay").on("click", function(e) {
+        console.log("Overlay clicked");
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Toggle custom dropdown
+        $customDropdown.toggle();
+        console.log("Dropdown toggled:", $customDropdown.is(":visible"));
+        
+        // Position the dropdown relative to the select
+        positionDropdown();
+        
+        // Handle clicking outside to close dropdown
+        $(document).one("click", function(e) {
+          if (!$(e.target).closest("#custom-apps-dropdown").length) {
+            $customDropdown.hide();
+          }
+        });
+      });
+      
+      // Also add click handler to the wrapper as a fallback
+      $(".app-select-wrapper").on("click", function(e) {
+        console.log("Wrapper clicked");
+        if ($(e.target).is("#app-select-overlay")) {
+          // Already handled by the overlay click handler
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Toggle custom dropdown
+        $customDropdown.toggle();
+        console.log("Dropdown toggled from wrapper:", $customDropdown.is(":visible"));
+        
+        // Position the dropdown relative to the select
+        positionDropdown();
+        
+        // Handle clicking outside to close dropdown
+        $(document).one("click", function(e) {
+          if (!$(e.target).closest("#custom-apps-dropdown").length) {
+            $customDropdown.hide();
+          }
+        });
+      });
+      
+      // Handle option selection
+      $(document).on("click", ".custom-dropdown-option", function() {
+        const value = $(this).data("value");
+        
+        // Update the real select value
+        $select.val(value).trigger("change");
+        
+        // Hide dropdown
+        $customDropdown.hide();
+      });
+      
+      // Update dropdown position on window resize
+      $(window).on("resize", function() {
+        if ($customDropdown.is(":visible")) {
+          positionDropdown();
+        }
+      });
+      
+      // Helper function to position the dropdown
+      function positionDropdown() {
+        // Get the select wrapper and its position
+        const $selectWrapper = $(".app-select-wrapper");
+        const $parent = $selectWrapper.parent();
+        const wrapperRect = $selectWrapper[0].getBoundingClientRect();
+        
+        // Set dropdown position accurately based on the wrapper's position
+        $customDropdown.css({
+          top: $selectWrapper.outerHeight() + "px",
+          left: "0px",
+          width: $selectWrapper.outerWidth() + "px",
+          zIndex: 1100
+        });
+      }
+    }
+    
+    // Function to set up enhanced styling for other select elements
+    function setupEnhancedSelects() {
+      // Apply to all form-select elements except #apps (which has its own custom dropdown)
+      $(".form-select").not("#apps").each(function() {
+        const $select = $(this);
+        
+        // Skip if select already has custom styling
+        if ($select.data("enhanced") === true) {
+          return;
+        }
+        
+        // Mark as enhanced to avoid double processing
+        $select.data("enhanced", true);
+        
+        // Apply compact styling to all options
+        $select.find("option").addClass("enhanced-option");
+        
+        // Apply special styling for optgroup labels if any
+        $select.find("optgroup").addClass("enhanced-optgroup");
+        
+        // Apply special styling for disabled options (like separators)
+        $select.find("option[disabled]").addClass("enhanced-separator");
+      });
+    }
     
     // Load AI User provider from cookie
     const savedProvider = getCookie("ai_user_provider");

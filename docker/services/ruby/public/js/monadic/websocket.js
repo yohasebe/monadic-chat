@@ -873,12 +873,23 @@ function connect_websocket(callback) {
           // Add apps to selector
           // First add the OpenAI Apps label and regular apps
           if (verified === "full") {
+            // Add OpenAI separator to standard select
             $("#apps").append('<option disabled>──OpenAI──</option>');
+            // Add OpenAI separator to custom dropdown
+            $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group">──OpenAI──</div>`);
+            
             for (const [key, value] of regularApps) {
               apps[key] = value;
               // Use display_name if available, otherwise fall back to app_name
               const displayText = value["display_name"] || value["app_name"];
+              const appIcon = value["icon"] || "";
+              // For browsers that support customizable select, include icon directly in option
+              // Add option to standard select
               $("#apps").append(`<option value="${key}">${displayText}</option>`);
+              
+              // Add the same option to custom dropdown with icon
+              const $option = $(`<div class="custom-dropdown-option" data-value="${key}">${appIcon} <span>${displayText}</span></div>`);
+              $("#custom-apps-dropdown").append($option);
             }
           }
 
@@ -893,12 +904,25 @@ function connect_websocket(callback) {
           // Add special groups with their labels
           for (const group of Object.keys(specialApps)) {
             if (specialApps[group].length > 0) {
+              // Add group header to standard select
+              // Add group header to standard select
               $("#apps").append(`<option disabled>──${group}──</option>`);
+              
+              // Add group header to custom dropdown
+              $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group">──${group}──</div>`);
+              
               for (const [key, value] of specialApps[group]) {
                 apps[key] = value;
                 // Use display_name if available, otherwise fall back to app_name
                 const displayText = value["display_name"] || value["app_name"];
+                const appIcon = value["icon"] || "";
+                
+                // Add option to standard select
                 $("#apps").append(`<option value="${key}">${displayText}</option>`);
+                
+                // Add the same option to custom dropdown with icon
+                const $option = $(`<div class="custom-dropdown-option" data-value="${key}">${appIcon} <span>${displayText}</span></div>`);
+                $("#custom-apps-dropdown").append($option);
               }
             }
           }
@@ -909,6 +933,8 @@ function connect_websocket(callback) {
           // Use display_name if available, otherwise fall back to app_name
           const displayText = apps[$("#apps").val()]["display_name"] || apps[$("#apps").val()]["app_name"];
           $("#base-app-title").text(displayText);
+          
+          // With customizable select, active state is handled natively by the browser
 
           if (apps[$("#apps").val()]["monadic"]) {
             $("#monadic-badge").show();

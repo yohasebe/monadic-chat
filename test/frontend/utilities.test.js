@@ -32,6 +32,31 @@ const testUtilities = {
       .join(" ");
   },
   
+  // App selector icon and UI updates
+  updateAppSelectIcon: (appValue) => {
+    // If no appValue is provided, use current selected app
+    if (!appValue && $("#apps").val()) {
+      appValue = $("#apps").val();
+    }
+    
+    // If apps object is not yet populated or app not found, do nothing
+    if (!appValue || !global.apps || !global.apps[appValue] || !global.apps[appValue]["icon"]) {
+      return;
+    }
+    
+    // Get the icon HTML from the apps object
+    const iconHtml = global.apps[appValue]["icon"];
+    
+    // Update the icon in the static icon span
+    $("#app-select-icon").html(iconHtml);
+    
+    // Also update the active class in the custom dropdown if it exists
+    if ($("#custom-apps-dropdown").length > 0) {
+      $(".custom-dropdown-option").removeClass("active");
+      $(`.custom-dropdown-option[data-value="${appValue}"]`).addClass("active");
+    }
+  },
+  
   // Model and format functions
   listModels: (models, openai = false) => {
     const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.5)\b/];
@@ -331,6 +356,138 @@ describe('Utilities Module', () => {
         
         // Check other models classification
         expect(result).toContain('<option value="claude-3">claude-3</option>');
+      });
+    });
+
+    describe('updateAppSelectIcon', () => {
+      const { updateAppSelectIcon } = testUtilities;
+      let mockJQuery;
+      let originalJQuery;
+      
+      beforeEach(() => {
+        // Save original jQuery implementation
+        originalJQuery = global.$;
+        
+        // Set up mock elements
+        const mockAppSelectIcon = {
+          html: jest.fn()
+        };
+        
+        const mockAppsSelect = {
+          val: jest.fn().mockReturnValue('TestApp')
+        };
+        
+        const mockCustomDropdown = {
+          length: 1
+        };
+        
+        const mockDropdownOptions = {
+          removeClass: jest.fn(),
+          addClass: jest.fn()
+        };
+        
+        // Setup jQuery mock
+        mockJQuery = jest.fn(selector => {
+          if (selector === "#app-select-icon") return mockAppSelectIcon;
+          if (selector === "#apps") return mockAppsSelect;
+          if (selector === "#custom-apps-dropdown") return mockCustomDropdown;
+          if (selector === ".custom-dropdown-option") return mockDropdownOptions;
+          if (selector === '.custom-dropdown-option[data-value="TestApp"]') return mockDropdownOptions;
+          return {
+            html: jest.fn(),
+            val: jest.fn(),
+            length: 0,
+            removeClass: jest.fn(),
+            addClass: jest.fn()
+          };
+        });
+        
+        global.$ = mockJQuery;
+        
+        // Setup global apps object
+        global.apps = {
+          'TestApp': {
+            'icon': '<i class="fas fa-test"></i>',
+            'display_name': 'Test App'
+          }
+        };
+      });
+      
+      afterEach(() => {
+        // Restore original jQuery
+        global.$ = originalJQuery;
+        delete global.apps;
+      });
+      
+      it('should update the icon in the standard selector', () => {
+        updateAppSelectIcon('TestApp');
+        
+        // Should call html with the correct icon
+        expect(mockJQuery("#app-select-icon").html).toHaveBeenCalledWith('<i class="fas fa-test"></i>');
+      });
+      
+      it('should update active class in custom dropdown if it exists', () => {
+        updateAppSelectIcon('TestApp');
+        
+        // Should remove active class from all options
+        expect(mockJQuery(".custom-dropdown-option").removeClass).toHaveBeenCalledWith("active");
+        
+        // Should add active class to selected option
+        expect(mockJQuery('.custom-dropdown-option[data-value="TestApp"]').addClass).toHaveBeenCalledWith("active");
+      });
+      
+      it('should use current app value if no app value provided', () => {
+        updateAppSelectIcon();
+        
+        // Should get current app value
+        expect(mockJQuery("#apps").val).toHaveBeenCalled();
+        
+        // Should update with that value's icon
+        expect(mockJQuery("#app-select-icon").html).toHaveBeenCalledWith('<i class="fas fa-test"></i>');
+      });
+      
+      it('should do nothing if app not found in apps object', () => {
+        // Using an app that doesn't exist
+        updateAppSelectIcon('NonExistentApp');
+        
+        // Should not update anything
+        expect(mockJQuery("#app-select-icon").html).not.toHaveBeenCalled();
+      });
+      
+      it('should do nothing if no custom dropdown exists', () => {
+        // Create new mocks specifically for this test
+        const mockAppSelectIcon = { html: jest.fn() };
+        const mockAppsSelect = { val: jest.fn().mockReturnValue('TestApp') };
+        const mockCustomDropdown = { length: 0 }; // This is the key difference - length 0 means dropdown doesn't exist
+        const mockDropdownOptions = { removeClass: jest.fn(), addClass: jest.fn() };
+        
+        // Create completely new mock implementation for this test
+        const newMockJQuery = jest.fn(selector => {
+          if (selector === "#app-select-icon") return mockAppSelectIcon;
+          if (selector === "#apps") return mockAppsSelect;
+          if (selector === "#custom-apps-dropdown") return mockCustomDropdown;
+          if (selector === ".custom-dropdown-option") return mockDropdownOptions;
+          if (selector === '.custom-dropdown-option[data-value="TestApp"]') return mockDropdownOptions;
+          return { html: jest.fn(), val: jest.fn(), length: 0, removeClass: jest.fn(), addClass: jest.fn() };
+        });
+        
+        // Temporarily replace global $ function
+        const oldJQuery = global.$;
+        global.$ = newMockJQuery;
+        
+        try {
+          updateAppSelectIcon('TestApp');
+          
+          // Should update icon 
+          expect(mockAppSelectIcon.html).toHaveBeenCalledWith('<i class="fas fa-test"></i>');
+          
+          // But should not update dropdown classes because custom dropdown doesn't exist
+          expect(mockDropdownOptions.removeClass).not.toHaveBeenCalled();
+          expect(mockDropdownOptions.addClass).not.toHaveBeenCalled();
+        } finally {
+          // Restore original $ function
+          global.$ = oldJQuery;
+        }
       });
     });
   });

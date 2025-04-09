@@ -99,7 +99,7 @@ When `Extra Logging` is enabled in the settings panel, additional logs are saved
 Open the Monadic Chat console.
 
 **Settings** <br />
-Open the Monadic Chat settings panel.
+Open the Monadic Chat settings panel. Note that this is different from the System Settings panel within the web interface.
 
 ### File Menu
 

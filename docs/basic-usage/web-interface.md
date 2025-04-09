@@ -2,7 +2,7 @@
 
 ![](../assets/images/monadic-chat-web.png ':size=700')
 
-## Chat Settings Screen
+## System Settings Screen
 
 ![](../assets/images/chat-settings.png ':size=700')
 
@@ -60,7 +60,7 @@ When on, the assistant's response is automatically read aloud using synthesized 
 When on, pressing the Enter key on the keyboard automatically sends the message in the text area without clicking the `Send` button. If you are using voice input, pressing the Enter key or clicking the `Stop` button will automatically send the message.
 
 **Start Session / Continue Session** <br />
-Click this button to start a chat based on the options and parameters specified in the Chat Settings. If you have already started a session and click the `Settings` button to return to the Chat Settings panel, this button will be labeled `Continue Session`. Clicking it will return you to your ongoing conversation without resetting it.
+Click this button to start a chat based on the options and parameters specified in the System Settings. If you have already started a session and click the `Settings` button to return to the System Settings panel, this button will be labeled `Continue Session`. Clicking it will return you to your ongoing conversation without resetting it.
 
 ## Info Panel
 
@@ -94,7 +94,7 @@ Shows details such as the number of messages and tokens exchanged in the current
 Clicking the `Reset` button discards the current conversation and returns to the initial state while preserving the current app selection. All app parameters will be reset to their default values. When changing apps by selecting a different app in the dropdown, a confirmation dialog will appear asking if you want to reset the current conversation, as changing apps will reset all parameters.
 
 **Settings**<br />
-Clicking the `Settings` button returns to the Chat Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.
+Clicking the `Settings` button returns to the System Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.
 
 **Import**<br />
 Clicking the `Import` button discards the current conversation and loads conversation data saved in an external file (JSON). The settings saved in the external file will also be applied.

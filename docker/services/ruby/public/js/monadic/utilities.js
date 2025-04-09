@@ -31,6 +31,9 @@ function updateAppSelectIcon(appValue) {
   // Update the icon in the static icon span
   $("#app-select-icon").html(iconHtml);
   
+  // Apply the gray color to the icon - this affects the icon's color regardless of its original color
+  $("#app-select-icon i").css("color", "#777");
+  
   // Also update the active class in the custom dropdown if it exists
   if ($("#custom-apps-dropdown").length > 0) {
     $(".custom-dropdown-option").removeClass("active");

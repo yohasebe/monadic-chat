@@ -221,8 +221,28 @@ end
 
 # Load the TTS dictionary, which is a valid CSV of [original, replacement] pairs
 def load_tts_dict(tts_dict_path)
-  if File.exist?(tts_dict_path)
-    tts_dict = {}
+  tts_dict = {}
+  
+  # First check if TTS_DICT_DATA is available in the environment
+  if CONFIG["TTS_DICT_DATA"] && !CONFIG["TTS_DICT_DATA"].empty?
+    begin
+      # Process the CSV data from the environment variable
+      CSV.parse(CONFIG["TTS_DICT_DATA"], headers: false) do |row|
+        # Make sure the data is in UTF-8; otherwise, convert it
+        row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+        # Skip empty rows or rows with missing values
+        next if row[0].nil? || row[0].empty? || row[1].nil? || row[1].empty?
+        # Store the original and replacement strings
+        tts_dict[row[0]] = row[1]
+      end
+      # Log the number of dictionary entries loaded for debugging
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from environment variable" if CONFIG["EXTRA_LOGGING"]
+    rescue StandardError => e
+      # Properly log any errors for debugging
+      puts "Error parsing TTS Dictionary from environment: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    end
+  # Fall back to file-based loading if TTS_DICT_DATA is not available
+  elsif File.exist?(tts_dict_path)
     begin
       CSV.foreach(tts_dict_path, headers: false) do |row|
         # Make sure the data is in UTF-8; otherwise, convert it
@@ -233,14 +253,15 @@ def load_tts_dict(tts_dict_path)
         tts_dict[row[0]] = row[1]
       end
       # Log the number of dictionary entries loaded for debugging
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from file: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
     rescue StandardError => e
       # Properly log any errors for debugging
-      puts "Error loading TTS Dictionary: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      puts "Error loading TTS Dictionary from file: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     end
   else
     puts "TTS Dictionary file not found: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
   end
+  
   CONFIG["TTS_DICT"] = tts_dict || {}
 end
 

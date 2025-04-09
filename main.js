@@ -169,10 +169,30 @@ class DockerManager {
   }
 
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
-    if (command === 'start') {
+    if (command === 'start' || command === 'restart') {
       const apiKeySet = checkAndUpdateEnvFile();
-      if (!apiKeySet) {
+      if (!apiKeySet && command === 'start') {
         writeToScreen('[HTML]: <p><b>No API keys are set, but proceeding anyway.</b></p>');
+      }
+      
+      // Reload TTS dictionary if path exists but data is missing or outdated
+      const envPath = getEnvPath();
+      if (envPath) {
+        const envConfig = readEnvFile(envPath);
+        if (envConfig.TTS_DICT_PATH && 
+            (!envConfig.TTS_DICT_DATA || 
+             fs.existsSync(envConfig.TTS_DICT_PATH))) {
+          try {
+            // Read current file content
+            const fileContent = fs.readFileSync(envConfig.TTS_DICT_PATH, 'utf8');
+            // Update the dictionary data in the environment settings
+            envConfig.TTS_DICT_DATA = fileContent;
+            writeEnvFile(envPath, envConfig);
+            console.log(`TTS Dictionary reloaded from ${envConfig.TTS_DICT_PATH}`);
+          } catch (error) {
+            console.error('Error reloading TTS Dictionary:', error);
+          }
+        }
       }
     }
 
@@ -1733,6 +1753,26 @@ function saveSettings(data) {
         
         // Read the existing configuration from the file
         let envConfig = readEnvFile(envPath);
+        
+        // Check if TTS_DICT_PATH has changed and needs updated content
+        if (data.TTS_DICT_PATH !== envConfig.TTS_DICT_PATH && data.TTS_DICT_PATH !== '') {
+            try {
+                // Read the CSV file content
+                const fileContent = fs.readFileSync(data.TTS_DICT_PATH, 'utf8');
+                // Store the CSV content in a separate environment variable
+                data.TTS_DICT_DATA = fileContent;
+            } catch (error) {
+                console.error('Error reading TTS dictionary file:', error);
+                // If there's an error reading the file, keep the existing data or clear it
+                if (data.TTS_DICT_PATH === '') {
+                    data.TTS_DICT_DATA = '';
+                }
+            }
+        } else if (data.TTS_DICT_PATH === '') {
+            // If the path is being cleared, also clear the data
+            data.TTS_DICT_DATA = '';
+        }
+        
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
         // Write the updated configuration back to the file
@@ -1776,7 +1816,29 @@ ipcMain.handle('select-tts-dict', async () => {
         filters: [{ name: 'CSV Files', extensions: ['csv'] }]
     });
     if (!result.canceled && result.filePaths.length > 0) {
-        return result.filePaths[0];
+        // Save the file path
+        const filePath = result.filePaths[0];
+        
+        try {
+            // Read the CSV file content
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            
+            // Store the content to be passed to the Ruby side
+            const envPath = getEnvPath();
+            if (envPath) {
+                let envConfig = readEnvFile(envPath);
+                envConfig.TTS_DICT_PATH = filePath;
+                // Store the CSV content in a separate environment variable
+                envConfig.TTS_DICT_DATA = fileContent;
+                writeEnvFile(envPath, envConfig);
+            }
+            
+            return filePath;
+        } catch (error) {
+            console.error('Error reading TTS dictionary file:', error);
+            dialog.showErrorBox('Error', `Failed to read TTS dictionary file: ${error.message}`);
+            return '';
+        }
     }
     return '';
 });

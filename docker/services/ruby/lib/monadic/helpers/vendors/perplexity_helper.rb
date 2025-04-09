@@ -29,6 +29,9 @@ module PerplexityHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: "sonar-pro")
+    # Convert symbol keys to string keys to support both formats
+    options = options.transform_keys(&:to_s) if options.is_a?(Hash)
+    
     # Get API key
     api_key = CONFIG["PERPLEXITY_API_KEY"] || ENV["PERPLEXITY_API_KEY"]
     return "Error: PERPLEXITY_API_KEY not found" if api_key.nil?

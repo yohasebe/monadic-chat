@@ -60,6 +60,9 @@ RSpec.describe GeminiHelper do
     stub_const("CONFIG", {"GEMINI_API_KEY" => "mock-api-key"})
   end
   
+  # Use shared examples for common vendor helper tests
+  it_behaves_like "a helper that handles symbol keys", "gemini-2.0-flash"
+  
   describe ".vendor_name" do
     it "returns the correct vendor name" do
       # Mock the vendor_name method to avoid actual implementation details

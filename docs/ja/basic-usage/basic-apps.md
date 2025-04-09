@@ -56,7 +56,7 @@
 
 ### Chat Plus
 
-![Chat app icon](../assets/icons/chat.png ':size=40')
+![Chat app icon](../assets/icons/chat-plus.png ':size=40')
 
 Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの回答の背後で下記の情報を保持し、随時更新します。
 

@@ -157,6 +157,9 @@ module ClaudeHelper
     # Use the model provided directly - trust default_model_for_provider in AI User Agent
     # Model details are logged to dedicated log files
     
+    # Convert symbol keys to string keys to support both formats
+    options = options.transform_keys(&:to_s) if options.is_a?(Hash)
+    
     # Basic request body
     body = {
       "model" => model,

@@ -219,20 +219,29 @@ def load_app_files
   end
 end
 
-# load the TTS dictionary, which is a valid CSV of [original, replacement] pairs
+# Load the TTS dictionary, which is a valid CSV of [original, replacement] pairs
 def load_tts_dict(tts_dict_path)
   if File.exist?(tts_dict_path)
     tts_dict = {}
     begin
       CSV.foreach(tts_dict_path, headers: false) do |row|
-        # make sure the data is in UTF-8; otherwise, convert it
+        # Make sure the data is in UTF-8; otherwise, convert it
         row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+        # Skip empty rows or rows with missing values
+        next if row[0].nil? || row[0].empty? || row[1].nil? || row[1].empty?
+        # Store the original and replacement strings
         tts_dict[row[0]] = row[1]
       end
+      # Log the number of dictionary entries loaded for debugging
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
     rescue StandardError => e
+      # Properly log any errors for debugging
+      puts "Error loading TTS Dictionary: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     end
+  else
+    puts "TTS Dictionary file not found: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
   end
-  CONFIG["TTS_DICT"] = tts_dict
+  CONFIG["TTS_DICT"] = tts_dict || {}
 end
 
 # Initialize apps

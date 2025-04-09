@@ -128,7 +128,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": false
   },
-  "o3-mini-2024-09-12": {
+  "o1-mini-2024-09-12": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
     "reasoning_effort": [["low", "medium", "high"], "low"],

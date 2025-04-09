@@ -7,6 +7,9 @@ require 'yaml'
 require 'tempfile'
 require 'fileutils'
 
+# Load shared test examples
+require_relative 'shared_helper_tests'
+
 # Define global test constants to avoid redefinition warnings
 IN_CONTAINER = false unless defined?(IN_CONTAINER)
 

@@ -7,8 +7,17 @@ module MonadicHelper
   end
 
   def text_to_speech(provider: "openai", text: "", speed: 1.0, voice_id: "alloy", language: "auto", instructions: "")
-    if CONFIG["TTS_DICT"]
-      text = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+    if CONFIG["TTS_DICT"] && !CONFIG["TTS_DICT"].empty?
+      # Sort keys by length in descending order to process longer patterns first
+      sorted_keys = CONFIG["TTS_DICT"].keys.sort_by { |k| -k.length }
+      
+      # Process each key individually to handle special characters like newlines
+      sorted_keys.each do |key|
+        # Use Regexp.escape to properly handle special characters in the key
+        escaped_key = Regexp.escape(key)
+        # Apply substitution for each key with multiline flag
+        text = text.gsub(/#{escaped_key}/m) { CONFIG["TTS_DICT"][key] }
+      end
     end
 
     text = text.gsub(/"/, '\"')

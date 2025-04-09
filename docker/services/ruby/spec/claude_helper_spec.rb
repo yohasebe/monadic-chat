@@ -63,6 +63,7 @@ RSpec.describe ClaudeHelper do
   
   # Use shared examples for common vendor helper tests
   it_behaves_like "a vendor API helper", "Anthropic", "claude-3-5-sonnet-20241022"
+  it_behaves_like "a helper that handles symbol keys", "claude-3-5-sonnet-20241022"
   
   describe "#send_query" do
     context "with normal conversation" do
@@ -74,6 +75,30 @@ RSpec.describe ClaudeHelper do
         }
         
         # Expect HTTP to be called with Claude's specific parameter format
+        expect(HTTP).to receive(:post).with(
+          "#{ClaudeHelper::API_ENDPOINT}/messages",
+          hash_including(
+            json: hash_including(
+              "model" => "claude-3-5-sonnet-20241022",
+              "temperature" => 0.7,
+              "max_tokens" => 1000,
+              "system" => "You are a helpful assistant"
+            )
+          )
+        ).and_return(mock_successful_response('{"content":[{"type":"text","text":"I am Claude, how can I help?"}]}'))
+        
+        result = helper.send_query(options)
+        expect(result).to eq("I am Claude, how can I help?")
+      end
+      
+      it "handles symbol keys in options hash" do
+        options = {
+          system: "You are a helpful assistant",
+          temperature: 0.7,
+          max_tokens: 1000
+        }
+        
+        # Expect HTTP to be called with Claude's specific parameter format (with string keys)
         expect(HTTP).to receive(:post).with(
           "#{ClaudeHelper::API_ENDPOINT}/messages",
           hash_including(

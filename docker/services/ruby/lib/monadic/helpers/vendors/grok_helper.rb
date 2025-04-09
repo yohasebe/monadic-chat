@@ -117,6 +117,9 @@ module GrokHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: "grok-2-1212")
+    # Convert symbol keys to string keys to support both formats
+    options = options.transform_keys(&:to_s) if options.is_a?(Hash)
+    
     # Get API key
     api_key = CONFIG["XAI_API_KEY"] || ENV["XAI_API_KEY"]
     return "Error: XAI_API_KEY not found" if api_key.nil?

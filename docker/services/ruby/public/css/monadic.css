@@ -376,6 +376,9 @@ textarea {
 
 #role-icon {
   color: #999;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
 
 /* START: BLOCKQUOTE STYLE IMPROVEMENTS - ADDED 2025-04-08 */

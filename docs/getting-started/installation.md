@@ -11,8 +11,8 @@ For macOS, follow these steps to install Monadic Chat.
 1. Install Docker Desktop for Mac.
 2. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.81/Monadic.Chat-0.9.81-arm64.dmg)
-- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.81/Monadic.Chat-0.9.81-x64.dmg)
+- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/Monadic.Chat-0.9.82-arm64.dmg)
+- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/Monadic.Chat-0.9.82-x64.dmg)
 
 
 ### **Windows**
@@ -23,7 +23,7 @@ For Windows, follow these steps to install Monadic Chat.
 2. Install Docker Desktop for Windows.
 3. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.81/Monadic.Chat.Setup.0.9.81.exe)
+- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/Monadic.Chat.Setup.0.9.82.exe)
 
 
 ### **Linux**
@@ -36,8 +36,8 @@ Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/insta
 
 2. Download the Monadic Chat installer:
 
-- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.81/monadic-chat_0.9.81_amd64.deb)
-- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.81/monadic-chat_0.9.81_arm64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/monadic-chat_0.9.82_amd64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/monadic-chat_0.9.82_arm64.deb)
 
 
 3. Run the following command in the terminal to install the downloaded package:

@@ -6,6 +6,7 @@ app "MailComposerCohere" do
     <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=mail-composer" target="_blank">
     <i class="fa-solid fa-circle-info"></i></a>
   TEXT
+
   icon "at"
   
   system_prompt <<~TEXT

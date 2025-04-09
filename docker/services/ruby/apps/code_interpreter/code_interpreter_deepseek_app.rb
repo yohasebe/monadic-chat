@@ -3,7 +3,7 @@
 class CodeInterpreterDeepSeek < MonadicApp
   include DeepSeekHelper
 
-  icon = "<i class='fa-solid fa-d'></i>"
+  icon = "<i class='fab fa-python'></i>"
 
   description =<<~DESC
     This is an application that allows you to run Python code with DeepSeek AI. The AI model can execute Python code, install libraries, and fetch text from various file formats. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=deepseek" target="_blank"><i class="fa-solid fa-circle-info"></i></a>

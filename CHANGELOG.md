@@ -8,6 +8,7 @@
   - Reset button behavior change to preserve current app selection
   - Improved card UI and visual styling for message display, code blocks, and syntax highlighting
   - Many UI improvements and bug fixes (role selection, message editing, etc.)
+  - TTS replacement dictionary feature availability and stability improvements 
 - [March, 2025] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0

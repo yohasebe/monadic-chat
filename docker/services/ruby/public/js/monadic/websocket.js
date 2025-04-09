@@ -888,7 +888,9 @@ function connect_websocket(callback) {
               $("#apps").append(`<option value="${key}">${displayText}</option>`);
               
               // Add the same option to custom dropdown with icon
-              const $option = $(`<div class="custom-dropdown-option" data-value="${key}">${appIcon} <span>${displayText}</span></div>`);
+              const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
+                <span style="margin-right: 8px;">${appIcon}</span>
+                <span>${displayText}</span></div>`);
               $("#custom-apps-dropdown").append($option);
             }
           }
@@ -921,7 +923,9 @@ function connect_websocket(callback) {
                 $("#apps").append(`<option value="${key}">${displayText}</option>`);
                 
                 // Add the same option to custom dropdown with icon
-                const $option = $(`<div class="custom-dropdown-option" data-value="${key}">${appIcon} <span>${displayText}</span></div>`);
+                const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
+                  <span style="margin-right: 8px;">${appIcon}</span>
+                  <span>${displayText}</span></div>`);
                 $("#custom-apps-dropdown").append($option);
               }
             }

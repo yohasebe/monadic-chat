@@ -1999,6 +1999,23 @@ $(function () {
         $customDropdown.toggle();
         console.log("Dropdown toggled:", $customDropdown.is(":visible"));
         
+        // If dropdown is now visible, highlight the currently selected option
+        if ($customDropdown.is(":visible")) {
+          // Get current selected value
+          const currentValue = $select.val();
+          
+          // Clear any existing highlights
+          $(".custom-dropdown-option.highlighted").removeClass("highlighted");
+          
+          // Find and highlight the option matching the current selection
+          const $selectedOption = $(`.custom-dropdown-option[data-value="${currentValue}"]`);
+          if ($selectedOption.length) {
+            $selectedOption.addClass("highlighted");
+            // Ensure the selected option is visible in the dropdown
+            ensureVisibleInDropdown($selectedOption, $customDropdown);
+          }
+        }
+        
         // Position the dropdown relative to the select
         positionDropdown();
         
@@ -2024,6 +2041,23 @@ $(function () {
         $customDropdown.toggle();
         console.log("Dropdown toggled from wrapper:", $customDropdown.is(":visible"));
         
+        // If dropdown is now visible, highlight the currently selected option
+        if ($customDropdown.is(":visible")) {
+          // Get current selected value
+          const currentValue = $select.val();
+          
+          // Clear any existing highlights
+          $(".custom-dropdown-option.highlighted").removeClass("highlighted");
+          
+          // Find and highlight the option matching the current selection
+          const $selectedOption = $(`.custom-dropdown-option[data-value="${currentValue}"]`);
+          if ($selectedOption.length) {
+            $selectedOption.addClass("highlighted");
+            // Ensure the selected option is visible in the dropdown
+            ensureVisibleInDropdown($selectedOption, $customDropdown);
+          }
+        }
+        
         // Position the dropdown relative to the select
         positionDropdown();
         
@@ -2045,6 +2079,7 @@ $(function () {
           switch (e.key) {
             case "ArrowDown":
               e.preventDefault();
+              e.stopPropagation(); // Prevent event from bubbling up
               // Move to next option
               if (index < $options.length - 1) {
                 if ($highlighted.length) {
@@ -2060,11 +2095,19 @@ $(function () {
                 const $first = $options.first();
                 $first.addClass("highlighted");
                 ensureVisibleInDropdown($first, $customDropdown);
+              } else {
+                // Already at the bottom, circle back to the first item
+                $highlighted.removeClass("highlighted");
+                const $first = $options.first();
+                $first.addClass("highlighted");
+                ensureVisibleInDropdown($first, $customDropdown);
               }
+              return false; // Prevent default and stop propagation
               break;
               
             case "ArrowUp":
               e.preventDefault();
+              e.stopPropagation(); // Prevent event from bubbling up
               // Move to previous option
               if (index > 0) {
                 $highlighted.removeClass("highlighted");
@@ -2073,23 +2116,34 @@ $(function () {
                 
                 // Ensure the element is visible in the dropdown
                 ensureVisibleInDropdown($prev, $customDropdown);
+              } else if (index === 0) {
+                // At first item, circle to the last one
+                $highlighted.removeClass("highlighted");
+                const $last = $options.last();
+                $last.addClass("highlighted");
+                ensureVisibleInDropdown($last, $customDropdown);
               }
               break;
               
             case "Enter":
             case " ": // Space key
               e.preventDefault();
+              e.stopPropagation(); // Prevent event from bubbling up
               if ($highlighted.length) {
                 // Trigger click on the highlighted option
                 $highlighted.click();
               }
+              return false; // Prevent default and stop propagation
               break;
               
             case "Escape":
               e.preventDefault();
+              e.stopPropagation(); // Prevent event from bubbling up
               $customDropdown.hide();
+              return false; // Prevent default and stop propagation
               break;
           }
+          return true;
         }
       });
       

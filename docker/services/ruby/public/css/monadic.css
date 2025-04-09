@@ -236,6 +236,8 @@ button.fixed-width {
   font-size: 1.4em;
 }
 
+/* Styles moved to index.erb file to ensure they take precedence */
+
 .card-body h2 {
   color: #DC4C64;
   font-weight: 500;

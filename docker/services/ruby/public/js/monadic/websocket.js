@@ -1696,7 +1696,7 @@ function connect_websocket(callback) {
           callingFunction = false;
           responseStarted = true;
           // Update spinner message for streaming
-          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Receiving response');
+          $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
           // remove the leading new line characters from content
           content = content.replace(/^\n+/, "");
         }

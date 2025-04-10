@@ -758,73 +758,93 @@ module StringUtils
     }
 
     if mathjax
-      # Arrays to store the mathjax codes
+      # === Improved MathJax Processing Algorithm ===
+      # 1. Protect code blocks first (as they might contain MathJax-like syntax)
+      # 2. Detect and protect math expressions
+      # 3. Render markdown
+      # 4. Restore protected math expressions and code blocks into HTML
+
+      # Arrays to store MathJax expressions
       block_mathjax = []
       inline_mathjax = []
-
-      # Replace $$...$$ with placeholders
-      t4 = t3.gsub(/\$\$(.*?)\$\$/m) do
-        block_mathjax << Regexp.last_match(1)
-        "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
-      end
-
-      # Replace $...$ with placeholders
-      t5 = t4.gsub(/\$(.*?)\$/m) do
-        inline_mathjax << Regexp.last_match(1)
-        "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
-      end
       
-      # Extract code blocks temporarily to avoid processing math inside code
+      # First protect code blocks (to prevent MathJax being processed within code)
+      # Use non-greedy matching with careful pattern to match fenced code blocks
       code_blocks = []
-      t5_with_code_placeholders = t5.gsub(/```.*?```|`.*?`/m) do |match|
+      t4 = t3.gsub(/```(?:[a-zA-Z0-9+\-]*)?\n[\s\S]*?\n```|`[^`]*`/m) do |match|
         code_blocks << match
         "CODE_BLOCK_PLACEHOLDER_#{code_blocks.size - 1}"
       end
       
-      # Also handle \(...\) inline math notation (but only outside code blocks)
-      t6 = t5_with_code_placeholders.gsub(/\\\\?\((.*?)\\\\?\)/m) do
+      # Protect block math expressions - $$...$$
+      t5 = t4.gsub(/\$\$([\s\S]*?)\$\$/m) do |match|
+        content = Regexp.last_match(1)
+        block_mathjax << content
+        "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
+      end
+      
+      # Protect block math expressions - \[...\]
+      t6 = t5.gsub(/\\\[([\s\S]*?)\\\]/m) do |match|
+        content = Regexp.last_match(1)
+        block_mathjax << content
+        "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
+      end
+      
+      # Protect inline math expressions (multiple patterns)
+      # $...$ pattern - avoid $ that appears in the middle of words
+      t7 = t6.gsub(/(?<!\w)\$((?!\s)[\s\S]*?(?<!\s))\$(?!\w)/m) do |match|
         content = Regexp.last_match(1)
         inline_mathjax << content
         "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
       end
       
-      # Restore code blocks
-      code_blocks.each_with_index do |code, index|
-        t6.gsub!("CODE_BLOCK_PLACEHOLDER_#{index}", code)
+      # \(...\) pattern
+      t8 = t7.gsub(/\\\(([\s\S]*?)\\\)/m) do |match|
+        content = Regexp.last_match(1)
+        inline_mathjax << content
+        "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
       end
-
-      # Convert markdown to HTML using Commonmarker
-      # Ensure text is UTF-8 encoded
-      t6_utf8 = t6.dup.force_encoding('UTF-8')
-      html = Commonmarker.to_html(t6_utf8, options: options)
+      
+      # Convert Markdown to HTML
+      t8_utf8 = t8.dup.force_encoding('UTF-8')
+      html = Commonmarker.to_html(t8_utf8, options: options)
       
       # Get theme settings
       theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
       theme, mode = theme_mode.split(":")
       mode = mode || "light"
       
-      # Convert CommonMarker output format and apply current theme
+      # Apply syntax highlighting - but save for after restoring code blocks
+      highlighted_html = html.dup
+      
+      # Restore code blocks first to ensure proper syntax highlighting
+      code_blocks.each_with_index do |code, index|
+        # First handle code blocks wrapped in <p> tags
+        html.gsub!(%r{<p>CODE_BLOCK_PLACEHOLDER_#{index}</p>}, code)
+        # Then handle any remaining placeholders
+        html.gsub!("CODE_BLOCK_PLACEHOLDER_#{index}", code)
+      end
+      
+      # Now apply syntax highlighting after code blocks are properly restored
       html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
-
-      # Temporarily comment out backslash escaping to allow \(...\) inline math notation
-      # inline_mathjax.map! do |code|
-      #   code.gsub(/(?:\r)+/, "\\r")
-      #       .gsub(/(?:\t)+/, "\\t")
-      # end
-
-      # Replace placeholders with the original mathjax codes
+      
+      # Restore block math expressions
       block_mathjax.each_with_index do |code, index|
+        # Extract math expressions from within <p> tags if present
+        html.gsub!(%r{<p>BLOCK_MATHJAX_PLACEHOLDER_#{index}</p>}, "$$#{code}$$")
+        # Handle other cases with normal replacement
         html.gsub!("BLOCK_MATHJAX_PLACEHOLDER_#{index}", "$$#{code}$$")
       end
-
+      
+      # Restore inline math expressions
       inline_mathjax.each_with_index do |code, index|
-        # Preserve the original format used in the text
-        if block_mathjax.include?(code) || code.include?('\$')
-          # If this was a block formula or contains escape sequences, use \(...\) format
-          html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "\\(#{code}\\)")
+        placeholder = "INLINE_MATHJAX_PLACEHOLDER_#{index}"
+        # Use \(...\) format for expressions with \text{} or other complex commands
+        if code.include?('\\text') || code.include?('\\math') || code.count('\\') > 2
+          html.gsub!(placeholder, "\\(#{code}\\)")
         else
-          # Otherwise use $...$ format
-          html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "$#{code}$")
+          # Use $...$ format for simpler expressions
+          html.gsub!(placeholder, "$#{code}$")
         end
       end
     else

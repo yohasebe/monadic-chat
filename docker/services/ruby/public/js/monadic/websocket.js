@@ -1795,7 +1795,6 @@ function reconnect_websocket(ws, callback) {
         
       case WebSocket.OPEN:
         // Connection is successful, reset counters
-        console.log('WebSocket connection established.');
         ws._reconnectAttempts = 0;
         
         // Start ping to keep connection alive

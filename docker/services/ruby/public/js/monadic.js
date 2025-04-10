@@ -2010,13 +2010,11 @@ $(function () {
       
       // Show custom dropdown when clicking on the overlay div
       $("#app-select-overlay").on("click", function(e) {
-        console.log("Overlay clicked");
         e.preventDefault();
         e.stopPropagation();
         
         // Toggle custom dropdown
         $customDropdown.toggle();
-        console.log("Dropdown toggled:", $customDropdown.is(":visible"));
         
         // If dropdown is now visible, highlight the currently selected option
         if ($customDropdown.is(":visible")) {
@@ -2048,7 +2046,6 @@ $(function () {
       
       // Also add click handler to the wrapper as a fallback
       $(".app-select-wrapper").on("click", function(e) {
-        console.log("Wrapper clicked");
         if ($(e.target).is("#app-select-overlay")) {
           // Already handled by the overlay click handler
           return;
@@ -2058,7 +2055,6 @@ $(function () {
         
         // Toggle custom dropdown
         $customDropdown.toggle();
-        console.log("Dropdown toggled from wrapper:", $customDropdown.is(":visible"));
         
         // If dropdown is now visible, highlight the currently selected option
         if ($customDropdown.is(":visible")) {

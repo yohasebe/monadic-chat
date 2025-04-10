@@ -46,8 +46,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "httparty"
   spec.add_dependency "http-form_data"
   spec.add_dependency "i18n_data"
-  spec.add_dependency "kramdown"
-  spec.add_dependency "kramdown-parser-gfm"
   spec.add_dependency "matrix"
   spec.add_dependency "method_source"
   spec.add_dependency "nokogiri"

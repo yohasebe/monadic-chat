@@ -2,7 +2,6 @@
 
 require "dotenv/load"
 require "rouge"
-require "kramdown"
 require "cld"
 require "csv"
 require_relative "./spec_helper"
@@ -48,6 +47,8 @@ RSpec.describe StringUtils do
       
       # Mock the CSV.parse method to raise an exception
       allow(CSV).to receive(:parse).and_raise(StandardError.new("CSV parse error"))
+      # Suppress puts output to keep test output clean
+      allow(StringUtils).to receive(:puts)
       
       result = StringUtils.process_tts_dictionary(csv_data)
       

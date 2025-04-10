@@ -157,18 +157,37 @@ function adjustScrollButtonsFallback() {
 }
 
 function setupTooltipsFallback(container) {
-  container.tooltip({
-    selector: '.card-header [title]',
-    delay: { show: 0, hide: 0 },
-    show: 100,
-    container: 'body'
-  });
+  try {
+    if (container && container.tooltip) {
+      container.tooltip({
+        selector: '.card-header [title]',
+        delay: { show: 0, hide: 0 },
+        show: 100,
+        container: 'body'
+      });
+    }
+  } catch (e) {
+    console.warn('Tooltip initialization error:', e);
+  }
 }
 
 function cleanupAllTooltipsFallback() {
-  $('.tooltip').remove();
-  $('[data-bs-original-title]').tooltip('dispose');
-  $('[data-original-title]').tooltip('dispose');
+  try {
+    $('.tooltip').remove();
+    
+    // Safely dispose tooltips if the method is available
+    const bsElements = $('[data-bs-original-title]');
+    if (bsElements.length && bsElements.tooltip) {
+      bsElements.tooltip('dispose');
+    }
+    
+    const originalElements = $('[data-original-title]');
+    if (originalElements.length && originalElements.tooltip) {
+      originalElements.tooltip('dispose');
+    }
+  } catch (e) {
+    console.warn('Tooltip cleanup error:', e);
+  }
 }
 
 function adjustImageUploadButtonFallback(selectedModel) {

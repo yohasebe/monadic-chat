@@ -744,9 +744,18 @@ module StringUtils
     t2 = t1.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
     t3 = t2.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
 
-    # Set up common CommonMarker options
-    parse_options = [:UNSAFE, :FOOTNOTES, :STRIKETHROUGH, :AUTOLINK]
-    render_options = [:GITHUB_PRE_LANG, :TABLE_PREFER_STYLE_ATTRIBUTES]
+    # Set up Commonmarker options
+    options = {
+      parse: { smart: true },
+      render: { unsafe: true, github_pre_lang: true },
+      extension: { 
+        strikethrough: true, 
+        table: true, 
+        autolink: true,
+        tasklist: true,
+        footnotes: true
+      }
+    }
 
     if mathjax
       # Arrays to store the mathjax codes
@@ -768,7 +777,7 @@ module StringUtils
       # Convert markdown to HTML using Commonmarker
       # Ensure text is UTF-8 encoded
       t5_utf8 = t5.dup.force_encoding('UTF-8')
-      html = Commonmarker.to_html(t5_utf8)
+      html = Commonmarker.to_html(t5_utf8, options: options)
       
       # Get theme settings
       theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
@@ -796,7 +805,7 @@ module StringUtils
       # Convert markdown to HTML using Commonmarker
       # Ensure text is UTF-8 encoded
       t3_utf8 = t3.dup.force_encoding('UTF-8')
-      html = Commonmarker.to_html(t3_utf8)
+      html = Commonmarker.to_html(t3_utf8, options: options)
       
       # Get theme settings
       theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"

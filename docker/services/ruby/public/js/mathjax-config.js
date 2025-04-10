@@ -23,7 +23,7 @@ window.MathJax = {
     }
   },
   chtml: {
-    fontURL: '/vendor/js/output/chtml/fonts/woff-v2',
+    fontURL: './vendor/js/output/chtml/fonts/woff-v2',
     matchFontHeight: true,
     displayAlign: 'left',
     displayIndent: '0',

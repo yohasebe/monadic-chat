@@ -78,25 +78,46 @@ function adjustScrollButtons() {
 
 /**
  * Sets up tooltips for specific UI elements
+ * Includes error handling for Electron compatibility
  * @param {jQuery} container - Container element to attach tooltips to
  */
 function setupTooltips(container) {
-  container.tooltip({
-    selector: '.card-header [title]',
-    delay: { show: 0, hide: 0 },
-    show: 100,
-    container: 'body' // Place tooltips in body for easier management
-  });
+  try {
+    if (container && container.tooltip) {
+      container.tooltip({
+        selector: '.card-header [title]',
+        delay: { show: 0, hide: 0 },
+        show: 100,
+        container: 'body' // Place tooltips in body for easier management
+      });
+    }
+  } catch (e) {
+    console.warn('Tooltip initialization error:', e);
+  }
 }
 
 /**
  * Removes all tooltip elements from the DOM
  * Helps prevent memory leaks from lingering tooltips
+ * Includes error handling for Electron compatibility
  */
 function cleanupAllTooltips() {
-  $('.tooltip').remove(); // Directly remove all tooltip elements
-  $('[data-bs-original-title]').tooltip('dispose'); // Bootstrap 5
-  $('[data-original-title]').tooltip('dispose'); // Bootstrap 4
+  try {
+    $('.tooltip').remove(); // Directly remove all tooltip elements
+    
+    // Safely dispose tooltips if the method is available
+    const bsElements = $('[data-bs-original-title]');
+    if (bsElements.length && bsElements.tooltip) {
+      bsElements.tooltip('dispose'); // Bootstrap 5
+    }
+    
+    const originalElements = $('[data-original-title]');
+    if (originalElements.length && originalElements.tooltip) {
+      originalElements.tooltip('dispose'); // Bootstrap 4
+    }
+  } catch (e) {
+    console.warn('Tooltip cleanup error:', e);
+  }
 }
 
 /**

@@ -175,22 +175,20 @@ class DockerManager {
         writeToScreen('[HTML]: <p><b>No API keys are set, but proceeding anyway.</b></p>');
       }
       
-      // Reload TTS dictionary if path exists but data is missing or outdated
+      // Copy TTS dictionary to config folder if path exists
       const envPath = getEnvPath();
       if (envPath) {
+        const configDir = path.dirname(envPath);
         const envConfig = readEnvFile(envPath);
-        if (envConfig.TTS_DICT_PATH && 
-            (!envConfig.TTS_DICT_DATA || 
-             fs.existsSync(envConfig.TTS_DICT_PATH))) {
+        
+        if (envConfig.TTS_DICT_PATH && fs.existsSync(envConfig.TTS_DICT_PATH)) {
           try {
-            // Read current file content
-            const fileContent = fs.readFileSync(envConfig.TTS_DICT_PATH, 'utf8');
-            // Update the dictionary data in the environment settings
-            envConfig.TTS_DICT_DATA = fileContent;
-            writeEnvFile(envPath, envConfig);
-            console.log(`TTS Dictionary reloaded from ${envConfig.TTS_DICT_PATH}`);
+            // Copy the dictionary file to the config directory
+            const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+            fs.copyFileSync(envConfig.TTS_DICT_PATH, ttsDictFile);
+            console.log(`TTS Dictionary copied to ${ttsDictFile}`);
           } catch (error) {
-            console.error('Error reloading TTS Dictionary:', error);
+            console.error('Error copying TTS Dictionary:', error);
           }
         }
       }
@@ -1754,23 +1752,34 @@ function saveSettings(data) {
         // Read the existing configuration from the file
         let envConfig = readEnvFile(envPath);
         
-        // Check if TTS_DICT_PATH has changed and needs updated content
-        if (data.TTS_DICT_PATH !== envConfig.TTS_DICT_PATH && data.TTS_DICT_PATH !== '') {
-            try {
-                // Read the CSV file content
-                const fileContent = fs.readFileSync(data.TTS_DICT_PATH, 'utf8');
-                // Store the CSV content in a separate environment variable
-                data.TTS_DICT_DATA = fileContent;
-            } catch (error) {
-                console.error('Error reading TTS dictionary file:', error);
-                // If there's an error reading the file, keep the existing data or clear it
-                if (data.TTS_DICT_PATH === '') {
-                    data.TTS_DICT_DATA = '';
+        // Check if TTS_DICT_PATH has changed and copy the file to config directory
+        if (data.TTS_DICT_PATH !== envConfig.TTS_DICT_PATH) {
+            // Remove old TTS_DICT_DATA environment variable since we're not using it anymore
+            delete data.TTS_DICT_DATA;
+            
+            if (data.TTS_DICT_PATH && data.TTS_DICT_PATH !== '') {
+                try {
+                    // Copy the dictionary file to the config directory
+                    const configDir = path.dirname(envPath);
+                    const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+                    fs.copyFileSync(data.TTS_DICT_PATH, ttsDictFile);
+                    console.log(`TTS Dictionary copied to ${ttsDictFile}`);
+                } catch (error) {
+                    console.error('Error copying TTS dictionary file:', error);
+                }
+            } else {
+                // If path is empty, try to remove the TTS_DICT.csv file
+                try {
+                    const configDir = path.dirname(envPath);
+                    const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+                    if (fs.existsSync(ttsDictFile)) {
+                        fs.unlinkSync(ttsDictFile);
+                        console.log(`TTS Dictionary file removed from ${ttsDictFile}`);
+                    }
+                } catch (error) {
+                    console.error('Error removing TTS dictionary file:', error);
                 }
             }
-        } else if (data.TTS_DICT_PATH === '') {
-            // If the path is being cleared, also clear the data
-            data.TTS_DICT_DATA = '';
         }
         
         // Override existing settings with new data (empty string values are included)
@@ -1820,16 +1829,27 @@ ipcMain.handle('select-tts-dict', async () => {
         const filePath = result.filePaths[0];
         
         try {
-            // Read the CSV file content
-            const fileContent = fs.readFileSync(filePath, 'utf8');
-            
-            // Store the content to be passed to the Ruby side
+            // Store the path and copy the file to config directory
             const envPath = getEnvPath();
             if (envPath) {
                 let envConfig = readEnvFile(envPath);
                 envConfig.TTS_DICT_PATH = filePath;
-                // Store the CSV content in a separate environment variable
-                envConfig.TTS_DICT_DATA = fileContent;
+                
+                // Remove old TTS_DICT_DATA if it exists
+                if (envConfig.TTS_DICT_DATA) {
+                    delete envConfig.TTS_DICT_DATA;
+                }
+                
+                // Copy the file to the config directory
+                try {
+                    const configDir = path.dirname(envPath);
+                    const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+                    fs.copyFileSync(filePath, ttsDictFile);
+                    console.log(`TTS Dictionary copied to ${ttsDictFile}`);
+                } catch (error) {
+                    console.error('Error copying TTS dictionary file:', error);
+                }
+                
                 writeEnvFile(envPath, envConfig);
             }
             

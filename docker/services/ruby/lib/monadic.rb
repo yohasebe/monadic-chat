@@ -222,18 +222,45 @@ def load_app_files
   end
 end
 
-# Load the TTS dictionary from the data received from Electron
+# Load the TTS dictionary
 def load_tts_dict(tts_dict_data = nil)
   tts_dict = {}
   
-  # Process TTS_DICT_DATA directly received from Electron
-  if tts_dict_data || CONFIG["TTS_DICT_DATA"]
-    data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"]
-    # Use StringUtils helper to process CSV data
+  # 1. Check for TTS_DICT.csv in the config directory first (for Docker container)
+  config_dict_path = if IN_CONTAINER
+                        "/monadic/config/TTS_DICT.csv"
+                      else
+                        File.join(Dir.home, "monadic", "config", "TTS_DICT.csv")
+                      end
+  
+  if File.exist?(config_dict_path)
+    begin
+      file_data = File.read(config_dict_path)
+      tts_dict = StringUtils.process_tts_dictionary(file_data)
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from config directory" if CONFIG["EXTRA_LOGGING"]
+      CONFIG["TTS_DICT"] = tts_dict
+      return
+    rescue => e
+      puts "Error reading TTS dictionary from config: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    end
+  end
+  
+  # 2. For development mode with 'rake debug': If TTS_DICT_PATH exists, read directly from that path
+  if ENV['TTS_DICT_PATH'] && File.exist?(ENV['TTS_DICT_PATH'])
+    begin
+      file_data = File.read(ENV['TTS_DICT_PATH'])
+      tts_dict = StringUtils.process_tts_dictionary(file_data)
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_PATH (development mode)" if CONFIG["EXTRA_LOGGING"]
+    rescue => e
+      puts "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    end
+  # 3. Legacy support: Try using TTS_DICT_DATA if it exists
+  elsif tts_dict_data || CONFIG["TTS_DICT_DATA"] || ENV["TTS_DICT_DATA"]
+    data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"] || ENV["TTS_DICT_DATA"]
     tts_dict = StringUtils.process_tts_dictionary(data_to_process)
-    puts "TTS Dictionary loaded with #{tts_dict.size} entries from data" if CONFIG["EXTRA_LOGGING"]
+    puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" if CONFIG["EXTRA_LOGGING"]
   else
-    puts "No TTS Dictionary data provided" if CONFIG["EXTRA_LOGGING"]
+    puts "No TTS Dictionary data available" if CONFIG["EXTRA_LOGGING"]
   end
   
   CONFIG["TTS_DICT"] = tts_dict || {}

@@ -1,4 +1,5 @@
-- [April, 2025] 0.9.82
+- [April, 2025] 0.9.83
+  - Better Markdown rendering with CommonMark support
   - Improved new version notification and update process
   - Added environment variables for configuring default models for each provider (OPENAI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL, etc.)
   - Enhanced Monadic DSL to support default model configuration from environment variables

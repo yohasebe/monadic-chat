@@ -773,11 +773,30 @@ module StringUtils
         inline_mathjax << Regexp.last_match(1)
         "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
       end
+      
+      # Extract code blocks temporarily to avoid processing math inside code
+      code_blocks = []
+      t5_with_code_placeholders = t5.gsub(/```.*?```|`.*?`/m) do |match|
+        code_blocks << match
+        "CODE_BLOCK_PLACEHOLDER_#{code_blocks.size - 1}"
+      end
+      
+      # Also handle \(...\) inline math notation (but only outside code blocks)
+      t6 = t5_with_code_placeholders.gsub(/\\\\?\((.*?)\\\\?\)/m) do
+        content = Regexp.last_match(1)
+        inline_mathjax << content
+        "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
+      end
+      
+      # Restore code blocks
+      code_blocks.each_with_index do |code, index|
+        t6.gsub!("CODE_BLOCK_PLACEHOLDER_#{index}", code)
+      end
 
       # Convert markdown to HTML using Commonmarker
       # Ensure text is UTF-8 encoded
-      t5_utf8 = t5.dup.force_encoding('UTF-8')
-      html = Commonmarker.to_html(t5_utf8, options: options)
+      t6_utf8 = t6.dup.force_encoding('UTF-8')
+      html = Commonmarker.to_html(t6_utf8, options: options)
       
       # Get theme settings
       theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
@@ -787,11 +806,11 @@ module StringUtils
       # Convert CommonMarker output format and apply current theme
       html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
 
-      # add an extra backslash to the backslash in the mathjax code in inline_mathjax
-      inline_mathjax.map! do |code|
-        code.gsub(/(?:\r)+/, "\\r")
-            .gsub(/(?:\t)+/, "\\t")
-      end
+      # Temporarily comment out backslash escaping to allow \(...\) inline math notation
+      # inline_mathjax.map! do |code|
+      #   code.gsub(/(?:\r)+/, "\\r")
+      #       .gsub(/(?:\t)+/, "\\t")
+      # end
 
       # Replace placeholders with the original mathjax codes
       block_mathjax.each_with_index do |code, index|
@@ -799,7 +818,14 @@ module StringUtils
       end
 
       inline_mathjax.each_with_index do |code, index|
-        html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "$#{code}$")
+        # Preserve the original format used in the text
+        if block_mathjax.include?(code) || code.include?('\$')
+          # If this was a block formula or contains escape sequences, use \(...\) format
+          html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "\\(#{code}\\)")
+        else
+          # Otherwise use $...$ format
+          html.gsub!("INLINE_MATHJAX_PLACEHOLDER_#{index}", "$#{code}$")
+        end
       end
     else
       # Convert markdown to HTML using Commonmarker

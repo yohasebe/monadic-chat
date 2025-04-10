@@ -315,7 +315,7 @@ RSpec.describe StringUtils do
     end
     
     context "with MathJax enabled" do
-      it "preserves inline MathJax expressions" do
+      it "preserves inline MathJax expressions with $...$ format" do
         text = "Equation: $E = mc^2$"
         result = StringUtils.markdown_to_html(text, mathjax: true)
         expect(result).to include("$E = mc^2$")
@@ -325,6 +325,20 @@ RSpec.describe StringUtils do
         text = "Equation:\n$$E = mc^2$$"
         result = StringUtils.markdown_to_html(text, mathjax: true)
         expect(result).to include("$$E = mc^2$$")
+      end
+      
+      it "preserves LaTeX escape sequences in MathJax content" do
+        text = "Equation with escape: $E = mc^2 \\text{ energy}$"
+        result = StringUtils.markdown_to_html(text, mathjax: true)
+        expect(result).to include("$E = mc^2 \\text{ energy}$")
+      end
+      
+      it "preserves MathJax code in code blocks" do
+        text = "```python\nx = 1 + 2 # Compute $E = mc^2$ result\n```"
+        result = StringUtils.markdown_to_html(text, mathjax: true)
+        # Verify that the content appears in the code block as regular text
+        expect(result).to include("<div class=\"highlight language-python highlighter-rouge\">")
+        expect(result).to include("# Compute $E = mc^2$ result")
       end
     end
   end

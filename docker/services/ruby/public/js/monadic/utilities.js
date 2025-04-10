@@ -523,7 +523,7 @@ function loadParams(params, calledFor = "loadParams") {
             defaultEffort = spec["reasoning_effort"][1];
           }
         } catch (e) {
-          console.log("Could not get default reasoning effort from model spec", e);
+          // Could not get default reasoning effort from model spec
         }
         
         // Handle both array and string formats for reasoning_effort parameter
@@ -853,6 +853,9 @@ function resetEvent(_event) {
     // Set app selection back to current app instead of default
     $("#apps").val(currentApp);
     
+    // Update lastApp to match the current app to prevent app change dialog from appearing
+    lastApp = currentApp;
+    
     $("#base-app-title").text(apps[currentApp]["app_name"]);
 
     if (apps[currentApp]["monadic"]) {
@@ -887,7 +890,8 @@ function resetEvent(_event) {
     setStats("No data available");
 
     // Instead of selecting the first available app, maintain the current selection
-    // Trigger change to update UI based on this app
+    // Use stop_apps_trigger flag to prevent app change dialog
+    stop_apps_trigger = true;
     $("#apps").trigger("change");
 
     adjustImageUploadButton($("#model").val());

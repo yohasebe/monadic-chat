@@ -15,6 +15,7 @@ require "i18n_data"
 require "json"
 require "kramdown"
 require "kramdown-parser-gfm"
+require "commonmarker"
 require "method_source"
 require "net/http"
 require "nokogiri"
@@ -91,12 +92,14 @@ PROMPT
 CONFIG = {}
 
 begin
+  # Only process environment variables from the .env file, not dictionary data
   File.read(Paths::ENV_PATH).split("\n").each do |line|
     next if line.strip.empty? || line.strip.start_with?("#")
     
     # Check for valid line format (key=value)
     if !line.include?("=")
-      puts "Warning: Skipping invalid environment line: #{line}"
+      # Skip non-environment variable lines without warning since they might be TTS dictionary entries
+      # that should be in a separate file
       next
     end
     
@@ -219,47 +222,18 @@ def load_app_files
   end
 end
 
-# Load the TTS dictionary, which is a valid CSV of [original, replacement] pairs
-def load_tts_dict(tts_dict_path)
+# Load the TTS dictionary from the data received from Electron
+def load_tts_dict(tts_dict_data = nil)
   tts_dict = {}
   
-  # First check if TTS_DICT_DATA is available in the environment
-  if CONFIG["TTS_DICT_DATA"] && !CONFIG["TTS_DICT_DATA"].empty?
-    begin
-      # Process the CSV data from the environment variable
-      CSV.parse(CONFIG["TTS_DICT_DATA"], headers: false) do |row|
-        # Make sure the data is in UTF-8; otherwise, convert it
-        row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
-        # Skip empty rows or rows with missing values
-        next if row[0].nil? || row[0].empty? || row[1].nil? || row[1].empty?
-        # Store the original and replacement strings
-        tts_dict[row[0]] = row[1]
-      end
-      # Log the number of dictionary entries loaded for debugging
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from environment variable" if CONFIG["EXTRA_LOGGING"]
-    rescue StandardError => e
-      # Properly log any errors for debugging
-      puts "Error parsing TTS Dictionary from environment: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    end
-  # Fall back to file-based loading if TTS_DICT_DATA is not available
-  elsif File.exist?(tts_dict_path)
-    begin
-      CSV.foreach(tts_dict_path, headers: false) do |row|
-        # Make sure the data is in UTF-8; otherwise, convert it
-        row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
-        # Skip empty rows or rows with missing values
-        next if row[0].nil? || row[0].empty? || row[1].nil? || row[1].empty?
-        # Store the original and replacement strings
-        tts_dict[row[0]] = row[1]
-      end
-      # Log the number of dictionary entries loaded for debugging
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from file: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
-    rescue StandardError => e
-      # Properly log any errors for debugging
-      puts "Error loading TTS Dictionary from file: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    end
+  # Process TTS_DICT_DATA directly received from Electron
+  if tts_dict_data || CONFIG["TTS_DICT_DATA"]
+    data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"]
+    # Use StringUtils helper to process CSV data
+    tts_dict = StringUtils.process_tts_dictionary(data_to_process)
+    puts "TTS Dictionary loaded with #{tts_dict.size} entries from data" if CONFIG["EXTRA_LOGGING"]
   else
-    puts "TTS Dictionary file not found: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
+    puts "No TTS Dictionary data provided" if CONFIG["EXTRA_LOGGING"]
   end
   
   CONFIG["TTS_DICT"] = tts_dict || {}
@@ -394,7 +368,8 @@ def init_apps
     apps[app_name] = app
   end
 
-  load_tts_dict(CONFIG["TTS_DICT_PATH"]) if CONFIG["TTS_DICT_PATH"]
+  # Load TTS dictionary from provided data, not from a path
+  load_tts_dict
 
   # Group apps by provider and sort alphabetically within each group
   grouped_apps = apps.group_by { |_, app| app.settings["group"] }

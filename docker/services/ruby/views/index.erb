@@ -838,23 +838,32 @@
     <script src="vendor/js/OpusMediaRecorder.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js';"></script>
     <script src="vendor/js/encoderWorker.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js';"></script>
 
-    <script>
-      window.MathJax = {
-        startup: {
-          typeset: false
-        },
-        tex: {
-          inlineMath:  [ ['$', '$'], ['\\(', '\\)'] ],
-          displayMath: [ ['$$', '$$'], ['\\[','\\]'] ],
-          processEscapes: true
-        },
-        options: {
-          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
-        }
-      };
-    </script>
+    <script src="js/mathjax-config.js"></script>
     <!-- MathJax (local or CDN) -->
     <script src="vendor/js/tex-mml-chtml.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+    
+    <!-- Custom MathJax Styling -->
+    <style>
+      /* Force MathJax to use serif fonts */
+      .MathJax {
+        font-family: "Computer Modern", "Latin Modern", "Latin Modern Math", "STIX Two Math", "STIX", "TeX", serif !important;
+      }
+      
+      /* Adjust inline math size to match surrounding text */
+      .mjx-math {
+        font-size: 100% !important;
+      }
+      
+      /* Better spacing between characters */
+      .mjx-char {
+        letter-spacing: 0.02em;
+      }
+      
+      /* Adjust vertical alignment of inline math */
+      mjx-container[display="false"] {
+        vertical-align: middle !important;
+      }
+    </style>
 
     <!-- Mermaid (local or CDN) -->
     <script src="vendor/js/mermaid.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';"></script>

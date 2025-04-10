@@ -39,6 +39,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "activesupport"
   spec.add_dependency "cld"
+  spec.add_dependency "commonmarker"
   spec.add_dependency "dotenv"
   spec.add_dependency "faye-websocket"
   spec.add_dependency "http"

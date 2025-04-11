@@ -321,8 +321,20 @@ RSpec.describe StringUtils do
         expect(result).to include("$E = mc^2$")
       end
       
-      it "preserves block MathJax expressions" do
+      it "preserves block MathJax expressions with $$...$$ format" do
         text = "Equation:\n$$E = mc^2$$"
+        result = StringUtils.markdown_to_html(text, mathjax: true)
+        expect(result).to include("$$E = mc^2$$")
+      end
+      
+      it "converts inline MathJax expressions from \\(...\\) format to $...$ format" do
+        text = "Equation: \\(E = mc^2\\)"
+        result = StringUtils.markdown_to_html(text, mathjax: true)
+        expect(result).to include("$E = mc^2$")
+      end
+      
+      it "converts block MathJax expressions from \\[...\\] format to $$...$$ format" do
+        text = "Equation:\n\\[E = mc^2\\]"
         result = StringUtils.markdown_to_html(text, mathjax: true)
         expect(result).to include("$$E = mc^2$$")
       end
@@ -340,6 +352,13 @@ RSpec.describe StringUtils do
         # Our improved implementation preserves code blocks differently
         expect(result).to include("```python")
         expect(result).to include("x = 1 + 2 # Compute $E = mc^2$ result")
+      end
+      
+      it "does not convert MathJax notation inside code blocks" do
+        text = "```python\nExample: \\[E = mc^2\\] or \\(a + b = c\\)\n```"
+        result = StringUtils.markdown_to_html(text, mathjax: true)
+        expect(result).to include("\\[E = mc^2\\]")
+        expect(result).to include("\\(a + b = c\\)")
       end
     end
   end

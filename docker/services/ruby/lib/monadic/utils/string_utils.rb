@@ -760,9 +760,10 @@ module StringUtils
     if mathjax
       # === Improved MathJax Processing Algorithm ===
       # 1. Protect code blocks first (as they might contain MathJax-like syntax)
-      # 2. Detect and protect math expressions
-      # 3. Render markdown
-      # 4. Restore protected math expressions and code blocks into HTML
+      # 2. Convert \[...\] and \(...\) to $$...$$ and $...$ outside code blocks
+      # 3. Detect and protect math expressions
+      # 4. Render markdown
+      # 5. Restore protected math expressions and code blocks into HTML
 
       # Arrays to store MathJax expressions
       block_mathjax = []
@@ -771,19 +772,79 @@ module StringUtils
       # First protect code blocks (to prevent MathJax being processed within code)
       # Use non-greedy matching with careful pattern to match fenced code blocks
       code_blocks = []
-      t4 = t3.gsub(/```(?:[a-zA-Z0-9+\-]*)?\n[\s\S]*?\n```|`[^`]*`/m) do |match|
+      t4 = t3.gsub(/```(?:[a-zA-Z0-9+\-]*)\n[\s\S]*?\n```|`[^`]*`/m) do |match|
         code_blocks << match
         "CODE_BLOCK_PLACEHOLDER_#{code_blocks.size - 1}"
       end
       
+      # Process the text outside of code blocks
+      result = ""
+      current_pos = 0
+      
+      # Identify all code block positions
+      code_blocks_positions = []
+      t4.scan(/CODE_BLOCK_PLACEHOLDER_\d+/) do |match|
+        start_pos = Regexp.last_match.begin(0)
+        end_pos = Regexp.last_match.end(0)
+        code_blocks_positions << [start_pos, end_pos, match]
+      end
+      
+      # Sort positions by start position
+      code_blocks_positions.sort_by! { |pos| pos[0] }
+      
+      # Process text in segments, skipping code blocks
+      last_end = 0
+      code_blocks_positions.each do |start_pos, end_pos, placeholder|
+        if start_pos > last_end
+          # Process the segment before this code block
+          segment = t4[last_end...start_pos]
+          
+          # Convert \[...\] to $$...$$
+          segment = segment.gsub(/\\\[(.*?)\\\]/m) { "$$#{$1}$$" }
+          
+          # Convert \(...\) to $...$
+          segment = segment.gsub(/\\\((.*?)\\\)/m) { "$#{$1}$" }
+          
+          result += segment
+        end
+        
+        # Add the code block placeholder unchanged
+        result += placeholder
+        last_end = end_pos
+      end
+      
+      # Process any remaining text after the last code block
+      if last_end < t4.length
+        segment = t4[last_end..-1]
+        
+        # Convert \[...\] to $$...$$
+        segment = segment.gsub(/\\\[(.*?)\\\]/m) { "$$#{$1}$$" }
+        
+        # Convert \(...\) to $...$
+        segment = segment.gsub(/\\\((.*?)\\\)/m) { "$#{$1}$" }
+        
+        result += segment
+      end
+      
+      # If there were no code blocks, process the entire text
+      if code_blocks_positions.empty?
+        # Convert \[...\] to $$...$$
+        result = t4.gsub(/\\\[(.*?)\\\]/m) { "$$#{$1}$$" }
+        
+        # Convert \(...\) to $...$
+        result = result.gsub(/\\\((.*?)\\\)/m) { "$#{$1}$" }
+      end
+      
+      t4_6 = result
+      
       # Protect block math expressions - $$...$$
-      t5 = t4.gsub(/\$\$([\s\S]*?)\$\$/m) do |match|
+      t5 = t4_6.gsub(/\$\$([\s\S]*?)\$\$/m) do |match|
         content = Regexp.last_match(1)
         block_mathjax << content
         "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
       end
       
-      # Protect block math expressions - \[...\]
+      # Protect block math expressions - \[...\] (any remaining after conversion)
       t6 = t5.gsub(/\\\[([\s\S]*?)\\\]/m) do |match|
         content = Regexp.last_match(1)
         block_mathjax << content
@@ -798,7 +859,7 @@ module StringUtils
         "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
       end
       
-      # \(...\) pattern
+      # \(...\) pattern (any remaining after conversion)
       t8 = t7.gsub(/\\\(([\s\S]*?)\\\)/m) do |match|
         content = Regexp.last_match(1)
         inline_mathjax << content

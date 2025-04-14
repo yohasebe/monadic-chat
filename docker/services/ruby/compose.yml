@@ -18,7 +18,7 @@ services:
       - log:/monadic/log
       - ~/monadic/log:/monadic/log
     ports:
-      - "4567:4567"
+      - "${HOST_BINDING:-0.0.0.0}:4567:4567"
     restart: always
     stdin_open: true
     tty: true

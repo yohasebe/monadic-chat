@@ -419,7 +419,67 @@ task :update_version, [:from_version, :to_version] do |_t, args|
   end
 end
 
-# task to build win/mac x64/mac arm64 packages
+# Platform-specific build tasks
+namespace :build do
+  # Common setup for all platform builds
+  def setup_build_environment
+    # remove /docker/services/python/pysetup.py
+    FileUtils.rm_f("docker/services/python/pysetup.py")
+    home_directory_path = File.join(File.dirname(__FILE__), "docker")
+    Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
+    Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
+
+    # Download vendor assets for offline use
+    puts "Downloading vendor assets for offline use..."
+    Rake::Task["download_vendor_assets"].invoke
+
+    sh "npm update"
+    sh "npm cache clean --force"
+  end
+
+  desc "Build Windows x64 package only"
+  task :win do
+    setup_build_environment
+    puts "Building Windows x64 package..."
+    sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  end
+
+  desc "Build macOS arm64 (Apple Silicon) package only"
+  task :mac_arm64 do
+    setup_build_environment
+    puts "Building macOS arm64 package..."
+    sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  end
+
+  desc "Build macOS x64 (Intel) package only"
+  task :mac_x64 do
+    setup_build_environment
+    puts "Building macOS x64 package..."
+    sh "npm run build:mac-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  end
+
+  desc "Build Linux x64 package only"
+  task :linux_x64 do
+    setup_build_environment
+    puts "Building Linux x64 package..."
+    sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  end
+
+  desc "Build Linux arm64 package only"
+  task :linux_arm64 do
+    setup_build_environment
+    puts "Building Linux arm64 package..."
+    sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+  end
+
+  desc "Build macOS packages (both arm64 and x64)"
+  task :mac => [:mac_arm64, :mac_x64]
+
+  desc "Build Linux packages (both x64 and arm64)"
+  task :linux => [:linux_x64, :linux_arm64]
+end
+
+# Main build task to build all packages (backward compatibility)
 desc "Build installation packages for all supported platforms"
 task :build do
   # remove /docker/services/python/pysetup.py

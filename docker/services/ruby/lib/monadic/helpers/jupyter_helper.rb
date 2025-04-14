@@ -134,11 +134,14 @@ module MonadicHelper
                end
 
     if results1
+      # Generate access URL
+      notebook_url = get_jupyter_notebook_url(filename)
+      
       if run.to_s == "true"
         results2 = run_jupyter_cells(filename: filename)
-        results1 + "\n\n" + results2
+        "#{results1}\n\n#{results2}\n\nAccess the notebook at: #{notebook_url}"
       else
-        results1
+        "#{results1}\n\nAccess the notebook at: #{notebook_url}"
       end
     else
       "Error: The cells provided could not be added to the notebook. Please correct the cells data and try again: #{original_cells}"
@@ -172,6 +175,18 @@ module MonadicHelper
       "Error: The notebook could not be executed."
     end
   end
+  
+  # Helper method to generate access URL for an existing notebook
+  def get_jupyter_notebook_url(filename)
+    # Ensure filename has .ipynb extension
+    filename = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
+    
+    # Get base jupyter URL
+    jupyter_url = get_jupyter_base_url
+    
+    # Build the complete URL
+    "#{jupyter_url}/lab/tree/#{filename}"
+  end
 
   def create_jupyter_notebook(filename:)
     begin
@@ -181,7 +196,46 @@ module MonadicHelper
       filename = ""
     end
     command = "sh -c 'jupyter_controller.py create #{filename}'"
-    send_command(command: command, container: "python")
+    
+    # Get result from command
+    result = send_command(command: command, container: "python")
+    
+    # If successful, construct a proper URL with the notebook filename
+    if result && !result.start_with?("Error:")
+      # Extract filename from Python response
+      # Try all possible formats: "Notebook created: filename.ipynb" or "Notebook created at /path/filename.ipynb"
+      notebook_filename = nil
+      
+      if result.include?("Notebook created: ")
+        # Format: "Notebook created: filename.ipynb"
+        notebook_filename = result.split("Notebook created: ").last.strip
+      elsif result.include?("Notebook created at ")
+        # Format: "Notebook created at /path/filename.ipynb"
+        full_path = result.split("Notebook created at ").last.strip
+        notebook_filename = File.basename(full_path)
+      end
+      
+      if notebook_filename
+        # Get base jupyter URL
+        jupyter_url = get_jupyter_base_url
+        result = "Access the notebook at: #{jupyter_url}/lab/tree/#{notebook_filename}"
+      else
+        # For backward compatibility, handle old format responses
+        jupyter_host = get_jupyter_host
+        jupyter_port = ENV["JUPYTER_PORT"] || "8889"
+        
+        # Replace any 127.0.0.1:8889 or localhost:8889 with the proper host:port
+        result = result.gsub(/127\.0\.0\.1:8889/, "#{jupyter_host}:#{jupyter_port}")
+        result = result.gsub(/localhost:8889/, "#{jupyter_host}:#{jupyter_port}")
+        
+        # Ensure we have http:// prefix for proper linking
+        unless result.include?("http://") || result.include?("https://")
+          result = result.gsub(/#{jupyter_host}:#{jupyter_port}/, "http://#{jupyter_host}:#{jupyter_port}")
+        end
+      end
+    end
+    
+    result
   end
 
   def run_jupyter(command: "")
@@ -193,8 +247,42 @@ module MonadicHelper
               else
                 return "Error: Invalid command."
               end
+    
+    jupyter_url = get_jupyter_base_url
+    
     send_command(command: command,
                  container: "python",
-                 success: "Success: Access Jupter Lab at 127.0.0.1:8889/lab\n")
+                 success: "Success: Access JupyterLab at #{jupyter_url}/lab")
+  end
+  
+  private
+  
+  # Get appropriate Jupyter host based on distributed mode
+  def get_jupyter_host
+    if defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] == "server"
+      # In server mode, try to find external IP
+      begin
+        require 'socket'
+        # Find a non-localhost IP address
+        addr = Socket.ip_address_list.find do |ip|
+          ip.ipv4? && !ip.ipv4_loopback? && !ip.ipv4_multicast?
+        end
+        addr ? addr.ip_address : "127.0.0.1"
+      rescue StandardError => e
+        # If error finding IP, fall back to default
+        puts "Error getting IP address: #{e.message}"
+        "127.0.0.1"
+      end
+    else
+      # In standalone mode, use localhost
+      "127.0.0.1"
+    end
+  end
+  
+  # Get complete Jupyter base URL
+  def get_jupyter_base_url
+    jupyter_host = get_jupyter_host
+    jupyter_port = ENV["JUPYTER_PORT"] || "8889"
+    "http://#{jupyter_host}:#{jupyter_port}"
   end
 end

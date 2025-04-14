@@ -15,6 +15,7 @@ mkdir -p "${VENDOR_PATH}/css"
 mkdir -p "${VENDOR_PATH}/js"
 mkdir -p "${VENDOR_PATH}/fonts"
 mkdir -p "${VENDOR_PATH}/webfonts"
+mkdir -p "${VENDOR_PATH}/js/output/chtml/fonts/woff-v2"
 
 # Define a function to download files
 download_file() {
@@ -54,6 +55,9 @@ for asset in "${ASSETS[@]}"; do
       ;;
     webfont)
       dest="${VENDOR_PATH}/webfonts/${filename}"
+      ;;
+    mathfont)
+      dest="${VENDOR_PATH}/js/output/chtml/fonts/woff-v2/${filename}"
       ;;
     *)
       echo "Unknown asset type: $type" >&2

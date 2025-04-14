@@ -2,7 +2,7 @@
 # Shared assets configuration file
 # Format: "type,url,filename"
 # Where:
-# - type: Asset type (css, js, font, webfont)
+# - type: Asset type (css, js, font, webfont, mathfont)
 # - url: Full URL to the asset on CDN
 # - filename: Local filename to save the asset as
 
@@ -24,6 +24,8 @@ ASSETS=(
   "js,https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.1/jquery-ui.min.js,jquery-ui.min.js"
   "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js,OpusMediaRecorder.umd.js"
   "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js,encoderWorker.umd.js"
+  "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OggOpusEncoder.wasm,OggOpusEncoder.wasm"
+  "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/WebMOpusEncoder.wasm,WebMOpusEncoder.wasm"
   "js,https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js,tex-mml-chtml.min.js"
   "js,https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js,mermaid.min.js"
   "js,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js,abcjs-basic-min.min.js"
@@ -41,6 +43,20 @@ ASSETS=(
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R9WXZ0pg.woff2,Montserrat-Italic.woff2"
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq5Z9WXZ0pg.woff2,Montserrat-MediumItalic.woff2"
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq3p6WXZ0pg.woff2,Montserrat-SemiBoldItalic.woff2"
+  
+  # MathJax Fonts (for offline math rendering)
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Zero.woff,MathJax_Zero.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Regular.woff,MathJax_Main-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Bold.woff,MathJax_Main-Bold.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Italic.woff,MathJax_Main-Italic.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Math-Italic.woff,MathJax_Math-Italic.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Math-BoldItalic.woff,MathJax_Math-BoldItalic.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff,MathJax_Size1-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff,MathJax_Size2-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff,MathJax_Size3-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff,MathJax_Size4-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_AMS-Regular.woff,MathJax_AMS-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Calligraphic-Regular.woff,MathJax_Calligraphic-Regular.woff"
 )
 
 # Montserrat CSS template with all font faces

@@ -13,8 +13,7 @@ require "http/form_data"
 require "httparty"
 require "i18n_data"
 require "json"
-require "kramdown"
-require "kramdown-parser-gfm"
+require "commonmarker"
 require "method_source"
 require "net/http"
 require "nokogiri"
@@ -88,15 +87,22 @@ Example format:
 Please format all numbered lists following these rules to ensure proper rendering.
 PROMPT
 
-CONFIG = {}
+# Initialize CONFIG with default values
+CONFIG = {
+  "DISTRIBUTED_MODE" => "off",  # Default to off/standalone mode
+  "EXTRA_LOGGING" => false,     # Default to no extra logging
+  "JUPYTER_PORT" => "8889"      # Default Jupyter port
+}
 
 begin
+  # Only process environment variables from the .env file, not dictionary data
   File.read(Paths::ENV_PATH).split("\n").each do |line|
     next if line.strip.empty? || line.strip.start_with?("#")
     
     # Check for valid line format (key=value)
     if !line.include?("=")
-      puts "Warning: Skipping invalid environment line: #{line}"
+      # Skip non-environment variable lines without warning since they might be TTS dictionary entries
+      # that should be in a separate file
       next
     end
     
@@ -219,47 +225,45 @@ def load_app_files
   end
 end
 
-# Load the TTS dictionary, which is a valid CSV of [original, replacement] pairs
-def load_tts_dict(tts_dict_path)
+# Load the TTS dictionary
+def load_tts_dict(tts_dict_data = nil)
   tts_dict = {}
   
-  # First check if TTS_DICT_DATA is available in the environment
-  if CONFIG["TTS_DICT_DATA"] && !CONFIG["TTS_DICT_DATA"].empty?
+  # 1. Check for TTS_DICT.csv in the config directory first (for Docker container)
+  config_dict_path = if IN_CONTAINER
+                        "/monadic/config/TTS_DICT.csv"
+                      else
+                        File.join(Dir.home, "monadic", "config", "TTS_DICT.csv")
+                      end
+  
+  if File.exist?(config_dict_path)
     begin
-      # Process the CSV data from the environment variable
-      CSV.parse(CONFIG["TTS_DICT_DATA"], headers: false) do |row|
-        # Make sure the data is in UTF-8; otherwise, convert it
-        row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
-        # Skip empty rows or rows with missing values
-        next if row[0].nil? || row[0].empty? || row[1].nil? || row[1].empty?
-        # Store the original and replacement strings
-        tts_dict[row[0]] = row[1]
-      end
-      # Log the number of dictionary entries loaded for debugging
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from environment variable" if CONFIG["EXTRA_LOGGING"]
-    rescue StandardError => e
-      # Properly log any errors for debugging
-      puts "Error parsing TTS Dictionary from environment: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      file_data = File.read(config_dict_path)
+      tts_dict = StringUtils.process_tts_dictionary(file_data)
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from config directory" if CONFIG["EXTRA_LOGGING"]
+      CONFIG["TTS_DICT"] = tts_dict
+      return
+    rescue => e
+      puts "Error reading TTS dictionary from config: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     end
-  # Fall back to file-based loading if TTS_DICT_DATA is not available
-  elsif File.exist?(tts_dict_path)
+  end
+  
+  # 2. For development mode with 'rake debug': If TTS_DICT_PATH exists, read directly from that path
+  if ENV['TTS_DICT_PATH'] && File.exist?(ENV['TTS_DICT_PATH'])
     begin
-      CSV.foreach(tts_dict_path, headers: false) do |row|
-        # Make sure the data is in UTF-8; otherwise, convert it
-        row.map! { |r| r.encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
-        # Skip empty rows or rows with missing values
-        next if row[0].nil? || row[0].empty? || row[1].nil? || row[1].empty?
-        # Store the original and replacement strings
-        tts_dict[row[0]] = row[1]
-      end
-      # Log the number of dictionary entries loaded for debugging
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from file: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
-    rescue StandardError => e
-      # Properly log any errors for debugging
-      puts "Error loading TTS Dictionary from file: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      file_data = File.read(ENV['TTS_DICT_PATH'])
+      tts_dict = StringUtils.process_tts_dictionary(file_data)
+      puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_PATH (development mode)" if CONFIG["EXTRA_LOGGING"]
+    rescue => e
+      puts "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     end
+  # 3. Legacy support: Try using TTS_DICT_DATA if it exists
+  elsif tts_dict_data || CONFIG["TTS_DICT_DATA"] || ENV["TTS_DICT_DATA"]
+    data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"] || ENV["TTS_DICT_DATA"]
+    tts_dict = StringUtils.process_tts_dictionary(data_to_process)
+    puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" if CONFIG["EXTRA_LOGGING"]
   else
-    puts "TTS Dictionary file not found: #{tts_dict_path}" if CONFIG["EXTRA_LOGGING"]
+    puts "No TTS Dictionary data available" if CONFIG["EXTRA_LOGGING"]
   end
   
   CONFIG["TTS_DICT"] = tts_dict || {}
@@ -269,6 +273,13 @@ end
 def init_apps
   apps = {}
   klass = Object.const_get("MonadicApp")
+  
+  # If in debug mode, log we're processing apps
+  if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+    puts "Initializing apps in normal mode"
+    puts "Debug: environment has DISTRIBUTED_MODE=#{ENV["DISTRIBUTED_MODE"]}"
+  end
+  
   klass.subclasses.each do |a|
     app = a.new
     app.settings = ActiveSupport::HashWithIndifferentAccess.new(a.instance_variable_get(:@settings))
@@ -303,10 +314,12 @@ def init_apps
       app.settings["display_name"] = app_name.gsub(/([A-Z])/) { " #{$1}" }.lstrip
     end
 
+    # Skip disabled apps
     next if app.settings["disabled"]
-
+    
+    # Register the app if it passed all filters
     MonadicApp.register_app_settings(app.settings["app_name"], app)
-
+    
     app_name = app.settings["app_name"]
 
     system_prompt_suffix = DEFAULT_PROMPT_SUFFIX.dup
@@ -394,7 +407,30 @@ def init_apps
     apps[app_name] = app
   end
 
-  load_tts_dict(CONFIG["TTS_DICT_PATH"]) if CONFIG["TTS_DICT_PATH"]
+  # Load TTS dictionary from provided data, not from a path
+  load_tts_dict
+
+  # Filter out Jupyter apps if we're in server mode
+  distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : (ENV["DISTRIBUTED_MODE"] || "off")
+  if distributed_mode == "server"
+    # Create a new hash without the Jupyter apps
+    filtered_apps = {}
+    apps.each do |app_name, app|
+      settings = app.settings
+      if settings["jupyter"] == true || 
+         settings["jupyter"] == "true" || 
+         settings["jupyter_access"] == true || 
+         settings["jupyter_access"] == "true" ||
+         app_name.to_s.downcase.include?("jupyter") ||
+         settings["display_name"].to_s.downcase.include?("jupyter")
+        puts "Filtering out Jupyter app in server mode: #{app_name}" if CONFIG["EXTRA_LOGGING"]
+      else
+        filtered_apps[app_name] = app
+      end
+    end
+    apps = filtered_apps
+    puts "SERVER MODE: Filtered out Jupyter apps for security reasons"
+  end
 
   # Group apps by provider and sort alphabetically within each group
   grouped_apps = apps.group_by { |_, app| app.settings["group"] }
@@ -419,6 +455,9 @@ configure do
   set :api_key, ENV["OPENAI_API_KEY"]
   set :elevenlabs_api_key, ENV["ELEVENLABS_API_KEY"]
   enable :cross_origin
+  
+  # Add MIME type for WebAssembly files
+  mime_type :wasm, 'application/wasm'
 end
 
 # Accept requests from the client

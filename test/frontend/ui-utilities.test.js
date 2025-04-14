@@ -216,14 +216,14 @@ describe('UI Utilities', () => {
     it('should remove all tooltip elements', () => {
       // Setup mock elements
       const tooltipElements = { remove: jest.fn() };
-      const disposableElements = { tooltip: jest.fn() };
+      const bsElements = { length: 2, tooltip: jest.fn() };
+      const originalElements = { length: 1, tooltip: jest.fn() };
       
       // Setup jQuery mock
       $.mockImplementation(selector => {
         if (selector === '.tooltip') return tooltipElements;
-        if (selector === '[data-bs-original-title]' || selector === '[data-original-title]') {
-          return disposableElements;
-        }
+        if (selector === '[data-bs-original-title]') return bsElements;
+        if (selector === '[data-original-title]') return originalElements;
         return { remove: jest.fn(), tooltip: jest.fn() };
       });
       
@@ -232,7 +232,8 @@ describe('UI Utilities', () => {
       
       // Verify tooltips were removed and disposed
       expect(tooltipElements.remove).toHaveBeenCalled();
-      expect(disposableElements.tooltip).toHaveBeenCalledWith('dispose');
+      expect(bsElements.tooltip).toHaveBeenCalledWith('dispose');
+      expect(originalElements.tooltip).toHaveBeenCalledWith('dispose');
     });
   });
 

@@ -486,12 +486,25 @@ let responseStarted = false;
 let callingFunction = false;
 
 function connect_websocket(callback) {
-  const ws = new WebSocket('ws://localhost:4567');
+  // Use current hostname if available, otherwise default to localhost
+  let wsUrl = 'ws://localhost:4567';
+  
+  // If accessing from a non-localhost address, use that instead
+  if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    const host = window.location.hostname;
+    const port = window.location.port || '4567';
+    wsUrl = `ws://${host}:${port}`;
+    console.log(`[WebSocket] Using hostname from browser: ${wsUrl}`);
+  }
+  
+  console.log(`[WebSocket] Connecting to: ${wsUrl}`);
+  const ws = new WebSocket(wsUrl);
 
   let loadedApp = "Chat";
   let infoHtml = "";
 
   ws.onopen = function () {
+    console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
     setAlert("<i class='fa-solid fa-bolt'></i> Verifying token", "warning");
     ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
@@ -1142,14 +1155,26 @@ function connect_websocket(callback) {
         $("#pdf-titles").html(pdf_table);
         data["content"].map((title, index) => {
           $(`#pdf-del-${index}`).click(function () {
-            $("#pdfDeleteConfirmation").modal("show");
-            $("#pdfToDelete").text(title);
-            $("#pdfDeleteConfirmed").on("click", function (event) {
-              event.preventDefault();
-              ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
-              $("#pdfDeleteConfirmation").modal("hide");
-              $("#pdfToDelete").text("");
-            });
+            // Detect iOS/iPadOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            
+            if (isIOS) {
+              // Use standard confirm dialog on iOS
+              if (confirm("Are you sure you want to delete PDF: " + title + "?")) {
+                ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+              }
+            } else {
+              // Use Bootstrap modal on other platforms
+              $("#pdfDeleteConfirmation").modal("show");
+              $("#pdfToDelete").text(title);
+              $("#pdfDeleteConfirmed").off("click").on("click", function (event) {
+                event.preventDefault();
+                ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+                $("#pdfDeleteConfirmation").modal("hide");
+                $("#pdfToDelete").text("");
+              });
+            }
           });
         })
         break
@@ -1681,7 +1706,7 @@ function connect_websocket(callback) {
           updateAIUserButtonState(messages);
           
           // Show canceled message
-          setAlert("<i class='fa-solid fa-ban' style='color: #ffc107;'></i> Operation canceled", "warning");
+          setAlert("<i class='fa-solid fa-ban' style='color: #FF7F07;'></i> Operation canceled", "warning");
           
           setInputFocus();
         }
@@ -1696,7 +1721,7 @@ function connect_websocket(callback) {
           callingFunction = false;
           responseStarted = true;
           // Update spinner message for streaming
-          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Receiving response');
+          $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
           // remove the leading new line characters from content
           content = content.replace(/^\n+/, "");
         }
@@ -1717,16 +1742,27 @@ function connect_websocket(callback) {
   }
 
   ws.onerror = function (err) {
-    console.error('Socket encountered error: ', err.message, 'Closing socket');
-    // set a message in the alert box - this happens when the server is actually down
-    setAlert("<i class='fa-solid fa-circle-exclamation'></i> Connection to server lost.", "danger");
+    console.error(`[WebSocket] Socket error for ${wsUrl}:`, err.message || 'Unknown error');
+    
+    // Get connection details if not localhost
+    if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      const host = window.location.hostname;
+      const port = window.location.port || "4567";
+      
+      // Show helpful error message
+      setAlert(`<i class='fa-solid fa-circle-exclamation'></i> Connection to ${host}:${port} failed`, "danger");
+    } else {
+      // Generic error for localhost
+      setAlert(`<i class='fa-solid fa-circle-exclamation'></i> Connection failed`, "danger");
+    }
+    
     ws.close();
   }
   return ws;
 }
 
 // WebSocket connection management
-const maxReconnectAttempts = 20; // Maximum number of reconnection attempts
+const maxReconnectAttempts = 5; // Maximum number of reconnection attempts
 const baseReconnectDelay = 1000; // Base delay in milliseconds
 let reconnectionTimer = null; // Store the timer to allow cancellation
 
@@ -1741,7 +1777,7 @@ function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (ws._reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    setAlert("<i class='fa-solid fa-server'></i> Server closed", "danger");
+    setAlert("<i class='fa-solid fa-server'></i> Connection failed - please refresh page", "danger");
     
     // Properly clean up any pending timers
     if (reconnectionTimer) {
@@ -1767,11 +1803,31 @@ function reconnect_websocket(ws, callback) {
         // Socket is closed, create a new one
         ws._reconnectAttempts++;
         
-        // Show server closed status instead of reconnecting
-        setAlert("<i class='fa-solid fa-server'></i> Server closed", "danger");
-        
         // Stop any active ping interval
         stopPing();
+        
+        // After maximum attempts, just show final error and don't reconnect
+        if (ws._reconnectAttempts >= maxReconnectAttempts) {
+          setAlert("<i class='fa-solid fa-server'></i> Connection failed - please refresh page", "danger");
+          return; // Exit without creating new connection
+        }
+        
+        // Get connection details
+        let connectionDetails = "";
+        let host = "localhost";
+        let port = "4567";
+        
+        // Get hostname from browser URL if not localhost
+        if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          host = window.location.hostname;
+          port = window.location.port || "4567";
+          connectionDetails = ` to ${host}:${port}`;
+        }
+        
+        // Show retry message
+        const message = `<i class='fa-solid fa-sync fa-spin'></i> Connecting${connectionDetails}...`;
+        
+        setAlert(message, "warning");
         
         // Create new connection
         ws = connect_websocket(callback);
@@ -1795,7 +1851,6 @@ function reconnect_websocket(ws, callback) {
         
       case WebSocket.OPEN:
         // Connection is successful, reset counters
-        console.log('WebSocket connection established.');
         ws._reconnectAttempts = 0;
         
         // Start ping to keep connection alive
@@ -1842,8 +1897,18 @@ function handleVisibilityChange() {
             ws._reconnectAttempts = 0;
           }
           
-          // Notify the user that server is closed
-          setAlert("<i class='fa-solid fa-server'></i> Server closed", "danger");
+          // Get connection details if not using localhost
+          let connectionMessage = "";
+          if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            const host = window.location.hostname;
+            const port = window.location.port || "4567";
+            connectionMessage = ` to ${host}:${port}`;
+          }
+          
+          // Show reconnection message
+          const alertMessage = `<i class='fa-solid fa-server'></i> Connection lost${connectionMessage}`;
+            
+          setAlert(alertMessage, "warning");
           
           // Establish a new connection with proper callback
           ws = connect_websocket((newWs) => {
@@ -1852,8 +1917,12 @@ function handleVisibilityChange() {
               newWs.send(JSON.stringify({ message: "LOAD" }));
               // Restart ping to keep connection alive
               startPing();
-              // Update UI
-              setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "success");
+              // Update UI with connection info if appropriate
+              const successMessage = connectionMessage
+                ? `<i class='fa-solid fa-circle-check'></i> Connected${connectionMessage}`
+                : "<i class='fa-solid fa-circle-check'></i> Connected";
+                
+              setAlert(successMessage, "success");
             }
           });
           break;
@@ -1940,6 +2009,14 @@ window.addEventListener('beforeunload', function() {
     ws.close();
   }
 });
+
+// Helper function to get a cookie by name
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
 
 // Export functions for browser environment
 window.connect_websocket = connect_websocket;

@@ -30,6 +30,10 @@ class Translate < MonadicApp
     ```
 
     Remember that the vocabulary array should be accumulated and should not be reset for each user message unless the user explicitly asks to do so.
+
+      Please make sure to check the user's input carefully and provide a professional translation. It is important to figure out if the user's message is the text to be translated or a question or request about the translation. If you are unsure, please ask the user for clarification. If the user asks for a specific translation, please use the translation provided by the user from then on. The user specifies the translation in parentheses right after the original expression. For example, if the user says "構文文法(construction grammar)は用法基盤(usage-based)モデルにもとづく言語理論です", the assistant should translate "構文文法" as "construction grammar" and "用法基盤" as "usage-based". The example here is in Japanese, but the source language could be any language.
+
+    It is important to figure out if the user's message is the text to be translated or a question about the translation. If you are unsure, please ask the user for clarification.
   TEXT
 
   @settings = {

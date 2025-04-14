@@ -16,17 +16,24 @@ module MonadicHelper
   end
 
   def split_text(text)
-    tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
-    segments = []
-    while tokenized.size < MAX_TOKENS_WIKI.to_i
-      segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
-      segments << MonadicApp::TOKENIZER.decode_tokens(segment)
-      tokenized = tokenized[MAX_TOKENS_WIKI.to_i..]
+    # Return single segment if TOKENIZER is not available (e.g. in client mode without Python service)
+    return [text] unless MonadicApp::TOKENIZER
+    
+    begin
+      tokenized = MonadicApp::TOKENIZER.get_tokens_sequence(text)
+      segments = []
+      while tokenized.size < MAX_TOKENS_WIKI.to_i
+        segment = tokenized[0..MAX_TOKENS_WIKI.to_i]
+        # Add nil check in case TOKENIZER fails to initialize
+        segments << MonadicApp::TOKENIZER&.decode_tokens(segment)
+        tokenized = tokenized[MAX_TOKENS_WIKI.to_i..]
+      end
+      # Use MonadicApp::TOKENIZER instead of direct flask_app_client reference
+      segments << MonadicApp::TOKENIZER&.decode_tokens(tokenized)
+      segments
+    rescue StandardError
+      [text]
     end
-    segments << flask_app_client.decode_tokens(tokenized)
-    segments
-  rescue StandardError
-    [text]
   end
 
   def get_embeddings(text, retries: 3)

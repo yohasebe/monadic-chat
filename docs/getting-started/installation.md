@@ -11,8 +11,8 @@ For macOS, follow these steps to install Monadic Chat.
 1. Install Docker Desktop for Mac.
 2. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/Monadic.Chat-0.9.82-arm64.dmg)
-- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/Monadic.Chat-0.9.82-x64.dmg)
+- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.84/Monadic.Chat-0.9.84-arm64.dmg)
+- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.84/Monadic.Chat-0.9.84-x64.dmg)
 
 
 ### **Windows**
@@ -23,7 +23,7 @@ For Windows, follow these steps to install Monadic Chat.
 2. Install Docker Desktop for Windows.
 3. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/Monadic.Chat.Setup.0.9.82.exe)
+- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.84/Monadic.Chat.Setup.0.9.84.exe)
 
 
 ### **Linux**
@@ -36,8 +36,8 @@ Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/insta
 
 2. Download the Monadic Chat installer:
 
-- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/monadic-chat_0.9.82_amd64.deb)
-- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.82/monadic-chat_0.9.82_arm64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.84/monadic-chat_0.9.84_amd64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v0.9.84/monadic-chat_0.9.84_arm64.deb)
 
 
 3. Run the following command in the terminal to install the downloaded package:
@@ -118,6 +118,23 @@ For Linux (Ubuntu/Debian), refer to the following pages to install Docker Deskto
 - [For Ubuntu](https://docs.docker.jp/desktop/install/ubuntu.html)
 
 <!-- tabs:end -->
+
+## Server Mode Configuration
+
+By default, Monadic Chat runs in standalone mode with all components on a single machine. To enable server mode (distributed mode):
+
+1. Open the Settings panel by clicking the gear icon in the application
+2. In the "Operating Mode" section, select "Server Mode" from the dropdown menu
+3. Click "Save" to apply the changes
+4. Restart the application
+
+In server mode:
+- The server hosts all Docker containers and web services
+- Multiple clients can connect to the server via their web browsers
+- Network URLs (like Jupyter notebooks) will use the server's external IP address
+- Clients can access resources hosted on the server
+
+See the [Distributed Mode Architecture](../docker-integration/basic-architecture.md#distributed-mode-architecture) documentation for more details.
 
 ## Update
 

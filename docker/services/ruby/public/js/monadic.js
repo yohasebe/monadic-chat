@@ -157,18 +157,37 @@ function adjustScrollButtonsFallback() {
 }
 
 function setupTooltipsFallback(container) {
-  container.tooltip({
-    selector: '.card-header [title]',
-    delay: { show: 0, hide: 0 },
-    show: 100,
-    container: 'body'
-  });
+  try {
+    if (container && container.tooltip) {
+      container.tooltip({
+        selector: '.card-header [title]',
+        delay: { show: 0, hide: 0 },
+        show: 100,
+        container: 'body'
+      });
+    }
+  } catch (e) {
+    console.warn('Tooltip initialization error:', e);
+  }
 }
 
 function cleanupAllTooltipsFallback() {
-  $('.tooltip').remove();
-  $('[data-bs-original-title]').tooltip('dispose');
-  $('[data-original-title]').tooltip('dispose');
+  try {
+    $('.tooltip').remove();
+    
+    // Safely dispose tooltips if the method is available
+    const bsElements = $('[data-bs-original-title]');
+    if (bsElements.length && bsElements.tooltip) {
+      bsElements.tooltip('dispose');
+    }
+    
+    const originalElements = $('[data-original-title]');
+    if (originalElements.length && originalElements.tooltip) {
+      originalElements.tooltip('dispose');
+    }
+  } catch (e) {
+    console.warn('Tooltip cleanup error:', e);
+  }
 }
 
 function adjustImageUploadButtonFallback(selectedModel) {
@@ -1104,16 +1123,35 @@ $(function () {
   });
 
   $("#toggle-menu").on("click", function () {
-    // toggle shoe/hide menu and adjust main panel width
+    // Toggle menu visibility and icon rotation
     if ($("#menu").is(":visible")) {
+      // Menu is visible, will be hidden
+      $(this).addClass("menu-hidden"); // Changes icon to point left
       $("#main").toggleClass("col-md-8", "col-md-12");
       $("#menu").hide();
+      // Simple background color change
+      $(this).css("background-color", "#666");
     } else {
+      // Menu is hidden, will be shown
+      $(this).removeClass("menu-hidden"); // Changes icon to point right
       $("#main").toggleClass("col-md-8", "col-md-12");
       // show menu after #main width has been fully adjusted
       $("body, html").animate({ scrollTop: 0 }, 0);
       $("#menu").show();
+      // Simple background color change
+      $(this).css("background-color", "#777");
     }
+    
+    // Basic scroll position maintenance
+    setTimeout(function() {
+      $("#main, #menu").scrollTop(0);
+      
+      // iOS Safari specific fix to ensure proper layout after toggle
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+        // Force a repaint by temporarily adjusting a CSS property
+        $("#main, #menu").css("transform", "translateZ(0)");
+      }
+    }, 300);
   })
 
   $("#interaction-check-all").on("click", function () {
@@ -1976,6 +2014,39 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
     
+    // Common viewport setup for all devices
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (viewportMeta && !viewportMeta.content.includes('viewport-fit=cover')) {
+      viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover');
+    }
+    
+    // iOS Safari specific fixes
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+      // Apply additional styling for iOS Safari
+      $("body").addClass("ios-device");
+      
+      // Force hardware acceleration on critical elements except toggle-menu (which loses its icon)
+      $("#main, #menu, #main-nav").css({
+        "transform": "translateZ(0)",
+        "-webkit-transform": "translateZ(0)"
+      });
+      
+      // Add delayed layout fix for iOS Safari - without transform on toggle-menu
+      setTimeout(function() {
+        // Force a repaint to fix iOS Safari layout issues after initial load
+        $("#main, #menu").css("transform", "translateZ(0)");
+        $("#main-nav").css("transform", "translateZ(0)");
+        // Ensure toggle-menu is visible with Font Awesome icon
+        $("#toggle-menu").css({
+          "opacity": "0.9",
+          "background-color": "#666",
+          "display": "flex",
+          "align-items": "center",
+          "justify-content": "center"
+        });
+      }, 1000);
+    }
+    
     // Run customizable select setup before other UI operations
     setupCustomDropdown();
     
@@ -1991,13 +2062,11 @@ $(function () {
       
       // Show custom dropdown when clicking on the overlay div
       $("#app-select-overlay").on("click", function(e) {
-        console.log("Overlay clicked");
         e.preventDefault();
         e.stopPropagation();
         
         // Toggle custom dropdown
         $customDropdown.toggle();
-        console.log("Dropdown toggled:", $customDropdown.is(":visible"));
         
         // If dropdown is now visible, highlight the currently selected option
         if ($customDropdown.is(":visible")) {
@@ -2029,7 +2098,6 @@ $(function () {
       
       // Also add click handler to the wrapper as a fallback
       $(".app-select-wrapper").on("click", function(e) {
-        console.log("Wrapper clicked");
         if ($(e.target).is("#app-select-overlay")) {
           // Already handled by the overlay click handler
           return;
@@ -2039,7 +2107,6 @@ $(function () {
         
         // Toggle custom dropdown
         $customDropdown.toggle();
-        console.log("Dropdown toggled from wrapper:", $customDropdown.is(":visible"));
         
         // If dropdown is now visible, highlight the currently selected option
         if ($customDropdown.is(":visible")) {

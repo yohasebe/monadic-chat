@@ -1464,7 +1464,9 @@ function connect_websocket(callback) {
             // Re-enable all input controls
             $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
             $("#select-role").prop("disabled", false);
+            
             $("#monadic-spinner").hide();
+            
             $("#cancel_query").hide();
           }
 

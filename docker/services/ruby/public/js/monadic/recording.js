@@ -73,6 +73,19 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
 // Set up audio recording
 //////////////////////////////
 
+// Detect iOS/iPadOS
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+// Hide voice button on iOS/iPadOS devices on document ready
+$(document).ready(function() {
+  if (isIOSDevice) {
+    // Hide the voice button completely on iOS/iPadOS
+    $("#voice").hide();
+    console.log("Speech Input button hidden on iOS/iPadOS device");
+  }
+});
+
 const voiceButton = $("#voice");
 let mediaRecorder;
 let localStream;
@@ -81,9 +94,14 @@ let silenceDetected = true;
 
 let workerOptions = {};
 
+// Worker内でWASMファイルを正しく読み込むために完全なURLを構築
+const protocol = window.location.protocol;
+const host = window.location.host;
+const baseUrl = `${protocol}//${host}`;
+
 workerOptions = {
-  OggOpusEncoderWasmPath: "https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OggOpusEncoder.wasm",
-  WebMOpusEncoderWasmPath: "https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/WebMOpusEncoder.wasm"
+  OggOpusEncoderWasmPath: `${baseUrl}/vendor/js/OggOpusEncoder.wasm`,
+  WebMOpusEncoderWasmPath: `${baseUrl}/vendor/js/WebMOpusEncoder.wasm`
 };
 window.MediaRecorder = OpusMediaRecorder;
 

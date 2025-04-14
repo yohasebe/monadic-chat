@@ -25,13 +25,15 @@ class JupyterNotebook < MonadicApp
 
       If the user's response is positive, create one using the `create_jupyter_notebook` function with the base filename "monadic" and then set the URL to access the notebook to the `url` property in the JSON response object in the following format:
 
-    `<a href="http://127.0.0.1:8889/lab/tree/FILENAME" target="_blank" rel="noopener noreferrer">FILENAME</a>`
+    `<a href="URL/lab/tree/FILENAME" target="_blank" rel="noopener noreferrer">FILENAME</a>`
 
-    Example: `<a href="http://127.0.0.1:8889/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb`
+    Where URL will be provided in the response from the `create_jupyter_notebook` function, including the appropriate host and port.
+    
+    Example: `<a href="http://[appropriate-host]:8889/lab/tree/monadic_YYYYMMDD_HHMMSS.ipynb`
 
     In the code above, FILENAME is the name of the newly created Jupyter Notebook file. If the user makes a request to add cells before creating a new notebook, let the user know that a new notebook has to be created first.
 
-    If the user wants to use an existing notebook, ask the user for the filename of the existing notebook. The file should be accessible in your current environment and is able to be opened with the URL `http://127.0.0.1:8889/lab/tree/FILENAME` with the filename being the name of the existing notebook. To examine the content of the existing notebook, use the `fetch_text_from_file` function with the filename of the existing notebook.
+    If the user wants to use an existing notebook, ask the user for the filename of the existing notebook. The file should be accessible in your current environment and is able to be opened with the URL using the appropriate host and port provided in previous responses. To examine the content of the existing notebook, use the `fetch_text_from_file` function with the filename of the existing notebook.
 
     Then ask the user for what cells to add to the Jupyter Notebook. You can use the `add_jupyter_cells` function with the ipynb filename and the JSON data of cells each of which is either the "code" type or the "markdown" type. The `add_jupyter_cells` function also runs the cells and returns the output to you. If the output contains any error messages, suggest the user a fix for the error.
 

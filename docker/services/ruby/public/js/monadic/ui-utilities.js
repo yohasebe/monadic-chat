@@ -50,53 +50,101 @@ function setupTextarea(textarea, initialHeight) {
 
 /**
  * Adjusts user interface elements based on screen size and viewport
+ * Enhanced for iOS compatibility
  */
 function adjustScrollButtons() {
   const mainPanel = $("#main");
-  const mainHeight = mainPanel.height();
-  const mainScrollHeight = mainPanel.prop("scrollHeight");
-  const mainScrollTop = mainPanel.scrollTop();
+  // Safe access to dimensions with fallbacks for iOS
+  const mainHeight = mainPanel.height() || 0;
+  const mainScrollHeight = mainPanel.prop("scrollHeight") || 0;
+  const mainScrollTop = mainPanel.scrollTop() || 0;
   
   // Get scroll button elements
   const backToTopBtn = $("#back_to_top");
   const backToBottomBtn = $("#back_to_bottom");
   
-  // Show/hide the scroll to top button
-  if (mainScrollTop > mainHeight / 2) {
-    if (backToTopBtn.show) backToTopBtn.show();
-  } else {
-    if (backToTopBtn.hide) backToTopBtn.hide();
-  }
+  // Check if iOS/iPadOS using feature detection
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   
-  // Show/hide the scroll to bottom button
-  if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
-    if (backToBottomBtn.show) backToBottomBtn.show();
+  // iOS-specific adjustments
+  if (isIOS) {
+    // Ensure consistent button display for iOS
+    if (mainScrollTop > 20) {
+      if (backToTopBtn.show) backToTopBtn.show();
+    } else {
+      if (backToTopBtn.hide) backToTopBtn.hide();
+    }
+    
+    // For bottom button, use a more reliable method on iOS
+    if (mainScrollHeight - mainScrollTop - mainHeight > 20) {
+      if (backToBottomBtn.show) backToBottomBtn.show();
+    } else {
+      if (backToBottomBtn.hide) backToBottomBtn.hide();
+    }
+    
+    // Apply consistent style to improve visibility on iOS
+    backToTopBtn.css("opacity", "0.9");
+    backToBottomBtn.css("opacity", "0.9");
   } else {
-    if (backToBottomBtn.hide) backToBottomBtn.hide();
+    // Standard behavior for non-iOS platforms
+    if (mainScrollTop > mainHeight / 2) {
+      if (backToTopBtn.show) backToTopBtn.show();
+    } else {
+      if (backToTopBtn.hide) backToTopBtn.hide();
+    }
+    
+    // Show/hide the scroll to bottom button
+    if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
+      if (backToBottomBtn.show) backToBottomBtn.show();
+    } else {
+      if (backToBottomBtn.hide) backToBottomBtn.hide();
+    }
   }
 }
 
 /**
  * Sets up tooltips for specific UI elements
+ * Includes error handling for Electron compatibility
  * @param {jQuery} container - Container element to attach tooltips to
  */
 function setupTooltips(container) {
-  container.tooltip({
-    selector: '.card-header [title]',
-    delay: { show: 0, hide: 0 },
-    show: 100,
-    container: 'body' // Place tooltips in body for easier management
-  });
+  try {
+    if (container && container.tooltip) {
+      container.tooltip({
+        selector: '.card-header [title]',
+        delay: { show: 0, hide: 0 },
+        show: 100,
+        container: 'body' // Place tooltips in body for easier management
+      });
+    }
+  } catch (e) {
+    console.warn('Tooltip initialization error:', e);
+  }
 }
 
 /**
  * Removes all tooltip elements from the DOM
  * Helps prevent memory leaks from lingering tooltips
+ * Includes error handling for Electron compatibility
  */
 function cleanupAllTooltips() {
-  $('.tooltip').remove(); // Directly remove all tooltip elements
-  $('[data-bs-original-title]').tooltip('dispose'); // Bootstrap 5
-  $('[data-original-title]').tooltip('dispose'); // Bootstrap 4
+  try {
+    $('.tooltip').remove(); // Directly remove all tooltip elements
+    
+    // Safely dispose tooltips if the method is available
+    const bsElements = $('[data-bs-original-title]');
+    if (bsElements.length && bsElements.tooltip) {
+      bsElements.tooltip('dispose'); // Bootstrap 5
+    }
+    
+    const originalElements = $('[data-original-title]');
+    if (originalElements.length && originalElements.tooltip) {
+      originalElements.tooltip('dispose'); // Bootstrap 4
+    }
+  } catch (e) {
+    console.warn('Tooltip cleanup error:', e);
+  }
 }
 
 /**

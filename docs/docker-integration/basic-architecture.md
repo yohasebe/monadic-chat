@@ -8,9 +8,41 @@ It also provides a mechanism for sharing data between the host computer and indi
 
 ![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
 
-# Standard Docker Containers
+## Distributed Mode Architecture
 
-This section explains the standard Docker containers available in Monadic Chat.  By default, the following containers are built:
+Monadic Chat can operate in two primary modes:
+
+### Standalone Mode
+- Default operating mode
+- All components run on a single machine
+- Docker containers, web server, and UI are on the same device
+- Network bindings use `127.0.0.1` (localhost) for enhanced security
+- Only accessible from the device it runs on
+- All features including Jupyter Notebook are available
+
+### Server Mode
+- Enables multiple clients to connect to a central server
+- Server hosts Docker containers and web services
+- Clients connect through their web browsers
+- Network bindings use `0.0.0.0` (all network interfaces)
+- Network URLs use the server's external IP address
+- Enables sharing resources across multiple users
+- Jupyter-related features are disabled for security reasons
+
+>! **Security Warning**: When exposing Monadic Chat in Server Mode to external networks, especially the internet, implement appropriate security measures such as firewalls, reverse proxies, and authentication mechanisms. The default configuration has no built-in authentication, so it should only be used on trusted networks or with additional security layers.
+
+To switch between modes in the desktop application:
+
+1. Click on the settings icon in the top-right corner
+2. Select "Distributed Mode" from the dropdown
+3. Choose either "Standalone Mode" or "Server Mode"
+4. Save and restart the application when prompted
+
+To enable Server Mode when running from source code, set the environment variable `DISTRIBUTED_MODE=server` when starting Monadic Chat.
+
+## Standard Docker Containers
+
+This section explains the standard Docker containers available in Monadic Chat. By default, the following containers are built:
 
 **Ruby Container** (`monadic-chat-ruby-container`)
 This container is necessary to run Monadic Chat applications. It is also used to provide the web interface.
@@ -26,7 +58,7 @@ This container is used to operate a virtual web browser using Selenium for web s
 Apps that use this container include: `Code Interpreter`, `Content Reader`
 
 **pgvector Container** (`monadic-chat-pgvector-container`)
-This container is used to store text embedding vector data on PostgreSQL for using pgvector.  For more information on adding Docker containers, see [Adding Docker Containers](./adding-containers.md).
+This container is used to store text embedding vector data on PostgreSQL for using pgvector. For more information on adding Docker containers, see [Adding Docker Containers](./adding-containers.md).
 
 Apps that use this container include: `PDF Navigator`
 

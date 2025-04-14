@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
     <meta name="rouge-theme" content="<%= CONFIG["ROUGE_THEME"] || "pastie:light" %>">
     <title>Monadic Chat</title>
 
@@ -64,6 +64,7 @@
         display: flex;
         align-items: center;
         font-size: 0.9em;
+        height: 30px; /* Increased height for better clickability */
       }
       
       .custom-dropdown-option:hover {
@@ -131,28 +132,27 @@
   </head>
   <body>
 
-    <div class="navbar-container">
-      <nav class="navbar navbar-expand-md navbar-light fixed-top shaded-y" id="main-nav">
-        <div class="container-fluid pt-0">
-          <span class="navbar-brand" style="flex: auto;">
-            <div style="margin-left: 6px; margin-top: -10px; font-weight: 500; font-family: 'Montserrat', sans-serif; letter-spacing: 0.12em;" >
-              <img class="reset-area" src="img/monadic-logo.svg" style="width: 2em; vertical-align:middle;"></img>
-              <span class="reset-area" style="color: #666; font-size: 1.7em; vertical-align:middle;">Monadic</span>
-              <span class="reset-area" style="color: #ffc107; filter:drop-shadow(1px 1px 0px #999); font-weight: bold; font-size: 2.0em; position: relative; bottom: -0.15em;"></span>
-              <span class="reset-area" style="color: #666; font-size: 1.7em; vertical-align:middle;">Chat</span>
-            </div>
-            <div id="tagline" style="margin-left: 6px; margin-bottom: 6px; font-size: 0.8em; color: #777; font-family: 'Montserrat';">Grounding AI Chatbots with Full Linux Environment on Docker</div>
-          </span>
+    <nav class="navbar navbar-expand-md navbar-light fixed-top shaded-y" id="main-nav">
+      <div class="container-fluid pt-0">
+        <span class="navbar-brand" style="flex: auto;">
+          <div style="margin-left: 6px; margin-top: -10px; font-weight: 500; font-family: 'Montserrat', sans-serif; letter-spacing: 0.12em;" >
+            <img class="reset-area" src="img/monadic-logo.svg" style="width: 2em; vertical-align:middle;"></img>
+            <span class="reset-area" style="color: #666; font-size: 1.7em; vertical-align:middle;">Monadic</span>
+            <span class="reset-area" style="color: #ffc107; filter:drop-shadow(1px 1px 0px #999); font-weight: bold; font-size: 2.0em; position: relative; bottom: -0.15em;"></span>
+            <span class="reset-area" style="color: #666; font-size: 1.7em; vertical-align:middle;">Chat</span>
+          </div>
+          <div id="tagline" style="margin-left: 6px; margin-bottom: 6px; font-size: 0.8em; color: #777; font-family: 'Montserrat';">Grounding AI Chatbots with Full Linux Environment on Docker</div>
+        </span>
 
-          <div id="cancel_query"><i class="fas fa-ban"></i> <span>CANCEL</span></div>
-          <button type="button" id="toggle-menu">
-            <span class="navbar-toggler-icon"></span>
-          </button>
+        <div id="cancel_query"><i class="fas fa-ban"></i> <span>CANCEL</span></div>
+        <button type="button" id="toggle-menu" aria-label="Toggle menu" title="Toggle Menu">
+          <!-- Using Font Awesome icon with rotation to indicate menu state -->
+          <i class="fa-solid fa-arrow-up-from-bracket menu-icon" style="color: #ffc107; font-size: 1.25em;"></i>
+        </button>
 
-        </div>
-      </nav>
-    <div>
-    <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 108px;">
+      </div>
+    </nav>
+    <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 108px; position: relative;">
       <div class="row g-3 mt-3 my-3">
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 20px;">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
@@ -514,7 +514,7 @@
 
           <div id="main-panel" class="rounded p-3 shaded-panel" style="display :none;">
             <h5 class="pb-0 mb-0" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fas fa-comments"></i> Dialog</span></h5>
-            <div id="discourse" style="width: 100%; border: 0xp; overflow-y: auto; display: none;"></div>
+            <div id="discourse" style="width: 100%; overflow-y: auto; display: none;"></div>
 
             <div id="temp-card" class="card mt-3" style="display:none;">
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
@@ -838,23 +838,32 @@
     <script src="vendor/js/OpusMediaRecorder.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js';"></script>
     <script src="vendor/js/encoderWorker.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js';"></script>
 
-    <script>
-      window.MathJax = {
-        startup: {
-          typeset: false
-        },
-        tex: {
-          inlineMath:  [ ['$', '$'], ['\\(', '\\)'] ],
-          displayMath: [ ['$$', '$$'], ['\\[','\\]'] ],
-          processEscapes: true
-        },
-        options: {
-          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
-        }
-      };
-    </script>
+    <script src="js/mathjax-config.js"></script>
     <!-- MathJax (local or CDN) -->
     <script src="vendor/js/tex-mml-chtml.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+    
+    <!-- Custom MathJax Styling -->
+    <style>
+      /* Force MathJax to use serif fonts */
+      .MathJax {
+        font-family: "Computer Modern", "Latin Modern", "Latin Modern Math", "STIX Two Math", "STIX", "TeX", serif !important;
+      }
+      
+      /* Adjust inline math size to match surrounding text */
+      .mjx-math {
+        font-size: 100% !important;
+      }
+      
+      /* Better spacing between characters */
+      .mjx-char {
+        letter-spacing: 0.02em;
+      }
+      
+      /* Adjust vertical alignment of inline math */
+      mjx-container[display="false"] {
+        vertical-align: middle !important;
+      }
+    </style>
 
     <!-- Mermaid (local or CDN) -->
     <script src="vendor/js/mermaid.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';"></script>
@@ -875,5 +884,52 @@
     <script src="js/monadic/select_image.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
+    
+    <!-- Fixes for UI stability across browsers -->
+    <style>
+      /* 
+       * Important overrides to ensure consistent visibility across all devices
+       * These take precedence over standard CSS due to being placed last and using !important
+       * The !important flags are necessary to prevent iOS Safari from repositioning the button
+       */
+      #toggle-menu {
+        position: fixed !important;
+        z-index: 1100 !important; /* Match the z-index from main CSS */
+        right: 20px !important;
+        top: 20px !important;
+        opacity: 0.9 !important; /* Higher opacity for better visibility */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 6px 12px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        background-color: #666 !important;
+        border-radius: 0.25rem !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+        cursor: pointer !important;
+        transition: background-color 0.3s ease, transform 0.2s ease !important;
+      }
+      
+      #toggle-menu:hover {
+        background-color: #777 !important;
+        transform: scale(1.05) !important;
+      }
+      
+      #toggle-menu:active {
+        transform: scale(0.95) !important;
+      }
+      
+      /* Menu icon rotation - initial state (menu visible) */
+      .menu-icon {
+        transform: rotate(90deg) !important; /* Point right - menu is initially visible */
+      }
+      
+      /* Menu icon rotation when menu is hidden */
+      #toggle-menu.menu-hidden .menu-icon {
+        transform: rotate(-90deg) !important; /* Point left - indicate menu can be shown */
+      }
+    </style>
   </body>
 </html>

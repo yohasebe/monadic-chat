@@ -57,9 +57,31 @@ class MonadicApp
     def all_app_settings
       @app_settings
     end
+    
+    # Helper checks if app is available
+    def app_available?(app_name)
+      app = app_settings(app_name)
+      app.respond_to?(:settings)
+    end
   end
 
-  TOKENIZER = FlaskAppClient.new
+  # Initialize FlaskAppClient with health check in distributed mode
+  begin
+    TOKENIZER = FlaskAppClient.new
+    
+    # Log connectivity status in client mode
+    distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : (ENV["DISTRIBUTED_MODE"] || "off")
+    if distributed_mode == "client"
+      if TOKENIZER.service_available?
+        puts "[MonadicApp] Successfully connected to Python service in client mode"
+      else
+        puts "[MonadicApp] WARNING: Failed to connect to Python service in client mode. Some token-related features may not work."
+      end
+    end
+  rescue => e
+    puts "[MonadicApp] Error initializing tokenizer: #{e.message}"
+    TOKENIZER = nil
+  end
 
   # script directory to store the system scripts
   SYSTEM_SCRIPT_DIR = "/monadic/scripts"

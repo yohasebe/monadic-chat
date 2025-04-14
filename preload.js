@@ -25,6 +25,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for docker status indicator update from the main process
   onUpdateDockerStatusIndicator: (callback) => ipcRenderer.on('docker-desktop-status-update', callback),
   
+  // Get the current distributed mode setting
+  getDistributedMode: () => {
+    // This is a synchronous function that returns the mode from a cookie
+    const cookies = document.cookie.split('; ');
+    for (const cookie of cookies) {
+      if (cookie.startsWith('distributed-mode=')) {
+        return cookie.split('=')[1];
+      }
+    }
+    return 'off'; // Default to standalone mode
+  },
+  
+  // Get an updated distributed mode setting (sent from main process)
+  onUpdateDistributedMode: (callback) => ipcRenderer.on('update-distributed-mode', callback),
+  
+  // Listen for network URL display command
+  onDisplayNetworkUrl: (callback) => ipcRenderer.on('display-network-url', callback),
+  
   // Listen for update message from the auto-updater
   onUpdateMessage: (callback) => ipcRenderer.on('update-message', callback),
   
@@ -48,6 +66,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),
+  
+  // Restart application after settings change
+  restartApp: () => ipcRenderer.send('restart-app'),
   
   // Select TTS dictionary file
   selectTTSDict: () => ipcRenderer.invoke('select-tts-dict'),

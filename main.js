@@ -1,8 +1,13 @@
-// process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
+// Disable various Electron warnings
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
+process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
+process.env.ELECTRON_ENABLE_LOGGING = '0';
+process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
+// Disable hardware acceleration to reduce issues on some systems
 app.disableHardwareAcceleration();
 
 // Single instance lock
@@ -37,6 +42,9 @@ const os = require('os');
 const https = require('https');
 const net = require('net');
 
+// Add debug mode for troubleshooting statusIndicator issues
+const debugStatusIndicator = true;
+
 let tray = null;
 let justLaunched = true;
 let currentStatus = 'Stopped';
@@ -66,16 +74,103 @@ if (os.platform() === 'win32') {
 
 // Docker operations are encapsulated in this class
 class DockerManager {
+  constructor() {
+    // Default to standalone mode (not server mode)
+    this.serverMode = false;
+    
+    // Docker containers use fixed ports
+    this.rubyPort = '4567';     // Ruby Sinatra web server
+    this.pythonPort = '5070';   // Python Flask API server
+    this.jupyterPort = '8889';  // JupyterLab server (disabled in server mode)
+    
+    // Configuration will be loaded from .env file
+    // HOST_BINDING will be set to:
+    // - 127.0.0.1 for standalone mode (local access only)
+    // - 0.0.0.0 for server mode (accessible from network)
+  }
+
+  // Load distributed mode settings (unified method that handles both server and standalone modes)
+  loadDistributedModeSettings() {
+    const envPath = getEnvPath();
+    if (envPath) {
+      const envConfig = readEnvFile(envPath);
+      this.serverMode = envConfig.DISTRIBUTED_MODE === 'server';
+      
+      // Set host binding based on mode - 0.0.0.0 for server mode, 127.0.0.1 for standalone
+      envConfig.HOST_BINDING = this.serverMode ? '0.0.0.0' : '127.0.0.1';
+      writeEnvFile(envPath, envConfig);
+      
+      // Get local IP address for server mode
+      let localIPAddress = '127.0.0.1';
+      if (this.serverMode) {
+        try {
+          const networkInterfaces = os.networkInterfaces();
+          // Find the first non-internal IPv4 address
+          for (const interfaceName in networkInterfaces) {
+            const interfaces = networkInterfaces[interfaceName];
+            for (const iface of interfaces) {
+              if (iface.family === 'IPv4' && !iface.internal) {
+                localIPAddress = iface.address;
+                break;
+              }
+            }
+            if (localIPAddress !== '127.0.0.1') break;
+          }
+        } catch (err) {
+          console.error('Error getting network interfaces:', err);
+        }
+      }
+      
+      // Sync with main window if it exists
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+        try {
+          mainWindow.webContents.executeJavaScript(`
+            document.cookie = "distributed-mode=${this.serverMode ? 'server' : 'off'}; path=/; max-age=31536000";
+          `);
+          mainWindow.webContents.send('update-distributed-mode', {
+            mode: this.serverMode ? 'server' : 'off',
+            localIP: localIPAddress,
+            showNotification: false
+          });
+        } catch (error) {
+          console.error('Error syncing distributed mode', error);
+        }
+      }
+      
+      // Using fixed default ports as Docker containers have hardcoded port bindings
+      this.rubyPort = '4567';
+      this.pythonPort = '5070';
+      this.jupyterPort = '8889';
+    }
+    return this.serverMode;
+  }
+  
+  // Alias for backward compatibility
+  loadServerModeSettings() {
+    return this.loadDistributedModeSettings();
+  }
+
+  // Check if we're in server mode
+  isServerMode() {
+    this.loadDistributedModeSettings();
+    return this.serverMode;
+  }
+
+  // Other methods remain unchanged
   async checkStatus() {
+    // Docker status check
     return new Promise((resolve, reject) => {
       const cmd = `${monadicScriptPath} check`;
       exec(cmd, (error, stdout, stderr) => {
         if (error) {
+          console.error(`Docker status check error: ${error.message}`);
           reject(error);
         } else if (stderr) {
+          console.error(`Docker status check stderr: ${stderr}`);
           reject(stderr);
         } else {
           const isRunning = stdout.trim() === '1';
+          console.log(`Docker status check result: ${isRunning}`);
           resolve(isRunning);
         }
       });
@@ -111,6 +206,7 @@ class DockerManager {
   }
 
   async ensureDockerDesktopRunning() {
+    // Check Docker Desktop status
     const st = await this.checkStatus();
     if (!st) {
       this.startDockerDesktop()
@@ -169,143 +265,132 @@ class DockerManager {
   }
 
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
-    if (command === 'start' || command === 'restart') {
-      const apiKeySet = checkAndUpdateEnvFile();
-      if (!apiKeySet && command === 'start') {
-        writeToScreen('[HTML]: <p><b>No API keys are set, but proceeding anyway.</b></p>');
-      }
-      
-      // Reload TTS dictionary if path exists but data is missing or outdated
-      const envPath = getEnvPath();
-      if (envPath) {
-        const envConfig = readEnvFile(envPath);
-        if (envConfig.TTS_DICT_PATH && 
-            (!envConfig.TTS_DICT_DATA || 
-             fs.existsSync(envConfig.TTS_DICT_PATH))) {
-          try {
-            // Read current file content
-            const fileContent = fs.readFileSync(envConfig.TTS_DICT_PATH, 'utf8');
-            // Update the dictionary data in the environment settings
-            envConfig.TTS_DICT_DATA = fileContent;
-            writeEnvFile(envPath, envConfig);
-            console.log(`TTS Dictionary reloaded from ${envConfig.TTS_DICT_PATH}`);
-          } catch (error) {
-            console.error('Error reloading TTS Dictionary:', error);
-          }
-        }
-      }
-    }
+    // Write the initial message to the screen
+    writeToScreen(message);
+    
+    // Update the status indicator in the main window
+    updateStatusIndicator(statusWhileCommand);
+    // Docker command execution
+    return this.checkStatus()
+      .then((status) => {
+        if (!status) {
+          writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and try again.</p><hr />');
+          return;
+        } else {
+          // Construct the command to execute
+          const cmd = `${monadicScriptPath} ${command}`;
+          
+          // Update the current status and context menu
+          currentStatus = statusWhileCommand;
+          
+          // Reset the fetchWithRetryCalled flag
+          fetchWithRetryCalled = false;
+          
+          // Update the context menu and application menu
+          updateContextMenu();
+          updateApplicationMenu();
+          
+          // Simple command execution that handles SERVER STARTED messages
+          return new Promise((resolve, reject) => {
+            let subprocess = spawn(cmd, [], {shell: true});
+            
+            subprocess.stdout.on('data', function (data) {
+              writeToScreen(data.toString());
+              
+              // Check for server started message
+              if (data.toString().includes("[SERVER STARTED]")) {
+                fetchWithRetry('http://localhost:4567')
+                  .then(() => {
+                    updateContextMenu(false);
+                    
+                    // Set status to Ready - this will update UI
+                    currentStatus = "Ready";
+                    updateStatusIndicator("Ready");
+                    
+                    // Signal successful server start with an event
+                    writeToScreen('[HTML]: <p><i class="fa-solid fa-check-circle" style="color:#22ad50;"></i> <span style="color:#22ad50;">Server verification complete</span></p>');
+                    
+                    // Force a small delay to ensure status update is processed first
+                    setTimeout(() => {
+                      // In server mode, show network URL but don't auto-open browser
+                      if (dockerManager.isServerMode()) {
+                        // Get local IP address for network access info
+                        let localIPAddress = '127.0.0.1';
+                        try {
+                          const networkInterfaces = os.networkInterfaces();
+                          for (const interfaceName in networkInterfaces) {
+                            const interfaces = networkInterfaces[interfaceName];
+                            for (const iface of interfaces) {
+                              if (iface.family === 'IPv4' && !iface.internal) {
+                                localIPAddress = iface.address;
+                                break;
+                              }
+                            }
+                            if (localIPAddress !== '127.0.0.1') break;
+                          }
+                        } catch (err) {
+                          console.error('Error getting network interfaces:', err);
+                        }
+                        
+                        // Send a custom command to show network URL exactly once
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                          mainWindow.webContents.send('display-network-url', {
+                            localIP: localIPAddress
+                          });
+                        }
+                      } else {
+                        // For standalone mode - send network URL event for proper status update first
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                          mainWindow.webContents.send('display-network-url', {
+                            localIP: '127.0.0.1'
+                          });
+                        }
 
-    dockerManager.checkStatus()
-    .then((status) => {
-      if (!status) {
-        writeToScreen('[HTML]: <p>Docker Desktop is not running. Please start Docker Desktop and try again.</p><hr />');
-        return
-      } else {
-        // Write the initial message to the screen
-        writeToScreen(message);
-        // Update the status indicator in the main window
-        updateStatusIndicator(statusWhileCommand);
-
-        // Construct the command to execute
-        const cmd = `${monadicScriptPath} ${command}`;
-
-        // Update the current status and context menu
-        currentStatus = statusWhileCommand;
-
-        // Reset the fetchWithRetryCalled flag
-        fetchWithRetryCalled = false;
-
-        // Update the context menu and application menu
-        updateContextMenu();
-        updateApplicationMenu();
-
-        // Return a promise that resolves when the command execution is complete
-        return new Promise((resolve, _reject) => {
-          let subprocess = spawn(cmd, [], {shell: true});
-
-          // Handle stdout data
-          subprocess.stdout.on('data', function (data) {
-            const lines = data.toString().split(/\r\n|\r|\n/);
-            if (lines[lines.length - 1] === '') {
-              lines.pop();
-            }
-            for (let i = 0; i < lines.length; i++) {
-              // Check for version information and display update message if needed
-              if (lines[i].trim().startsWith('[VERSION]: ')) {
-                const imageVersion = lines[i].trim().replace('[VERSION]: ', '');
-                if (compareVersions(imageVersion, app.getVersion()) > 0) {
-                  dialog.showMessageBox(mainWindow, {
-                    type: 'info',
-                    buttons: ['OK'],
-                    message: 'Update Available',
-                    detail: `A new version of the app is available. Please update to the latest version.`,
-                    icon: path.join(iconDir, 'app-icon.png')
+                        // Then open browser in standalone mode
+                        // Use direct method instead of openBrowser to avoid port checking (already checked)
+                        try {
+                          shell.openExternal('http://localhost:4567').catch(err => {
+                            console.error('Error opening browser:', err);
+                            writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Please open browser manually at http://localhost:4567</p>");
+                          });
+                          writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+                        } catch (err) {
+                          console.error('Error opening browser:', err);
+                        }
+                      }
+                    }, 500);
+                  })
+                  .catch(error => {
+                    console.error('Fetch failed:', error);
                   });
-                }
-                // Check if the image is not found and update the status accordingly
-              } else if (lines[i].trim() === "[IMAGE NOT FOUND]") {
-                writeToScreen('[HTML]: <p>Monadic Chat Docker image not found.</p>');
-                currentStatus = "Building";
-                updateTrayImage(currentStatus);
-                updateStatusIndicator(currentStatus);
-                // Check if the server has started and attempt to connect to it
-              } else 
-                if (lines[i].trim() === "[SERVER STARTED]") {
-                  if (!fetchWithRetryCalled) {
-                    fetchWithRetryCalled = true;
-                    writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-info"></i>Monadic Chat server is starting . . .</p>');
-                    fetchWithRetry('http://localhost:4567')
-                      .then(() => {
-                        updateContextMenu(false);
-                        updateStatusIndicator("Ready");
-                        writeToScreen('[HTML]: <p>Monadic Chat server is ready. The default web browser will be started automatically</p>');
-                        mainWindow.webContents.send('server-ready');
-                        writeToScreen(lines[i]);
-                        openBrowser('http://localhost:4567');
-                      })
-                      .catch(error => {
-                      writeToScreen('[HTML]: <p><b>Failed to start Monadic Chat server.</b></p><p>Please check out <b>server.log</b> in the log folder and start the server again. Rebuild the image ("Menu" → "Action" → "Rebuild"), if necessary.</p><hr />');
-                      console.error('Fetch operation failed after retries:', error);
-                      currentStatus = 'Stopped';
-                      updateTrayImage(currentStatus);
-                      updateStatusIndicator(currentStatus);
-                      updateContextMenu(false);
-                    });
-                }
-                // Write other output to the screen
-              } else {
-                writeToScreen(lines[i]);
               }
-            }
+            });
+            
+            subprocess.stderr.on('data', function (data) {
+              console.error(data.toString());
+            });
+            
+            subprocess.on('close', function (code) {
+              if (code !== 0) {
+                dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
+              }
+              
+              currentStatus = statusAfterCommand;
+              updateTrayImage(statusAfterCommand);
+              updateStatusIndicator(statusAfterCommand);
+              updateContextMenu(false);
+              
+              resolve();
+            });
           });
-
-          // Handle stderr data
-          subprocess.stderr.on('data', function (data) {
-            console.error(data.toString());
-            return;
-          });
-
-          // Handle process close event
-          subprocess.on('close', function (code) {
-            // Check for errors based on the exit code
-            if (code !== 0) {
-              dialog.showErrorBox('Error', `monadic.sh exited with code ${code}.`);
-            }
-
-            // Update the status, tray image, status indicator, and context menu
-            currentStatus = statusAfterCommand;
-            updateTrayImage(statusAfterCommand);
-            updateStatusIndicator(statusAfterCommand);
-            updateContextMenu(false);
-
-            resolve();
-          });
-        });
-      }
-    })
+        }
+      })
+      .catch(error => {
+        console.error('Error checking Docker status:', error);
+        writeToScreen(`[ERROR]: ${error.message}`);
+      });
   }
-}
+} // End of DockerManager class
 
 // Create an instance of DockerManager
 const dockerManager = new DockerManager();
@@ -656,19 +741,37 @@ let statusMenuItem = {
   enabled: false
 };
 
+// Add mode status to menu
+function getDistributedModeLabel() {
+  if (dockerManager.isServerMode()) {
+    return "Server Mode";
+  } else {
+    return "Standalone Mode";
+  }
+}
+
+let serverModeItem = {
+  label: `Mode: ${getDistributedModeLabel()}`,
+  enabled: false
+};
+
 const menuItems = [
   statusMenuItem,
+  serverModeItem,
   { type: 'separator' },
   {
     label: 'Start',
     click: () => {
       openMainWindow();
+      // Check requirements first
       dockerManager.checkRequirements()
         .then(() => {
           dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
         })
         .catch((error) => {
-          dialog.showErrorBox('Error', error);
+          console.log(`Docker requirements check failed: ${error}`);
+          // Show error dialog about Docker requirements
+          dialog.showErrorBox('Docker Error', error);
         });
     },
     enabled: true
@@ -685,7 +788,7 @@ const menuItems = [
     label: 'Restart',
     click: () => {
       openMainWindow();
-      dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+      dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Restarting');
     },
     enabled: true
   },
@@ -776,7 +879,7 @@ function setupAutoUpdater() {
     // Just log errors, don't show dialog for background checks
     console.error('Auto-update error:', error.message);
     // Set update message to indicate there was an error checking
-    updateMessage = '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: blue;"></i> Unable to check for updates. Please check manually later.</p>';
+    updateMessage = '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Unable to check for updates. Please check manually later.</p>';
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('command-output', updateMessage);
     }
@@ -785,7 +888,7 @@ function setupAutoUpdater() {
   // Set update notification behavior
   autoUpdater.on('update-available', (info) => {
     // Update the message to indicate an update is available
-    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: orange;"></i> A new version (${info.version}) is available. Use "File" → "Check for Updates" to update.</p>`;
+    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${info.version}) is available. Use "File" → "Check for Updates" to update.</p>`;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('command-output', updateMessage);
     }
@@ -796,7 +899,7 @@ function setupAutoUpdater() {
   // Handle the case when no update is available
   autoUpdater.on('update-not-available', () => {
     const currentVersion = app.getVersion();
-    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: green;"></i> You are using the latest version (${currentVersion}).</p>`;
+    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> You are using the latest version (${currentVersion}).</p>`;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('command-output', updateMessage);
     }
@@ -904,13 +1007,20 @@ function initializeApp() {
 
     app.name = 'Monadic Chat';
 
-    setInterval(updateDockerStatus, 2000);
+    // Set up Docker status polling
+    setInterval(updateDockerStatus, 5000);
 
     tray = new Tray(path.join(iconDir, 'Stopped.png'));
     tray.setToolTip('Monadic Chat');
     tray.setContextMenu(contextMenu);
 
-    extendedContextMenu({});
+    extendedContextMenu({
+      showSaveImageAs: true,
+      showInspectElement: true,
+      showSearchWithGoogle: false,
+      showCopyImage: true,
+      showCopyImageAddress: true
+    });
 
     createMainWindow();
     contextMenu = Menu.buildFromTemplate(menuItems);
@@ -921,13 +1031,22 @@ function initializeApp() {
       try {
         switch (command) {
           case 'start':
-            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+            // Check requirements first
+            dockerManager.checkRequirements()
+              .then(() => {
+                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+              })
+              .catch((error) => {
+                console.log(`Docker requirements check failed: ${error}`);
+                // Show error dialog for Docker issues
+                dialog.showErrorBox('Docker Error', error);
+              });
             break;
           case 'stop':
             dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
             break;
           case 'restart':
-            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Restarting');
             break;
           case 'browser':
             openBrowser('http://localhost:4567');
@@ -956,12 +1075,16 @@ function initializeApp() {
         metRequirements = true;
       })
       .catch(error => {
+        console.log(`Docker requirements check failed: ${error}`);
+        // Show error dialog
         dialog.showErrorBox('Error', error);
       })
       .finally(() => {
         updateApplicationMenu();
-        // if docker is not started, start it
-        dockerManager.ensureDockerDesktopRunning();
+        // Only try to start Docker if we successfully met requirements
+        if (metRequirements) {
+          dockerManager.ensureDockerDesktopRunning();
+        }
       });
 
     app.on('activate', () => {
@@ -1023,9 +1146,11 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout =
         await new Promise(resolve => setTimeout(resolve, delay));
         return attemptFetch(attempt + 1);
       } else {
+        // Only log error but don't throw it to avoid showing error dialog
         console.log(`Failed to connect to server after ${retries} attempts. Please check the error log in the log folder.`);
+        // Return false instead of throwing error to indicate failure without causing an exception
+        return false;
       }
-      throw error;
     }
   };
   return attemptFetch(1);
@@ -1052,8 +1177,9 @@ function isPortTaken(port, callback) {
 }
 
 function updateStatus() {
+  
+  // Standard port check for Docker mode
   const port = 4567;
-
   isPortTaken(port, (taken) => {
     if (taken && !initialLaunch) {
       currentStatus = 'Starting';
@@ -1069,18 +1195,34 @@ function updateStatus() {
 // Update the tray image based on the current status
 function updateTrayImage(status) {
   if (tray) {
-    // catch error and fallback to "Building.png"
+    // Map status to appropriate icon filenames
+    let iconFile = status;
+    
+    // Special handling for Ready status to use Running icon
+    if (status === 'Ready') {
+      iconFile = 'Running';
+    }
+    
+    
+    // Try to use the mapped icon file, fallback to Building.png if there's an error
     try {
-      tray.setImage(path.join(iconDir, `${status}.png`));
-    } catch {
+      tray.setImage(path.join(iconDir, `${iconFile}.png`));
+    } catch (error) {
+      console.error(`Error loading tray icon for status ${status}:`, error);
       tray.setImage(path.join(iconDir, 'Building.png'));
     }
   }
 }
 
 function updateContextMenu(disableControls = false) {
+  // Load the distributed mode settings
+  dockerManager.loadDistributedModeSettings();
+  
   updateTrayImage(currentStatus);
   if (tray) {
+    // Update mode label
+    serverModeItem.label = `Mode: ${getDistributedModeLabel()}`;
+    
     if (disableControls) {
       menuItems.forEach(item => {
         if (item.label && ['Start', 'Stop', 'Restart', 'Open Browser'].includes(item.label)) {
@@ -1088,6 +1230,7 @@ function updateContextMenu(disableControls = false) {
         }
       });
     } else {
+      // Enable/disable menu items based on status
       menuItems.forEach(item => {
         if (item.label === 'Start') {
           item.enabled = currentStatus === 'Stopped';
@@ -1097,6 +1240,11 @@ function updateContextMenu(disableControls = false) {
           item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
         } else if (item.label === 'Open Browser') {
           item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+        } else if (item.label === 'Build All' || item.label === 'Build Ruby Container' || 
+                   item.label === 'Build Python Container' || item.label === 'Build User Containers') {
+          item.enabled = currentStatus === 'Stopped' || currentStatus === 'Uninstalled';
+        } else if (item.label === 'Import Document DB' || item.label === 'Export Document DB') {
+          item.enabled = currentStatus === 'Stopped';
         }
       });
     }
@@ -1110,6 +1258,9 @@ function updateContextMenu(disableControls = false) {
 }
 
 function updateApplicationMenu() {
+  // Make sure to update menu structure to reflect the current status
+  
+  // Create standard menu
   const menu = Menu.buildFromTemplate([
     {
       label: 'File',
@@ -1206,97 +1357,121 @@ function updateApplicationMenu() {
           label: 'Restart',
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Restarting');
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
         {
           type: 'separator'
         },
-        {
-          label: 'Build All',
-          click: () => {
-            openMainWindow();
-            dockerManager.runCommand('build',
-              '[HTML]: <p>Building Monadic Chat . . .</p>',
-              'Building',
-              'Stopped',
-              false);
+        
+        // Docker build commands
+          {
+            label: 'Build All',
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build',
+                '[HTML]: <p>Building Monadic Chat . . .</p>',
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
-          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
-        },
-        {
-          label: 'Build Ruby Container',
-          click: () => {
-            openMainWindow();
-            dockerManager.runCommand('build_ruby_container',
-              '[HTML]: <p>Building Ruby container . . .</p>',
-              'Building',
-              'Stopped',
-              false);
+          {
+            label: 'Build Ruby Container',
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_ruby_container',
+                '[HTML]: <p>Building Ruby container . . .</p>',
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
-          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
-        },
-        {
-          label: 'Build Python Container',
-          click: () => {
-            openMainWindow();
-            dockerManager.runCommand('build_python_container',
-              '[HTML]: <p>Building Python container . . .</p>',
-              'Building',
-              'Stopped',
-              false);
+          {
+            label: 'Build Python Container',
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_python_container',
+                '[HTML]: <p>Building Python container . . .</p>',
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
-          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
-        },
-        {
-          label: 'Build User Containers',
-          click: () => {
-            openMainWindow();
-            dockerManager.runCommand('build_user_containers',
-              '[HTML]: <p>Building user containers . . .</p>',
-              'Building',
-              'Stopped',
-              false);
+          {
+            label: 'Build User Containers',
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_user_containers',
+                '[HTML]: <p>Building user containers . . .</p>',
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
-          enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
-        },
-        {
-          type: 'separator'
-        },
-        {
-          label: 'Start JupyterLab',
-          click: () => {
-            openMainWindow();
-            dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Starting', 'Running');
+          {
+            type: 'separator'
           },
-          enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
-        },
-        {
-          label: 'Stop JupyterLab',
-          click: () => {
-            dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Starting', 'Running');
+          {
+            label: 'Start JupyterLab',
+            click: () => {
+              // First check if we're in server mode
+              if (dockerManager.isServerMode()) {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'warning',
+                  title: 'Jupyter Disabled',
+                  message: 'JupyterLab is disabled in Server Mode',
+                  detail: 'For security reasons, JupyterLab is not available when running in Server Mode. Switch to Standalone Mode in Settings to use JupyterLab.',
+                  buttons: ['OK']
+                });
+                return;
+              }
+              openMainWindow();
+              dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Starting', 'Running');
+            },
+            enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
-          enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
-        },
-        {
-          type: 'separator'
-        },
-        {
-          label: 'Import Document DB',
-          click: () => {
-            openMainWindow();
-            dockerManager.runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped')
+          {
+            label: 'Stop JupyterLab',
+            click: () => {
+              // First check if we're in server mode
+              if (dockerManager.isServerMode()) {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'warning',
+                  title: 'Jupyter Disabled',
+                  message: 'JupyterLab is disabled in Server Mode',
+                  detail: 'For security reasons, JupyterLab is not available when running in Server Mode. Switch to Standalone Mode in Settings to use JupyterLab.',
+                  buttons: ['OK']
+                });
+                return;
+              }
+              dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Starting', 'Running');
+            },
+            enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
-          enabled: currentStatus === 'Stopped' && metRequirements
-        },
-        {
-          label: 'Export Document DB',
-          click: () => {
-            dockerManager.runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped');
+          {
+            type: 'separator'
           },
-          enabled: currentStatus === 'Stopped' && metRequirements
-        },
+          {
+            label: 'Import Document DB',
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped')
+            },
+            enabled: currentStatus === 'Stopped' && metRequirements
+          },
+          {
+            label: 'Export Document DB',
+            click: () => {
+              dockerManager.runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped');
+            },
+            enabled: currentStatus === 'Stopped' && metRequirements
+          }
       ]
     },
     {
@@ -1366,12 +1541,19 @@ function updateApplicationMenu() {
 // Send a message to the renderer process to write to the screen
 function writeToScreen(text) {
   if (mainWindow) {
+    // No additional preprocessing needed - the renderer will handle HTML tags correctly
     mainWindow.webContents.send('command-output', text);
   }
 }
 
 // Send a message to the renderer process to update the status indicator
 function updateStatusIndicator(status) {
+  if (debugStatusIndicator) {
+    console.log(`[STATUS INDICATOR] Setting status to: ${status}`);
+    console.log(`[STATUS INDICATOR] Current distributed mode: ${dockerManager.isServerMode() ? 'server' : 'standalone'}`);
+    console.trace();
+  }
+  
   if (mainWindow) {
     mainWindow.webContents.send('update-status-indicator', status);
     statusMenuItem.label = `Status: ${status}`;
@@ -1380,6 +1562,9 @@ function updateStatusIndicator(status) {
 
 function createMainWindow() {
   if (mainWindow) return;
+  
+  // Ensure Docker Manager loads settings on startup
+  dockerManager.loadServerModeSettings();
 
   mainWindow = new BrowserWindow({
     width: 780,
@@ -1390,25 +1575,45 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js'),
-      contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
+      contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';",
+      devTools: true, // Enable developer tools
+      spellcheck: false // Disable spellcheck to avoid IMKit related errors
     },
     title: "Monadic Chat",
-    useContentSize: true
+    useContentSize: true,
+    // Show menu bar to enable standard shortcuts
+    autoHideMenuBar: false,
+    backgroundColor: '#f0f0f0'
   });
 
   let openingText;
 
   if (justLaunched) {
-    openingText = `
-      [HTML]: 
-      <p><b>Monadic Chat: Grounding AI Chatbots with Full Linux Environment on Docker</b></p>
-      <p><i class="fa-solid fa-circle-info"></i> Please make sure Docker Desktop is running while using Monadic Chat.</p>
-      <p>Press <b>start</b> button to initialize the server.</p>
-      <hr />`
+    // Check what mode we're in
+    const isServerMode = dockerManager.isServerMode();
+    
+    if (isServerMode) {
+      openingText = `
+        [HTML]: 
+        <p><b>Monadic Chat: <span style="color: #DC4C64; font-weight: bold;">Server Mode</span></b></p>
+        <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> Running in server mode. Services will be accessible from external devices.</p>
+        <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>Security notice:</strong> Jupyter features are disabled in Server Mode for security.</p>
+        <p>Press <b>start</b> button to initialize the server.</p>
+        <hr />`
+      currentStatus = 'Stopped';
+    } else {
+      openingText = `
+        [HTML]: 
+        <p><b>Monadic Chat: <span style="color: #4CACDC; font-weight: bold;">Standalone Mode</span></b></p>
+        <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> Running in standalone mode. Services are accessible locally only.</p>
+        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Please make sure Docker Desktop is running while using Monadic Chat.</p>
+        <p>Press <b>start</b> button to initialize the server.</p>
+        <hr />`
+      currentStatus = 'Stopped';
+    }
     justLaunched = false;
-    currentStatus = 'Stopped';
 
-    // Check if port 4567 is already in use only on initial launch
+    // Check if port 4567 is already in use on initial launch
     isPortTaken(4567, function (taken) {
       if (taken) {
         currentStatus = 'Port in use';
@@ -1427,9 +1632,35 @@ function createMainWindow() {
 
   mainWindow.loadFile('index.html');
 
+  // Register standard keyboard shortcuts
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // For Cmd+C / Ctrl+C (Copy)
+    if ((input.meta || input.control) && input.key === 'c') {
+      mainWindow.webContents.copy();
+    }
+    // For Cmd+A / Ctrl+A (Select All)
+    else if ((input.meta || input.control) && input.key === 'a') {
+      mainWindow.webContents.selectAll();
+    }
+  });
+
   mainWindow.webContents.on('did-finish-load', () => {
+    
     mainWindow.webContents.send('update-status-indicator', currentStatus);
     mainWindow.webContents.send('update-version', app.getVersion());
+    
+    // Set the distributed mode cookie based on actual settings (not just when changing settings)
+    const isServerMode = dockerManager.isServerMode();
+    mainWindow.webContents.executeJavaScript(`
+      document.cookie = "distributed-mode=${isServerMode ? 'server' : 'off'}; path=/; max-age=31536000";
+    `);
+    
+    // Send the mode update to the renderer process
+    mainWindow.webContents.send('update-distributed-mode', {
+      mode: isServerMode ? 'server' : 'off',
+      showNotification: false
+    });
+    
     writeToScreen(openingText);
   });
 
@@ -1437,12 +1668,26 @@ function createMainWindow() {
     mainWindow = null;
   });
 
-  if (process.platform === "darwin") {
-    Menu.setApplicationMenu(Menu.buildFromTemplate([]));
+  // Create minimal application menu with only Edit functionality for keyboard shortcuts
+  const template = [
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'delete' },
+        { type: 'separator' },
+        { role: 'selectAll' }
+      ]
+    }
+  ];
 
-  } else {
-    mainWindow.removeMenu();
-  }
+  // Set the same simple menu for all platforms
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
@@ -1533,7 +1778,9 @@ function openLogFolder() {
   });
 }
 
-function openBrowser(url, outside = false) {
+function openBrowser(url, outside = false, forceOpen = false) {
+  // No more client mode modifications needed
+
   const openCommands = {
     win32: ['cmd', ['/c', 'start', url]],
     darwin: ['open', [url]],
@@ -1547,20 +1794,43 @@ function openBrowser(url, outside = false) {
     return;
   }
 
-  if (outside) {
-    spawn(...openCommands[platform]);
+  // Enhanced browser opening function used in multiple places
+  const launchBrowser = () => {
+    console.log(`Opening browser to: ${url}`);
+    writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+    
+    // Use shell.openExternal instead of spawn for more reliable behavior
+    shell.openExternal(url).catch(err => {
+      console.error('Error opening browser with shell.openExternal:', err);
+      // Fallback to spawn if shell.openExternal fails
+      try {
+        spawn(...openCommands[platform]);
+        console.log('Browser opened with spawn fallback');
+      } catch (spawnErr) {
+        console.error('Error opening browser with spawn fallback:', spawnErr);
+        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Failed to open browser automatically. Please open manually by navigating to: http://localhost:4567</p>");
+      }
+    });
+  };
+  
+  // For forced opens or when current status is Ready/Running, bypass port checking
+  if (outside || forceOpen || currentStatus === 'Ready' || currentStatus === 'Running') {
+    // Open immediately without checking the port again
+    launchBrowser();
     return;
   }
 
+  // For server or standalone mode, check if port is available first
+  const port = 4567;
   const timeout = 20000;
   const interval = 500;
   let time = 0;
   const timer = setInterval(() => {
-    isPortTaken(4567, (taken) => {
+    isPortTaken(port, (taken) => {
       if (taken) {
         clearInterval(timer);
-        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>The server is running on port 4567. Opening the browser.</p>");
-        spawn(...openCommands[platform]);
+        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>The server is running on port 4567. Opening the browser.</p>");
+        launchBrowser();
       } else {
         if (time == 0) {
           writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
@@ -1723,6 +1993,18 @@ function checkAndUpdateEnvFile() {
       envConfig.EXTRA_LOGGING = 'false';
     }
 
+    // Set mode defaults if not specified or empty
+    if (!envConfig.DISTRIBUTED_MODE || envConfig.DISTRIBUTED_MODE === '') {
+      // Set to standalone mode as the default
+      envConfig.DISTRIBUTED_MODE = 'off';
+    }
+
+    // Port settings are no longer user-configurable
+    // Docker containers use hardcoded ports
+    envConfig.RUBY_PORT = '4567';
+    envConfig.PYTHON_PORT = '5070';
+    envConfig.JUPYTER_PORT = '8889';
+
     // Check for the presence of any API key
     const api_list = [
         'OPENAI_API_KEY',
@@ -1736,6 +2018,12 @@ function checkAndUpdateEnvFile() {
         'TAVILY_API_KEY'
     ];
     const hasApiKey = api_list.some(key => envConfig[key]);
+    
+    // Ensure DISTRIBUTED_MODE is set
+    if (!envConfig.DISTRIBUTED_MODE || envConfig.DISTRIBUTED_MODE === '') {
+        // Set to standalone mode by default
+        envConfig.DISTRIBUTED_MODE = 'off';
+    }
     
     // Save updated config to file
     writeEnvFile(envPath, envConfig);
@@ -1754,23 +2042,91 @@ function saveSettings(data) {
         // Read the existing configuration from the file
         let envConfig = readEnvFile(envPath);
         
-        // Check if TTS_DICT_PATH has changed and needs updated content
-        if (data.TTS_DICT_PATH !== envConfig.TTS_DICT_PATH && data.TTS_DICT_PATH !== '') {
-            try {
-                // Read the CSV file content
-                const fileContent = fs.readFileSync(data.TTS_DICT_PATH, 'utf8');
-                // Store the CSV content in a separate environment variable
-                data.TTS_DICT_DATA = fileContent;
-            } catch (error) {
-                console.error('Error reading TTS dictionary file:', error);
-                // If there's an error reading the file, keep the existing data or clear it
-                if (data.TTS_DICT_PATH === '') {
-                    data.TTS_DICT_DATA = '';
+        // Check if TTS_DICT_PATH has changed and copy the file to config directory
+        if (data.TTS_DICT_PATH !== envConfig.TTS_DICT_PATH) {
+            // Remove old TTS_DICT_DATA environment variable since we're not using it anymore
+            delete data.TTS_DICT_DATA;
+            
+            if (data.TTS_DICT_PATH && data.TTS_DICT_PATH !== '') {
+                try {
+                    // Copy the dictionary file to the config directory
+                    const configDir = path.dirname(envPath);
+                    const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+                    fs.copyFileSync(data.TTS_DICT_PATH, ttsDictFile);
+                    console.log(`TTS Dictionary copied to ${ttsDictFile}`);
+                } catch (error) {
+                    console.error('Error copying TTS dictionary file:', error);
+                }
+            } else {
+                // If path is empty, try to remove the TTS_DICT.csv file
+                try {
+                    const configDir = path.dirname(envPath);
+                    const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+                    if (fs.existsSync(ttsDictFile)) {
+                        fs.unlinkSync(ttsDictFile);
+                        console.log(`TTS Dictionary file removed from ${ttsDictFile}`);
+                    }
+                } catch (error) {
+                    console.error('Error removing TTS dictionary file:', error);
                 }
             }
-        } else if (data.TTS_DICT_PATH === '') {
-            // If the path is being cleared, also clear the data
-            data.TTS_DICT_DATA = '';
+        }
+        
+        // Handle mode settings - save cookies for the web UI
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            // Save mode settings as cookies for UI access
+            if (data.DISTRIBUTED_MODE) {
+                try {
+                    // Log mode change for troubleshooting
+                    console.log(`Changing distributed mode from ${envConfig.DISTRIBUTED_MODE || 'off'} to ${data.DISTRIBUTED_MODE}`);
+                    
+                    // Set cookie for web UI
+                    mainWindow.webContents.executeJavaScript(`
+                        document.cookie = "distributed-mode=${data.DISTRIBUTED_MODE}; path=/; max-age=31536000";
+                    `);
+                    
+                    // Show notification about Jupyter in Server mode
+                    if (data.DISTRIBUTED_MODE === 'server') {
+                        try {
+                            // Add notification to console
+                            writeToScreen(`[HTML]: <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> Server Mode activated. 
+                                Jupyter features have been disabled for security reasons.
+                                <br>
+                                <small>Network interfaces are now bound to 0.0.0.0 for external access.</small>
+                            </div>`);
+                        } catch (error) {
+                            console.error('Error showing server mode notification:', error);
+                        }
+                    } else if (envConfig.DISTRIBUTED_MODE === 'server' && data.DISTRIBUTED_MODE === 'off') {
+                        // Switching from server mode to standalone mode
+                        try {
+                            // Add notification to console
+                            writeToScreen(`[HTML]: <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Standalone Mode activated.
+                                <br>
+                                <small>Network interfaces are now bound to 127.0.0.1 for local access only.</small>
+                            </div>`);
+                        } catch (error) {
+                            console.error('Error showing standalone mode notification:', error);
+                        }
+                    }
+                    
+                    // Send the mode update to the renderer process to update the UI immediately
+                    // Include showNotification flag since this is an explicit mode change
+                    mainWindow.webContents.send('update-distributed-mode', {
+                        mode: data.DISTRIBUTED_MODE,
+                        showNotification: true // Show notification for explicit settings changes
+                    });
+                } catch (error) {
+                    console.error('Error updating distributed mode:', error);
+                    dialog.showErrorBox('Mode Change Error', 
+                        `Failed to change distributed mode to ${data.DISTRIBUTED_MODE}. Error: ${error.message}`);
+                }
+            }
+            
+            // Port settings have been removed since they don't affect Docker containers
+            // Default values will be used (4567, 5070, 8889)
         }
         
         // Override existing settings with new data (empty string values are included)
@@ -1809,6 +2165,13 @@ ipcMain.on('close-settings', () => {
   }
 });
 
+// Handle restart request from renderer process - removed automatic restart functionality
+// as it could interrupt active server instances
+ipcMain.on('restart-app', () => {
+  // This functionality is now deprecated - we ask the user to restart manually
+  console.log('Restart request received but manual restart is preferred');
+});
+
 // Add IPC handler for selecting TTS dictionary file
 ipcMain.handle('select-tts-dict', async () => {
     const result = await dialog.showOpenDialog({
@@ -1820,16 +2183,27 @@ ipcMain.handle('select-tts-dict', async () => {
         const filePath = result.filePaths[0];
         
         try {
-            // Read the CSV file content
-            const fileContent = fs.readFileSync(filePath, 'utf8');
-            
-            // Store the content to be passed to the Ruby side
+            // Store the path and copy the file to config directory
             const envPath = getEnvPath();
             if (envPath) {
                 let envConfig = readEnvFile(envPath);
                 envConfig.TTS_DICT_PATH = filePath;
-                // Store the CSV content in a separate environment variable
-                envConfig.TTS_DICT_DATA = fileContent;
+                
+                // Remove old TTS_DICT_DATA if it exists
+                if (envConfig.TTS_DICT_DATA) {
+                    delete envConfig.TTS_DICT_DATA;
+                }
+                
+                // Copy the file to the config directory
+                try {
+                    const configDir = path.dirname(envPath);
+                    const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
+                    fs.copyFileSync(filePath, ttsDictFile);
+                    console.log(`TTS Dictionary copied to ${ttsDictFile}`);
+                } catch (error) {
+                    console.error('Error copying TTS dictionary file:', error);
+                }
+                
                 writeEnvFile(envPath, envConfig);
             }
             
@@ -1843,10 +2217,48 @@ ipcMain.handle('select-tts-dict', async () => {
     return '';
 });
 
+// Keep track of last check time to reduce frequency
+let lastDockerStatusCheckTime = 0;
+const DOCKER_STATUS_CHECK_INTERVAL = 2000; // Check every 2 seconds for better responsiveness
+
+// Track mode to avoid unnecessary updates
+let lastKnownMode = null;
+
 async function updateDockerStatus() {
+  const now = Date.now();
+  // Only perform check if enough time has passed since last check
+  if (now - lastDockerStatusCheckTime < DOCKER_STATUS_CHECK_INTERVAL) {
+    return;
+  }
+  lastDockerStatusCheckTime = now;
+  
+  // Ensure distributed mode is synced before checking docker status,
+  // but only if there's actually been a change to reduce message traffic
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // Explicitly load from environment file each time to make sure we have the latest setting
+    const envPath = getEnvPath();
+    if (envPath) {
+      const envConfig = readEnvFile(envPath);
+      const isServerMode = envConfig.DISTRIBUTED_MODE === 'server';
+      const currentMode = isServerMode ? 'server' : 'off';
+      
+      // Only send update if the mode has actually changed since last check
+      if (lastKnownMode !== currentMode) {
+        lastKnownMode = currentMode;
+        mainWindow.webContents.send('update-distributed-mode', {
+          mode: currentMode,
+          showNotification: false
+        });
+        console.log("Syncing mode from env file:", currentMode);
+      }
+    }
+  }
+  
+  // Check Docker status
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();
     if (mainWindow && !mainWindow.isDestroyed()) {
+      // Pass Docker status to UI (running or not)
       mainWindow.webContents.send('docker-desktop-status-update', status);
       // if status is false, meaning Docker Desktop is not running,
       // update the context menu and buttons only if the current status is not "Stopped"
@@ -1855,8 +2267,8 @@ async function updateDockerStatus() {
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
         writeToScreen('[SERVER STOPPED]');
-        writeToScreen('[HTML]: <hr /><p>Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
+        writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
       }
     }
-  } 
+  }
 }

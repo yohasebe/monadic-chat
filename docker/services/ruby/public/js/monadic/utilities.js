@@ -56,6 +56,8 @@ function adjustScrollButtons() {
     $("#back_to_top").css("opacity", scrollTop > 200 ? "0.5" : "0.0");
     $("#back_to_bottom").css("opacity", 
       scrollTop < scrollHeight - clientHeight - 200 ? "0.5" : "0.0");
+    
+    // Removed iOS spacer code as it was causing more problems than it solved
   } else {
     // Hide both buttons if content is not scrollable
     $("#back_to_top, #back_to_bottom").css("opacity", "0.0");
@@ -523,7 +525,7 @@ function loadParams(params, calledFor = "loadParams") {
             defaultEffort = spec["reasoning_effort"][1];
           }
         } catch (e) {
-          console.log("Could not get default reasoning effort from model spec", e);
+          // Could not get default reasoning effort from model spec
         }
         
         // Handle both array and string formats for reasoning_effort parameter
@@ -802,103 +804,123 @@ function resetEvent(_event) {
   $("#image-used").children().remove();
   images = [];
 
-  $("#resetConfirmation").modal("show");
-  $("#resetConfirmation").on("shown.bs.modal", function () {
-    $("#resetConfirmed").focus();
-  });
-  $("#resetConfirmed").on("click", function (event) {
-    event.preventDefault();
+  // Detect iOS/iPadOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  
+  // For iOS devices, bypass the modal and use standard confirm dialog
+  if (isIOS) {
+    if (confirm("Are you sure you want to reset the chat?")) {
+      doResetActions();
+    }
+  } else {
+    // For other platforms, use the Bootstrap modal
+    $("#resetConfirmation").modal("show");
+    $("#resetConfirmation").on("shown.bs.modal", function () {
+      $("#resetConfirmed").focus();
+    });
+    $("#resetConfirmed").on("click", function (event) {
+      event.preventDefault();
+      doResetActions();
+    });
+  }
+}
 
-    // Store the current app selection before reset
-    const currentApp = $("#apps").val();
+// Function to handle the actual reset logic
+function doResetActions() {
+  // Store the current app selection before reset
+  const currentApp = $("#apps").val();
 
-    $("#message").css("height", "96px").val("");
+  $("#message").css("height", "96px").val("");
 
-    ws.send(JSON.stringify({ "message": "RESET" }));
-    ws.send(JSON.stringify({ "message": "LOAD" }));
+  ws.send(JSON.stringify({ "message": "RESET" }));
+  ws.send(JSON.stringify({ "message": "LOAD" }));
 
-    currentPdfData = null;
-    resetParams();
+  currentPdfData = null;
+  resetParams();
 
-    const model = $("#model").val();
+  const model = $("#model").val();
 
-    if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
-      $("#websearch").prop("disabled", false)
-      if ($("#websearch").is(":checked")) {
-        $("#websearch-badge").show();
-      } else {
-        $("#websearch-badge").hide();
-      }
+  if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
+    $("#websearch").prop("disabled", false)
+    if ($("#websearch").is(":checked")) {
+      $("#websearch-badge").show();
     } else {
-      $("#websearch").prop("disabled", true)
       $("#websearch-badge").hide();
     }
+  } else {
+    $("#websearch").prop("disabled", true)
+    $("#websearch-badge").hide();
+  }
 
-    if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-      $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
-    } else {
-      $("#model-selected").text(model);
-    }
+  if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+    $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+  } else {
+    $("#model-selected").text(model);
+  }
 
-    $("#resetConfirmation").modal("hide");
-    $("#main-panel").hide();
-    $("#discourse").html("").hide();
-    $("#chat").html("")
-    $("#temp-card").hide();
-    $("#config").show();
-    $("#back-to-settings").hide();
-    $("#parameter-panel").hide();
-    setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
-    
-    // Set app selection back to current app instead of default
-    $("#apps").val(currentApp);
-    
-    $("#base-app-title").text(apps[currentApp]["app_name"]);
+  $("#resetConfirmation").modal("hide");
+  $("#main-panel").hide();
+  $("#discourse").html("").hide();
+  $("#chat").html("")
+  $("#temp-card").hide();
+  $("#config").show();
+  $("#back-to-settings").hide();
+  $("#parameter-panel").hide();
+  setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
+  
+  // Set app selection back to current app instead of default
+  $("#apps").val(currentApp);
+  
+  // Update lastApp to match the current app to prevent app change dialog from appearing
+  lastApp = currentApp;
+  
+  $("#base-app-title").text(apps[currentApp]["app_name"]);
 
-    if (apps[currentApp]["monadic"]) {
-      $("#monadic-badge").show();
-    } else {
-      $("#monadic-badge").hide();
-    }
+  if (apps[currentApp]["monadic"]) {
+    $("#monadic-badge").show();
+  } else {
+    $("#monadic-badge").hide();
+  }
 
-    if (apps[currentApp]["tools"]) {
-      $("#tools-badge").show();
-    } else {
-      $("#tools-badge").hide();
-    }
+  if (apps[currentApp]["tools"]) {
+    $("#tools-badge").show();
+  } else {
+    $("#tools-badge").hide();
+  }
 
-    if (apps[currentApp]["mathjax"]) {
-      $("#math-badge").show();
-    } else {
-      $("#math-badge").hide();
-    }
+  if (apps[currentApp]["mathjax"]) {
+    $("#math-badge").show();
+  } else {
+    $("#math-badge").hide();
+  }
 
-    $("#base-app-icon").html(apps[currentApp]["icon"]);
-    $("#base-app-desc").html(apps[currentApp]["description"]);
+  $("#base-app-icon").html(apps[currentApp]["icon"]);
+  $("#base-app-desc").html(apps[currentApp]["description"]);
 
-    $("#model_and_file").show();
-    $("#model_parameters").show();
+  $("#model_and_file").show();
+  $("#model_parameters").show();
 
-    $("#image-file").show();
+  $("#image-file").show();
 
-    $("#initial-prompt-toggle").prop("checked", false).trigger("change");
-    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+  $("#initial-prompt-toggle").prop("checked", false).trigger("change");
+  $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
-    setStats("No data available");
+  setStats("No data available");
 
-    // Instead of selecting the first available app, maintain the current selection
-    // Trigger change to update UI based on this app
-    $("#apps").trigger("change");
+  // Instead of selecting the first available app, maintain the current selection
+  // Use stop_apps_trigger flag to prevent app change dialog
+  stop_apps_trigger = true;
+  $("#apps").trigger("change");
 
-    adjustImageUploadButton($("#model").val());
-    adjustScrollButtons();
+  adjustImageUploadButton($("#model").val());
+  adjustScrollButtons();
 
-    if (ws) {
-      reconnect_websocket(ws);
-    }
-    window.scroll({ top: 0 });
-    messages.length = 0;
-  });
+  if (ws) {
+    reconnect_websocket(ws);
+  }
+  window.scroll({ top: 0 });
+  messages.length = 0;
 }
 
 let collapseStates = {};

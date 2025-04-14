@@ -42,6 +42,20 @@ ASSETS=(
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R9WXZ0pg.woff2,Montserrat-Italic.woff2"
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq5Z9WXZ0pg.woff2,Montserrat-MediumItalic.woff2"
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq3p6WXZ0pg.woff2,Montserrat-SemiBoldItalic.woff2"
+  
+  # MathJax Fonts (for offline math rendering)
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Zero.woff,MathJax_Zero.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Regular.woff,MathJax_Main-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Bold.woff,MathJax_Main-Bold.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Italic.woff,MathJax_Main-Italic.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Math-Italic.woff,MathJax_Math-Italic.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Math-BoldItalic.woff,MathJax_Math-BoldItalic.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff,MathJax_Size1-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff,MathJax_Size2-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff,MathJax_Size3-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff,MathJax_Size4-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_AMS-Regular.woff,MathJax_AMS-Regular.woff"
+  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Calligraphic-Regular.woff,MathJax_Calligraphic-Regular.woff"
 )
 
 # Montserrat CSS template with all font faces
@@ -106,6 +120,7 @@ mkdir -p /monadic/public/vendor/css
 mkdir -p /monadic/public/vendor/js
 mkdir -p /monadic/public/vendor/fonts
 mkdir -p /monadic/public/vendor/webfonts
+mkdir -p /monadic/public/vendor/js/output/chtml/fonts/woff-v2
 
 # Define a function to download files
 download_file() {
@@ -145,6 +160,9 @@ for asset in "${ASSETS[@]}"; do
       ;;
     webfont)
       dest="/monadic/public/vendor/webfonts/${filename}"
+      ;;
+    mathfont)
+      dest="/monadic/public/vendor/js/output/chtml/fonts/woff-v2/${filename}"
       ;;
     *)
       echo "Unknown asset type: $type" >&2

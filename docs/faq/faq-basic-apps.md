@@ -16,3 +16,45 @@ Though there is a limit to the number of tokens, it ispossible to cache the sour
 
 The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook cells. In addition to asking the AI agent to think about the code to enter in the cell, you can create a notebook (`ipynb` file) in a shared folder and add and execute cells one after another. It can be used as a support tool for creating library tutorials or notebooks for programming education.
 
+**Q**: How do I use Monadic Chat in server mode?
+
+**A**: To run Monadic Chat in server mode (distributed mode):
+
+1. Open the Settings panel by clicking the gear icon in the application
+2. In the "Operating Mode" section, select "Server Mode" from the dropdown menu
+3. Click "Save" to apply the changes
+4. Restart the application
+
+In this mode, Jupyter notebook URLs and other services will use the server's external IP address, and clients can connect to the server through their web browsers.
+
+For more information, see the [Distributed Mode Architecture](../docker-integration/basic-architecture.md#distributed-mode-architecture) documentation.
+
+**Q**: What happens if I install a new version?
+
+**A**: When installing a new version, user settings such as API tokens and other configurations are preserved. However, Docker containers might be rebuilt depending on the changes made to the application. If there are changes to Dockerfiles or related files, a full rebuild of all containers will be performed. Otherwise, only the Ruby container gets rebuilt, saving time during updates.
+
+**Q**: Why doesn't the app start even though Docker is running?
+
+**A**: Check the following:
+
+1. Make sure Docker Desktop is running.
+2. Ensure that the necessary ports (3330, 3000, 8889) are not already in use by other applications.
+3. Look at the console output for any error messages.
+4. Try restarting the application or rebuilding the containers from the console.
+
+**Q**: Can I use Monadic Chat offline?
+
+**A**: No, Monadic Chat requires internet access to communicate with the language model APIs. The application itself runs locally, but the AI features depend on online services.
+
+**Q**: How can I reset the app to the initial state?
+
+**A**: To reset the app to its initial state, you can:
+
+1. Click the "Reset" button in the web interface.
+2. This will clear the current conversation history.
+
+Note that this doesn't delete any saved files in the shared folder or reset configuration settings.
+
+**Q**: Can I have multiple conversations in parallel?
+
+**A**: Currently, Monadic Chat supports one conversation at a time. However, you can save and export conversations, and switch between different applications to work on different topics.

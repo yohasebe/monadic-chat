@@ -63,9 +63,11 @@
     }
     .status-wrapper {
       text-align: left;
-      font-size: 16px;
+      font-size: 14.5px;
       margin: 10px;
       margin-bottom: 5px;
+      display: flex;
+      align-items: center;
     }
     .status-wrapper .status{
     }
@@ -87,10 +89,10 @@
       background-color: #e0ac07;
     }
     .status.running, .status.active {
-      color: limegreen;
+      color: #5cd65c; /* Softer green */
     }
     .status.stopped, .status.inactive {
-      color: orange;
+      color: #ffa64d; /* Softer orange */
     }
     button:disabled {
       background-color: #ccc;
@@ -128,9 +130,9 @@
       color: #007bff;
       text-decoration: none;
     }
-    #status, #dockerStatus {
+    #status, #dockerStatus, #modeStatus {
       display: inline-block;
-      background-color: #555555;
+      background-color: #444444;
       padding: 2px 5px;
       border-radius: 5px;
       text-align: center;
@@ -143,12 +145,17 @@
 </head>
 <body>
   <div class="status-wrapper">
-    <span><i class="fa-solid fa-robot"></i> <b>Monadic Chat</b> </span>
+    <span><i class="fa-solid fa-robot"></i> <b>Monadic Chat</b>&nbsp;&nbsp;</span>
     <span id="version"></span>
-    <span> </span>
-    <span id="status" class="status"></span>
-    <span> <i class="fa-brands fa-docker"></i> Docker </span>
+    <span>&nbsp;&nbsp;&nbsp;</span>
+    <span id="modeLabel" style="font-size: 13.5px;"> <i class="fa-solid fa-cube" style="font-size: 13.5px;"></i> Mode </span>
+    <span id="modeStatus" class="status inactive">Checking</span>
+    <span>&nbsp;&nbsp;</span>
+    <span id="dockerLabel" style="font-size: 13.5px;"> <i class="fa-brands fa-docker" style="font-size: 13.5px;"></i> Docker </span>
     <span id="dockerStatus" class="status"></span>
+    <span>&nbsp;&nbsp;</span>
+    <span id="systemLabel" style="font-size: 13.5px;"> <i class="fa-solid fa-server" style="font-size: 13.5px;"></i> System </span>
+    <span id="status" class="status"></span>
     <!-- UpdateMessage is now displayed in the messages area -->
   </div>
   <div class="message-wrapper">

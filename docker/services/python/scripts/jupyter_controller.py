@@ -9,6 +9,7 @@ import json
 import time
 import random
 import errno
+import socket
 
 def get_notebook_path(filename):
     notebook_path = f"/monadic/data/{filename}"
@@ -180,15 +181,19 @@ def main():
         if args.command == 'create':
             if args.filename:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                notebook_path = get_notebook_path(f"{args.filename}_{timestamp}")
+                notebook_filename = f"{args.filename}_{timestamp}.ipynb"
+                notebook_path = get_notebook_path(notebook_filename)
             else:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                notebook_path = get_notebook_path(f"notebook_{timestamp}")
+                notebook_filename = f"notebook_{timestamp}.ipynb"
+                notebook_path = get_notebook_path(notebook_filename)
             
             if notebook_exists(notebook_path):
                 print(f"File {notebook_path} already exists.")
             else:
                 create_notebook(notebook_path)
+                # Just return the notebook filename, Ruby side will construct the full URL
+                print(f"Notebook created: {notebook_filename}")
 
         elif args.command == 'read':
             notebook_path = get_notebook_path(args.filename)

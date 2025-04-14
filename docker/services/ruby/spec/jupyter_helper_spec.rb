@@ -384,17 +384,17 @@ RSpec.describe MonadicHelper do
   describe "#run_jupyter" do
     it "starts Jupyter with the 'start' command" do
       result = helper.run_jupyter(command: "start")
-      expect(result).to include("Success: Access Jupter Lab")
+      expect(result).to include("Success: Access JupyterLab")
     end
     
     it "starts Jupyter with the 'run' command" do
       result = helper.run_jupyter(command: "run")
-      expect(result).to include("Success: Access Jupter Lab")
+      expect(result).to include("Success: Access JupyterLab")
     end
     
     it "stops Jupyter with the 'stop' command" do
       result = helper.run_jupyter(command: "stop")
-      expect(result).to include("Success: Access Jupter Lab")
+      expect(result).to include("Success: Access JupyterLab")
     end
     
     it "returns an error for invalid commands" do

@@ -43,6 +43,64 @@
       margin-bottom: 20px;
     }
 
+    /* Common category styles */
+    .settings-category {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      border-left: 4px solid; /* Color will be set by category-specific classes */
+    }
+
+    .settings-category h2 {
+      font-size: 14px;
+      margin-top: 0;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e0e0e0;
+      color: #555;
+    }
+
+    .settings-category h2 i {
+      margin-right: 8px;
+    }
+    
+    /* Category-specific color styles */
+    .category-api-keys {
+      border-left-color: #2196F3; /* Blue */
+    }
+    .category-api-keys h2 i {
+      color: #2196F3;
+    }
+    
+    .category-model {
+      border-left-color: #4CAF50; /* Green */
+    }
+    .category-model h2 i {
+      color: #4CAF50;
+    }
+    
+    .category-display {
+      border-left-color: #9C27B0; /* Purple */
+    }
+    .category-display h2 i {
+      color: #9C27B0;
+    }
+    
+    .category-voice {
+      border-left-color: #FF9800; /* Orange */
+    }
+    .category-voice h2 i {
+      color: #FF9800;
+    }
+    
+    .category-system {
+      border-left-color: #F44336; /* Red */
+    }
+    .category-system h2 i {
+      color: #F44336;
+    }
+
     label {
       display: block;
       margin-top: 10px;
@@ -54,16 +112,44 @@
       width: 100%;
       padding: 6px 12px;
       margin-top: 5px;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
       font-size: 13px;
       border: 1px solid #ccc;
       border-radius: 5px;
       box-sizing: border-box;
     }
 
+    /* Default focus style */
     input:focus, select:focus {
       outline: none;
-      border-color: #ffc107;
+      border-color: #2196F3;
+      box-shadow: 0 0 3px rgba(33, 150, 243, 0.3);
+    }
+    
+    /* Category-specific focus styles */
+    .category-api-keys input:focus, .category-api-keys select:focus {
+      border-color: #2196F3;
+      box-shadow: 0 0 3px rgba(33, 150, 243, 0.3);
+    }
+    
+    .category-model input:focus, .category-model select:focus {
+      border-color: #4CAF50;
+      box-shadow: 0 0 3px rgba(76, 175, 80, 0.3);
+    }
+    
+    .category-display input:focus, .category-display select:focus {
+      border-color: #9C27B0;
+      box-shadow: 0 0 3px rgba(156, 39, 176, 0.3);
+    }
+    
+    .category-voice input:focus, .category-voice select:focus {
+      border-color: #FF9800;
+      box-shadow: 0 0 3px rgba(255, 152, 0, 0.3);
+    }
+    
+    .category-system input:focus, .category-system select:focus {
+      border-color: #F44336;
+      box-shadow: 0 0 3px rgba(244, 67, 54, 0.3);
     }
 
     .button-group {
@@ -113,93 +199,131 @@
     </style>
   </head>
   <body>
+    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+         background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+      <div style="text-align: center;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #ffc107;"></i>
+        <p>Loading settings...</p>
+      </div>
+    </div>
+    
     <h1>Monadic Chat <span style="font-weight: normal;">Settings</span></h1>
     <div id="settings-container">
       <form id="settings-form">
-        <label for="openai-api-key">OPENAI_API_KEY</label>
-        <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false">
+        <!-- Category: API Keys -->
+        <div class="settings-category category-api-keys">
+          <h2><i class="fas fa-key"></i> API Keys</h2>
+          
+          <label for="openai-api-key">OPENAI_API_KEY</label>
+          <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false">
 
-        <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
-        <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
+          <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
+          <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
 
-        <label for="cohere-api-key">COHERE_API_KEY</label>
-        <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
+          <label for="cohere-api-key">COHERE_API_KEY</label>
+          <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
 
-        <label for="gemini-api-key">GEMINI_API_KEY</label>
-        <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
+          <label for="gemini-api-key">GEMINI_API_KEY</label>
+          <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
 
-        <label for="mistral-api-key">MISTRAL_API_KEY</label>
-        <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
+          <label for="mistral-api-key">MISTRAL_API_KEY</label>
+          <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
 
-        <label for="xai-api-key">XAI_API_KEY</label>
-        <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false">
+          <label for="xai-api-key">XAI_API_KEY</label>
+          <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false">
 
-        <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
-        <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false">
+          <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
+          <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false">
 
-        <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
-        <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false">
+          <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
+          <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false">
 
-        <label for="elevenlabs-api-key">ELEVENLABS_API_KEY</label>
-        <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false">
+          <label for="elevenlabs-api-key">ELEVENLABS_API_KEY</label>
+          <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false">
 
-        <label for="tavily-api-key">TAVILY_API_KEY</label>
-        <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false">
-
-        <label for="rouge-theme">Syntax Highlighting Theme</label>
-        <select id="rouge-theme" name="rouge-theme">
-          <option disabled>──Dark Themes──</option>
-          <option value="base16:dark">base16-dark</option>
-          <option value="github:dark">github-dark</option>
-          <option value="gruvbox:dark">gruvbox-dark</option>
-          <option value="colorful:dark">colorful</option>
-          <option value="molokai:dark">molokai</option>
-          <option value="monokai:dark">monokai</option>
-          <option value="monokai_sublime:dark">monokai_sublime</option>
-          <option value="tulip:dark">tulip</option>
-          <option value="thankful_eyes:light">thankful_eyes</option>
-
-          <option disabled>──Light Themes──</option>
-          <option value="base16:light">base16-light</option>
-          <option value="github:light">github-light</option>
-          <option value="gruvbox:light">gruvbox-light</option>
-          <option value="bw:light">bw</option>
-          <option value="igor_pro:light">igor_pro</option>
-          <option value="magritte:light">magritte</option>
-          <option value="pastie:light">pastie</option>
-        </select>
-
-        <label for="ai-user-model">STT_MODEL (Speech-to-Text)</label>
-        <select id="stt-model" name="stt-model">
-          <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
-          <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
-          <option value="whisper-1">whisper-1</option>
-        </select>
-
-        <label for="ai-user-max-tokens">AI_USER_MAX_TOKENS</label>
-        <input type="number" id="ai-user-max-tokens" name="ai-user-max-tokens" min="100" max="8000" step="10" value="2000">
-
-
-        <label for="embedding-model">EMBEDDING_MODEL</label>
-        <select id="embedding-model" name="embedding-model">
-          <option value="text-embedding-3-small">text-embedding-3-small</option>
-          <option value="text-embedding-3-large">text-embedding-3-large</option>
-        </select>
-
-        <label for="websearch-model">WEBSEARCH_MODEL</label>
-        <select id="websearch-model" name="websearch-model">
-          <option value="gpt-4o-mini-search-preview">gpt-4o-mini-search-preview</option>
-          <option value="gpt-4o-search-preview">gpt-4o-search-preview</option>
-        </select>
-
-        <label for="tts-dict-path">TTS Dictionary File Path</label>
-        <div style="display: flex; align-items: center;">
-          <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px;">
-          <button type="button" id="select-tts-dict">Select File</button>
+          <label for="tavily-api-key">TAVILY_API_KEY</label>
+          <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false">
         </div>
 
-        <label class="form-check-label" for="extra-logging">Extra Logging</label>
-        <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
+        <!-- Category: Model Settings -->
+        <div class="settings-category category-model">
+          <h2><i class="fas fa-robot"></i> Model Settings</h2>
+          
+          <label for="embedding-model">EMBEDDING_MODEL</label>
+          <select id="embedding-model" name="embedding-model">
+            <option value="text-embedding-3-small">text-embedding-3-small</option>
+            <option value="text-embedding-3-large">text-embedding-3-large</option>
+          </select>
+
+          <label for="websearch-model">WEBSEARCH_MODEL</label>
+          <select id="websearch-model" name="websearch-model">
+            <option value="gpt-4o-mini-search-preview">gpt-4o-mini-search-preview</option>
+            <option value="gpt-4o-search-preview">gpt-4o-search-preview</option>
+          </select>
+          
+          <label for="ai-user-max-tokens">AI_USER_MAX_TOKENS</label>
+          <input type="number" id="ai-user-max-tokens" name="ai-user-max-tokens" min="100" max="8000" step="10" value="2000">
+        </div>
+
+        <!-- Category: Display & UI -->
+        <div class="settings-category category-display">
+          <h2><i class="fas fa-palette"></i> Display & UI</h2>
+          
+          <label for="rouge-theme">Syntax Highlighting Theme</label>
+          <select id="rouge-theme" name="rouge-theme">
+            <option disabled>──Dark Themes──</option>
+            <option value="base16:dark">base16-dark</option>
+            <option value="github:dark">github-dark</option>
+            <option value="gruvbox:dark">gruvbox-dark</option>
+            <option value="colorful:dark">colorful</option>
+            <option value="molokai:dark">molokai</option>
+            <option value="monokai:dark">monokai</option>
+            <option value="monokai_sublime:dark">monokai_sublime</option>
+            <option value="tulip:dark">tulip</option>
+            <option value="thankful_eyes:light">thankful_eyes</option>
+
+            <option disabled>──Light Themes──</option>
+            <option value="base16:light">base16-light</option>
+            <option value="github:light">github-light</option>
+            <option value="gruvbox:light">gruvbox-light</option>
+            <option value="bw:light">bw</option>
+            <option value="igor_pro:light">igor_pro</option>
+            <option value="magritte:light">magritte</option>
+            <option value="pastie:light">pastie</option>
+          </select>
+        </div>
+
+        <!-- Category: Voice & Audio -->
+        <div class="settings-category category-voice">
+          <h2><i class="fas fa-microphone-alt"></i> Voice & Audio</h2>
+          
+          <label for="stt-model">STT_MODEL (Speech-to-Text)</label>
+          <select id="stt-model" name="stt-model">
+            <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
+            <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+            <option value="whisper-1">whisper-1</option>
+          </select>
+
+          <label for="tts-dict-path">TTS Dictionary File Path</label>
+          <div style="display: flex; align-items: flex-start; margin-top: 5px; margin-bottom: 10px;">
+            <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px; margin-top: 0; margin-bottom: 0;">
+            <button type="button" id="select-tts-dict" style="background-color: #888; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; height: 29px; font-size: 12px;">Select File</button>
+          </div>
+        </div>
+
+        <!-- Category: System Settings -->
+        <div class="settings-category category-system">
+          <h2><i class="fas fa-cogs"></i> System Settings</h2>
+          
+          <label for="distributed-mode">Application Mode</label>
+          <select id="distributed-mode" name="distributed-mode">
+            <option value="off">Standalone (Default)</option>
+            <option value="server">Server Mode</option>
+          </select>
+
+          <label class="form-check-label" for="extra-logging">Extra Logging</label>
+          <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
+        </div>
 
       </form>
     </div>
@@ -213,10 +337,17 @@
 
     <script>
       // Use the APIs exposed via preload.js instead of direct require
+      // No need for toggling anymore as we've simplified the UI
+      document.getElementById('distributed-mode').addEventListener('change', function() {
+        // Port settings are always visible now
+      });
+
       document.getElementById('settings-form').addEventListener('submit', (event) => {
         event.preventDefault();
 
         const ttsDictPath = document.getElementById('tts-dict-path').value;
+        const distributedMode = document.getElementById('distributed-mode').value;
+        const previousMode = document.getElementById('distributed-mode').getAttribute('data-previous-value') || 'off';
 
         const data = {
           OPENAI_API_KEY: document.getElementById('openai-api-key').value,
@@ -235,14 +366,54 @@
           EMBEDDING_MODEL: document.getElementById('embedding-model').value,
           WEBSEARCH_MODEL: document.getElementById('websearch-model').value,
           TTS_DICT_PATH: ttsDictPath,
-          EXTRA_LOGGING: document.getElementById('extra-logging').checked
+          EXTRA_LOGGING: document.getElementById('extra-logging').checked,
+          DISTRIBUTED_MODE: distributedMode
         };
+        
+        // Port settings have been removed since they don't affect Docker containers
+        // Default values will be used: RUBY_PORT=4567, PYTHON_PORT=5070, JUPYTER_PORT=8889
 
         window.electronAPI.saveSettings(data);
 
         // Show the save message
         const saveMessage = document.getElementById('save-message');
         saveMessage.style.display = 'inline';
+        
+        // Check if mode has changed
+        if (distributedMode !== previousMode) {
+          // Show a custom modal dialog for mode change notification
+          const dialogHTML = `
+            <div id="modeChangeDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background-color: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; 
+                justify-content: center;">
+              <div style="background-color: #f8f9fa; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+                  padding: 20px; max-width: 400px; font-family: 'Montserrat', sans-serif;">
+                <h3 style="margin-top: 0; color: #495057; font-size: 16px; font-weight: 600;">Mode Changed</h3>
+                <p style="margin-bottom: 20px; color: #495057; font-weight: normal; font-size: 14px;">
+                  Mode setting has been changed. The application needs to be restarted for this change to take effect.
+                  Please close and restart Monadic Chat manually.
+                </p>
+                <div style="text-align: right;">
+                  <button id="closeDialog" style="background-color: #ffc107; border: none; padding: 6px 12px; 
+                      border-radius: 4px; color: #000; cursor: pointer; font-weight: 500; font-size: 14px;">
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          // Add the dialog to the document
+          document.body.insertAdjacentHTML('beforeend', dialogHTML);
+          
+          // Add event listener to close button
+          document.getElementById('closeDialog').addEventListener('click', () => {
+            document.getElementById('modeChangeDialog').remove();
+            
+            // Close the settings window
+            window.electronAPI.closeSettings();
+          });
+        }
 
         // Hide the message after 3 seconds
         setTimeout(() => {
@@ -273,6 +444,23 @@
         document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4o-mini-search-preview';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
+        
+        // Handle distributed mode settings - ensure default value is set
+        const distributedMode = data.DISTRIBUTED_MODE || 'off';
+        // Make sure the select element has this value, or default to 'off' if it doesn't exist
+        const modeSelect = document.getElementById('distributed-mode');
+        const valueExists = Array.from(modeSelect.options).some(option => option.value === distributedMode);
+        modeSelect.value = valueExists ? distributedMode : 'off';
+        
+        // Save the current mode value as an attribute for change detection
+        modeSelect.setAttribute('data-previous-value', modeSelect.value);
+        
+        // Always set port values
+        // Port settings have been removed since they don't affect Docker containers
+        // Default values will be used instead
+        
+        // Hide the loading overlay once settings are loaded
+        document.getElementById('loading-overlay').style.display = 'none';
       });
 
       window.electronAPI.requestSettings();

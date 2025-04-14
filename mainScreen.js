@@ -384,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusElement.textContent = "Started";
         statusElement.classList.remove('inactive');
         statusElement.classList.add('active');
+        
       }
     }
   });

@@ -201,7 +201,7 @@ function adjustImageUploadButtonFallback(selectedModel) {
     imageFileElement.prop("disabled", false);
     
     // Update button text based on PDF support
-    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.5/.test(selectedModel);
+    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
     
     if (isPdfEnabled) {
       imageFileElement.html('<i class="fas fa-file"></i> Use Image/PDF');
@@ -1852,7 +1852,9 @@ $(function () {
     }
   });
 
-  if (!runningOnChrome && !runningOnEdge && !runningOnSafari) {
+  // Disable voice features for browsers that don't support them, and for iOS/iPadOS
+  if (!runningOnChrome && !runningOnEdge && !runningOnSafari || 
+     /iPad|iPhone|iPod/.test(navigator.userAgent)) {
     voiceButton.hide();
     $("#auto-speech").hide();
     $("#auto-speech-form").hide();
@@ -2020,31 +2022,9 @@ $(function () {
       viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover');
     }
     
-    // iOS Safari specific fixes
+    // Apply only minimum iOS class without special behavior
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-      // Apply additional styling for iOS Safari
       $("body").addClass("ios-device");
-      
-      // Force hardware acceleration on critical elements except toggle-menu (which loses its icon)
-      $("#main, #menu, #main-nav").css({
-        "transform": "translateZ(0)",
-        "-webkit-transform": "translateZ(0)"
-      });
-      
-      // Add delayed layout fix for iOS Safari - without transform on toggle-menu
-      setTimeout(function() {
-        // Force a repaint to fix iOS Safari layout issues after initial load
-        $("#main, #menu").css("transform", "translateZ(0)");
-        $("#main-nav").css("transform", "translateZ(0)");
-        // Ensure toggle-menu is visible with Font Awesome icon
-        $("#toggle-menu").css({
-          "opacity": "0.9",
-          "background-color": "#666",
-          "display": "flex",
-          "align-items": "center",
-          "justify-content": "center"
-        });
-      }, 1000);
     }
     
     // Run customizable select setup before other UI operations

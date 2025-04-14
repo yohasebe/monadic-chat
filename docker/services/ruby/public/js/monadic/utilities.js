@@ -105,7 +105,7 @@ function setCookieValues() {
 
 function listModels(models, openai = false) {
   // Array of strings to identify beta models
-  const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.5)\b/];
+  const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.\d)\b/];
   const betaModelPatterns = [/^\bo\d\b/];
 
   // Separate regular models and beta models

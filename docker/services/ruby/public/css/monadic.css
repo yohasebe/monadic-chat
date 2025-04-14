@@ -1028,34 +1028,10 @@ legend {
   }
 }
 
-/* iOS-specific styles */
+/* Mobile device basic overscrolling */
 .ios-device #main,
 .ios-device #menu {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
   -webkit-overflow-scrolling: touch;
-}
-
-.ios-device #toggle-menu {
-  /* iOS-specific button styling */
-  right: 20px !important;
-  top: 20px !important;
-  opacity: 0.9 !important;
-  z-index: 1100 !important;
-  background-color: #666 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-width: 40px !important;
-  padding: 6px 12px !important;
-  height: 40px !important;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-}
-
-.ios-device #main-nav {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  z-index: 1050;
 }
 
 ::-webkit-scrollbar {

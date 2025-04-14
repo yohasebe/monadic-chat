@@ -59,7 +59,7 @@ const testUtilities = {
   
   // Model and format functions
   listModels: (models, openai = false) => {
-    const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.5)\b/];
+    const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.\d)\b/];
     const betaModelPatterns = [/^\bo\d\b/];
   
     const regularModels = [];

@@ -63,43 +63,18 @@ function adjustScrollButtons() {
   const backToTopBtn = $("#back_to_top");
   const backToBottomBtn = $("#back_to_bottom");
   
-  // Check if iOS/iPadOS using feature detection
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  
-  // iOS-specific adjustments
-  if (isIOS) {
-    // Ensure consistent button display for iOS
-    if (mainScrollTop > 20) {
-      if (backToTopBtn.show) backToTopBtn.show();
-    } else {
-      if (backToTopBtn.hide) backToTopBtn.hide();
-    }
-    
-    // For bottom button, use a more reliable method on iOS
-    if (mainScrollHeight - mainScrollTop - mainHeight > 20) {
-      if (backToBottomBtn.show) backToBottomBtn.show();
-    } else {
-      if (backToBottomBtn.hide) backToBottomBtn.hide();
-    }
-    
-    // Apply consistent style to improve visibility on iOS
-    backToTopBtn.css("opacity", "0.9");
-    backToBottomBtn.css("opacity", "0.9");
+  // Standard behavior for all platforms
+  if (mainScrollTop > mainHeight / 2) {
+    if (backToTopBtn.show) backToTopBtn.show();
   } else {
-    // Standard behavior for non-iOS platforms
-    if (mainScrollTop > mainHeight / 2) {
-      if (backToTopBtn.show) backToTopBtn.show();
-    } else {
-      if (backToTopBtn.hide) backToTopBtn.hide();
-    }
-    
-    // Show/hide the scroll to bottom button
-    if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
-      if (backToBottomBtn.show) backToBottomBtn.show();
-    } else {
-      if (backToBottomBtn.hide) backToBottomBtn.hide();
-    }
+    if (backToTopBtn.hide) backToTopBtn.hide();
+  }
+  
+  // Show/hide the scroll to bottom button
+  if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
+    if (backToBottomBtn.show) backToBottomBtn.show();
+  } else {
+    if (backToBottomBtn.hide) backToBottomBtn.hide();
   }
 }
 
@@ -162,7 +137,7 @@ function adjustImageUploadButton(selectedModel) {
     imageFileElement.prop("disabled", false);
     
     // Update button text based on PDF support
-    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.5/.test(selectedModel);
+    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
     
     if (isPdfEnabled) {
       imageFileElement.html('<i class="fas fa-file"></i> Use Image/PDF');

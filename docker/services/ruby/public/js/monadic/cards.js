@@ -21,7 +21,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   // Fix jupyter notebook URL issue
   let replaced_html;
   if (role === "system") {
-    replaced_html = escapeHtml(html);
+    replaced_html = escapeHtml(html).replace(/\n/g, "<br>");
   } else {
     replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
   }
@@ -208,6 +208,14 @@ function attachEventListeners($card) {
       $('.tooltip').remove();
     }
 
+    // Show TTS-specific spinner
+    $("#monadic-spinner")
+      .find("span i")
+      .removeClass("fa-comment")
+      .addClass("fa-headphones");
+    $("#monadic-spinner")
+      .find("span")
+      .html('<i class="fas fa-headphones fa-pulse"></i> Processing audio');
     $("#monadic-spinner").show();
 
     const content = $card.find(".card-text");
@@ -253,7 +261,12 @@ function attachEventListeners($card) {
       $('.tooltip').remove();
     }
     
+    // Hide the spinner and reset it back to default state
     $("#monadic-spinner").hide();
+    // Reset spinner to default state for other operations
+    $("#monadic-spinner")
+      .find("span")
+      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
     ttsStop();
   });
 
@@ -500,8 +513,8 @@ function attachEventListeners($card) {
         // while we wait for the server to process the markdown and send back the HTML
         $cardText.html("<div class='text-center'><i class='fas fa-brain fa-pulse'></i> Processing...</div>");
       } else if (currentMessage.role === "system") {
-        // System messages are just escaped HTML, so we can update directly
-        const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        // System messages are escaped HTML with line breaks preserved
+        const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
         $cardText.html(displayText);
         
         // Change the icon back to the edit icon immediately for system messages

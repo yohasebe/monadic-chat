@@ -333,11 +333,14 @@ h5 i,
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
+  justify-content: center;
   height: 40px;
   width: 40px;
   box-sizing: border-box;
   background-color: #666;
   opacity: 0.65;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 #toggle-menu .navbar-toggler-icon {
@@ -346,6 +349,9 @@ h5 i,
   width: 1.25em;
   height: 1.25em;
   vertical-align: middle;
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 #toggle-menu:hover {
@@ -361,9 +367,18 @@ h5 i,
   padding-bottom: 16px;
 }
 
+/* Removed iOS spacers, using JavaScript solution instead */
+
 .scrollable {
   overflow-y: scroll;
-  height: calc(100vh - 122px);
+  height: calc(100vh - 122px - 20px); /* Original space calculation */
+  -webkit-overflow-scrolling: touch;
+  padding-top: 10px; /* Original padding */
+  padding-bottom: 20px; /* Add breathing room at the bottom */
+  position: relative; /* Ensure position context for iOS */
+  /* Add hardware acceleration to prevent iOS Safari rendering issues */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* Global rule for all viewport sizes */
@@ -430,11 +445,11 @@ blockquote ol {
 }
 
 #alert-message.message-success {
-  color: #2268cf;
+  color: #22ad50;
 }
 
 #alert-message.message-info {
-  color: #34d83b;
+  color: #61b0ff;
 }
 
 #alert-message.message-warning {
@@ -1013,6 +1028,36 @@ legend {
   }
 }
 
+/* iOS-specific styles */
+.ios-device #main,
+.ios-device #menu {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ios-device #toggle-menu {
+  /* iOS-specific button styling */
+  right: 20px !important;
+  top: 20px !important;
+  opacity: 0.9 !important;
+  z-index: 1100 !important;
+  background-color: #666 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 40px !important;
+  padding: 6px 12px !important;
+  height: 40px !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+}
+
+.ios-device #main-nav {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  z-index: 1050;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   background-color: #DCDCDC;
@@ -1247,7 +1292,7 @@ h1 {
   cursor: pointer;
   padding: 6px 12px;
   user-select: none;
-  height: 26px;
+  height: 34px;
   display: flex;
   align-items: center;
 }

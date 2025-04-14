@@ -25,6 +25,11 @@ def load_model_to_encoding_map():
 # Load model_to_encoding_map
 model_to_encoding_map = load_model_to_encoding_map()
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for service availability verification"""
+    return jsonify({'status': 'ok', 'service': 'python-flask'})
+
 @app.route('/get_encoding_name', methods=['POST'])
 def get_encoding_name():
     data = request.json

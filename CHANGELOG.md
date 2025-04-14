@@ -1,4 +1,16 @@
-- [April, 2025] 0.9.82
+- [April, 2025] 0.9.84
+  - Server mode (distributed mode) support added
+    - Allows multiple clients to connect to a central server
+    - Automatically adjusts Jupyter notebook URLs to use server's external IP
+    - Set `DISTRIBUTED_MODE=server` to enable server mode
+  - Fixed Jupyter notebook URL issues in server mode
+  - Improved IP address detection for network interfaces
+  - Simplified architecture by removing client mode
+  - Better MathJax rendering
+  - Asset inclusion issue fixed
+  - Small UI modifications
+- [April, 2025] 0.9.83
+  - Better Markdown rendering with CommonMark support
   - Improved new version notification and update process
   - Added environment variables for configuring default models for each provider (OPENAI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL, etc.)
   - Enhanced Monadic DSL to support default model configuration from environment variables

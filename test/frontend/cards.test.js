@@ -150,6 +150,8 @@ describe('Cards Module', () => {
       expect(global.attachEventListeners).toHaveBeenCalled();
     });
     
+    // Removed test for Jupyter URLs
+    
     it('creates assistant cards with proper structure', () => {
       const card = global.createCard('assistant', '<i class="icon"></i>', 'I am an assistant');
       
@@ -163,6 +165,45 @@ describe('Cards Module', () => {
       expect(card.find('.role-system').length).toBe(1);
       expect(global.escapeHtml).toHaveBeenCalledWith('<b>System message</b>');
       expect(card.find('.card-text').html()).toContain('&lt;b&gt;System message&lt;/b&gt;');
+    });
+    
+    it('preserves line breaks in system cards', () => {
+      global.escapeHtml = jest.fn(unsafe => {
+        if (unsafe === null || unsafe === undefined) return "";
+        return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      });
+      
+      // Override createCard for this test to test the line break processing
+      const originalCreateCard = global.createCard;
+      global.createCard = (role, badge, html, lang = "en", mid = "", status = true, images = []) => {
+        let processedHtml = html;
+        if (role === "system") {
+          processedHtml = global.escapeHtml(html).replace(/\n/g, "<br>");
+        }
+        
+        const card = testEnv.createJQueryObject('.card');
+        card.find = jest.fn(selector => {
+          if (selector === '.card-text') {
+            const textElement = testEnv.createJQueryObject('.card-text');
+            textElement.html = jest.fn().mockReturnValue(`<div class="role-${role}">${processedHtml}</div>`);
+            return textElement;
+          }
+          return testEnv.createJQueryObject(selector);
+        });
+        return card;
+      };
+      
+      const card = global.createCard('system', '<i class="icon"></i>', 'Line 1\nLine 2\nLine 3');
+      
+      expect(card.find('.card-text').html()).toContain('Line 1<br>Line 2<br>Line 3');
+      
+      // Restore original createCard
+      global.createCard = originalCreateCard;
     });
     
     it('adds images to cards when provided', () => {

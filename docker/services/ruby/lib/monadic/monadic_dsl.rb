@@ -967,6 +967,16 @@ module MonadicDSL
     # Use display_name if provided, otherwise use app_name
     display_name = state.settings[:display_name] || app_name
 
+    # Get distributed mode from CONFIG hash (loaded from .env file) instead of environment variable
+    distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : "off"
+    
+    # Check if this app should be disabled in server mode due to security concerns
+    jupyter_disabled_in_server = distributed_mode == "server" && 
+      (state.features[:jupyter] == true || 
+       state.features[:jupyter_access] == true || 
+       state.features[:jupyter] == "true" || 
+       state.features[:jupyter_access] == "true")
+    
     # Get appropriate environment variable name based on provider
     provider_name = state.settings[:provider].to_s.downcase
     provider_env_var = nil
@@ -1014,6 +1024,13 @@ module MonadicDSL
                     "\"gpt-4o\""
                   end
 
+    # Construct disabled logic based on API key availability and server mode restrictions
+    if jupyter_disabled_in_server
+      disabled_condition = "!defined?(CONFIG) || !CONFIG[\"#{provider_config.api_key_name}\"] || (defined?(CONFIG) && CONFIG[\"DISTRIBUTED_MODE\"] == \"server\")"
+    else
+      disabled_condition = "!defined?(CONFIG) || !CONFIG[\"#{provider_config.api_key_name}\"]"
+    end
+
     class_def = <<~RUBY
       class #{state.name} < MonadicApp
         include #{helper_module} if defined?(#{helper_module})
@@ -1024,7 +1041,7 @@ module MonadicDSL
 
         @settings = {
           group: #{provider_config.display_group.inspect},
-          disabled: !defined?(CONFIG) || !CONFIG["#{provider_config.api_key_name}"],
+          disabled: #{disabled_condition},
           models: #{model_list_code},
           model: #{model_value},
           temperature: #{state.settings[:temperature]},
@@ -1032,7 +1049,7 @@ module MonadicDSL
           app_name: #{app_name.inspect},
           display_name: #{display_name.inspect},
           description: description,
-          icon: icon
+          icon: icon,
         }
     RUBY
 

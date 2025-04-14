@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.82
+export MONADIC_VERSION=0.9.84
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=5
@@ -415,6 +415,21 @@ check_dockerfiles_changed() {
 # Function to start Docker Compose
 start_docker_compose() {
   set_docker_compose
+
+  # Load environment variables from env file
+  local config_dir="${HOME_DIR}/monadic/config"
+  local env_file="${config_dir}/env"
+  local host_binding="0.0.0.0" # Default to all interfaces
+  
+  if [ -f "${env_file}" ]; then
+    # Read HOST_BINDING from env file if it exists
+    if grep -q "HOST_BINDING=" "${env_file}"; then
+      host_binding=$(grep "HOST_BINDING=" "${env_file}" | cut -d'=' -f2)
+    fi
+  fi
+  
+  # Export for docker-compose
+  export HOST_BINDING="${host_binding}"
 
   # Wait until Docker is running
   local retries=0

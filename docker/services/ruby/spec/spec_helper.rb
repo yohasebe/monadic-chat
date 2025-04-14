@@ -6,6 +6,7 @@ require 'json'
 require 'yaml'
 require 'tempfile'
 require 'fileutils'
+require 'commonmarker'
 
 # Load shared test examples
 require_relative 'shared_helper_tests'

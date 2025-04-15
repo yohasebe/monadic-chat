@@ -21,6 +21,7 @@ message.addEventListener("compositionend", function () {
 });
 
 document.addEventListener("keydown", function (event) {
+  // Right Arrow key - activate voice input when Easy Submit is enabled
   if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
     event.preventDefault();
     // Only activate voice button if session has begun (config is hidden and main panel is visible)
@@ -28,13 +29,20 @@ document.addEventListener("keydown", function (event) {
       $("#voice").click();
     }
   }
+  
+  // Enter key - submit message when focus is not in textarea
+  if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "Enter" && message.dataset.ime !== "true") {
+    // Only submit if message is not empty
+    if (message.value.trim() !== "") {
+      event.preventDefault();
+      $("#send").click();
+    }
+  }
 });
 
+// No longer handling Enter key in textarea - allow normal line break behavior
 message.addEventListener("keydown", function (event) {
-  if ($("#check-easy-submit").is(":checked") && (event.key === "Enter") && message.dataset.ime !== "true") {
-    event.preventDefault();
-    $("#send").click();
-  }
+  // Enter key behavior in textarea is left to default (line break)
 });
 
 // Set the copy code button for each code block
@@ -1123,6 +1131,11 @@ function connect_websocket(callback) {
           let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
           $("#asr-p-value").text(logprob);
           $("#send, #clear, #voice").prop("disabled", false);
+          
+          // Restore original placeholder
+          const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
+          $("#message").attr("placeholder", origPlaceholder);
+          
           if ($("#check-easy-submit").is(":checked")) {
             $("#send").click();
           }

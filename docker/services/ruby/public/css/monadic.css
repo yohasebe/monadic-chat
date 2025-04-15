@@ -461,6 +461,12 @@ blockquote ol {
   color: #777;
 }
 
+#asr-p-value {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+}
+
 #interaction-check-all,
 #interaction-uncheck-all {
   transition: color 0.2s ease, text-decoration 0.2s ease;
@@ -1110,7 +1116,30 @@ pre code{
 
 
 #voice:focus {
-outline: 2px #FF8C00 solid;
+  outline: none; /* Remove outline */
+  box-shadow: none; /* Remove any shadow */
+}
+
+#voice i.fas.fa-microphone {
+  transition: all 0.2s ease; /* Add transition for smoother changes */
+}
+
+#voice:focus {
+  background-color: #0ba7c5; /* Slightly darker blue when focused */
+}
+
+#voice:focus i.fas.fa-microphone {
+  color: white; /* White icon when focused for better contrast */
+  transform: scale(1.1); /* Slightly enlarge the icon */
+}
+
+/* Also change on hover for better UX */
+#voice:hover {
+  background-color: #0ba7c5; /* Slightly darker blue when hovered */
+}
+
+#voice:hover i.fas.fa-microphone {
+  color: white; /* White icon when hovered */
 }
 
 

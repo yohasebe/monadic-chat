@@ -2172,6 +2172,11 @@ ipcMain.on('restart-app', () => {
   console.log('Restart request received but manual restart is preferred');
 });
 
+// Handle clear messages request from renderer process
+ipcMain.on('clear-messages', () => {
+  console.log('Clearing message area due to mode change');
+});
+
 // Add IPC handler for selecting TTS dictionary file
 ipcMain.handle('select-tts-dict', async () => {
     const result = await dialog.showOpenDialog({

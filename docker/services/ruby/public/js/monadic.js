@@ -400,7 +400,8 @@ $(function () {
   // UI event handlers
   //////////////////////////////
 
-  let lastApp = defaultApp;
+  // Use "Chat" as the default app if not defined elsewhere
+  let lastApp = typeof defaultApp !== 'undefined' ? defaultApp : "Chat";
 
   // Consolidate event handlers for toggles
   function setupToggleHandlers() {
@@ -1277,7 +1278,6 @@ $(function () {
 
     $("#cancel_query").show();
     
-    // Hide message input and show spinner
     $("#monadic-spinner").show();
 
     // Temporarily push a placeholder message to prevent double display
@@ -1899,7 +1899,6 @@ $(function () {
     }
     
     try {
-      // Show loading spinner
       $("#monadic-spinner").show();
       $("#loadModal button").prop("disabled", true);
       $("#load-spinner").show();

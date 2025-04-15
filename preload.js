@@ -72,4 +72,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Select TTS dictionary file
   selectTTSDict: () => ipcRenderer.invoke('select-tts-dict'),
+  
+  // Clear messages area when mode changes
+  clearMessages: () => ipcRenderer.send('clear-messages'),
 });

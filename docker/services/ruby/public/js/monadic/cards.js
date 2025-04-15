@@ -728,10 +728,32 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     $icon.css("color", "#DC4C64");
   });
 
-  $card.on("mouseleave.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
+  $card.on("mouseleave.cardEvent click.cardEvent touchend.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function (event) {
     $(this).tooltip('hide');
-    const $icon = $(this).find("i");
-    $icon.css("color", "");
+    
+    // Reset color only on mouseleave, not on click or touchend for iOS
+    if (event.type === "mouseleave") {
+      const $icon = $(this).find("i");
+      $icon.css("color", "");
+    }
+    
+    // For iOS devices, handle special case for play/stop buttons
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (isIOS && (event.type === "click" || event.type === "touchend")) {
+      // Get the specific action (play or stop)
+      const isPlayButton = $(this).hasClass("func-play");
+      const isStopButton = $(this).hasClass("func-stop");
+      
+      if (isPlayButton || isStopButton) {
+        const $icon = $(this).find("i");
+        // Add timeout to reset icon color after action completes
+        setTimeout(() => {
+          $icon.css("color", "");
+        }, 500);
+      }
+    }
   });
 }
 

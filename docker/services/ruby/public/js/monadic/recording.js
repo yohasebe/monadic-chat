@@ -126,7 +126,6 @@ voiceButton.on("click", function () {
     voiceButton.html('<i class="fas fa-microphone"></i> Stop');
     setAlert("<i class='fas fa-microphone'></i> LISTENING . . .", "info");
     $("#send, #clear").prop("disabled", true);
-    // Show speech recognition spinner
     $("#monadic-spinner").show();
     $("#monadic-spinner span").html('<i class="fas fa-microphone fa-pulse"></i> Listening...');
     isListening = true;

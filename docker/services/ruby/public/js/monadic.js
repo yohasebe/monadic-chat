@@ -1855,9 +1855,17 @@ $(function () {
   // Disable voice features for browsers that don't support them, and for iOS/iPadOS
   if (!runningOnChrome && !runningOnEdge && !runningOnSafari || 
      /iPad|iPhone|iPod/.test(navigator.userAgent)) {
-    voiceButton.hide();
+    // Hide the entire voice input row instead of just the button
+    $("#voice-input-row").hide();
     $("#auto-speech").hide();
     $("#auto-speech-form").hide();
+    // Set message placeholder to standard text
+    $("#message").attr("placeholder", "Type your message . . .");
+  } else {
+    // Show voice input row
+    $("#voice-input-row").show();
+    // Set message placeholder to include voice input instructions
+    $("#message").attr("placeholder", "Type your message or click Speech Input button to use voice . . .");
   }
 
   $("#select-role").on("change", function () {

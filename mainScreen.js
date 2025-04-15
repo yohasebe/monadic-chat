@@ -7,7 +7,8 @@ let logLines = 0;
 // Global variables
 let currentStatus = 'Stopped';
 let networkUrlDisplayed = false;
-let serverStarted = false; // サーバーが完全に起動したかどうかのフラグ
+let serverStarted = false; // Flag to track if server has fully started
+let lastMode = null; // Track the last set mode
 
 // Function to add copy functionality to code blocks
 function addCopyToClipboardListener() {
@@ -325,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Set colors based on mode - using a unified color palette
       if (mode === 'server') {
-        modeStatusElement.style.color = '#ff9966'; // Soft orange-red for server mode
+        modeStatusElement.style.color = '#ff6666'; // More distinct red for server mode
         modeStatusElement.classList.remove('active');
         modeStatusElement.classList.add('inactive');
       } else {
@@ -337,6 +338,22 @@ document.addEventListener('DOMContentLoaded', () => {
         networkUrlDisplayed = false;
         serverStarted = false;
       }
+      
+      // If the mode has changed, clear the messages area and display new mode info
+      if (lastMode !== null && lastMode !== mode) {
+        // Clear messages area
+        htmlOutputElement.innerHTML = '';
+        
+        // Add new mode information message
+        const modeInfo = mode === 'server' ? 
+          `<p><i class="fa-solid fa-info-circle" style="color:#ff6666;"></i> <b>Server Mode</b>: System is now in Server Mode. Please start the service and access via browser from other devices on your network.</p>` : 
+          `<p><i class="fa-solid fa-info-circle" style="color:#66ccff;"></i> <b>Standalone Mode</b>: System is now in Standalone Mode for local use.</p>`;
+        
+        htmlOutputElement.innerHTML = modeInfo;
+      }
+      
+      // Update last mode
+      lastMode = mode;
       
       // Force a cookie update to ensure consistency
       document.cookie = `distributed-mode=${mode}; path=/; max-age=31536000`;

@@ -6,6 +6,129 @@
     <meta name="rouge-theme" content="<%= CONFIG["ROUGE_THEME"] || "pastie:light" %>">
     <title>Monadic Chat</title>
 
+    <!-- Screen size detection and warning -->
+    <script type="text/javascript">
+      // Global variable to track if screen meets requirements
+      let screenMeetsRequirements = true;
+
+      function checkScreenSize() {
+        const minWidth = 768; // Minimum width in pixels
+        const currentWidth = window.innerWidth;
+        
+        // Set global flag based on screen width
+        screenMeetsRequirements = (currentWidth >= minWidth);
+        
+        if (!screenMeetsRequirements) {
+          // Hide spinner if it exists
+          const spinner = document.getElementById('monadic-spinner');
+          if (spinner) {
+            spinner.style.display = 'none';
+          }
+          
+          // Create overlay with warning message
+          const overlay = document.createElement('div');
+          overlay.id = 'screen-size-warning';
+          overlay.style.position = 'fixed';
+          overlay.style.top = '0';
+          overlay.style.left = '0';
+          overlay.style.width = '100%';
+          overlay.style.height = '100%';
+          overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.97)';
+          overlay.style.zIndex = '10000';
+          overlay.style.display = 'flex';
+          overlay.style.flexDirection = 'column';
+          overlay.style.alignItems = 'center';
+          overlay.style.justifyContent = 'center';
+          overlay.style.padding = '20px';
+          overlay.style.textAlign = 'center';
+          overlay.style.fontFamily = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          
+          // Add logo/icon
+          const icon = document.createElement('div');
+          icon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ffc107; font-size: 48px; margin-bottom: 20px;"></i>';
+          
+          // Add title
+          const title = document.createElement('h2');
+          title.textContent = 'Screen Size Requirements';
+          title.style.color = '#333';
+          title.style.marginBottom = '15px';
+          
+          // Add message
+          const message = document.createElement('p');
+          message.innerHTML = 'Monadic Chat requires a minimum screen width of 768 pixels.<br>Please use a desktop computer or tablet for the best experience.';
+          message.style.color = '#666';
+          message.style.lineHeight = '1.5';
+          message.style.marginBottom = '25px';
+          
+          // Add current size info
+          const sizeInfo = document.createElement('p');
+          sizeInfo.innerHTML = `Your current screen width: <strong>${currentWidth}px</strong><br>Minimum required: <strong>${minWidth}px</strong>`;
+          sizeInfo.style.color = '#888';
+          sizeInfo.style.fontSize = '0.9em';
+          sizeInfo.style.marginBottom = '25px';
+          
+          // Add option to continue anyway
+          const continueButton = document.createElement('button');
+          continueButton.textContent = 'Continue Anyway';
+          continueButton.style.backgroundColor = '#ffc107';
+          continueButton.style.color = '#000';
+          continueButton.style.border = 'none';
+          continueButton.style.borderRadius = '5px';
+          continueButton.style.padding = '10px 15px';
+          continueButton.style.cursor = 'pointer';
+          continueButton.style.fontWeight = '500';
+          continueButton.style.fontSize = '14px';
+          continueButton.style.marginTop = '10px';
+          
+          continueButton.onclick = function() {
+            document.body.removeChild(overlay);
+            // Set a cookie to remember this choice for the session
+            document.cookie = "ignore_screen_warning=true; path=/";
+          };
+          
+          // Assemble overlay
+          overlay.appendChild(icon);
+          overlay.appendChild(title);
+          overlay.appendChild(message);
+          overlay.appendChild(sizeInfo);
+          overlay.appendChild(continueButton);
+          
+          // Add to body when DOM is ready
+          if (document.body) {
+            document.body.appendChild(overlay);
+          } else {
+            window.addEventListener('DOMContentLoaded', function() {
+              document.body.appendChild(overlay);
+            });
+          }
+        }
+      }
+      
+      // Check if the warning has been acknowledged already
+      function hasAcknowledgedWarning() {
+        return document.cookie.split('; ').some(cookie => cookie.startsWith('ignore_screen_warning=true'));
+      }
+
+      // Run screen size check when page loads and on resize
+      window.addEventListener('load', function() {
+        if (!hasAcknowledgedWarning()) {
+          checkScreenSize();
+        }
+      });
+      
+      window.addEventListener('resize', function() {
+        // Only show warning if it's not been acknowledged
+        if (!hasAcknowledgedWarning()) {
+          // Remove existing warning if present
+          const existingWarning = document.getElementById('screen-size-warning');
+          if (existingWarning) {
+            document.body.removeChild(existingWarning);
+          }
+          checkScreenSize();
+        }
+      });
+    </script>
+
     <!-- Local Montserrat font, with Google Fonts as fallback -->
     <link rel="stylesheet" href="vendor/css/montserrat.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">

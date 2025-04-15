@@ -9,6 +9,12 @@ let initialLoadComplete = false; // Flag to track initial load
 // OpenAI API token verification
 let verified = null;
 
+// For iOS audio buffering
+let iosAudioBuffer = [];
+let isIOSAudioPlaying = false;
+let iosAudioQueue = [];
+let iosAudioElement = null;
+
 // message is submitted upon pressing enter
 const message = $("#message")[0];
 
@@ -139,7 +145,8 @@ let autoScroll = true;
 /* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
-const defaultApp = DEFAULT_APP;
+// Make defaultApp globally available
+window.defaultApp = DEFAULT_APP;
 
 function isElementInViewport(element) {
   // Convert the jQuery element to a native DOM element
@@ -447,6 +454,38 @@ function applyAbc(element) {
   })
 }
 
+// Media Source Extensions support detection
+const hasMediaSourceSupport = typeof MediaSource !== 'undefined';
+
+// Audio Context API support detection (broader compatibility than MediaSource)
+const hasAudioContextSupport = typeof (window.AudioContext || window.webkitAudioContext) !== 'undefined';
+
+// iOS detection
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isIPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isMobileIOS = isIOS && !isIPad;
+
+// Additional useful browser detection
+const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent);
+const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+const isFirefox = /Firefox/.test(navigator.userAgent);
+
+// Log platform detection for debugging
+console.log(`[Browser] Detection - MediaSource: ${hasMediaSourceSupport}, AudioContext: ${hasAudioContextSupport}, iOS: ${isIOS}, iPad: ${isIPad}, Mobile iOS: ${isMobileIOS}, Chrome: ${isChrome}, Safari: ${isSafari}, Firefox: ${isFirefox}`);
+
+// Create an AudioContext for iOS fallback if MediaSource isn't available but AudioContext is
+let audioContext = null;
+if (!hasMediaSourceSupport && hasAudioContextSupport && isIOS) {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContextClass();
+    console.log("[Audio] Created AudioContext for iOS fallback");
+  } catch (e) {
+    console.error("[Audio] Failed to create AudioContext:", e);
+  }
+}
+
+// Initialize mediaSource only if supported
 let mediaSource = null;
 let audio = null;
 let sourceBuffer = null;
@@ -468,7 +507,246 @@ function clearAudioQueue() {
   audioDataQueue = [];
 }
 
+// Direct audio playback for iOS devices or browsers without MediaSource support
+function playAudioDirectly(audioData) {
+  try {
+    // For iOS devices, use the specialized iOS playback method
+    if (isIOS) {
+      playWithAudioElement(audioData);
+      return;
+    }
+    
+    // For other platforms with AudioContext support
+    if (audioContext && hasAudioContextSupport) {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      
+      // Make sure we're working with a Uint8Array
+      const uint8Data = (audioData instanceof Uint8Array) ? audioData : new Uint8Array(audioData);
+      
+      // Create ArrayBuffer from the data
+      const arrayBuffer = uint8Data.buffer.slice(uint8Data.byteOffset, uint8Data.byteOffset + uint8Data.byteLength);
+      
+      // Decode and play the audio
+      audioContext.decodeAudioData(arrayBuffer)
+        .then(buffer => {
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioContext.destination);
+          source.start(0);
+        })
+        .catch(() => {
+          // Fall back to Audio element on decoding error
+          playWithAudioElement(audioData);
+        });
+        
+      // Timeout failsafe
+      setTimeout(() => {
+        if (audioContext.state === 'running') {
+          playWithAudioElement(audioData);
+        }
+      }, 3000); 
+    } else {
+      // No AudioContext support, use basic Audio element
+      playWithAudioElement(audioData);
+    }
+  } catch (e) {
+    // Final fallback
+    playWithAudioElement(audioData);
+  }
+}
+
+// Helper function for audio element playback (fallback method)
+function playWithAudioElement(audioData) {
+  // For iOS Safari, use a different approach
+  if (isIOS) {
+    playAudioForIOS(audioData);
+    return;
+  }
+  
+  // For other browsers, use standard Audio API
+  try {
+    // Create a Blob from the audio data
+    const mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'];
+    let blob = null;
+    
+    // Try mime types until one works
+    for (const mimeType of mimeTypes) {
+      try {
+        blob = new Blob([audioData], { type: mimeType });
+        break;
+      } catch (e) {
+        // Continue to next mime type
+      }
+    }
+    
+    // Default fallback
+    if (!blob) {
+      blob = new Blob([audioData], { type: 'audio/mpeg' });
+    }
+    
+    const audioUrl = URL.createObjectURL(blob);
+    const audioElement = new Audio();
+    
+    // Clean up when finished
+    audioElement.onended = function() {
+      URL.revokeObjectURL(audioUrl);
+    };
+    
+    audioElement.onerror = function() {
+      URL.revokeObjectURL(audioUrl);
+    };
+    
+    // Play audio
+    audioElement.src = audioUrl;
+    audioElement.play().catch(() => {
+      URL.revokeObjectURL(audioUrl);
+    });
+  } catch (e) {
+    // Silent fail - no further fallback needed
+  }
+}
+
+// Special function for iOS audio playback with buffering
+function playAudioForIOS(audioData) {
+  try {
+    // Add current chunk to our global buffer
+    iosAudioBuffer.push(audioData);
+    
+    // Don't start playback if we're already playing
+    if (isIOSAudioPlaying) {
+      return;
+    }
+    
+    // Process the buffer
+    processIOSAudioBuffer();
+  } catch (e) {
+    // Silent error handling
+  }
+}
+
+// Process the iOS audio buffer to play chunks in sequence
+function processIOSAudioBuffer() {
+  // If no data in buffer, we're done
+  if (iosAudioBuffer.length === 0) {
+    isIOSAudioPlaying = false;
+    return;
+  }
+  
+  // Set playing flag
+  isIOSAudioPlaying = true;
+  
+  try {
+    // Combine all buffered chunks into a single Uint8Array
+    let totalLength = 0;
+    iosAudioBuffer.forEach(chunk => totalLength += chunk.length);
+    
+    const combinedData = new Uint8Array(totalLength);
+    let offset = 0;
+    
+    iosAudioBuffer.forEach(chunk => {
+      combinedData.set(chunk, offset);
+      offset += chunk.length;
+    });
+    
+    // Clear buffer now that we've combined the data
+    iosAudioBuffer = [];
+    
+    // Create blob with audio data
+    const mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/mp4'];
+    let blob = null;
+    
+    // Try each MIME type
+    for (const type of mimeTypes) {
+      try {
+        blob = new Blob([combinedData], { type });
+        break;
+      } catch (e) {
+        // Try next type
+      }
+    }
+    
+    // Fallback if needed
+    if (!blob) {
+      blob = new Blob([combinedData], { type: 'audio/mpeg' });
+    }
+    
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // Create or reuse audio element
+    if (!iosAudioElement) {
+      iosAudioElement = new Audio();
+      
+      // Set up handlers
+      iosAudioElement.onended = function() {
+        isIOSAudioPlaying = false;
+        
+        // Process any new chunks that arrived during playback
+        if (iosAudioBuffer.length > 0) {
+          setTimeout(processIOSAudioBuffer, 100);
+        }
+        
+        // Clean up URL
+        if (iosAudioElement.src) {
+          URL.revokeObjectURL(iosAudioElement.src);
+        }
+      };
+      
+      iosAudioElement.onerror = function() {
+        isIOSAudioPlaying = false;
+        
+        // Clean up URL
+        if (iosAudioElement.src) {
+          URL.revokeObjectURL(iosAudioElement.src);
+        }
+        
+        // Check if we have more chunks to try
+        if (iosAudioBuffer.length > 0) {
+          setTimeout(processIOSAudioBuffer, 100);
+        }
+      };
+    } else if (iosAudioElement.src) {
+      // Clean up previous URL if needed
+      URL.revokeObjectURL(iosAudioElement.src);
+    }
+    
+    // Configure for iOS
+    iosAudioElement.controls = false;
+    iosAudioElement.playsinline = true;
+    iosAudioElement.muted = false;
+    iosAudioElement.autoplay = false;  // iOS requires user interaction
+    
+    // Set new source and load
+    iosAudioElement.src = blobUrl;
+    iosAudioElement.load();
+    
+    // Play with error handling
+    iosAudioElement.play()
+      .then(() => {
+        // Playback started successfully
+      })
+      .catch(() => {
+        isIOSAudioPlaying = false;
+        URL.revokeObjectURL(blobUrl);
+      });
+      
+  } catch (e) {
+    isIOSAudioPlaying = false;
+    
+    // Try to process any remaining chunks
+    if (iosAudioBuffer.length > 0) {
+      setTimeout(processIOSAudioBuffer, 100);
+    }
+  }
+}
+
 function processAudioDataQueue() {
+  if (window.basicAudioMode) {
+    // In basic mode (iOS), audio is handled differently via playAudioDirectly
+    return;
+  }
+  
   if (!mediaSource || !sourceBuffer) {
     return;
   }
@@ -516,49 +794,93 @@ function connect_websocket(callback) {
     setAlert("<i class='fa-solid fa-bolt'></i> Verifying token", "warning");
     ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
-    if (!mediaSource) {
-      mediaSource = new MediaSource();
-      mediaSource.addEventListener('sourceopen', () => {
+    // Detect browser/device capabilities for audio handling
+    const runningOnFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
+    
+    console.log(`[Device Detection] Details - hasMediaSourceSupport: ${hasMediaSourceSupport}, isIOS: ${isIOS}, isIPad: ${isIPad}, isMobileIOS: ${isMobileIOS}, Firefox: ${runningOnFirefox}`);
+    
+    // Setup media handling based on browser capabilities
+    if (hasMediaSourceSupport && !isMobileIOS) {
+      // Full MediaSource support available (desktop browsers, iPad)
+      if (!mediaSource) {
+        console.log("[MediaSource] Initializing MediaSource for streaming audio");
         try {
-          if (runningOnFirefox) {
-            window.firefoxAudioMode = true;
-            window.firefoxAudioQueue = [];
-            
-            processAudioDataQueue = function() {
-              if (window.firefoxAudioQueue && window.firefoxAudioQueue.length > 0) {
-                const audioData = window.firefoxAudioQueue.shift();
-                try {
-                  const blob = new Blob([audioData], { type: 'audio/mpeg' });
-                  const url = URL.createObjectURL(blob);
-                  
-                  const tempAudio = new Audio(url);
-                  tempAudio.onended = function() {
-                    URL.revokeObjectURL(url);
-                    if (window.firefoxAudioQueue.length > 0) {
-                      processAudioDataQueue();
+          mediaSource = new MediaSource();
+          mediaSource.addEventListener('sourceopen', () => {
+            try {
+              if (runningOnFirefox) {
+                // Firefox needs special handling
+                console.log("[Audio] Setting up Firefox-specific audio mode");
+                window.firefoxAudioMode = true;
+                window.firefoxAudioQueue = [];
+                
+                processAudioDataQueue = function() {
+                  if (window.firefoxAudioQueue && window.firefoxAudioQueue.length > 0) {
+                    const audioData = window.firefoxAudioQueue.shift();
+                    try {
+                      const blob = new Blob([audioData], { type: 'audio/mpeg' });
+                      const url = URL.createObjectURL(blob);
+                      
+                      const tempAudio = new Audio(url);
+                      tempAudio.onended = function() {
+                        URL.revokeObjectURL(url);
+                        if (window.firefoxAudioQueue.length > 0) {
+                          processAudioDataQueue();
+                        }
+                      };
+                      
+                      tempAudio.play().catch(e => console.error("Firefox audio playback error:", e));
+                    } catch (e) {
+                      console.error("Firefox audio processing error:", e);
                     }
-                  };
-                  
-                  tempAudio.play().catch(e => console.error("Firefox audio playback error:", e));
-                } catch (e) {
-                  console.error("Firefox audio processing error:", e);
-                }
+                  }
+                };
+              } else {
+                // Chrome and others work well with mpeg
+                console.log("[Audio] Setting up standard MediaSource audio mode");
+                sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+                sourceBuffer.addEventListener('updateend', processAudioDataQueue);
               }
-            };
-          } else {
-            // Chrome and others work well with mpeg
-            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-            sourceBuffer.addEventListener('updateend', processAudioDataQueue);
-          }
+            } catch (e) {
+              console.error("Error setting up MediaSource: ", e);
+              // Fallback to basic audio mode if MediaSource setup fails
+              console.log("[Audio] MediaSource setup failed, switching to basic audio mode");
+              window.basicAudioMode = true;
+            }
+          });
         } catch (e) {
-          console.error("Error setting up MediaSource: ", e);
+          console.error("Error creating MediaSource: ", e);
+          // Fallback to basic audio mode if MediaSource creation fails
+          console.log("[Audio] MediaSource creation failed, switching to basic audio mode");
+          window.basicAudioMode = true;
         }
-      });
-    }
+      }
 
-    if (!audio) {
-      audio = new Audio();
-      audio.src = URL.createObjectURL(mediaSource);
+      if (!audio && mediaSource) {
+        try {
+          audio = new Audio();
+          audio.src = URL.createObjectURL(mediaSource);
+        } catch (e) {
+          console.error("Error creating audio element: ", e);
+          // Fallback to basic audio mode
+          console.log("[Audio] Audio element creation failed, switching to basic audio mode");
+          window.basicAudioMode = true;
+        }
+      }
+    } else {
+      // No MediaSource support (iOS Safari) - use basic audio mode
+      console.log("[Audio] Using basic audio mode for this device (iOS or no MediaSource support)");
+      window.basicAudioMode = true;
+      
+      // Add a CSS class to body for iOS-specific styling if needed
+      if (isIOS) {
+        $("body").addClass("ios-device");
+        if (isMobileIOS) {
+          $("body").addClass("mobile-ios-device");
+        } else if (isIPad) {
+          $("body").addClass("ipad-device");
+        }
+      }
     }
 
     // Only verify token once
@@ -668,6 +990,9 @@ function connect_websocket(callback) {
               }
               window.firefoxAudioQueue.push(audioData);
               processAudioDataQueue();
+            } else if (window.basicAudioMode) {
+              // Basic mode for iOS and other devices without MediaSource support
+              playAudioDirectly(audioData);
             } else {
               // Regular MediaSource approach for other browsers
               audioDataQueue.push(audioData);
@@ -703,9 +1028,9 @@ function connect_websocket(callback) {
 
             const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
             
-            // Handle Firefox special case
+            // Device/browser specific audio processing
             if (window.firefoxAudioMode) {
-              // Add to the Firefox queue instead
+              // Firefox special case
               if (!window.firefoxAudioQueue) {
                 window.firefoxAudioQueue = [];
               }
@@ -715,8 +1040,11 @@ function connect_websocket(callback) {
               }
               window.firefoxAudioQueue.push(audioData);
               processAudioDataQueue();
+            } else if (window.basicAudioMode) {
+              // iOS and other devices without MediaSource support
+              playAudioDirectly(audioData);
             } else {
-              // Regular MediaSource approach for other browsers
+              // Standard MediaSource approach for modern browsers
               audioDataQueue.push(audioData);
               processAudioDataQueue();
               
@@ -814,8 +1142,12 @@ function connect_websocket(callback) {
           $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
           
           // Update the available AI User providers when token is verified
-          // Always call the function directly from window's scope
-          window.updateAvailableProviders();
+          // Check if the function exists before calling it
+          if (typeof window.updateAvailableProviders === 'function') {
+            window.updateAvailableProviders();
+          } else {
+            console.log("[Providers] updateAvailableProviders function not available yet");
+          }
         }
 
         break;
@@ -992,9 +1324,12 @@ function connect_websocket(callback) {
             ws.send(JSON.stringify({ message: "PDF_TITLES" }));
           }
           
-          // Update the AI User provider dropdown
-          // Always call the function directly from window's scope
-          window.updateAvailableProviders();
+          // Update the AI User provider dropdown if the function is available
+          if (typeof window.updateAvailableProviders === 'function') {
+            window.updateAvailableProviders();
+          } else {
+            console.log("[Providers] updateAvailableProviders function not available yet");
+          }
         }
         originalParams = apps["Chat"];
         resetParams();
@@ -1007,7 +1342,7 @@ function connect_websocket(callback) {
         
         // All providers now support AI User functionality
         
-        const currentApp = apps[$("#apps").val()] || apps[defaultApp];
+        const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
 
         let models = [];
         if (currentApp["models"] && currentApp["models"].length > 0) {
@@ -2074,6 +2409,14 @@ function updateAIUserButtonState(messages) {
   // Button state updated
 }
 
+// Export functions for browser environment
+window.playAudioDirectly = playAudioDirectly;
+window.playWithAudioElement = playWithAudioElement;
+window.playAudioForIOS = playAudioForIOS;
+window.processIOSAudioBuffer = processIOSAudioBuffer;
+window.clearAudioQueue = clearAudioQueue;
+window.addToAudioQueue = addToAudioQueue;
+
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -2082,6 +2425,12 @@ if (typeof module !== 'undefined' && module.exports) {
     handleVisibilityChange,
     startPing,
     stopPing,
-    updateAIUserButtonState
+    updateAIUserButtonState,
+    playAudioDirectly,
+    playWithAudioElement,
+    playAudioForIOS,
+    processIOSAudioBuffer,
+    clearAudioQueue,
+    addToAudioQueue
   };
 }

@@ -1,9 +1,9 @@
 // audio context
 let audioCtx = null;
 let playPromise = null;
+let ttsAudio = null;
 
 function audioInit() {
-  // Simple initialization of audio context
   if (audioCtx === null) {
     audioCtx = new AudioContext();
   }
@@ -20,23 +20,15 @@ function ttsSpeak(text, stream, callback) {
   const speed = parseFloat($("#tts-speed").val());
 
   // Determine mode based on streaming flag
-  let mode = "TTS";
-  if(stream) {
-    mode = "TTS_STREAM";
-  }
-
+  let mode = stream ? "TTS_STREAM" : "TTS";
   let response_format = "mp3";
 
   // Initialize audio
   audioInit();
 
   // Early returns for invalid conditions
-  if (runningOnFirefox) {
+  if (runningOnFirefox || !text) {
     return false;
-  }
-
-  if (!text) {
-    return;
   }
 
   // Prepare voice data for sending
@@ -57,8 +49,24 @@ function ttsSpeak(text, stream, callback) {
   // Send the request to the server
   ws.send(JSON.stringify(voiceData));
 
-  // Start playback
-  audio.play();
+  // Create audio element if it doesn't exist
+  if (!ttsAudio && window.audio) {
+    ttsAudio = window.audio;
+  } else if (!ttsAudio) {
+    ttsAudio = new Audio();
+  }
+  
+  // Start playback (safely)
+  try {
+    if (ttsAudio && ttsAudio.play) {
+      const playPromise = ttsAudio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    }
+  } catch (e) {
+    // Silently handle errors
+  }
   
   // Call the callback if provided
   if (typeof callback === 'function') {
@@ -67,36 +75,63 @@ function ttsSpeak(text, stream, callback) {
 }
 
 function ttsStop() {
-  if (audio) {
-    audio.pause();
-    audio.src = "";
-  }
-  audio = new Audio();
-
-  audioDataQueue = [];
-
-  if (sourceBuffer) {
-    sourceBuffer.removeEventListener('updateend', processAudioDataQueue);
-    sourceBuffer = null;
-  }
-
-  if (mediaSource) {
-    mediaSource = null;
-  }
-
-  mediaSource = new MediaSource();
-  mediaSource.addEventListener('sourceopen', () => {
-    // Though TTS on FireFox is not supported, the following is needed to prevent an error
-    if (runningOnFirefox) {
-      sourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp3"');
-    } else {
-      sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+  // Handle both ttsAudio and window.audio with a single function
+  const stopAudioElement = (audio) => {
+    if (audio) {
+      audio.pause();
+      audio.src = "";
+      audio.load();
     }
-    sourceBuffer.addEventListener('updateend', processAudioDataQueue);
-  });
+  };
+  
+  // Stop both audio elements
+  stopAudioElement(ttsAudio);
+  stopAudioElement(window.audio);
 
-  audio.src = URL.createObjectURL(mediaSource);
-  audio.load();
+  // Reset the audio queue if available
+  if (typeof audioDataQueue !== 'undefined') {
+    audioDataQueue = [];
+  }
+
+  // Clean up MediaSource and SourceBuffer
+  try {
+    if (typeof sourceBuffer !== 'undefined' && sourceBuffer) {
+      if (typeof processAudioDataQueue === 'function') {
+        sourceBuffer.removeEventListener('updateend', processAudioDataQueue);
+      }
+      sourceBuffer = null;
+    }
+
+    if (typeof mediaSource !== 'undefined' && mediaSource) {
+      mediaSource = null;
+      
+      // Create a new MediaSource if possible
+      if (typeof MediaSource !== 'undefined') {
+        mediaSource = new MediaSource();
+        mediaSource.addEventListener('sourceopen', () => {
+          try {
+            sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+            if (typeof processAudioDataQueue === 'function') {
+              sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+            }
+          } catch (e) {
+            // Silently handle errors
+          }
+        });
+
+        // Create a new audio element for playback
+        ttsAudio = new Audio();
+        ttsAudio.src = URL.createObjectURL(mediaSource);
+        ttsAudio.load();
+      } else {
+        // For browsers without MediaSource support (like iOS Safari)
+        ttsAudio = new Audio();
+      }
+    }
+  } catch (e) {
+    // Fallback
+    ttsAudio = new Audio();
+  }
 }
 
 // Export functions to window for browser environment

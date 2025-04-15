@@ -166,7 +166,7 @@
       padding: 5px 10px;
       margin-left: 5px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       align-items: center;
       height: 26px;
     }
@@ -307,7 +307,7 @@
           <label for="tts-dict-path">TTS Dictionary File Path</label>
           <div style="display: flex; align-items: flex-start; margin-top: 5px; margin-bottom: 10px;">
             <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px; margin-top: 0; margin-bottom: 0;">
-            <button type="button" id="select-tts-dict" style="background-color: #888; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; height: 29px; font-size: 12px;">Select File</button>
+            <button type="button" id="select-tts-dict" style="background-color: #888; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; height: 29px; font-size: 11px;">Select File</button>
           </div>
         </div>
 
@@ -381,6 +381,9 @@
         
         // Check if mode has changed
         if (distributedMode !== previousMode) {
+          // Signal to main process that mode has changed and we need to clear messages
+          window.electronAPI.clearMessages();
+          
           // Show a custom modal dialog for mode change notification
           const dialogHTML = `
             <div id="modeChangeDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -395,7 +398,7 @@
                 </p>
                 <div style="text-align: right;">
                   <button id="closeDialog" style="background-color: #ffc107; border: none; padding: 6px 12px; 
-                      border-radius: 4px; color: #000; cursor: pointer; font-weight: 500; font-size: 14px;">
+                      border-radius: 4px; color: #000; cursor: pointer; font-weight: 500; font-size: 13px;">
                     OK
                   </button>
                 </div>

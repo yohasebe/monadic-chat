@@ -1593,17 +1593,20 @@ pre code{
 }
 
 
+#voice {
+  background-color: #5bc0de; /* Lighter cyan color */
+  border-color: #46b8da; /* Border color */
+}
+
 #voice:focus {
   outline: none; /* Remove outline */
   box-shadow: none; /* Remove any shadow */
+  background-color: #39b3d7; /* Slightly darker when focused */
+  border-color: #269abc;
 }
 
 #voice i.fas.fa-microphone {
   transition: all 0.2s ease; /* Add transition for smoother changes */
-}
-
-#voice:focus {
-  background-color: #0ba7c5; /* Slightly darker blue when focused */
 }
 
 #voice:focus i.fas.fa-microphone {
@@ -1613,7 +1616,8 @@ pre code{
 
 /* Also change on hover for better UX */
 #voice:hover {
-  background-color: #0ba7c5; /* Slightly darker blue when hovered */
+  background-color: #39b3d7; /* Slightly darker cyan on hover */
+  border-color: #269abc;
 }
 
 #voice:hover i.fas.fa-microphone {

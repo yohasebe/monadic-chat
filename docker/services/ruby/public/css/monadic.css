@@ -367,6 +367,18 @@ h5 i,
   padding-bottom: 16px;
 }
 
+/* Optimize main content area for mobile */
+@media (max-width: 599px) {
+  #main {
+    padding-bottom: 0 !important; /* Remove bottom padding on mobile */
+    margin-bottom: 0 !important;
+  }
+  
+  #main > div:last-child {
+    margin-bottom: 0 !important; /* Remove margin from last child */
+  }
+}
+
 /* Removed iOS spacers, using JavaScript solution instead */
 
 .scrollable {
@@ -379,6 +391,16 @@ h5 i,
   /* Add hardware acceleration to prevent iOS Safari rendering issues */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+}
+
+/* Mobile optimized scrollable areas */
+@media (max-width: 599px) {
+  .scrollable {
+    height: calc(100vh - 54px) !important; /* Full viewport height minus navbar only */
+    padding-bottom: 80px !important; /* Increased padding to ensure more space at bottom */
+    overflow-y: auto !important; /* Use auto instead of scroll to only show scrollbar when needed */
+    margin-bottom: 0 !important; /* Remove margin at the bottom */
+  }
 }
 
 /* Global rule for all viewport sizes */
@@ -1005,7 +1027,7 @@ legend {
 }
 
 .navbar {
-  min-width: 768px;
+  min-width: 600px;
   margin: 0;
   padding: 0;
 }
@@ -1019,9 +1041,9 @@ legend {
   padding: 0;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 599px) {
   .navbar {
-    width: 768px;
+    width: 600px;
   }
   
   .navbar-container {
@@ -1038,6 +1060,462 @@ legend {
 .ios-device #main,
 .ios-device #menu {
   -webkit-overflow-scrolling: touch;
+}
+
+/* Desktop-specific styles */
+@media (min-width: 600px) {
+  /* Reset navbar elements to default styles when in desktop view */
+  .navbar-brand, .navbar-brand > div:first-child, #toggle-menu, #toggle-menu .menu-icon {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    transform: none !important;
+    height: auto !important;
+    width: auto !important;
+    margin: initial !important;
+    padding: initial !important;
+    display: initial !important;
+    align-items: initial !important;
+    justify-content: initial !important;
+  }
+  
+  /* Restore original navbar styling */
+  .navbar-brand > div:first-child {
+    margin-left: 6px !important;
+    margin-top: -10px !important;
+  }
+  
+  /* Restore original toggle menu styling */
+  #toggle-menu {
+    position: fixed !important;
+    right: 20px !important;
+    top: 20px !important;
+    height: 40px !important;
+    width: 40px !important;
+    background-color: #666 !important;
+    opacity: 0.65 !important;
+  }
+}
+
+@media (max-width: 599px) {
+  /* Hide tagline on mobile */
+  #tagline {
+    display: none !important;
+  }
+  
+  /* Reduce font size for labels */
+  label, .form-label, .div-label {
+    font-size: 0.9em;
+  }
+  
+  /* Stack model parameters vertically */
+  #model_parameters .col-3 {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  /* Stack context/tokens controls vertically */
+  form .col-3.ms-2, form .col-5 {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-bottom: 10px;
+  }
+  
+  /* Stack model/reasoning/PDF controls vertically */
+  #model_and_file .col-5, #model_and_file .col-3 {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-bottom: 10px;
+  }
+  
+  /* Session buttons (reset/load/save) should be horizontal on mobile */
+  #control-panel button.btn {
+    display: inline-block;
+    width: auto !important;
+    margin: 5px 10px 5px 0 !important; /* Increased right margin for better spacing */
+    padding: 6px 12px !important; /* Slightly increased padding */
+    font-size: 0.85em !important;
+  }
+  
+  /* Media/content buttons should be horizontal on mobile */
+  #user-panel .row .col-auto {
+    width: 100% !important;
+  }
+  
+  #user-panel .row .col-auto .d-flex {
+    flex-direction: row !important; /* Keep horizontal alignment */
+    flex-wrap: wrap !important; /* Allow wrapping if needed */
+    width: 100%;
+  }
+  
+  #user-panel button#image-file,
+  #user-panel button#doc,
+  #user-panel button#url {
+    width: auto !important;
+    margin: 5px 10px 5px 0 !important;
+    padding: 6px 12px !important;
+    font-size: 0.85em !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Fix #select-role overflow issues */
+  #user-panel .row .col-auto {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  /* Improve role selector layout */
+  #select-role {
+    max-width: 120px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  /* Better alignment for role-specific items */
+  #role-icon {
+    display: inline-flex !important;
+    margin-right: 8px !important;
+  }
+  
+  
+  /* AI User section improvements */
+  .user-color.fw-bold {
+    white-space: nowrap !important;
+    font-size: 0.9em !important;
+  }
+  
+  /* Make AI User section stack properly */
+  #user-panel .d-flex.align-items-center {
+    flex-wrap: wrap !important;
+  }
+  
+  /* Default padding for user panel elements */
+  #user-panel .row .col-auto {
+    padding-left: 15px;
+  }
+  
+  /* Improve AI User selector */
+  #ai_user_provider {
+    max-width: 120px !important;
+    margin-left: 5px !important;
+    font-size: 0.9em !important;
+  }
+  
+  /* Shrink Run button */
+  #ai_user {
+    padding: 4px 8px !important;
+    min-width: 40px !important;
+    font-size: 0.85em !important;
+  }
+  
+  /* Improve speech input controls */
+  #voice-input-row .col-auto {
+    width: 100% !important;
+    margin-bottom: 10px;
+  }
+  
+  /* Keep voice button as auto width */
+  #voice {
+    width: auto !important;
+    margin-right: 10px !important;
+    margin-bottom: 10px !important;
+    padding: 6px 12px !important;
+    font-size: 0.85em !important;
+  }
+  
+  /* Adjust amplitude display to be properly aligned with voice button */
+  #amplitude {
+    width: 150px !important;
+    margin-left: 10px !important;
+    display: none !important; /* Default to hidden, will be shown programmatically */
+    align-items: center !important;
+    height: 28px !important;
+    overflow: hidden !important;
+  }
+  
+  #amplitude-chart {
+    width: 150px !important;
+    height: 28px !important;
+  }
+  
+  /* Fix AI Assistant display */
+  #main #ai-assistant-info {
+    display: none;
+  }
+  
+  /* Hide exchange icon */
+  .text-secondary .fa-exchange-alt {
+    display: none;
+  }
+  
+  /* Improve send/clear button layout and caption */
+  #user-panel .row .col-auto .d-flex {
+    position: relative;
+    flex-direction: row !important; /* Changed to row for horizontal alignment */
+    flex-wrap: wrap !important;
+  }
+  
+  /* Make action buttons consistent and side by side on mobile */
+  #user-panel button#send,
+  #user-panel button#clear,
+  #user-panel button#settings {
+    width: auto !important; /* Auto width to fit content */
+    margin-right: 10px !important; /* Space between buttons */
+    margin-bottom: 5px !important;
+    padding: 6px 12px !important; /* Uniform padding */
+    height: auto !important;
+    min-height: 32px !important; /* Smaller consistent height */
+    flex: 0 0 auto !important; /* Don't grow or shrink */
+    font-size: 0.85em !important; /* Slightly smaller font */
+  }
+  
+  /* Optimize user panel spacing for mobile */
+  #user-panel {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  
+  /* Adjust spacing between voice row and role row */
+  @media (max-width: 599px) {
+    #voice-input-row + .row {
+      margin-top: -0.5rem !important;
+    }
+  }
+  
+  /* Reduce textarea margin for better space usage */
+  #user-panel textarea#message {
+    margin-bottom: 8px !important;
+  }
+  
+  /* Position textbox caption below buttons with consistent alignment */
+  #user-panel .row .col-auto .d-flex .textbox-caption {
+    position: relative;
+    display: block !important;
+    width: 100%;
+    margin-top: 8px !important; 
+    margin-bottom: 8px !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    font-size: 0.85em !important;
+    text-align: left !important;
+    clear: both !important; /* Ensure it appears below the buttons */
+    order: 2 !important; /* Place it after the buttons in flex layout */
+  }
+  
+  /* Default text alignment for caption */
+  #user-panel .textbox-caption span {
+    text-align: left;
+  }
+  
+  /* Card role styling */
+  .card-header .card-title .text-secondary {
+    margin-right: 5px;
+  }
+  
+  .card-header .card-title .fa-face-smile {
+    color: #4CACDC !important;
+    font-size: 1.3em !important;
+  }
+  
+  /* Assistant icon with consistent red color on mobile */
+  .card-header .card-title .fa-robot,
+  #temp-card .card-header .card-title .fa-robot {
+    color: #DC4C64 !important;
+    font-size: 1.3em !important;
+  }
+  
+  .card-header .card-title .fa-bars {
+    color: #22ad50 !important;
+    font-size: 1.3em !important;
+  }
+  
+  /* Hide role text in cards on mobile, show only colored icon */
+  .card-header .card-title .fw-bold,
+  .card-header .card-title .user-color,
+  .card-header .card-title .system-color {
+    display: none !important;
+  }
+  
+  /* Keep assistant color visible but make text hidden */
+  .card-header .card-title .assistant-color {
+    display: none !important;
+  }
+  
+  /* Make AI User selector and button display inline */
+  #select-role, #ai_user_provider, #ai_user {
+    display: inline-block;
+    width: auto;
+  }
+  
+  /* Completely rewrite mobile navbar for reliable positioning */
+  #main-nav {
+    height: 52px !important; /* Further reduced height to save screen space */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1030 !important;
+    background-color: #F8F8F8 !important;
+    border-top: 1px solid #555 !important; /* Slightly darker border */
+    border-bottom: 1px solid #555 !important; /* Slightly darker border */
+  }
+  
+  /* Simplify container to avoid positioning conflicts */
+  #main-nav .container-fluid {
+    height: 100% !important;
+    padding: 0 !important;
+    display: block !important;
+    position: relative !important;
+  }
+  
+  /* Left-aligned logo for mobile */
+  .navbar-brand {
+    position: fixed !important; /* Fixed position to prevent movement */
+    top: 0 !important; /* Top of navbar */
+    left: 15px !important; /* Left margin */
+    height: 53px !important; /* Reduced height to align with toggle menu */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important; /* Left align */
+    padding: 0 !important;
+    z-index: 1031 !important;
+    margin: 0 !important;
+    width: auto !important;
+    /* DO NOT use transforms as they can cause positioning issues */
+  }
+  
+  /* Adjust navbar logo size and display */
+  .navbar-brand div {
+    display: flex !important;
+    align-items: center !important;
+  }
+  
+  .navbar-brand img {
+    width: 1.6em !important; /* Slightly smaller logo */
+    height: auto !important;
+    margin: 0 !important;
+    margin-right: 8px !important; /* Add spacing between logo and text */
+    position: relative !important;
+    top: -1px !important; /* Slight adjustment to center vertically */
+  }
+  
+  .navbar-brand span {
+    font-size: 1.1em !important; /* Slightly smaller text */
+    position: relative !important;
+    top: -1px !important; /* Slight adjustment to center vertically */
+  }
+  
+  /* Fixed positioning for toggle menu button - MOBILE ONLY */
+  @media (max-width: 767px) {
+    #toggle-menu {
+      position: fixed !important;
+      top: 11px !important; /* Slightly higher position to balance with navbar */
+      right: 10px !important;
+      height: 28px !important; /* Even slightly smaller size to match adjusted logo */
+      width: 28px !important; /* Square dimensions for balance */
+      z-index: 1200 !important;
+      margin: 0 !important;
+      padding: 5px !important; /* Adjusted padding for better icon centering */
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transform: none !important;
+      border-radius: 4px !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important; /* Add subtle shadow */
+      background-color: #555 !important; /* Darker color for better contrast */
+    }
+    
+    /* Additional lock to prevent toggle menu movement */
+    body.menu-visible #toggle-menu,
+    body:not(.menu-visible) #toggle-menu {
+      top: 11px !important; /* Keep consistent position with main rule */
+    }
+    
+    /* Maintain toggle-menu appearance */
+    #toggle-menu.menu-hidden {
+      background-color: #555 !important; /* Darker background for better contrast */
+    }
+    
+    #toggle-menu:not(.menu-hidden) {
+      background-color: #666 !important; /* Darker background for better contrast */
+    }
+    
+    #toggle-menu .menu-icon {
+      font-size: 0.8em !important; /* Properly sized icon for smaller button */
+      color: #ffc107 !important; /* Make the icon color more visible */
+      line-height: 1 !important; /* Ensure proper vertical centering */
+    }
+  }
+  
+  /* Adjust main content position to match reduced navbar height */
+  #contents {
+    margin-top: 52px !important; /* Match navbar height */
+    padding-top: 0 !important; /* Remove top padding completely */
+    padding-bottom: 0 !important; /* Remove bottom padding on mobile */
+    height: calc(100vh - 52px) !important; /* Full viewport height minus navbar */
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  
+  /* Maximize screen space usage on mobile */
+  #main-panel {
+    margin-bottom: 0 !important;
+    padding-bottom: 5px !important; /* Minimal padding at bottom */
+  }
+  
+  /* Optimize panel spacing on mobile */
+  #monadic-info-panel, #control-panel, #api-token-panel, #tts-panel, #pdf-panel {
+    margin-bottom: 0.6rem !important; /* Further reduce space between panels */
+    padding-top: 0.6rem !important; /* Less padding to reduce overall spacing */
+    padding-bottom: 0.6rem !important;
+  }
+  
+  /* Reduce space between heading elements in panels */
+  #menu h5 {
+    margin-top: 0.3em !important;
+    margin-bottom: 0.3em !important;
+  }
+  
+  /* Properly separate main and menu containers */
+  body.menu-visible {
+    overflow: hidden !important; /* Prevents scrolling to see main content */
+  }
+  
+  /* Make menu take full screen when visible */
+  body.menu-visible #menu {
+    display: block !important;
+    height: calc(100vh - 54px) !important; /* Full height minus navbar */
+    overflow-y: auto !important;
+  }
+  
+  /* Hide main content completely when menu is shown */
+  body.menu-visible #main {
+    display: none !important;
+  }
+  
+  /* Ensure menu is hidden initially */
+  #menu {
+    display: none;
+  }
+  
+  /* Enlarge card button icons for better touch targets */
+  .card-header .func-copy i,
+  .card-header .func-play i,
+  .card-header .func-stop i,
+  .card-header .func-delete i,
+  .card-header .func-edit i {
+    font-size: 1.2em !important;
+  }
+  
+  .card-header .me-3 {
+    margin-right: 1rem !important;
+  }
+  
+  /* Add padding to card header for easier tapping */
+  .card-header {
+    padding: 10px 12px !important;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -1167,6 +1645,20 @@ pre code {
 
 #config, #main-panel, #monadic-info-panel, #api-token-panel, #control-panel, #tts-panel {
   border: 1px solid #666;
+}
+
+/* Optimize config and main-panel spacing on mobile */
+@media (max-width: 767px) {
+  #config, #main-panel {
+    padding: 0.6rem !important; /* Reduced padding for more content space */
+    margin-bottom: 0.6rem !important; /* Reduced margin for better vertical spacing */
+  }
+  
+  /* Adjust heading spacing in main panels */
+  #config h5, #main-panel h5 {
+    margin-top: 0.2em !important; /* Minimum margin to keep things tight */
+    margin-bottom: 0.4em !important;
+  }
 }
 
 ul, ol {

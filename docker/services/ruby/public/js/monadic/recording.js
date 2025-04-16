@@ -36,11 +36,20 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
     const chartCanvas = document.querySelector("#amplitude-chart");
 
     const chartContext = chartCanvas.getContext("2d");
+    
+    // Make sure canvas is properly sized for the container
+    chartCanvas.width = Math.min(300, chartCanvas.clientWidth * 2); // Handle high DPI displays
+    chartCanvas.height = 56; // Fixed height with doubled pixels for high DPI
+    
+    // Get dimensions after resize
     const chartWidth = chartCanvas.width;
     const chartHeight = chartCanvas.height;
     const barSpacing = 4;
     const barWidth = (chartWidth - (bufferLength - 1) * barSpacing) / bufferLength;
+    
+    // Clear the canvas completely
     chartContext.clearRect(0, 0, chartWidth, chartHeight);
+    
     for (let i = 0; i < bufferLength; i++) {
       const barHeight = dataArray[i] / 255 * chartHeight / 2;
       const x = i * (barWidth + barSpacing);
@@ -120,7 +129,8 @@ voiceButton.on("click", function () {
     $("#message").attr("placeholder", "Listening to your voice input...");
     
     $("#asr-p-value").text("").hide();
-    $("#amplitude").show();
+    // Show amplitude chart when voice recording starts
+    $("#amplitude").show().css("display", "inline-flex"); // Ensure proper display mode
     silenceDetected = false;
     voiceButton.toggleClass("btn-info btn-danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Stop');
@@ -193,6 +203,8 @@ voiceButton.on("click", function () {
     $("#send, #clear, #voice").prop("disabled", true);
     // Update spinner to show processing state
     $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Processing speech...');
+    // Hide amplitude display immediately when processing starts
+    $("#amplitude").hide();
     isListening = false;
 
     if(mediaRecorder){
@@ -283,8 +295,9 @@ voiceButton.on("click", function () {
     $("#send, #clear").prop("disabled", false);
     isListening = false;
     
-    // Hide spinner when silence is detected
+    // Hide spinner and amplitude chart when silence is detected
     $("#monadic-spinner").hide();
+    $("#amplitude").hide();
 
     mediaRecorder.stop();
     localStream.getTracks().forEach(track => track.stop());

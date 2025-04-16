@@ -29,13 +29,19 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   // add "?dummy=TIMESTAMP" to the end of the URL to prevent the browser from caching the image
   replaced_html = replaced_html.replace(/<img src="([^"]+)"/g, '<img src="$1?dummy=' + Date.now() + '"');
 
-  let className;
+  let className, roleIcon, roleIconColor;
   if (role === "user") {
     className = "role-user";
+    roleIcon = "fa-face-smile";
+    roleIconColor = "#4CACDC"; // User color
   } else if (role === "assistant") {
     className = "role-assistant";
+    roleIcon = "fa-robot";
+    roleIconColor = "#DC4C64"; // Assistant color
   } else {
     className = "role-system";
+    roleIcon = "fa-bars";
+    roleIconColor = "#22ad50"; // System color
   }
 
   let image_data = "";
@@ -54,11 +60,16 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
     }).join("");
   }
 
+  // Update badge with colored icon (mobile-friendly)
+  const enhancedBadge = badge.replace(/class=['"]text-secondary['"]/g, `class="text-secondary"`);
+  const enhancedBadge2 = enhancedBadge.replace(/<i class=['"]fas (fa-face-smile|fa-robot|fa-bars)['"]><\/i>/g, 
+    `<i class="fas ${roleIcon}" style="color: ${roleIconColor};"></i>`);
+
   // Create the card element with the mid attribute
   const card = $(`
     <div class="card mt-3" id="${mid}"> 
     <div class="card-header p-2 ps-3 d-flex justify-content-between">
-    <div class="fs-5 card-title mb-0">${badge}</div>
+    <div class="fs-5 card-title mb-0">${enhancedBadge2}</div>
     ${(!runningOnChrome && !runningOnEdge && !runningOnSafari) ? `
         <div class="me-1 text-secondary d-flex align-items-center">
         <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>

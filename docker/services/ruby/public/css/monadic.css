@@ -368,7 +368,7 @@ h5 i,
 }
 
 /* Optimize main content area for mobile */
-@media (max-width: 599px) {
+@media (max-width: 767px) {
   #main {
     padding-bottom: 0 !important; /* Remove bottom padding on mobile */
     margin-bottom: 0 !important;
@@ -394,7 +394,7 @@ h5 i,
 }
 
 /* Mobile optimized scrollable areas */
-@media (max-width: 599px) {
+@media (max-width: 767px) {
   .scrollable {
     height: calc(100vh - 54px) !important; /* Full viewport height minus navbar only */
     padding-bottom: 80px !important; /* Increased padding to ensure more space at bottom */
@@ -1027,7 +1027,7 @@ legend {
 }
 
 .navbar {
-  min-width: 600px;
+  min-width: 720px; /* Updated to match new mobile breakpoint */
   margin: 0;
   padding: 0;
 }
@@ -1041,9 +1041,9 @@ legend {
   padding: 0;
 }
 
-@media (max-width: 599px) {
+@media (max-width: 767px) {
   .navbar {
-    width: 600px;
+    width: 720px;
   }
   
   .navbar-container {
@@ -1063,7 +1063,7 @@ legend {
 }
 
 /* Desktop-specific styles */
-@media (min-width: 600px) {
+@media (min-width: 768px) {
   /* Reset navbar elements to default styles when in desktop view */
   .navbar-brand, .navbar-brand > div:first-child, #toggle-menu, #toggle-menu .menu-icon {
     position: static !important;
@@ -1098,7 +1098,7 @@ legend {
   }
 }
 
-@media (max-width: 599px) {
+@media (max-width: 767px) {
   /* Hide tagline on mobile */
   #tagline {
     display: none !important;
@@ -1277,7 +1277,7 @@ legend {
   }
   
   /* Adjust spacing between voice row and role row */
-  @media (max-width: 599px) {
+  @media (max-width: 767px) {
     #voice-input-row + .row {
       margin-top: -0.5rem !important;
     }

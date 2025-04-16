@@ -37,7 +37,27 @@ function updateAppSelectIcon(appValue) {
   // Also update the active class in the custom dropdown if it exists
   if ($("#custom-apps-dropdown").length > 0) {
     $(".custom-dropdown-option").removeClass("active");
-    $(`.custom-dropdown-option[data-value="${appValue}"]`).addClass("active");
+    const selectedOption = $(`.custom-dropdown-option[data-value="${appValue}"]`);
+    selectedOption.addClass("active");
+    
+    // Make sure the group containing the selected app is expanded
+    if (selectedOption.length > 0) {
+      const parentGroup = selectedOption.parent(".group-container");
+      if (parentGroup.length > 0) {
+        // Remove collapsed class from the group
+        parentGroup.removeClass("collapsed");
+        // Update the icon
+        const groupId = parentGroup.attr("id");
+        const groupName = groupId.replace("group-", "");
+        // Need to handle potential dashes in the group name for xAI Grok
+        let groupSelector = groupName;
+        if (groupName === "xAI-Grok") {
+          groupSelector = "xAI Grok";
+        }
+        const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
+        groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
+      }
+    }
   }
 }
 

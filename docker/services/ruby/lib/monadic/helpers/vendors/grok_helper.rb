@@ -116,7 +116,7 @@ module GrokHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "grok-2-1212")
+  def send_query(options, model: "grok-3-mini-beta")
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -147,6 +147,13 @@ module GrokHelper
     body["max_tokens"] = options["max_tokens"] if options["max_tokens"]
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
+
+    case options["reasoning_effort"]
+    when "low"
+      body["reasoning_effort"] = "low"
+    when "medium", "high"
+      body["reasoning_effort"] = "high"
+    end
     
     # Handle system message
     if options["system"]
@@ -186,7 +193,7 @@ module GrokHelper
         "content" => options["message"]
       }
     end
-    
+   
     # Set API endpoint
     target_uri = API_ENDPOINT + "/chat/completions"
 
@@ -236,8 +243,8 @@ module GrokHelper
 
     max_tokens = obj["max_tokens"]&.to_i
     temperature = obj["temperature"].to_f
-    presence_penalty = obj["presence_penalty"].to_f
-    frequency_penalty = obj["frequency_penalty"].to_f
+    presence_penalty = obj["presence_penalty"] ? obj["presence_penalty"].to_f : nil
+    frequency_penalty = obj["frequency_penalty"] ? obj["frequency_penalty"].to_f : nil
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil

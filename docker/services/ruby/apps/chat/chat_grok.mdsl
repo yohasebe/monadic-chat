@@ -13,7 +13,7 @@ app "ChatGrok" do
   
   llm do
     provider "xai"
-    model "grok-2-1212"
+    model "grok-3-mini-beta"
   end
   
   display_name "Chat"

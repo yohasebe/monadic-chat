@@ -31,11 +31,9 @@ class ImageGeneratorGeminiApp < MonadicApp
       
       4. For successful generations, ALWAYS use EXACTLY this template to display the result (replace only the variable parts inside curly braces):
          
-         <div>
-           <p class="prompt">
-             <b>Prompt</b>: {original_prompt}
-           </p>
-         </div>
+        <div class="prompt">
+          <b>Prompt</b>: {original_prompt}
+        </div>
          <div class="generated_image">
            <img src="/data/{filename}">
          </div>

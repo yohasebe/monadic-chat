@@ -190,6 +190,16 @@
         height: 30px; /* Increased height for better clickability */
       }
       
+      /* Group container styling */
+      .group-container {
+        overflow: hidden;
+        transition: max-height 0.3s ease-in-out;
+      }
+      
+      .group-container.collapsed {
+        max-height: 0;
+      }
+      
       .custom-dropdown-option:hover {
         background-color: #f8f9fa;
       }
@@ -205,8 +215,16 @@
         background-color: #f2f2f2;
         border-bottom: 1px solid #ddd;
         color: #666;
-        pointer-events: none;
+        cursor: pointer;
         font-size: 0.85em;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .custom-dropdown-group .group-toggle-icon {
+        font-size: 0.8em;
+        color: #777;
       }
       
       .custom-dropdown-option i {

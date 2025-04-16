@@ -17,7 +17,7 @@ app "CodingAssistantGrok" do
   
   llm do
     provider "xai"
-    model "grok-2-1212"
+    model "grok-3-beta"
     temperature 0.0
   end
   

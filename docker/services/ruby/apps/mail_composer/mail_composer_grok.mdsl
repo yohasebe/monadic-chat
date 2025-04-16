@@ -28,7 +28,7 @@ app "MailComposerGrok" do
   
   llm do
     provider "xai"
-    model "grok-2-1212"
+    model "grok-3-mini-beta"
     temperature 0.3
   end
   

@@ -661,6 +661,34 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
   },
   // xAI models
+  "grok-3-beta": {
+    "context_window" : [1, 131072],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"]
+  },
+  "grok-3-mini-beta": {
+    "context_window" : [1, 131072],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"]
+  },
+  "grok-3-fast-beta": {
+    "context_window" : [1, 131072],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"]
+  },
+  "grok-3-mini-fast-beta": {
+    "context_window" : [1, 131072],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"]
+  },
   "grok-2-vision-1212": {
     "context_window" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],

@@ -24,7 +24,7 @@
 | Translate | ✅ | | | | | | | |
 | Voice Interpreter | ✅ | | | | | | | |
 | Novel Writer | ✅ | | | | | | | |
-| Image Generator | ✅ | | | | ✅ | | | |
+| Image Generator | ✅ | | | | ✅ | ✅ | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | | ✅ | | | | | | |
@@ -181,6 +181,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 - OpenAI（DALL-E 3を使用）
 - Google Gemini（Imagenを使用）
+- xAI Grok
 
 ### Mail Composer
 

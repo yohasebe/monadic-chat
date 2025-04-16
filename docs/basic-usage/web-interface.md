@@ -2,6 +2,8 @@
 
 ![](../assets/images/monadic-chat-web.png ':size=700')
 
+In addition to using web browsers in desktop environments, Monadic Chat also offers a server mode that allows access from web browsers on various devices including laptops, tablets, and smartphones. When running in server mode, the web UI is responsive and adapts to different screen sizes, making it usable even on small smartphone screens (though some features like Jupyter functionality are not available). The responsive design automatically switches to a mobile-optimized layout for screen widths of 767px or less.
+
 ## System Settings Screen
 
 ![](../assets/images/chat-settings.png ':size=700')

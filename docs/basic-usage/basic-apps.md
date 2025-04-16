@@ -24,7 +24,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Translate | ✅ | | | | | | | |
 | Voice Interpreter | ✅ | | | | | | | |
 | Novel Writer | ✅ | | | | | | | |
-| Image Generator | ✅ | | | | ✅ | | | |
+| Image Generator | ✅ | | | | ✅ | ✅ | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | | ✅ | | | | | | |
@@ -182,6 +182,7 @@ Image Generator apps are also available for the following models:
 
 - OpenAI (using DALL-E 3)
 - Google Gemini (using Imagen)
+- xAI Grok
 
 ### Mail Composer
 

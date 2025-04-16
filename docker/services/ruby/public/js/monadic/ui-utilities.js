@@ -140,9 +140,9 @@ function adjustImageUploadButton(selectedModel) {
     const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
     
     if (isPdfEnabled) {
-      imageFileElement.html('<i class="fas fa-file"></i> Use Image/PDF');
+      imageFileElement.html('<i class="fas fa-file"></i> Image/PDF');
     } else {
-      imageFileElement.html('<i class="fas fa-image"></i> Use Image');
+      imageFileElement.html('<i class="fas fa-image"></i> Image');
     }
     
     if (imageFileElement.show) {

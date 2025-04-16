@@ -83,8 +83,8 @@
   - Perplexity models supported
   - Start-up time (after build) improved
 - [Dec, 2024] 0.9.30
-  - Extract from URL feature added
-  - Extract from file feature added (pdf, docx, pptx, xlsx, etc.)
+  - "From URL" feature added
+  - "From file" feature added (pdf, docx, pptx, xlsx, etc.)
   - xAI Grok models supported
   - Cohere API update to v2
   - Markdown rendering improved

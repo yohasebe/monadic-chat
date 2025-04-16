@@ -204,9 +204,9 @@ function adjustImageUploadButtonFallback(selectedModel) {
     const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
     
     if (isPdfEnabled) {
-      imageFileElement.html('<i class="fas fa-file"></i> Use Image/PDF');
+      imageFileElement.html('<i class="fas fa-file"></i> Image/PDF');
     } else {
-      imageFileElement.html('<i class="fas fa-image"></i> Use Image');
+      imageFileElement.html('<i class="fas fa-image"></i> Image');
     }
     
     if (imageFileElement.show) {
@@ -568,7 +568,7 @@ $(function () {
         }
       }
       // Update the badge in the AI User section with provider name and model
-      $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant:</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
+      $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
       
       // Update model-selected text to follow the new multiline format
       if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
@@ -1082,7 +1082,7 @@ $(function () {
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
-    $("#start").focus();
+    $("#apps").focus();
   }
 
   $("#websearch").on("change", function () {
@@ -1123,36 +1123,322 @@ $(function () {
     }
   });
 
-  $("#toggle-menu").on("click", function () {
+  // Initialize page state based on screen width when document is ready
+  $(document).ready(function() {
+    // On mobile, initialize with menu hidden on first load
+    if ($(window).width() < 600) {
+      // Set proper classes and hide menu
+      $("#toggle-menu").addClass("menu-hidden");
+      $("#menu").hide();
+      $("#main").show();
+      
+      // Remove any classes that might interfere
+      $("body").removeClass("menu-visible");
+      
+      // Ensure proper column classes
+      $("#main").removeClass("col-md-8").addClass("col-md-12");
+      
+      // Force the toggle button position immediately
+      $("#toggle-menu").css({
+        "position": "fixed",
+        "top": "12px", // Match the value used elsewhere
+        "right": "10px",
+        "height": "30px", // Match the size used elsewhere
+        "width": "30px", // Match the size used elsewhere
+        "padding": "6px", // Match the padding used elsewhere
+        "transform": "none"
+      });
+      
+      // Center the logo and button vertically in navbar
+      centerNavbarElements();
+      
+      // Apply again with a timeout to prevent movement
+      setTimeout(function() {
+        $("#toggle-menu").css({
+          "position": "fixed",
+          "top": "12px", // Match the value used elsewhere
+          "right": "10px",
+          "height": "30px", // Match the size used elsewhere
+          "width": "30px", // Match the size used elsewhere
+          "padding": "6px", // Match the padding used elsewhere
+          "transform": "none"
+        });
+      }, 100);
+    }
+  });
+  
+  // Also ensure positions are set on load event
+  $(window).on("load", function() {
+    if ($(window).width() < 600) {
+      // Re-apply toggle button position after full page load
+      $("#toggle-menu").css({
+        "position": "fixed",
+        "top": "12px", // Match the value used elsewhere
+        "right": "10px",
+        "height": "30px", // Match the size used elsewhere
+        "width": "30px", // Match the size used elsewhere
+        "padding": "6px", // Match the padding used elsewhere
+        "transform": "none"
+      });
+      
+      // Call our centering function
+      centerNavbarElements();
+    }
+  });
+  
+  // Function to ensure navbar elements are perfectly centered
+  function centerNavbarElements() {
+    // Only run on mobile
+    if ($(window).width() >= 600) return;
+    
+    // Set logo with fixed positioning left-aligned, aligning with toggle menu button
+    $(".navbar-brand").css({
+      "position": "fixed",
+      "top": "0",
+      "left": "15px",
+      "height": "52px", // Updated to match navbar height
+      "display": "flex",
+      "align-items": "center",
+      "justify-content": "flex-start",
+      "margin": "0",
+      "width": "auto",
+      "transform": "none"
+    });
+    
+    // Completely override the first div inside navbar-brand to precisely control positioning
+    $(".navbar-brand > div:first-child").css({
+      "margin": "0", // Reset all margins
+      "margin-left": "6px", // Maintain the 6px left margin
+      "margin-top": "0", // Remove the negative top margin 
+      "padding-top": "0", // Reset padding
+      "font-weight": "500",
+      "font-family": "'Montserrat', sans-serif",
+      "letter-spacing": "0.12em",
+      "display": "flex",
+      "align-items": "center",
+      "position": "relative",
+      "top": "1px" // Fine-tuned for vertical alignment with toggle button
+    });
+    
+    // Fine tune the image and text elements for perfect vertical alignment
+    $(".navbar-brand img").css({
+      "width": "1.6em", // Slightly smaller logo to match toggle button
+      "vertical-align": "middle",
+      "margin-top": "0",
+      "margin-right": "8px" // More space between icon and text
+    });
+    
+    // Apply consistent vertical alignment to text spans
+    $(".navbar-brand .reset-area").css({
+      "vertical-align": "middle",
+      "position": "relative",
+      "top": "0px"
+    });
+    
+    // Ensure the content inside navbar-brand is aligned
+    $(".navbar-brand div").css({
+      "display": "flex",
+      "align-items": "center"
+    });
+    
+    // Set toggle button to fixed position with exact coordinates - aligned with logo
+    $("#toggle-menu").css({
+      "position": "fixed",
+      "top": "12px", // Carefully positioned to align with logo icon
+      "right": "10px",
+      "transform": "none",
+      "height": "30px", // Size that matches logo properly
+      "width": "30px", // Square dimensions for balance
+      "display": "flex",
+      "align-items": "center",
+      "justify-content": "center",
+      "border-radius": "4px", // Ensure rounded corners
+      "background-color": $("#toggle-menu").hasClass("menu-hidden") ? "#555" : "#666", // Match CSS colors
+      "padding": "6px" // Adjusted padding for icon
+    });
+    
+    // Ensure icon is properly colored and sized
+    $("#toggle-menu .menu-icon").css({
+      "color": "#ffc107",
+      "font-size": "0.8em",
+      "line-height": "1"
+    });
+    
+    // Optimize scrollable areas for mobile
+    optimizeMobileScrolling();
+  }
+  
+  // Function to optimize scrollable areas on mobile devices
+  function optimizeMobileScrolling() {
+    // Only run on mobile
+    if ($(window).width() >= 600) return;
+    
+    // Ensure the main content area takes maximum available space
+    $("#main").css({
+      "padding-bottom": "0",
+      "margin-bottom": "0"
+    });
+    
+    // Optimize scrollable container to use full height
+    $(".scrollable").css({
+      "height": "calc(100vh - 52px)", // Updated to match navbar height
+      "padding-bottom": "80px", // Increased padding to ensure more space at bottom
+      "margin-bottom": "0",
+      "overflow-y": "auto"
+    });
+    
+    // Ensure content container has correct height
+    $("#contents").css({
+      "height": "calc(100vh - 52px)", // Updated to match navbar height
+      "padding-bottom": "0",
+      "padding-top": "0", // Remove top padding completely
+      "box-sizing": "border-box"
+    });
+    
+    // Make user panel more space-efficient
+    $("#user-panel").css({
+      "margin-bottom": "0",
+      "padding-bottom": "0"
+    });
+    
+    // Fix iOS-specific scroll issues
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+      $(".scrollable").css({
+        "-webkit-overflow-scrolling": "touch",
+        "transform": "translateZ(0)",
+        "-webkit-transform": "translateZ(0)"
+      });
+    }
+  }
+
+  // Listen for window resize events
+  $(window).on("resize", function() {
+    const wasMenuVisible = $("#menu").is(":visible");
+    const windowWidth = $(window).width();
+    
+    // Only reposition on mobile
+    if (windowWidth < 600) {
+      centerNavbarElements();
+    } else if (windowWidth >= 600 && !wasMenuVisible) {
+      // We've changed from mobile to desktop view with hidden menu
+      // Restore proper column layout and show menu
+      $("#main").removeClass("col-md-12").addClass("col-md-8");
+      $("#menu").show();
+      $("#toggle-menu").removeClass("menu-hidden");
+    }
+  });
+
+  // Handle toggle-menu button click
+  $("#toggle-menu").on("click", function (e) {
+    // Prevent any default behavior
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if we're on mobile
+    const isMobile = $(window).width() < 600;
+    
+    // If on mobile, ensure the toggle button stays in its fixed position
+    if (isMobile) {
+      $(this).css({
+        "position": "fixed",
+        "top": "12px", // Match the value used elsewhere
+        "right": "10px",
+        "height": "30px", // Match the size used elsewhere
+        "width": "30px", // Match the size used elsewhere
+        "padding": "6px", // Match the padding used elsewhere
+        "transform": "none"
+      });
+    }
+    
     // Toggle menu visibility and icon rotation
     if ($("#menu").is(":visible")) {
       // Menu is visible, will be hidden
       $(this).addClass("menu-hidden"); // Changes icon to point left
-      $("#main").toggleClass("col-md-8", "col-md-12");
-      $("#menu").hide();
-      // Simple background color change
-      $(this).css("background-color", "#666");
+      
+      if (isMobile) {
+        // On mobile: hide menu and show main
+        $("#menu").hide();
+        $("#main").show();
+        $("body").removeClass("menu-visible");
+      } else {
+        // On desktop: normal column behavior
+        $("#main").removeClass("col-md-8").addClass("col-md-12");
+        $("#menu").hide();
+      }
     } else {
       // Menu is hidden, will be shown
       $(this).removeClass("menu-hidden"); // Changes icon to point right
-      $("#main").toggleClass("col-md-8", "col-md-12");
-      // show menu after #main width has been fully adjusted
-      $("body, html").animate({ scrollTop: 0 }, 0);
-      $("#menu").show();
-      // Simple background color change
-      $(this).css("background-color", "#777");
+      
+      if (isMobile) {
+        // On mobile: show menu and hide main completely
+        $("#menu").show();
+        $("#main").hide();
+        $("body").addClass("menu-visible"); 
+      } else {
+        // On desktop: normal column behavior
+        $("#main").removeClass("col-md-12").addClass("col-md-8");
+        $("#menu").show();
+      }
     }
     
-    // Basic scroll position maintenance
+    // Reset scroll position
+    $("body, html").animate({ scrollTop: 0 }, 0);
+    
+    // Basic scroll position maintenance - use a very small timeout
     setTimeout(function() {
+      // Reset scroll positions
       $("#main, #menu").scrollTop(0);
+      
+      // On mobile, force elements to maintain their positions
+      if (isMobile) {
+        // Fix logo position using fixed positioning - left aligned
+        $(".navbar-brand").css({
+          "position": "fixed",
+          "top": "0",
+          "left": "15px",
+          "height": "54px", 
+          "display": "flex",
+          "align-items": "center",
+          "justify-content": "flex-start",
+          "margin": "0",
+          "width": "auto",
+          "transform": "none"
+        });
+        
+        // Ensure the content inside navbar-brand is left aligned
+        $(".navbar-brand div").css({
+          "display": "flex",
+          "align-items": "center"
+        });
+        
+        // Fix toggle button position with exact coordinates
+        $("#toggle-menu").css({
+          "position": "fixed",
+          "top": "12px", // Match the value used elsewhere
+          "right": "10px",
+          "height": "30px", // Match the size used elsewhere
+          "width": "30px", // Match the size used elsewhere
+          "padding": "6px", // Match the padding used elsewhere
+          "transform": "none"
+        });
+      }
+      
+      // Run scrollable area optimization for all mobile devices
+      if ($(window).width() < 768) {
+        optimizeMobileScrolling();
+      }
       
       // iOS Safari specific fix to ensure proper layout after toggle
       if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-        // Force a repaint by temporarily adjusting a CSS property
+        // Force a repaint
         $("#main, #menu").css("transform", "translateZ(0)");
+        
+        // Run optimization again after a short delay for iOS
+        setTimeout(optimizeMobileScrolling, 100);
       }
-    }, 300);
+    }, 10); // Very small timeout
+    
+    return false; // Prevent event bubbling
   })
 
   $("#interaction-check-all").on("click", function () {
@@ -2023,6 +2309,9 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
     
+    // Set focus to the apps dropdown instead of start button
+    $("#apps").focus();
+    
     // Common viewport setup for all devices
     const viewportMeta = document.querySelector('meta[name="viewport"]');
     if (viewportMeta && !viewportMeta.content.includes('viewport-fit=cover')) {
@@ -2032,6 +2321,24 @@ $(function () {
     // Apply only minimum iOS class without special behavior
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
       $("body").addClass("ios-device");
+      
+      // Special handling for iOS to ensure proper scrolling
+      if ($(window).width() < 600) {
+        // Run optimization immediately and after a small delay
+        optimizeMobileScrolling();
+        setTimeout(optimizeMobileScrolling, 500);
+      }
+    }
+    
+    // Always run mobile optimization on page load for small screens
+    if ($(window).width() < 600) {
+      // Initial optimization
+      optimizeMobileScrolling();
+      
+      // Run again after load is complete to ensure proper sizing
+      $(window).on('load', function() {
+        optimizeMobileScrolling();
+      });
     }
     
     // Run customizable select setup before other UI operations

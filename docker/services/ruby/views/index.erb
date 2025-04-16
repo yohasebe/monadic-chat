@@ -12,7 +12,7 @@
       let screenMeetsRequirements = true;
 
       function checkScreenSize() {
-        const minWidth = 768; // Minimum width in pixels
+        const minWidth = 320; // Minimum width in pixels
         const currentWidth = window.innerWidth;
         
         // Set global flag based on screen width
@@ -55,7 +55,7 @@
           
           // Add message
           const message = document.createElement('p');
-          message.innerHTML = 'Monadic Chat requires a minimum screen width of 768 pixels.<br>Please use a desktop computer or tablet for the best experience.';
+          message.innerHTML = 'Monadic Chat requires a minimum screen width of 320 pixels.<br>Please use a device with a larger screen for the best experience.';
           message.style.color = '#666';
           message.style.lineHeight = '1.5';
           message.style.marginBottom = '25px';
@@ -269,14 +269,14 @@
 
         <div id="cancel_query"><i class="fas fa-ban"></i> <span>CANCEL</span></div>
         <button type="button" id="toggle-menu" aria-label="Toggle menu" title="Toggle Menu">
-          <!-- Using Font Awesome icon with rotation to indicate menu state -->
-          <i class="fa-solid fa-arrow-up-from-bracket menu-icon" style="color: #ffc107; font-size: 1.25em;"></i>
+          <!-- Using Font Awesome bars icon for consistent appearance -->
+          <i class="fa-solid fa-bars menu-icon" style="color: #ffc107; font-size: 1.25em;"></i>
         </button>
 
       </div>
     </nav>
     <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 108px; position: relative;">
-      <div class="row g-3 mt-3 my-3">
+      <div class="row g-3 mt-0 my-3">
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 20px;">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-message"></i></span> Monadic Chat Info</h5>
@@ -314,17 +314,19 @@
             <div id="alert-message" class="mt-3 mb-3 text">Not started</div>
             
             <h5><span class="text"><i class="fa-solid fa-robot"></i></span> AI Assistant & User</h5>
+
             <div class="mt-3 text">
               <div class="mb-1">
-                <div><span class="me-2 assistant-color fw-bold">AI Assistant:</span></div>
+                <div><span class="me-2 assistant-color fw-bold">AI Assistant</span></div>
                 <div class="ps-4 text-wrap"><span id="model-selected">Not selected</span></div>
                 <div class="ps-4 text-wrap"><span id="model-non-default" class="fw-semibold" style="display:none;">non-default model</span></div>
               </div>
               <div class="mb-1">
-                <div><span class="me-2 user-color fw-bold">AI User:</span></div>
+                <div><span class="me-2 user-color fw-bold">AI User</span></div>
                 <div class="ps-4 text-wrap"><span id="ai-user-model">Not configured</span></div>
               </div>
             </div>
+
             <div class="mb-2"></div>
             <h5><span class="text"><i class="fas fa-chart-line"></i> Statistics</span></h5>
             <div id="stats-message" class="mt-3 text">No data available</div>
@@ -338,14 +340,16 @@
 
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class=""><span class="text"><i class="fas fa-file"></i> Session</span></h5>
-            <button class="btn btn-sm btn-warning m-2 ms-0" id="reset"><i class="fas fa-stop" ></i> Reset</button>
-            <button class="btn btn-sm btn-warning m-2 ms-0" id="load"><i class="fas fa-file-import"></i> Import</button>
-            <button class="btn btn-sm btn-warning m-2 ms-0" id="save"><i class="fas fa-file-export"></i> Export</button>
+            <div class="d-flex align-items-center flex-wrap">
+              <button class="btn btn-sm btn-warning me-2" id="reset"><i class="fas fa-stop" ></i> Reset</button>
+              <button class="btn btn-sm btn-warning me-2" id="load"><i class="fas fa-file-import"></i> Import</button>
+              <button class="btn btn-sm btn-warning me-2" id="save"><i class="fas fa-file-export"></i> Export</button>
+            </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-1 mb-1"> Press "reset" to clear conversation while keeping the current app selection.</div>
 
             <div id="back-to-settings" style="display: none;">
-            <button class="btn btn-sm btn-warning m-2 ms-0" id="settings"><i class="fas fa-bars"></i> Settings</button>
+            <!-- Settings button moved to main panel -->
             <div class="mt-1 mb-1"> Press "settings" to go back to Chat settings.</div>
             </div>
           </div>
@@ -642,7 +646,7 @@
             <div id="temp-card" class="card mt-3" style="display:none;">
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
                 <div class="fs-5 card-title mb-0">
-                  <span class='text-secondary'><i class='fas fa-bars'></i></span>
+                  <span class='text-secondary'><i class='fas fa-robot'></i></span>
                   <span class='fw-bold assistant-color'>Assistant</span>
                 </div>
                 <div class="me-1 text-secondary d-flex align-items-center">
@@ -664,36 +668,35 @@
                 </div>
               </div>
 
-              <div class="row mt-1 mb-2">
+              <div class="row mt-1 mb-3">
                 <div class="col-auto">
-                  <div class="d-flex align-items-center">
-                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2"><i class="fas fa-image"></i> Use Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" ><i class="fa-solid fa-file-arrow-up"></i> Extract from file</button>
-                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" ><i class="fa-solid fa-globe"></i> Extract from URL</button>
+                  <div class="d-flex align-items-center flex-wrap">
+                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2"><i class="fas fa-image"></i> Image</button>
+                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" ><i class="fa-solid fa-file-arrow-up"></i> From file</button>
+                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" ><i class="fa-solid fa-globe"></i> From URL</button>
                   </div>
                 </div>
               </div>
               
               <!-- Voice input row - will be hidden when voice input is not available -->
-              <div id="voice-input-row" class="row mt-3 align-items-center">
-                <div class="col-auto d-flex align-items-center">
-                  <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1"><i class="fas fa-microphone"></i> Speech Input</button>
-                  <div id="amplitude" style="display: none; margin-left: 10px;">
-                    <canvas id="amplitude-chart" style="width: 150px; height: 28px;" width="300" height="56"></canvas>
+              <div id="voice-input-row" class="row mb-3 align-items-center">
+                <div class="col-auto d-flex align-items-center flex-wrap">
+                  <div class="d-flex align-items-center">
+                    <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1"><i class="fas fa-microphone"></i> Speech Input</button>
+                    <div id="amplitude" style="display: none; margin-left: 10px; height: 28px; overflow: hidden;">
+                      <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
+                    </div>
                   </div>
                   <div id="asr-p-value" class="textbox-caption ms-2"></div>
                 </div>
               </div>
 
-              <div class="row mt-1">
+              <div class="row mb-3">
                 <div class="col-auto d-flex align-items-center">
-                  <label class="form-check-label me-2" for="select-role">Role</label>
-                  &nbsp;
-                  <div style="display: inline-flex; align-items: center; max-width: 100%;">
+                  <label style="width: 40px;" class="form-check-label ps-1 me-1" for="select-role">Role</label>
+                  <div style="width: 40px; display: inline-flex; align-items: center; max-width: 100%;">
                     <span style="font-size: 1.3em; color: #777;" id="role-icon"><i class="fa-solid fa-face-smile"></i></span>
                   </div>
-                  &nbsp;
-                  &nbsp;
                   <select id="select-role" class="form-select form-select-sm me-3">
                     <option value="user">User</option>
                     <option value="sample-user">User (to add to past messages)</option>
@@ -704,9 +707,9 @@
               </div>
 
               <div class="d-flex align-items-center">
-                <span id="ai-assistant-info" data-model="" class="fw-bold"><span style="color: #DC4C64;">AI Assistant:</span> <span style="color: inherit; font-weight: normal;">OpenAI</span></span>
-                <span class="text-secondary mx-1"><i class="fas fa-exchange-alt"></i></span>
-                <span class="user-color fw-bold">AI User:&nbsp;</span>
+                <span id="ai-assistant-info" data-model="" class="fw-bold"><span style="color: #DC4C64;">AI Assistant</span> <span style="color: inherit; font-weight: normal;">OpenAI</span></span>
+                <span class="text-secondary mx-1" style="width: 32px; text-align: center;"><i class="fas fa-exchange-alt"></i></span>
+                <span style="width: 74px;" class="user-color fw-bold">AI User</span>
                 <select id="ai_user_provider" class="form-select form-select-sm me-1" style="width: auto; min-width: 120px;">
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
@@ -725,9 +728,10 @@
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
-                    <div class="d-flex align-items-center me-2 textbox-caption">
-                      <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
-                    </div>
+                    <button id="settings" class="btn btn-sm btn-warning me-2"><i class="fas fa-bars"></i> Settings</button>
+                  </div>
+                  <div class="mt-2 ms-1 textbox-caption">
+                    <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
                   </div>
                 </div>
               </div>
@@ -873,7 +877,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> Extract from file</h5>
+            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> From file</h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -899,7 +903,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> Extract from URL</h5>
+            <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> From URL</h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -1007,51 +1011,6 @@
     <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
     
-    <!-- Fixes for UI stability across browsers -->
-    <style>
-      /* 
-       * Important overrides to ensure consistent visibility across all devices
-       * These take precedence over standard CSS due to being placed last and using !important
-       * The !important flags are necessary to prevent iOS Safari from repositioning the button
-       */
-      #toggle-menu {
-        position: fixed !important;
-        z-index: 1100 !important; /* Match the z-index from main CSS */
-        right: 20px !important;
-        top: 20px !important;
-        opacity: 0.9 !important; /* Higher opacity for better visibility */
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 6px 12px !important;
-        min-width: 40px !important;
-        height: 40px !important;
-        background-color: #666 !important;
-        border-radius: 0.25rem !important;
-        border: 1px solid rgba(0, 0, 0, 0.1) !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-        cursor: pointer !important;
-        transition: background-color 0.3s ease, transform 0.2s ease !important;
-      }
-      
-      #toggle-menu:hover {
-        background-color: #777 !important;
-        transform: scale(1.05) !important;
-      }
-      
-      #toggle-menu:active {
-        transform: scale(0.95) !important;
-      }
-      
-      /* Menu icon rotation - initial state (menu visible) */
-      .menu-icon {
-        transform: rotate(90deg) !important; /* Point right - menu is initially visible */
-      }
-      
-      /* Menu icon rotation when menu is hidden */
-      #toggle-menu.menu-hidden .menu-icon {
-        transform: rotate(-90deg) !important; /* Point left - indicate menu can be shown */
-      }
-    </style>
+    <!-- No inline styles - all styles moved to monadic.css -->
   </body>
 </html>

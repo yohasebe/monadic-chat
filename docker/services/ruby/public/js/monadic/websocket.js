@@ -1229,7 +1229,12 @@ function connect_websocket(callback) {
             // Add OpenAI separator to standard select
             $("#apps").append('<option disabled>──OpenAI──</option>');
             // Add OpenAI separator to custom dropdown
-            $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group">──OpenAI──</div>`);
+            $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="OpenAI">
+              <span>──OpenAI──</span>
+              <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+            </div>`);
+            // Create a container for the OpenAI apps
+            $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
             
             for (const [key, value] of regularApps) {
               apps[key] = value;
@@ -1244,17 +1249,20 @@ function connect_websocket(callback) {
               const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
                 <span style="margin-right: 8px;">${appIcon}</span>
                 <span>${displayText}</span></div>`);
-              $("#custom-apps-dropdown").append($option);
+              $("#group-OpenAI").append($option);
             }
           }
 
           // sort specialApps by group name in the order:
-          // "Anthropic", "Google", "Cohere", "Mistral", "Extra"
+          // "Anthropic", "xAI Grok", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"
           // and set it to the specialApps object
           specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
             const order = ["Anthropic", "xAI Grok", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"];
             return order.indexOf(a[0]) - order.indexOf(b[0]);
           }));
+          
+          // Normalize group names to be HTML-id friendly
+          const normalizeGroupId = (name) => name.replace(/\s+/g, '-');
 
           // Add special groups with their labels
           for (const group of Object.keys(specialApps)) {
@@ -1264,7 +1272,14 @@ function connect_websocket(callback) {
               $("#apps").append(`<option disabled>──${group}──</option>`);
               
               // Add group header to custom dropdown
-              $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group">──${group}──</div>`);
+              $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="${group}">
+                <span>──${group}──</span>
+                <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+              </div>`);
+              
+              // Create container for this group's apps
+              const normalizedGroupId = normalizeGroupId(group);
+              $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
               
               for (const [key, value] of specialApps[group]) {
                 apps[key] = value;
@@ -1279,13 +1294,55 @@ function connect_websocket(callback) {
                 const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
                   <span style="margin-right: 8px;">${appIcon}</span>
                   <span>${displayText}</span></div>`);
-                $("#custom-apps-dropdown").append($option);
+                const normalizedGroupId = normalizeGroupId(group);
+                $(`#group-${normalizedGroupId}`).append($option);
               }
             }
           }
 
+          // Set up group toggle functionality
+          $(".custom-dropdown-group").on("click", function() {
+            const group = $(this).data("group");
+            const normalizedGroupId = normalizeGroupId(group);
+            const container = $(`#group-${normalizedGroupId}`);
+            const icon = $(this).find(".group-toggle-icon i");
+            
+            container.toggleClass("collapsed");
+            
+            if (container.hasClass("collapsed")) {
+              icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
+            } else {
+              icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
+            }
+          });
+          
+          // Find the currently selected app's group and ensure it's expanded
+          const currentApp = $("#apps").val();
+          if (currentApp) {
+            setTimeout(() => {
+              const currentAppOption = $(`.custom-dropdown-option[data-value="${currentApp}"]`);
+              if (currentAppOption.length > 0) {
+                const parentGroup = currentAppOption.parent(".group-container");
+                if (parentGroup.length > 0) {
+                  // Ensure this group is expanded
+                  parentGroup.removeClass("collapsed");
+                  // Update the icon
+                  const groupId = parentGroup.attr("id");
+                  const groupName = groupId.replace("group-", "");
+                  // Need to handle potential dashes in the group name for xAI Grok
+                  let groupSelector = groupName;
+                  if (groupName === "xAI-Grok") {
+                    groupSelector = "xAI Grok";
+                  }
+                  const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
+                  groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
+                }
+              }
+            }, 100);
+          }
+          
           // select the first available (non-disabled) app in the dropdown
-          $("#apps").val($("#apps option:not([disabled]):first").val()).trigger('change')
+          $("#apps").val($("#apps option:not([disabled]):first").val()).trigger('change');
 
           // Use display_name if available, otherwise fall back to app_name
           const displayText = apps[$("#apps").val()]["display_name"] || apps[$("#apps").val()]["app_name"];

@@ -20,7 +20,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 - Google Gemini
 - Mistral AI (Pixtral)
 
-`Attach Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。
+`Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。
 
 ![](../assets/images/monadi-chat-image-attachment.png ':size=400')
 
@@ -30,7 +30,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## PDF のアップロード :id=uploading-pdfs
 
-Anthropic の Sonnet モデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Attach Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
+Anthropic の Sonnet モデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
 
 ![](../assets/images/monadi-chat-pdf-attachment.png ':size=400')
 
@@ -42,13 +42,13 @@ Anthropic の Sonnet モデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル�
 
 ## 文書ファイルからのテキスト読み込み :id=reading-text-from-document-files
 
-`Extract from file` ボタンをクリックすると、文書ファイルを選択するダイアログが表示されます。選択したファイルの内容がテキストエリアに読み込まれます。読み込みが可能なファイル形式はPDF、Wordファイル（`.docx`）、Excelファイル（.`xlsx`）、PowerPointファイル（`.pptx`）、さまざまなテキストファイル（`.txt`, `.md`, `.html`, etc）です。
+`From file` ボタンをクリックすると、文書ファイルを選択するダイアログが表示されます。選択したファイルの内容がテキストエリアに読み込まれます。読み込みが可能なファイル形式はPDF、Wordファイル（`.docx`）、Excelファイル（.`xlsx`）、PowerPointファイル（`.pptx`）、さまざまなテキストファイル（`.txt`, `.md`, `.html`, etc）です。
 
 ![](../assets/images/monadic-chat-extract-from-file.png ':size=400')
 
 ## URL からのテキスト読み込み :id=reading-text-from-urls
 
-`Extract from URL` ボタンをクリックすると、URL を入力するダイアログが表示されます。URL を入力すると、その URL にあるコンテンツが可能な範囲で読み出され、Markdown形式でテキストエリアに読み込まれます。
+`From URL` ボタンをクリックすると、URL を入力するダイアログが表示されます。URL を入力すると、その URL にあるコンテンツが可能な範囲で読み出され、Markdown形式でテキストエリアに読み込まれます。
 
 ![](../assets/images/monadic-chat-extract-from-url.png ':size=400')
 

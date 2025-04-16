@@ -193,6 +193,9 @@ function handleSTTMessage(data) {
       setAlert('<i class="fa-solid fa-circle-check"></i> Voice recognition finished', 'secondary');
     }
     
+    // Make sure amplitude chart is hidden
+    $('#amplitude').hide();
+    
     // Set focus back to input field if function is available
     if (typeof setInputFocus === 'function') {
       setInputFocus();

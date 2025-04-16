@@ -1471,6 +1471,9 @@ function connect_websocket(callback) {
           const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
           $("#message").attr("placeholder", origPlaceholder);
           
+          // Ensure amplitude chart is hidden after processing
+          $("#amplitude").hide();
+          
           if ($("#check-easy-submit").is(":checked")) {
             $("#send").click();
           }

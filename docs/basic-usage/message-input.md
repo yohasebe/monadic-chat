@@ -20,7 +20,7 @@ Uploading images is supported for the following models:
 - Google Gemini
 - Mistral AI (Pixtral)
 
-Click `Attach Image` to select an image to attach to the message.
+Click `Image` to select an image to attach to the message.
 
 ![](../assets/images/monadi-chat-image-attachment.png ':size=400')
 
@@ -30,7 +30,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ## Uploading PDFs
 
-In Anthropic's Sonnet models, OpenAI's gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Attach Image/PDF` to select a PDF file to attach to the message.
+In Anthropic's Sonnet models, OpenAI's gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
 
 ![](../assets/images/monadi-chat-pdf-attachment.png ':size=400')
 
@@ -42,13 +42,13 @@ To continue the conversation about the contents of the PDF in the chat, you need
 
 ## Reading Text from Document Files
 
-Click the `Extract from file` button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
+Click the `From file` button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
 
 ![](../assets/images/monadic-chat-extract-from-file.png ':size=400')
 
 ## Reading Text from URLs
 
-Click the `Extract from URL` button to enter a URL. The content at that URL is loaded into the text area in Markdown format.
+Click the `From URL` button to enter a URL. The content at that URL is loaded into the text area in Markdown format.
 
 ![](../assets/images/monadic-chat-extract-from-url.png ':size=400')
 

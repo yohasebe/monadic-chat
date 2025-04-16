@@ -451,7 +451,7 @@ function loadParams(params, calledFor = "loadParams") {
       }
     }
     // Update the badge in the AI User section
-    $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant:</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
+    $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
   }
   
   stop_apps_trigger = false;
@@ -787,10 +787,10 @@ function adjustImageUploadButton(selectedModel) {
   const imageFileInput = $('#imageFile');
 
   if (isPdfEnabled) {
-    imageFileBtn.html('<i class="fas fa-image"></i> Attach Image/PDF');
+    imageFileBtn.html('<i class="fas fa-image"></i> Image/PDF');
     imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
   } else {
-    imageFileBtn.html('<i class="fas fa-image"></i> Attach Image');
+    imageFileBtn.html('<i class="fas fa-image"></i> Image');
     imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif');
     // Remove any PDF files from images array when switching to non-PDF model
     images = images.filter(img => !img.type.includes('pdf'));

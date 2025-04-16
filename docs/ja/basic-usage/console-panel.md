@@ -142,7 +142,7 @@ Anthropic APIキーを入力してください。このキーはAnthropic Claude
 
 **ELEVENLABS_API_KEY**<br /> ElevenLabs APIキーを入力してください。このキーはElevenLabsの音声モデルを使用するのに必要です。[https://elevenlabs.io/developers]で取得できます。
 
-**TAVILY_API_KEY**<br /> Tavily APIキーを入力してください。このキーは2つの目的で使用されます：1) "Extract from URL" 機能を利用する場合（提供されていない場合はSeleniumが代替手段として使用されます）、2) OpenAI以外の言語モデルプロバイダー（Claude、Gemini、Mistralなど）を使用するアプリでのWeb検索機能に必要です。[https://tavily.com/]で取得できます。
+**TAVILY_API_KEY**<br /> Tavily APIキーを入力してください。このキーは2つの目的で使用されます：1) "From URL" 機能を利用する場合（提供されていない場合はSeleniumが代替手段として使用されます）、2) OpenAI以外の言語モデルプロバイダー（Claude、Gemini、Mistralなど）を使用するアプリでのWeb検索機能に必要です。[https://tavily.com/]で取得できます。
 
 **Syntax Highlighting Theme**<br />
 コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。

@@ -875,7 +875,7 @@ function doResetActions() {
   // Update lastApp to match the current app to prevent app change dialog from appearing
   lastApp = currentApp;
   
-  $("#base-app-title").text(apps[currentApp]["app_name"]);
+  $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
 
   if (apps[currentApp]["monadic"]) {
     $("#monadic-badge").show();

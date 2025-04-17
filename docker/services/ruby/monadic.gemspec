@@ -57,11 +57,12 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pg"
   spec.add_dependency "pgvector"
   spec.add_dependency "pragmatic_segmenter"
+  spec.add_dependency "rack", "~> 2.2"
   spec.add_dependency "rake"
   spec.add_dependency "redcarpet"
   spec.add_dependency 'rexml', '>= 3.3.9'
   spec.add_dependency "rouge"
-  spec.add_dependency "sinatra"
+  spec.add_dependency "sinatra", "~> 3.0"
   spec.add_dependency "thin"
 
   # Uncomment to use RSyntaxTree

@@ -1,7 +1,5 @@
 - [April, 2025] 0.9.84
-  - Server mode (distributed mode) support added
-    - Allows multiple clients to connect to a central server
-    - Automatically adjusts Jupyter notebook URLs to use server's external IP
+  - Server mode (distributed mode) support added: Allows multiple clients
   - Better MathJax rendering
   - Asset inclusion issue fixed
   - Small UI modifications

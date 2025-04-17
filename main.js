@@ -788,7 +788,7 @@ const menuItems = [
     label: 'Restart',
     click: () => {
       openMainWindow();
-      dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Restarting');
+      dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
     },
     enabled: true
   },
@@ -1046,7 +1046,7 @@ function initializeApp() {
             dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
             break;
           case 'restart':
-            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Restarting');
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
             break;
           case 'browser':
             openBrowser('http://localhost:4567');
@@ -1357,7 +1357,7 @@ function updateApplicationMenu() {
           label: 'Restart',
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Restarting');
+            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },

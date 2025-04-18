@@ -115,11 +115,11 @@ Removes all Docker images and containers for Monadic Chat.
 **Quit Monadic Chat** <br />
 Exits the application.
 
-## API Token Settings Panel
-
-![Settings Panel](../assets/images/settings-panel.png ':size=600')
+## Settings Panel
 
 All settings here are saved in the `~/monadic/config/env` file.
+
+![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
 
 **OPENAI_API_KEY** <br />
 (Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Speech-to-Text API, and Text-to-Speech API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
@@ -148,14 +148,7 @@ Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice 
 **TAVILY_API_KEY** <br />
 Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature (if not provided, Selenium will be used as a fallback), and 2) For web search functionality in apps using language model providers other than OpenAI (Claude, Gemini, Mistral, etc.). It can be obtained from [https://tavily.com/].
 
-**Syntax Highlighting Theme** <br />
-Select the theme for code syntax highlighting. The default is `monokai`.
-
-**STT_MODEL** <br />
-Select the model used for speech-to-text. Currently, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` and `whisper-1` are available. The default is `gpt-4o-transcribe`.
-
-**AI_USER_MODEL** <br />
-Select the model used for the AI User feature, which creates messages on behalf of the user. Currently, `o1`, `o1-mini`, `o3-mini`, `gpt-4o` and `gpt-4o-mini` are available. The default is `gpt-4o`.
+![Settings Panel](../assets/images/settings-model.png ':size=600')
 
 **EMBEDDING_MODEL** <br />
 Select the model used for text embedding. Currently, `text-embedding-3-small` and `text-embedding-3-large` are available. The default is `text-embedding-3-small`.
@@ -163,8 +156,28 @@ Select the model used for text embedding. Currently, `text-embedding-3-small` an
 **WEBSEARCH_MODEL** <br />
 Select the model used for web search in apps that use OpenAI models. This setting applies when using OpenAI's native web search feature with your OPENAI_API_KEY. Currently, `gpt-4o-mini-search-preview` and `gpt-4o-search-preview` are available. The default is `gpt-4o-mini-search-preview`.
 
+**AI_USER_MAX_TOKENS** <br />
+Select the maximum number of tokens for the AI user. This setting is used to limit the number of tokens that can be used in a single request. The default is `2000`.
+
+![Settings Panel](../assets/images/settings-display.png ':size=600')
+
+**Syntax Highlighting Theme** <br />
+Select the theme for code syntax highlighting. The default is `pastie`.
+
+![Settings Panel](../assets/images/settings-voice.png ':size=600')
+
+**STT_MODEL** <br />
+Select the model used for speech-to-text. Currently, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` and `whisper-1` are available. The default is `gpt-4o-transcribe`.
+
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.
+
+![Settings Panel](../assets/images/settings-system.png ':size=600')
+
+**Application Mode** <br />
+Select the application mode. "Standalone" mode runs the application for a single device while "Server" mode allows multiple devices in the local network to connect to the Monadic Chat server. The default is "Standalone".
+
+The default is "Standalone".
 
 **Extra Logging** <br />
 Select whether to enable additional logging. When enabled, the chat logs from the start to the end of Monadic Chat are recorded as streaming JSON objects. The log file is saved as `~/monadic/logs/extra.log`.

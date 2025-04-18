@@ -116,51 +116,68 @@ Monadic ChatのすべてのDockerイメージとコンテナを削除します�
 **Quit Monadic Chat** <br />
 アプリケーションを終了します。
 
-## APIトークン設定パネル
+## Settings Panel
 
-![Settings Panel](../assets/images/settings-panel.png ':size=600')
+下記の設定はすべて`~/monadic/config/env`ファイルに保存されます。
 
-ここでの設定はすべて `~/monadic/config/env` ファイルに保存されます。
+![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
 
-**OPENAI_API_KEY**<br />
-OpenAI API キーを入力してください。このキーはChat API、DALL-E 画像生成 API、音声認識 API、音声合成 API などにアクセスするため使用されます。[OpenAI API page](https://platform.openai.com/docs/guides/authentication) で取得できます。
+**OPENAI_API_KEY** <br />
+OpenAI APIキーを入力します。このキーは、Chat API、DALL-E画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
 
-**ANTHROPIC_API_KEY**<br />
-Anthropic APIキーを入力してください。このキーはAnthropic Claude モデルを使用するのに必要です。[https://console.anthropic.com] で取得できます。
+**ANTHROPIC_API_KEY** <br />
+Anthropic APIキーを入力します。APIキーは[https://console.anthropic.com]から取得できます。
 
-**COHERE_API_KEY**<br /> Cohere API キーを入力してください。このキーは、Cohere モデルを使用するのに必要です。[https://dashboard.cohere.com] で取得できます。
+**COHERE_API_KEY** <br />
+Cohere APIキーを入力します。APIキーは[https://dashboard.cohere.com]から取得できます。
 
-**GEMINI_API_KEY**<br /> Google Gemini API キーを入力してください。このキーはGoogle Gemini モデル アプリを使用するのに必要です。[https://ai.google.dev/]で取得できます。
+GEMINI_API_KEY** <br />
+Google Gemini APIキーを入力します。APIキーは[https://ai.google.dev/]から取得できます。
 
-**MISTRAL_API_KEY**<br /> Mistral APIキーを入力してください。このキーはMistral AI モデルを使用するのに必要です。[https://console.mistral.ai/]で取得できます。
+**MISTRAL_API_KEY** <br />
+Mistral APIキーを入力します。APIキーは[https://console.mistral.ai/]から取得できます。
 
-**XAI_API_KEY**<br /> xAI APIキーを入力してください。このキーはxAI Grok モデルを使用するのに必要です。[https://x.ai/api]で取得できます。
+**XAI_API_KEY** <br />
+xAI APIキーを入力します。APIキーは[https://x.ai/api]から取得できます。
 
-**PERPLEXITY_API_KEY**<br /> Perplexity APIキーを入力してください。このキーはPerplexity モデルを使用するのに必要です。[https://perplexity.ai/]で取得できます。
+**DEEPSEEK_API_KEY** <br />
+DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.com/]から取得できます。
 
-**DEEPSEEK_API_KEY**<br /> DeepSeek APIキーを入力してください。このキーはDeepSeek モデルを使用するのに必要です。[https://platform.deepseek.com/]で取得できます。
+**ELEVENLABS_API_KEY** <br />
+ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声モデルを使用するためのものです。APIキーは[https://elevenlabs.io/developers]から取得できます。
 
-**ELEVENLABS_API_KEY**<br /> ElevenLabs APIキーを入力してください。このキーはElevenLabsの音声モデルを使用するのに必要です。[https://elevenlabs.io/developers]で取得できます。
+**TAVILY_API_KEY** <br />
+Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) OpenAI以外の言語モデルプロバイダー（Claude、Gemini、Mistralなど）を使用するアプリでのWeb検索機能。APIキーは[https://tavily.com/]から取得できます。
 
-**TAVILY_API_KEY**<br /> Tavily APIキーを入力してください。このキーは2つの目的で使用されます：1) "From URL" 機能を利用する場合（提供されていない場合はSeleniumが代替手段として使用されます）、2) OpenAI以外の言語モデルプロバイダー（Claude、Gemini、Mistralなど）を使用するアプリでのWeb検索機能に必要です。[https://tavily.com/]で取得できます。
+![Settings Panel](../assets/images/settings-model.png ':size=600')
 
-**Syntax Highlighting Theme**<br />
-コードのシンタックスハイライトのテーマを選択します。デフォルトは `monokai` です。
+**EMBEDDING_MODEL** <br />
+テキスト埋め込みに使用するモデルを選択します。現在、`text-embedding-3-small`と`text-embedding-3-large`が利用可能です。デフォルトは`text-embedding-3-small`です。
 
-**STT_MODEL**<br />
-音声認識に使用するモデルを選択します。現在は `gpt-4o-transcribe`、`gpt-4o-mini-transcribe` と `whisper-1` が利用可能です。デフォルトは `gpt-4o-transcribe` です。
+**WEBSEARCH_MODEL** <br />
+OpenAIモデルを使用するアプリでのWeb検索に使用する検索モデルを選択します。この設定は、OPENAI_API_KEYを使用してOpenAIのネイティブWeb検索機能を使用する場合に適用されます。現在、`gpt-4o-mini-search-preview`と`gpt-4o-search-preview`が利用可能です。デフォルトは`gpt-4o-mini-search-preview`です。
 
-**AI_USER_MODEL**<br />
-AIがユーザーの代わりにメッセージを作成するAI User機能に使用するモデルを選択します。現在、`o1`, `o1-mini`, `o3-mini`、`gpt-4o`、`gpt-4o-mini`が利用可能です。デフォルトは`gpt-4o`です。
+**AI_USER_MAX_TOKENS** <br />
+AIユーザーの最大トークン数を選択します。この設定は、単一リクエストで使用できるトークンの数を制限するために使用されます。デフォルトは`2000`です。
 
-**EMBEDDING_MODEL**<br />
-テキスト埋め込みに使用するモデルを選択します。現在は `text-embedding-3-small` と `text-embedding-3-large` が利用可能です。デフォルトは `text-embedding-3-small` です。
+![Settings Panel](../assets/images/settings-display.png ':size=600')
 
-**WEBSEARCH_MODEL**<br />
-OpenAI モデルを使用するアプリでのウェブ検索に使用するモデルを選択します。この設定は OpenAI の Web search 機能を利用する場合に適用されます。現在は `gpt-4o-mini-search-preview` と `gpt-4o-search-preview` が利用可能です。デフォルトは `gpt-4o-mini-search-preview` です。
+**Syntax Highlighting Theme** <br />
 
-**TTS Dictionary File Path**<br />
-テキスト読み上げのための文字列置き換え辞書ファイルのパスを指定します。辞書ファイルはCSV形式で、置き換え対象の文字列と読み上げに使う文字列をカンマ区切りで記述します（見出し行は不要）。TTSによる読み上げ時にテキスト内の置き換え対象文字列が読み上げ文字列に置き換えられます。
+コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`pastie`です。
 
-**Extra Logging**<br />
-追加のログを有効にするかどうかを選択します。有効にすると、Monadic Chatの起動から終了時までに行なったチャットの記録がストリーミングされるJSONオブジェクトの単位で記録されます。ログファイルは`~/monadic/logs/extra.log`に保存されます。
+![Settings Panel](../assets/images/settings-voice.png ':size=600')
+
+**STT_MODEL** <br />
+Speech-to-Textに使用するモデルを選択します。現在、`gpt-4o-transcribe`、`gpt-4o-mini-transcribe`、および`whisper-1`が利用可能です。デフォルトは`gpt-4o-transcribe`です。
+
+**TTS Dictionary File Path** <br />
+Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。
+
+![Settings Panel](../assets/images/settings-system.png ':size=600')
+
+**Application Mode** <br />
+Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
+
+**Extra Logging** <br />
+詳しいログ情報を有効にするかどうかを選択します。詳しいログ情報が有効な場合、Monadic Chatの開始から終了までのチャットログがストリーミングJSONオブジェクトとして記録されます。ログファイルは`~/monadic/logs/extra.log`に保存されます。

@@ -77,6 +77,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "webview-preload.js",
       "mainScreen.js",
       "index.html",
       "settings.html",
@@ -95,7 +96,7 @@
       "runAfterFinish": false
     },
     "linux": {
-      "icon": "icons/icon.icns",
+      "icon": "icons/monadic-chat.png",
       "target": ["deb", "zip"],
       "artifactName": "monadic-chat_${version}_${arch}.${ext}",
       "defaultArch": "x64"

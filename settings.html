@@ -321,6 +321,12 @@
             <option value="server">Server Mode</option>
           </select>
 
+          <label for="browser-mode">Browser Mode</label>
+          <select id="browser-mode" name="browser-mode">
+            <option value="external">External Browser</option>
+            <option value="internal">Internal Browser</option>
+          </select>
+
           <label class="form-check-label" for="extra-logging">Extra Logging</label>
           <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
         </div>
@@ -348,6 +354,7 @@
         const ttsDictPath = document.getElementById('tts-dict-path').value;
         const distributedMode = document.getElementById('distributed-mode').value;
         const previousMode = document.getElementById('distributed-mode').getAttribute('data-previous-value') || 'off';
+        const previousBrowserMode = document.getElementById('browser-mode').getAttribute('data-previous-value') || 'external';
 
         const data = {
           OPENAI_API_KEY: document.getElementById('openai-api-key').value,
@@ -367,6 +374,7 @@
           WEBSEARCH_MODEL: document.getElementById('websearch-model').value,
           TTS_DICT_PATH: ttsDictPath,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
+          BROWSER_MODE: document.getElementById('browser-mode').value,
           DISTRIBUTED_MODE: distributedMode
         };
         
@@ -379,7 +387,7 @@
         const saveMessage = document.getElementById('save-message');
         saveMessage.style.display = 'inline';
         
-        // Check if mode has changed
+        // Check if distributed mode has changed
         if (distributedMode !== previousMode) {
           // Signal to main process that mode has changed and we need to clear messages
           window.electronAPI.clearMessages();
@@ -416,6 +424,10 @@
             // Close the settings window
             window.electronAPI.closeSettings();
           });
+        }
+        // If only browser mode changed, apply immediately and close settings
+        else if (data.BROWSER_MODE !== previousBrowserMode) {
+          window.electronAPI.closeSettings();
         }
 
         // Hide the message after 3 seconds
@@ -457,6 +469,14 @@
         
         // Save the current mode value as an attribute for change detection
         modeSelect.setAttribute('data-previous-value', modeSelect.value);
+        
+        // Handle browser mode settings - default to external
+        const browserModeValue = data.BROWSER_MODE || 'external';
+        const browserModeSelect = document.getElementById('browser-mode');
+        const browserValueExists = Array.from(browserModeSelect.options).some(opt => opt.value === browserModeValue);
+        browserModeSelect.value = browserValueExists ? browserModeValue : 'external';
+        // Store previous browser mode for change detection
+        browserModeSelect.setAttribute('data-previous-value', browserModeSelect.value);
         
         // Always set port values
         // Port settings have been removed since they don't affect Docker containers

@@ -14,7 +14,10 @@ Monadic Chatを停止します。
 Monadic Chatを再起動します。
 
 **Open Browser** <br />
-Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
+設定に応じたブラウザモードで Monadic Chat を開きます（設定参照）。
+- **Internal Browser**: アプリ内の組み込み Web ビューで表示します。
+- **External Browser**: システムのデフォルト Web ブラウザで表示します。
+アクセス URL: `http://localhost:4567`。
 
 **Shared Folder** <br />
 ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。
@@ -65,7 +68,10 @@ Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート
 ![Open Menu](../assets/images/open-menu.png ':size=190')
 
 **Open Browser** <br />
-Monadic Chatを使用するためにデフォルト・ブラウザーを開いて`http://localhost:4567`にアクセスします。
+設定に応じたブラウザモードで Monadic Chat を開きます（設定参照）。
+- **Internal Browser**: アプリ内の組み込み Web ビューで表示します。
+- **External Browser**: システムのデフォルト Web ブラウザで表示します。
+アクセス URL: `http://localhost:4567`。
 
 **Open Shared Folder** <br />
 ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。

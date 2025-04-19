@@ -13,7 +13,10 @@ Stop Monadic Chat.
 Restart Monadic Chat.
 
 **Open Browser** <br />
-Open the default browser to access Monadic Chat at `http://localhost:4567`.
+Open Monadic Chat using the selected browser mode (see Settings):
+- **Internal Browser**: Opens the application’s embedded web view.
+- **External Browser**: Opens your system’s default web browser.
+Access URL: `http://localhost:4567`.
 
 **Shared Folder** <br />
 Open the folder shared between the host and Docker containers. It can be used for importing and exporting files. It is also used when installing additional apps.

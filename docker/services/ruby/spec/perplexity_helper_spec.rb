@@ -4,7 +4,7 @@ require_relative "spec_helper"
 
 # Check if the module actually exists, if not create a mock module for testing
 begin
-  require_relative "../lib/monadic/helpers/vendors/perplexity_helper"
+  require_relative "../lib/monadic/adapters/vendors/perplexity_helper"
 rescue LoadError
   # Create a mock module if the real one can't be loaded
   module PerplexityHelper

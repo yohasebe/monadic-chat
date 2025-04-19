@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'timeout'
-require_relative '../helpers/agents/ai_user_agent'
+require_relative '../agents/ai_user_agent'
 
 module WebSocketHelper
   include AIUserAgent

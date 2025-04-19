@@ -46,5 +46,6 @@
     - [Development Workflow](/developer/development_workflow.md)
     - [Rake Tasks](/developer/rake_tasks.md)
     - [Assets Management](/developer/assets.md)
+    - [Code Organization](/developer/code_structure.md)
 
 - [Changelog](/changelog.md)

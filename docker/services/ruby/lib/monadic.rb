@@ -51,8 +51,8 @@ helpers WebSocketHelper
 require_relative "monadic/utils/pdf_text_extractor"
 require_relative "monadic/utils/text_embeddings"
 
-require_relative "monadic/monadic_app"
-require_relative "monadic/monadic_dsl"
+require_relative "monadic/app"
+require_relative "monadic/dsl"
 
 envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)

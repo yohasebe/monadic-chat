@@ -2,7 +2,10 @@
 
 require_relative "./utils/string_utils"
 
-Dir.glob(File.expand_path("helpers/**/*.rb", __dir__)).sort.each do |rb|
+Dir.glob(File.expand_path("adapters/**/*.rb", __dir__)).sort.each do |rb|
+  require rb
+end
+Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
 

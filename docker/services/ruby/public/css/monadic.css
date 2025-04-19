@@ -1,3 +1,162 @@
+/*-------------------------------------------*/
+/* Custom Responsive Navbar Reset */
+#main-nav {
+  background-color: #F8F8F8;
+  border-top: 1px solid #555;
+  border-bottom: 1px solid #555;
+  box-shadow: none;
+}
+#main-nav .container-fluid {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 1rem !important;
+  height: 80px !important;
+}
+#main-nav .navbar-brand {
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  text-decoration: none;
+}
+#main-nav .nav-logo {
+  width: 2em;
+  height: auto;
+  margin-right: 0.5rem;
+}
+#main-nav .nav-text .text-main {
+  font-weight: 500;
+  font-family: 'Montserrat', sans-serif;
+  color: #666;
+  font-size: 1.7rem;
+}
+#main-nav .nav-text .text-highlight {
+  font-weight: bold;
+  color: #ffc107;
+  font-size: 1.7rem;
+}
+#main-nav .nav-actions .btn {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+}
+#main-nav .nav-actions .btn i {
+  color: #333;
+  font-size: 1.25rem;
+}
+@media (max-width: 767px) {
+  #main-nav .container-fluid {
+    height: 80px !important;
+  }
+  #main-nav .nav-logo {
+    width: 1.8em;
+  }
+  #main-nav .nav-text .text-main,
+  #main-nav .nav-text .text-highlight {
+    font-size: 1.4rem;
+  }
+  #main-nav .nav-actions {
+    gap: 0.5rem;
+  }
+}
+/* Toggle Menu Button Border for Visibility */
+#toggle-menu {
+  /* Always transparent background except on hover */
+  background-color: transparent !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  border-radius: 4px !important;
+  /* Fixed size for toggle menu button */
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  /* Fixed positioning to prevent shifting */
+  position: fixed !important;
+  top: 25px !important; /* Center vertically in navbar height (80px) */
+  right: 20px !important;
+  z-index: 1100 !important;
+}
+#toggle-menu:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ********************************************** */
+/* Override navbar layout to enforce consistent centering */
+#main-nav .container-fluid {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+#main-nav .navbar-brand {
+  display: flex !important;
+  align-items: center !important;
+  height: 80px !important;
+  margin: 0 0 0 15px !important; /* Add left margin for brand */
+}
+/* This section is replaced by the fixed positioning defined above */
+@media (max-width: 767px) {
+  #main-nav .navbar-brand {
+    margin-left: 15px !important;
+  }
+}
+/* ------------------------------------------ */
+/* Override toggle-menu and navbar-brand layout */
+#main-nav .navbar-brand {
+  /* Prevent brand from flex stretching and ensure vertical centering */
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+}
+/* The toggle menu is now controlled by fixed positioning above */
+@media (max-width: 767px) {
+  #main-nav .navbar-brand {
+    flex: 0 0 auto !important;
+  }
+}
+/* Reduce default font size to approx. 90% (match internal Zoom Out) */
+html, body, input, button, select, textarea {
+  font-size: 14px;
+}
+/* Smooth nav style transitions on rapid width changes */
+#main-nav, .navbar, .navbar-brand, #main-nav .container-fluid {
+  transition: all 0.3s ease-in-out;
+}
+/* Ensure layout uses flex for brand and toggle-button grouping */
+#main-nav .container-fluid {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Brand/logo grouping: remove inline vertical offsets */
+.navbar-brand > div {
+  margin-left: 15px !important;
+  margin-top: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+}
+
+/* Override inline img/span offsets in brand */
+.navbar-brand img,
+.navbar-brand span {
+  vertical-align: middle !important;
+  top: auto !important;
+}
+
+/* Toggle menu button: push to far right and ensure visible */
+/* The toggle menu is now controlled by fixed positioning defined above */
+
+@media (max-width: 767px) {
+  /* On mobile, maintain fixed positioning defined above */
+}
+/* Header label adjustments: ensure icon and text size remain balanced */
+#modeLabel, #dockerLabel, #systemLabel {
+  font-size: 0.85rem;
+}
+#modeLabel i, #dockerLabel i, #systemLabel i {
+  font-size: 1rem;
+}
 html {
   scrollbar-width: thin;
   scrollbar-color: #999 transparent;
@@ -320,28 +479,7 @@ h5 i,
   margin-right: 3px;
 }
 
-#toggle-menu {
-  position: fixed;
-  right: 20px;
-  top: 20px;
-  z-index: 1100;
-  font-size: 1.25rem;
-  line-height: 1.25;
-  border: 1px solid rgba(0, 0, 0, .1);
-  border-radius: 0.25rem;
-  transition: background-color 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  width: 40px;
-  box-sizing: border-box;
-  background-color: #666;
-  opacity: 0.65;
-  -webkit-appearance: none;
-  appearance: none;
-}
+/* Main toggle menu styling has been moved to the top of the file */
 
 #toggle-menu .navbar-toggler-icon {
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
@@ -354,14 +492,7 @@ h5 i,
   background-repeat: no-repeat;
 }
 
-#toggle-menu:hover {
-  background-color: #777;
-}
-
-#toggle-menu:focus {
-  outline: none;
-  box-shadow: none;
-}
+/* Toggle menu hover and focus styles defined at the top of the file */
 
 #main {
   padding-bottom: 16px;
@@ -886,8 +1017,12 @@ legend {
   height: 1px;
 }
 
+/* Desktop navbar styling */
 #main-nav {
-  height: 108px;
+  display: flex;
+  align-items: center;
+  /* Desktop navbar height */
+  height: 80px;
   border-top: 1px solid #666;
   border-bottom: 1px solid #666;
   background-color: #F8F8F8;
@@ -1065,14 +1200,12 @@ legend {
 /* Desktop-specific styles */
 @media (min-width: 768px) {
   /* Reset navbar elements to default styles when in desktop view */
-  .navbar-brand, .navbar-brand > div:first-child, #toggle-menu, #toggle-menu .menu-icon {
+  .navbar-brand, .navbar-brand > div:first-child {
     position: static !important;
     top: auto !important;
-    right: auto !important;
     left: auto !important;
     transform: none !important;
     height: auto !important;
-    width: auto !important;
     margin: initial !important;
     padding: initial !important;
     display: initial !important;
@@ -1086,16 +1219,7 @@ legend {
     margin-top: -10px !important;
   }
   
-  /* Restore original toggle menu styling */
-  #toggle-menu {
-    position: fixed !important;
-    right: 20px !important;
-    top: 20px !important;
-    height: 40px !important;
-    width: 40px !important;
-    background-color: #666 !important;
-    opacity: 0.65 !important;
-  }
+  /* Toggle menu is controlled by fixed positioning at the top of the file */
 }
 
 @media (max-width: 767px) {
@@ -1348,9 +1472,12 @@ legend {
     width: auto;
   }
   
-  /* Completely rewrite mobile navbar for reliable positioning */
+  /* Mobile navbar for reliable positioning */
   #main-nav {
-    height: 52px !important; /* Further reduced height to save screen space */
+    display: flex !important;
+    align-items: center !important;
+    /* Mobile navbar height unified with desktop */
+    height: 80px !important;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -1363,29 +1490,28 @@ legend {
   
   /* Simplify container to avoid positioning conflicts */
   #main-nav .container-fluid {
-    height: 100% !important;
-    padding: 0 !important;
-    display: block !important;
-    position: relative !important;
-  }
-  
-  /* Left-aligned logo for mobile */
-  .navbar-brand {
-    position: fixed !important; /* Fixed position to prevent movement */
-    top: 0 !important; /* Top of navbar */
-    left: 15px !important; /* Left margin */
-    height: 53px !important; /* Reduced height to align with toggle menu */
+    /* Use flex layout to center items and distribute space */
     display: flex !important;
     align-items: center !important;
-    justify-content: flex-start !important; /* Left align */
-    padding: 0 !important;
-    z-index: 1031 !important;
-    margin: 0 !important;
-    width: auto !important;
-    /* DO NOT use transforms as they can cause positioning issues */
+    justify-content: space-between !important;
+    height: 100% !important;
+    padding: 0 15px !important;
   }
   
-  /* Adjust navbar logo size and display */
+  /* Navbar-brand participates in flex on mobile */
+  .navbar-brand {
+    position: static !important;
+    margin-left: 15px !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 0 !important;
+    z-index: auto !important;
+    width: auto !important;
+  }
+  /* Toggle menu button is now positioned fixed at top-right in all screen sizes */
+  
   .navbar-brand div {
     display: flex !important;
     align-items: center !important;
@@ -1406,47 +1532,7 @@ legend {
     top: -1px !important; /* Slight adjustment to center vertically */
   }
   
-  /* Fixed positioning for toggle menu button - MOBILE ONLY */
-  @media (max-width: 767px) {
-    #toggle-menu {
-      position: fixed !important;
-      top: 11px !important; /* Slightly higher position to balance with navbar */
-      right: 10px !important;
-      height: 28px !important; /* Even slightly smaller size to match adjusted logo */
-      width: 28px !important; /* Square dimensions for balance */
-      z-index: 1200 !important;
-      margin: 0 !important;
-      padding: 5px !important; /* Adjusted padding for better icon centering */
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      transform: none !important;
-      border-radius: 4px !important;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important; /* Add subtle shadow */
-      background-color: #555 !important; /* Darker color for better contrast */
-    }
-    
-    /* Additional lock to prevent toggle menu movement */
-    body.menu-visible #toggle-menu,
-    body:not(.menu-visible) #toggle-menu {
-      top: 11px !important; /* Keep consistent position with main rule */
-    }
-    
-    /* Maintain toggle-menu appearance */
-    #toggle-menu.menu-hidden {
-      background-color: #555 !important; /* Darker background for better contrast */
-    }
-    
-    #toggle-menu:not(.menu-hidden) {
-      background-color: #666 !important; /* Darker background for better contrast */
-    }
-    
-    #toggle-menu .menu-icon {
-      font-size: 0.8em !important; /* Properly sized icon for smaller button */
-      color: #ffc107 !important; /* Make the icon color more visible */
-      line-height: 1 !important; /* Ensure proper vertical centering */
-    }
-  }
+  /* Removed mobile-specific static positioning for toggle-menu to rely on responsive CSS */
   
   /* Adjust main content position to match reduced navbar height */
   #contents {
@@ -1815,4 +1901,12 @@ h1 {
   bottom: 0;
   width: 3px;
   background-color: #3377ff;
+}
+
+/* Mobile-specific media queries for toggle menu */
+@media (max-width: 600px) {
+  #toggle-menu {
+    top: 25px !important; /* Keep centered vertically */
+    right: 15px !important;
+  }
 }

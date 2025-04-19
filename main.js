@@ -51,6 +51,58 @@ let currentStatus = 'Stopped';
 let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
+// Preference for browser launch: 'external' or 'internal'
+// Default browser mode: 'internal' for internal Electron view
+let browserMode = 'internal';
+
+// Internal browser window reference and opener
+let webviewWindow = null;
+function openWebViewWindow(url) {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    webviewWindow.focus();
+    return;
+  }
+  webviewWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Monadic Chat',
+    webPreferences: {
+      preload: path.join(__dirname, 'webview-preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  webviewWindow.loadURL(url);
+  // Inject a floating button into the web page to bring the main window to front
+  webviewWindow.webContents.on('dom-ready', () => {
+    const injectButtonJS = `
+      (function() {
+        const btn = document.createElement('button');
+        btn.innerText = 'Show Console';
+        btn.style.position = 'fixed';
+        btn.style.bottom = '20px';
+        btn.style.right = '20px';
+        btn.style.zIndex = '9999';
+        btn.style.padding = '6px 10px';
+        btn.style.background = 'rgba(255,193,7,0.7)';
+        btn.style.border = 'none';
+        btn.style.borderRadius = '4px';
+        btn.style.cursor = 'pointer';
+        btn.style.fontSize = '12px';
+        btn.onclick = () => window.electronAPI.focusMainWindow();
+        document.body.appendChild(btn);
+      })();
+    `;
+    webviewWindow.webContents.executeJavaScript(injectButtonJS).catch(err => {
+      console.error('Failed to inject focus button:', err);
+    });
+  });
+  webviewWindow.on('closed', () => {
+    webviewWindow = null;
+  });
+}
 
 let dockerInstalled = false;
 let wsl2Installed = false;
@@ -346,16 +398,19 @@ class DockerManager {
                           });
                         }
 
-                        // Then open browser in standalone mode
-                        // Use direct method instead of openBrowser to avoid port checking (already checked)
-                        try {
-                          shell.openExternal('http://localhost:4567').catch(err => {
+                        // Then open based on browser mode preference
+                        if (browserMode === 'internal') {
+                          openWebViewWindow('http://localhost:4567');
+                        } else {
+                          try {
+                            shell.openExternal('http://localhost:4567').catch(err => {
+                              console.error('Error opening browser:', err);
+                              writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Please open browser manually at http://localhost:4567</p>");
+                            });
+                            writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+                          } catch (err) {
                             console.error('Error opening browser:', err);
-                            writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Please open browser manually at http://localhost:4567</p>");
-                          });
-                          writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
-                        } catch (err) {
-                          console.error('Error opening browser:', err);
+                          }
                         }
                       }
                     }, 500);
@@ -972,6 +1027,14 @@ function createUpdateProgressHTML() {
 
 function initializeApp() {
   app.whenReady().then(async () => {
+    // Load saved settings and initialize browser mode preference
+    try {
+      const settings = loadSettings() || {};
+      // Fallback to internal if not set
+      browserMode = settings.BROWSER_MODE || 'internal';
+    } catch (err) {
+      console.error('Error loading browser mode setting:', err);
+    }
     // Check if there's a pending update that was downloaded before restart
     if (autoUpdater.isUpdaterActive()) {
       console.log('Checking for downloaded updates to install...');
@@ -1048,9 +1111,15 @@ function initializeApp() {
           case 'restart':
             dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
             break;
-          case 'browser':
-            openBrowser('http://localhost:4567');
+          case 'browser': {
+            const url = 'http://localhost:4567';
+            if (browserMode === 'internal') {
+              openWebViewWindow(url);
+            } else {
+              openBrowser(url);
+            }
             break;
+          }
           case 'sharedfolder':
             openSharedFolder();
             break;
@@ -1841,6 +1910,28 @@ function openBrowser(url, outside = false, forceOpen = false) {
           dialog.showErrorBox('Error', "Failed to start the server. Please try again.");
         }
       }
+
+// Opens an internal Electron window to display the app's web UI
+let webviewWindow = null;
+function openWebViewWindow(url) {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    webviewWindow.focus();
+    return;
+  }
+  webviewWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    title: 'Monadic Chat'
+  });
+  webviewWindow.loadURL(url);
+  webviewWindow.on('closed', () => {
+    webviewWindow = null;
+  });
+}
     });
   }, interval);
 }
@@ -2146,14 +2237,28 @@ ipcMain.on('request-settings', (event) => {
   event.sender.send('load-settings', settings);
 });
 
+// Handle settings save from settings window
 ipcMain.on('save-settings', (_event, data) => {
   saveSettings(data);
-  // if (settingsWindow) {
-  //   settingsWindow.hide();
-  // }
+  // Apply browser mode immediately without restart
+  if (data.BROWSER_MODE) {
+    browserMode = data.BROWSER_MODE;
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('update-browser-mode', { mode: browserMode });
+    }
+  }
 });
 
 app.whenReady().then(() => {
+  // Load saved browser mode from settings (default to existing value)
+  try {
+    const saved = loadSettings();
+    if (saved.BROWSER_MODE) {
+      browserMode = saved.BROWSER_MODE;
+    }
+  } catch (err) {
+    console.error('Error loading initial browser mode:', err);
+  }
   initializeApp();
 });
 
@@ -2220,6 +2325,14 @@ ipcMain.handle('select-tts-dict', async () => {
         }
     }
     return '';
+});
+// Bring the main window to the foreground when requested by the internal webview
+ipcMain.on('focus-main-window', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
 });
 
 // Keep track of last check time to reduce frequency

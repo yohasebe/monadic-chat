@@ -148,7 +148,7 @@ module OpenAIHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "gpt-4o")
+  def send_query(options, model: "gpt-4.1")
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -466,7 +466,7 @@ module OpenAIHelper
 
     if messages_containing_img
       unless obj["vision_capability"]
-        body["model"] = "gpt-4o"
+        body["model"] = "gpt-4.1"
         body.delete("reasoning_effort")
       end
       body.delete("stop")

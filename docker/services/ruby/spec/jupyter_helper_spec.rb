@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 # Include the module to test
-require_relative '../lib/monadic/helpers/jupyter_helper'
+require_relative '../lib/monadic/adapters/jupyter_helper'
 
 # Use a namespaced test class to avoid conflicts
 module JupyterHelperTest

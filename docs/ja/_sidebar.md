@@ -45,6 +45,7 @@
     - [開発ワークフロー](/ja/developer/development_workflow.md)
     - [Rakeタスク](/ja/developer/rake_tasks.md)
     - [アセット管理](/ja/developer/assets.md)
+    - [コード構成](/ja/developer/code_structure.md)
 
 - [更新履歴](/ja/changelog.md)
 

@@ -1,4 +1,4 @@
-- [April, 2025] 0.9.84
+- [April, 2025] 0.9.85
   - Server mode (distributed mode) support added: Allows multiple clients
   - Better MathJax rendering
   - Asset inclusion issue fixed

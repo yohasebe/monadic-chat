@@ -4,7 +4,7 @@ require_relative 'spec_helper'
 require 'open3'
 
 # Include the module to test
-require_relative '../lib/monadic/helpers/read_write_helper'
+require_relative '../lib/monadic/adapters/read_write_helper'
 
 # Create a test class that includes the module
 module ReadWriteHelperTest

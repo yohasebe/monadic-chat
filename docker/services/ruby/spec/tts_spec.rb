@@ -5,7 +5,7 @@ require "faye/websocket"
 require "json"
 require "net/http"
 require_relative "./spec_helper"
-require_relative "../lib/monadic/helpers/text_to_speech_helper"
+require_relative "../lib/monadic/adapters/text_to_speech_helper"
 require_relative "../lib/monadic/utils/interaction_utils"
 
 # Mock HTTP library to allow proper testing

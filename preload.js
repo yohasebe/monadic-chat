@@ -75,4 +75,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Clear messages area when mode changes
   clearMessages: () => ipcRenderer.send('clear-messages'),
+  // Focus main window (invoked by internal browser)
+  focusMainWindow: () => ipcRenderer.send('focus-main-window'),
+  // Zoom controls for internal browser window
+  zoomIn: () => ipcRenderer.send('zoom-in'),
+  zoomOut: () => ipcRenderer.send('zoom-out'),
+  resetZoom: () => ipcRenderer.send('zoom-reset'),
 });

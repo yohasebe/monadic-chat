@@ -269,6 +269,37 @@
         font-weight: bold;
         color: #444;
       }
+      /* Toggle-menu button styling */
+      #toggle-menu {
+        position: fixed !important;
+        top: 25px !important; /* Center vertically in navbar height (80px) */
+        right: 20px !important;
+        z-index: 1100 !important;
+        width: 30px !important;
+        height: 30px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: transparent !important;
+        border: 1px solid rgba(0,0,0,0.2) !important;
+        border-radius: 4px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+      }
+      #toggle-menu:hover {
+        background-color: rgba(0, 0, 0, 0.1) !important;
+      }
+      /* Mobile view adjustments */
+      @media (max-width: 1000px) {
+        #toggle-menu {
+          top: 25px !important; /* Keep centered vertically */
+        }
+      }
+      @media (max-width: 800px) {
+        #toggle-menu {
+          top: 25px !important; /* Keep centered vertically */
+          right: 20px !important; /* Keep at right side */
+        }
+      }
     </style>
    <script>
      // Toggle mobile-view class when width < 1024px
@@ -282,27 +313,24 @@
   </head>
   <body>
 
-    <nav class="navbar navbar-expand-md navbar-light fixed-top shaded-y" id="main-nav">
-      <div class="container-fluid pt-0">
-        <span class="navbar-brand" style="flex: auto;">
-          <div style="margin-left: 6px; margin-top: -10px; font-weight: 500; font-family: 'Montserrat', sans-serif; letter-spacing: 0.12em;" >
-            <img class="reset-area" src="img/monadic-logo.svg" style="width: 2em; vertical-align:middle;"></img>
-            <span class="reset-area" style="color: #666; font-size: 1.7em; vertical-align:middle;">Monadic</span>
-            <span class="reset-area" style="color: #ffc107; filter:drop-shadow(1px 1px 0px #999); font-weight: bold; font-size: 2.0em; position: relative; bottom: -0.15em;"></span>
-            <span class="reset-area" style="color: #666; font-size: 1.7em; vertical-align:middle;">Chat</span>
-          </div>
-          <div id="tagline" style="margin-left: 6px; margin-bottom: 6px; font-size: 0.8em; color: #777; font-family: 'Montserrat';">Grounding AI Chatbots with Full Linux Environment on Docker</div>
-        </span>
-
-        <div id="cancel_query"><i class="fas fa-ban"></i> <span>CANCEL</span></div>
-        <button type="button" id="toggle-menu" aria-label="Toggle menu" title="Toggle Menu">
-          <!-- Using Font Awesome bars icon for consistent appearance -->
-          <i class="fa-solid fa-bars menu-icon" style="color: #ffc107; font-size: 1.25em;"></i>
-        </button>
-
+    <!-- Responsive Navbar -->
+    <nav id="main-nav" class="navbar fixed-top shaded-y">
+      <div class="container-fluid d-flex align-items-center px-3" style="height: 80px;">
+        <a href="#" class="navbar-brand d-flex align-items-center">
+          <img src="img/monadic-logo.svg" alt="Logo" class="nav-logo">
+          <span class="nav-text"><span class="text-main">Monadic</span><span class="text-highlight"> Chat</span></span>
+        </a>
+        <div class="ms-auto d-flex align-items-center nav-actions">
+          <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query">
+            <i class="fas fa-ban"></i>
+          </button>
+          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
       </div>
     </nav>
-    <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 108px; position: relative;">
+        <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 80px; position: relative;">
       <div class="row g-3 mt-0 my-3">
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 20px;">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">

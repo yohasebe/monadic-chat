@@ -238,6 +238,21 @@ function writeToScreen(text) {
     // Remove carriage return characters
     text = text.replace(/\r\n|\r|\n/g, '\n').trim();
 
+    // Handle server start/stop events in messages area
+    if (text === "[SERVER STOPPED]") {
+      // Reset URL display flag on stop so restart shows it again
+      networkUrlDisplayed = false;
+      serverStarted = false;
+      htmlOutputElement.innerHTML += `<p>${text}</p>\n`;
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      return;
+    }
+    if (text === "[SERVER STARTED]") {
+      htmlOutputElement.innerHTML += `<p>${text}</p>\n`;
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      return;
+    }
+
     // HTML tagged content - can appear on multiple lines
     if (text.includes("[HTML]:")) {
       // Extract all HTML content by replacing the tag and preserving the rest

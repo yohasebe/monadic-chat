@@ -739,6 +739,11 @@ $(function () {
         } else {
           adjustScrollButtonsFallback();
         }
+        // Force nav reflow to apply correct styles on rapid resize
+        const $nav = $('#main-nav');
+        $nav.hide();
+        $nav[0].offsetHeight; // force reflow
+        $nav.show();
       }, 250));
     });
     
@@ -1127,62 +1132,20 @@ $(function () {
   $(document).ready(function() {
     // On mobile, initialize with menu hidden on first load
     if ($(window).width() < 600) {
-      // Set proper classes and hide menu
+      // Set proper classes and hide menu on mobile
       $("#toggle-menu").addClass("menu-hidden");
       $("#menu").hide();
       $("#main").show();
-      
-      // Remove any classes that might interfere
       $("body").removeClass("menu-visible");
-      
-      // Ensure proper column classes
       $("#main").removeClass("col-md-8").addClass("col-md-12");
-      
-      // Force the toggle button position immediately
-      $("#toggle-menu").css({
-        "position": "fixed",
-        "top": "12px", // Match the value used elsewhere
-        "right": "10px",
-        "height": "30px", // Match the size used elsewhere
-        "width": "30px", // Match the size used elsewhere
-        "padding": "6px", // Match the padding used elsewhere
-        "transform": "none"
-      });
-      
-      // Center the logo and button vertically in navbar
-      centerNavbarElements();
-      
-      // Apply again with a timeout to prevent movement
-      setTimeout(function() {
-        $("#toggle-menu").css({
-          "position": "fixed",
-          "top": "12px", // Match the value used elsewhere
-          "right": "10px",
-          "height": "30px", // Match the size used elsewhere
-          "width": "30px", // Match the size used elsewhere
-          "padding": "6px", // Match the padding used elsewhere
-          "transform": "none"
-        });
-      }, 100);
+      // Note: Removed inline CSS injection for toggle-menu in document.ready
     }
   });
   
   // Also ensure positions are set on load event
   $(window).on("load", function() {
     if ($(window).width() < 600) {
-      // Re-apply toggle button position after full page load
-      $("#toggle-menu").css({
-        "position": "fixed",
-        "top": "12px", // Match the value used elsewhere
-        "right": "10px",
-        "height": "30px", // Match the size used elsewhere
-        "width": "30px", // Match the size used elsewhere
-        "padding": "6px", // Match the padding used elsewhere
-        "transform": "none"
-      });
-      
-      // Call our centering function
-      centerNavbarElements();
+      // Note: Removed inline CSS injection for toggle-menu on load
     }
   });
   
@@ -1241,28 +1204,7 @@ $(function () {
       "align-items": "center"
     });
     
-    // Set toggle button to fixed position with exact coordinates - aligned with logo
-    $("#toggle-menu").css({
-      "position": "fixed",
-      "top": "12px", // Carefully positioned to align with logo icon
-      "right": "10px",
-      "transform": "none",
-      "height": "30px", // Size that matches logo properly
-      "width": "30px", // Square dimensions for balance
-      "display": "flex",
-      "align-items": "center",
-      "justify-content": "center",
-      "border-radius": "4px", // Ensure rounded corners
-      "background-color": $("#toggle-menu").hasClass("menu-hidden") ? "#555" : "#666", // Match CSS colors
-      "padding": "6px" // Adjusted padding for icon
-    });
-    
-    // Ensure icon is properly colored and sized
-    $("#toggle-menu .menu-icon").css({
-      "color": "#ffc107",
-      "font-size": "0.8em",
-      "line-height": "1"
-    });
+      // Removed inline CSS injection for toggle-menu in centerNavbarElements
     
     // Optimize scrollable areas for mobile
     optimizeMobileScrolling();
@@ -1337,18 +1279,7 @@ $(function () {
     // Check if we're on mobile
     const isMobile = $(window).width() < 600;
     
-    // If on mobile, ensure the toggle button stays in its fixed position
-    if (isMobile) {
-      $(this).css({
-        "position": "fixed",
-        "top": "12px", // Match the value used elsewhere
-        "right": "10px",
-        "height": "30px", // Match the size used elsewhere
-        "width": "30px", // Match the size used elsewhere
-        "padding": "6px", // Match the padding used elsewhere
-        "transform": "none"
-      });
-    }
+    // Removed inline CSS injection for toggle-menu on click
     
     // Toggle menu visibility and icon rotation
     if ($("#menu").is(":visible")) {

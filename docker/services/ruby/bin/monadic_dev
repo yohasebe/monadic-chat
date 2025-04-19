@@ -124,7 +124,10 @@ def start_server(opts)
     success = $?.success?
 
     if success
-      puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
+      # Notify user of system availability with URL
+      port_num = opts[:port] || DEFAULT_PORT
+      puts "Server started on port #{port_num}"
+      puts "System available at: http://localhost:#{port_num}"
     else
       puts "Server failed to start"
       File.open(File.join(LOG_DIR, "server.log"), "a") do |file|

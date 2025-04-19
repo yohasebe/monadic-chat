@@ -65,7 +65,8 @@ function openWebViewWindow(url) {
   webviewWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 800,
+    // Prevent width below 320px; mobile styles apply below 1024px
+    minWidth: 412,
     minHeight: 600,
     title: 'Monadic Chat',
     webPreferences: {
@@ -75,29 +76,92 @@ function openWebViewWindow(url) {
     }
   });
   webviewWindow.loadURL(url);
+  // Apply the same application menu (with accelerators) to the internal browser window
+  const appMenu = Menu.getApplicationMenu();
+  if (appMenu) {
+    webviewWindow.setMenu(appMenu);
+  }
   // Inject a floating button into the web page to bring the main window to front
   webviewWindow.webContents.on('dom-ready', () => {
     const injectButtonJS = `
       (function() {
-        const btn = document.createElement('button');
-        btn.innerText = 'Show Console';
-        btn.style.position = 'fixed';
-        btn.style.bottom = '20px';
-        btn.style.right = '20px';
-        btn.style.zIndex = '9999';
-        btn.style.padding = '6px 10px';
-        btn.style.background = 'rgba(255,193,7,0.7)';
-        btn.style.border = 'none';
-        btn.style.borderRadius = '4px';
-        btn.style.cursor = 'pointer';
-        btn.style.fontSize = '12px';
-        btn.onclick = () => window.electronAPI.focusMainWindow();
-        document.body.appendChild(btn);
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.bottom = '20px';
+        container.style.right = '20px';
+        container.style.display = 'flex';
+        container.style.gap = '6px';
+        container.style.zIndex = '9999';
+        // Initial transform to counteract zoom when factor = 1
+        container.style.transform = 'scale(1)';
+        container.style.transformOrigin = 'bottom right';
+
+        function makeBtn(iconClass, bgColor, onClick) {
+          const btn = document.createElement('button');
+          // Use string concatenation to avoid nested template literals
+          btn.innerHTML = '<i class="' + iconClass + '"></i>';
+          // Smaller padding and consistent icon size
+          btn.style.padding = '4px 8px';
+          btn.style.background = bgColor;
+          btn.style.border = '1px solid rgba(0, 0, 0, 0.2)';
+          btn.style.borderRadius = '4px';
+          btn.style.cursor = 'pointer';
+          btn.style.fontSize = '14px';
+          btn.onclick = onClick;
+          return btn;
+        }
+
+        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn()));
+        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut()));
+        container.appendChild(makeBtn('fa-solid fa-sync', 'rgba(255,255,255,0.9)', () => window.electronAPI.resetZoom()));
+        container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow()));
+
+        document.body.appendChild(container);
+        // Adjust overlay container on zoom change
+        if (window.electronAPI && typeof window.electronAPI.onZoomChanged === 'function') {
+          window.electronAPI.onZoomChanged((_event, factor) => {
+            const scale = 1 / factor;
+            // Use string concatenation to avoid nested template literals
+            container.style.transform = 'scale(' + scale + ')';
+            container.style.transformOrigin = 'bottom right';
+            const offset = 20 / factor;
+            container.style.right = offset + 'px';
+            container.style.bottom = offset + 'px';
+          });
+        }
       })();
     `;
     webviewWindow.webContents.executeJavaScript(injectButtonJS).catch(err => {
       console.error('Failed to inject focus button:', err);
     });
+  });
+  // Add keyboard shortcuts within the internal browser window
+  webviewWindow.webContents.on('before-input-event', (event, input) => {
+    const isMac = process.platform === 'darwin';
+    const control = isMac ? input.meta : input.control;
+    if (input.type === 'keyDown' && control) {
+      const key = input.key.toLowerCase();
+      // Minimize: Cmd/Ctrl+M
+      if (key === 'm') {
+        webviewWindow.minimize();
+        event.preventDefault();
+      }
+      // Close: Cmd/Ctrl+W
+      else if (key === 'w') {
+        webviewWindow.close();
+        event.preventDefault();
+      }
+      // Reload: Cmd/Ctrl+R
+      else if (key === 'r') {
+        webviewWindow.reload();
+        event.preventDefault();
+      }
+      // Toggle DevTools: Cmd/Ctrl+Shift+I
+      else if (input.shift && key === 'i') {
+        webviewWindow.webContents.toggleDevTools();
+        event.preventDefault();
+      }
+    }
   });
   webviewWindow.on('closed', () => {
     webviewWindow = null;
@@ -1602,6 +1666,33 @@ function updateApplicationMenu() {
         }
       ]
     }
+    ,
+    {
+      label: 'Window',
+      submenu: [
+        {
+          label: 'Minimize',
+          accelerator: process.platform === 'darwin' ? 'Cmd+M' : 'Ctrl+M',
+          click: () => { if (mainWindow) mainWindow.minimize(); }
+        },
+        {
+          label: 'Close',
+          accelerator: process.platform === 'darwin' ? 'Cmd+W' : 'Ctrl+W',
+          click: () => { if (mainWindow) mainWindow.close(); }
+        },
+        { type: 'separator' },
+        {
+          label: 'Reload',
+          accelerator: process.platform === 'darwin' ? 'Cmd+R' : 'Ctrl+R',
+          click: () => { if (mainWindow) mainWindow.reload(); }
+        },
+        {
+          label: 'Toggle DevTools',
+          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+          click: () => { if (mainWindow) mainWindow.webContents.toggleDevTools(); }
+        }
+      ]
+    }
   ]);
 
   Menu.setApplicationMenu(menu);
@@ -2280,6 +2371,43 @@ ipcMain.on('restart-app', () => {
 // Handle clear messages request from renderer process
 ipcMain.on('clear-messages', () => {
   console.log('Clearing message area due to mode change');
+});
+
+// Handle zoom commands from internal browser
+// Zoom In: increase page zoom for webview content only
+ipcMain.on('zoom-in', () => {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    const wc = webviewWindow.webContents;
+    const current = wc.getZoomFactor();
+    // Handle promise or direct number
+    Promise.resolve(current).then(f => {
+      const newFactor = f + 0.1;
+      wc.setZoomFactor(newFactor);
+      // Notify webview to adjust overlay
+      wc.send('zoom-changed', newFactor);
+    });
+  }
+});
+// Zoom Out: decrease page zoom for webview content only
+ipcMain.on('zoom-out', () => {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    const wc = webviewWindow.webContents;
+    const current = wc.getZoomFactor();
+    Promise.resolve(current).then(f => {
+      const newFactor = f - 0.1;
+      wc.setZoomFactor(newFactor);
+      wc.send('zoom-changed', newFactor);
+    });
+  }
+});
+// Reset Zoom: restore page zoom for webview content to default
+ipcMain.on('zoom-reset', () => {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    const wc = webviewWindow.webContents;
+    const resetFactor = 1.0;
+    wc.setZoomFactor(resetFactor);
+    wc.send('zoom-changed', resetFactor);
+  }
 });
 
 // Add IPC handler for selecting TTS dictionary file

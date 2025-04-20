@@ -113,7 +113,7 @@ function openWebViewWindow(url) {
 
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn()));
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut()));
-        container.appendChild(makeBtn('fa-solid fa-sync', 'rgba(255,255,255,0.9)', () => window.electronAPI.resetZoom()));
+        // container.appendChild(makeBtn('fa-solid fa-sync', 'rgba(255,255,255,0.9)', () => window.electronAPI.resetZoom()));
         container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow()));
 
         document.body.appendChild(container);
@@ -2461,6 +2461,10 @@ ipcMain.on('focus-main-window', () => {
     mainWindow.show();
     mainWindow.focus();
   }
+});
+// Open external URLs in the default browser when requested by the renderer
+ipcMain.on('open-external', (_event, url) => {
+  shell.openExternal(url).catch(err => console.error('Failed to open external link:', err));
 });
 
 // Keep track of last check time to reduce frequency

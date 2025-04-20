@@ -30,6 +30,10 @@ function getProviderFromGroup(group) {
 document.addEventListener("DOMContentLoaded", function () {
   // No longer disable AI User button initially - we'll show an error message if conversation hasn't started
   $("#ai_user").attr("title", "Generate AI user response based on conversation");
+  // Ensure cancel button is hidden on page load using setTimeout for more reliability
+  setTimeout(function() {
+    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+  }, 100);
   // Get modules from window if available
   if (typeof uiUtils === 'undefined' && typeof window.uiUtils !== 'undefined') {
     uiUtils = window.uiUtils;
@@ -626,7 +630,7 @@ $(function () {
       $("#doc").prop("disabled", true);
       $("#url").prop("disabled", true);
       $("#select-role").prop("disabled", true);
-      $("#cancel_query").css("display", "block");
+      document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
       
       // Show the spinner with robot icon animation
       $("#monadic-spinner").css("display", "block");
@@ -1425,7 +1429,7 @@ $(function () {
       if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
-        $("#cancel_query").show();
+        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         reconnect_websocket(ws, function (ws) {
           // Ensure critical parameters are correctly set based on checkboxes
           params["auto_speech"] = $("#check-auto-speech").is(":checked");
@@ -1493,7 +1497,7 @@ $(function () {
     
     // This is handled already in setParams(), no need to override here
 
-    $("#cancel_query").show();
+    document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
     
     $("#monadic-spinner").show();
 

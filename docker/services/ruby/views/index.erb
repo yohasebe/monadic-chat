@@ -300,6 +300,20 @@
           right: 20px !important; /* Keep at right side */
         }
       }
+      /* Ensure cancel button content never wraps and stays inline */
+      #cancel_query {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        padding: .375rem .75rem !important;
+        /* Keep line height consistent so content fits within border */
+        line-height: 1 !important;
+      }
+      /* Add spacing between icon and text for cancel button */
+      #cancel_query i {
+        margin-right: .25rem !important;
+      }
     </style>
    <script>
      // Toggle mobile-view class when width < 1024px
@@ -322,7 +336,7 @@
         </a>
         <div class="ms-auto d-flex align-items-center nav-actions">
           <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query">
-            <i class="fas fa-ban"></i>
+            <i class="fas fa-ban"></i><span>CANCEL</span>
           </button>
           <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu">
             <i class="fas fa-bars"></i>

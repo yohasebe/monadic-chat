@@ -10,7 +10,7 @@
   display: flex !important;
   align-items: center !important;
   padding: 0 1rem !important;
-  height: 80px !important;
+  height: 65px !important;
 }
 #main-nav .navbar-brand {
   display: flex !important;
@@ -45,7 +45,7 @@
 }
 @media (max-width: 767px) {
   #main-nav .container-fluid {
-    height: 80px !important;
+    height: 65px !important;
   }
   #main-nav .nav-logo {
     width: 1.8em;
@@ -65,20 +65,27 @@
   border: 1px solid rgba(0, 0, 0, 0.2) !important;
   border-radius: 4px !important;
   /* Fixed size for toggle menu button */
-  width: 30px !important;
-  height: 30px !important;
+  width: 28px !important;
+  height: 28px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   padding: 0 !important;
-  /* Fixed positioning to prevent shifting */
-  position: fixed !important;
-  top: 25px !important; /* Center vertically in navbar height (80px) */
-  right: 20px !important;
-  z-index: 1100 !important;
+  position: relative !important;
 }
 #toggle-menu:hover {
   background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Menu open/closed state styles */
+#toggle-menu.menu-hidden {
+  background-color: transparent !important;
+}
+
+#toggle-menu:not(.menu-hidden) {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  color: #ffc107 !important;
 }
 
 /* ********************************************** */
@@ -91,7 +98,7 @@
 #main-nav .navbar-brand {
   display: flex !important;
   align-items: center !important;
-  height: 80px !important;
+  height: 65px !important;
   margin: 0 0 0 0 !important;
 }
 
@@ -450,9 +457,7 @@ h5 i,
 
 /* Match height and style of toggle-menu button */
 #cancel_query {
-  position: fixed !important;
-  top: 25px !important;
-  right: 70px !important;
+  position: relative !important;
   height: 30px !important;
   padding: 0 8px !important;
   background-color: transparent !important;
@@ -464,7 +469,6 @@ h5 i,
   opacity: 0.85 !important;
   cursor: pointer !important;
   transition: opacity 0.3s ease !important;
-  z-index: 1100 !important;
 }
 
 #cancel_query i {
@@ -496,7 +500,7 @@ h5 i,
 #main {
   padding-bottom: 0;
   /* Ensure full height for all views to prevent gray area */
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - 65px);
   margin-bottom: 0 !important;
 }
 
@@ -506,7 +510,7 @@ h5 i,
     padding-bottom: 0 !important; /* Remove bottom padding on mobile */
     margin-bottom: 0 !important;
     /* Ensure consistent height on mobile */
-    min-height: calc(100vh - 80px);
+    min-height: calc(100vh - 65px);
   }
   
   #main > div:last-child {
@@ -518,7 +522,7 @@ h5 i,
 
 .scrollable {
   overflow-y: auto; /* Use auto instead of scroll for better performance */
-  height: calc(100vh - 80px - 12px); /* Account for bottom container padding */
+  height: calc(100vh - 65px - 12px); /* Account for bottom container padding */
   -webkit-overflow-scrolling: touch;
   padding-top: 10px; /* Keep top padding for visual spacing */
   padding-bottom: 0; /* No padding on scrollable itself */
@@ -533,7 +537,7 @@ h5 i,
 /* Mobile optimized scrollable areas */
 @media (max-width: 767px) {
   .scrollable {
-    height: calc(100vh - 80px - 12px) !important; /* Account for bottom padding */
+    height: calc(100vh - 65px - 12px) !important; /* Account for bottom padding */
     padding-bottom: 0 !important; /* No padding on scrollable element */
     overflow-y: auto !important; /* Use auto instead of scroll to only show scrollbar when needed */
     margin-bottom: 0 !important; /* Remove margin at the bottom */
@@ -1028,7 +1032,7 @@ legend {
   display: flex;
   align-items: center;
   /* Desktop navbar height */
-  height: 80px;
+  height: 65px;
   border-top: 1px solid #666;
   border-bottom: 1px solid #666;
   background-color: #F8F8F8;
@@ -1483,7 +1487,7 @@ legend {
     display: flex !important;
     align-items: center !important;
     /* Mobile navbar height unified with desktop */
-    height: 80px !important;
+    height: 65px !important;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -1542,10 +1546,10 @@ legend {
   
   /* Adjust main content position to match reduced navbar height */
   #contents {
-    margin-top: 52px !important; /* Match navbar height */
+    margin-top: 65px !important; /* Match navbar height */
     padding-top: 0 !important; /* Remove top padding completely */
     padding-bottom: 0 !important; /* Remove bottom padding on mobile */
-    height: calc(100vh - 52px) !important; /* Full viewport height minus navbar */
+    height: calc(100vh - 65px) !important; /* Full viewport height minus navbar */
     box-sizing: border-box !important;
     overflow: hidden !important;
   }
@@ -1577,7 +1581,7 @@ legend {
   /* Make menu take full screen when visible */
   body.menu-visible #menu {
     display: block !important;
-    height: calc(100vh - 54px) !important; /* Full height minus navbar */
+    height: calc(100vh - 65px) !important; /* Full height minus navbar */
     overflow-y: auto !important;
   }
   
@@ -1910,9 +1914,20 @@ h1 {
 }
 
 /* Mobile-specific media queries for toggle menu */
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   #toggle-menu {
-    top: 25px !important; /* Keep centered vertically */
+    position: fixed !important;
+    margin-top: 0 !important;
+    top: 18px !important; /* Center vertically in navbar (65px height) - adjusted for perfect centering */
     right: 15px !important;
+    z-index: 1100 !important;
+  }
+  
+  /* Adjust cancel button in mobile view */
+  #cancel_query {
+    position: fixed !important;
+    top: 18px !important; /* Center vertically in navbar (65px height) - adjusted for perfect centering */
+    right: 65px !important;
+    z-index: 1100 !important;
   }
 }

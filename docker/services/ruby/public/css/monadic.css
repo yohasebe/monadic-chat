@@ -494,14 +494,19 @@ h5 i,
 /* Toggle menu hover and focus styles defined at the top of the file */
 
 #main {
-  padding-bottom: 16px;
+  padding-bottom: 0;
+  /* Ensure full height for all views to prevent gray area */
+  min-height: calc(100vh - 80px);
+  margin-bottom: 0 !important;
 }
 
-/* Optimize main content area for mobile */
+/* Optimize main content area for all devices */
 @media (max-width: 767px) {
   #main {
     padding-bottom: 0 !important; /* Remove bottom padding on mobile */
     margin-bottom: 0 !important;
+    /* Ensure consistent height on mobile */
+    min-height: calc(100vh - 80px);
   }
   
   #main > div:last-child {
@@ -512,22 +517,24 @@ h5 i,
 /* Removed iOS spacers, using JavaScript solution instead */
 
 .scrollable {
-  overflow-y: scroll;
-  height: calc(100vh - 122px - 20px); /* Original space calculation */
+  overflow-y: auto; /* Use auto instead of scroll for better performance */
+  height: calc(100vh - 80px - 12px); /* Account for bottom container padding */
   -webkit-overflow-scrolling: touch;
-  padding-top: 10px; /* Original padding */
-  padding-bottom: 20px; /* Add breathing room at the bottom */
+  padding-top: 10px; /* Keep top padding for visual spacing */
+  padding-bottom: 0; /* No padding on scrollable itself */
   position: relative; /* Ensure position context for iOS */
   /* Add hardware acceleration to prevent iOS Safari rendering issues */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+  /* Force margin bottom to zero to eliminate gray area */
+  margin-bottom: 0 !important;
 }
 
 /* Mobile optimized scrollable areas */
 @media (max-width: 767px) {
   .scrollable {
-    height: calc(100vh - 54px) !important; /* Full viewport height minus navbar only */
-    padding-bottom: 80px !important; /* Increased padding to ensure more space at bottom */
+    height: calc(100vh - 80px - 12px) !important; /* Account for bottom padding */
+    padding-bottom: 0 !important; /* No padding on scrollable element */
     overflow-y: auto !important; /* Use auto instead of scroll to only show scrollbar when needed */
     margin-bottom: 0 !important; /* Remove margin at the bottom */
   }

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
 // Expose API to focus the main Electron window from the webview
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -9,15 +9,100 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Reset web UI session
   resetWebUI: () => ipcRenderer.send('reset-web-ui'),
   // Notify page of zoom changes so overlay can adjust
-  onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback)
+  onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
+  // Clipboard access
+  readClipboard: () => clipboard.readText(),
+  writeClipboard: (text) => clipboard.writeText(text)
 });
 // Intercept link clicks in the loaded page and open external links in the default browser
 window.addEventListener('DOMContentLoaded', () => {
-  // Ensure standard keyboard shortcuts work in webviews
-  // This adds web-standard keyboard event listeners for basic editing operations
+  // Explicitly enable standard keyboard shortcuts for common operations
   document.addEventListener('keydown', (event) => {
-    // Let all key events propagate naturally - no need to intercept them here
-    // The main process has been modified to not interfere with standard editing shortcuts
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+    
+    if (cmdOrCtrl) {
+      // Handle standard edit operations
+      if (event.key === 'c') {
+        // Copy
+        const selection = window.getSelection().toString();
+        if (selection) {
+          window.electronAPI.writeClipboard(selection);
+          console.log('Copy shortcut used: ' + selection);
+        }
+      } else if (event.key === 'v') {
+        // Paste
+        const clipText = window.electronAPI.readClipboard();
+        if (clipText && document.activeElement) {
+          // For input fields and textareas
+          if (document.activeElement.tagName === 'INPUT' || 
+              document.activeElement.tagName === 'TEXTAREA' ||
+              document.activeElement.isContentEditable) {
+            
+            // Use execCommand for standard elements
+            document.execCommand('insertText', false, clipText);
+            console.log('Paste shortcut used');
+          }
+        }
+      } else if (event.key === 'x') {
+        // Cut
+        const selection = window.getSelection().toString();
+        if (selection && document.activeElement) {
+          window.electronAPI.writeClipboard(selection);
+          // If in editable area, delete selection
+          if (document.activeElement.tagName === 'INPUT' || 
+              document.activeElement.tagName === 'TEXTAREA' ||
+              document.activeElement.isContentEditable) {
+            document.execCommand('delete');
+            console.log('Cut shortcut used: ' + selection);
+          }
+        }
+      } else if (event.key === 'a') {
+        // Select all
+        if (document.activeElement) {
+          if (document.activeElement.tagName === 'INPUT' || 
+              document.activeElement.tagName === 'TEXTAREA') {
+            document.activeElement.select();
+            console.log('Select all shortcut used (input/textarea)');
+          } else {
+            // Select all in the current editable element or document body
+            try {
+              // Try to select within the current editable element
+              if (document.activeElement.isContentEditable) {
+                const range = document.createRange();
+                range.selectNodeContents(document.activeElement);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                console.log('Select all shortcut used (contentEditable)');
+              } else {
+                // Default to document.body for normal text
+                document.execCommand('selectAll');
+                console.log('Select all shortcut used (document)');
+              }
+            } catch (e) {
+              // Fallback if the above doesn't work
+              document.execCommand('selectAll');
+              console.log('Select all fallback used');
+            }
+          }
+        }
+      } else if (event.key === 'z') {
+        // Undo
+        if (!event.shiftKey) {
+          document.execCommand('undo');
+          console.log('Undo shortcut used');
+        } else {
+          // Redo (Shift+Cmd/Ctrl+Z)
+          document.execCommand('redo');
+          console.log('Redo shortcut used (Shift+Z)');
+        }
+      } else if (event.key === 'y') {
+        // Redo alternative (Ctrl+Y)
+        document.execCommand('redo');
+        console.log('Redo shortcut used (Y)');
+      }
+    }
   });
 
   // Capture clicks in the capture phase to override page handlers

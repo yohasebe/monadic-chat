@@ -74,15 +74,12 @@ function openWebViewWindow(url) {
     webPreferences: {
       preload: path.join(__dirname, 'webview-preload.js'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      spellcheck: false // Disable spellcheck as it can interfere with keyboard events
     }
   });
   webviewWindow.loadURL(url);
-  // Apply the same application menu (with accelerators) to the internal browser window
-  const appMenu = Menu.getApplicationMenu();
-  if (appMenu) {
-    webviewWindow.setMenu(appMenu);
-  }
+  // Custom menu is set further down in the code
   // Inject a floating button into the web page to bring the main window to front
   webviewWindow.webContents.on('dom-ready', () => {
     const injectButtonJS = `
@@ -143,63 +140,152 @@ function openWebViewWindow(url) {
       console.error('Failed to inject focus button:', err);
     });
   });
-  // Add keyboard shortcuts within the internal browser window
+  // Make sure Menu is visible for standard edit commands
+  const editMenu = Menu.buildFromTemplate([
+    {
+      label: 'Edit',
+      submenu: [
+        {
+          label: 'Undo',
+          accelerator: 'CmdOrCtrl+Z',
+          click: () => {
+            webviewWindow.webContents.undo();
+          }
+        },
+        {
+          label: 'Redo',
+          accelerator: process.platform === 'darwin' ? 'CmdOrCtrl+Shift+Z' : 'CmdOrCtrl+Y',
+          click: () => {
+            webviewWindow.webContents.redo();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Cut',
+          accelerator: 'CmdOrCtrl+X',
+          click: () => {
+            webviewWindow.webContents.cut();
+          }
+        },
+        {
+          label: 'Copy',
+          accelerator: 'CmdOrCtrl+C',
+          click: () => {
+            webviewWindow.webContents.copy();
+          }
+        },
+        {
+          label: 'Paste',
+          accelerator: 'CmdOrCtrl+V',
+          click: () => {
+            webviewWindow.webContents.paste();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Select All',
+          accelerator: 'CmdOrCtrl+A',
+          click: () => {
+            webviewWindow.webContents.selectAll();
+          }
+        }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { 
+          label: 'Reload',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => {
+            webviewWindow.reload();
+          }
+        },
+        { 
+          label: 'Toggle DevTools',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => {
+            webviewWindow.webContents.toggleDevTools();
+          }
+        },
+        { type: 'separator' },
+        { 
+          label: 'Zoom In',
+          accelerator: 'CmdOrCtrl+Plus',
+          click: () => {
+            webviewWindow.webContents.send('zoom-in-menu');
+          }
+        },
+        { 
+          label: 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: () => {
+            webviewWindow.webContents.send('zoom-out-menu');
+          }
+        },
+        { type: 'separator' },
+        { 
+          label: 'Toggle Fullscreen',
+          accelerator: process.platform === 'darwin' ? 'Ctrl+Command+F' : 'F11',
+          click: () => {
+            const isFullScreen = webviewWindow.isFullScreen();
+            webviewWindow.setFullScreen(!isFullScreen);
+          }
+        }
+      ]
+    }
+  ]);
+  
+  // Apply menu to the webview window
+  webviewWindow.setMenu(editMenu);
+  
+  // Register built-in shortcuts but don't intercept most keyboard events
   webviewWindow.webContents.on('before-input-event', (event, input) => {
+    // Only intercept fullscreen toggle to make sure it works
     const isMac = process.platform === 'darwin';
-    const control = isMac ? input.meta : input.control;
     if (input.type === 'keyDown') {
-      // Handle control/command key combinations
-      if (control) {
-        const key = input.key.toLowerCase();
-        // Window management shortcuts
-        if (key === 'm') {
-          // Minimize: Cmd/Ctrl+M
-          webviewWindow.minimize();
-          event.preventDefault();
-        }
-        else if (key === 'w') {
-          // Close: Cmd/Ctrl+W
-          webviewWindow.close();
-          event.preventDefault();
-        }
-        else if (key === 'r') {
-          // Reload: Cmd/Ctrl+R
-          webviewWindow.reload();
-          event.preventDefault();
-        }
-        else if (input.shift && key === 'i') {
-          // Toggle DevTools: Cmd/Ctrl+Shift+I
-          webviewWindow.webContents.toggleDevTools();
-          event.preventDefault();
-        }
-        else if (key === 'f') {
-          // Toggle fullscreen: Cmd/Ctrl+F
-          const isFullScreen = webviewWindow.isFullScreen();
-          webviewWindow.setFullScreen(!isFullScreen);
-          event.preventDefault();
-        }
-        // DO NOT INTERCEPT basic editing shortcuts - let them pass through to the web content
-        // This enables standard editing functionality in the browser
-        else if (key === 'c' || key === 'v' || key === 'x' || key === 'a' || key === 'z' || key === 'y') {
-          // Let these shortcuts pass through to web content (don't prevent default)
-          // c: copy, v: paste, x: cut, a: select all, z: undo, y: redo
-          return;
-        }
-      }
-      
       // OS-specific fullscreen shortcuts
-      // macOS: Control+Command+F
       if (isMac && input.control && input.meta && input.key.toLowerCase() === 'f') {
         const isFullScreen = webviewWindow.isFullScreen();
         webviewWindow.setFullScreen(!isFullScreen);
         event.preventDefault();
-      }
-      // Windows/Linux: F11
-      else if (!isMac && input.key === 'F11') {
+        return;
+      } else if (!isMac && input.key === 'F11') {
         const isFullScreen = webviewWindow.isFullScreen();
         webviewWindow.setFullScreen(!isFullScreen);
         event.preventDefault();
+        return;
       }
+      // Handle standard edit shortcuts
+      if (input.meta || input.control) {
+        const key = input.key.toLowerCase();
+        if (key === 'z' && !input.shift) {
+          webviewWindow.webContents.undo();
+          event.preventDefault();
+          return;
+        } else if ((key === 'z' && input.shift) || key === 'y') {
+          webviewWindow.webContents.redo();
+          event.preventDefault();
+          return;
+        } else if (key === 'x') {
+          webviewWindow.webContents.cut();
+          event.preventDefault();
+          return;
+        } else if (key === 'c') {
+          webviewWindow.webContents.copy();
+          event.preventDefault();
+          return;
+        } else if (key === 'v') {
+          webviewWindow.webContents.paste();
+          event.preventDefault();
+          return;
+        } else if (key === 'a') {
+          webviewWindow.webContents.selectAll();
+          event.preventDefault();
+          return;
+        }
+      }
+      // Let all other keyboard events pass through to the webview
     }
   });
   webviewWindow.on('closed', () => {
@@ -1837,9 +1923,9 @@ function createMainWindow() {
     if ((input.meta || input.control) && input.key === 'c') {
       mainWindow.webContents.copy();
     }
-    // For Cmd+A / Ctrl+A (Select All)
+    // Disable Cmd+A / Ctrl+A (Select All) in main window
     else if ((input.meta || input.control) && input.key === 'a') {
-      mainWindow.webContents.selectAll();
+      event.preventDefault();
     }
   });
 
@@ -1878,9 +1964,7 @@ function createMainWindow() {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'delete' },
-        { type: 'separator' },
-        { role: 'selectAll' }
+        { role: 'delete' }
       ]
     }
   ];
@@ -2087,6 +2171,41 @@ function openSettingsWindow() {
     });
 
     settingsWindow.loadFile('settings.html');
+    // Enable standard edit shortcuts in settings window
+    extendedContextMenu({
+      window: settingsWindow,
+      showUndo: true,
+      showRedo: true,
+      showCut: true,
+      showCopy: true,
+      showPaste: true,
+      showSelectAll: true
+    });
+    // Handle keyboard shortcuts in settings window
+    settingsWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown' && (input.meta || input.control)) {
+        const key = input.key.toLowerCase();
+        if (key === 'c') {
+          settingsWindow.webContents.copy();
+          event.preventDefault();
+        } else if (key === 'x') {
+          settingsWindow.webContents.cut();
+          event.preventDefault();
+        } else if (key === 'v') {
+          settingsWindow.webContents.paste();
+          event.preventDefault();
+        } else if (key === 'a') {
+          settingsWindow.webContents.selectAll();
+          event.preventDefault();
+        } else if (key === 'z' && !input.shift) {
+          settingsWindow.webContents.undo();
+          event.preventDefault();
+        } else if ((key === 'z' && input.shift) || key === 'y') {
+          settingsWindow.webContents.redo();
+          event.preventDefault();
+        }
+      }
+    });
 
     settingsWindow.on('close', (event) => {
       event.preventDefault();

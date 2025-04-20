@@ -1,4 +1,5 @@
 - [April, 2025] 0.9.85
+  - Built-in browser introduced for web UI
   - Server mode (distributed mode) support added: Allows multiple clients
   - Better MathJax rendering
   - Asset inclusion issue fixed

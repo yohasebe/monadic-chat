@@ -522,10 +522,10 @@ h5 i,
 
 .scrollable {
   overflow-y: auto; /* Use auto instead of scroll for better performance */
-  height: calc(100vh - 65px - 12px); /* Account for bottom container padding */
+  max-height: calc(100vh - 65px - 12px); /* Use max-height instead of fixed height */
   -webkit-overflow-scrolling: touch;
   padding-top: 10px; /* Keep top padding for visual spacing */
-  padding-bottom: 0; /* No padding on scrollable itself */
+  padding-bottom: 20px; /* Add bottom padding to prevent content from being cut off */
   position: relative; /* Ensure position context for iOS */
   /* Add hardware acceleration to prevent iOS Safari rendering issues */
   transform: translateZ(0);
@@ -537,8 +537,8 @@ h5 i,
 /* Mobile optimized scrollable areas */
 @media (max-width: 767px) {
   .scrollable {
-    height: calc(100vh - 65px - 12px) !important; /* Account for bottom padding */
-    padding-bottom: 0 !important; /* No padding on scrollable element */
+    max-height: calc(100vh - 65px - 12px) !important; /* Use max-height for mobile too */
+    padding-bottom: 20px !important; /* Add bottom padding to prevent content from being cut off */
     overflow-y: auto !important; /* Use auto instead of scroll to only show scrollbar when needed */
     margin-bottom: 0 !important; /* Remove margin at the bottom */
   }

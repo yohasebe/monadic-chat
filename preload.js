@@ -1,5 +1,22 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Add event listener to disable Cmd/Ctrl+A in the main window
+window.addEventListener('DOMContentLoaded', () => {
+  // Disable Cmd/Ctrl+A only in the main index.html window
+  const pathname = window.location && window.location.pathname;
+  if (pathname && pathname.endsWith('index.html')) {
+    document.addEventListener('keydown', (event) => {
+      // Check if Cmd (macOS) or Ctrl (Windows/Linux) is pressed with A
+      if ((event.metaKey || event.ctrlKey) && event.key === 'a') {
+        // Prevent the default select all behavior
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('Cmd/Ctrl+A disabled via preload for main window');
+      }
+    }, true); // Use capture phase to ensure this runs before other handlers
+  }
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for temporal UI disable event from the main process 
   onDisableUI: (callback) => ipcRenderer.on('disable-ui', callback),

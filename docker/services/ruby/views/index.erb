@@ -623,19 +623,14 @@
                   <input class="form-check-input" type="checkbox" id="initial-prompt-toggle">
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="prompt-caching">Prompt Caching <sup>1</sup></label>
+                  <label class="form-check-label" for="prompt-caching">Prompt Caching></label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
                 </div>
-
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="websearch">Web Search <sup>2</sup></label>
+                  <label class="form-check-label" for="websearch">Web Search</label>
                   <input class="form-check-input" type="checkbox" id="websearch">
                 </div>
 
-                <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="mathjax">Math Rendering</label>
-                  <input class="form-check-input" type="checkbox" id="mathjax">
-                </div>
                 <textarea class="form-control form-control-sm" style="resize: vertical;" id="initial-prompt"></textarea>
               </div>
             </div>
@@ -649,6 +644,10 @@
                 <div style="display:inline-block;" class="form-check form-switch me-3">
                   <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
+                </div>
+                <div style="display:inline-block;" class="form-check form-switch me-3">
+                  <label class="form-check-label" for="mathjax">Math Rendering</label>
+                  <input class="form-check-input" type="checkbox" id="mathjax">
                 </div>
                 <textarea class="form-control form-control-sm" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
               </div>
@@ -677,13 +676,6 @@
                     <label class="form-check-label" for="check-easy-submit">Easy submit <small>(with Enter key or Stop button)</small></label>
                   </div>
                 </fieldset>
-
-                <div class="textbox-caption mt-2 mb-0">
-                  <sup>1</sup> <code>Prompt Caching</code> is currently controllable only for the Anthropic Claude models. 
-                </div>
-                <div class="textbox-caption mt-0 mb-0">
-                  <sup>2</sup> <code>Web Search</code>: OpenAI uses own search; other models need Tavily API key.
-                </div>
               </div>
             </div>
 

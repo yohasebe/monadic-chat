@@ -1092,7 +1092,7 @@ function connect_websocket(callback) {
           $("#temp-card").hide();
           $("#indicator").hide();
           $("#user-panel").show();
-          $("#cancel_query").hide();
+          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
   
           // For AI User errors, don't delete messages but re-enable the AI User button
           if (isAIUserError) {
@@ -1719,7 +1719,7 @@ function connect_websocket(callback) {
         setAlert("<i class='fas fa-spinner fa-spin'></i> Generating AI user response...", "warning");
         
         // Show the cancel button
-        $("#cancel_query").css("display", "block");
+        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         
         // Show spinner and update its message with robot animation
         $("#monadic-spinner").css("display", "block");
@@ -1758,7 +1758,7 @@ function connect_websocket(callback) {
         $("#message").val(trimmedContent);
         
         // Hide cancel button and spinner
-        $("#cancel_query").hide();
+        document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
         $("#monadic-spinner").css("display", "none");
 
         // Re-enable all input elements individually
@@ -1843,7 +1843,7 @@ function connect_websocket(callback) {
         if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
           handled = wsHandlers.handleHtmlMessage(data, messages, appendCard);
           if (handled) {
-            $("#cancel_query").hide();
+            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           }
         }
         
@@ -1875,11 +1875,11 @@ function connect_websocket(callback) {
             
             $("#monadic-spinner").hide();
             
-            $("#cancel_query").hide();
+            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           }
 
           // AI User is no longer automatically triggered
-          $("#cancel_query").hide();
+          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         } else if (data["content"]["role"] === "user") {
@@ -1893,7 +1893,7 @@ function connect_websocket(callback) {
           $("#message").show();
           $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
-          $("#cancel_query").hide();
+          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         } else if (data["content"]["role"] === "system") {
           // Use the appendCard helper function
@@ -1901,7 +1901,7 @@ function connect_websocket(callback) {
           $("#message").show();
           $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
-          $("#cancel_query").hide();
+          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         }
 
@@ -1958,7 +1958,7 @@ function connect_websocket(callback) {
         $("#message").prop("disabled", true);
         $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
         $("#select-role").prop("disabled", true);
-        $("#cancel_query").css("display", "block");
+        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         
         // Show informative spinner message with brain animation icon
         $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request...');
@@ -2058,7 +2058,7 @@ function connect_websocket(callback) {
           
           // Hide UI elements
           $("#monadic-spinner").hide();
-          $("#cancel_query").hide();
+          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           
           // Show success alert
           const roleText = data.role === "user" ? "User" : 
@@ -2102,7 +2102,7 @@ function connect_websocket(callback) {
           $("#select-role").prop("disabled", false);
           
           $("#alert-message").html("Input a message.");
-          $("#cancel_query").hide();
+          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           
           // Hide loading indicators
           $("#temp-card").hide();

@@ -6,12 +6,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Zoom controls
   zoomIn: () => ipcRenderer.send('zoom-in'),
   zoomOut: () => ipcRenderer.send('zoom-out'),
-  resetZoom: () => ipcRenderer.send('zoom-reset'),
+  // Reset web UI session
+  resetWebUI: () => ipcRenderer.send('reset-web-ui'),
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback)
 });
 // Intercept link clicks in the loaded page and open external links in the default browser
 window.addEventListener('DOMContentLoaded', () => {
+  // Ensure standard keyboard shortcuts work in webviews
+  // This adds web-standard keyboard event listeners for basic editing operations
+  document.addEventListener('keydown', (event) => {
+    // Let all key events propagate naturally - no need to intercept them here
+    // The main process has been modified to not interfere with standard editing shortcuts
+  });
+
   // Capture clicks in the capture phase to override page handlers
   document.addEventListener('click', (event) => {
     let el = event.target;

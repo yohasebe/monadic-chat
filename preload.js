@@ -80,5 +80,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Zoom controls for internal browser window
   zoomIn: () => ipcRenderer.send('zoom-in'),
   zoomOut: () => ipcRenderer.send('zoom-out'),
-  resetZoom: () => ipcRenderer.send('zoom-reset'),
 });

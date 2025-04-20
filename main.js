@@ -69,6 +69,8 @@ function openWebViewWindow(url) {
     minWidth: 412,
     minHeight: 600,
     title: 'Monadic Chat',
+    // Add background color to match web app theme - at the correct level
+    backgroundColor: '#DCDCDC',
     webPreferences: {
       preload: path.join(__dirname, 'webview-preload.js'),
       nodeIntegration: false,
@@ -87,8 +89,8 @@ function openWebViewWindow(url) {
       (function() {
         const container = document.createElement('div');
         container.style.position = 'fixed';
-        container.style.bottom = '20px';
-        container.style.right = '20px';
+        container.style.bottom = '10px';
+        container.style.right = '10px';
         container.style.display = 'flex';
         container.style.gap = '6px';
         container.style.zIndex = '9999';
@@ -100,20 +102,26 @@ function openWebViewWindow(url) {
           const btn = document.createElement('button');
           // Use string concatenation to avoid nested template literals
           btn.innerHTML = '<i class="' + iconClass + '"></i>';
-          // Smaller padding and consistent icon size
-          btn.style.padding = '4px 8px';
+          // Match toggle-menu dimensions and styling
+          btn.style.width = '30px';
+          btn.style.height = '30px';
+          btn.style.padding = '0';
           btn.style.background = bgColor;
           btn.style.border = '1px solid rgba(0, 0, 0, 0.2)';
           btn.style.borderRadius = '4px';
           btn.style.cursor = 'pointer';
-          btn.style.fontSize = '14px';
+          btn.style.fontSize = '14px'; 
+          btn.style.display = 'flex';
+          btn.style.alignItems = 'center';
+          btn.style.justifyContent = 'center';
+          btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
           btn.onclick = onClick;
           return btn;
         }
 
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn()));
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut()));
-        // container.appendChild(makeBtn('fa-solid fa-sync', 'rgba(255,255,255,0.9)', () => window.electronAPI.resetZoom()));
+        container.appendChild(makeBtn('fa-solid fa-arrows-rotate', 'rgba(66,139,202,0.9)', () => window.electronAPI.resetWebUI()));
         container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow()));
 
         document.body.appendChild(container);
@@ -124,7 +132,7 @@ function openWebViewWindow(url) {
             // Use string concatenation to avoid nested template literals
             container.style.transform = 'scale(' + scale + ')';
             container.style.transformOrigin = 'bottom right';
-            const offset = 20 / factor;
+            const offset = 10 / factor;
             container.style.right = offset + 'px';
             container.style.bottom = offset + 'px';
           });
@@ -139,26 +147,57 @@ function openWebViewWindow(url) {
   webviewWindow.webContents.on('before-input-event', (event, input) => {
     const isMac = process.platform === 'darwin';
     const control = isMac ? input.meta : input.control;
-    if (input.type === 'keyDown' && control) {
-      const key = input.key.toLowerCase();
-      // Minimize: Cmd/Ctrl+M
-      if (key === 'm') {
-        webviewWindow.minimize();
+    if (input.type === 'keyDown') {
+      // Handle control/command key combinations
+      if (control) {
+        const key = input.key.toLowerCase();
+        // Window management shortcuts
+        if (key === 'm') {
+          // Minimize: Cmd/Ctrl+M
+          webviewWindow.minimize();
+          event.preventDefault();
+        }
+        else if (key === 'w') {
+          // Close: Cmd/Ctrl+W
+          webviewWindow.close();
+          event.preventDefault();
+        }
+        else if (key === 'r') {
+          // Reload: Cmd/Ctrl+R
+          webviewWindow.reload();
+          event.preventDefault();
+        }
+        else if (input.shift && key === 'i') {
+          // Toggle DevTools: Cmd/Ctrl+Shift+I
+          webviewWindow.webContents.toggleDevTools();
+          event.preventDefault();
+        }
+        else if (key === 'f') {
+          // Toggle fullscreen: Cmd/Ctrl+F
+          const isFullScreen = webviewWindow.isFullScreen();
+          webviewWindow.setFullScreen(!isFullScreen);
+          event.preventDefault();
+        }
+        // DO NOT INTERCEPT basic editing shortcuts - let them pass through to the web content
+        // This enables standard editing functionality in the browser
+        else if (key === 'c' || key === 'v' || key === 'x' || key === 'a' || key === 'z' || key === 'y') {
+          // Let these shortcuts pass through to web content (don't prevent default)
+          // c: copy, v: paste, x: cut, a: select all, z: undo, y: redo
+          return;
+        }
+      }
+      
+      // OS-specific fullscreen shortcuts
+      // macOS: Control+Command+F
+      if (isMac && input.control && input.meta && input.key.toLowerCase() === 'f') {
+        const isFullScreen = webviewWindow.isFullScreen();
+        webviewWindow.setFullScreen(!isFullScreen);
         event.preventDefault();
       }
-      // Close: Cmd/Ctrl+W
-      else if (key === 'w') {
-        webviewWindow.close();
-        event.preventDefault();
-      }
-      // Reload: Cmd/Ctrl+R
-      else if (key === 'r') {
-        webviewWindow.reload();
-        event.preventDefault();
-      }
-      // Toggle DevTools: Cmd/Ctrl+Shift+I
-      else if (input.shift && key === 'i') {
-        webviewWindow.webContents.toggleDevTools();
+      // Windows/Linux: F11
+      else if (!isMac && input.key === 'F11') {
+        const isFullScreen = webviewWindow.isFullScreen();
+        webviewWindow.setFullScreen(!isFullScreen);
         event.preventDefault();
       }
     }
@@ -2400,13 +2439,21 @@ ipcMain.on('zoom-out', () => {
     });
   }
 });
-// Reset Zoom: restore page zoom for webview content to default
-ipcMain.on('zoom-reset', () => {
+// Reset Web UI: reload the webview to start a fresh session
+ipcMain.on('reset-web-ui', () => {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
-    const wc = webviewWindow.webContents;
-    const resetFactor = 1.0;
-    wc.setZoomFactor(resetFactor);
-    wc.send('zoom-changed', resetFactor);
+    // Clear storage data (session, local storage, etc)
+    webviewWindow.webContents.session.clearStorageData()
+      .then(() => {
+        console.log('Web UI session data cleared');
+        // Reload the page to get a fresh UI
+        webviewWindow.reload();
+      })
+      .catch(err => {
+        console.error('Error clearing web UI session:', err);
+        // Try to reload anyway
+        webviewWindow.reload();
+      });
   }
 });
 

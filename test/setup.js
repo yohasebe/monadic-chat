@@ -126,7 +126,7 @@ global.setCookie = jest.fn();
 global.getCookie = jest.fn();
 global.setInputFocus = jest.fn();
 global.listModels = jest.fn().mockReturnValue('<option>model1</option>');
-global.modelSpec = { 'gpt-4o': { reasoning_effort: 'high' } };
+global.modelSpec = { 'gpt-4.1': { reasoning_effort: 'high' } };
 
 // Mock browser multimedia APIs
 global.Audio = jest.fn().mockImplementation(() => ({

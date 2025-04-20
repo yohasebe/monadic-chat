@@ -13,7 +13,7 @@ MAX_FRAMES = 50
 
 DEFAULT_QUERY = "Describe what happens in the video by analyzing the image data extracted from the video."
 
-def video_query(json_path, query, model = "gpt-4o")
+def video_query(json_path, query, model = "gpt-4.1")
   num_retrial = 0
 
   begin
@@ -36,19 +36,19 @@ def video_query(json_path, query, model = "gpt-4o")
   end
 
   # Validate the model name - OpenAI vision-capable models should be used
-  vision_capable_models = ["gpt-4o", "gpt-4-vision", "gpt-4-turbo"]
+  vision_capable_models = ["gpt-4.1", "gpt-4o" "gpt-4-vision", "gpt-4-turbo"]
   unless model.nil? || model.empty?
     # Extract base model - remove version numbers
     base_model = model.gsub(/-\d.*$/, "")
     
     # Check if model is vision-capable
     unless vision_capable_models.any? { |m| model.include?(m) }
-      # Default to gpt-4o if not a vision-capable model
-      puts "WARNING: Model '#{model}' may not have vision capabilities. Using gpt-4o instead."
-      model = "gpt-4o"
+      # Default to gpt-4.1 if not a vision-capable model
+      puts "WARNING: Model '#{model}' may not have vision capabilities. Using gpt-4.1 instead."
+      model = "gpt-4.1"
     end
   else
-    model = "gpt-4o"  # Default model
+    model = "gpt-4.1"  # Default model
   end
 
   headers = {
@@ -128,7 +128,7 @@ end
 # Assuming the first argument is the path to the JSON file and the second is the query
 json_path = ARGV[0]
 query = ARGV[1] || DEFAULT_QUERY
-model = ARGV[2] || "gpt-4o"
+model = ARGV[2] || "gpt-4.1"
 
 if json_path.nil?
   puts "Usage: #{$PROGRAM_NAME} 'json_path' ['query']"

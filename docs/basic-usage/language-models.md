@@ -8,7 +8,7 @@ You can configure default models for each provider by setting environment variab
 
 ```
 # Default models for each provider
-OPENAI_DEFAULT_MODEL=gpt-4o
+OPENAI_DEFAULT_MODEL=gpt-4.1
 ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
 COHERE_DEFAULT_MODEL=command-r-plus
 GEMINI_DEFAULT_MODEL=gemini-2.0-flash
@@ -36,7 +36,7 @@ OPENAI_API_KEY=api_key
 
 For apps using OpenAI's language models, refer to the [Basic Apps](./basic-apps.md) section.
 
-?> For apps using OpenAI's gpt-4o series and gpt-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
+?> For apps using OpenAI's gpt-4.1, gpt-4o, and gpt-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
 
 ## Anthropic Models
 

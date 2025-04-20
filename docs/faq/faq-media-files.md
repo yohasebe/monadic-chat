@@ -23,5 +23,5 @@ You can also click the `Speech Input` button to use voice input. Speech input us
 
 All of the above use OpenAI's gpt-4 series models. If you use other models, you can load PDF files in the same way as the `Code Interpreter` in apps that support `Code` (`Anthropic Claude [Code]`, `Cohere [Code]`, and `Mistral AI [Code]`).
 
-In apps that use Anthropic Claude, OpenAI's gpt-4o, gpt-4o-mini, or o1 models, or Google Gemini, you can click the `Image/PDF` button below the text input box to upload a PDF file directly and ask the AI agent about its contents. For more information, see [Uploading PDFs](../basic-usage/message-input.md#uploading-pdfs).
+In apps that use Anthropic Claude, OpenAI's gpt-4.1, gpt-4o, gpt-4o-mini, or o1 models, or Google Gemini, you can click the `Image/PDF` button below the text input box to upload a PDF file directly and ask the AI agent about its contents. For more information, see [Uploading PDFs](../basic-usage/message-input.md#uploading-pdfs).
 

@@ -40,7 +40,7 @@ class Translate < MonadicApp
     group: "OpenAI",
     disabled: !CONFIG["OPENAI_API_KEY"],
     models: OpenAIHelper.list_models,
-    model: "gpt-4o",
+    model: "gpt-4.1",
     temperature: 0.2,
     initial_prompt: initial_prompt,
     easy_submit: false,

@@ -240,7 +240,7 @@ describe('UI Utilities', () => {
   describe('adjustImageUploadButton', () => {
     // Mock the global modelSpec
     global.modelSpec = {
-      'gpt-4o': { vision_capability: true },
+      'gpt-4.1': { vision_capability: true },
       'gpt-3.5-turbo': { vision_capability: false }
     };
     
@@ -255,7 +255,7 @@ describe('UI Utilities', () => {
       });
       
       // Call with a model that supports images
-      uiUtils.adjustImageUploadButton('gpt-4o');
+      uiUtils.adjustImageUploadButton('gpt-4.1');
       
       // Should enable the button
       expect(imageButton.prop).toHaveBeenCalledWith('disabled', false);
@@ -297,7 +297,7 @@ describe('UI Utilities', () => {
       });
       
       // Call the function, should not throw
-      expect(() => uiUtils.adjustImageUploadButton('gpt-4o')).not.toThrow();
+      expect(() => uiUtils.adjustImageUploadButton('gpt-4.1')).not.toThrow();
       
       // Restore modelSpec
       global.modelSpec = originalModelSpec;

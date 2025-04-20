@@ -2276,7 +2276,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.AI_USER_MODEL) {
-        envConfig.AI_USER_MODEL = 'gpt-4o';
+        envConfig.AI_USER_MODEL = 'gpt-4.1';
     }
 
     if (!envConfig.AI_USER_MAX_TOKENS) {
@@ -2293,7 +2293,7 @@ function checkAndUpdateEnvFile() {
 
     // Set default models for each provider if not already specified
     if (!envConfig.OPENAI_DEFAULT_MODEL) {
-        envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4o';
+        envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4.1';
     }
 
     if (!envConfig.ANTHROPIC_DEFAULT_MODEL) {

@@ -200,7 +200,7 @@ def my_function
   # Set parameters
   parameters = {
     message: {
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         {
           role: "user",

@@ -45,7 +45,7 @@ end
 app "ChatOpenAI" do
   llm do
     provider "openai"
-    model "gpt-4o"
+    model "gpt-4.1"
   end
 end
 ```

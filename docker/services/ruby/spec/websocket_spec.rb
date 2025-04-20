@@ -60,7 +60,7 @@ RSpec.describe WebSocketHelper do
     end
     
     def settings
-      settings_obj = {"model" => "gpt-4o", "display_name" => "Chat", "api_key" => "test_key"}
+      settings_obj = {"model" => "gpt-4.1", "display_name" => "Chat", "api_key" => "test_key"}
       settings_obj.instance_eval do
         def api_key
           self["api_key"]
@@ -260,9 +260,9 @@ RSpec.describe WebSocketHelper do
       # Mock APPS for app list
       stub_const("APPS", {
         "Chat" => double('ChatApp', 
-          settings: {"model" => "gpt-4o", "display_name" => "Chat"}, 
-          api_key: "test_key"
-        )
+                         settings: {"model" => "gpt-4.1", "display_name" => "Chat"}, 
+                         api_key: "test_key"
+                        )
       })
       
       # Mock EMBEDDINGS_DB
@@ -447,7 +447,7 @@ RSpec.describe WebSocketHelper do
       }
       
       # Mock the individual methods rather than the whole process
-      mock_apps_data = {"Chat" => {"model" => "gpt-4o"}}
+      mock_apps_data = {"Chat" => {"model" => "gpt-4.1"}}
       mock_filtered_messages = [
         {"role" => "assistant", "text" => "Test response", "type" => "normal", "html" => "<p>Test response</p>"},
         {"role" => "user", "text" => "Test message", "type" => "normal"},

@@ -140,7 +140,7 @@ describe('WebSocket Handlers', () => {
         type: 'token_verified',
         token: 'test-token',
         ai_user_initial_prompt: 'test-prompt',
-        models: ['gpt-4o', 'gpt-3.5-turbo']
+        models: ['gpt-4.1', 'gpt-3.5-turbo']
       };
       
       // Call the handler

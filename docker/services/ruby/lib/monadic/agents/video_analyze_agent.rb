@@ -33,7 +33,7 @@ module VideoAnalyzeAgent
 
     model = settings["model"] || settings[:model]
 
-    model = check_vision_capability(model) || "gpt-4o"
+    model = check_vision_capability(model) || "gpt-4.1"
 
     video_command = <<~CMD
       bash -c 'simple_video_query.rb "#{json_file}" #{query} "#{model}"'

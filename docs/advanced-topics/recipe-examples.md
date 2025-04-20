@@ -35,7 +35,7 @@ For how to use functions and tools in an app, refer to [Calling Functions in the
 
 Monadic Chat has a special mode (called `monadic` mode) for outputting in JSON format. For details, refer to [Monadic Mode](./monadic-mode.md).
 
-For some OpenAI models (such as `gpt-4o`), you can specify `response_format` to ensure that the response is in JSON format. For the specification method, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
+For some OpenAI models (such as `gpt-4.1`), you can specify `response_format` to ensure that the response is in JSON format. For the specification method, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
 
 <details open>
 <summary>Recipe Example (novel_writer_app.rb)</summary>

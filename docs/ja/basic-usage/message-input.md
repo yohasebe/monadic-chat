@@ -30,7 +30,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## PDF のアップロード :id=uploading-pdfs
 
-Anthropic の Sonnet モデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
+Anthropic の Sonnet モデル、OpenAI の gpt-4.1、gpt-4.1-mini、gpt-4.1-nano、gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
 
 ![](../assets/images/monadi-chat-pdf-attachment.png ':size=400')
 

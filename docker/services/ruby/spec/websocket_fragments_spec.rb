@@ -67,7 +67,7 @@ RSpec.describe "WebSocket Fragment Processing" do
       @session = { 
         messages: [],
         parameters: {
-          "model" => "gpt-4o",
+          "model" => "gpt-4.1",
           "max_input_tokens" => 4000,
           "context_size" => 10,
           "app_name" => "Chat",
@@ -109,8 +109,8 @@ RSpec.describe "WebSocket Fragment Processing" do
     
     def initialize
       @settings = {
-        "model" => "gpt-4o",
-        "models" => ["gpt-4o", "gpt-3.5-turbo"],
+        "model" => "gpt-4.1",
+        "models" => ["gpt-4.1", "gpt-3.5-turbo"],
         "display_name" => "Test App",
         "monadic" => false,
         "toggles" => false

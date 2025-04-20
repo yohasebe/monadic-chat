@@ -461,7 +461,7 @@ $(function () {
       if (providerLower.includes("anthropic") || providerLower.includes("claude")) {
         return "claude-3-5-sonnet-20241022";
       } else if (providerLower.includes("openai") || providerLower.includes("gpt")) {
-        return "gpt-4o";
+        return "gpt-4.1";
       } else if (providerLower.includes("cohere") || providerLower.includes("command")) {
         return "command-r-plus";
       } else if (providerLower.includes("gemini") || providerLower.includes("google")) {
@@ -476,7 +476,7 @@ $(function () {
         return "deepseek-chat";
       } else {
         // Fallback to default model
-        return "gpt-4o";
+        return "gpt-4.1";
       }
     }
     

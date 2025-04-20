@@ -44,7 +44,7 @@ describe('Select Image Module', () => {
           </div>
         </div>
         <select id="model">
-          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-4.1">GPT-4.1</option>
           <option value="gpt-3.5-turbo">GPT-3.5</option>
         </select>
       `,
@@ -58,7 +58,7 @@ describe('Select Image Module', () => {
     $("#imageModal").modal = jest.fn();
     $("#image-used").html = jest.fn();
     $("#image-used").append = jest.fn();
-    $("#model").val = jest.fn().mockReturnValue("gpt-4o");
+    $("#model").val = jest.fn().mockReturnValue("gpt-4.1");
     
     // Mock jQuery selector for remove-file button
     $.mockSelectors = $.mockSelectors || {};

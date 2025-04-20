@@ -23,10 +23,10 @@ rescue LoadError
     end
     
     def self.list_models
-      ["gpt-4o", "gpt-4", "gpt-3.5-turbo", "dall-e-3"]
+      ["gpt-4.1", "gpt-4o", "gpt-4", "gpt-3.5-turbo", "dall-e-3"]
     end
     
-    def send_query(options, model: "gpt-4o")
+    def send_query(options, model: "gpt-4.1")
       "Mock OpenAI response"
     end
   end
@@ -70,11 +70,11 @@ RSpec.describe OpenAIHelper do
     it "returns the available model list" do
       # Directly mock the list_models method to return test values
       allow(OpenAIHelper).to receive(:list_models).and_return(
-        ["gpt-4o", "gpt-4", "gpt-3.5-turbo", "dall-e-3"]
+        ["gpt-4.1", "gpt-4o", "gpt-4", "gpt-3.5-turbo", "dall-e-3"]
       )
       
       models = OpenAIHelper.list_models
-      expect(models).to include("gpt-4o")
+      expect(models).to include("gpt-4.1")
       expect(models).to include("gpt-3.5-turbo")
     end
   end

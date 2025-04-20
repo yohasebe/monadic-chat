@@ -147,7 +147,7 @@ JSON形式で出力する場合の出力形式を指定します。詳細につ�
 
 `AI_USER_MODEL` (string)
 
-AI生成によるユーザーメッセージに使用されるモデルを指定します。利用可能なオプションにはgpt-4o-mini、gpt-4o、o3-mini、o1-mini、o1があります。
+AI生成によるユーザーメッセージに使用されるモデルを指定します。利用可能なオプションにはgpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o-mini、gpt-4o、o3-mini、o1-mini、o1があります。
 
 `EMBEDDING_MODEL` (string)
 

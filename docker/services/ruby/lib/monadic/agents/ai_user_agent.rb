@@ -236,7 +236,7 @@ module AIUserAgent
     if provider_downcase.include?("anthropic") || provider_downcase.include?("claude")
       ENV["ANTHROPIC_DEFAULT_MODEL"] || "claude-3-5-sonnet-20241022"
     elsif provider_downcase.include?("openai") || provider_downcase.include?("gpt")
-      ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4o"
+      ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
       ENV["COHERE_DEFAULT_MODEL"] || "command-r-plus"
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
@@ -251,7 +251,7 @@ module AIUserAgent
       ENV["DEEPSEEK_DEFAULT_MODEL"] || "deepseek-chat"
     else
       # Fallback to default model - details logged to dedicated log files
-      ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4o"
+      ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
     end
   end
 end

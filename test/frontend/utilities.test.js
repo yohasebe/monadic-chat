@@ -309,7 +309,7 @@ describe('Utilities Module', () => {
       const { listModels } = testUtilities;
       
       it('should format models into option elements with groups (OpenAI)', () => {
-        const models = ['gpt-4o', 'o1', 'gpt-3.5', 'some-other-model'];
+        const models = ['gpt-4.1', 'o1', 'gpt-3.5', 'some-other-model'];
         const result = listModels(models, true);
         
         // Should include headers for different model groups
@@ -318,14 +318,14 @@ describe('Utilities Module', () => {
         expect(result).toContain('<option disabled>──other models──</option>');
         
         // Should include all models as options
-        expect(result).toContain('<option value="gpt-4o">gpt-4o</option>');
+        expect(result).toContain('<option value="gpt-4.1">gpt-4.1</option>');
         expect(result).toContain('<option value="o1" data-model-type="reasoning">o1</option>');
         expect(result).toContain('<option value="gpt-3.5">gpt-3.5</option>');
         expect(result).toContain('<option value="some-other-model">some-other-model</option>');
       });
       
       it('should format models without groups (non-OpenAI)', () => {
-        const models = ['gpt-4o', 'o1', 'gpt-3.5', 'some-other-model'];
+        const models = ['gpt-4.1', 'o1', 'gpt-3.5', 'some-other-model'];
         const result = listModels(models, false);
         
         // Should NOT include headers for different model groups
@@ -334,7 +334,7 @@ describe('Utilities Module', () => {
         expect(result).not.toContain('<option disabled>──other models──</option>');
         
         // Should include all models as options without groups
-        expect(result).toContain('<option value="gpt-4o">gpt-4o</option>');
+        expect(result).toContain('<option value="gpt-4.1">gpt-4.1</option>');
         expect(result).toContain('<option value="o1">o1</option>');
         expect(result).not.toContain('data-model-type="reasoning"');
       });

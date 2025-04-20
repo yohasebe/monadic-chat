@@ -147,7 +147,7 @@ function handleSampleSuccess(data) {
     
     // Hide UI elements
     $("#monadic-spinner").hide();
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    $('#cancel_query').hide();
     
     // Show success alert
     const roleText = data.role === "user" ? "User" : 
@@ -222,7 +222,7 @@ function handleCancelMessage(data) {
     $('#select-role').prop('disabled', false);
     
     // Hide cancel button
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    $('#cancel_query').hide();
     
     // Show message input and hide spinner
     $('#message').show();

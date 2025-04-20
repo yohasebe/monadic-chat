@@ -8,7 +8,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 
 ```
 # 各プロバイダのデフォルトモデル
-OPENAI_DEFAULT_MODEL=gpt-4o
+OPENAI_DEFAULT_MODEL=gpt-4.1
 ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
 COHERE_DEFAULT_MODEL=command-r-plus
 GEMINI_DEFAULT_MODEL=gemini-2.0-flash
@@ -36,7 +36,7 @@ OPENAI_API_KEY=api_key
 
 OpenAIの言語モデルを用いたアプリについては、[基本アプリ](./basic-apps)のセクションを参照してください。
 
-?> OpenAI の gpt-4o 系列および gpt-4o-mini 系列のモデルを用いたアプリでは、"Predicted Outputs" の機能が利用可能です。プロンプトの中で `__DATA__` をセパレーターとして、AI エージェントへの指示と、AI エージェントに修正・加工してもらいたいデータを区別して示すことで、AIからのレスポンスを高速化するとともにトークン数を削減することができます（参考：OpenAI: [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)）。
+?> OpenAI の gpt-4.1、gpt-4o、gpt-4o-mini 系列のモデルを用いたアプリでは、"Predicted Outputs" の機能が利用可能です。プロンプトの中で `__DATA__` をセパレーターとして、AI エージェントへの指示と、AI エージェントに修正・加工してもらいたいデータを区別して示すことで、AIからのレスポンスを高速化するとともにトークン数を削減することができます（参考：OpenAI: [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)）。
 
 ## Anthropic Models
 
@@ -48,7 +48,7 @@ Anthropic APIキーを設定すると、Claudeを用いたアプリを使用す�
 ANTHROPIC_API_KEY=api_key
 ```
 
-?> Anthropic Claude の Sonnet 系列のモデル、OpenAI の gpt-4o、gpt-4o-mini、o1 モデル、または Google Gemini モデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input.md#uploading-pdfs)）
+?> Anthropic Claude の Sonnet 系列のモデル、OpenAI の gpt-4.1, gpt-4.1-mini、gpt-4.1-nano、gpt-4o、gpt-4o-mini、o1 モデル、または Google Gemini モデルを用いたアプリでは、PDF を直接アップロードして AI エージェントに内容を認識させることが可能です。（参考：[PDF のアップロード](./message-input.md#uploading-pdfs)）
 
 ## Google Models
 

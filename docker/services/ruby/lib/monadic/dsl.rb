@@ -670,7 +670,7 @@ module MonadicDSL
     # Initialize default values
     state.features = {}
     state.settings[:provider] = "OpenAI"
-    state.settings[:model] = "gpt-4o"
+    state.settings[:model] = "gpt-4.1"
     state.settings[:temperature] = 0.7
     
     # Process the DSL block
@@ -1008,20 +1008,20 @@ module MonadicDSL
                     # Include provider-specific default fallback value if no env var
                     default_model = case provider_name
                                     when /anthropic|claude/ then "claude-3-5-sonnet-20241022"
-                                    when /openai|gpt/ then "gpt-4o"
+                                    when /openai|gpt/ then "gpt-4.1"
                                     when /cohere|command/ then "command-r-plus"
                                     when /gemini|google/ then "gemini-2.0-flash"
                                     when /mistral/ then "mistral-large-latest"
                                     when /grok|xai/ then "grok-2"
                                     when /perplexity/ then "sonar"
                                     when /deepseek/ then "deepseek-chat"
-                                    else "gpt-4o" # Default fallback
+                                    else "gpt-4.1" # Default fallback
                                     end
                     "ENV['#{provider_env_var}'] || #{default_model.inspect}"
                   else
                     # Fallback to default if no model and no environment variable
                     # This shouldn't typically happen due to initialization in app method
-                    "\"gpt-4o\""
+                    "\"gpt-4.1\""
                   end
 
     # Construct disabled logic based on API key availability and server mode restrictions

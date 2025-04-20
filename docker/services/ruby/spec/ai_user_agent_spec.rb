@@ -36,11 +36,11 @@ rescue LoadError
       when /anthropic|claude/
         "claude-3-5-sonnet-20241022"
       when /openai|gpt/
-        "gpt-4o"
+        "gpt-4.1"
       when /gemini|google/
         "gemini-2.0-flash"
       else
-        "gpt-4o"
+        "gpt-4.1"
       end
     end
   end
@@ -83,7 +83,7 @@ RSpec.describe AIUserAgent do
     
     let(:mock_chat_app) do
       app = double("ChatApp")
-      allow(app).to receive(:settings).and_return({ "model" => "gpt-4o", "display_name" => "Chat" })
+      allow(app).to receive(:settings).and_return({ "model" => "gpt-4.1", "display_name" => "Chat" })
       allow(app).to receive(:send_query).and_return("I need help with my project")
       app
     end
@@ -100,7 +100,7 @@ RSpec.describe AIUserAgent do
       # For process_ai_user tests, we need to mock these methods
       # but we'll reset these in the specific tests for those methods
       allow(test_instance).to receive(:find_chat_app_for_provider).with("openai").and_return(["ChatOpenAI", mock_chat_app])
-      allow(test_instance).to receive(:default_model_for_provider).with("openai").and_return("gpt-4o")
+      allow(test_instance).to receive(:default_model_for_provider).with("openai").and_return("gpt-4.1")
     end
     
     it "returns successful response with content from AI User" do
@@ -113,10 +113,10 @@ RSpec.describe AIUserAgent do
     end
     
     it "uses the correct provider and model" do
-      expect(test_instance).to receive(:default_model_for_provider).with("openai").and_return("gpt-4o")
+      expect(test_instance).to receive(:default_model_for_provider).with("openai").and_return("gpt-4.1")
       expect(mock_chat_app).to receive(:send_query).with(
-        hash_including("model" => "gpt-4o"), 
-        model: "gpt-4o"
+                       hash_including("model" => "gpt-4.1"), 
+                       model: "gpt-4.1"
       ).and_return("I need help with my project")
       
       test_instance.process_ai_user(mock_session, mock_params)

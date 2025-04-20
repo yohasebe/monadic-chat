@@ -11,7 +11,6 @@ window.addEventListener('DOMContentLoaded', () => {
         // Prevent the default select all behavior
         event.preventDefault();
         event.stopPropagation();
-        console.log('Cmd/Ctrl+A disabled via preload for main window');
       }
     }, true); // Use capture phase to ensure this runs before other handlers
   }

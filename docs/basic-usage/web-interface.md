@@ -3,6 +3,15 @@
 ![](../assets/images/monadic-chat-web.png ':size=700')
 
 In addition to using web browsers in desktop environments, Monadic Chat also offers a server mode that allows access from web browsers on various devices including laptops, tablets, and smartphones. When running in server mode, the web UI is responsive and adapts to different screen sizes, making it usable even on small smartphone screens (though some features like Jupyter functionality are not available). The responsive design automatically switches to a mobile-optimized layout for screen widths of 767px or less.
+  
+### Desktop App Buttons
+
+When running the Electron desktop app in internal browser mode, the web UI displays four buttons at the bottom-right corner:
+
+- **Zoom In**: Increases the page zoom factor.
+- **Zoom Out**: Decreases the page zoom factor.
+- **UI Reset**: Clears session data and reloads the UI.
+- **Focus Main Window**: Brings the main Electron window to the foreground.
 
 ## System Settings Screen
 

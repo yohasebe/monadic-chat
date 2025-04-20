@@ -1,6 +1,6 @@
 module MonadicAgent
   def command_output_agent(prompt, content)
-    model = "gpt-4o"
+    model = "gpt-4.1"
 
     # Use string keys consistently for parameters
     body = {

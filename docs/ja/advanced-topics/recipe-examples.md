@@ -35,7 +35,7 @@
 
 Monadic ChatではJSON形式で出力する場合の特別なモード（`monadic`モード）があります。詳細については[Monadicモード](./monadic-mode)も参照してください。
 
-OpenAIの一部のモデル（`gpt-4o`など）では、レスポンスをJSON形式で行うこと確実にするために、`response_format`を指定することができます。指定方法については[OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs)を参照してください。
+OpenAIの一部のモデル（`gpt-4.1`など）では、レスポンスをJSON形式で行うこと確実にするために、`response_format`を指定することができます。指定方法については[OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs)を参照してください。
 
 <details open=true>
 <summary>レシピファイル例（novel_writer_app.rb）</summary>

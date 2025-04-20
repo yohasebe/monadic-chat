@@ -1137,12 +1137,15 @@ $(function () {
     // On mobile, initialize with menu hidden on first load
     if ($(window).width() < 600) {
       // Set proper classes and hide menu on mobile
-      $("#toggle-menu").addClass("menu-hidden");
+      $("#toggle-menu").addClass("menu-hidden").html('<i class="fas fa-bars"></i>');
       $("#menu").hide();
       $("#main").show();
       $("body").removeClass("menu-visible");
       $("#main").removeClass("col-md-8").addClass("col-md-12");
       // Note: Removed inline CSS injection for toggle-menu in document.ready
+    } else {
+      // On desktop, menu is visible by default, so set the appropriate icon and style
+      $("#toggle-menu").removeClass("menu-hidden").html('<i class="fas fa-times"></i>');
     }
   });
   
@@ -1287,10 +1290,10 @@ $(function () {
     
     // Removed inline CSS injection for toggle-menu on click
     
-    // Toggle menu visibility and icon rotation
+    // Toggle menu visibility and change icon to indicate state
     if ($("#menu").is(":visible")) {
       // Menu is visible, will be hidden
-      $(this).addClass("menu-hidden"); // Changes icon to point left
+      $(this).addClass("menu-hidden").html('<i class="fas fa-bars"></i>'); // Change to bars when menu closed
       
       if (isMobile) {
         // On mobile: hide menu and show main
@@ -1304,7 +1307,7 @@ $(function () {
       }
     } else {
       // Menu is hidden, will be shown
-      $(this).removeClass("menu-hidden"); // Changes icon to point right
+      $(this).removeClass("menu-hidden").html('<i class="fas fa-times"></i>'); // Change to X when menu open
       
       if (isMobile) {
         // On mobile: show menu and hide main completely

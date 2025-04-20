@@ -28,7 +28,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const selection = window.getSelection().toString();
         if (selection) {
           window.electronAPI.writeClipboard(selection);
-          console.log('Copy shortcut used: ' + selection);
         }
       } else if (event.key === 'v') {
         // Paste
@@ -41,7 +40,6 @@ window.addEventListener('DOMContentLoaded', () => {
             
             // Use execCommand for standard elements
             document.execCommand('insertText', false, clipText);
-            console.log('Paste shortcut used');
           }
         }
       } else if (event.key === 'x') {
@@ -54,7 +52,6 @@ window.addEventListener('DOMContentLoaded', () => {
               document.activeElement.tagName === 'TEXTAREA' ||
               document.activeElement.isContentEditable) {
             document.execCommand('delete');
-            console.log('Cut shortcut used: ' + selection);
           }
         }
       } else if (event.key === 'a') {
@@ -63,7 +60,6 @@ window.addEventListener('DOMContentLoaded', () => {
           if (document.activeElement.tagName === 'INPUT' || 
               document.activeElement.tagName === 'TEXTAREA') {
             document.activeElement.select();
-            console.log('Select all shortcut used (input/textarea)');
           } else {
             // Select all in the current editable element or document body
             try {
@@ -74,16 +70,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 const selection = window.getSelection();
                 selection.removeAllRanges();
                 selection.addRange(range);
-                console.log('Select all shortcut used (contentEditable)');
               } else {
                 // Default to document.body for normal text
                 document.execCommand('selectAll');
-                console.log('Select all shortcut used (document)');
               }
             } catch (e) {
               // Fallback if the above doesn't work
               document.execCommand('selectAll');
-              console.log('Select all fallback used');
             }
           }
         }
@@ -91,16 +84,13 @@ window.addEventListener('DOMContentLoaded', () => {
         // Undo
         if (!event.shiftKey) {
           document.execCommand('undo');
-          console.log('Undo shortcut used');
         } else {
           // Redo (Shift+Cmd/Ctrl+Z)
           document.execCommand('redo');
-          console.log('Redo shortcut used (Shift+Z)');
         }
       } else if (event.key === 'y') {
         // Redo alternative (Ctrl+Y)
         document.execCommand('redo');
-        console.log('Redo shortcut used (Y)');
       }
     }
   });

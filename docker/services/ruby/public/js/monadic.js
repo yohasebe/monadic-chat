@@ -1227,17 +1227,19 @@ $(function () {
     
     // Optimize scrollable container to use full height
     $(".scrollable").css({
-      "height": "calc(100vh - 52px)", // Updated to match navbar height
-      "padding-bottom": "80px", // Increased padding to ensure more space at bottom
-      "margin-bottom": "0",
+      "height": "calc(100vh - 80px)", // Match the CSS height calculation
+      "padding-bottom": "0", // No bottom padding needed
+      "margin-bottom": "0 !important",
       "overflow-y": "auto"
     });
     
     // Ensure content container has correct height
     $("#contents").css({
-      "height": "calc(100vh - 52px)", // Updated to match navbar height
-      "padding-bottom": "0",
-      "padding-top": "0", // Remove top padding completely
+      "height": "calc(100vh - 80px)", // Match the scrollable height
+      "min-height": "calc(100vh - 80px)", // Ensure at least this height
+      "padding-bottom": "12px", // Consistent padding all around
+      "padding-top": "0", // Keep top padding removed for mobile
+      "margin-bottom": "0", // No additional margin needed
       "box-sizing": "border-box"
     });
     

@@ -215,7 +215,7 @@ voiceButton.on("click", function () {
           // Increased threshold to 100 bytes to better detect empty recordings
           if (event.data.size <= 100) { // Increased from 44 bytes for better detection
             console.log("No audio data detected or recording too small. Size: " + event.data.size + " bytes");
-            setAlert("<i class='fas fa-exclamation-triangle'></i> NO AUDIO DETECTED: Check your microphone settings", "error");
+            setAlert("NO AUDIO DETECTED: Check your microphone settings", "error");
             // Restore original placeholder
             const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
             $("#message").attr("placeholder", origPlaceholder);
@@ -234,7 +234,7 @@ voiceButton.on("click", function () {
             // Double-check the base64 length to ensure we have actual content
             if (!base64 || base64.length < 100) {
               console.log("Base64 audio data too small. Canceling STT processing.");
-              setAlert("<i class='fas fa-exclamation-triangle'></i> AUDIO PROCESSING FAILED", "error");
+              setAlert("AUDIO PROCESSING FAILED", "error");
               // Restore original placeholder
               const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
               $("#message").attr("placeholder", origPlaceholder);
@@ -290,7 +290,7 @@ voiceButton.on("click", function () {
     $("#message").attr("placeholder", originalPlaceholder);
     
     voiceButton.toggleClass("btn-info btn-danger");
-    setAlert("<i class='fas fa-exclamation-triangle'></i> SILENCE DETECTED: Check your microphone settings", "error");
+    setAlert("SILENCE DETECTED: Check your microphone settings", "error");
     voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     $("#send, #clear").prop("disabled", false);
     isListening = false;

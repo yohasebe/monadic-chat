@@ -33,6 +33,8 @@ app.name = 'Monadic Chat';
 if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('no-sound');
 }
+// Allow autoplay of audio without user gesture in internal browser (Electron webview)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
@@ -75,13 +77,37 @@ function openWebViewWindow(url) {
       preload: path.join(__dirname, 'webview-preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      spellcheck: false // Disable spellcheck as it can interfere with keyboard events
+      spellcheck: false, // Disable spellcheck as it can interfere with keyboard events
+      // Enable media permissions for microphone access
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      // Enable permissions for media devices
+      permissions: {
+        media: true
+      }
     }
   });
+  // Set permission request handler to auto-approve media access requests
+  webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'microphone', 'audioCapture'];
+    if (allowedPermissions.includes(permission)) {
+      // Auto-approve media permission requests
+      callback(true);
+    } else {
+      // Deny other permission requests
+      callback(false);
+    }
+  });
+  
   webviewWindow.loadURL(url);
   // Custom menu is set further down in the code
   // Inject a floating button into the web page to bring the main window to front
   webviewWindow.webContents.on('dom-ready', () => {
+    // Explicitly request microphone permission when the DOM is ready
+    webviewWindow.webContents.executeJavaScript('window.electronAPI.requestMediaPermissions()').catch(err => {
+      console.error('Failed to request media permissions:', err);
+    });
+    
     const injectButtonJS = `
       (function() {
         const container = document.createElement('div');

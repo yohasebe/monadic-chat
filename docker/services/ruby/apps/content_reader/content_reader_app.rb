@@ -30,7 +30,7 @@ class ContentReader < MonadicApp
     group: "OpenAI",
     disabled: !CONFIG["OPENAI_API_KEY"],
     models: OpenAIHelper.list_models,
-    model: "gpt-4o-2024-11-20",
+    model: "gpt-4.1",
     temperature: 0.0,
     context_size: 100,
     initial_prompt: initial_prompt,

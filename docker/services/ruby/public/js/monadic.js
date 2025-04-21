@@ -1528,7 +1528,7 @@ $(function () {
       let sampleTimeoutId = setTimeout(function() {
         $("#monadic-spinner").hide();
         $("#cancel_query").hide();
-        setAlert("<i class='fas fa-triangle-exclamation'></i> Sample message timed out. Please try again.", "error");
+        setAlert("Sample message timed out. Please try again.", "error");
       }, 5000);
       
       // Store timeout ID in window object so it can be cleared in the websocket listener
@@ -1728,7 +1728,7 @@ $(function () {
         $("#fileModal button").prop('disabled', false);
         $("#fileModal").modal("hide");
         
-        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+        setAlert(`${errorMessage}`, "error");
       }
       
     } catch (error) {
@@ -1849,7 +1849,7 @@ $(function () {
         $("#docModal button").prop('disabled', false);
         $("#docModal").modal("hide");
         
-        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+        setAlert(`${errorMessage}`, "error");
       }
       
     } catch (error) {
@@ -1971,7 +1971,7 @@ $(function () {
         $("#urlModal button").prop('disabled', false);
         $("#urlModal").modal("hide");
         
-        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+        setAlert(`${errorMessage}`, "error");
       }
       
     } catch (error) {
@@ -2143,7 +2143,7 @@ $(function () {
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Unknown error occurred";
-        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${errorMessage}`, "error");
+        setAlert(`${errorMessage}`, "error");
         
         // Keep modal open to allow another attempt
         $("#loadModal button").prop("disabled", false);
@@ -2155,7 +2155,7 @@ $(function () {
       
       // Show error message
       const errorMessage = error.statusText || error.message || "Unknown error";
-      setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> Error importing session: ${errorMessage}`, "error");
+      setAlert(`Error importing session: ${errorMessage}`, "error");
       
       // Hide modal since there was an AJAX error
       $("#loadModal").modal("hide");

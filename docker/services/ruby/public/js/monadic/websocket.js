@@ -1237,6 +1237,10 @@ function connect_websocket(callback) {
             $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
             
             for (const [key, value] of regularApps) {
+              // Skip apps disabled due to missing API token
+              if (value.disabled === "true") {
+                continue;
+              }
               apps[key] = value;
               // Use display_name if available, otherwise fall back to app_name
               const displayText = value["display_name"] || value["app_name"];
@@ -1282,6 +1286,10 @@ function connect_websocket(callback) {
               $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
               
               for (const [key, value] of specialApps[group]) {
+                // Skip apps disabled due to missing API token
+                if (value.disabled === "true") {
+                  continue;
+                }
                 apps[key] = value;
                 // Use display_name if available, otherwise fall back to app_name
                 const displayText = value["display_name"] || value["app_name"];

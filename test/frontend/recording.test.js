@@ -386,7 +386,7 @@ describe('Recording Module', () => {
                 // Check if the blob size is too small (indicates no sound captured)
                 if (event.data.size <= 100) {
                   console.log("No audio data detected or recording too small.");
-                  setAlert("<i class='fas fa-exclamation-triangle'></i> NO AUDIO DETECTED: Check your microphone settings", "error");
+                  setAlert("NO AUDIO DETECTED: Check your microphone settings", "error");
                   $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
                   $("#send, #clear, #voice").prop("disabled", false);
                   $("#amplitude").hide();
@@ -400,7 +400,7 @@ describe('Recording Module', () => {
                   // Double-check the base64 length to ensure we have actual content
                   if (!base64 || base64.length < 100) {
                     console.log("Base64 audio data too small. Canceling STT processing.");
-                    setAlert("<i class='fas fa-exclamation-triangle'></i> AUDIO PROCESSING FAILED", "error");
+                    setAlert("AUDIO PROCESSING FAILED", "error");
                     $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
                     $("#send, #clear, #voice").prop("disabled", false);
                     $("#amplitude").hide();
@@ -444,7 +444,7 @@ describe('Recording Module', () => {
       
         } else {
           voiceButton.toggleClass("btn-warning btn-danger");
-          setAlert("<i class='fas fa-exclamation-triangle'></i> SILENCE DETECTED: Check your microphone settings", "error");
+          setAlert("SILENCE DETECTED: Check your microphone settings", "error");
           voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
           $("#send, #clear").prop("disabled", false);
           isListening = false;

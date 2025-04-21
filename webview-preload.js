@@ -12,7 +12,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
   // Clipboard access
   readClipboard: () => clipboard.readText(),
-  writeClipboard: (text) => clipboard.writeText(text)
+  writeClipboard: (text) => clipboard.writeText(text),
+  // Media permissions helper
+  requestMediaPermissions: async () => {
+    // This helps trigger the permission request explicitly for the webview
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      return true;
+    } catch (err) {
+      console.error('Failed to get media permissions:', err);
+      return false;
+    }
+  }
 });
 // Intercept link clicks in the loaded page and open external links in the default browser
 window.addEventListener('DOMContentLoaded', () => {

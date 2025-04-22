@@ -1,4 +1,4 @@
-- [April, 2025] 0.9.86
+- [April, 2025] 0.9.87
   - Issues with text-to-speech and speech-to-text in built-in browser fixed
 - [April, 2025] 0.9.85
   - Built-in browser introduced for web UI

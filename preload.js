@@ -65,9 +65,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for update progress from the auto-updater (for progress window)
   onUpdateProgress: (callback) => {
     ipcRenderer.on('update-progress', (event, progressObj) => {
+      // Ensure we have valid progress data before forwarding
+      const sanitizedProgress = progressObj || { percent: 0 };
+      
       // Forward the progress info to the renderer via postMessage
-      window.postMessage({ type: 'update-progress', progress: progressObj }, '*');
-      if (callback) callback(event, progressObj);
+      window.postMessage({ type: 'update-progress', progress: sanitizedProgress }, '*');
+      if (callback) callback(event, sanitizedProgress);
     });
   },
 

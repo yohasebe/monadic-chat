@@ -1123,7 +1123,12 @@ const menuItems = [
     label: 'Open Browser',
     click: () => {
       openMainWindow();
-      openBrowser('http://localhost:4567');
+      const url = 'http://localhost:4567';
+      if (browserMode === 'internal') {
+        openWebViewWindow(url);
+      } else {
+        openBrowser(url);
+      }
     },
     enabled: false
   },
@@ -1833,7 +1838,12 @@ function updateApplicationMenu() {
           label: 'Open Browser',
           click: () => {
             openMainWindow();
-            openBrowser('http://localhost:4567');
+            const url = 'http://localhost:4567';
+            if (browserMode === 'internal') {
+              openWebViewWindow(url);
+            } else {
+              openBrowser(url);
+            }
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },

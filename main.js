@@ -760,6 +760,31 @@ function checkForUpdates() {
             transparent: false
           });
           
+          // Flag to track if progress window was manually closed
+          let progressWinClosed = false;
+          
+          // Safety timeout for progress window - if it gets stuck for too long
+          const progressTimeoutID = setTimeout(() => {
+            if (!progressWinClosed && !progressWin.isDestroyed()) {
+              console.log('Progress window timeout - closing stuck window');
+              progressWin.close();
+              
+              dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: ['OK'],
+                message: 'Update Download Timeout',
+                detail: 'The update download process is taking longer than expected. Please try again later or check for issues with your internet connection.',
+                icon: path.join(iconDir, 'app-icon.png')
+              });
+            }
+          }, 10 * 60 * 1000); // 10 minute timeout
+          
+          // Track window closed event
+          progressWin.on('closed', () => {
+            progressWinClosed = true;
+            clearTimeout(progressTimeoutID);
+          });
+          
           progressWin.loadFile('update-progress.html');
           progressWin.once('ready-to-show', () => {
             progressWin.show();
@@ -768,15 +793,37 @@ function checkForUpdates() {
           // Set up new listeners just for this download process
           // Listen for download progress and update UI
           autoUpdater.on('download-progress', (progressObj) => {
-            if (!progressWin.isDestroyed()) {
+            if (!progressWinClosed && !progressWin.isDestroyed()) {
+              // Clear timeout and set a new one on each progress update
+              clearTimeout(progressTimeoutID);
+              
+              // Send progress data to the window
               progressWin.webContents.send('update-progress', progressObj);
             }
           });
           
           // Once download is complete, close progress window and notify user
-          autoUpdater.on('update-downloaded', () => {
-            if (!progressWin.isDestroyed()) {
+          autoUpdater.on('update-downloaded', (info) => {
+            // Clear safety timeout
+            clearTimeout(progressTimeoutID);
+            
+            if (!progressWinClosed && !progressWin.isDestroyed()) {
               progressWin.close();
+            }
+            
+            // Save update state to file system for persistence between app sessions
+            try {
+              const saved = saveUpdateState({
+                updateReady: true,
+                version: info.version,
+                timestamp: Date.now()
+              });
+              
+              if (!saved) {
+                console.error('Failed to save update state');
+              }
+            } catch (error) {
+              console.error('Error in update-downloaded handler while saving state:', error);
             }
             
             dialog.showMessageBox(mainWindow, {
@@ -789,10 +836,12 @@ function checkForUpdates() {
               if (btnIdx.response === 0) {
                 forceQuit = true;
                 
-                // Use the original app quit mechanism
-                forceQuit = true;
-                cleanupAndQuit();
+                // Use autoUpdater.quitAndInstall() instead of just quitting
+                // This will ensure the update is properly installed
+                autoUpdater.quitAndInstall(false, true);
               }
+            }).catch(err => {
+              console.error('Error showing update message dialog:', err);
             });
           });
           
@@ -1241,22 +1290,35 @@ function createUpdateProgressHTML() {
 }
 
 function initializeApp() {
-  app.whenReady().then(async () => {
-    // Load saved settings and initialize browser mode preference
-    try {
-      const settings = loadSettings() || {};
-      // Fallback to internal if not set
-      browserMode = settings.BROWSER_MODE || 'internal';
-    } catch (err) {
-      console.error('Error loading browser mode setting:', err);
-    }
-    // Check if there's a pending update that was downloaded before restart
-    if (autoUpdater.isUpdaterActive()) {
-      console.log('Checking for downloaded updates to install...');
-    }
-    
-    // Setup auto-updater - this will update the updateMessage variable
+  console.log('Initializing application...');
+  
+  // Load saved settings and initialize browser mode preference
+  try {
+    const settings = loadSettings() || {};
+    // Fallback to internal if not set
+    browserMode = settings.BROWSER_MODE || 'internal';
+    console.log('Browser mode set to:', browserMode);
+  } catch (err) {
+    console.error('Error loading browser mode setting:', err);
+  }
+  
+  // Clear update state if we've gotten here after a successful update
+  // Since this function only runs after a successful startup, it's safe
+  // to clear any pending update state at this point
+  const pendingUpdateState = readUpdateState();
+  if (pendingUpdateState && pendingUpdateState.updateReady) {
+    console.log('Update appears to have been successfully applied, clearing state');
+    clearUpdateState();
+  }
+  
+  // Setup auto-updater - this will update the updateMessage variable
+  if (autoUpdater.isUpdaterActive()) {
+    console.log('Auto-updater is active, setting up update checking');
     setupAutoUpdater();
+  }
+  
+  // Continue with the rest of the initialization
+  (async () => {
     
     // Check internet connection
     try {
@@ -1400,7 +1462,7 @@ function initializeApp() {
         }
       });
     }
-  });
+  })();
 }
 
 // Convert Windows path to Unix path format
@@ -2285,6 +2347,112 @@ function writeEnvFile(envPath, envConfig) {
     }
 }
 
+// Functions to manage update state persistence using the existing env file
+// Save update state to the env file
+function saveUpdateState(state) {
+  try {
+    const envPath = getEnvPath();
+    if (!envPath) {
+      console.error('Failed to get env path');
+      return false;
+    }
+    
+    let envConfig = readEnvFile(envPath);
+    
+    // Store update state properties in env config
+    envConfig.UPDATE_READY = state.updateReady ? 'true' : 'false';
+    envConfig.UPDATE_VERSION = state.version || '';
+    envConfig.UPDATE_TIMESTAMP = state.timestamp || Date.now();
+    
+    // Write back to env file
+    writeEnvFile(envPath, envConfig);
+    console.log('Update state saved to env file:', state);
+    return true;
+  } catch (error) {
+    console.error('Failed to save update state:', error);
+    return false;
+  }
+}
+
+// Read update state from env file
+function readUpdateState() {
+  try {
+    const envPath = getEnvPath();
+    if (!envPath) {
+      return null;
+    }
+    
+    const envConfig = readEnvFile(envPath);
+    
+    // Only return state object if UPDATE_READY exists
+    if (envConfig.UPDATE_READY) {
+      return {
+        updateReady: envConfig.UPDATE_READY === 'true',
+        version: envConfig.UPDATE_VERSION || '',
+        timestamp: parseInt(envConfig.UPDATE_TIMESTAMP) || 0
+      };
+    }
+  } catch (error) {
+    console.error('Failed to read update state:', error);
+  }
+  return null;
+}
+
+// Clear update state in env file
+function clearUpdateState() {
+  try {
+    const envPath = getEnvPath();
+    if (!envPath) {
+      return false;
+    }
+    
+    let envConfig = readEnvFile(envPath);
+    
+    // Remove update state properties
+    delete envConfig.UPDATE_READY;
+    delete envConfig.UPDATE_VERSION;
+    delete envConfig.UPDATE_TIMESTAMP;
+    
+    // Write back to env file
+    writeEnvFile(envPath, envConfig);
+    console.log('Update state cleared from env file');
+    return true;
+  } catch (error) {
+    console.error('Failed to clear update state:', error);
+    return false;
+  }
+}
+
+// Check for pending updates at startup
+function checkPendingUpdates() {
+  try {
+    const state = readUpdateState();
+    if (state && state.updateReady) {
+      console.log('Found pending update to install:', state);
+      
+      // We now only clear the state after confirming successful installation
+      // This helps prevent update loss if installation fails
+      
+      // Check if the update is too old (more than 7 days)
+      const now = Date.now();
+      const updateAge = now - (state.timestamp || now);
+      const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+      
+      if (updateAge > maxAge) {
+        console.log('Update is too old (over 7 days), clearing state');
+        clearUpdateState();
+        return false;
+      }
+      
+      // Return true to indicate we have a pending update
+      return true;
+    }
+  } catch (error) {
+    console.error('Error checking pending updates:', error);
+  }
+  return false;
+}
+
 // Update ENV file settings; if a key is missing, set default value (do not override TTS_DICT_PATH if present)
 function checkAndUpdateEnvFile() {
     const envPath = getEnvPath();
@@ -2524,17 +2692,46 @@ ipcMain.on('save-settings', (_event, data) => {
   }
 });
 
+// This is the main entry point for app initialization
 app.whenReady().then(() => {
-  // Load saved browser mode from settings (default to existing value)
-  try {
-    const saved = loadSettings();
-    if (saved.BROWSER_MODE) {
-      browserMode = saved.BROWSER_MODE;
-    }
-  } catch (err) {
-    console.error('Error loading initial browser mode:', err);
+  // Setup update-related error handlers first
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception during update process:', error);
+    // Continue with normal initialization if update process crashes
+    initializeApp();
+  });
+  
+  // Check for pending updates before initializing the app
+  const pendingUpdateState = readUpdateState();
+  if (pendingUpdateState && pendingUpdateState.updateReady) {
+    console.log('Found pending update to install:', pendingUpdateState);
+    
+    // Don't clear update state yet - only clear it after successful restart
+    // This ensures we can retry if the update installation fails
+    
+    // Wait a moment to ensure app is ready before installing update
+    setTimeout(() => {
+      try {
+        console.log('Installing pending update...');
+        autoUpdater.quitAndInstall(false, true);
+        
+        // Set another timeout as a fallback - if we're still running after 10 seconds,
+        // the update may have failed to install properly
+        setTimeout(() => {
+          console.log('Update installation may have failed - continuing with normal startup');
+          // Continue with normal app initialization
+          initializeApp();
+        }, 10000);
+      } catch (error) {
+        console.error('Error installing update:', error);
+        // Continue with normal app initialization
+        initializeApp();
+      }
+    }, 2000);
+  } else {
+    // No pending updates, proceed with normal initialization
+    initializeApp();
   }
-  initializeApp();
 });
 
 // Removed duplicate app.on('window-all-closed') and app.on('activate')

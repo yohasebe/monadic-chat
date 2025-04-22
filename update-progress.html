@@ -82,26 +82,60 @@
   </div>
   
   <script>
+    // Track the last update time to detect stalled downloads
+    let lastUpdateTime = Date.now();
+    
+    // Check for stalled downloads every 10 seconds
+    const stalledCheckInterval = setInterval(() => {
+      const now = Date.now();
+      // If no updates for 60 seconds, show stalled message
+      if (now - lastUpdateTime > 60000) {
+        document.getElementById('transferredText').textContent = 'Download may be stalled';
+        document.getElementById('speedText').textContent = 'Please be patient';
+      }
+    }, 10000);
+    
+    // Handle window close to clear interval
+    window.addEventListener('beforeunload', () => {
+      clearInterval(stalledCheckInterval);
+    });
+    
     // Preload script will expose this method
     window.addEventListener('message', (event) => {
       if (event.data.type === 'update-progress') {
-        const progress = event.data.progress;
+        // Record update time to detect stalls
+        lastUpdateTime = Date.now();
+        
+        // Safely access progress data with fallbacks
+        const progress = event.data.progress || {};
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
         const transferredText = document.getElementById('transferredText');
         const speedText = document.getElementById('speedText');
         
-        const percent = progress.percent || 0;
+        // Handle percent with fallback
+        const percent = typeof progress.percent === 'number' ? progress.percent : 0;
         progressBar.style.width = `${percent}%`;
         progressText.textContent = `${Math.round(percent)}%`;
         
-        if (progress.bytesPerSecond) {
-          const speed = (progress.bytesPerSecond / 1024 / 1024).toFixed(2);
-          const transferred = (progress.transferred / 1024 / 1024).toFixed(1);
-          const total = (progress.total / 1024 / 1024).toFixed(1);
-          
-          transferredText.textContent = `${transferred} MB / ${total} MB`;
-          speedText.textContent = `${speed} MB/s`;
+        // Only update detailed stats if all required fields are present
+        if (progress.bytesPerSecond && progress.transferred && progress.total) {
+          try {
+            const speed = (progress.bytesPerSecond / 1024 / 1024).toFixed(2);
+            const transferred = (progress.transferred / 1024 / 1024).toFixed(1);
+            const total = (progress.total / 1024 / 1024).toFixed(1);
+            
+            transferredText.textContent = `${transferred} MB / ${total} MB`;
+            speedText.textContent = `${speed} MB/s`;
+          } catch (error) {
+            console.error('Error calculating progress stats:', error);
+            transferredText.textContent = 'Downloading...';
+            speedText.textContent = '';
+          }
+        } else if (percent > 0) {
+          // If percent is available but not detailed stats
+          transferredText.textContent = 'Downloading...';
+          speedText.textContent = '';
         }
       }
     });

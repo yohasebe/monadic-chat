@@ -59,6 +59,9 @@ let browserMode = 'internal';
 
 // Internal browser window reference and opener
 let webviewWindow = null;
+// State for in-page search to filter invisible matches
+// State for in-page search (filtering invisible matches)
+let findState = { term: '', forward: true, requestId: null };
 function openWebViewWindow(url) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     webviewWindow.focus();
@@ -100,6 +103,21 @@ function openWebViewWindow(url) {
   });
   
   webviewWindow.loadURL(url);
+  // Filter out invisible matches: skip zero-sized selections
+  webviewWindow.webContents.on('found-in-page', (event, result) => {
+    // Only handle our own search requests
+    if (result.requestId !== findState.requestId) return;
+    // Ignore final update events
+    if (result.finalUpdate) return;
+    // Only skip when we have an active match
+    if (result.activeMatchOrdinal && result.activeMatchOrdinal > 0) {
+      const rect = result.selectionRect;
+      // If selection has no size, skip this match
+      if (!rect || rect.width === 0 || rect.height === 0) {
+        webviewWindow.webContents.findInPage(findState.term, { forward: findState.forward, findNext: true });
+      }
+    }
+  });
   // Custom menu is set further down in the code
   // Inject a floating button into the web page to bring the main window to front
   webviewWindow.webContents.on('dom-ready', () => {
@@ -2789,6 +2807,46 @@ ipcMain.on('zoom-out', () => {
       wc.setZoomFactor(newFactor);
       wc.send('zoom-changed', newFactor);
     });
+  }
+});
+// Find in page: listen for search requests from webview preload
+ipcMain.on('find-in-page', (_event, searchText) => {
+  if (webviewWindow && !webviewWindow.isDestroyed() && searchText) {
+    // Clear previous highlights
+    webviewWindow.webContents.stopFindInPage('clearSelection');
+    // Initialize search state
+    findState.term = searchText;
+    findState.forward = true;
+    try {
+      // Start a new find request, store its ID
+      findState.requestId = webviewWindow.webContents.findInPage(searchText);
+    } catch (err) {
+      console.error('Error performing findInPage:', err);
+    }
+  }
+});
+// Stop find in page: clear search highlights
+ipcMain.on('stop-find-in-page', () => {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    try {
+      webviewWindow.webContents.stopFindInPage('clearSelection');
+    } catch (err) {
+      console.error('Error performing stopFindInPage:', err);
+    }
+  }
+});
+// Find navigation: next/prev match controls (Enter/Shift+Enter or ◀/▶)
+ipcMain.on('find-in-page-nav', (_event, {term, forward}) => {
+  if (webviewWindow && !webviewWindow.isDestroyed() && term) {
+    // Update search state
+    findState.term = term;
+    findState.forward = forward;
+    try {
+      // Request next/prev match
+      findState.requestId = webviewWindow.webContents.findInPage(term, {forward: forward, findNext: true});
+    } catch (err) {
+      console.error('Error performing findInPage navigation:', err);
+    }
   }
 });
 // Reset Web UI: reload the webview to start a fresh session

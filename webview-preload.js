@@ -27,6 +27,113 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 // Intercept link clicks in the loaded page and open external links in the default browser
 window.addEventListener('DOMContentLoaded', () => {
+  // Track last search term
+  let lastSearchTerm = '';
+  // Create in-page Find overlay UI (styled to match Monadic Chat)
+  const findOverlay = document.createElement('div');
+  findOverlay.style.cssText = 
+    'position:fixed;top:10px;right:10px;display:flex;align-items:center;'
+    + 'background:#fff;border:1px solid #ccc;border-radius:4px;'
+    + 'padding:4px 6px;box-shadow:0 2px 6px rgba(0,0,0,0.2);'
+    + 'z-index:2147483647;display:none;';
+  const findInput = document.createElement('input');
+  findInput.type = 'text';
+  findInput.placeholder = 'Search';
+  findInput.style.cssText = 'min-width:120px;border:none;outline:none;'
+    + 'padding:4px;font-size:14px;';
+  const prevBtn = document.createElement('button');
+  prevBtn.textContent = '◀';
+  prevBtn.title = 'Previous';
+  prevBtn.style.cssText = 'border:none;background:transparent;color:#333;'
+    + 'font-size:16px;cursor:pointer;margin:0 4px;';
+  const nextBtn = document.createElement('button');
+  nextBtn.textContent = '▶';
+  nextBtn.title = 'Next';
+  nextBtn.style.cssText = 'border:none;background:transparent;color:#333;'
+    + 'font-size:16px;cursor:pointer;margin:0 4px;';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.title = 'Close';
+  closeBtn.style.cssText = 'border:none;background:transparent;color:#333;'
+    + 'font-size:16px;cursor:pointer;margin-left:4px;';
+  findOverlay.append(prevBtn, findInput, nextBtn, closeBtn);
+  document.body.appendChild(findOverlay);
+  const showOverlay = () => { findOverlay.style.display = 'flex'; findInput.value = ''; findInput.focus(); };
+  const hideOverlay = () => { findOverlay.style.display = 'none'; ipcRenderer.send('stop-find-in-page'); };
+  closeBtn.addEventListener('click', hideOverlay);
+  // Prev/Next navigation
+  prevBtn.addEventListener('click', () => {
+    if (lastSearchTerm) ipcRenderer.send('find-in-page-nav', { term: lastSearchTerm, forward: false });
+  });
+  nextBtn.addEventListener('click', () => {
+    if (lastSearchTerm) ipcRenderer.send('find-in-page-nav', { term: lastSearchTerm, forward: true });
+  });
+  // Capture key events (Ctrl/Cmd+F to open, Enter/Shift+Enter to navigate, Esc to close)
+  document.addEventListener('keydown', (event) => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+    // Open search
+    if (cmdOrCtrl && event.key === 'f') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      showOverlay();
+    // Navigate matches when overlay visible
+    } else if (findOverlay.style.display !== 'none' && event.key === 'Enter') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const term = findInput.value;
+      if (!term) return;
+      const firstSearch = (lastSearchTerm !== term);
+      lastSearchTerm = term;
+      if (event.shiftKey) {
+        ipcRenderer.send('find-in-page-nav', { term, forward: false });
+      } else if (firstSearch) {
+        ipcRenderer.send('find-in-page', term);
+      } else {
+        ipcRenderer.send('find-in-page-nav', { term, forward: true });
+      }
+    // Close search
+    } else if (event.key === 'Escape' && findOverlay.style.display !== 'none') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      hideOverlay();
+    }
+  }, true);
+  // IME composition flag: distinguish actual Enter from IME commit
+  let isComposing = false;
+  findInput.addEventListener('compositionstart', () => { isComposing = true; });
+  findInput.addEventListener('compositionend', () => { isComposing = false; });
+  // Handle Enter/Shift+Enter navigation and Escape to close (on keyup)
+  findInput.addEventListener('keyup', (e) => {
+    // If IME is composing, skip
+    if (isComposing) return;
+    const term = findInput.value;
+    // Escape: hide overlay
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      hideOverlay();
+      return;
+    }
+    // Enter/Shift+Enter: navigate matches
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!term) return;
+      const firstSearch = (lastSearchTerm !== term);
+      lastSearchTerm = term;
+      if (e.shiftKey) {
+        // Shift+Enter: previous match
+        ipcRenderer.send('find-in-page-nav', { term, forward: false });
+      } else if (firstSearch) {
+        // First search invocation for this term
+        ipcRenderer.send('find-in-page', term);
+      } else {
+        // Subsequent Enter: next match
+        ipcRenderer.send('find-in-page-nav', { term, forward: true });
+      }
+    }
+  });
   // Explicitly enable standard keyboard shortcuts for common operations
   document.addEventListener('keydown', (event) => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -102,6 +209,14 @@ window.addEventListener('DOMContentLoaded', () => {
       } else if (event.key === 'y') {
         // Redo alternative (Ctrl+Y)
         document.execCommand('redo');
+      } else if (event.key === 'Escape') {
+        // Clear search highlights
+        event.preventDefault();
+        try {
+          ipcRenderer.send('stop-find-in-page');
+        } catch (err) {
+          console.error('Failed to send stop-find-in-page:', err);
+        }
       }
     }
   });

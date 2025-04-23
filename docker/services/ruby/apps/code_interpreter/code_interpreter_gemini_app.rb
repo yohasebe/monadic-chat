@@ -236,7 +236,7 @@ class CodeInterpreterGemini < MonadicApp
     image: false,
     pdf: false,
     models: GeminiHelper.list_models,
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-2.5-pro-preview-03-25",
     tools: [
       {
         name: "run_script",

@@ -1912,25 +1912,21 @@ function updateApplicationMenu() {
       label: 'Window',
       submenu: [
         {
-          label: 'Minimize',
-          accelerator: process.platform === 'darwin' ? 'Cmd+M' : 'Ctrl+M',
-          click: () => { if (mainWindow) mainWindow.minimize(); }
+          role: 'minimize',
+          accelerator: process.platform === 'darwin' ? 'Cmd+M' : 'Ctrl+M'
         },
         {
-          label: 'Close',
-          accelerator: process.platform === 'darwin' ? 'Cmd+W' : 'Ctrl+W',
-          click: () => { if (mainWindow) mainWindow.close(); }
+          role: 'close',
+          accelerator: process.platform === 'darwin' ? 'Cmd+W' : 'Ctrl+W'
         },
         { type: 'separator' },
         {
-          label: 'Reload',
-          accelerator: process.platform === 'darwin' ? 'Cmd+R' : 'Ctrl+R',
-          click: () => { if (mainWindow) mainWindow.reload(); }
+          role: 'reload',
+          accelerator: process.platform === 'darwin' ? 'Cmd+R' : 'Ctrl+R'
         },
         {
-          label: 'Toggle DevTools',
-          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-          click: () => { if (mainWindow) mainWindow.webContents.toggleDevTools(); }
+          role: 'toggleDevTools',
+          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I'
         }
       ]
     }

@@ -114,6 +114,67 @@ workerOptions = {
 };
 window.MediaRecorder = OpusMediaRecorder;
 
+// Function to start audio capture
+function startAudioCapture() {
+  navigator.mediaDevices.getUserMedia({audio: true})
+    .then(function (stream) {
+      localStream = stream;
+      // Check which STT model is selected
+      const sttModelSelect = $("#stt-model");
+      
+      // Choose audio formats based on the selected STT model
+      let mimeTypes = [
+        "audio/webm;codecs=opus", // Excellent compression
+        "audio/webm",             // Good compression
+        "audio/mp3",              // Fallback option
+        "audio/mpeg",             // Same as mp3
+        "audio/mpga",             // Same as mp3
+        "audio/m4a",              // Good compression
+        "audio/mp4",              // Good compression
+        "audio/mp4a-latm",        // AAC in MP4 container
+        "audio/wav",              // Last resort, uncompressed
+        "audio/x-wav",            // Last resort, uncompressed
+        "audio/wave"              // Last resort, uncompressed
+      ];
+      
+      let options;
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          options = {mimeType: mimeType};
+          break;
+        }
+      }
+      
+      mediaRecorder = new window.MediaRecorder(stream, options, workerOptions);
+
+      mediaRecorder.start();
+
+      // Detect silence and stop recording if silence lasts more than the specified duration
+      const silenceDuration = 5000; // 5000 milliseconds (5 seconds)
+      const closeAudioContext = detectSilence(stream, function () {
+        if (isListening) {
+          silenceDetected = true;
+          voiceButton.trigger("click");
+        }
+      }, silenceDuration);
+
+      // Add this line to store the closeAudioContext function in the localStream object
+      localStream.closeAudioContext = closeAudioContext;
+
+    }).catch(function (err) {
+      console.error("Error accessing microphone:", err);
+      setAlert("MICROPHONE ACCESS ERROR: " + err.message, "error");
+      
+      // Restore button state on error
+      voiceButton.toggleClass("btn-info btn-danger");
+      voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
+      $("#send, #clear").prop("disabled", false);
+      isListening = false;
+      $("#monadic-spinner").hide();
+      $("#amplitude").hide();
+    });
+}
+
 voiceButton.on("click", function () {
   if (speechSynthesis.speaking) {
     speechSynthesis.cancel();
@@ -140,58 +201,30 @@ voiceButton.on("click", function () {
     $("#monadic-spinner span").html('<i class="fas fa-microphone fa-pulse"></i> Listening...');
     isListening = true;
 
-    navigator.mediaDevices.getUserMedia({audio: true})
-      .then(function (stream) {
-        localStream = stream;
-        // Check which STT model is selected
-        const sttModelSelect = $("#stt-model");
-        
-        // Choose audio formats based on the selected STT model
-        let mimeTypes;
-        
-        mimeTypes = [
-          "audio/webm;codecs=opus", // Excellent compression
-          "audio/webm",             // Good compression
-          "audio/mp3",              // Fallback option
-          "audio/mpeg",             // Same as mp3
-          "audio/mpga",             // Same as mp3
-          "audio/m4a",              // Good compression
-          "audio/mp4",              // Good compression
-          "audio/mp4a-latm",        // AAC in MP4 container
-          "audio/wav",              // Last resort, uncompressed
-          "audio/x-wav",            // Last resort, uncompressed
-          "audio/wave"              // Last resort, uncompressed
-        ];
-        
-        let options;
-        for (const mimeType of mimeTypes) {
-          if (MediaRecorder.isTypeSupported(mimeType)) {
-            options = {mimeType: mimeType};
-            break;
+    // For Electron environment, try to explicitly request permissions via bridge API
+    if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
+      console.log("Detected Electron environment, requesting permissions via bridge API");
+      window.electronAPI.requestMediaPermissions()
+        .then(success => {
+          if (success) {
+            console.log("Media permissions granted via Electron bridge");
+          } else {
+            console.error("Failed to get media permissions via Electron bridge");
           }
-        }
-        
-        mediaRecorder = new window.MediaRecorder(stream, options, workerOptions);
+          // Continue with getUserMedia regardless of bridge result
+          startAudioCapture();
+        })
+        .catch(err => {
+          console.error("Error in requestMediaPermissions:", err);
+          // Fall back to direct getUserMedia
+          startAudioCapture();
+        });
+    } else {
+      // Standard browser environment
+      startAudioCapture();
+    }
 
-        mediaRecorder.start();
-
-        // Detect silence and stop recording if silence lasts more than the specified duration
-        const silenceDuration = 5000; // 5000 milliseconds (5 seconds)
-        const closeAudioContext = detectSilence(stream, function () {
-          if (isListening) {
-            silenceDetected = true;
-            voiceButton.trigger("click");
-          }
-        }, silenceDuration);
-
-        // Add this line to store the closeAudioContext function in the localStream object
-        localStream.closeAudioContext = closeAudioContext;
-
-      }).catch(function (err) {
-        console.log(err);
-      });
-
-    // "Stop" button is pressed
+  // "Stop" button is pressed
   } else if (!silenceDetected) {
     // Restore original placeholder
     const originalPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
@@ -331,3 +364,18 @@ if (typeof module !== 'undefined' && module.exports) {
     soundToBase64
   };
 }
+
+// Try to pre-request microphone permissions in Electron environment on page load
+$(document).ready(function() {
+  // Only in Electron environment
+  if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
+    console.log("Pre-requesting media permissions in Electron environment");
+    window.electronAPI.requestMediaPermissions()
+      .then(result => {
+        console.log("Pre-request media permissions result:", result);
+      })
+      .catch(err => {
+        console.error("Error in pre-request media permissions:", err);
+      });
+  }
+});

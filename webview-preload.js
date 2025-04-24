@@ -17,7 +17,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestMediaPermissions: async () => {
     // This helps trigger the permission request explicitly for the webview
     try {
+      console.log('Requesting media permissions...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Clean up the stream after permissions are granted
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      console.log('Media permissions granted!');
       return true;
     } catch (err) {
       console.error('Failed to get media permissions:', err);

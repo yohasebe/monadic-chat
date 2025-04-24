@@ -30,9 +30,10 @@ if (!gotTheLock) {
 // app.commandLine.appendSwitch('no-sandbox');
 app.name = 'Monadic Chat';
 
-if (process.platform === 'darwin') {
-  app.commandLine.appendSwitch('no-sound');
-}
+// if (process.platform === 'darwin') {
+//   app.commandLine.appendSwitch('no-sound');
+// }
+
 // Allow autoplay of audio without user gesture in internal browser (Electron webview)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -84,9 +85,11 @@ function openWebViewWindow(url) {
       // Enable media permissions for microphone access
       webSecurity: true,
       allowRunningInsecureContent: false,
-      // Enable permissions for media devices
+      // Enable permissions for media devices explicitly
       permissions: {
-        media: true
+        media: true,
+        audioCapture: true,
+        microphone: true
       }
     }
   });
@@ -94,7 +97,8 @@ function openWebViewWindow(url) {
   webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowedPermissions = ['media', 'microphone', 'audioCapture'];
     if (allowedPermissions.includes(permission)) {
-      // Auto-approve media permission requests
+      // Auto-approve media permission requests and log for debugging
+      console.log(`Approving permission request for: ${permission}`);
       callback(true);
     } else {
       // Deny other permission requests

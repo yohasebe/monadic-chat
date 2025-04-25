@@ -18,15 +18,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // This helps trigger the permission request explicitly for the webview
     try {
       console.log('Requesting media permissions...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request with more detailed options and constraints for better compatibility
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
       // Clean up the stream after permissions are granted
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        console.log('Stream obtained successfully:', stream.id);
+        const audioTracks = stream.getAudioTracks();
+        console.log('Audio tracks:', audioTracks.length, audioTracks.map(t => t.label));
+        
+        // Keep the stream active slightly longer to ensure permission is properly registered
+        setTimeout(() => {
+          stream.getTracks().forEach(track => {
+            console.log('Stopping track:', track.label);
+            track.stop();
+          });
+        }, 500);
       }
       console.log('Media permissions granted!');
       return true;
     } catch (err) {
-      console.error('Failed to get media permissions:', err);
+      console.error('Failed to get media permissions:', err.name, err.message);
       return false;
     }
   }

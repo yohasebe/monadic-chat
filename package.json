@@ -46,7 +46,12 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "target": ["dmg", "zip"],
-      "artifactName": "Monadic.Chat-${version}-${arch}.${ext}"
+      "artifactName": "Monadic.Chat-${version}-${arch}.${ext}",
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "The microphone is required for voice input."
+      }
     },
     "extraResources": [
       {

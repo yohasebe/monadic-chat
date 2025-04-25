@@ -36,6 +36,8 @@ app.name = 'Monadic Chat';
 
 // Allow autoplay of audio without user gesture in internal browser (Electron webview)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// Enable media permissions explicitly
+app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');
 
 const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');
@@ -85,20 +87,17 @@ function openWebViewWindow(url) {
       // Enable media permissions for microphone access
       webSecurity: true,
       allowRunningInsecureContent: false,
-      // Enable permissions for media devices explicitly
-      permissions: {
-        media: true,
-        audioCapture: true,
-        microphone: true
-      }
+      // Enable DevTools for debugging
+      devTools: true
     }
   });
   // Set permission request handler to auto-approve media access requests
-  webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+  webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
     const allowedPermissions = ['media', 'microphone', 'audioCapture'];
     if (allowedPermissions.includes(permission)) {
       // Auto-approve media permission requests and log for debugging
-      console.log(`Approving permission request for: ${permission}`);
+      console.log(`Approving permission request for: ${permission}`, details);
+      // Always approve media permissions
       callback(true);
     } else {
       // Deny other permission requests
@@ -126,9 +125,14 @@ function openWebViewWindow(url) {
   // Inject a floating button into the web page to bring the main window to front
   webviewWindow.webContents.on('dom-ready', () => {
     // Explicitly request microphone permission when the DOM is ready
-    webviewWindow.webContents.executeJavaScript('window.electronAPI.requestMediaPermissions()').catch(err => {
-      console.error('Failed to request media permissions:', err);
-    });
+    // Use a timeout to ensure the page is fully loaded before requesting permissions
+    setTimeout(() => {
+      webviewWindow.webContents.executeJavaScript('window.electronAPI.requestMediaPermissions()').then(result => {
+        console.log('Media permissions request result:', result);
+      }).catch(err => {
+        console.error('Failed to request media permissions:', err);
+      });
+    }, 1000);
     
     const injectButtonJS = `
       (function() {

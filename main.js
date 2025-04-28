@@ -296,6 +296,18 @@ function openWebViewWindow(url) {
     // Only intercept fullscreen toggle to make sure it works
     const isMac = process.platform === 'darwin';
     if (input.type === 'keyDown') {
+      // Handle Mac minimize shortcut (Cmd+m)
+      if (isMac && input.meta && !input.control && input.key.toLowerCase() === 'm') {
+        webviewWindow.minimize();
+        event.preventDefault();
+        return;
+      }
+      // Handle Mac close window shortcut (Cmd+w)
+      if (isMac && input.meta && !input.control && input.key.toLowerCase() === 'w') {
+        webviewWindow.close();
+        event.preventDefault();
+        return;
+      }
       // OS-specific fullscreen shortcuts
       if (isMac && input.control && input.meta && input.key.toLowerCase() === 'f') {
         const isFullScreen = webviewWindow.isFullScreen();

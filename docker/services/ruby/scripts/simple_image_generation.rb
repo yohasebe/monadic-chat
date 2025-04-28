@@ -4,116 +4,452 @@ require "base64"
 require "http"
 require "json"
 require "optparse"
+require "fileutils"
 
-# Parse command line arguments for the prompt and size
-options = { size: "1024x1024" } # Default size
-OptionParser.new do |opts|
-  opts.banner = "Usage: simple_image_generation.rb [options]"
+# Parse command line arguments
+
+options = { 
+  operation: "generate",
+  model: "dall-e-3",
+  size: "1024x1024",
+  quality: "auto",
+  output_format: "png",
+  background: "auto",
+  n: 1
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: image_generation.rb [options]"
+
+  opts.on("-o", "--operation OPERATION", "Operation: generate, edit, variation") do |op|
+    options[:operation] = op
+    unless %w[generate edit variation].include?(op)
+      puts "ERROR: Invalid operation. Allowed operations are generate, edit, variation."
+      exit
+    end
+  end
+
+  opts.on("-m", "--model MODEL", "Model: dall-e-2, dall-e-3, gpt-image-1") do |model|
+    options[:model] = model
+    unless %w[dall-e-2 dall-e-3 gpt-image-1].include?(model)
+      puts "ERROR: Invalid model. Allowed models are dall-e-2, dall-e-3, gpt-image-1."
+      exit
+    end
+  end
 
   opts.on("-p", "--prompt PROMPT", "The prompt to generate an image for") do |prompt|
     options[:prompt] = prompt
   end
 
-  opts.on("-s", "--size SIZE", "The size of the generated image (1024x1024, 1024x1792, 1792x1024)") do |size|
-    unless %w[1024x1024 1024x1792 1792x1024].include?(size)
-      puts "ERROR: Invalid size. Allowed sizes are 1024x1024, 1024x1792, 1792x1024."
-      exit
-    end
+  opts.on("-i", "--image IMAGE", "Input image(s) for edit or variation operations") do |image|
+    options[:images] ||= []
+    options[:images] << image
+  end
+
+  opts.on("--mask MASK", "Mask image for edit operation") do |mask|
+    options[:mask] = mask
+  end
+
+  opts.on("-s", "--size SIZE", "Image size (1024x1024, 1024x1536, 1536x1024, auto)") do |size|
     options[:size] = size
+  end
+
+  opts.on("-q", "--quality QUALITY", "Image quality") do |quality|
+    options[:quality] = quality
+  end
+
+  opts.on("-f", "--format FORMAT", "Output format for gpt-image-1 (png, jpeg, webp)") do |format|
+    options[:output_format] = format
+  end
+
+  opts.on("-b", "--background BACKGROUND", "Background for gpt-image-1 (transparent, opaque, auto)") do |bg|
+    options[:background] = bg
+  end
+
+  opts.on("--compression COMPRESSION", "Compression level for jpeg/webp (0-100)") do |comp|
+    options[:output_compression] = comp.to_i
+  end
+
+  opts.on("-n", "--count COUNT", "Number of images to generate") do |count|
+    options[:n] = count.to_i
+  end
+
+  opts.on("--verbose", "Enable verbose output") do
+    options[:verbose] = true
   end
 end.parse!
 
-# Exit if no prompt is provided
-unless options[:prompt]
-  puts "ERROR: A prompt is required. Use -p or --prompt to specify the prompt."
-  exit
+
+if options[:model] == "gpt-image-1"
+
+  unless %w[low medium high auto].include?(options[:quality])
+    puts "WARNING: Invalid quality '#{options[:quality]}' for gpt-image-1. Using 'auto' instead."
+    options[:quality] = "auto"
+  end
+else
+
+  if options[:quality] != "standard" && !options[:quality].nil?
+    puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'standard' instead."
+    options[:quality] = "standard"
+  end
 end
 
-def generate_image(prompt, size, num_retrials: 3)
-  revised_prompt = nil # Initialize to avoid undefined variable
+# Validate required options based on operation
+
+case options[:operation]
+when "generate"
+  unless options[:prompt]
+    puts "ERROR: A prompt is required for generate operation. Use -p or --prompt."
+    exit
+  end
+when "edit"
+  unless options[:prompt] && options[:images]
+    puts "ERROR: A prompt and at least one input image are required for edit operation."
+    exit
+  end
+when "variation"
+  unless options[:images]
+    puts "ERROR: An input image is required for variation operation."
+    exit
+  end
+  if options[:model] != "dall-e-2"
+    puts "WARNING: The variation operation is only supported with the dall-e-2 model."
+    options[:model] = "dall-e-2"
+  end
+end
+
+def get_api_key
+  api_key = nil
   
   begin
     api_key = File.read("/monadic/config/env").split("\n").find do |line|
       line.start_with?("OPENAI_API_KEY")
-    end.split("=").last
+    end&.split("=")&.last
   rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find do |line|
-      line.start_with?("OPENAI_API_KEY")
-    end.split("=").last
-  end
+    # Try alternative path
 
-  url = "https://api.openai.com/v1/images/generations"
-  res = nil
-
-  begin
-    headers = {
-      "Content-Type": "application/json",
-      Authorization: "Bearer #{api_key}"
-    }
-
-    body = {
-      model: "dall-e-3",
-      prompt: prompt,
-      n: 1,
-      size: size,
-      response_format: "b64_json"
-    }
-
-    res = HTTP.headers(headers).post(url, json: body)
-  rescue HTTP::Error, HTTP::TimeoutError => e
-    error_msg = "ERROR: #{e.message}"
-    return { original_prompt: prompt, success: false, message: error_msg }
-  end
-
-  if res.status.success?
-    json = JSON.parse(res.body)
-    data = json["data"].first
-    base64_data = data["b64_json"]
-    revised_prompt = data["revised_prompt"]
-
-    if base64_data.nil?
-      error_msg = "Error: No image data received from the API."
-      return { original_prompt: prompt, success: false, message: error_msg }
-    else
-      image_data = Base64.decode64(base64_data)
-    end
-
-    primary_save_path = "/monadic/data/"
-    secondary_save_path = File.expand_path("~/monadic/data/")
-
-    # check if the directory exists
-    save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
-    filename = "#{Time.now.to_i}.png"
-    file_path = File.join(save_path, filename)
-
-    File.open(file_path, "wb") do |f|
-      f.write(image_data)
-    end
-
-    { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
-  else
     begin
-      error_response = JSON.parse(res.body)
-      error_msg = error_response.dig('error', 'message') || "Error with API response"
-      return { original_prompt: prompt, success: false, message: error_msg }
-    rescue JSON::ParserError
-      return { original_prompt: prompt, success: false, message: "Error parsing API response" }
+      api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find do |line|
+        line.start_with?("OPENAI_API_KEY")
+      end&.split("=")&.last
+    rescue Errno::ENOENT
+      # Try environment variable
+
+      api_key = ENV["OPENAI_API_KEY"]
     end
   end
-rescue StandardError => e
-  error_msg = "Error: #{e.message}"
-  puts error_msg
-  puts e.backtrace
   
-  num_retrials -= 1
-  if num_retrials.positive?
-    sleep 1
-    # Fixed: Pass the size parameter in recursive call
-    return generate_image(prompt, size, num_retrials: num_retrials)
+  unless api_key
+    puts "ERROR: Unable to find OpenAI API key. Set the OPENAI_API_KEY environment variable."
+    exit
+  end
+  
+  api_key
+end
+
+# Function to get MIME type based on file extension
+
+def get_mime_type(file_path)
+  ext = File.extname(file_path).downcase.delete('.')
+  case ext
+  when 'jpg', 'jpeg'
+    'image/jpeg'
+  when 'png'
+    'image/png'
+  when 'webp'
+    'image/webp'
   else
-    return { original_prompt: prompt, success: false, message: "Error: Image generation failed after multiple attempts." }
+    # Try to detect from file content
+
+    begin
+      file_data = File.binread(file_path, 16) # Read first 16 bytes
+      if file_data.start_with?("\xFF\xD8") # JPEG magic number
+        'image/jpeg'
+      elsif file_data.start_with?("\x89PNG\r\n\x1A\n") # PNG magic number
+        'image/png'
+      elsif file_data.start_with?("RIFF") && file_data[8, 4] == "WEBP" # WEBP magic number
+        'image/webp'
+      else
+        puts "WARNING: Unable to determine MIME type for #{file_path}. Defaulting to image/jpeg"
+        'image/jpeg' # Default to JPEG as fallback
+      end
+    rescue
+      puts "WARNING: Unable to read file #{file_path}. Defaulting to image/jpeg"
+      'image/jpeg' # Default to JPEG as fallback
+    end
   end
 end
 
-res = generate_image(options[:prompt], options[:size])
-puts JSON.pretty_generate(res)
+def generate_image(options, num_retrials = 3)
+  api_key = get_api_key
+  
+  begin
+    case options[:operation]
+    when "generate"
+      url = "https://api.openai.com/v1/images/generations"
+      headers = {
+        "Content-Type": "application/json",
+        Authorization: "Bearer #{api_key}"
+      }
+      
+      body = {
+        model: options[:model],
+        prompt: options[:prompt],
+        n: options[:n]
+      }
+      
+      # Add response_format only for DALL-E models
+
+      if options[:model] != "gpt-image-1"
+        body[:response_format] = "b64_json"
+        body[:size] = options[:size] if options[:size]
+        body[:quality] = options[:quality] if options[:quality]
+      else
+        # GPT Image 1固有のパラメータ
+
+        body[:size] = options[:size] if options[:size]
+        body[:quality] = options[:quality] if options[:quality]
+        body[:output_format] = options[:output_format] if options[:output_format]
+        body[:background] = options[:background] if options[:background]
+        body[:output_compression] = options[:output_compression] if options[:output_compression]
+      end
+      
+      puts "Sending request to generate image with prompt: #{options[:prompt]}" if options[:verbose]
+      puts "Request body: #{body.to_json}" if options[:verbose]
+      res = HTTP.headers(headers).post(url, json: body)
+      
+    when "edit"
+      url = "https://api.openai.com/v1/images/edits"
+      
+      if options[:model] == "gpt-image-1"
+        # For gpt-image-1, prepare multipart form with image[] array
+
+        form = {}
+        
+        # Add basic parameters
+
+        form[:model] = options[:model]
+        form[:prompt] = options[:prompt]
+        form[:n] = options[:n].to_s
+        
+        # Add specific parameters for gpt-image-1
+
+        form[:size] = options[:size] if options[:size]
+        form[:quality] = options[:quality] if options[:quality]
+        form[:output_format] = options[:output_format] if options[:output_format]
+        form[:background] = options[:background] if options[:background]
+        form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
+        
+        # Add images with proper MIME types
+
+        options[:images].each do |img_path|
+          mime_type = get_mime_type(img_path)
+          form[:"image[]"] ||= []
+          
+          image_file = HTTP::FormData::File.new(
+            img_path,
+            content_type: mime_type,
+            filename: File.basename(img_path)
+          )
+          
+          if form[:"image[]"].is_a?(Array)
+            form[:"image[]"] << image_file
+          else
+            form[:"image[]"] = [form[:"image[]"], image_file]
+          end
+        end
+        
+        # Add mask if provided
+
+        if options[:mask]
+          mime_type = get_mime_type(options[:mask])
+          form[:mask] = HTTP::FormData::File.new(
+            options[:mask],
+            content_type: mime_type,
+            filename: File.basename(options[:mask])
+          )
+        end
+        
+        puts "Sending request to edit image with prompt: #{options[:prompt]}" if options[:verbose]
+        puts "Form data keys: #{form.keys}" if options[:verbose]
+        
+        # Debug information
+
+        if options[:verbose]
+          form.each do |key, value|
+            if value.is_a?(HTTP::FormData::File)
+              puts "  #{key}: File (#{value.content_type})"
+            elsif value.is_a?(Array) && value.all? { |v| v.is_a?(HTTP::FormData::File) }
+              puts "  #{key}: Array of Files (#{value.map { |v| v.content_type }.join(', ')})"
+            else
+              puts "  #{key}: #{value}"
+            end
+          end
+        end
+        
+        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+      else
+        # For DALL-E models, use standard approach
+
+        form = {}
+        
+        # Add text parameters
+
+        form[:model] = options[:model]
+        form[:prompt] = options[:prompt]
+        form[:n] = options[:n].to_s
+        form[:response_format] = "b64_json"
+        form[:size] = options[:size] if options[:size]
+        
+        # Add image file
+
+        mime_type = get_mime_type(options[:images].first)
+        form[:image] = HTTP::FormData::File.new(
+          options[:images].first,
+          content_type: mime_type,
+          filename: File.basename(options[:images].first)
+        )
+        
+        # Add mask if provided
+
+        if options[:mask]
+          mime_type = get_mime_type(options[:mask])
+          form[:mask] = HTTP::FormData::File.new(
+            options[:mask],
+            content_type: mime_type,
+            filename: File.basename(options[:mask])
+          )
+        end
+        
+        puts "Sending request to edit image with prompt: #{options[:prompt]}" if options[:verbose]
+        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+      end
+      
+    when "variation"
+      url = "https://api.openai.com/v1/images/variations"
+      
+      # Use raw multipart form data approach
+
+      form = {
+        model: options[:model],
+        n: options[:n].to_s,
+        response_format: "b64_json"
+      }
+      
+      form[:size] = options[:size] if options[:size]
+      
+      # Add image file with MIME type
+
+      mime_type = get_mime_type(options[:images].first)
+      form[:image] = HTTP::FormData::File.new(
+        options[:images].first,
+        content_type: mime_type,
+        filename: File.basename(options[:images].first)
+      )
+      
+      puts "Sending request to create variation of image" if options[:verbose]
+      res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+    end
+    
+    if res.status.success?
+      json = JSON.parse(res.body.to_s)
+      
+      # Save images and prepare result
+
+      result = {
+        operation: options[:operation],
+        model: options[:model],
+        original_prompt: options[:prompt],
+        success: true,
+        images: []
+      }
+      
+      # Create output directory
+
+      output_dir = "./generated_images"
+      FileUtils.mkdir_p(output_dir) unless Dir.exist?(output_dir)
+      
+      json["data"].each_with_index do |data, idx|
+        base64_data = data["b64_json"]
+        revised_prompt = data["revised_prompt"] if data.key?("revised_prompt")
+        
+        if base64_data
+          image_data = Base64.decode64(base64_data)
+          timestamp = Time.now.to_i
+          ext = options[:output_format] || "png"
+          filename = "#{options[:operation]}_#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
+          file_path = File.join(output_dir, filename)
+          
+          File.open(file_path, "wb") do |f|
+            f.write(image_data)
+          end
+          
+          result[:images] << {
+            path: file_path,
+            revised_prompt: revised_prompt
+          }
+        end
+      end
+      
+      return result
+    else
+      begin
+        error_response = JSON.parse(res.body.to_s)
+        error_msg = error_response.dig('error', 'message') || "Error with API response: #{res.status}"
+        puts "ERROR: #{error_msg}"
+        puts "Response body: #{res.body}" if options[:verbose]
+      rescue JSON::ParserError
+        puts "ERROR: Failed to parse error response. Status: #{res.status}"
+        puts "Response body: #{res.body}" if options[:verbose]
+      end
+      
+      if num_retrials > 0
+        puts "Retrying... (#{num_retrials} attempts left)"
+        sleep 1
+        return generate_image(options, num_retrials - 1)
+      else
+        return { 
+          operation: options[:operation],
+          model: options[:model],
+          original_prompt: options[:prompt],
+          success: false, 
+          message: "Failed after multiple attempts." 
+        }
+      end
+    end
+  rescue StandardError => e
+    puts "ERROR: #{e.message}"
+    puts e.backtrace if options[:verbose]
+    
+    if num_retrials > 0
+      puts "Retrying... (#{num_retrials} attempts left)"
+      sleep 1
+      return generate_image(options, num_retrials - 1)
+    else
+      return { 
+        operation: options[:operation],
+        model: options[:model],
+        original_prompt: options[:prompt],
+        success: false, 
+        message: "Error: #{e.message}" 
+      }
+    end
+  end
+end
+
+# Execute the operation and print the result
+
+result = generate_image(options)
+puts JSON.pretty_generate(result)
+
+if result[:success]
+  puts "\nOperation completed successfully!"
+  puts "Original prompt: #{result[:original_prompt]}"
+  
+  result[:images].each do |img|
+    puts "Saved file: #{img[:path]}"
+    puts "Revised prompt: #{img[:revised_prompt]}" if img[:revised_prompt]
+  end
+else
+  puts "\nOperation failed: #{result[:message]}"
+end

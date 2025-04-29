@@ -1401,6 +1401,26 @@ $(function () {
       return;
     }
 
+    // Ensure UI controls are properly enabled by default
+    // This prevents UI getting stuck in disabled state
+    function ensureControlsEnabled() {
+      $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+      $("#message").prop("disabled", false);
+      $("#select-role").prop("disabled", false);
+      $("#monadic-spinner").hide();
+      $("#cancel_query").hide();
+    }
+
+    // Set a safety timeout to re-enable controls if they remain disabled
+    const safetyTimeout = setTimeout(function() {
+      // Only run if user panel is visible but controls are disabled
+      if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
+        console.log("Safety timeout: Re-enabling controls that were left in disabled state");
+        ensureControlsEnabled();
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "info");
+      }
+    }, 5000); // 5 second timeout is enough for normal operations to complete
+
     if (messages.length > 0) {
       $("#config").hide();
       $("#back-to-settings").show();
@@ -1410,7 +1430,8 @@ $(function () {
       $("#temp-card").hide();
       $("#parameter-panel").show();
       $("#user-panel").show();
-      setInputFocus()
+      setInputFocus();
+      ensureControlsEnabled();
     } else {
       // create secure random 4-digit number
       ws.send(JSON.stringify({
@@ -1443,7 +1464,8 @@ $(function () {
         });
       } else {
         $("#user-panel").show();
-        setInputFocus()
+        ensureControlsEnabled();
+        setInputFocus();
       }
     }
   });

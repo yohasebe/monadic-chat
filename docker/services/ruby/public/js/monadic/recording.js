@@ -310,6 +310,8 @@ voiceButton.on("click", function () {
     $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Processing speech...');
     // Hide amplitude display immediately when processing starts
     $("#amplitude").hide();
+    // Show cancel button during STT processing
+    $("#cancel_query").show();
     isListening = false;
 
     if(mediaRecorder){

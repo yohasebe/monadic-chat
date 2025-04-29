@@ -366,7 +366,7 @@ def generate_image(options, num_retrials = 3)
       
       # Create output directory
 
-      output_dir = "./generated_images"
+      output_dir = "./"
       FileUtils.mkdir_p(output_dir) unless Dir.exist?(output_dir)
       
       json["data"].each_with_index do |data, idx|

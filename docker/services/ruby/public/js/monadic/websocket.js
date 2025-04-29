@@ -69,13 +69,28 @@ function setCopyCodeButton(element) {
         highlighterElement.append(copyButton);
         
         // Add click event to the button
-        copyButton.click(async function () {
+        copyButton.click(function () {
+          const text = codeElement.text();
+          const icon = copyButton.find("i");
+          
           try {
-            const text = codeElement.text();
-            await navigator.clipboard.writeText(text);
+            // Copy text to clipboard
+            // Use document.execCommand directly
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';  // Fixed position to prevent scrolling on mobile
+            textarea.style.opacity = 0;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            const success = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            if (!success) {
+              throw new Error('execCommand copy failed');
+            }
             
             // Show success indicator
-            const icon = copyButton.find("i");
             icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
             
             // Return to normal state after delay
@@ -85,14 +100,52 @@ function setCopyCodeButton(element) {
           } catch (err) {
             console.error("Failed to copy text: ", err);
             
-            // Show error indicator
-            const icon = copyButton.find("i");
-            icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-            
-            // Return to normal state after delay
-            setTimeout(() => {
-              icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
-            }, 1000);
+            // Try fallback methods if execCommand fails
+            try {
+              if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
+                window.electronAPI.writeClipboard(text);
+                
+                // Show success indicator
+                icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+                
+                // Return to normal state after delay
+                setTimeout(() => {
+                  icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+                }, 1000);
+              } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                  .then(() => {
+                    // Show success indicator
+                    icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+                    
+                    // Return to normal state after delay
+                    setTimeout(() => {
+                      icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+                    }, 1000);
+                  })
+                  .catch(() => {
+                    // Show error indicator
+                    icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
+                    
+                    // Return to normal state after delay
+                    setTimeout(() => {
+                      icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
+                    }, 1000);
+                  });
+              } else {
+                throw new Error('No clipboard API available');
+              }
+            } catch (fallbackErr) {
+              console.error("All clipboard methods failed: ", fallbackErr);
+              
+              // Show error indicator
+              icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
+              
+              // Return to normal state after delay
+              setTimeout(() => {
+                icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
+              }, 1000);
+            }
           }
         });
       }

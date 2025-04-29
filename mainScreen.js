@@ -17,17 +17,82 @@ function addCopyToClipboardListener() {
     if (!event.target.classList.contains('fa-copy')) return;
 
     const codeElement = event.target.nextElementSibling;
-    navigator.clipboard.writeText(codeElement.textContent)
-      .then(() => {
-        const icon = event.target;
-        icon.classList.replace('fa-copy', 'fa-check');
+    const text = codeElement.textContent;
+    const icon = event.target;
+
+    try {
+      // Copy text to clipboard using document.execCommand
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';  // Fixed position to prevent scrolling on mobile
+      textarea.style.opacity = 0;
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      
+      if (!success) {
+        throw new Error('execCommand copy failed');
+      }
+      
+      // Show success indicator
+      icon.classList.replace('fa-copy', 'fa-check');
+      icon.style.color = '#DC4C64';
+      setTimeout(() => {
+        icon.classList.replace('fa-check', 'fa-copy');
+        icon.style.color = '';
+      }, 1000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      
+      // Try fallback methods if execCommand fails
+      try {
+        if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
+          window.electronAPI.writeClipboard(text);
+          
+          // Show success indicator
+          icon.classList.replace('fa-copy', 'fa-check');
+          icon.style.color = '#DC4C64';
+          setTimeout(() => {
+            icon.classList.replace('fa-check', 'fa-copy');
+            icon.style.color = '';
+          }, 1000);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text)
+            .then(() => {
+              // Show success indicator
+              icon.classList.replace('fa-copy', 'fa-check');
+              icon.style.color = '#DC4C64';
+              setTimeout(() => {
+                icon.classList.replace('fa-check', 'fa-copy');
+                icon.style.color = '';
+              }, 1000);
+            })
+            .catch(() => {
+              // Show error indicator
+              icon.classList.replace('fa-copy', 'fa-xmark');
+              icon.style.color = '#DC4C64';
+              setTimeout(() => {
+                icon.classList.replace('fa-xmark', 'fa-copy');
+                icon.style.color = '';
+              }, 1000);
+            });
+        } else {
+          throw new Error('No clipboard API available');
+        }
+      } catch (fallbackErr) {
+        console.error("All clipboard methods failed: ", fallbackErr);
+        
+        // Show error indicator
+        icon.classList.replace('fa-copy', 'fa-xmark');
         icon.style.color = '#DC4C64';
         setTimeout(() => {
-          icon.classList.replace('fa-check', 'fa-copy');
+          icon.classList.replace('fa-xmark', 'fa-copy');
           icon.style.color = '';
         }, 1000);
-      })
-      .catch(err => console.error('Failed to copy text: ', err));
+      }
+    }
   });
 }
 

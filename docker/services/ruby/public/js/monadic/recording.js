@@ -3,7 +3,14 @@
 //////////////////////////////
 
 function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThreshold = 16) {
+  // Check if AudioContext is already suspended - macOS specific issue handling
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  // Resume context if needed (important for macOS)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(err => console.warn('Error resuming AudioContext:', err));
+  }
+  
   const analyser = audioContext.createAnalyser();
   const streamNode = audioContext.createMediaStreamSource(stream);
   streamNode.connect(analyser);
@@ -14,8 +21,14 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
   let silenceStart = performance.now();
   let triggered = false;
   let animationFrameId;
+  
+  // For cleanup
+  let isActive = true;
 
   function checkSilence() {
+    // Don't process if we've been cleaned up
+    if (!isActive) return;
+    
     analyser.getByteFrequencyData(dataArray);
     const totalAmplitude = dataArray.reduce((a, b) => a + b);
     const averageAmplitude = totalAmplitude / bufferLength;
@@ -34,47 +47,74 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
 
     // Update the bar chart with the average amplitude value
     const chartCanvas = document.querySelector("#amplitude-chart");
+    
+    if (chartCanvas) {
+      const chartContext = chartCanvas.getContext("2d");
+      
+      // Make sure canvas is properly sized for the container
+      chartCanvas.width = Math.min(300, chartCanvas.clientWidth * 2); // Handle high DPI displays
+      chartCanvas.height = 56; // Fixed height with doubled pixels for high DPI
+      
+      // Get dimensions after resize
+      const chartWidth = chartCanvas.width;
+      const chartHeight = chartCanvas.height;
+      const barSpacing = 4;
+      const barWidth = (chartWidth - (bufferLength - 1) * barSpacing) / bufferLength;
+      
+      // Clear the canvas completely
+      chartContext.clearRect(0, 0, chartWidth, chartHeight);
+      
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = dataArray[i] / 255 * chartHeight / 2;
+        const x = i * (barWidth + barSpacing);
+        const y = chartHeight / 2 - barHeight;
+        chartContext.fillStyle = '#666';
 
-    const chartContext = chartCanvas.getContext("2d");
-    
-    // Make sure canvas is properly sized for the container
-    chartCanvas.width = Math.min(300, chartCanvas.clientWidth * 2); // Handle high DPI displays
-    chartCanvas.height = 56; // Fixed height with doubled pixels for high DPI
-    
-    // Get dimensions after resize
-    const chartWidth = chartCanvas.width;
-    const chartHeight = chartCanvas.height;
-    const barSpacing = 4;
-    const barWidth = (chartWidth - (bufferLength - 1) * barSpacing) / bufferLength;
-    
-    // Clear the canvas completely
-    chartContext.clearRect(0, 0, chartWidth, chartHeight);
-    
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = dataArray[i] / 255 * chartHeight / 2;
-      const x = i * (barWidth + barSpacing);
-      const y = chartHeight / 2 - barHeight;
-      chartContext.fillStyle = '#666';
+        // Draw upward bar
+        chartContext.fillRect(x, y, barWidth, barHeight);
 
-      // Draw upward bar
-      chartContext.fillRect(x, y, barWidth, barHeight);
-
-      // Draw downward bar
-      chartContext.fillRect(x, chartHeight / 2, barWidth, barHeight);
+        // Draw downward bar
+        chartContext.fillRect(x, chartHeight / 2, barWidth, barHeight);
+      }
     }
 
-    // Request the next frame
-    animationFrameId = requestAnimationFrame(checkSilence);
+    // Request the next frame only if still active
+    if (isActive) {
+      animationFrameId = requestAnimationFrame(checkSilence);
+    }
   }
 
   checkSilence();
 
   // Return a function to close the audio context and cancel animation frame
   return function () {
+    // Mark as inactive to prevent further processing
+    isActive = false;
+    
+    // Cancel animation frame if active
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
     }
-    audioContext.close();
+    
+    // Disconnect nodes to prevent memory leaks
+    try {
+      if (streamNode) {
+        streamNode.disconnect();
+      }
+      if (analyser) {
+        analyser.disconnect();
+      }
+    } catch (e) {
+      console.warn('Error disconnecting audio nodes:', e);
+    }
+    
+    // Close the audio context (important for macOS)
+    if (audioContext && audioContext.state !== 'closed') {
+      audioContext.close().catch(err => 
+        console.warn('Error closing AudioContext:', err)
+      );
+    }
   };
 }
 
@@ -338,8 +378,30 @@ voiceButton.on("click", function () {
         // console.log("Status: " + mediaRecorder.state);
         localStream.getTracks().forEach(track => track.stop());
 
-        // Add this line to close the audio context
-        localStream.closeAudioContext();
+        // Ensure audio context is properly closed
+        if (localStream.closeAudioContext) {
+          try {
+            localStream.closeAudioContext();
+            localStream.closeAudioContext = null; // Prevent double closure
+          } catch (e) {
+            console.warn('Error closing audio context:', e);
+          }
+        }
+        
+        // Make sure all audio tracks are properly stopped
+        try {
+          localStream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+              track.stop();
+            }
+          });
+        } catch (e) {
+          console.warn('Error stopping audio tracks:', e);
+        }
+        
+        // Clean up stream reference
+        localStream = null;
+        
         $("#asr-p-value").show();
         $("#amplitude").hide();
       } catch (e) {
@@ -367,8 +429,26 @@ voiceButton.on("click", function () {
     mediaRecorder.stop();
     localStream.getTracks().forEach(track => track.stop());
 
-    // Add this line to close the audio context
-    localStream.closeAudioContext();
+    // Ensure audio context is properly closed
+    if (localStream.closeAudioContext) {
+      try {
+        localStream.closeAudioContext();
+        localStream.closeAudioContext = null; // Prevent double closure
+      } catch (e) {
+        console.warn('Error closing audio context on silence detection:', e);
+      }
+    }
+    
+    // Additional cleanup to ensure all resources are released
+    try {
+      if (mediaRecorder) {
+        mediaRecorder = null;
+      }
+      localStream = null;
+    } catch (e) {
+      console.warn('Error cleaning up media resources:', e);
+    }
+    
     $("#amplitude").hide();
   }
 });

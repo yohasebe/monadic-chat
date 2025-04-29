@@ -36,8 +36,19 @@ app.name = 'Monadic Chat';
 
 // Allow autoplay of audio without user gesture in internal browser (Electron webview)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
-// Enable media permissions explicitly
-app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');
+
+// macOS specific settings to prevent audio conflicts with other applications
+if (process.platform === 'darwin') {
+  // Use a more conservative approach for macOS
+  app.commandLine.appendSwitch('enable-features', 'WebRtcHWH264Encoding');
+  
+  // This makes audio context creation more conservative
+  // Helps prevent conflicts with system-wide audio on macOS
+  app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
+} else {
+  // Enable hardware audio for other platforms
+  app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');
+}
 
 const { exec, execSync, spawn } = require('child_process');
 const extendedContextMenu = require('electron-context-menu');

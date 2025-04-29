@@ -3,12 +3,27 @@ let audioCtx = null;
 let playPromise = null;
 let ttsAudio = null;
 
+// Create a lazy initializer for audioContext to prevent unnecessary contexts
 function audioInit() {
   if (audioCtx === null) {
+    // Create a new AudioContext only when needed
     audioCtx = new AudioContext();
+    
+    // For macOS specifically, add an event listener to close context when inactive
+    const isMac = /Mac/.test(navigator.platform);
+    if (isMac) {
+      // Close audio context when window loses focus (important for macOS)
+      window.addEventListener('blur', function() {
+        if (audioCtx && audioCtx.state !== 'closed') {
+          // Just suspend (don't close) in case we need it again soon
+          audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
+        }
+      }, { passive: true });
+    }
   }
+  
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    audioCtx.resume().catch(err => console.warn('Error resuming AudioContext:', err));
   }
 }
 
@@ -78,9 +93,26 @@ function ttsStop() {
   // Handle both ttsAudio and window.audio with a single function
   const stopAudioElement = (audio) => {
     if (audio) {
-      audio.pause();
-      audio.src = "";
-      audio.load();
+      try {
+        audio.pause();
+        
+        // Cancel any queued audio tasks
+        if (audio.srcObject) {
+          audio.srcObject = null;
+        }
+        
+        // Remove all event listeners
+        audio.oncanplay = null;
+        audio.onplay = null;
+        audio.onended = null;
+        audio.onerror = null;
+        
+        // Clear source and reload to free resources
+        audio.src = "";
+        audio.load();
+      } catch (e) {
+        console.warn('Error stopping audio element:', e);
+      }
     }
   };
   
@@ -103,6 +135,15 @@ function ttsStop() {
     }
 
     if (typeof mediaSource !== 'undefined' && mediaSource) {
+      // Properly close MediaSource if possible
+      if (mediaSource.readyState === 'open') {
+        try {
+          mediaSource.endOfStream();
+        } catch (e) {
+          console.warn('Error ending media source stream:', e);
+        }
+      }
+      
       mediaSource = null;
       
       // Create a new MediaSource if possible
@@ -115,7 +156,7 @@ function ttsStop() {
               sourceBuffer.addEventListener('updateend', processAudioDataQueue);
             }
           } catch (e) {
-            // Silently handle errors
+            console.warn('Error creating source buffer:', e);
           }
         });
 
@@ -128,10 +169,22 @@ function ttsStop() {
         ttsAudio = new Audio();
       }
     }
+    
+    // For macOS specifically, properly manage AudioContext
+    const isMac = /Mac/.test(navigator.platform);
+    if (isMac && audioCtx && audioCtx.state !== 'closed') {
+      // Suspend but don't close - we might need it again soon
+      audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
+    }
+    
   } catch (e) {
+    console.warn('Error in ttsStop:', e);
     // Fallback
     ttsAudio = new Audio();
   }
+  
+  // Clear any pending audio promises
+  playPromise = null;
 }
 
 // Export functions to window for browser environment

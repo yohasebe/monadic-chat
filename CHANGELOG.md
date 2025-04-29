@@ -1,4 +1,6 @@
 - [April, 2025] 0.9.88
+  - Image generation app updated to support gpt-image-1 with image editing
+  - Issues with copy-to-clipboard built-in browser for macOS fixed
   - Issues with text-to-speech and speech-to-text in built-in browser fixed
 - [April, 2025] 0.9.85
   - Built-in browser introduced for web UI

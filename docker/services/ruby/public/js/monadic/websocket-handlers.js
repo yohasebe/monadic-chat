@@ -213,13 +213,15 @@ function handleSTTMessage(data) {
  */
 function handleCancelMessage(data) {
   if (data && data.type === 'cancel') {
+    // More comprehensive UI reset to ensure all elements are properly enabled
     // Reset input field state
     $('#message').attr('placeholder', 'Type your message...');
     $('#message').prop('disabled', false);
     
-    // Re-enable all controls
-    $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
+    // Re-enable all controls - include AI user button explicitly
+    $('#send, #clear, #image-file, #voice, #doc, #url, #ai_user').prop('disabled', false);
     $('#select-role').prop('disabled', false);
+    $('#ai_user_provider').prop('disabled', false);
     
     // Hide cancel button
     $('#cancel_query').hide();
@@ -227,6 +229,14 @@ function handleCancelMessage(data) {
     // Show message input and hide spinner
     $('#message').show();
     $('#monadic-spinner').hide();
+    
+    // Reset any flags that might be in an inconsistent state
+    if (window.responseStarted !== undefined) {
+      window.responseStarted = false;
+    }
+    if (window.callingFunction !== undefined) {
+      window.callingFunction = false;
+    }
     
     // Set focus back to input field if function is available
     if (typeof setInputFocus === 'function') {

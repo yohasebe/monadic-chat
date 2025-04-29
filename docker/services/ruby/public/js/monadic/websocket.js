@@ -1007,12 +1007,34 @@ function connect_websocket(callback) {
   }
 
   ws.onmessage = function (event) {
+    // Register a safety timeout to prevent UI getting stuck in disabled state
+    // This will be cleared for normal responses but will run if something goes wrong
+    const messageTimeout = setTimeout(function() {
+      if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
+        console.log("Safety: Re-enabling controls after WebSocket message timeout");
+        $("#send, #clear, #image-file, #voice, #doc, #url, #ai_user").prop("disabled", false);
+        $("#message").prop("disabled", false);
+        $("#select-role").prop("disabled", false);
+        $("#monadic-spinner").hide();
+        $("#cancel_query").hide();
+        
+        // Reset state flags
+        if (window.responseStarted !== undefined) window.responseStarted = false;
+        if (window.callingFunction !== undefined) window.callingFunction = false;
+        
+        setAlert("<i class='fas fa-exclamation-triangle'></i> Operation timed out. UI reset.", "warning");
+      }
+    }, 15000);  // 15 seconds timeout
     
     let data;
     try {
       data = JSON.parse(event.data);
+      
+      // Clear the safety timeout for valid responses
+      clearTimeout(messageTimeout);
     } catch (error) {
       console.error("Error parsing WebSocket message:", error, event.data);
+      clearTimeout(messageTimeout);
       return;
     }
     switch (data["type"]) {

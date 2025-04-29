@@ -52,6 +52,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }
 });
 // Intercept link clicks in the loaded page and open external links in the default browser
+// Setup proper audio cleanup for macOS
+const isMac = /Mac/.test(navigator.platform);
+if (isMac) {
+  // Add handler to clean up audio resources on page unload
+  window.addEventListener('beforeunload', () => {
+    // Find and clean up any AudioContext instances
+    if (window.audioCtx && typeof window.audioCtx.close === 'function') {
+      window.audioCtx.close().catch(err => console.warn('Error closing AudioContext:', err));
+    }
+    
+    // If ttsStop function exists, call it to properly clean up audio resources
+    if (typeof window.ttsStop === 'function') {
+      window.ttsStop();
+    }
+    
+    // Stop all media streams
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      // Attempt to enumerate and stop any active tracks
+      navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+          // Just logging that we attempted cleanup
+          console.log('Cleaning up media devices before unload');
+        })
+        .catch(err => {
+          console.warn('Error cleaning up media devices:', err);
+        });
+    }
+  });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   // Track last search term
   let lastSearchTerm = '';

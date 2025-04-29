@@ -174,13 +174,15 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 ![Image Generator app icon](../assets/icons/image-generator.png ':size=40')
 
-This application generates images based on descriptions. If the prompt is not specific or is written in a language other than English, it returns an improved prompt and asks whether to proceed with the improved prompt. The OpenAI version uses the Dall-E 3 API internally.
+This application generates images based on descriptions. 
+
+The OpenAI version now uses the gpt-image-1 model and supports both image generation and image editing. With image editing, you can modify existing images using text prompts and optional masks. You can customize output options including image size, quality, format (PNG, JPEG, WebP), background type (transparent, opaque), and compression level.
 
 Images are saved in the `Shared Folder` and also displayed in the chat.
 
 Image Generator apps are also available for the following models:
 
-- OpenAI (using DALL-E 3)
+- OpenAI (using gpt-image-1)
 - Google Gemini (using Imagen)
 - xAI Grok
 

@@ -173,13 +173,15 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 ![Image Generator app icon](../assets/icons/image-generator.png ':size=40')
 
-説明に基づいて画像を生成するアプリケーションです。プロンプトが具体的でない場合や、英語以外の言語で書かれている場合は、改善されたプロンプトを返し、改善されたプロンプトで続行するかどうかを尋ねます。OpenAIバージョンは内部でDall-E 3 APIを使用しています。
+説明に基づいて画像を生成するアプリケーションです。
+
+OpenAIバージョンは現在、gpt-image-1モデルを使用しており、画像生成だけでなく画像編集機能もサポートしています。画像編集では、テキストプロンプトとオプションのマスク画像を使用して既存の画像を修正できます。サイズ、品質、出力形式（PNG、JPEG、WebP）、背景タイプ（透明、不透明）、圧縮レベルなど、さまざまな出力オプションをカスタマイズすることができます。
 
 画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
 
 下記の言語モデルでImage Generatorアプリが利用可能です。
 
-- OpenAI（DALL-E 3を使用）
+- OpenAI（gpt-image-1を使用）
 - Google Gemini（Imagenを使用）
 - xAI Grok
 

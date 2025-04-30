@@ -65,6 +65,10 @@ Postgresql上にテキスト埋め込みのベクトルデータを保存する�
 
 使用しているアプリの例：`PDF Navigator`
 
+**Ollamaコンテナ**（`monadic-chat-ollama-container`）
+
+[Ollama](https://ollama.com) を使用してローカルのLLMを提供します。Llama、Phi、Mistral、Gemma、DeepSeekなどのモデルをホストできます。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
+
 ?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
 
 ## コンテナの再ビルドプロセス

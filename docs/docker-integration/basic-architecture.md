@@ -59,11 +59,15 @@ Apps that use this container include: `Code Interpreter`, `Content Reader`
 **pgvector Container** (`monadic-chat-pgvector-container`)
 This container is used to store text embedding vector data on PostgreSQL for using pgvector. Apps that use this container include: `PDF Navigator`.
 
-**Ollama Container** (`monadic-chat-ollama-container`)
-Provides local LLMs via [Ollama](https://ollama.com), hosting models such as Llama, Phi, Mistral, Gemma, and DeepSeek. For setup instructions, see [Using Ollama](../advanced-topics/ollama.md).
 
 You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
 For more information on adding Docker containers, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
+
+## Optional Docker Containers
+
+In addition to the standard containers, Monadic Chat supports optional containers provided via plugins:
+
+- **Ollama Container** (`monadic-chat-ollama-container`): Provides local LLMs via [Ollama](https://ollama.com) through the Monadic Chat Extra plugin. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
 
 ## Container Rebuilding Process
 

@@ -34,6 +34,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💬 Support for both **Human/AI chat** and **AI/AI chat**
 - ✨ Chat functionality utilizing **multiple AI models**
 - 🔄 **Automatic updates** with in-app notifications and download management
+- 🌐 **Server mode** for multiple clients to connect to a single server
+- 🔍 **Built-in browser** for viewing the web interface within the application
 
 ### AI + Linux Environment
 
@@ -72,6 +74,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Image/Video Recognition and Generation
 
 - 🖼️ **Image generation** using DALL·E 3 API and Google Imagen
+- ✏️ **Image editing** with OpenAI's gpt-image-1 model for modifying existing images
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**
 - 🎥 Recognition and description of **uploaded video content and audio**

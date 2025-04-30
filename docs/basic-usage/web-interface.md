@@ -2,16 +2,41 @@
 
 ![](../assets/images/monadic-chat-web.png ':size=700')
 
-In addition to using web browsers in desktop environments, Monadic Chat also offers a server mode that allows access from web browsers on various devices including laptops, tablets, and smartphones. When running in server mode, the web UI is responsive and adapts to different screen sizes, making it usable even on small smartphone screens (though some features like Jupyter functionality are not available). The responsive design automatically switches to a mobile-optimized layout for screen widths of 767px or less.
-  
-### Desktop App Buttons
+## Browser Modes
 
-When running the Electron desktop app in internal browser mode, the web UI displays four buttons at the bottom-right corner:
+Monadic Chat supports three different modes for accessing its web interface:
 
-- **Zoom In**: Increases the page zoom factor.
-- **Zoom Out**: Decreases the page zoom factor.
-- **UI Reset**: Clears session data and reloads the UI.
-- **Focus Main Window**: Brings the main Electron window to the foreground.
+### Internal Browser Mode
+
+The internal browser mode runs directly within the Electron desktop application using webview functionality. This mode provides an all-in-one experience where you can interact with the chat interface without switching between applications.
+
+Benefits of internal browser mode:
+- All functionality contained within a single application window
+- Full copy/paste support between the chat and other applications
+- Keyboard shortcuts for common operations
+- Built-in search functionality for conversations
+- Consistent experience across platforms
+
+When running in internal browser mode, four additional buttons appear at the bottom-right corner of the interface:
+- **Zoom In**: Increases the page zoom factor
+- **Zoom Out**: Decreases the page zoom factor
+- **UI Reset**: Clears session data and reloads the UI
+- **Focus Main Window**: Brings the main Electron window to the foreground
+
+### External Browser Mode
+
+In external browser mode, Monadic Chat launches your default web browser and connects to the local server (at http://localhost:4567).
+
+### Server Mode
+
+In addition to the standard local operation, Monadic Chat offers a server mode that allows multiple clients to connect to a single server instance. When running in server mode:
+- The web interface binds to all network interfaces (0.0.0.0) rather than just localhost
+- Multiple users can access the same Monadic Chat instance from different devices
+- The interface is responsive and adapts to different screen sizes (including tablets and smartphones)
+- Some features like Jupyter notebook functionality are disabled for security reasons
+- A mobile-optimized layout automatically activates for screen widths of 767px or less
+
+You can configure server mode in the System Settings panel on startup or through environment variables. This mode allows you to access your Monadic Chat instance from multiple devices.
 
 ## System Settings Screen
 

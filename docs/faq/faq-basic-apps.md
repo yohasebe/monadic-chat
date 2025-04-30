@@ -18,16 +18,16 @@ The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook
 
 **Q**: How do I use Monadic Chat in server mode?
 
-**A**: To run Monadic Chat in server mode (distributed mode):
+**A**: To run Monadic Chat in server mode:
 
 1. Open the Settings panel by clicking the gear icon in the application
-2. In the "Operating Mode" section, select "Server Mode" from the dropdown menu
+2. Select "Server Mode" from the options
 3. Click "Save" to apply the changes
 4. Restart the application
 
 In this mode, Jupyter notebook URLs and other services will use the server's external IP address, and clients can connect to the server through their web browsers.
 
-For more information, see the [Distributed Mode Architecture](../docker-integration/basic-architecture.md#distributed-mode-architecture) documentation.
+For more information, see the [Server and Standalone Modes](../docker-integration/basic-architecture.md#server-and-standalone-modes) documentation.
 
 **Q**: What happens if I install a new version?
 

@@ -8,7 +8,7 @@ It also provides a mechanism for sharing data between the host computer and indi
 
 ![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
 
-## Distributed Mode Architecture
+## Server and Standalone Modes
 
 Monadic Chat can operate in two primary modes:
 
@@ -34,9 +34,8 @@ Monadic Chat can operate in two primary modes:
 To switch between modes in the desktop application:
 
 1. Click on the settings icon in the top-right corner
-2. Select "Distributed Mode" from the dropdown
-3. Choose either "Standalone Mode" or "Server Mode"
-4. Save and restart the application when prompted
+2. Choose either "Standalone Mode" or "Server Mode"
+3. Save and restart the application when prompted
 
 To enable Server Mode when running from source code, set the environment variable `DISTRIBUTED_MODE=server` when starting Monadic Chat.
 

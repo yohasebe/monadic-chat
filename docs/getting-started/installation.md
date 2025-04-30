@@ -121,7 +121,7 @@ For Linux (Ubuntu/Debian), refer to the following pages to install Docker Deskto
 
 ## Server Mode Configuration
 
-By default, Monadic Chat runs in standalone mode with all components on a single machine. To enable server mode (distributed mode):
+By default, Monadic Chat runs in standalone mode with all components on a single machine. To enable server mode:
 
 1. Open the Settings panel by clicking the gear icon in the application
 2. In the "Operating Mode" section, select "Server Mode" from the dropdown menu
@@ -134,7 +134,7 @@ In server mode:
 - Network URLs (like Jupyter notebooks) will use the server's external IP address
 - Clients can access resources hosted on the server
 
-See the [Distributed Mode Architecture](../docker-integration/basic-architecture.md#distributed-mode-architecture) documentation for more details.
+See the [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) documentation for more details.
 
 ## Update
 

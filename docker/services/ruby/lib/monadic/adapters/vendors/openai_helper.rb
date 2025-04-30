@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'fileutils'
+require 'base64'
+
 module OpenAIHelper
   MAX_FUNC_CALLS = 12
   API_ENDPOINT = "https://api.openai.com/v1"
@@ -249,6 +252,16 @@ module OpenAIHelper
       max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
     end
     
+    # Get image generation flag
+    image_generation = obj["image_generation"] == "true"
+    
+    # Define shared folder path based on environment
+    shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
+                     MonadicApp::SHARED_VOL # "/monadic/data"
+                    else
+                     MonadicApp::LOCAL_SHARED_VOL # "~/monadic/data"
+                    end
+    
     temperature = obj["temperature"].to_f
     presence_penalty = obj["presence_penalty"].to_f
     frequency_penalty = obj["frequency_penalty"].to_f
@@ -367,9 +380,60 @@ module OpenAIHelper
 
     # The context is added to the body
     messages_containing_img = false
+    image_file_references = []
+    
+    # START ADDED CODE
+    # Process images if this is an image generation request
+    if image_generation && role == "user"
+      context.compact.each do |msg|
+        if msg["images"]
+          msg["images"].each do |img|
+            begin
+              # Skip if already a reference to shared folder
+              next if img["data"].to_s.start_with?("/data/")
+              
+              # Generate a unique filename
+              timestamp = Time.now.to_i
+              random_suffix = SecureRandom.hex(4)
+              ext = File.extname(img["data"].to_s).empty? ? ".png" : File.extname(img["data"].to_s)
+              new_filename = "img_#{timestamp}_#{random_suffix}#{ext}"
+              target_path = File.join(shared_folder, new_filename)
+              
+              # Copy the file to shared folder if it exists locally
+              if File.exist?(img["data"].to_s)
+                FileUtils.cp(img["data"].to_s, target_path)
+                # Store the full path for internal use
+                image_file_references << "/data/#{new_filename}"
+              # Handle data URIs
+              elsif img["data"].to_s.start_with?("data:")
+                # Extract and save base64 data
+                data_uri = img["data"].to_s
+                content_type, encoded_data = data_uri.match(/^data:([^;]+);base64,(.+)$/)[1..2]
+                decoded_data = Base64.decode64(encoded_data)
+                
+                # Write to file
+                File.open(target_path, 'wb') do |f|
+                  f.write(decoded_data)
+                end
+                
+                # Store the full path for internal use
+                image_file_references << "/data/#{new_filename}"
+              end
+            rescue StandardError => e
+              puts "Error processing image for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+            end
+          end
+          
+          # Remove images from message to prevent them being sent to vision API
+          msg.delete("images")
+        end
+      end
+    end
+    # END ADDED CODE
+    
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-      if msg["images"] && role == "user"
+      if msg["images"] && role == "user" && !image_generation
         msg["images"].each do |img|
           messages_containing_img = true
           if img["type"] == "application/pdf"
@@ -431,6 +495,27 @@ module OpenAIHelper
     # Decorate the last message in the context with the message with the snippet
     # and the prompt suffix
     last_text = message_with_snippet if message_with_snippet.to_s != ""
+
+    # START ADDED CODE
+    # If this is an image generation request, add the image filenames to the last message
+    if image_generation && !image_file_references.empty? && role == "user"
+      img_references_text = "\n\nAttached images:\n"
+      image_file_references.each do |img_path|
+        # Extract just the filename without path
+        filename = File.basename(img_path)
+        img_references_text += "- #{filename}\n"
+      end
+      
+      if last_text.to_s != ""
+        last_text += img_references_text
+      else
+        # If there's no last text, add to the last message in context
+        if context.last && context.last["text"]
+          context.last["text"] += img_references_text
+        end
+      end
+    end
+    # END ADDED CODE
 
     if last_text != "" && prompt_suffix.to_s != ""
       new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""

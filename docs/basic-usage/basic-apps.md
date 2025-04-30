@@ -176,9 +176,26 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 This application generates images based on descriptions. 
 
-The OpenAI version now uses the gpt-image-1 model and supports both image generation and image editing. With image editing, you can modify existing images using text prompts and optional masks. You can customize output options including image size, quality, format (PNG, JPEG, WebP), background type (transparent, opaque), and compression level.
+The OpenAI version uses the gpt-image-1 model and supports three main operations:
 
-Images are saved in the `Shared Folder` and also displayed in the chat.
+1. **Image Generation**: Create new images from text descriptions
+2. **Image Editing**: Modify existing images using text prompts and optional masks
+3. **Image Variation**: Generate alternative versions of an existing image
+
+With the image editing feature, you can:
+- Select an existing image as a base
+- Specify areas to modify using a mask image (optional)
+- Provide text instructions for the changes
+- Customize output options including:
+  - Image size (square, portrait, landscape)
+  - Quality level (standard, hd)
+  - Output format (PNG, JPEG, WebP)
+  - Background type (transparent, opaque)
+  - Compression level
+
+The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas or aspects.
+
+All generated images are saved in the `Shared Folder` and also displayed in the chat.
 
 Image Generator apps are also available for the following models:
 

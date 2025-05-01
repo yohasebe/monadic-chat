@@ -75,6 +75,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 - 🖼️ **Image generation** using DALL·E 3 API and Google Imagen
 - ✏️ **Image editing** with OpenAI's gpt-image-1 model for modifying existing images
+- 🎭 **Mask editor** for precise control over which areas of an image to edit
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**
 - 🎥 Recognition and description of **uploaded video content and audio**

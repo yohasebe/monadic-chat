@@ -657,7 +657,9 @@ function loadParams(params, calledFor = "loadParams") {
 
 function resetParams() {
   $("#pdf-titles").empty();
-  params = Object.assign({}, originalParams);
+  // Use a local copy of originalParams to avoid reference issues
+  const originalParamsCopy = originalParams ? JSON.parse(JSON.stringify(originalParams)) : {};
+  params = Object.assign({}, originalParamsCopy);
   // Keep the app_name from being reset in loadParams
   const currentApp = $("#apps").val();
   loadParams(params, "reset");

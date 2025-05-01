@@ -396,7 +396,13 @@ module OpenAIHelper
               timestamp = Time.now.to_i
               random_suffix = SecureRandom.hex(4)
               ext = File.extname(img["data"].to_s).empty? ? ".png" : File.extname(img["data"].to_s)
-              new_filename = "img_#{timestamp}_#{random_suffix}#{ext}"
+              
+              # Check if this is a mask image by looking at the title or is_mask flag
+              is_mask = img["is_mask"] == true || img["title"].to_s.start_with?("mask__")
+              
+              # Use appropriate prefix based on image type
+              prefix = is_mask ? "mask__" : "img_"
+              new_filename = "#{prefix}#{timestamp}_#{random_suffix}#{ext}"
               target_path = File.join(shared_folder, new_filename)
               
               # Copy the file to shared folder if it exists locally

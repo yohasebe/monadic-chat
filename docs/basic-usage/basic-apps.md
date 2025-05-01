@@ -193,7 +193,25 @@ With the image editing feature, you can:
   - Background type (transparent, opaque)
   - Compression level
 
-The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas or aspects.
+### Creating and Using Masks
+
+When editing images, you can create a mask to specify which areas of the image should be modified:
+
+1. **Open the Mask Editor**: After uploading an image, click on it and select "Create Mask" from the menu
+2. **Draw the Mask**: Use the brush tool to paint over areas you want AI to edit (white areas)
+   - Use the eraser tool to remove parts of the mask
+   - Adjust brush size using the slider
+   - Black areas will be preserved, white areas will be edited
+3. **Save the Mask**: Click "Save Mask" when finished
+4. **Apply the Mask**: The mask will be automatically applied to your next image edit operation
+
+The mask editor provides intuitive controls:
+- Brush/Eraser toggle buttons
+- Adjustable brush size
+- Clear mask button
+- Preview of the original image underneath the mask
+
+The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas marked by your mask.
 
 All generated images are saved in the `Shared Folder` and also displayed in the chat.
 

@@ -22,7 +22,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 `Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。
 
-![](../assets/images/monadi-chat-image-attachment.png ':size=400')
+![](../assets/images/attach-image.png ':size=400')
 
 画像をアップロードすろと、画像認識が行われ、プロンプトのテキストでの指示に応じてAIエージェントが画像に関する情報を提供します（画像認識ができないモデルもあります）。
 

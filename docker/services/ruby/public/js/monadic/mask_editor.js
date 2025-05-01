@@ -25,10 +25,9 @@ function openMaskEditor(imageData) {
                 </div>
               </div>
               <div class="col-md-4">
-                <div class="form-group">
-                  <label for="brushSize">Brush Size:</label>
+                <div class="form-group mb-3">
+                  <label for="brushSize">Brush Size: <span id="brushSizeValue">20px</span></label>
                   <input type="range" id="brushSize" min="1" max="50" value="20" class="form-control">
-                  <span id="brushSizeValue">20px</span>
                 </div>
                 <div class="btn-group mb-3 w-100" role="group">
                   <button id="brushTool" class="btn btn-primary active">
@@ -42,12 +41,7 @@ function openMaskEditor(imageData) {
                   <i class="fas fa-trash"></i> Clear Mask
                 </button>
                 <div class="alert alert-info">
-                  <i class="fas fa-info-circle"></i> Draw on areas you want AI to edit.
-                  <ul class="mb-0 mt-2">
-                    <li>White areas = Will be replaced by AI</li>
-                    <li>Black areas = Will be preserved</li>
-                  </ul>
-                  <small class="text-muted">The mask will be converted to have proper alpha channel required by OpenAI.</small>
+                  <p><i class="fas fa-info-circle"></i> Draw on areas you want AI to edit. White areas will be replaced by AI. Black areas will be preserved.
                 </div>
               </div>
             </div>

@@ -199,11 +199,22 @@ With the image editing feature, you can:
 
 When editing images, you can create a mask to specify which areas of the image should be modified:
 
+#### Original Image
+
+Here's an example of an original image that we want to edit:
+
+![Original Image](../assets/images/origina-image.jpg ':size=400')
+
+#### Creating a Mask
+
 1. **Open the Mask Editor**: After uploading an image, click on it and select "Create Mask" from the menu
 2. **Draw the Mask**: Use the brush tool to paint over areas you want AI to edit (white areas)
    - Use the eraser tool to remove parts of the mask
    - Adjust brush size using the slider
    - Black areas will be preserved, white areas will be edited
+
+![Image Masking](../assets/images/image-masking.png ':size=500')
+
 3. **Save the Mask**: Click "Save Mask" when finished
 4. **Apply the Mask**: The mask will be automatically applied to your next image edit operation
 
@@ -212,6 +223,12 @@ The mask editor provides intuitive controls:
 - Adjustable brush size
 - Clear mask button
 - Preview of the original image underneath the mask
+
+#### Result After Editing
+
+After applying the mask and providing edit instructions, you'll get a result like this:
+
+![Edit Result](../assets/images/image-edit-result.png ':size=400')
 
 The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas marked by your mask.
 

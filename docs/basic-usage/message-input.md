@@ -22,7 +22,7 @@ Uploading images is supported for the following models:
 
 Click `Image` to select an image to attach to the message.
 
-![](../assets/images/monadi-chat-image-attachment.png ':size=400')
+![](../assets/images/attach-image.png ':size=400')
 
 After uploading the image, image recognition is performed, and the AI agent provides information about the image according to the text prompt (some models do not support image recognition).
 

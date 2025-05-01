@@ -49,6 +49,10 @@ parser = OptionParser.new do |opts|
   opts.on("--mask MASK", "Mask image for edit operation") do |mask|
     options[:mask] = mask
   end
+  
+  opts.on("--original-name NAME", "Original filename for preserving names (especially for mask images)") do |name|
+    options[:original_image_name] = name
+  end
 
   opts.on("-s", "--size SIZE", "Image size (1024x1024, 1024x1536, 1536x1024, auto)") do |size|
     options[:size] = size
@@ -377,7 +381,20 @@ def generate_image(options, num_retrials = 3)
           image_data = Base64.decode64(base64_data)
           timestamp = Time.now.to_i
           ext = options[:output_format] || "png"
-          filename = "#{options[:operation]}_#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
+          
+          # Check if this is a mask image (passed in through original_image_name option)
+          if options[:original_image_name] && options[:original_image_name].start_with?("mask__")
+            # Preserve the mask__ prefix in the filename
+            filename = options[:original_image_name]
+          elsif options[:operation] == "edit" && options[:mask] && File.basename(options[:mask]).start_with?("mask__")
+            # If this is an edit operation and we have a mask file, ensure the mask prefix is preserved
+            # This handles cases where the mask image is being processed as part of an image generation
+            mask_basename = File.basename(options[:mask])
+            filename = "mask__#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
+          else
+            # Generate a standard filename for regular images
+            filename = "#{options[:operation]}_#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
+          end
           file_path = File.join(output_dir, filename)
           
           File.open(file_path, "wb") do |f|

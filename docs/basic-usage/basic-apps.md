@@ -176,11 +176,13 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 This application generates images based on descriptions. 
 
-The OpenAI version uses the gpt-image-1 model and supports three main operations:
+The OpenAI version exclusively uses the gpt-image-1 model and supports three main operations:
 
 1. **Image Generation**: Create new images from text descriptions
 2. **Image Editing**: Modify existing images using text prompts and optional masks
 3. **Image Variation**: Generate alternative versions of an existing image
+
+Note that the image editing feature is only available with the gpt-image-1 model.
 
 With the image editing feature, you can:
 - Select an existing image as a base
@@ -217,9 +219,9 @@ All generated images are saved in the `Shared Folder` and also displayed in the 
 
 Image Generator apps are also available for the following models:
 
-- OpenAI (using gpt-image-1)
-- Google Gemini (using Imagen)
-- xAI Grok
+- OpenAI (using gpt-image-1) - supports image generation, editing, and variation
+- Google Gemini (using Imagen) - supports image generation
+- xAI Grok - supports image generation
 
 ### Mail Composer
 

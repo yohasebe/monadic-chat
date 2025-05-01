@@ -194,6 +194,12 @@ function updateFileDisplay(files) {
     maskForImageIndex = files.findIndex(file => file.title === maskData.mask_for);
   }
 
+  // Check if image generation is enabled in the current app
+  const currentApp = $("#apps").val();
+  const isImageGenerationEnabled = apps[currentApp] && 
+    (apps[currentApp].image_generation === true || 
+     apps[currentApp].image_generation === "true");
+
   // Create display elements for each file
   files.forEach((file, index) => {
     if (file.type === 'application/pdf') {
@@ -227,17 +233,23 @@ function updateFileDisplay(files) {
       $("#image-used").append(overlayDisplay);
     } else if (!hasMask || !maskData || file.title !== maskData.title) { // Skip displaying the mask image separately
       // Display image with thumbnail
+      const imageActions = `
+        <div class="image-actions">
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
+          ${isImageGenerationEnabled ? 
+            `<button class='btn btn-primary btn-sm create-mask ml-2' data-index='${index}' tabindex="100">
+              <i class="fas fa-brush"></i> Create Mask
+            </button>` : ''
+          }
+        </div>
+      `;
+      
       const imageDisplay = `
         <div class="image-container">
           <img class='base64-image' alt='${file.title}' src='${file.data}' data-type='${file.type}' />
-          <div class="image-actions">
-            <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
-              <i class="fas fa-times"></i>
-            </button>
-            <button class='btn btn-primary btn-sm create-mask ml-2' data-index='${index}' tabindex="100">
-              <i class="fas fa-brush"></i> Create Mask
-            </button>
-          </div>
+          ${imageActions}
         </div>
       `;
       $("#image-used").append(imageDisplay);
@@ -324,6 +336,18 @@ function updateFileDisplay(files) {
   // Add event listeners for mask creation
   $(".create-mask").on("click", function() {
     const index = $(this).data("index");
+    
+    // Check if image generation is enabled in the current app
+    const currentApp = $("#apps").val();
+    const isImageGenerationEnabled = apps[currentApp] && 
+      (apps[currentApp].image_generation === true || 
+       apps[currentApp].image_generation === "true");
+    
+    if (!isImageGenerationEnabled) {
+      setAlert("Mask editing is only available in apps with image generation support", "error");
+      return;
+    }
+    
     if (typeof window.openMaskEditor === 'function') {
       window.openMaskEditor(images[index]);
     } else {

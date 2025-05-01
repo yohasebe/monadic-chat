@@ -126,8 +126,11 @@ function openMaskEditor(imageData) {
   });
   
   $("#clearMask").on("click", function() {
+    // Clear to black background
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Redraw the semi-transparent image
     ctx.globalAlpha = 0.3;
     ctx.drawImage(img, 0, 0);
     ctx.globalAlpha = 1.0;
@@ -171,11 +174,50 @@ function openMaskEditor(imageData) {
     const y = (e.clientY - rect.top) * scaleY;
     const brushSize = parseInt($("#brushSize").val());
     
-    // Draw circle at cursor position
+    if (tool === "brush") {
+      // For the brush tool, simply use white fill for areas to edit
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize, 0, Math.PI * 2);
+      ctx.fillStyle = "white";
+      ctx.fill();
+    } else {
+      // For eraser, directly redraw the background
+      eraseCircle(x, y, brushSize);
+    }
+  }
+  
+  // Helper function to erase a circle cleanly
+  function eraseCircle(x, y, radius) {
+    // To fix the white outline issue:
+    // 1. Define the circle path with no stroke
     ctx.beginPath();
-    ctx.arc(x, y, brushSize, 0, Math.PI * 2);
-    ctx.fillStyle = tool === "brush" ? "white" : "black";
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    
+    // 2. Fill with black (default background)
+    ctx.fillStyle = "black";
     ctx.fill();
+    
+    // 3. Draw semi-transparent original image over this area
+    // Save current global alpha value
+    const currentAlpha = ctx.globalAlpha;
+    
+    // Set reduced opacity for background reference image
+    ctx.globalAlpha = 0.3;
+    
+    // Create a tightly-fitted clipping region around our circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    
+    // Draw the entire image - this ensures proper positioning
+    ctx.drawImage(img, 0, 0);
+    
+    // Remove clipping
+    ctx.restore();
+    
+    // Restore original alpha
+    ctx.globalAlpha = currentAlpha;
   }
   
   function stopDrawing() {

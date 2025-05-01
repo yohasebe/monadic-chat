@@ -1,3 +1,4 @@
+//CSS (contents kept for reference, style additions added to end)
 /*-------------------------------------------*/
 /* Custom Responsive Navbar Reset */
 #main-nav {
@@ -920,26 +921,38 @@ legend {
   opacity: 0.8; /* Add slight transparency */
 }
 
+/* Image container */
 .image-container {
-  position: relative;
   display: inline-block;
   margin: 5px;
+  position: relative;
+  vertical-align: top;
 }
 
 .image-container img {
-  max-width: 200px;
   max-height: 200px;
+  max-width: 200px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
-.image-container .remove-image {
+.image-container .image-actions {
   position: absolute;
-  top: 0;
-  right: 0;
-  background-color: #333;
-  border: none;
-  color: white;
-  cursor: pointer;
-  opacity: 0.65;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  flex-direction: row;
+}
+
+.image-container .btn {
+  opacity: 0.7;
+  font-size: 10px;
+  padding: 2px 5px;
+  margin: 0 2px;
+}
+
+.image-container .btn:hover {
+  opacity: 1;
 }
 
 .json-header {
@@ -1930,4 +1943,78 @@ h1 {
     right: 65px !important;
     z-index: 1100 !important;
   }
+}
+
+/* Mask container styles */
+.mask-container {
+  margin: 5px 0;
+  padding: 5px;
+  border: 1px dashed #aaa;
+  border-radius: 4px;
+  background-color: rgba(0,0,0,0.02);
+}
+
+.mask-container img.mask {
+  max-height: 100px;
+  max-width: 100px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+/* Mask overlay styles */
+.mask-overlay-container {
+  position: relative;
+  display: inline-block;
+  margin: 5px;
+}
+
+.mask-overlay-container img.base-image {
+  max-height: 200px;
+  max-width: 200px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.mask-overlay-container img.mask-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-height: 200px;
+  max-width: 200px;
+  border-radius: 4px;
+  opacity: 0.6;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.mask-overlay-label {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: rgba(231, 76, 60, 0.8);
+  color: white;
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 0 4px 0 4px;
+  z-index: 10;
+}
+
+.mask-controls {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+}
+
+.mask-controls .btn {
+  font-size: 10px;
+  padding: 2px 6px;
+  margin-right: 5px;
+}
+
+/* Mask editor */
+#maskCanvas {
+  cursor: crosshair;
+  max-width: 100%;
+  background-color: #f8f8f8;
 }

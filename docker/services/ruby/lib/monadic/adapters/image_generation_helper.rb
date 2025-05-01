@@ -16,12 +16,55 @@ module MonadicHelper
     parts << "-f #{output_format}" if output_format
     parts << "-b #{background}" if background
     parts << "--compression #{output_compression}" if output_compression
+    
+    # Process image parameters
     if images
       Array(images).each do |img|
         parts << "-i \"#{img}\""
       end
     end
-    parts << "--mask \"#{mask}\"" if mask
+    
+    # Handle mask parameter
+    # If mask is explicitly provided, use it
+    if mask
+      # Get the mask filename to pass to the script for name preservation
+      mask_filename = File.basename(mask.to_s)
+      parts << "--mask \"#{mask}\""
+      parts << "--original-name \"#{mask_filename}\""
+    # For edit operation, check if there's a mask associated with the image in MonadicApp
+    elsif operation == "edit" && images && images.size == 1
+      # Get the original image filename
+      original_image = File.basename(images.first.to_s)
+      
+      # Set shared folder path for mask images
+      shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
+                       MonadicApp::SHARED_VOL
+                      else
+                       MonadicApp::LOCAL_SHARED_VOL
+                      end
+      
+      # Look for mask file directly in the shared folder with naming convention
+      # Try all possible naming conventions for masks
+      # 1. mask__ prefix (new clear naming)
+      # 2. mask_for_ prefix (previous naming)
+      # 3. mask_*_ wildcard pattern (older naming)
+      mask_pattern1 = File.join(shared_folder, "mask__#{original_image}")
+      mask_pattern2 = File.join(shared_folder, "mask_for_#{original_image.gsub(/\.[^.]+$/, '')}.png")
+      mask_pattern3 = File.join(shared_folder, "mask_*_#{original_image.gsub(/\.[^.]+$/, '')}.png")
+      mask_files = Dir.glob([mask_pattern1, mask_pattern2, mask_pattern3])
+      
+      if mask_files.any?
+        # Use the most recent mask file (in case there are multiple)
+        mask_path = mask_files.sort_by { |f| File.mtime(f) }.last
+        if File.exist?(mask_path)
+          # Pass the mask filename to preserve it in output
+          mask_filename = File.basename(mask_path)
+          parts << "--mask \"#{mask_path}\""
+          parts << "--original-name \"#{mask_filename}\""
+        end
+      end
+    end
+    
     cmd = "bash -c '#{parts.join(' ')}'"
     send_command(command: cmd, container: "ruby")
   end

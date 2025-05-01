@@ -8,6 +8,7 @@ const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
 const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 const selectFileButton = $("#image-file");
 let images = []; // Store multiple images/PDFs
+let currentMaskData = null; // Store current mask data for image editing
 
 // Function to limit the number of images in memory
 function limitImageCount() {
@@ -180,6 +181,18 @@ function fileToBase64(blob, callback) {
 // Update display for both images and PDFs
 function updateFileDisplay(files) {
   $("#image-used").html(""); // Clear current display
+  
+  // Check if there's a mask image
+  const hasMask = window.currentMaskData !== null;
+  let maskData = null;
+  let maskForImageIndex = -1;
+  
+  // If we have a mask, identify the associated base image
+  if (hasMask && window.currentMaskData && window.currentMaskData.mask_for) {
+    maskData = window.currentMaskData;
+    // Find the index of the base image that this mask is for
+    maskForImageIndex = files.findIndex(file => file.title === maskData.mask_for);
+  }
 
   // Create display elements for each file
   files.forEach((file, index) => {
@@ -193,16 +206,41 @@ function updateFileDisplay(files) {
           </button>
         </div>
       `);
-    } else {
+    } else if (hasMask && maskData && index === maskForImageIndex && maskForImageIndex !== -1) {
+      // This is the base image for which we have a mask - display as overlay
+      
+      const overlayDisplay = `
+        <div class="mask-overlay-container">
+          <img class='base-image' alt='${file.title}' src='${file.data}' />
+          <img class='mask-overlay' alt='${maskData.title}' src='${maskData.display_data || maskData.data}' style="opacity: 0.6;" />
+          <div class="mask-overlay-label">MASK</div>
+          <div class="mask-controls">
+            <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
+              <i class="fas fa-times"></i> Remove Mask
+            </button>
+            <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+              <i class="fas fa-eye-slash"></i> Toggle Mask
+            </button>
+          </div>
+        </div>
+      `;
+      $("#image-used").append(overlayDisplay);
+    } else if (!hasMask || !maskData || file.title !== maskData.title) { // Skip displaying the mask image separately
       // Display image with thumbnail
-      $("#image-used").append(`
+      const imageDisplay = `
         <div class="image-container">
           <img class='base64-image' alt='${file.title}' src='${file.data}' data-type='${file.type}' />
-          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
-            <i class="fas fa-times"></i>
-          </button>
+          <div class="image-actions">
+            <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+              <i class="fas fa-times"></i>
+            </button>
+            <button class='btn btn-primary btn-sm create-mask ml-2' data-index='${index}' tabindex="100">
+              <i class="fas fa-brush"></i> Create Mask
+            </button>
+          </div>
         </div>
-      `);
+      `;
+      $("#image-used").append(imageDisplay);
     }
   });
 
@@ -216,9 +254,82 @@ function updateFileDisplay(files) {
       // If removing the current PDF reference, set it to null
       currentPdfData = null;
     }
+    
+    // If this is the base image for a mask, also remove the mask
+    if (window.currentMaskData && window.currentMaskData.mask_for && window.currentMaskData.mask_for === removedFile.title) {
+      // Find and remove the mask from images array
+      const maskIndex = images.findIndex(img => img.title === window.currentMaskData.title);
+      if (maskIndex !== -1) {
+        images.splice(maskIndex, 1);
+      }
+      window.currentMaskData = null;
+    }
+    
     // Remove the file from the images array
     images.splice(index, 1);
     updateFileDisplay(images);
+  });
+  
+  // Add event listeners for mask toggle
+  $(".toggle-mask").on("click", function() {
+    const $maskOverlay = $(this).closest(".mask-overlay-container").find(".mask-overlay");
+    const $icon = $(this).find("i");
+    
+    if ($maskOverlay.css("opacity") === "0") {
+      // Show mask
+      $maskOverlay.css("opacity", "0.6");
+      $icon.removeClass("fa-eye").addClass("fa-eye-slash");
+    } else {
+      // Hide mask
+      $maskOverlay.css("opacity", "0");
+      $icon.removeClass("fa-eye-slash").addClass("fa-eye");
+    }
+  });
+  
+  // Add event listeners for mask removal
+  $(".remove-mask").on("click", function() {
+    const index = $(this).data("index");
+    const maskFilename = $(this).data("mask-filename");
+    const originalImageTitle = $(this).closest(".mask-overlay-container").data("original-image");
+    
+    // Only remove the mask, not the base image
+    if (window.currentMaskData) {
+      // Find and remove the mask from images array
+      const maskToRemove = maskFilename || (window.currentMaskData ? window.currentMaskData.title : null);
+      if (maskToRemove) {
+        const maskIndex = images.findIndex(img => img.title === maskToRemove);
+        if (maskIndex !== -1) {
+          images.splice(maskIndex, 1);
+          console.log("Mask removed from images array:", maskToRemove);
+        }
+      }
+      window.currentMaskData = null;
+    }
+    
+    // Remove the mask overlay container
+    $(this).closest(".mask-overlay-container").remove();
+    
+    // Show the original image if it exists and is hidden
+    if (originalImageTitle) {
+      $(`.image-container:has(img[alt="${originalImageTitle}"]):hidden`).fadeIn();
+    }
+    
+    // Update display to show changes
+    updateFileDisplay(images);
+    
+    // Show success alert
+    setAlert(`<i class='fa-solid fa-circle-check'></i> Mask removed`, "success");
+  });
+  
+  // Add event listeners for mask creation
+  $(".create-mask").on("click", function() {
+    const index = $(this).data("index");
+    if (typeof window.openMaskEditor === 'function') {
+      window.openMaskEditor(images[index]);
+    } else {
+      console.error("Mask editor not loaded");
+      setAlert("Mask editor not available", "error");
+    }
   });
 }
 
@@ -282,12 +393,24 @@ function imageToBase64(blob, callback) {
           }
         } catch (error) {
           console.error('Error processing image:', error);
+          // In case of error, update display with current images to prevent UI lockup
+          updateFileDisplay(images);
+          // Show an error message to the user
+          setAlert(`<i class="fas fa-exclamation-circle"></i> Error processing image: ${error.message}`, "error");
+          // Close modal if it's open
+          $("#imageModal").modal("hide");
           callback(null);
         }
       };
       
       image.onerror = function(error) {
         console.error('Error loading image:', error);
+        // In case of error, update display with current images to prevent UI lockup
+        updateFileDisplay(images);
+        // Show an error message to the user
+        setAlert(`<i class="fas fa-exclamation-circle"></i> Error loading image`, "error");
+        // Close modal if it's open
+        $("#imageModal").modal("hide");
         callback(null);
       };
       
@@ -296,6 +419,10 @@ function imageToBase64(blob, callback) {
     
     reader.onerror = function(error) {
       console.error('Error reading file:', error);
+      // Show an error message to the user
+      setAlert(`<i class="fas fa-exclamation-circle"></i> Error reading file`, "error");
+      // Close modal if it's open
+      $("#imageModal").modal("hide");
       callback(null);
     };
     
@@ -346,12 +473,24 @@ function imageToBase64(blob, callback) {
           }
         } catch (error) {
           console.error('Error processing image:', error);
+          // In case of error, update display with current images to prevent UI lockup
+          updateFileDisplay(images);
+          // Show an error message to the user
+          setAlert(`<i class="fas fa-exclamation-circle"></i> Error processing image: ${error.message}`, "error");
+          // Close modal if it's open
+          $("#imageModal").modal("hide");
           reject(error);
         }
       };
       
       image.onerror = function(error) {
         console.error('Error loading image:', error);
+        // In case of error, update display with current images to prevent UI lockup
+        updateFileDisplay(images);
+        // Show an error message to the user
+        setAlert(`<i class="fas fa-exclamation-circle"></i> Error loading image`, "error");
+        // Close modal if it's open
+        $("#imageModal").modal("hide");
         reject(error);
       };
       
@@ -360,6 +499,10 @@ function imageToBase64(blob, callback) {
     
     reader.onerror = function(error) {
       console.error('Error reading file:', error);
+      // Show an error message to the user
+      setAlert(`<i class="fas fa-exclamation-circle"></i> Error reading file`, "error");
+      // Close modal if it's open
+      $("#imageModal").modal("hide");
       reject(error);
     };
     

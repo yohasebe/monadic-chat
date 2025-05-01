@@ -1024,14 +1024,25 @@ describe('WebSocket Handlers', () => {
         hide: jest.fn().mockReturnThis()
       };
       
+      const aiUserButton = {
+        prop: jest.fn().mockReturnThis()
+      };
+      
+      const aiUserProvider = {
+        prop: jest.fn().mockReturnThis()
+      };
+      
       // Create a special jQuery mock for this test
       const originalJQueryFn = $;
       $ = jest.fn().mockImplementation(selector => {
         if (selector === '#message') return messageElement;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return controlsElement;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url, #ai_user') return controlsElement;
         if (selector === '#select-role') return roleSelector;
         if (selector === '#cancel_query') return cancelButton;
         if (selector === '#monadic-spinner') return spinner;
+        if (selector === '#ai_user') return aiUserButton;
+        if (selector === '#ai_user_provider') return aiUserProvider;
         return { 
           attr: jest.fn().mockReturnThis(),
           prop: jest.fn().mockReturnThis(),
@@ -1128,14 +1139,25 @@ describe('WebSocket Handlers', () => {
         hide: jest.fn().mockReturnThis()
       };
       
+      const aiUserButton = {
+        prop: jest.fn().mockReturnThis()
+      };
+      
+      const aiUserProvider = {
+        prop: jest.fn().mockReturnThis()
+      };
+      
       // Create a special jQuery mock for this test
       const originalJQueryFn = $;
       $ = jest.fn().mockImplementation(selector => {
         if (selector === '#message') return messageElement;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return controlsElement;
+        if (selector === '#send, #clear, #image-file, #voice, #doc, #url, #ai_user') return controlsElement;
         if (selector === '#select-role') return roleSelector;
         if (selector === '#cancel_query') return cancelButton;
         if (selector === '#monadic-spinner') return spinner;
+        if (selector === '#ai_user') return aiUserButton;
+        if (selector === '#ai_user_provider') return aiUserProvider;
         return { 
           attr: jest.fn().mockReturnThis(),
           prop: jest.fn().mockReturnThis(),
@@ -1196,11 +1218,25 @@ describe('WebSocket Handlers', () => {
         show: jest.fn().mockReturnThis()
       };
       
+      const aiUserButton = {
+        prop: jest.fn().mockReturnThis()
+      };
+      
+      const aiUserProvider = {
+        prop: jest.fn().mockReturnThis()
+      };
+      
       // Create a special jQuery mock just for this test
       const originalJQueryFn = $;
       $ = jest.fn().mockImplementation(selector => {
         if (selector === '#message') {
           return mockMessageElement;
+        }
+        if (selector === '#ai_user') {
+          return aiUserButton;
+        }
+        if (selector === '#ai_user_provider') {
+          return aiUserProvider;
         }
         
         // Default mock for other selectors

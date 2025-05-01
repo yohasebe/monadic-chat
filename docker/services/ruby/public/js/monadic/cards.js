@@ -46,18 +46,71 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
 
   let image_data = "";
   if (images && images.length > 0) {
-    image_data = images.map((image) => {
-      if (image.type === 'application/pdf') {
-        return `
+    // Group mask images with their original images
+    const imageMap = new Map();
+    const maskImages = [];
+    
+    // First pass - identify all mask images and base images
+    images.forEach(image => {
+      if (image.is_mask || (image.title && image.title.startsWith("mask__"))) {
+        // Store mask images separately with reference to their base image
+        maskImages.push(image);
+      } else {
+        // Store base images in a map with their title as key
+        imageMap.set(image.title, image);
+      }
+    });
+    
+    // Second pass - create HTML for each base image, with its mask if available
+    const renderedImages = [];
+    
+    // Process regular images first
+    imageMap.forEach((image, title) => {
+      // Check if this image has a mask
+      const maskImage = maskImages.find(mask => 
+        mask.mask_for === title || 
+        (mask.title && mask.title.includes(title.replace(/\.[^.]+$/, "")))
+      );
+      
+      if (maskImage) {
+        // This image has a mask - render as overlay
+        
+        renderedImages.push(`
+          <div class="mask-overlay-container mb-3">
+            <img class='base-image' alt='${image.title}' src='${image.data}' />
+            <img class='mask-overlay' alt='${maskImage.title}' src='${maskImage.display_data || maskImage.data}' style="opacity: 0.6;" />
+            <div class="mask-overlay-label">MASK</div>
+          </div>
+        `);
+      } else if (image.type === 'application/pdf') {
+        // PDF file
+        renderedImages.push(`
           <div class="pdf-preview mb-3">
           <i class="fas fa-file-pdf text-danger"></i>
           <span class="ms-2">${image.title}</span>
           </div>
-          `;
+        `);
       } else {
-        return `<img class='base64-image mb-3' src='${image.data}' alt='${image.title}' style='max-width: 100%; height: auto;' />`;
+        // Regular image without mask
+        renderedImages.push(`
+          <img class='base64-image mb-3' src='${image.data}' alt='${image.title}' style='max-width: 100%; height: auto;' />
+        `);
       }
-    }).join("");
+    });
+    
+    // Finally, add any mask images that don't have a matching base image
+    maskImages.forEach(mask => {
+      if (!renderedImages.some(html => html.includes(`alt='${mask.title}'`))) {
+        // Only if not already rendered
+        if (!imageMap.has(mask.mask_for)) {
+          renderedImages.push(`
+            <img class='base64-image mb-3' src='${mask.display_data || mask.data}' alt='${mask.title}' style='max-width: 100%; height: auto;' />
+          `);
+        }
+      }
+    });
+    
+    image_data = renderedImages.join("");
   }
 
   // Update badge with colored icon (mobile-friendly)
@@ -454,6 +507,53 @@ function attachEventListeners($card) {
         $("#select-role").val("sample-system");
       }
       
+      // If message has images, restore them in the current images array
+      if (currentMessage.images && Array.isArray(currentMessage.images) && currentMessage.images.length > 0) {
+        // Clear existing images except PDFs
+        images = images.filter(img => img.type === 'application/pdf');
+        
+        // Process each image in the message
+        const messageImages = [...currentMessage.images];
+        const baseImages = [];
+        const maskImages = [];
+        
+        // First, categorize images into base and mask images
+        messageImages.forEach(imageData => {
+          // Create a fresh copy to avoid reference issues
+          const imageCopy = {...imageData};
+          
+          // Check if this is a mask image
+          if (imageCopy.is_mask || (imageCopy.title && imageCopy.title.startsWith("mask__"))) {
+            maskImages.push(imageCopy);
+          } else {
+            baseImages.push(imageCopy);
+          }
+        });
+        
+        // Add base images first
+        baseImages.forEach(baseImage => {
+          images.push(baseImage);
+        });
+        
+        // Then add mask images and set currentMaskData if applicable
+        maskImages.forEach(maskImage => {
+          // Add to images array 
+          images.push(maskImage);
+          
+          // Set as current mask if it has a base image reference
+          if (maskImage.mask_for) {
+            const hasBaseImage = baseImages.some(img => img.title === maskImage.mask_for);
+            if (hasBaseImage) {
+              // Set as the current active mask
+              window.currentMaskData = maskImage;
+            }
+          }
+        });
+        
+        // Update the display to show the restored images
+        updateFileDisplay(images);
+      }
+      
       $("#message").focus();
       
       // Remove the card
@@ -576,12 +676,24 @@ function attachEventListeners($card) {
       
       // Notify the server about the change (without deleting the message)
       // The server will send back properly formatted HTML through the websocket
-      ws.send(JSON.stringify({ 
+      
+      // For inline editing, we don't modify the images - just update the text content
+      // Images are only modified when editing the last message through the message input area
+      
+      // Create edit message without changing the images
+      const editMessage = { 
         "message": "EDIT", 
         "mid": mid, 
         "content": newText,
         "role": currentMessage.role
-      }));
+      };
+      
+      // Keep existing images if available
+      if (currentMessage.images && Array.isArray(currentMessage.images) && currentMessage.images.length > 0) {
+        editMessage.images = [...currentMessage.images];
+      }
+      
+      ws.send(JSON.stringify(editMessage));
       
       // Change the icon back to the edit icon (for non-user messages, this will be updated again when the server responds)
       $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");

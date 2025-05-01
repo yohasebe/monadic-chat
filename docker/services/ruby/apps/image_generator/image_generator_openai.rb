@@ -33,18 +33,20 @@ class ImageGeneration < MonadicApp
          background,
          output_compression
        }).
+       IMPORTANT: When mask images are provided, ALWAYS include the mask parameter in your function call.
+       The mask parameter should specify the mask image filename in the shared folder.
     3. For variation, call generate_image({
          operation: "variation",
          model: "gpt-image-1",
          n,
          images
        }).
-    After receiving a response, embed the returned image URLs using Markdown image syntax. For example:
-      ```markdown
+    After receiving a response, embed the returned image URLs using Markdown image syntax WITHOUT placing them in code blocks. For example:
+      
       ![Generated Image](/data/FILENAME1.png)
       ![Generated Image](/data/FILENAME2.png)
-      ```
-    Do not use HTML `<img>` tags.
+      
+    Do not use HTML `<img>` tags and do not place the Markdown images inside code blocks or triple backticks.
     If an error occurs, return the error message without retrying automatically.
   TEXT
 

@@ -2037,6 +2037,8 @@ $(function () {
     $("#main").animate({ scrollTop: $("#main").prop("scrollHeight") }, 500);
   });
 
+  // Define originalParams globally to avoid reference errors
+  window.originalParams = {};
   resetParams();
 
   $("#tts-provider").on("change", function () {

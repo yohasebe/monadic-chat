@@ -273,6 +273,12 @@ class TextEmbeddings
     combined_embedding
   end
 
+  # Instance method for exponential backoff
+  def exponential_backoff(attempt)
+    # Using the class's configuration for backoff
+    self.class.exponential_backoff(attempt)
+  end
+
   def get_embeddings(text, api_key: nil, retries: 3)
     raise ArgumentError, "Text cannot be empty" if text.empty?
 

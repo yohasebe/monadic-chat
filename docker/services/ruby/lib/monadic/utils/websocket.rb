@@ -12,6 +12,9 @@ module WebSocketHelper
     # Return immediately if no text
     return nil if text.nil? || text.empty?
     
+    # Store in thread local variable to avoid creating too many threads
+    Thread.current[:token_count_in_progress] = true
+    
     # Use Thread.new with lower priority to avoid impacting TTS
     Thread.new do
       result = nil
@@ -22,10 +25,16 @@ module WebSocketHelper
         # Set thread type for identification
         Thread.current[:type] = :token_counter
         
-        # Do the actual token counting
+        # Do the actual token counting - this now uses the caching mechanism
+        # in FlaskAppClient for better performance
         result = MonadicApp::TOKENIZER.count_tokens(text, encoding_name)
+        
+        # Store for later use in check_past_messages
+        Thread.current[:token_count_result] = result
       rescue => e
         # Silently handle token counting errors
+      ensure
+        Thread.current[:token_count_in_progress] = false
       end
       
       # Thread's return value
@@ -34,7 +43,7 @@ module WebSocketHelper
   end
 
   # check if the total tokens of past messages is less than max_tokens in obj
-  # token count is calculated using tiktoken_ruby gem
+  # token count is calculated using tiktoken
   def check_past_messages(obj)
     # filter out any messages of type "search"
     messages = session[:messages].filter { |m| m["type"] != "search" }
@@ -44,24 +53,31 @@ module WebSocketHelper
     context_size = obj["context_size"].to_i
     tokenizer_available = true
 
-    # gpt-4o => o200k_base;
-    # model_name = /gpt-4o/ =~ obj["model"] ? "gpt-4o" : "gpt-3.5-turbo"
-    # encoding_name = MonadicApp::TOKENIZER.get_encoding_name(model_name)
+    # Default to o200k_base encoding for GPT models
     encoding_name = "o200k_base"
 
     begin
-      # Calculate token count for each message and mark as active if not already calculated
+      # Batch process messages that need token counting to reduce HTTP requests
+      messages_to_count = []
       messages.each do |m|
-        m["tokens"] ||= begin
-          # If this is the most recent message and we have precounted tokens, use them
-          if m == messages.last && defined?(Thread.current[:token_count_result]) && Thread.current[:token_count_result]
-            Thread.current[:token_count_result]
-          else
-            # Otherwise count tokens normally
-            MonadicApp::TOKENIZER.count_tokens(m["text"], encoding_name)
-          end
+        # Skip messages that already have token counts
+        next if m["tokens"]
+        
+        # If this is the most recent message and we have precounted tokens, use them
+        if m == messages.last && defined?(Thread.current[:token_count_result]) && Thread.current[:token_count_result]
+          m["tokens"] = Thread.current[:token_count_result]
+        else
+          # Otherwise add to batch for counting
+          messages_to_count << m
         end
+        
+        # Mark all messages as active initially
         m["active"] = true
+      end
+      
+      # Now process any messages that still need token counts - these use the cache in FlaskAppClient
+      messages_to_count.each do |m|
+        m["tokens"] = MonadicApp::TOKENIZER.count_tokens(m["text"], encoding_name)
       end
 
       # Filter active messages and calculate total token count

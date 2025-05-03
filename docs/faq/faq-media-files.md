@@ -2,7 +2,7 @@
 
 **Q**: Can I send data other than text to the AI agent?
 
-**A**: Yes, if the selected model supports it, you can upload images by clicking the `Image` button. You can also upload multiple images by repeating this process. If you are using Anthropic Claude, OpenAI's gpt-4o, gpt-4o-mini, or o1 models, or Google Gemini, you can upload PDF files in addition to images.
+**A**: Yes, if the selected model supports it, you can upload images (JPG, JPEG, PNG, GIF, WebP) by clicking the `Image` button. You can also upload multiple images by repeating this process. If you are using Anthropic Claude, OpenAI's gpt-4o, gpt-4o-mini, or o1 models, or Google Gemini, you can upload PDF files in addition to images.
 
 For other media, place the file in the shared folder and specify the file name (no path required) in the message box to inform the AI agent. If the selected app supports it, the AI agent will read and process the file.
 

@@ -20,7 +20,7 @@ Uploading images is supported for the following models:
 - Google Gemini
 - Mistral AI (Pixtral)
 
-Click `Image` to select an image to attach to the message.
+Click `Image` to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
 
 ![](../assets/images/attach-image.png ':size=400')
 

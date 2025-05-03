@@ -1734,9 +1734,9 @@ pre code{
 
 #voice:focus {
   outline: none; /* Remove outline */
-  box-shadow: none; /* Remove any shadow */
+  box-shadow: 0 0 0 3px rgba(70, 184, 218, 0.4); /* Add a light blue halo effect */
   background-color: #39b3d7; /* Slightly darker when focused */
-  border-color: #269abc;
+  border-color: #31b0d5; /* Brighter border color for better visibility */
 }
 
 #voice i.fas.fa-microphone {
@@ -1751,7 +1751,8 @@ pre code{
 /* Also change on hover for better UX */
 #voice:hover {
   background-color: #39b3d7; /* Slightly darker cyan on hover */
-  border-color: #269abc;
+  border-color: #31b0d5; /* Brighter border color for better visibility */
+  box-shadow: 0 0 0 2px rgba(70, 184, 218, 0.25); /* Subtle halo effect on hover */
 }
 
 #voice:hover i.fas.fa-microphone {

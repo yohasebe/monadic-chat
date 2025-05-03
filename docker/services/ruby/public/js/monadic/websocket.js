@@ -198,6 +198,33 @@ let autoScroll = true;
 /* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
+
+// Handle fragment message from streaming response
+// This function will be used by the fragment_with_audio handler
+window.handleFragmentMessage = function(fragment) {
+  if (fragment && fragment.type === 'fragment') {
+    const text = fragment.content || '';
+    
+    // Add to streaming text display (usually part of temporary div showing response)
+    if ($("#temp-card").length) {
+      const tempText = $("#temp-card .card-text");
+      if (tempText.length) {
+        // Append text to the temporary card
+        tempText.append(text);
+        
+        // Scroll to bottom if auto-scroll is enabled
+        if (autoScroll) {
+          chatBottom.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+    
+    // If this is a final fragment, we might want to do additional processing
+    if (fragment.final) {
+      console.log("Processing final fragment");
+    }
+  }
+};
 // Make defaultApp globally available
 window.defaultApp = DEFAULT_APP;
 
@@ -774,14 +801,21 @@ function processIOSAudioBuffer() {
     iosAudioElement.src = blobUrl;
     iosAudioElement.load();
     
-    // Play with error handling
+    // Play with error handling - ensure autoplay for auto_speech
     iosAudioElement.play()
       .then(() => {
         // Playback started successfully
+        console.log("iOS audio playback started successfully");
       })
-      .catch(() => {
+      .catch((err) => {
+        console.log("iOS audio playback error:", err);
         isIOSAudioPlaying = false;
         URL.revokeObjectURL(blobUrl);
+        
+        // Show indicator if user interaction is required
+        if (err.name === 'NotAllowedError') {
+          setAlert('<i class="fas fa-volume-up"></i> Tap to enable iOS audio', 'info');
+        }
       });
       
   } catch (e) {
@@ -1038,6 +1072,63 @@ function connect_websocket(callback) {
       return;
     }
     switch (data["type"]) {
+      case "fragment_with_audio": {
+        // Handle the optimized combined fragment and audio message
+        let handled = false;
+        
+        if (wsHandlers && typeof wsHandlers.handleFragmentWithAudio === 'function') {
+          // Create audio processing function similar to the one in handleAudioMessage
+          const processAudio = (audioData) => {
+            try {
+              // Handle based on browser environment
+              if (window.firefoxAudioMode) {
+                if (!window.firefoxAudioQueue) {
+                  window.firefoxAudioQueue = [];
+                }
+                
+                if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
+                  window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
+                }
+                
+                window.firefoxAudioQueue.push(audioData);
+                processAudioDataQueue();
+              } else if (window.basicAudioMode) {
+                // For iOS and other devices without MediaSource
+                playAudioDirectly(audioData);
+              } else {
+                // Standard approach for modern browsers
+                audioDataQueue.push(audioData);
+                processAudioDataQueue();
+                
+                // Ensure audio playback starts automatically for auto_speech
+              if (audio) {
+                // Always attempt to play, even if not paused (may be needed for some browsers)
+                audio.play().catch(err => {
+                  console.log("Error playing audio:", err);
+                  
+                  // User interaction might be required, show indicator
+                  if (err.name === 'NotAllowedError') {
+                    setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+                  }
+                });
+              }
+              }
+            } catch (e) {
+              console.error("Error in audio processing:", e);
+            }
+          };
+          
+          // Pass the message and processing function to the handler
+          handled = wsHandlers.handleFragmentWithAudio(data, processAudio);
+        }
+        
+        if (!handled) {
+          console.warn("Combined fragment_with_audio message was not handled properly");
+        }
+        
+        break;
+      }
+      
       case "wait": {
         callingFunction = true;
         setAlert(data["content"], "warning");

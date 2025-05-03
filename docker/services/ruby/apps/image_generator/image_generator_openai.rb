@@ -9,7 +9,7 @@ class ImageGeneration < MonadicApp
 
   initial_prompt = <<~TEXT
     You help the user generate and edit images using OpenAI's gpt-image-1 model.
-    1. For new image generation, call generate_image({
+    1. For new image generation, call generate_image_with_openai({
          operation: "generate",
          model: "gpt-image-1",
          prompt,
@@ -20,7 +20,7 @@ class ImageGeneration < MonadicApp
          background,
          output_compression
        }).
-    2. For image editing, call generate_image({
+    2. For image editing, call generate_image_with_openai({
          operation: "edit",
          model: "gpt-image-1",
          prompt,
@@ -35,7 +35,7 @@ class ImageGeneration < MonadicApp
        }).
        IMPORTANT: When mask images are provided, ALWAYS include the mask parameter in your function call.
        The mask parameter should specify the mask image filename in the shared folder.
-    3. For variation, call generate_image({
+    3. For variation, call generate_image_with_openai({
          operation: "variation",
          model: "gpt-image-1",
          n,
@@ -68,7 +68,7 @@ class ImageGeneration < MonadicApp
       {
         type: "function",
         function: {
-          name: "generate_image",
+          name: "generate_image_with_openai",
           description: "Generate or edit images using OpenAI's gpt-image-1 model.",
           parameters: {
             type: "object",

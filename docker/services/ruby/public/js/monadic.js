@@ -34,38 +34,69 @@ document.addEventListener("DOMContentLoaded", function () {
   setTimeout(function() {
     document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
   }, 100);
-  // Get modules from window if available
-  if (typeof uiUtils === 'undefined' && typeof window.uiUtils !== 'undefined') {
-    uiUtils = window.uiUtils;
+  
+  // Get modules from window if available or install shims
+  if (typeof uiUtils === 'undefined') {
+    if (typeof window.uiUtils !== 'undefined') {
+      uiUtils = window.uiUtils;
+    } else if (window.shims && window.shims.uiUtils) {
+      console.warn('Using UI utilities shim');
+      uiUtils = window.shims.uiUtils;
+    }
   }
   
-  if (typeof formHandlers === 'undefined' && typeof window.formHandlers !== 'undefined') {
-    formHandlers = window.formHandlers;
+  if (typeof formHandlers === 'undefined') {
+    if (typeof window.formHandlers !== 'undefined') {
+      formHandlers = window.formHandlers;
+    } else if (window.shims && window.shims.formHandlers) {
+      console.warn('Using form handlers shim');
+      formHandlers = window.shims.formHandlers;
+    }
   }
   
-  // If UI module still not available, use fallback behavior
+  // Use installShims function if available (comprehensive approach)
+  if (window.installShims && (!uiUtils || !formHandlers)) {
+    window.installShims();
+    
+    // Get the modules after installing shims
+    if (!uiUtils && window.uiUtils) {
+      uiUtils = window.uiUtils;
+    }
+    
+    if (!formHandlers && window.formHandlers) {
+      formHandlers = window.formHandlers;
+    }
+  }
+  
+  // Final fallback - load modules dynamically if still not available
   if (!uiUtils || !uiUtils.setupTextarea) {
-    uiUtils = {
-      setupTextarea: setupTextareaFallback,
-      autoResize: autoResizeFallback,
-      adjustScrollButtons: adjustScrollButtonsFallback,
-      setupTooltips: setupTooltipsFallback,
-      cleanupAllTooltips: cleanupAllTooltipsFallback,
-      adjustImageUploadButton: adjustImageUploadButtonFallback
+    console.warn('UI utilities still not available, attempting dynamic import');
+    
+    // Try to dynamically load the missing module
+    const script = document.createElement('script');
+    script.src = 'js/monadic/ui-utilities.js?' + (new Date().getTime());
+    script.onload = function() {
+      console.log('UI utilities loaded dynamically');
+      if (typeof window.uiUtils !== 'undefined') {
+        uiUtils = window.uiUtils;
+      }
     };
+    document.head.appendChild(script);
   }
   
-  // If form handlers module not available, use fallback behavior
   if (!formHandlers) {
-    formHandlers = {
-      uploadPdf: uploadPdfFallback,
-      convertDocument: convertDocumentFallback,
-      fetchWebpage: fetchWebpageFallback,
-      importSession: importSessionFallback,
-      setupUrlValidation: setupUrlValidationFallback,
-      setupFileValidation: setupFileValidationFallback,
-      showModalWithFocus: showModalWithFocusFallback
+    console.warn('Form handlers still not available, attempting dynamic import');
+    
+    // Try to dynamically load the missing module
+    const script = document.createElement('script');
+    script.src = 'js/monadic/form-handlers.js?' + (new Date().getTime());
+    script.onload = function() {
+      console.log('Form handlers loaded dynamically');
+      if (typeof window.formHandlers !== 'undefined') {
+        formHandlers = window.formHandlers;
+      }
     };
+    document.head.appendChild(script);
   }
   
   // Directly get textareas and set them up - avoid storing array reference
@@ -99,294 +130,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
-// Fallback implementations in case the module is not available
-// These are identical to the extracted functions but kept for compatibility
-
-function setupTextareaFallback(textarea, initialHeight) {
-  let isIMEActive = false;
-
-  textarea.style.height = initialHeight + 'px';
-
-  textarea.addEventListener('compositionstart', function() {
-    isIMEActive = true;
-  });
-
-  textarea.addEventListener('compositionend', function() {
-    isIMEActive = false;
-    autoResizeFallback(textarea, initialHeight);
-  });
-
-  textarea.addEventListener('input', function() {
-    if (!isIMEActive) {
-      autoResizeFallback(textarea, initialHeight);
-    }
-  });
-
-  textarea.addEventListener('focus', function() {
-    autoResizeFallback(textarea, initialHeight);
-  });
-
-  autoResizeFallback(textarea, initialHeight);
-}
-
-function autoResizeFallback(textarea, initialHeight) {
-  textarea.style.height = 'auto';
-  const newHeight = Math.max(textarea.scrollHeight, initialHeight);
-  textarea.style.height = newHeight + 'px';
-}
-
-function adjustScrollButtonsFallback() {
-  const mainPanel = $("#main");
-  const mainHeight = mainPanel.height();
-  const mainScrollHeight = mainPanel.prop("scrollHeight");
-  const mainScrollTop = mainPanel.scrollTop();
-  
-  // Get scroll button elements
-  const backToTopBtn = $("#back_to_top");
-  const backToBottomBtn = $("#back_to_bottom");
-  
-  // Show/hide the scroll to top button
-  if (mainScrollTop > mainHeight / 2) {
-    if (backToTopBtn.show) backToTopBtn.show();
-  } else {
-    if (backToTopBtn.hide) backToTopBtn.hide();
-  }
-  
-  // Show/hide the scroll to bottom button
-  if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
-    if (backToBottomBtn.show) backToBottomBtn.show();
-  } else {
-    if (backToBottomBtn.hide) backToBottomBtn.hide();
-  }
-}
-
-function setupTooltipsFallback(container) {
-  try {
-    if (container && container.tooltip) {
-      container.tooltip({
-        selector: '.card-header [title]',
-        delay: { show: 0, hide: 0 },
-        show: 100,
-        container: 'body'
-      });
-    }
-  } catch (e) {
-    console.warn('Tooltip initialization error:', e);
-  }
-}
-
-function cleanupAllTooltipsFallback() {
-  try {
-    $('.tooltip').remove();
-    
-    // Safely dispose tooltips if the method is available
-    const bsElements = $('[data-bs-original-title]');
-    if (bsElements.length && bsElements.tooltip) {
-      bsElements.tooltip('dispose');
-    }
-    
-    const originalElements = $('[data-original-title]');
-    if (originalElements.length && originalElements.tooltip) {
-      originalElements.tooltip('dispose');
-    }
-  } catch (e) {
-    console.warn('Tooltip cleanup error:', e);
-  }
-}
-
-function adjustImageUploadButtonFallback(selectedModel) {
-  if (!modelSpec || !selectedModel) return;
-  
-  const modelData = modelSpec[selectedModel];
-  const imageFileElement = $("#image-file");
-  
-  if (modelData && modelData.vision_capability) {
-    // Enable the button
-    imageFileElement.prop("disabled", false);
-    
-    // Update button text based on PDF support
-    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
-    
-    if (isPdfEnabled) {
-      imageFileElement.html('<i class="fas fa-file"></i> Image/PDF');
-    } else {
-      imageFileElement.html('<i class="fas fa-image"></i> Image');
-    }
-    
-    if (imageFileElement.show) {
-      imageFileElement.show();
-    }
-  } else {
-    imageFileElement.prop("disabled", true);
-    if (imageFileElement.hide) {
-      imageFileElement.hide();
-    }
-  }
-}
-
-// Form Handlers Fallback Implementations
-
-function uploadPdfFallback(file, fileTitle) {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      reject(new Error("Please select a PDF file to upload"));
-      return;
-    }
-    
-    if (file.type !== "application/pdf") {
-      reject(new Error("Please select a PDF file"));
-      return;
-    }
-    
-    const formData = new FormData();
-    formData.append("pdfFile", file);
-    formData.append("pdfTitle", fileTitle);
-
-    $.ajax({
-      url: "/pdf",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 120000,
-      success: resolve,
-      error: reject
-    });
-  });
-}
-
-function convertDocumentFallback(doc, docLabel) {
-  return new Promise((resolve, reject) => {
-    if (!doc) {
-      reject(new Error("Please select a document file to convert"));
-      return;
-    }
-    
-    if (doc.type === "application/octet-stream") {
-      reject(new Error("Unsupported file type"));
-      return;
-    }
-    
-    const formData = new FormData();
-    formData.append("docFile", doc);
-    formData.append("docLabel", docLabel || "");
-
-    $.ajax({
-      url: "/document",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 60000,
-      success: resolve,
-      error: reject
-    });
-  });
-}
-
-function fetchWebpageFallback(url, urlLabel) {
-  return new Promise((resolve, reject) => {
-    if (!url) {
-      reject(new Error("Please specify the URL of the page to fetch"));
-      return;
-    }
-    
-    if (!url.match(/^(http|https):\/\/[^ "]+$/)) {
-      reject(new Error("Please enter a valid URL"));
-      return;
-    }
-    
-    const formData = new FormData();
-    formData.append("pageURL", url);
-    formData.append("urlLabel", urlLabel || "");
-
-    $.ajax({
-      url: "/fetch_webpage",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 30000,
-      success: resolve,
-      error: reject
-    });
-  });
-}
-
-function importSessionFallback(file) {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      reject(new Error("Please select a file to import"));
-      return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    $.ajax({
-      url: "/load",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 30000,
-      success: resolve,
-      error: reject
-    });
-  });
-}
-
-function setupUrlValidationFallback(urlInput, submitButton) {
-  const validateUrl = function() {
-    const url = urlInput.value;
-    const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
-    submitButton.disabled = !validUrl;
-  };
-  
-  urlInput.addEventListener("change", validateUrl);
-  urlInput.addEventListener("keyup", validateUrl);
-  urlInput.addEventListener("input", validateUrl);
-}
-
-function setupFileValidationFallback(fileInput, submitButton) {
-  fileInput.addEventListener("change", function() {
-    submitButton.disabled = !fileInput.files || fileInput.files.length === 0;
-  });
-}
-
-function showModalWithFocusFallback(modalId, focusElementId, cleanupFn) {
-  const modal = document.getElementById(modalId);
-  const focusElement = document.getElementById(focusElementId);
-  
-  if (!modal || !focusElement) return;
-  
-  $(modal).modal("show");
-  
-  const timerKey = 'focusTimer';
-  const existingTimer = $(modal).data(timerKey);
-  
-  if (existingTimer) {
-    clearTimeout(existingTimer);
-    $(modal).removeData(timerKey);
-  }
-  
-  $(modal).data(timerKey, setTimeout(function() {
-    focusElement.focus();
-    $(modal).removeData(timerKey);
-  }, 500));
-  
-  if (typeof cleanupFn === 'function') {
-    $(modal).one('hidden.bs.modal', function() {
-      cleanupFn();
-      
-      const remainingTimer = $(modal).data(timerKey);
-      if (remainingTimer) {
-        clearTimeout(remainingTimer);
-        $(modal).removeData(timerKey);
-      }
-    });
-  }
-}
+// Fallback implementations are now in shims.js
 
 $(function () {
   // Make alert draggable immediately when needed instead of storing reference
@@ -2043,11 +1787,23 @@ $(function () {
 
   $("#tts-provider").on("change", function () {
     params["tts_provider"] = $("#tts-provider option:selected").val();
+    
+    // Hide all voice selection elements first
+    $("#elevenlabs-voices").hide();
+    $("#openai-voices").hide();
+    $("#webspeech-voices").hide();
+    
+    // Show the appropriate voice selection based on provider
     if (params["tts_provider"] === "elevenlabs") {
       $("#elevenlabs-voices").show();
-      $("#openai-voices").hide();
+    } else if (params["tts_provider"] === "webspeech") {
+      $("#webspeech-voices").show();
+      // Initialize Web Speech API voices if they haven't been loaded
+      if (typeof initWebSpeech === 'function') {
+        initWebSpeech();
+      }
     } else {
-      $("#elevenlabs-voices").hide();
+      // Default for OpenAI providers
       $("#openai-voices").show();
     }
 

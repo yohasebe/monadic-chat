@@ -149,13 +149,19 @@ Monadic Chatの現在の状況を示します。
 ![](../assets/images/monadic-chat-tts.png ':size=400')
 
 **Text-to-Speech Provider**<br />
-音声合成に使用するプロバイダーを選択します。API Tokenが設定されていれば、OpenAI（NormalまたはHD）とElevenLabsの音声が選択可能です。
+音声合成に使用するプロバイダーを選択します。以下から選択できます：
+- OpenAI（4o TTS、TTS、またはTTS HD）- OpenAI APIキーが必要です
+- ElevenLabs - ElevenLabs APIキーが必要です
+- Web Speech API - ブラウザ内蔵の音声合成を使用します（APIキー不要）
 
 **Text-to-Speech Voice**<br />
-音声合成に使用するボイスを指定できます。
+音声合成に使用する声を指定できます。利用可能な声は選択したプロバイダーによって異なります：
+- OpenAI：事前定義された声のセット（Alloy、Echo、Fableなど）から選択
+- ElevenLabs：利用可能なElevenLabsの声から選択
+- Web Speech API：システムで利用可能な声から選択（ブラウザ/オペレーティングシステムによって異なります）
 
 **Text-to-Speech Speed**<br />
-合成音声の再生速度を0.7（遅い）から1.2（速い）の範囲で調整できます。ElevenLabsの音声は、OpenAIの音声と比較して、変更された速度でテキストを再生する際の品質が一般的に優れています。
+音声合成の再生速度を0.7（遅い）から1.2（速い）の範囲で調整できます。一般に、ElevenLabsの声はOpenAIの声と比較して、速度を変更した場合の品質が優れています。Web Speech APIも速度調整をサポートしていますが、品質はブラウザやオペレーティングシステムによって異なる場合があります。
 
 **Speech-to-Text (STT) Language**<br />
 音声認識にはSpeech-to-Text APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。

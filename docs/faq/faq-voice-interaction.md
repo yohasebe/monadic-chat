@@ -6,9 +6,21 @@
 
 ---
 
+**Q**: Can I use text-to-speech without an OpenAI or ElevenLabs API key?
+
+**A**: Yes, you can use the Web Speech API option in the Text-to-Speech Provider dropdown. This uses your browser's built-in speech synthesis capabilities and doesn't require any API keys. The available voices will depend on your operating system and browser, but most modern browsers support this feature.
+
+---
+
+**Q**: How do I select voices when using the Web Speech API for text-to-speech?
+
+**A**: After selecting "Web Speech API" as your Text-to-Speech Provider, a dropdown menu will appear showing all available voices on your system. These voices are provided by your operating system and browser. Different operating systems (Windows, macOS, Linux) will have different voice options available.
+
+---
+
 **Q**: Can I adjust the speed of the AI agent's voice?
 
-**A**: Yes, you can adjust the playback speed of the synthesized speech using the `Text-to-Speech Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices.
+**A**: Yes, you can adjust the playback speed of the synthesized speech using the `Text-to-Speech Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, though quality may vary.
 
 ---
 

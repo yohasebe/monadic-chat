@@ -404,6 +404,7 @@
                 <option id="openai-tts" value="openai-tts">OpenAI (TTS)</option>
                 <option id="openai-tts-hd" value="openai-tts-hd">OpenAI (TTS HD)</option>
                 <option id="elevenlabs-provider-option" value="elevenlabs" disabled>ElevenLabs</option>
+                <option id="webspeech-provider-option" value="webspeech">Web Speech API</option>
               </select>
             </div>
 
@@ -426,6 +427,13 @@
                 <option value="nova">Nova</option>
                 <option value="sage">Sage</option>
                 <option value="shimmer">Shimmer</option>
+              </select>
+            </div>
+            
+            <div id="webspeech-voices" class="my-1" style="display: none;">
+              <label for="webspeech-voice" class="div-label my-2">Web Speech API Voice</label>
+              <select class="form-select form-select-sm" id="webspeech-voice">
+                <!-- Voice options will be populated by JavaScript -->
               </select>
             </div>
 
@@ -1040,6 +1048,7 @@
     <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/shims.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/ui-utilities.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/form-handlers.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/websocket-handlers.js?timestamp=<%= @timestamp %>"></script>
@@ -1050,6 +1059,16 @@
     <script src="js/monadic/mask_editor.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
+    
+    <!-- Make sure clipboard operations work in DevTools -->
+    <script>
+      // Apply shims module after everything else is loaded
+      window.addEventListener('load', function() {
+        if (window.installShims) {
+          window.installShims();
+        }
+      });
+    </script>
     
     <!-- No inline styles - all styles moved to monadic.css -->
   </body>

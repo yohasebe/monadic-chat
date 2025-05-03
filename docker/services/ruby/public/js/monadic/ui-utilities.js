@@ -123,7 +123,7 @@ function cleanupAllTooltips() {
 }
 
 /**
- * Adjusts image upload button availability based on selected model
+ * Adjusts image upload button availability based on selected model and app settings
  * @param {string} selectedModel - The currently selected AI model
  */
 function adjustImageUploadButton(selectedModel) {
@@ -131,15 +131,23 @@ function adjustImageUploadButton(selectedModel) {
   
   const modelData = modelSpec[selectedModel];
   const imageFileElement = $("#image-file");
+  const currentApp = $("#apps").val();
+  
+  // Check if current app is an image generation app
+  const isImageGenerationApp = apps[currentApp] && 
+    (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
   
   if (modelData && modelData.vision_capability) {
     // Enable the button
     imageFileElement.prop("disabled", false);
     
-    // Update button text based on PDF support
+    // Update button text based on PDF support and image generation capability
     const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
     
-    if (isPdfEnabled) {
+    // If it's an image generation app, show "Image" regardless of PDF support
+    if (isImageGenerationApp) {
+      imageFileElement.html('<i class="fas fa-image"></i> Image');
+    } else if (isPdfEnabled) {
       imageFileElement.html('<i class="fas fa-file"></i> Image/PDF');
     } else {
       imageFileElement.html('<i class="fas fa-image"></i> Image');

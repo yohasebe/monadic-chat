@@ -244,13 +244,21 @@ describe('UI Utilities', () => {
       'gpt-3.5-turbo': { vision_capability: false }
     };
     
+    // Add mock for apps global
+    global.apps = {
+      'chat': { image_generation: false },
+      'image_generator': { image_generation: true }
+    };
+    
     it('should enable image upload button for models with vision capability', () => {
       // Mock image button element
       const imageButton = { prop: jest.fn(), show: jest.fn(), html: jest.fn() };
+      const appsElement = { val: jest.fn().mockReturnValue('chat') };
       
       // Setup jQuery mock
       $.mockImplementation(selector => {
         if (selector === '#image-file') return imageButton;
+        if (selector === '#apps') return appsElement;
         return { prop: jest.fn(), show: jest.fn(), hide: jest.fn(), html: jest.fn() };
       });
       
@@ -267,10 +275,12 @@ describe('UI Utilities', () => {
     it('should disable image upload button for models without vision capability', () => {
       // Mock image button element
       const imageButton = { prop: jest.fn(), hide: jest.fn(), html: jest.fn() };
+      const appsElement = { val: jest.fn().mockReturnValue('chat') };
       
       // Setup jQuery mock
       $.mockImplementation(selector => {
         if (selector === '#image-file') return imageButton;
+        if (selector === '#apps') return appsElement;
         return { prop: jest.fn(), show: jest.fn(), hide: jest.fn(), html: jest.fn() };
       });
       
@@ -289,10 +299,12 @@ describe('UI Utilities', () => {
       
       // Mock image button element
       const imageButton = { prop: jest.fn(), hide: jest.fn(), html: jest.fn() };
+      const appsElement = { val: jest.fn().mockReturnValue('chat') };
       
       // Setup jQuery mock
       $.mockImplementation(selector => {
         if (selector === '#image-file') return imageButton;
+        if (selector === '#apps') return appsElement;
         return { prop: jest.fn(), html: jest.fn() };
       });
       

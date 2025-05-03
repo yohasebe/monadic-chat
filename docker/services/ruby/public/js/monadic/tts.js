@@ -3,6 +3,10 @@ let audioCtx = null;
 let playPromise = null;
 let ttsAudio = null;
 
+// Web Speech API voices storage
+let webSpeechVoices = [];
+let webSpeechInitialized = false;
+
 // Create a lazy initializer for audioContext to prevent unnecessary contexts
 function audioInit() {
   if (audioCtx === null) {
@@ -27,24 +31,368 @@ function audioInit() {
   }
 }
 
+// Helper function to determine voice provider and quality
+function getVoiceProvider(voice) {
+  const isMac = /Mac/.test(navigator.platform);
+  
+  // Check for Microsoft and Google first (explicit in name)
+  if (voice.name.includes('Microsoft')) return 'Microsoft';
+  if (voice.name.includes('Google')) return 'Google';
+  
+  // Check for Apple voices on Mac
+  if (isMac && voice.localService && 
+      !voice.name.includes('Google') && !voice.name.includes('Microsoft')) {
+    return 'Apple';
+  }
+  
+  // Check voiceURI for Apple pattern
+  if (voice.voiceURI && voice.voiceURI.includes('com.apple.speech')) {
+    return 'Apple';
+  }
+  
+  return 'Unknown';
+}
+
+// Helper to determine if a voice is high quality
+function isHighQualityVoice(voice) {
+  // Apply the same logic as in filterHighQualityVoices
+  // This ensures consistency between checking and filtering
+  const testVoices = [voice];
+  const result = filterHighQualityVoices(testVoices);
+  return result.length > 0;
+}
+
+// Filter for high-quality voices
+function filterHighQualityVoices(voices) {
+  // Only exclude the most problematic voices (novelty/effects voices)
+  const lowQualityAppleVoices = [
+    'Bad News', 'Bahh', 'Bells', 'Boing', 'Bubbles', 
+    'Cellos', 'Deranged', 'Good News', 'Hysterical', 'Pipe Organ', 
+    'Trinoids', 'Whisper', 'Zarvox'
+  ];
+
+  // Core list of typical high-quality voices available on most Macs
+  const knownGoodVoices = [
+    // English
+    'Samantha', 'Alex', 'Daniel', 'Fred', 'Karen', 'Moira', 'Tessa', 'Veena',
+    // Japanese
+    'Kyoko', 'Otoya', 'O-ren',
+    // Other languages
+    'Mei-Jia', 'Sin-ji', 'Ting-Ting', 'Yuna', 'Thomas', 'Amelie', 'Anna'
+  ];
+  
+  // Debug voice list if needed
+  const debugVoices = false;
+  if (debugVoices) {
+    console.log("All available voices:");
+    voices.forEach(v => console.log(`${v.name} [${v.lang}] - URI: ${v.voiceURI || 'N/A'}, Local: ${v.localService}`));
+  }
+  
+  // Apply more permissive filtering
+  return voices.filter(voice => {
+    const provider = getVoiceProvider(voice);
+    const name = voice.name || '';
+    
+    // Always include Microsoft and Google voices
+    if (provider === 'Microsoft' || provider === 'Google') {
+      return true;
+    }
+    
+    // For Apple voices, apply more permissive filtering
+    if (provider === 'Apple') {
+      // Exclude only the most problematic voices (novelty/effects voices)
+      if (lowQualityAppleVoices.some(lowQuality => 
+          name.toLowerCase().includes(lowQuality.toLowerCase()))) {
+        return false;
+      }
+      
+      // Include any voice with premium/neural indicators
+      if (name.toLowerCase().includes('premium') || 
+          name.toLowerCase().includes('neural') ||
+          name.toLowerCase().includes('siri') ||
+          (voice.voiceURI && (
+            voice.voiceURI.toLowerCase().includes('premium') ||
+            voice.voiceURI.toLowerCase().includes('enhanced')
+          ))) {
+        return true;
+      }
+      
+      // Include known good voices list
+      if (knownGoodVoices.some(goodVoice => 
+          name.toLowerCase().includes(goodVoice.toLowerCase()))) {
+        return true;
+      }
+      
+      // Include any standard voice that isn't marked as excluded
+      // and has a reasonable name length
+      if (name.length >= 3 && !name.match(/^(com\.|sys\.|_)/i)) {
+        return true;
+      }
+      
+      // Fall through - include most voices by default 
+      return true;
+    }
+    
+    // Include most provider voices
+    return true;
+  });
+}
+
+// Initialize Web Speech API
+function initWebSpeech() {
+  // Check if Web Speech API is available
+  if (typeof window.speechSynthesis === 'undefined') {
+    console.warn('Web Speech API is not supported in this browser');
+    return false;
+  }
+
+  // Initialize only once
+  if (webSpeechInitialized) return true;
+  
+  // Get available voices
+  webSpeechVoices = window.speechSynthesis.getVoices();
+  
+  // In some browsers, getVoices() returns an empty array on first call
+  // A voiceschanged event is fired when voices are available
+  if (webSpeechVoices.length === 0) {
+    window.speechSynthesis.addEventListener('voiceschanged', function() {
+      webSpeechVoices = window.speechSynthesis.getVoices();
+      populateWebSpeechVoices();
+    });
+  } else {
+    populateWebSpeechVoices();
+  }
+  
+  webSpeechInitialized = true;
+  return true;
+}
+
+// Populate the Web Speech voices in the dropdown
+function populateWebSpeechVoices() {
+  const webSpeechSelect = $("#webspeech-voice");
+  if (webSpeechSelect.length === 0) return;
+  
+  webSpeechSelect.empty();
+  
+  // Filter for high-quality voices
+  const highQualityVoices = filterHighQualityVoices(webSpeechVoices);
+  console.debug(`Found ${highQualityVoices.length} high-quality voices out of ${webSpeechVoices.length} total voices`);
+  
+  // Hide Web Speech option if no quality voices available
+  const ttsProviderSelect = $("#tts-provider");
+  const webspeechOption = ttsProviderSelect.find("option[value='webspeech']");
+  
+  if (highQualityVoices.length === 0) {
+    // Hide the webspeech option if no quality voices available
+    webspeechOption.hide();
+    // If webspeech was selected, switch to another provider
+    if (ttsProviderSelect.val() === "webspeech") {
+      ttsProviderSelect.val("openai").trigger("change");
+    }
+    return;
+  } else {
+    // Show the webspeech option if quality voices are available
+    webspeechOption.show();
+  }
+  
+  // Group voices by language for better organization
+  const voicesByLang = {};
+  highQualityVoices.forEach(voice => {
+    const lang = voice.lang || 'unknown';
+    if (!voicesByLang[lang]) {
+      voicesByLang[lang] = [];
+    }
+    voicesByLang[lang].push(voice);
+  });
+  
+  // Sort languages alphabetically
+  const sortedLangs = Object.keys(voicesByLang).sort();
+  
+  // Create language optgroups and add voices
+  sortedLangs.forEach(lang => {
+    // Create language group
+    const languageGroup = $("<optgroup></optgroup>").attr("label", lang);
+    
+    // Sort voices by name within each language
+    const sortedVoices = voicesByLang[lang].sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Add voices to this language group
+    sortedVoices.forEach(voice => {
+      // Get provider for display
+      const provider = getVoiceProvider(voice);
+      
+      // Create a more informative label
+      let qualityIndicator = "";
+      
+      // Add quality indicator if available
+      if (voice.name.toLowerCase().includes('neural') || 
+          voice.name.toLowerCase().includes('premium') ||
+          (voice.voiceURI && (
+            voice.voiceURI.includes('premium') || 
+            voice.voiceURI.includes('enhanced')
+          ))) {
+        qualityIndicator = "★ ";  // Star for premium voices
+      }
+      
+      const option = $("<option></option>")
+        .val(webSpeechVoices.indexOf(voice)) // Preserve original index
+        .text(`${qualityIndicator}${voice.name} [${provider}]`)
+        .attr("data-provider", provider)
+        .attr("data-lang", voice.lang)
+        .attr("title", `Voice: ${voice.name}\nProvider: ${provider}\nLanguage: ${voice.lang}`);
+      
+      // Mark default voice as selected
+      if (voice.default) {
+        option.prop('selected', true);
+      }
+      
+      languageGroup.append(option);
+    });
+    
+    webSpeechSelect.append(languageGroup);
+  });
+  
+  // Try to select appropriate default voice if no default is set
+  if (webSpeechSelect.find("option:selected").length === 0) {
+    // Try to find a voice matching browser language
+    const browserLang = navigator.language || 'en-US';
+    let matchingOption = webSpeechSelect.find(`option[data-lang^="${browserLang.split('-')[0]}"]`).first();
+    
+    // If no match, default to English if available
+    if (matchingOption.length === 0) {
+      matchingOption = webSpeechSelect.find('option[data-lang^="en"]').first();
+    }
+    
+    // Select the matching option
+    if (matchingOption.length > 0) {
+      matchingOption.prop('selected', true);
+    }
+  }
+}
+
+// Speak text using Web Speech API
+function speakWithWebSpeech(text, speed, callback) {
+  // Check if Web Speech API is available
+  if (typeof window.speechSynthesis === 'undefined') {
+    console.error('Web Speech API is not supported in this browser');
+    if (typeof callback === 'function') callback(false);
+    // Hide spinner on error
+    $("#monadic-spinner").hide();
+    return false;
+  }
+  
+  // Get filtered high-quality voices
+  const highQualityVoices = filterHighQualityVoices(webSpeechVoices);
+  
+  // If no high-quality voices available, fallback to cloud providers
+  if (highQualityVoices.length === 0) {
+    console.warn('No high-quality Web Speech voices available, falling back to cloud provider');
+    const ttsProviderSelect = $("#tts-provider");
+    ttsProviderSelect.val("openai").trigger("change");
+    if (typeof callback === 'function') callback(false);
+    // Hide spinner on error
+    $("#monadic-spinner").hide();
+    return false;
+  }
+  
+  // Cancel any previous speech
+  window.speechSynthesis.cancel();
+  
+  // Create a new utterance
+  const utterance = new SpeechSynthesisUtterance(text);
+  
+  // Set voice if selected
+  const voiceSelect = $("#webspeech-voice");
+  if (voiceSelect.length > 0) {
+    const voiceIndex = parseInt(voiceSelect.val(), 10);
+    if (!isNaN(voiceIndex) && webSpeechVoices.length > voiceIndex) {
+      utterance.voice = webSpeechVoices[voiceIndex];
+      
+      // Log provider information for debugging
+      const provider = getVoiceProvider(utterance.voice);
+      console.debug(`Using ${provider} voice: ${utterance.voice.name}`);
+    }
+  }
+  
+  // Set speech rate (speed)
+  utterance.rate = speed;
+  
+  // Set event handlers
+  utterance.onend = function() {
+    // Hide spinner when speech ends
+    $("#monadic-spinner").hide();
+    // Reset spinner to default state for other operations
+    $("#monadic-spinner")
+      .find("span")
+      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    
+    if (typeof callback === 'function') callback(true);
+  };
+  
+  utterance.onerror = function(event) {
+    console.error('SpeechSynthesis error:', event);
+    // Hide spinner on error
+    $("#monadic-spinner").hide();
+    // Reset spinner to default state
+    $("#monadic-spinner")
+      .find("span")
+      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    
+    if (typeof callback === 'function') callback(false);
+  };
+  
+  // Start speaking
+  window.speechSynthesis.speak(utterance);
+  return true;
+}
+
 function ttsSpeak(text, stream, callback) {
   // Get settings from UI
   const provider = $("#tts-provider").val();
-  const voice = $("#tts-voice").val();
-  const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
   const speed = parseFloat($("#tts-speed").val());
 
+  // Early returns for invalid conditions
+  if (!text) {
+    return false;
+  }
+  
+  // Use Web Speech API for webspeech provider
+  if (provider === "webspeech") {
+    // Initialize Web Speech API if not already initialized
+    if (!webSpeechInitialized) {
+      initWebSpeech();
+    }
+    
+    // Double-check that high-quality voices are available
+    const highQualityVoices = filterHighQualityVoices(webSpeechVoices);
+    if (highQualityVoices.length === 0) {
+      console.warn("No high-quality voices available. Falling back to cloud TTS.");
+      // Auto-switch to cloud provider
+      $("#tts-provider").val("openai").trigger("change");
+      // Use new provider
+      return ttsSpeak(text, stream, callback);
+    }
+    
+    return speakWithWebSpeech(text, speed, callback);
+  }
+  
+  // Firefox check only for traditional TTS methods
+  if (runningOnFirefox) {
+    return false;
+  }
+  
+  // For traditional TTS providers (OpenAI, ElevenLabs)
+  const voice = $("#tts-voice").val();
+  const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
+  
   // Determine mode based on streaming flag
   let mode = stream ? "TTS_STREAM" : "TTS";
   let response_format = "mp3";
 
   // Initialize audio
   audioInit();
-
-  // Early returns for invalid conditions
-  if (runningOnFirefox || !text) {
-    return false;
-  }
 
   // Prepare voice data for sending
   const voiceData = {
@@ -90,6 +438,15 @@ function ttsSpeak(text, stream, callback) {
 }
 
 function ttsStop() {
+  // Stop Web Speech API if active
+  if (typeof window.speechSynthesis !== 'undefined') {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {
+      console.warn('Error stopping speech synthesis:', e);
+    }
+  }
+
   // Handle both ttsAudio and window.audio with a single function
   const stopAudioElement = (audio) => {
     if (audio) {
@@ -191,12 +548,16 @@ function ttsStop() {
 window.audioInit = audioInit;
 window.ttsSpeak = ttsSpeak;
 window.ttsStop = ttsStop;
+window.initWebSpeech = initWebSpeech;
+window.populateWebSpeechVoices = populateWebSpeechVoices;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     audioInit,
     ttsSpeak,
-    ttsStop
+    ttsStop,
+    initWebSpeech,
+    populateWebSpeechVoices
   };
 }

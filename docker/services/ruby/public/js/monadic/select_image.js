@@ -65,12 +65,12 @@ selectFileButton.on("click", function () {
   // Update modal UI based on model capabilities and app settings
   if (isPdfEnabled && !isImageGenerationApp) {
     $("#imageModalLabel").html('<i class="fas fa-file"></i> Select Image or PDF File');
-    $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
-    $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif, .pdf)');
+    $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
+    $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif, .webp, .pdf)');
   } else {
     $("#imageModalLabel").html('<i class="fas fa-image"></i> Select Image File');
-    $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif');
-    $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif)');
+    $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
+    $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif, .webp)');
   }
 
   $("#imageModal").modal("show");

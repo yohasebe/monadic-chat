@@ -19,7 +19,7 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: image_generation.rb [options]"
+  opts.banner = "Usage: image_generator_openai.rb [options]"
 
   opts.on("-o", "--operation OPERATION", "Operation: generate, edit, variation") do |op|
     options[:operation] = op

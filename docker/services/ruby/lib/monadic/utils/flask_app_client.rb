@@ -17,6 +17,29 @@ class FlaskAppClient
 
   def initialize(model_name = "gpt-3.5-turbo")
     @model_name = model_name
+    # Attempt to warm up the encodings on initialization
+    warmup_encodings
+  end
+  
+  # Warm up the tokenizer encodings to avoid first-request latency
+  def warmup_encodings
+    Thread.new do
+      begin
+        uri = URI.parse("#{BASE_URL}/warmup")
+        http = Net::HTTP.new(uri.host, uri.port)
+        
+        # Set shorter timeout for warmup
+        http.open_timeout = 10
+        http.read_timeout = 10
+        
+        response = http.get(uri.request_uri)
+        if response.is_a?(Net::HTTPSuccess)
+          puts "[FlaskAppClient] Tokenizer encodings warmed up successfully"
+        end
+      rescue StandardError => e
+        # Silently fail - we don't want to block application startup
+      end
+    end
   end
   
   # Check if the Python service is available
@@ -48,10 +71,38 @@ class FlaskAppClient
     end
   end
 
+  # Token count cache to reduce duplicate calls for the same text
+  @@token_count_cache = {}
+  @@cache_mutex = Mutex.new
+  @@MAX_CACHE_SIZE = 1000  # Maximum number of items to cache
+  
   def count_tokens(text, encoding_name = "o200k_base")
+    # Create cache key that includes both text and encoding_name
+    cache_key = "#{encoding_name}:#{text.hash}"
+    
+    # Check cache first (thread-safe read)
+    @@cache_mutex.synchronize do
+      return @@token_count_cache[cache_key] if @@token_count_cache.key?(cache_key)
+    end
+    
+    # If not in cache, make the API call
     body = { text: text, encoding_name: encoding_name }
     response = post_request("count_tokens", body)
-    response ? response["number_of_tokens"].to_i : nil
+    result = response ? response["number_of_tokens"].to_i : nil
+    
+    # Only cache successful results
+    if result
+      @@cache_mutex.synchronize do
+        # Implement LRU-like behavior by removing oldest entries if cache is too large
+        if @@token_count_cache.size >= @@MAX_CACHE_SIZE
+          @@token_count_cache.shift  # Remove oldest entry
+        end
+        
+        @@token_count_cache[cache_key] = result
+      end
+    end
+    
+    result
   end
 
   def get_tokens_sequence(text)

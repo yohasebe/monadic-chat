@@ -1,12 +1,12 @@
 module MonadicHelper
   # Adapter for OpenAI function generate_image
   # Accepts keyword args from function call: operation, model, prompt, images, mask, n, size, quality, output_format, background, output_compression
-  def generate_image(operation:, model:, prompt: nil, images: nil, mask: nil,
+  def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, mask: nil,
                      n: 1, size: "1024x1024", quality: nil,
                      output_format: nil, background: nil, output_compression: nil)
     # Build CLI command
     parts = []
-    parts << "simple_image_generation.rb"
+    parts << "image_generator_openai.rb"
     parts << "-o #{operation}"
     parts << "-m #{model}"
     parts << "-p \"#{prompt}\"" if prompt
@@ -74,7 +74,7 @@ module MonadicHelper
     sample_count = [[sample_count.to_i, 1].max, 4].min
     
     command = <<~CMD
-      bash -c 'imagen_image_generator.rb -p "#{prompt}" -a "#{aspect_ratio}" -n #{sample_count} -g "#{person_generation}"'
+      bash -c 'image_generator_imagen.rb -p "#{prompt}" -a "#{aspect_ratio}" -n #{sample_count} -g "#{person_generation}"'
     CMD
     
     # Simply pass the command output directly to the LLM
@@ -88,7 +88,7 @@ module MonadicHelper
   def generate_image_with_grok(prompt: "")
 
     command = <<~CMD
-      bash -c 'grok_image_generator.rb -p "#{prompt}"'
+      bash -c 'image_generator_grok.rb -p "#{prompt}"'
     CMD
     
     # Simply pass the command output directly to the LLM

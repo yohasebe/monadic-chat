@@ -58,9 +58,12 @@ $("#imageFile").on("change", function() {
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
   const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
+  const currentApp = $("#apps").val();
+  const isImageGenerationApp = apps[currentApp] && 
+    (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
 
-  // Update modal UI based on model capabilities
-  if (isPdfEnabled) {
+  // Update modal UI based on model capabilities and app settings
+  if (isPdfEnabled && !isImageGenerationApp) {
     $("#imageModalLabel").html('<i class="fas fa-file"></i> Select Image or PDF File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.pdf');
     $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif, .pdf)');
@@ -82,6 +85,9 @@ $("#uploadImage").on("click", function () {
   const file = fileInput.files[0];
   const selectedModel = $("#model").val();
   const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
+  const currentApp = $("#apps").val();
+  const isImageGenerationApp = apps[currentApp] && 
+    (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
 
   if (file) {
     // Check file size for PDF files (35MB limit)
@@ -97,11 +103,18 @@ $("#uploadImage").on("click", function () {
       }
     }
 
-    // Validate PDF compatibility with selected model
-    if (file.type === 'application/pdf' && !isPdfEnabled) {
-      setAlert("PDF files can only be uploaded when using a model that supports PDF input", "error");
-      $("#imageModal").modal("hide");
-      return;
+    // Validate PDF compatibility with selected model and app settings
+    if (file.type === 'application/pdf') {
+      if (isImageGenerationApp) {
+        setAlert("PDF files cannot be uploaded in image generation apps", "error");
+        $("#imageModal").modal("hide");
+        return;
+      }
+      if (!isPdfEnabled) {
+        setAlert("PDF files can only be uploaded when using a model that supports PDF input", "error");
+        $("#imageModal").modal("hide");
+        return;
+      }
     }
 
     $("#imageModal button").prop("disabled", true);

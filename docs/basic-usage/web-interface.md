@@ -145,13 +145,19 @@ Clicking the `Export` button saves the current settings and conversation data to
 !> To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
 **Text-to-Speech Provider**<br />
-Select the provider used for speech synthesis. If you can choose between OpenAI (Normal or HD) and ElevenLabs voices if API Tokens for these providers are set.
+Select the provider used for speech synthesis. You can choose between:
+- OpenAI (4o TTS, TTS, or TTS HD) - requires an OpenAI API key
+- ElevenLabs - requires an ElevenLabs API key
+- Web Speech API - uses your browser's built-in speech synthesis (no API key required)
 
 **Text-to-Speech Voice**<br />
-You can specify the voice used for speech synthesis.
+You can specify the voice used for speech synthesis. Available voices depend on the selected provider:
+- For OpenAI: Select from their predefined voice set (Alloy, Echo, Fable, etc.)
+- For ElevenLabs: Choose from your available ElevenLabs voices
+- For Web Speech API: Select from your system's available voices (varies by browser/operating system)
 
 **Text-to-Speech Speed**<br />
-You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices.
+You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, but quality may vary by browser and operating system.
 
 **Speech-to-Text (STT) Language**<br />
 Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector.

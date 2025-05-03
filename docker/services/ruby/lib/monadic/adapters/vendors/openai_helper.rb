@@ -35,7 +35,8 @@ module OpenAIHelper
     "o1-preview",
     "search",
     "trascribe",
-    "computer-use"
+    "computer-use",
+    "image"
   ]
 
   # partial string match

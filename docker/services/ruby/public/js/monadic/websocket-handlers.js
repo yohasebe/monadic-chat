@@ -6,6 +6,84 @@
  */
 
 /**
+ * Handles combined fragment with audio messages (optimized for auto_speech)
+ * @param {Object} data - Parsed message data containing fragment and audio
+ * @param {Function} processAudio - Function to process audio data
+ * @returns {boolean} - Whether the message was handled
+ */
+function handleFragmentWithAudio(data, processAudio) {
+  if (data && data.type === 'fragment_with_audio') {
+    try {
+      // Check for auto_speech flag
+      const isAutoSpeech = data.auto_speech === true;
+      // First process the fragment part
+      if (data.fragment) {
+        // Add fragment to DOM or update UI as needed
+        if (typeof window.handleFragmentMessage === 'function') {
+          window.handleFragmentMessage(data.fragment);
+        } else {
+          // Fallback direct processing if global handler not available
+          if (data.fragment.type === 'fragment') {
+            const text = data.fragment.content || '';
+            if (typeof window.updateStreamingText === 'function') {
+              window.updateStreamingText(text);
+            } else {
+              // Basic fallback - append to some container
+              const streamingContainer = document.getElementById('streaming-container');
+              if (streamingContainer) {
+                streamingContainer.textContent += text;
+              }
+            }
+          }
+        }
+      }
+      
+      // Then process the audio part
+      if (data.audio && typeof processAudio === 'function') {
+        // The audio processing might vary between environments
+        try {
+          // Extract audio content
+          if (data.audio.content && typeof data.audio.content === 'string') {
+            const audioData = Uint8Array.from(atob(data.audio.content), c => c.charCodeAt(0));
+            
+            // Set flag to ensure audio auto-play is triggered
+            window.autoPlayAudio = true;
+            
+            // Set auto-speech flag if present in original message
+            if (isAutoSpeech) {
+              window.autoSpeechActive = true;
+            }
+            
+            // Process the audio data
+            processAudio(audioData);
+            
+            // Immediately ensure audio is playing on standard browsers
+            if (!window.firefoxAudioMode && !window.basicAudioMode && window.audio) {
+              if (window.audio.paused) {
+                window.audio.play().catch(err => console.log("Error auto-playing audio:", err));
+              }
+            }
+            
+            // For iOS devices, ensure auto-playback
+            if (window.isIOS && !window.isIOSAudioPlaying && window.iosAudioElement) {
+              window.iosAudioElement.play().catch(err => console.log("Error auto-playing iOS audio:", err));
+            }
+          }
+        } catch (audioError) {
+          console.error('Error processing audio in combined message:', audioError);
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      console.error('Error handling fragment_with_audio message:', e);
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
  * Handles token verification messages
  * @param {Object} data - Parsed message data
  * @returns {boolean} - Whether the message was handled
@@ -250,6 +328,7 @@ function handleCancelMessage(data) {
 
 // Export handlers for browser environments
 window.wsHandlers = {
+  handleFragmentWithAudio,
   handleTokenVerification,
   handleErrorMessage,
   handleAudioMessage,

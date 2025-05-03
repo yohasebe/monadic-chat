@@ -25,10 +25,28 @@ function handleFragmentWithAudio(data, processAudio) {
           // Fallback direct processing if global handler not available
           if (data.fragment.type === 'fragment') {
             const text = data.fragment.content || '';
-            if (typeof window.updateStreamingText === 'function') {
-              window.updateStreamingText(text);
+            // Create a temp-card for streaming if it doesn't exist yet
+            if (!$("#temp-card").length) {
+              // Create a new temporary card for streaming text
+              const tempCard = $(`
+                <div id="temp-card" class="card mt-3 streaming-card"> 
+                  <div class="card-header p-2 ps-3">
+                    <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+                  </div>
+                  <div class="card-body role-assistant">
+                    <div class="card-text"></div>
+                  </div>
+                </div>
+              `);
+              $("#discourse").append(tempCard);
+            }
+            
+            // Add text to the temporary card
+            const tempText = $("#temp-card .card-text");
+            if (tempText.length) {
+              tempText.append(text);
             } else {
-              // Basic fallback - append to some container
+              // Basic fallback - append to some container if available
               const streamingContainer = document.getElementById('streaming-container');
               if (streamingContainer) {
                 streamingContainer.textContent += text;

@@ -311,10 +311,10 @@
           <span class="nav-text"><span class="text-main">Monadic</span><span class="text-highlight"> Chat</span></span>
         </a>
         <div class="ms-auto d-flex align-items-center nav-actions">
-          <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query">
+          <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation">
             <i class="fas fa-ban"></i><span>CANCEL</span>
           </button>
-          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" style="margin-top: -1px;">
+          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" style="margin-top: -1px;">
             <i class="fas fa-bars"></i>
           </button>
         </div>
@@ -386,9 +386,9 @@
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class=""><span class="text"><i class="fas fa-file"></i> Session</span></h5>
             <div class="d-flex align-items-center flex-wrap">
-              <button class="btn btn-sm btn-warning me-2" id="reset"><i class="fas fa-stop" ></i> Reset</button>
-              <button class="btn btn-sm btn-warning me-2" id="load"><i class="fas fa-file-import"></i> Import</button>
-              <button class="btn btn-sm btn-warning me-2" id="save"><i class="fas fa-file-export"></i> Export</button>
+              <button class="btn btn-sm btn-warning me-2" id="reset" title="Reset conversation while keeping current app selection"><i class="fas fa-stop" ></i> Reset</button>
+              <button class="btn btn-sm btn-warning me-2" id="load" title="Import conversation from file"><i class="fas fa-file-import"></i> Import</button>
+              <button class="btn btn-sm btn-warning me-2" id="save" title="Export conversation to file"><i class="fas fa-file-export"></i> Export</button>
             </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1"> Press "reset" to clear conversation while keeping the current app selection.</div>
@@ -674,7 +674,7 @@
 
             <div class="row mt-3">
               <div class="col-2">
-                <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
+                <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
               </div>
             </div>
           </div>
@@ -711,9 +711,9 @@
               <div class="row mt-1 mb-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap">
-                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2"><i class="fas fa-image"></i> Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" ><i class="fa-solid fa-file-arrow-up"></i> From file</button>
-                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" ><i class="fa-solid fa-globe"></i> From URL</button>
+                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message"><i class="fas fa-image"></i> Image</button>
+                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file"><i class="fa-solid fa-file-arrow-up"></i> From file</button>
+                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL"><i class="fa-solid fa-globe"></i> From URL</button>
                   </div>
                 </div>
               </div>
@@ -722,7 +722,7 @@
               <div id="voice-input-row" class="row mb-3 align-items-center">
                 <div class="col-auto d-flex align-items-center flex-wrap">
                   <div class="d-flex align-items-center">
-                    <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1"><i class="fas fa-microphone"></i> Speech Input</button>
+                    <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1" title="Start/stop voice input recording"><i class="fas fa-microphone"></i> Speech Input</button>
                     <div id="amplitude" style="display: none; margin-left: 10px; height: 28px; overflow: hidden;">
                       <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
                     </div>
@@ -767,15 +767,15 @@
                   <option value="deepseek">DeepSeek</option>
                   <option value="grok">Grok</option>
                 </select>
-                <button id="ai_user" class="btn btn-sm btn-secondary ms-1">Run</button>
+                <button id="ai_user" class="btn btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation">Run</button>
               </div>
 
               <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
-                    <button id="send" class="btn btn-sm btn-primary me-2"><i class="fas fa-paper-plane"></i> Send</button>
-                    <button id="clear" class="btn btn-sm btn-secondary me-2"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="settings" class="btn btn-sm btn-secondary me-2"><i class="fas fa-bars"></i> Settings</button>
+                    <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant"><i class="fas fa-paper-plane"></i> Send</button>
+                    <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel"><i class="fas fa-bars"></i> Settings</button>
                   </div>
                   <div class="mt-2 ms-1 textbox-caption">
                     <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>

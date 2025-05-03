@@ -27,8 +27,10 @@ services:
       - monadic-chat-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4567/"]
-      interval: 5s
-      retries: 10
+      interval: 3s
+      timeout: 5s
+      retries: 8
+      start_period: 3s
     depends_on:
       pgvector_service:
         condition: service_healthy

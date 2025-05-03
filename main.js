@@ -158,7 +158,7 @@ function openWebViewWindow(url) {
         container.style.transform = 'scale(1)';
         container.style.transformOrigin = 'bottom right';
 
-        function makeBtn(iconClass, bgColor, onClick) {
+        function makeBtn(iconClass, bgColor, onClick, tooltip) {
           const btn = document.createElement('button');
           // Use string concatenation to avoid nested template literals
           btn.innerHTML = '<i class="' + iconClass + '"></i>';
@@ -175,14 +175,19 @@ function openWebViewWindow(url) {
           btn.style.alignItems = 'center';
           btn.style.justifyContent = 'center';
           btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+          btn.title = tooltip; // Add tooltip
           btn.onclick = onClick;
           return btn;
         }
 
-        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn()));
-        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut()));
-        container.appendChild(makeBtn('fa-solid fa-arrows-rotate', 'rgba(66,139,202,0.9)', () => window.electronAPI.resetWebUI()));
-        container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow()));
+        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn(), 'Zoom In'));
+        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut(), 'Zoom Out'));
+        container.appendChild(makeBtn('fa-solid fa-arrows-rotate', 'rgba(66,139,202,0.9)', () => {
+          if(confirm('Reset will clear all data and return to the initial state, including app selection. Continue?')) {
+            window.electronAPI.resetWebUI();
+          }
+        }, 'Reset App'));
+        container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow(), 'Monadic Chat Console'));
 
         document.body.appendChild(container);
         // Adjust overlay container on zoom change

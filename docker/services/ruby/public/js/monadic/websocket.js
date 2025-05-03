@@ -205,17 +205,31 @@ window.handleFragmentMessage = function(fragment) {
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
     
-    // Add to streaming text display (usually part of temporary div showing response)
-    if ($("#temp-card").length) {
-      const tempText = $("#temp-card .card-text");
-      if (tempText.length) {
-        // Append text to the temporary card
-        tempText.append(text);
-        
-        // Scroll to bottom if auto-scroll is enabled
-        if (autoScroll) {
-          chatBottom.scrollIntoView({ behavior: 'smooth' });
-        }
+    // Create temporary card if it doesn't exist
+    if (!$("#temp-card").length) {
+      // Create a new temporary card for streaming text
+      const tempCard = $(`
+        <div id="temp-card" class="card mt-3 streaming-card"> 
+          <div class="card-header p-2 ps-3">
+            <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+          </div>
+          <div class="card-body role-assistant">
+            <div class="card-text"></div>
+          </div>
+        </div>
+      `);
+      $("#discourse").append(tempCard);
+    }
+    
+    // Add to streaming text display
+    const tempText = $("#temp-card .card-text");
+    if (tempText.length) {
+      // Append text to the temporary card
+      tempText.append(text);
+      
+      // Scroll to bottom if auto-scroll is enabled
+      if (autoScroll) {
+        chatBottom.scrollIntoView({ behavior: 'smooth' });
       }
     }
     

@@ -20,8 +20,8 @@ Benefits of internal browser mode:
 When running in internal browser mode, four additional buttons appear at the bottom-right corner of the interface:
 - **Zoom In**: Increases the page zoom factor
 - **Zoom Out**: Decreases the page zoom factor
-- **UI Reset**: Clears session data and reloads the UI
-- **Focus Main Window**: Brings the main Electron window to the foreground
+- **Reset App**: Clears session data, reloads the UI, and resets to the initial app selection
+- **Monadic Chat Console**: Shows the main console window
 
 ### External Browser Mode
 
@@ -128,6 +128,8 @@ Shows details such as the number of messages and tokens exchanged in the current
 
 **Reset**<br />
 Clicking the `Reset` button discards the current conversation and returns to the initial state while preserving the current app selection. All app parameters will be reset to their default values. When changing apps by selecting a different app in the dropdown, a confirmation dialog will appear asking if you want to reset the current conversation, as changing apps will reset all parameters.
+
+?> This Reset button in the Session panel maintains your current app selection, unlike the Reset App button in the internal browser which also resets to the initial app selection.
 
 **Settings**<br />
 Clicking the `Settings` button returns to the System Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.

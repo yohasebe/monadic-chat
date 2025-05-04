@@ -75,7 +75,7 @@ module GrokHelper
     attr_reader :cached_models
 
     def vendor_name
-      "Grok"
+      "xAI"
     end
 
     def list_models

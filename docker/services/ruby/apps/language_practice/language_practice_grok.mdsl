@@ -21,7 +21,7 @@ app "LanguagePracticeGrok" do
   display_name "Language Practice"
   
   features do
-    group "xAI Grok"
+    group "xAI"
     temperature 0.5
     context_size 100
     easy_submit true

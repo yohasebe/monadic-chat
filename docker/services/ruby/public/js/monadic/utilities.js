@@ -51,9 +51,6 @@ function updateAppSelectIcon(appValue) {
         const groupName = groupId.replace("group-", "");
         // Need to handle potential dashes in the group name for xAI Grok
         let groupSelector = groupName;
-        if (groupName === "xAI-Grok") {
-          groupSelector = "xAI Grok";
-        }
         const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
         groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
       }
@@ -457,7 +454,7 @@ function loadParams(params, calledFor = "loadParams") {
       if (group.includes("anthropic") || group.includes("claude")) {
         provider = "Anthropic";
       } else if (group.includes("gemini") || group.includes("google")) {
-        provider = "Gemini";
+        provider = "Google";
       } else if (group.includes("cohere")) {
         provider = "Cohere";
       } else if (group.includes("mistral")) {
@@ -467,7 +464,7 @@ function loadParams(params, calledFor = "loadParams") {
       } else if (group.includes("deepseek")) {
         provider = "DeepSeek";
       } else if (group.includes("grok") || group.includes("xai")) {
-        provider = "Grok";
+        provider = "xAI";
       }
     }
     // Update the badge in the AI User section
@@ -875,10 +872,31 @@ function doResetActions() {
     $("#websearch-badge").hide();
   }
 
+  // Extract provider from app_name parameter
+  let provider = "OpenAI";
+  if (apps[currentApp] && apps[currentApp].group) {
+    const group = apps[currentApp].group.toLowerCase();
+    if (group.includes("anthropic") || group.includes("claude")) {
+      provider = "Anthropic";
+    } else if (group.includes("gemini") || group.includes("google")) {
+      provider = "Google";
+    } else if (group.includes("cohere")) {
+      provider = "Cohere";
+    } else if (group.includes("mistral")) {
+      provider = "Mistral";
+    } else if (group.includes("perplexity")) {
+      provider = "Perplexity";
+    } else if (group.includes("deepseek")) {
+      provider = "DeepSeek";
+    } else if (group.includes("grok") || group.includes("xai")) {
+      provider = "xAI";
+    }
+  }
+
   if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-    $("#model-selected").text(model + " (" + $("#reasoning-effort").val() + ")");
+    $("#model-selected").text(provider + " (" + model + " - " + $("#reasoning-effort").val() + ")");
   } else {
-    $("#model-selected").text(model);
+    $("#model-selected").text(provider + " (" + model + ")");
   }
 
   $("#resetConfirmation").modal("hide");

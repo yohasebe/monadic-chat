@@ -1,6 +1,6 @@
 require 'nokogiri'
 
-class DrawIOGrapher < MonadicApp
+module DrawIOGrapher
   # Template for a valid minimal Draw.io diagram
   MINIMAL_TEMPLATE = <<~XML
     <?xml version="1.0" encoding="UTF-8"?>
@@ -22,10 +22,10 @@ class DrawIOGrapher < MonadicApp
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
     
     # Use the correct data directory based on whether we're in a container
-    if defined?(IN_CONTAINER) && IN_CONTAINER
-      data_dir = SHARED_VOL
+    if defined?(MonadicApp::IN_CONTAINER) && MonadicApp::IN_CONTAINER
+      data_dir = MonadicApp::SHARED_VOL
     else
-      data_dir = LOCAL_SHARED_VOL
+      data_dir = MonadicApp::LOCAL_SHARED_VOL
     end
     
     filepath = File.join(data_dir, filename)
@@ -73,6 +73,9 @@ class DrawIOGrapher < MonadicApp
   # Validate and repair Draw.io XML content
   def validate_and_repair_drawio_xml(content)
     begin
+      # Convert literal \n string to actual newlines (common issue with OpenAI models)
+      content = content.gsub('\\n', "\n") if content.include?('\\n')
+      
       # Parse XML to check validity
       doc = Nokogiri::XML(content) { |config| config.noblanks }
       
@@ -114,6 +117,9 @@ class DrawIOGrapher < MonadicApp
   
   # Try to repair the Draw.io XML
   def repair_drawio_xml(content)
+    # Convert literal \n string to actual newlines (common issue with OpenAI models)
+    content = content.gsub('\\n', "\n") if content.include?('\\n')
+    
     # If the content appears to be just cells or partial content
     if content.include?('<mxCell') && !content.include?('<mxfile')
       # Fix common typos/errors in mxCell tags before extraction
@@ -167,3 +173,12 @@ class DrawIOGrapher < MonadicApp
     return MINIMAL_TEMPLATE
   end
 end
+
+class DrawIOGrapherOpenAI < MonadicApp
+  include DrawIOGrapher
+end
+
+class ResearchAssistantClaude < MonadicApp
+  include DrawIOGrapher
+end
+

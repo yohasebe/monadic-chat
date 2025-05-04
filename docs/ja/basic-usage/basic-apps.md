@@ -27,7 +27,7 @@
 | Image Generator | ✅ | | | | ✅ | ✅ | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
-| DrawIO Grapher | | ✅ | | | | | | |
+| DrawIO Grapher | ✅ | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
@@ -270,6 +270,7 @@ Draw.io ダイアグラムを作成するためのアプリケーションです
 
 下記の言語モデルでDrawIO Grapherアプリが利用可能です。
 
+- OpenAI
 - Anthropic Claude
 
 ### Speech Draft Helper

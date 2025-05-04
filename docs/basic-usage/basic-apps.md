@@ -27,7 +27,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Image Generator | ✅ | | | | ✅ | ✅ | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
-| DrawIO Grapher | | ✅ | | | | | | |
+| DrawIO Grapher | ✅ | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
@@ -271,6 +271,7 @@ This application helps you create Draw.io diagrams. Provide your requirements an
 
 DrawIO Grapher apps are available for the following models:
 
+- OpenAI
 - Anthropic Claude
 
 ### Speech Draft Helper

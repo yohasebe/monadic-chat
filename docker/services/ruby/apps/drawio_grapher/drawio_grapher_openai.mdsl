@@ -1,4 +1,5 @@
-app "DrawIO Grapher" do
+app "DrawIOGrapherOpenAI" do
+  display_name "DrawIO Grapher"
   description <<~TEXT
     This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. <a href='#' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
@@ -39,6 +40,7 @@ app "DrawIO Grapher" do
     - Avoid using complex Unicode characters in IDs or other technical fields
     - Keep the XML structure clean and minimal to avoid parsing errors
     - Ensure the XML is valid for Draw.io import
+    - Use ACTUAL newlines in your XML, NOT the literal string "\n" - put real line breaks in the XML
     
     CRITICAL: ALWAYS use NON-COMPRESSED XML format with the following structure:
     - Start with XML declaration: <?xml version="1.0" encoding="UTF-8"?>
@@ -74,17 +76,16 @@ app "DrawIO Grapher" do
     4. Any styling or formatting you've applied
     5. A brief suggestion for how the user might want to modify or enhance the diagram further in Draw.io
     
-    IMPORTANT: Be sure to inform the user that diagram generation and file saving may take a moment to complete. Let them know that even after your response appears to finish, there might be a brief period where the system is still processing and saving the file. Mention that they should wait for the processing indicator to stop before attempting to access the file.
+    IMPORTANT: Be sure to inform the user that diagram generation and file saving may take a moment to complete. Let them know that even after your response appears to finish, there might be a brief period where the system is still processing and saving the file.
     
-    After describing the diagram, inform the user that you've saved the diagram as a .drawio file that they can download from their shared folder and import into Draw.io for further editing or visualization.
+    CRITICAL: Only mention that the diagram has been saved as a .drawio file if the `write_drawio_file` function returns a success message. Check the return value from the function - it will contain either a success message ("The file X has been saved") or an error message. If there was an error, do not claim that the file was saved.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
   TEXT
   
   llm do
-    provider "Anthropic"
-    model "claude-3-7-sonnet-20250219"
-    temperature 0.0
+    provider "OpenAI"
+    model "gpt-4.1"
   end
   
   features do

@@ -264,7 +264,7 @@ class ProviderConfig
     "xai" => {
       helper_module: 'GrokHelper',  # ヘルパーモジュール名
       api_key: 'XAI_API_KEY',
-      display_group: 'xAI Grok',
+      display_group: 'xAI',
       aliases: ['grok', 'xaigrok']
     },
     # 他のプロバイダー...

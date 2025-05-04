@@ -10,7 +10,7 @@ For information on how to develop your own apps, refer to the [App Development](
 
 The table below shows which apps are available for which AI model providers. If not specified in the app's description, the app is available for OpenAI's models only.
 
-| App | OpenAI | Claude | Cohere | DeepSeek | Gemini | Grok | Mistral | Perplexity |
+| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity |
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | | | | | | | |
@@ -32,7 +32,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
 | Content Reader | ✅ | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | | | | |
 
@@ -339,6 +339,7 @@ Code Interpreter apps are also available for the following models:
 - Cohere
 - DeepSeek
 - Google Gemini
+- xAI Grok
 
 ### Coding Assistant
 

@@ -1438,10 +1438,10 @@ function connect_websocket(callback) {
           }
 
           // sort specialApps by group name in the order:
-          // "Anthropic", "xAI Grok", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"
+          // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"
           // and set it to the specialApps object
           specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
-            const order = ["Anthropic", "xAI Grok", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"];
+            const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"];
             return order.indexOf(a[0]) - order.indexOf(b[0]);
           }));
           
@@ -1519,9 +1519,6 @@ function connect_websocket(callback) {
                   const groupName = groupId.replace("group-", "");
                   // Need to handle potential dashes in the group name for xAI Grok
                   let groupSelector = groupName;
-                  if (groupName === "xAI-Grok") {
-                    groupSelector = "xAI Grok";
-                  }
                   const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
                   groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
                 }
@@ -1619,7 +1616,7 @@ function connect_websocket(callback) {
             if (group.includes("anthropic") || group.includes("claude")) {
               provider = "Anthropic";
             } else if (group.includes("gemini") || group.includes("google")) {
-              provider = "Gemini";
+              provider = "Google";
             } else if (group.includes("cohere")) {
               provider = "Cohere";
             } else if (group.includes("mistral")) {
@@ -1629,7 +1626,7 @@ function connect_websocket(callback) {
             } else if (group.includes("deepseek")) {
               provider = "DeepSeek";
             } else if (group.includes("grok") || group.includes("xai")) {
-              provider = "Grok";
+              provider = "xAI";
             }
           }
         }

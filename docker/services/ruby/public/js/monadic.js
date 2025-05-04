@@ -11,7 +11,7 @@ function getProviderFromGroup(group) {
   if (groupLower.includes("anthropic") || groupLower.includes("claude")) {
     return "Anthropic";
   } else if (groupLower.includes("gemini") || groupLower.includes("google")) {
-    return "Gemini";
+    return "Google";
   } else if (groupLower.includes("cohere")) {
     return "Cohere";
   } else if (groupLower.includes("mistral")) {
@@ -21,7 +21,7 @@ function getProviderFromGroup(group) {
   } else if (groupLower.includes("deepseek")) {
     return "DeepSeek";
   } else if (groupLower.includes("grok") || groupLower.includes("xai")) {
-    return "Grok";
+    return "xAI";
   } else {
     return "OpenAI";
   }
@@ -302,7 +302,7 @@ $(function () {
         if (group.includes("anthropic") || group.includes("claude")) {
           provider = "Anthropic";
         } else if (group.includes("gemini") || group.includes("google")) {
-          provider = "Gemini";
+          provider = "Google";
         } else if (group.includes("cohere")) {
           provider = "Cohere";
         } else if (group.includes("mistral")) {
@@ -312,7 +312,7 @@ $(function () {
         } else if (group.includes("deepseek")) {
           provider = "DeepSeek";
         } else if (group.includes("grok") || group.includes("xai")) {
-          provider = "Grok";
+          provider = "xAI";
         }
       }
       // Update the badge in the AI User section with provider name and model
@@ -2067,6 +2067,12 @@ $(function () {
     // Apply enhanced styling to other select elements
     setupEnhancedSelects();
     
+    // Ensure consistent height between the apps select and the custom dropdown group headers
+    setTimeout(function() {
+      const appsHeight = $("#apps").outerHeight();
+      $(".custom-dropdown-group").css("height", appsHeight + "px");
+    }, 100);
+    
     // Initialize app icon in select dropdown
     updateAppSelectIcon();
     
@@ -2090,10 +2096,31 @@ $(function () {
           // Clear any existing highlights
           $(".custom-dropdown-option.highlighted").removeClass("highlighted");
           
+          // First, collapse all group containers
+          $(".group-container").addClass("collapsed");
+          $(".custom-dropdown-group .group-toggle-icon i")
+            .removeClass("fa-chevron-down")
+            .addClass("fa-chevron-right");
+          
           // Find and highlight the option matching the current selection
           const $selectedOption = $(`.custom-dropdown-option[data-value="${currentValue}"]`);
           if ($selectedOption.length) {
             $selectedOption.addClass("highlighted");
+            
+            // Find the parent group container and expand it
+            const $parentGroup = $selectedOption.closest(".group-container");
+            if ($parentGroup.length) {
+              $parentGroup.removeClass("collapsed");
+              
+              // Update the toggle icon
+              const groupId = $parentGroup.attr("id");
+              const groupName = groupId.replace("group-", "");
+              const $groupHeader = $(`.custom-dropdown-group[data-group="${groupName}"]`);
+              $groupHeader.find(".group-toggle-icon i")
+                .removeClass("fa-chevron-right")
+                .addClass("fa-chevron-down");
+            }
+            
             // Ensure the selected option is visible in the dropdown
             ensureVisibleInDropdown($selectedOption, $customDropdown);
           }
@@ -2101,6 +2128,10 @@ $(function () {
         
         // Position the dropdown relative to the select
         positionDropdown();
+        
+        // Update the height of group headers to match the apps select
+        const appsHeight = $("#apps").outerHeight();
+        $(".custom-dropdown-group").css("height", appsHeight + "px");
         
         // Handle clicking outside to close dropdown
         $(document).one("click", function(e) {
@@ -2130,10 +2161,31 @@ $(function () {
           // Clear any existing highlights
           $(".custom-dropdown-option.highlighted").removeClass("highlighted");
           
+          // First, collapse all group containers
+          $(".group-container").addClass("collapsed");
+          $(".custom-dropdown-group .group-toggle-icon i")
+            .removeClass("fa-chevron-down")
+            .addClass("fa-chevron-right");
+          
           // Find and highlight the option matching the current selection
           const $selectedOption = $(`.custom-dropdown-option[data-value="${currentValue}"]`);
           if ($selectedOption.length) {
             $selectedOption.addClass("highlighted");
+            
+            // Find the parent group container and expand it
+            const $parentGroup = $selectedOption.closest(".group-container");
+            if ($parentGroup.length) {
+              $parentGroup.removeClass("collapsed");
+              
+              // Update the toggle icon
+              const groupId = $parentGroup.attr("id");
+              const groupName = groupId.replace("group-", "");
+              const $groupHeader = $(`.custom-dropdown-group[data-group="${groupName}"]`);
+              $groupHeader.find(".group-toggle-icon i")
+                .removeClass("fa-chevron-right")
+                .addClass("fa-chevron-down");
+            }
+            
             // Ensure the selected option is visible in the dropdown
             ensureVisibleInDropdown($selectedOption, $customDropdown);
           }
@@ -2141,6 +2193,10 @@ $(function () {
         
         // Position the dropdown relative to the select
         positionDropdown();
+        
+        // Update the height of group headers to match the apps select
+        const appsHeight = $("#apps").outerHeight();
+        $(".custom-dropdown-group").css("height", appsHeight + "px");
         
         // Handle clicking outside to close dropdown
         $(document).one("click", function(e) {
@@ -2269,6 +2325,10 @@ $(function () {
         if ($customDropdown.is(":visible")) {
           positionDropdown();
         }
+        
+        // Ensure group headers maintain the same height as the apps select
+        const appsHeight = $("#apps").outerHeight();
+        $(".custom-dropdown-group").css("height", appsHeight + "px");
       });
       
       // Helper function to position the dropdown

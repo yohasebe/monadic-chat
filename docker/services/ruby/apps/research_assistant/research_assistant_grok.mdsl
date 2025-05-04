@@ -11,7 +11,7 @@ app "ResearchAssistantGrok" do
   display_name "Research Assistant"
 
   features do
-    group "xAI Grok"
+    group "xAI"
     disabled !CONFIG["XAI_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
     websearch true
     temperature 0.2

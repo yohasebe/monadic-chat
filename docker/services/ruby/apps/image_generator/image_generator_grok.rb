@@ -33,7 +33,7 @@ class ImageGenerationGrok < MonadicApp
   TEXT
 
   @settings = {
-    group: "xAI Grok",
+    group: "xAI",
     display_name: "Image Generator",
     disabled: !CONFIG["XAI_API_KEY"],
     models: GrokHelper.list_models,

@@ -888,11 +888,11 @@ function checkForUpdates() {
               icon: path.join(iconDir, 'app-icon.png')
             }).then((btnIdx) => {
               if (btnIdx.response === 0) {
-                forceQuit = true;
-                
-                // Use autoUpdater.quitAndInstall() instead of just quitting
-                // This will ensure the update is properly installed
-                autoUpdater.quitAndInstall(false, true);
+                // Allow normal quit behavior when the user clicks Exit Now
+                // No special handling needed - the user will manually restart the app
+                // which is the preferred approach for updates
+                removeUpdateListeners();
+                quitApp(mainWindow);
               }
             }).catch(err => {
               console.error('Error showing update message dialog:', err);
@@ -2773,12 +2773,22 @@ app.whenReady().then(() => {
     setTimeout(() => {
       try {
         console.log('Installing pending update...');
-        autoUpdater.quitAndInstall(false, true);
+        
+        // Prompt the user to restart the application
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          buttons: ['OK'],
+          message: 'Update Ready',
+          detail: 'The update has been downloaded. Please exit the application and restart it to apply the update.',
+          icon: path.join(iconDir, 'app-icon.png')
+        });
         
         // Set another timeout as a fallback - if we're still running after 10 seconds,
         // the update may have failed to install properly
         setTimeout(() => {
           console.log('Update installation may have failed - continuing with normal startup');
+          forceQuit = false;
+          isQuitting = false;
           // Continue with normal app initialization
           initializeApp();
         }, 10000);

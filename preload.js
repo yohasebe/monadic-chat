@@ -68,8 +68,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
       // Ensure we have valid progress data before forwarding
       const sanitizedProgress = progressObj || { percent: 0 };
       
-      // Forward the progress info to the renderer via postMessage
+      // Debug log for progress updates
+      console.log('Progress update received:', JSON.stringify(sanitizedProgress));
+      
+      // Try to call updateProgress function if it exists (in update-progress.html)
+      if (window.updateProgress && typeof window.updateProgress === 'function') {
+        console.log('Calling window.updateProgress directly');
+        window.updateProgress(sanitizedProgress);
+      }
+      
+      // Also forward via postMessage as a fallback
       window.postMessage({ type: 'update-progress', progress: sanitizedProgress }, '*');
+      
+      // Call callback if provided
       if (callback) callback(event, sanitizedProgress);
     });
   },

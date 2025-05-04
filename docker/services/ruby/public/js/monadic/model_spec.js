@@ -809,7 +809,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0],
-    // "tool_capability": true
+    "tool_capability": true
   },
   "deepseek-reasoner": {
     "context_window" : [1, 32000],

@@ -881,7 +881,7 @@ module MonadicDSL
       "xai" => {
         helper_module: 'GrokHelper',
         api_key: 'XAI_API_KEY',
-        display_group: 'xAI Grok',
+        display_group: 'xAI',
         aliases: ['grok', 'xaigrok']
       },
       # OpenAI (default)

@@ -79,7 +79,7 @@ module GeminiHelper
   attr_reader :cached_models
 
   def self.vendor_name
-    "Gemini"
+    "Google"
   end
 
   def self.list_models

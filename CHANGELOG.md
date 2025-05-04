@@ -1,7 +1,8 @@
-- [May, 2025] 0.9.89
+- [May, 2025] 0.8.90
   - Image generation app updated to support gpt-image-1 with image editing
   - Issues with copy-to-clipboard built-in browser for macOS fixed
   - Issues with text-to-speech and speech-to-text in built-in browser fixed
+  - Code Interpreter app support for xAI Grok models added 
 - [April, 2025] 0.9.85
   - Built-in browser introduced for web UI
   - Server mode (distributed mode) support added: Allows multiple clients

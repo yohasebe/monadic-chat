@@ -10,7 +10,7 @@
 
 以下の表は、各アプリケーションがどのAIモデルプロバイダで利用可能かを示しています。アプリの説明で特に記載がない場合は、OpenAIモデルのみで利用可能です。
 
-| アプリ | OpenAI | Claude | Cohere | DeepSeek | Gemini | Grok | Mistral | Perplexity |
+| アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity |
 |-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | | | | | | | |
@@ -32,7 +32,7 @@
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
 | Content Reader | ✅ | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | | | | |
 
@@ -341,6 +341,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 - Cohere
 - DeepSeek
 - Google Gemini
+- xAI Grok
 
 ### Coding Assistant
 

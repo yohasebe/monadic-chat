@@ -37,6 +37,6 @@ app "MailComposerGrok" do
     image true
     easy_submit false
     auto_speech false
-    group "xAI Grok"
+    group "xAI"
   end
 end

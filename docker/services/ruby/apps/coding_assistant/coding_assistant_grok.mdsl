@@ -31,6 +31,6 @@ app "CodingAssistantGrok" do
     sourcecode true
     mathjax false
     initiate_from_assistant false
-    group "xAI Grok"
+    group "xAI"
   end
 end

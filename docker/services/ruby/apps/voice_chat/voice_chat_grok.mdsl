@@ -27,7 +27,7 @@ app "VoiceChatGrok" do
   features do
     easy_submit true
     auto_speech true
-    group "xAI Grok"
+    group "xAI"
     initiate_from_assistant true
   end
 end

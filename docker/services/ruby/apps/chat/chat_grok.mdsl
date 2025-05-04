@@ -24,6 +24,6 @@ app "ChatGrok" do
     initiate_from_assistant false
     image true
     pdf false
-    group "xAI Grok"
+    group "xAI"
   end
 end

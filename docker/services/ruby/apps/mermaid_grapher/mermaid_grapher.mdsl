@@ -44,7 +44,9 @@ app "Mermaid Grapher" do
 
     <div class="mermaid-code" label="Show/Hide Mermaid code">
       <pre>
-        <code>Mermaid code goes here (without "mermaid" tags and Markdown code block)</code>
+        <code>
+Mermaid code goes here (without "mermaid" tags and Markdown code block)
+        </code>
       </pre>
     </div>
 

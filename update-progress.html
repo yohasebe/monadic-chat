@@ -35,7 +35,7 @@
       margin: 0 0 15px 0;
       font-weight: 500;
       color: #555;
-      font-size: 1.2em;
+      font-size: 1em;
     }
     .progress-bar-container {
       width: 100%;
@@ -100,21 +100,27 @@
       clearInterval(stalledCheckInterval);
     });
     
-    // Preload script will expose this method
-    window.addEventListener('message', (event) => {
-      if (event.data.type === 'update-progress') {
-        // Record update time to detect stalls
-        lastUpdateTime = Date.now();
-        
-        // Safely access progress data with fallbacks
-        const progress = event.data.progress || {};
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const transferredText = document.getElementById('transferredText');
-        const speedText = document.getElementById('speedText');
-        
-        // Handle percent with fallback
-        const percent = typeof progress.percent === 'number' ? progress.percent : 0;
+    // Log when window loaded for debugging
+    console.log('Update progress window loaded');
+    
+    // Expose updateProgress function to allow direct updating from preload
+    window.updateProgress = function(progressObj) {
+      // Record update time to detect stalls
+      lastUpdateTime = Date.now();
+      
+      // Safely access progress data with fallbacks
+      const progress = progressObj || {};
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      const transferredText = document.getElementById('transferredText');
+      const speedText = document.getElementById('speedText');
+      
+      // Handle percent with fallback
+      const percent = typeof progress.percent === 'number' ? progress.percent : 0;
+      console.log('Updating progress bar: ' + percent + '%');
+      
+      // Ensure DOM updates are applied
+      window.requestAnimationFrame(() => {
         progressBar.style.width = `${percent}%`;
         progressText.textContent = `${Math.round(percent)}%`;
         
@@ -137,6 +143,13 @@
           transferredText.textContent = 'Downloading...';
           speedText.textContent = '';
         }
+      });
+    };
+    
+    // Listen for messages from preload script
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'update-progress') {
+        window.updateProgress(event.data.progress);
       }
     });
   </script>

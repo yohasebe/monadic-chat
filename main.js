@@ -882,18 +882,14 @@ function checkForUpdates() {
             
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['Exit Now', 'Later'],
+              buttons: ['OK'],
               message: 'Update Ready',
               detail: 'The update has been downloaded. Please exit the application and restart it to apply the update.',
               icon: path.join(iconDir, 'app-icon.png')
-            }).then((btnIdx) => {
-              if (btnIdx.response === 0) {
-                // Allow normal quit behavior when the user clicks Exit Now
-                // No special handling needed - the user will manually restart the app
-                // which is the preferred approach for updates
-                removeUpdateListeners();
-                quitApp(mainWindow);
-              }
+            }).then(() => {
+              // No special handling needed - the user will manually restart the app
+              // which is the preferred approach for updates
+              removeUpdateListeners();
             }).catch(err => {
               console.error('Error showing update message dialog:', err);
             });
@@ -2766,38 +2762,12 @@ app.whenReady().then(() => {
   if (pendingUpdateState && pendingUpdateState.updateReady) {
     console.log('Found pending update to install:', pendingUpdateState);
     
-    // Don't clear update state yet - only clear it after successful restart
-    // This ensures we can retry if the update installation fails
+    // Clear update state since we're now starting after an update
+    clearUpdateState();
     
-    // Wait a moment to ensure app is ready before installing update
-    setTimeout(() => {
-      try {
-        console.log('Installing pending update...');
-        
-        // Prompt the user to restart the application
-        dialog.showMessageBox(mainWindow, {
-          type: 'info',
-          buttons: ['OK'],
-          message: 'Update Ready',
-          detail: 'The update has been downloaded. Please exit the application and restart it to apply the update.',
-          icon: path.join(iconDir, 'app-icon.png')
-        });
-        
-        // Set another timeout as a fallback - if we're still running after 10 seconds,
-        // the update may have failed to install properly
-        setTimeout(() => {
-          console.log('Update installation may have failed - continuing with normal startup');
-          forceQuit = false;
-          isQuitting = false;
-          // Continue with normal app initialization
-          initializeApp();
-        }, 10000);
-      } catch (error) {
-        console.error('Error installing update:', error);
-        // Continue with normal app initialization
-        initializeApp();
-      }
-    }, 2000);
+    // Proceed with normal initialization without showing a message
+    console.log('Update has been installed successfully');
+    initializeApp();
   } else {
     // No pending updates, proceed with normal initialization
     initializeApp();

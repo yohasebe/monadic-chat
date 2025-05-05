@@ -71,12 +71,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       // Debug log for progress updates
       console.log('Progress update received:', JSON.stringify(sanitizedProgress));
       
-      // Try to call updateProgress function if it exists (in update-progress.html)
-      if (window.updateProgress && typeof window.updateProgress === 'function') {
-        console.log('Calling window.updateProgress directly');
-        window.updateProgress(sanitizedProgress);
-      }
-      
       // Also forward via postMessage as a fallback
       window.postMessage({ type: 'update-progress', progress: sanitizedProgress }, '*');
       
@@ -84,6 +78,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       if (callback) callback(event, sanitizedProgress);
     });
   },
+
+  // Cancel update download
+  cancelUpdate: () => ipcRenderer.send('cancel-update'),
 
   // Request settings from the main process
   requestSettings: () => ipcRenderer.send('request-settings'),

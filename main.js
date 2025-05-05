@@ -816,6 +816,8 @@ function checkForUpdates() {
           
           // Flag to track if progress window was manually closed
           let progressWinClosed = false;
+          // Flag to track if update was cancelled
+          let updateCancelled = false;
           
           // Safety timeout for progress window - if it gets stuck for too long
           const progressTimeoutID = setTimeout(() => {
@@ -839,6 +841,25 @@ function checkForUpdates() {
             clearTimeout(progressTimeoutID);
           });
           
+          // Handle cancel update request
+          ipcMain.once('cancel-update', () => {
+            updateCancelled = true;
+            if (!progressWinClosed && !progressWin.isDestroyed()) {
+              progressWin.close();
+            }
+            autoUpdater.removeAllListeners('download-progress');
+            autoUpdater.removeAllListeners('update-downloaded');
+            autoUpdater.removeAllListeners('error');
+            
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              buttons: ['OK'],
+              message: 'Update Cancelled',
+              detail: 'The update download was cancelled. You can try again later.',
+              icon: path.join(iconDir, 'app-icon.png')
+            });
+          });
+          
           progressWin.loadFile('update-progress.html');
           progressWin.once('ready-to-show', () => {
             progressWin.show();
@@ -847,7 +868,7 @@ function checkForUpdates() {
           // Set up new listeners just for this download process
           // Listen for download progress and update UI
           autoUpdater.on('download-progress', (progressObj) => {
-            if (!progressWinClosed && !progressWin.isDestroyed()) {
+            if (!progressWinClosed && !progressWin.isDestroyed() && !updateCancelled) {
               // Clear timeout and set a new one on each progress update
               clearTimeout(progressTimeoutID);
               
@@ -880,11 +901,27 @@ function checkForUpdates() {
               console.error('Error in update-downloaded handler while saving state:', error);
             }
             
+            // Show prominent message in main window that update is ready
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('command-output', `
+                [HTML]: <div style="margin: 10px 0; padding: 10px; background-color: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                  <p style="margin: 0; font-weight: bold;">
+                    <i class="fa-solid fa-download" style="color:#2196f3;"></i> 
+                    Update Ready: Version ${info.version}
+                  </p>
+                  <p style="margin: 5px 0 0 0;">
+                    The update has been downloaded. Please quit and restart the application to apply the update.
+                    This update will be automatically applied the next time you start Monadic Chat.
+                  </p>
+                </div>
+              `);
+            }
+            
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               buttons: ['OK'],
               message: 'Update Ready',
-              detail: 'The update has been downloaded. Please exit the application and restart it to apply the update.',
+              detail: `Version ${info.version} has been downloaded and will be automatically applied the next time you start Monadic Chat. Please quit and restart the application to apply the update.`,
               icon: path.join(iconDir, 'app-icon.png')
             }).then(() => {
               // No special handling needed - the user will manually restart the app
@@ -1245,8 +1282,9 @@ function setupAutoUpdater() {
   autoUpdater.allowDowngrade = true;
   // Disable automatic downloading of updates
   autoUpdater.autoDownload = false;
-  // Enable automatic installation of updates when quitting
-  autoUpdater.autoInstallOnAppQuit = true;
+  // Disable automatic installation of updates when quitting
+  // This prevents issues with the app hanging on exit, especially on Windows
+  autoUpdater.autoInstallOnAppQuit = false;
   
   // Global error handler for auto-updater
   autoUpdater.on('error', (error) => {
@@ -1363,6 +1401,24 @@ function initializeApp() {
   const pendingUpdateState = readUpdateState();
   if (pendingUpdateState && pendingUpdateState.updateReady) {
     console.log('Update appears to have been successfully applied, clearing state');
+    
+    // Display a notification to the user that the update has been applied
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('command-output', `
+          [HTML]: <div style="margin: 10px 0; padding: 10px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+            <p style="margin: 0; font-weight: bold;">
+              <i class="fa-solid fa-check-circle" style="color:#4caf50;"></i> 
+              Update Successful: Version ${pendingUpdateState.version || app.getVersion()}
+            </p>
+            <p style="margin: 5px 0 0 0;">
+              Monadic Chat has been successfully updated to the latest version.
+            </p>
+          </div>
+        `);
+      }
+    }, 2000); // Delay to ensure the main window is ready
+    
     clearUpdateState();
   }
   

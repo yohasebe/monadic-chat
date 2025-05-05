@@ -2029,6 +2029,20 @@ $(function () {
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
     
+    // Setup search dialog close handlers - UI elements will close search on click
+    if (uiUtils && uiUtils.setupSearchCloseHandlers) {
+      // Register the handlers on main UI elements
+      uiUtils.setupSearchCloseHandlers();
+      
+      // Also register special handler for message text input
+      // This ensures search is closed when focusing the input field
+      $("#message").on("focus", function() {
+        if (uiUtils.simulateEscapeKey) {
+          uiUtils.simulateEscapeKey();
+        }
+      });
+    }
+    
     // Set focus to the apps dropdown instead of start button
     $("#apps").focus();
     

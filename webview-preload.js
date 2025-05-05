@@ -92,28 +92,39 @@ window.addEventListener('DOMContentLoaded', () => {
     + 'background:#fff;border:1px solid #ccc;border-radius:4px;'
     + 'padding:4px 6px;box-shadow:0 2px 6px rgba(0,0,0,0.2);'
     + 'z-index:2147483647;display:none;';
+  findOverlay.className = 'search-overlay';
+
   const findInput = document.createElement('input');
   findInput.type = 'text';
   findInput.placeholder = 'Search';
+  findInput.className = 'search-input';
   findInput.style.cssText = 'min-width:120px;border:none;outline:none;'
     + 'padding:4px;font-size:14px;';
+
   const prevBtn = document.createElement('button');
   prevBtn.textContent = '◀';
   prevBtn.title = 'Previous';
+  prevBtn.className = 'search-button prev-button';
   prevBtn.style.cssText = 'border:none;background:transparent;color:#333;'
     + 'font-size:16px;cursor:pointer;margin:0 4px;';
+
   const nextBtn = document.createElement('button');
   nextBtn.textContent = '▶';
   nextBtn.title = 'Next';
+  nextBtn.className = 'search-button next-button';
   nextBtn.style.cssText = 'border:none;background:transparent;color:#333;'
     + 'font-size:16px;cursor:pointer;margin:0 4px;';
+
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
   closeBtn.title = 'Close';
+  closeBtn.className = 'search-button close-button';
   closeBtn.style.cssText = 'border:none;background:transparent;color:#333;'
     + 'font-size:16px;cursor:pointer;margin-left:4px;';
+
   findOverlay.append(prevBtn, findInput, nextBtn, closeBtn);
   document.body.appendChild(findOverlay);
+
   const showOverlay = () => { findOverlay.style.display = 'flex'; findInput.value = ''; findInput.focus(); };
   const hideOverlay = () => { findOverlay.style.display = 'none'; ipcRenderer.send('stop-find-in-page'); };
   closeBtn.addEventListener('click', hideOverlay);
@@ -124,6 +135,23 @@ window.addEventListener('DOMContentLoaded', () => {
   nextBtn.addEventListener('click', () => {
     if (lastSearchTerm) ipcRenderer.send('find-in-page-nav', { term: lastSearchTerm, forward: true });
   });
+  // Prevent search dialog from closing when clicking inside it
+  findOverlay.addEventListener('mousedown', (e) => {
+    // Prevent event propagation when clicking inside the search overlay
+    e.stopPropagation();
+  });
+
+  // Capture document-wide clicks to close the search dialog when clicking outside
+  document.addEventListener('mousedown', (e) => {
+    // Close search dialog when clicking outside of it
+    if (findOverlay.style.display !== 'none') {
+      // Check if the click is outside the search dialog
+      if (!findOverlay.contains(e.target)) {
+        hideOverlay();
+      }
+    }
+  });
+
   // Capture key events (Ctrl/Cmd+F to open, Enter/Shift+Enter to navigate, Esc to close)
   document.addEventListener('keydown', (event) => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;

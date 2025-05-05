@@ -164,6 +164,127 @@ function adjustImageUploadButton(selectedModel) {
   }
 }
 
+/**
+ * Simulates an Escape key press to close any browser dialogs like search
+ */
+function simulateEscapeKey() {
+  // Create a keyboard event for Escape key
+  const escEvent = new KeyboardEvent('keydown', {
+    key: 'Escape',
+    code: 'Escape',
+    keyCode: 27,
+    which: 27,
+    bubbles: true,
+    cancelable: true
+  });
+  
+  // Dispatch event on document to close browser's search dialog
+  document.dispatchEvent(escEvent);
+}
+
+/**
+ * Sets up click handlers on interactive elements to close search dialog
+ * @param {jQuery} containerSelector - Selector for the container to add handlers to
+ */
+function setupSearchCloseHandlers(containerSelector = 'body') {
+  // Find all relevant UI elements that should dismiss search dialog when clicked
+  // We select only specific UI elements, not document-wide, to prevent unwanted behavior
+  const uiElements = $(containerSelector).find('#message, #send, #clear, #voice, #discourse, .card, #model, #reasoning-effort, textarea, button');
+  
+  // Since mousedown happens before focus events, use it to close search before focus
+  uiElements.on('mousedown', function(e) {
+    // Only simulate Escape if this isn't part of the search UI
+    if (!isPartOfSearchUI(e.target)) {
+      simulateEscapeKey();
+    }
+  });
+  
+  // Helper function to check if element is part of search UI
+  function isPartOfSearchUI(element) {
+    // Skip check if element is null or undefined
+    if (!element) return false;
+    
+    // Check tag name for common search elements (case-insensitive)
+    const tagName = element.tagName ? element.tagName.toLowerCase() : '';
+    if (tagName === 'input' && element.type === 'search') {
+      return true;
+    }
+
+    // Check if the element is a button inside search UI (browser-specific)
+    if (tagName === 'button' || tagName === 'div' || tagName === 'span') {
+      // Check if the element is inside a search related parent
+      let parent = element.parentElement;
+      while (parent) {
+        // Chrome search UI detection
+        if (parent.shadowRoot && parent.tagName === 'SEARCH-DIALOG') {
+          return true;
+        }
+        parent = parent.parentElement;
+      }
+      
+      // Additional check for Safari/Firefox search UI buttons
+      if (element.getAttribute('aria-label')) {
+        const label = element.getAttribute('aria-label').toLowerCase();
+        if (label.includes('search') || label.includes('find') || 
+            label.includes('next') || label.includes('previous')) {
+          return true;
+        }
+      }
+    }
+
+    // Check for common search UI class names
+    // This will vary by browser, so we check for common patterns
+    if (element.className && typeof element.className === 'string') {
+      const classNames = element.className.toLowerCase();
+      if (classNames.includes('find') || classNames.includes('search')) {
+        return true;
+      }
+    }
+    
+    // Also check if any parent elements match search UI criteria
+    // This handles cases where user clicks on inner elements of search UI
+    let parent = element.parentElement;
+    let searchPatterns = ['find', 'search', 'findinpage', 'findbar'];
+    
+    while (parent) {
+      // Check for shadow DOM elements (used by Chrome's search UI)
+      if (parent.shadowRoot) {
+        return true;
+      }
+      
+      if (parent.className && typeof parent.className === 'string') {
+        const parentClass = parent.className.toLowerCase();
+        if (searchPatterns.some(pattern => parentClass.includes(pattern))) {
+          return true;
+        }
+      }
+      
+      if (parent.id && searchPatterns.some(pattern => parent.id.toLowerCase().includes(pattern))) {
+        return true;
+      }
+
+      // Check for browser-specific search dialogs (Firefox, Safari, etc.)
+      if (parent.getAttribute && parent.getAttribute('role') === 'dialog') {
+        return true;
+      }
+      
+      parent = parent.parentElement;
+    }
+    
+    // Additional check for the element being part of browser's default search UI
+    // Most browsers place search dialog in a special container
+    if (window.getComputedStyle(element).zIndex > 1000) {
+      const rect = element.getBoundingClientRect();
+      // Search dialogs are typically positioned at the top of the viewport
+      if (rect.top < 100) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+}
+
 // Export functions to window for browser environment
 window.uiUtils = {
   autoResize,
@@ -171,7 +292,9 @@ window.uiUtils = {
   adjustScrollButtons,
   setupTooltips,
   cleanupAllTooltips,
-  adjustImageUploadButton
+  adjustImageUploadButton,
+  simulateEscapeKey,
+  setupSearchCloseHandlers
 };
 
 // Support for Jest testing environment (CommonJS)

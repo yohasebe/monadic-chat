@@ -5,7 +5,7 @@ class LanguagePracticePlus < MonadicApp
   icon = "<i class='fas fa-person-chalkboard'></i>"
 
   description = <<~TEXT
-    This is a language learning application where conversations start with the assistant's speech. The assistant's speech is played back in a synthesized voice. To speak, press the Enter key to start speech input and press Enter again to stop speech input. The assistant's response will include linguistic advice and the usual content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is a language learning application where conversations start with the assistant's speech. The assistant's speech is played back in a synthesized voice. To speak, press the Enter key to start speech input and press Enter again to stop speech input. The assistant's response will include linguistic advice and the usual content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

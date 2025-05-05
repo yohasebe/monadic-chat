@@ -1,6 +1,6 @@
 app "Mermaid Grapher" do
   description <<~TEXT
-    This application helps you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram. <a href='https://yohasebe.github.io/monadic-chat/#/basic-apps?id=mermaid-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    This application helps you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mermaid-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "diagram"
   

@@ -101,7 +101,7 @@ function getCookie(name) {
 
 // load document.cookie and set the values to the form elements
 function setCookieValues() {
-  const properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "tts-speed", "asr-lang"];
+  const properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "webspeech-voice", "tts-speed", "asr-lang"];
   properties.forEach(property => {
     const value = getCookie(property);
     if (value) {
@@ -112,6 +112,11 @@ function setCookieValues() {
       // Special case for elevenlabs-tts-voice which may load after this function runs
       else if (property === "elevenlabs-tts-voice") {
         // We'll handle this when voices are loaded
+      }
+      // Special case for webspeech-voice which may load after this function runs
+      else if (property === "webspeech-voice") {
+        // Store the value to be set when voices are loaded
+        window.savedWebspeechVoice = value;
       }
     } else if (property === "tts-provider") {
       // Always default to "openai-tts-4o" when no cookie exists

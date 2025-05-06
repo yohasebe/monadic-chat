@@ -205,7 +205,7 @@ window.handleFragmentMessage = function(fragment) {
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
     
-    // Create temporary card if it doesn't exist
+    // Create or clear temporary card
     if (!$("#temp-card").length) {
       // Create a new temporary card for streaming text
       const tempCard = $(`
@@ -219,6 +219,9 @@ window.handleFragmentMessage = function(fragment) {
         </div>
       `);
       $("#discourse").append(tempCard);
+    } else if (fragment.start === true || fragment.is_first === true) {
+      // If this is marked as the first fragment of a streaming response, clear the existing content
+      $("#temp-card .card-text").empty();
     }
     
     // Add to streaming text display
@@ -1152,6 +1155,49 @@ function connect_websocket(callback) {
         break;
       }
 
+      case "web_speech": {
+        // Handle Web Speech API text
+        $("#monadic-spinner").hide();
+        
+        if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
+          try {
+            // Get text from data
+            const text = data.content || '';
+            
+            // Use the browser's Web Speech API directly
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Get voice settings from UI
+            const voiceElement = document.getElementById('webspeech-voice');
+            if (voiceElement && voiceElement.value) {
+              // Find the matching voice object
+              const selectedVoice = window.speechSynthesis.getVoices().find(v => 
+                v.name === voiceElement.value);
+              
+              if (selectedVoice) {
+                utterance.voice = selectedVoice;
+              }
+            }
+            
+            // Get speed setting
+            const speedElement = document.getElementById('tts-speed');
+            if (speedElement && speedElement.value) {
+              utterance.rate = parseFloat(speedElement.value) || 1.0;
+            }
+            
+            // Speak the text
+            window.speechSynthesis.speak(utterance);
+          } catch (e) {
+            console.error("Error using Web Speech API:", e);
+            setAlert("Web Speech API error: " + e.message, "warning");
+          }
+        } else {
+          console.error("Web Speech API not available");
+          setAlert("Web Speech API not available in this browser", "warning");
+        }
+        break;
+      }
+        
       case "audio": {
         // Use the handler if available, otherwise use inline code
         let handled = false;
@@ -1241,6 +1287,36 @@ function connect_websocket(callback) {
         break;
       }
 
+      case "tts_progress": {
+        // Update the TTS progress in the spinner
+        const progress = data.progress || 0;
+        const segmentIndex = data.segment_index || 0;
+        const totalSegments = data.total_segments || 1;
+        
+        // Update spinner text to show progress
+        $("#monadic-spinner")
+          .find("span")
+          .html(`<i class="fas fa-headphones fa-pulse"></i> Processing audio (${segmentIndex + 1}/${totalSegments})`);
+        
+        break;
+      }
+      
+      case "tts_complete": {
+        // TTS processing is complete, hide the spinner
+        $("#monadic-spinner").hide();
+        
+        // Reset spinner to default state for other operations
+        $("#monadic-spinner")
+          .find("span i")
+          .removeClass("fa-headphones")
+          .addClass("fa-comment");
+        $("#monadic-spinner")
+          .find("span")
+          .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        
+        break;
+      }
+      
       case "pong": {
         break;
       }
@@ -2135,8 +2211,25 @@ function connect_websocket(callback) {
           mainPanel.scrollIntoView(false);
         }
         
-        // Show loading indicators
-        $("#temp-card").show();
+        // Show loading indicators and clear any previous card content
+        if ($("#temp-card").length) {
+          $("#temp-card .card-text").empty(); // Clear any existing content
+          $("#temp-card").show();
+        } else {
+          // Create a new temp card if it doesn't exist
+          const tempCard = $(`
+            <div id="temp-card" class="card mt-3 streaming-card"> 
+              <div class="card-header p-2 ps-3">
+                <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+              </div>
+              <div class="card-body role-assistant">
+                <div class="card-text"></div>
+              </div>
+            </div>
+          `);
+          $("#discourse").append(tempCard);
+        }
+        
         $("#temp-card .status").hide();
         $("#indicator").show();
         // Keep the user panel visible but disable interactive elements

@@ -486,11 +486,19 @@ module WebSocketHelper
           elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
-          res_hash = tts_api_request(text,
-                                     provider: provider,
-                                     voice: voice,
-                                     speed: speed,
-                                     response_format: response_format)
+          
+          # Special handling for Web Speech API
+          if provider == "webspeech" || provider == "web-speech"
+            # Create a special response for Web Speech API
+            res_hash = { "type" => "web_speech", "content" => text }
+          else
+            # Generate TTS content for other providers
+            res_hash = tts_api_request(text,
+                                      provider: provider,
+                                      voice: voice,
+                                      speed: speed,
+                                      response_format: response_format)
+          end
           @channel.push(res_hash.to_json)
         when "TTS_STREAM"
           thread&.join
@@ -505,12 +513,21 @@ module WebSocketHelper
           speed = obj["speed"]
           response_format = obj["response_format"]
           # model = obj["model"]
-          tts_api_request(text,
-                          provider: provider,
-                          voice: voice,
-                          speed: speed,
-                          response_format: response_format) do |fragment|
-            @channel.push(fragment.to_json)
+          
+          # Special handling for Web Speech API
+          if provider == "webspeech" || provider == "web-speech"
+            # Create a special response for Web Speech API
+            web_speech_response = { "type" => "web_speech", "content" => text }
+            @channel.push(web_speech_response.to_json)
+          else
+            # Generate TTS content for other providers
+            tts_api_request(text,
+                            provider: provider,
+                            voice: voice,
+                            speed: speed,
+                            response_format: response_format) do |fragment|
+              @channel.push(fragment.to_json)
+          end
           end
         when "CANCEL"
           thread&.kill
@@ -792,6 +809,84 @@ module WebSocketHelper
           end
         when "AUDIO"
           handle_audio_message(ws, obj)
+        when "PLAY_TTS"
+          # Handle play TTS message
+          # This is similar to auto_speech processing but for card playback
+          thread&.join
+          
+          # Extract TTS parameters
+          provider = obj["tts_provider"]
+          if provider == "elevenlabs"
+            voice = obj["elevenlabs_tts_voice"] 
+          else
+            voice = obj["tts_voice"]
+          end
+          text = obj["text"]
+          speed = obj["tts_speed"]
+          response_format = "mp3"
+          
+          # Process text with PragmaticSegmenter to split into sentences
+          ps = PragmaticSegmenter::Segmenter.new(text: text)
+          segments = ps.segment
+          
+          # Check if batch processing should be used
+          use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
+          
+          # Process each segment
+          prev_texts_for_tts = []
+          
+          # Start a new thread for TTS processing
+          thread = Thread.new do
+            Thread.current[:type] = :tts_playback
+            
+            segments.each_with_index do |segment, i|
+              # Skip empty segments
+              next if segment.strip.empty?
+              
+              # Process this segment
+              previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
+              
+              # Special handling for Web Speech API
+              if provider == "webspeech" || provider == "web-speech"
+                # Create a special response for Web Speech API
+                res_hash = { "type" => "web_speech", "content" => segment }
+              else
+                # Generate TTS content for other providers
+                res_hash = tts_api_request(segment,
+                                          previous_text: previous_text, 
+                                          provider: provider,
+                                          voice: voice,
+                                          speed: speed,
+                                          response_format: response_format)
+              end
+              
+              # Store for context in next segment
+              prev_texts_for_tts << segment
+              
+              # Create a special message for client to show TTS progress
+              progress_message = {
+                "type" => "tts_progress",
+                "segment_index" => i,
+                "total_segments" => segments.length,
+                "progress" => ((i + 1) / segments.length.to_f * 100).round
+              }
+              
+              # Send the audio/speech message
+              @channel.push(res_hash.to_json)
+              
+              # Send progress update
+              @channel.push(progress_message.to_json)
+              
+              # Small delay between segments for smoother playback
+              sleep 0.1
+            end
+            
+            # Signal completion
+            @channel.push({
+              "type" => "tts_complete",
+              "total_segments" => segments.length
+            }.to_json)
+          end
         else # fragment
           session[:parameters].merge! obj
           
@@ -874,13 +969,19 @@ module WebSocketHelper
                     if text != "" && candidate != ""
                       previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
                       
-                      # Generate TTS content
-                      res_hash = tts_api_request(text,
-                                               previous_text: previous_text, 
-                                               provider: provider,
-                                               voice: voice,
-                                               speed: speed,
-                                               response_format: response_format)
+                      # Special handling for Web Speech API
+                      if provider == "webspeech" || provider == "web-speech"
+                        # Create a special response for Web Speech API
+                        res_hash = { "type" => "web_speech", "content" => text }
+                      else
+                        # Generate TTS content for other providers
+                        res_hash = tts_api_request(text,
+                                                 previous_text: previous_text, 
+                                                 provider: provider,
+                                                 voice: voice,
+                                                 speed: speed,
+                                                 response_format: response_format)
+                      end
                       prev_texts_for_tts << text
                       
                       # Use batch processing if enabled
@@ -942,13 +1043,19 @@ module WebSocketHelper
               if text.strip != ""
                 previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
                 
-                # Generate TTS for remaining text
-                res_hash = tts_api_request(text, 
-                                          previous_text: previous_text,
-                                          provider: provider, 
-                                          voice: voice,
-                                          speed: speed,
-                                          response_format: response_format)
+                # Special handling for Web Speech API - no server-side processing needed
+                if provider == "webspeech" || provider == "web-speech"
+                  # Create a special response for Web Speech API that will be handled client-side
+                  res_hash = { "type" => "web_speech", "content" => text }
+                else
+                  # Generate TTS for remaining text with other providers
+                  res_hash = tts_api_request(text, 
+                                            previous_text: previous_text,
+                                            provider: provider, 
+                                            voice: voice,
+                                            speed: speed,
+                                            response_format: response_format)
+                end
                 
                 # Check if batch processing should be used
                 use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"

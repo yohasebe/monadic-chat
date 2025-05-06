@@ -71,34 +71,41 @@ RSpec.describe FlaskAppClient do
   end
 
   describe "#count_tokens" do
+    # Reset the token count cache before each test
+    before do
+      # Access the class variable to reset it
+      if FlaskAppClient.class_variable_defined?(:@@token_count_cache)
+        FlaskAppClient.class_variable_set(:@@token_count_cache, {})
+      end
+    end
+
     it "returns token count for given text and encoding" do
-      # Configure specific mock response for this test
-      token_response = double("Net::HTTPResponse",
-        body: '{"number_of_tokens": 10}',
-        is_a?: true
-      )
-      allow_any_instance_of(Net::HTTP).to receive(:request).and_return(token_response)
+      # Mock post_request directly
+      allow(client).to receive(:post_request).with(
+        "count_tokens", 
+        {text: "Example text", encoding_name: "o200k_base"}
+      ).and_return({"number_of_tokens" => 10})
       
       result = client.count_tokens("Example text", "o200k_base")
       expect(result).to eq(10)
     end
 
     it "uses default encoding if not specified" do
-      # Check if default encoding is used
-      expect_any_instance_of(Net::HTTP::Post).to receive(:body=) do |_, value|
-        data = JSON.parse(value)
-        expect(data["encoding_name"]).to eq("o200k_base") # Default encoding
-        nil
-      end
+      # Verify the right parameters are passed to post_request
+      expect(client).to receive(:post_request).with(
+        "count_tokens", 
+        {text: "Example text", encoding_name: "o200k_base"}
+      ).and_return({"number_of_tokens" => 10})
       
       client.count_tokens("Example text")
     end
 
     it "returns nil on HTTP error" do
-      # Force HTTP failure
-      allow_any_instance_of(Net::HTTP).to receive(:request).and_return(
-        double("Net::HTTPBadRequest", is_a?: false)
-      )
+      # Mock post_request to return nil (simulating HTTP error)
+      allow(client).to receive(:post_request).with(
+        "count_tokens", 
+        {text: "Example text", encoding_name: "o200k_base"}
+      ).and_return(nil)
       
       result = client.count_tokens("Example text")
       expect(result).to be_nil

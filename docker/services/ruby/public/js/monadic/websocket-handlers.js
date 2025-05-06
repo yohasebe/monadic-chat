@@ -25,7 +25,7 @@ function handleFragmentWithAudio(data, processAudio) {
           // Fallback direct processing if global handler not available
           if (data.fragment.type === 'fragment') {
             const text = data.fragment.content || '';
-            // Create a temp-card for streaming if it doesn't exist yet
+            // Create or clear the temp-card for streaming
             if (!$("#temp-card").length) {
               // Create a new temporary card for streaming text
               const tempCard = $(`
@@ -39,6 +39,9 @@ function handleFragmentWithAudio(data, processAudio) {
                 </div>
               `);
               $("#discourse").append(tempCard);
+            } else if (data.fragment.start === true || data.fragment.is_first === true) {
+              // If this is marked as the first fragment of a streaming response, clear the existing content
+              $("#temp-card .card-text").empty();
             }
             
             // Add text to the temporary card
@@ -56,8 +59,43 @@ function handleFragmentWithAudio(data, processAudio) {
         }
       }
       
-      // Then process the audio part
-      if (data.audio && typeof processAudio === 'function') {
+      // Check if this is a Web Speech API message
+      if (data.audio && data.audio.type === 'web_speech') {
+        if (window.speechSynthesis && isAutoSpeech) {
+          try {
+            // Get text from data
+            const text = data.audio.content || '';
+            
+            // Use the browser's Web Speech API directly
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Get voice settings from UI
+            const voiceElement = document.getElementById('webspeech-voice');
+            if (voiceElement && voiceElement.value) {
+              // Find the matching voice object
+              const selectedVoice = window.speechSynthesis.getVoices().find(v => 
+                v.name === voiceElement.value);
+              
+              if (selectedVoice) {
+                utterance.voice = selectedVoice;
+              }
+            }
+            
+            // Get speed setting
+            const speedElement = document.getElementById('tts-speed');
+            if (speedElement && speedElement.value) {
+              utterance.rate = parseFloat(speedElement.value) || 1.0;
+            }
+            
+            // Speak the text
+            window.speechSynthesis.speak(utterance);
+          } catch (e) {
+            console.error("Error using Web Speech API in fragment_with_audio:", e);
+          }
+        }
+      }
+      // Process regular audio data
+      else if (data.audio && typeof processAudio === 'function') {
         // The audio processing might vary between environments
         try {
           // Extract audio content

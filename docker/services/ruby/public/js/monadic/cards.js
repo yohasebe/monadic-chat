@@ -313,7 +313,36 @@ function attachEventListeners($card) {
     text = removeCode(text);
     text = removeMarkdown(text);
     text = removeEmojis(text);
-    ttsSpeak(text, true);
+    
+    // Get the message ID if available
+    const mid = $card.attr('id') || '';
+    
+    // Send a PLAY_TTS message to have the server handle sentence splitting and TTS
+    const ttsProvider = $("#tts-provider").val();
+    let ttsVoice;
+    
+    if (ttsProvider === "elevenlabs") {
+      ttsVoice = $("#elevenlabs-tts-voice").val();
+    } else if (ttsProvider === "webspeech") {
+      ttsVoice = $("#webspeech-voice").val();
+    } else {
+      ttsVoice = $("#tts-voice").val();
+    }
+    
+    const ttsSpeed = $("#tts-speed").val();
+    
+    // Send websocket message for server-side TTS processing
+    const ttsMessage = {
+      message: "PLAY_TTS",
+      text: text,
+      tts_provider: ttsProvider,
+      tts_voice: ttsVoice,
+      elevenlabs_tts_voice: $("#elevenlabs-tts-voice").val(),
+      tts_speed: ttsSpeed,
+      mid: mid
+    };
+    
+    ws.send(JSON.stringify(ttsMessage));
   });
 
   $card.on("click.cardEvent", ".func-stop", function () {

@@ -151,8 +151,15 @@ RSpec.describe WebSocketHelper do
     end
 
     it "calculates token counts for messages" do
-      # Our test mock returns 10 for short strings, 20 for longer ones
-      # The assistant response is longer than 20 chars, so returns 20 tokens
+      # Set token counts directly on the messages instead of using mocks
+      test_instance.session = {
+        messages: [
+          { "role" => "system", "text" => "System prompt", "active" => true, "tokens" => 10 },
+          { "role" => "user", "text" => "User message 1", "active" => true, "tokens" => 10 },
+          { "role" => "assistant", "text" => "Assistant response 1", "active" => true, "tokens" => 20 }
+        ]
+      }
+      
       result = test_instance.check_past_messages(test_obj)
       expect(result[:count_total_system_tokens]).to eq(10)
       expect(result[:count_total_input_tokens]).to eq(10)

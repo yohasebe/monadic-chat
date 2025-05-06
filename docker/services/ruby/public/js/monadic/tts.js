@@ -237,14 +237,17 @@ function populateWebSpeechVoices() {
       }
       
       const option = $("<option></option>")
-        .val(webSpeechVoices.indexOf(voice)) // Preserve original index
+        .val(voice.name) // Use voice name as value (more stable than index)
         .text(`${qualityIndicator}${voice.name} [${provider}]`)
         .attr("data-provider", provider)
         .attr("data-lang", voice.lang)
+        .attr("data-index", webSpeechVoices.indexOf(voice)) // Store index as data attribute if needed
         .attr("title", `Voice: ${voice.name}\nProvider: ${provider}\nLanguage: ${voice.lang}`);
       
-      // Mark default voice as selected
-      if (voice.default) {
+      // Mark default voice as selected or use saved voice
+      if (window.savedWebspeechVoice && voice.name === window.savedWebspeechVoice) {
+        option.prop('selected', true);
+      } else if (voice.default && !window.savedWebspeechVoice) {
         option.prop('selected', true);
       }
       
@@ -270,6 +273,15 @@ function populateWebSpeechVoices() {
       matchingOption.prop('selected', true);
     }
   }
+  
+  // Add change event listener to save the selected voice in cookie
+  webSpeechSelect.off('change').on('change', function() {
+    const selectedVoice = $(this).val();
+    if (selectedVoice && typeof setCookie === 'function') {
+      setCookie('webspeech-voice', selectedVoice, 365); // Save for 1 year
+      console.debug("Saved Web Speech voice to cookie:", selectedVoice);
+    }
+  });
 }
 
 // Speak text using Web Speech API
@@ -306,13 +318,27 @@ function speakWithWebSpeech(text, speed, callback) {
   // Set voice if selected
   const voiceSelect = $("#webspeech-voice");
   if (voiceSelect.length > 0) {
-    const voiceIndex = parseInt(voiceSelect.val(), 10);
-    if (!isNaN(voiceIndex) && webSpeechVoices.length > voiceIndex) {
-      utterance.voice = webSpeechVoices[voiceIndex];
+    const voiceValue = voiceSelect.val();
+    
+    // Try to find the voice by name
+    const selectedVoice = webSpeechVoices.find(v => v.name === voiceValue);
+    
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
       
       // Log provider information for debugging
       const provider = getVoiceProvider(utterance.voice);
       console.debug(`Using ${provider} voice: ${utterance.voice.name}`);
+    } else {
+      // Fallback to index-based method (for backward compatibility)
+      const voiceIndex = parseInt(voiceValue, 10);
+      if (!isNaN(voiceIndex) && webSpeechVoices.length > voiceIndex) {
+        utterance.voice = webSpeechVoices[voiceIndex];
+        
+        // Log provider information for debugging
+        const provider = getVoiceProvider(utterance.voice);
+        console.debug(`Using ${provider} voice by index: ${utterance.voice.name}`);
+      }
     }
   }
   

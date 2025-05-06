@@ -177,6 +177,15 @@ module InteractionUtils
 
       output_format = "mp3_44100_128"
       target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}"
+    when "web-speech", "webspeech"
+      # For Web Speech API, we don't need to make an API call
+      # Return early with a special response
+      if block_given?
+        block.call({ "type" => "web_speech", "content" => text_converted })
+        return nil
+      else
+        return { "type" => "web_speech", "content" => text_converted }
+      end
     end
 
     begin

@@ -23,7 +23,7 @@
       background-color: white;
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-      padding: 20px;
+      padding: 25px 30px; /* Increased padding for Mac */
       text-align: center;
     }
     .logo {
@@ -65,6 +65,20 @@
       margin-top: 5px;
       text-align: center;
     }
+    .cancel-button {
+      margin-top: 15px;
+      background-color: #f0f0f0;
+      border: none;
+      padding: 6px 15px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: #666;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .cancel-button:hover {
+      background-color: #e5e5e5;
+    }
   </style>
 </head>
 <body>
@@ -79,6 +93,7 @@
       <div id="transferredText">0 MB / 0 MB</div>
     </div>
     <div id="speedText" class="speed-info">0 MB/s</div>
+    <button id="cancelButton" class="cancel-button">Cancel</button>
   </div>
   
   <script>

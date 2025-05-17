@@ -1044,6 +1044,8 @@
     <!-- ABC.js (local or CDN) -->
     <script src="vendor/js/abcjs-basic-min.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js';"></script>
     
+    <!-- Debug configuration - must be loaded before all other scripts -->
+    <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
 
     <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>

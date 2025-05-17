@@ -12,8 +12,8 @@ module ClaudeHelper
   MIN_PROMPT_CACHING = 1024
   MAX_PC_PROMPTS = 4
 
-  # websearch tools
-  WEBSEARCH_TOOLS = [
+  # Tavily-based websearch tools
+  TAVILY_WEBSEARCH_TOOLS = [
     {
       name: "tavily_fetch",
       description: "fetch the content of the web page of the given url and return its content.",
@@ -48,7 +48,23 @@ module ClaudeHelper
     }
   ]
 
+  # Native Anthropic web search tool
+  NATIVE_WEBSEARCH_TOOL = {
+    type: "web_search_20250305",
+    name: "web_search",
+    max_uses: 10
+  }
+
   WEBSEARCH_PROMPT = <<~TEXT
+
+    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses.
+
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+  TEXT
+
+  TAVILY_WEBSEARCH_PROMPT = <<~TEXT
 
     Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
 
@@ -290,24 +306,61 @@ module ClaudeHelper
     # Get the parameters from the session
     obj = session[:parameters]
     app = obj["app_name"]
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    model = obj["model"]
+    
+    # Check if web search is enabled
+    websearch = obj["websearch"] == "true"
+    
+    # Determine which web search implementation to use
+    # Models that support native web search: Claude 3.5/3.7 Sonnet, Claude 3.5 Haiku
+    native_websearch_models = [
+      "claude-3-5-sonnet", 
+      "claude-3-7-sonnet", 
+      "claude-3-5-haiku",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-5-haiku-20241022"
+    ]
+    
+    # Check if model supports native web search and native is enabled
+    use_native_websearch = websearch && 
+                          native_websearch_models.any? { |m| model.to_s.include?(m) } &&
+                          CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"] != "false"
+    
+    # Use Tavily if API key is available and native is not being used
+    use_tavily_websearch = websearch && 
+                          CONFIG["TAVILY_API_KEY"] && 
+                          !use_native_websearch
+    
+    # Store these variables in obj for later use in the method
+    obj["use_native_websearch"] = use_native_websearch
+    obj["use_tavily_websearch"] = use_tavily_websearch
 
     system_prompts = []
-    session[:messages].each_with_index do |msg, i|
+    system_prompt_count = 0
+    
+    session[:messages].each do |msg|
       next unless msg["role"] == "system"
+      
+      # Count system prompts
+      system_prompt_count += 1
 
-      if obj["prompt_caching"] && i < MAX_PC_PROMPTS
-        check_num_tokens(msg) if obj["prompt_caching"]
+      # Check tokens only for the first MAX_PC_PROMPTS system prompts
+      if obj["prompt_caching"] && system_prompt_count <= MAX_PC_PROMPTS
+        check_num_tokens(msg)
       end
 
-      if system_prompts.empty? && websearch
-        text = msg["text"] + "\n---\n" + WEBSEARCH_PROMPT
+      # Add appropriate websearch prompt based on implementation
+      if system_prompts.empty? && (use_native_websearch || use_tavily_websearch)
+        prompt_suffix = use_tavily_websearch ? TAVILY_WEBSEARCH_PROMPT : WEBSEARCH_PROMPT
+        text = msg["text"] + "\n---\n" + prompt_suffix
       else
         text = msg["text"]
       end
 
       sp = { type: "text", text: text }
-      if obj["prompt_caching"] && msg["tokens"]
+      
+      # Add cache_control only for the first MAX_PC_PROMPTS system prompts with sufficient tokens
+      if obj["prompt_caching"] && system_prompt_count <= MAX_PC_PROMPTS && msg["tokens"] && msg["tokens"] > MIN_PROMPT_CACHING
         sp["cache_control"] = { "type" => "ephemeral" }
       end
 
@@ -418,12 +471,24 @@ module ClaudeHelper
       body["max_tokens"] = max_tokens if max_tokens
     end
 
+    # Configure tools based on app settings and web search type
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
-      body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+      
+      # Add appropriate web search tools
+      if obj["use_native_websearch"]
+        body["tools"] ||= []
+        body["tools"] << NATIVE_WEBSEARCH_TOOL
+      elsif obj["use_tavily_websearch"]
+        body["tools"] ||= []
+        body["tools"].push(*TAVILY_WEBSEARCH_TOOLS)
+      end
+      
       body["tools"].uniq!
-    elsif websearch
-      body["tools"] = WEBSEARCH_TOOLS
+    elsif obj["use_native_websearch"]
+      body["tools"] = [NATIVE_WEBSEARCH_TOOL]
+    elsif obj["use_tavily_websearch"]
+      body["tools"] = TAVILY_WEBSEARCH_TOOLS
     else
       body.delete("tools")
       body.delete("tool_choice")

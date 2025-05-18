@@ -167,6 +167,116 @@ function initWebSpeech() {
   return true;
 }
 
+// Function to reset all audio-related variables when switching TTS modes
+function resetAudioVariables() {
+  console.debug("Resetting audio variables for TTS mode switch");
+  
+  // Stop any ongoing Web Speech API
+  if (typeof window.speechSynthesis !== 'undefined') {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {
+      console.warn('Error stopping speech synthesis:', e);
+    }
+  }
+  
+  // Stop and cleanup ttsAudio
+  if (ttsAudio) {
+    try {
+      ttsAudio.pause();
+      if (ttsAudio.srcObject) {
+        ttsAudio.srcObject = null;
+      }
+      ttsAudio.src = "";
+      ttsAudio.load();
+      ttsAudio = null;
+    } catch (e) {
+      console.warn('Error cleaning up ttsAudio:', e);
+    }
+  }
+  
+  // Stop and cleanup window.audio
+  if (window.audio) {
+    try {
+      window.audio.pause();
+      if (window.audio.srcObject) {
+        window.audio.srcObject = null;
+      }
+      window.audio.src = "";
+      window.audio.load();
+    } catch (e) {
+      console.warn('Error cleaning up window.audio:', e);
+    }
+  }
+  
+  // Clear audio data queue
+  if (typeof audioDataQueue !== 'undefined') {
+    audioDataQueue = [];
+  }
+  
+  // Clear SourceBuffer
+  if (typeof sourceBuffer !== 'undefined' && sourceBuffer) {
+    try {
+      if (typeof processAudioDataQueue === 'function') {
+        sourceBuffer.removeEventListener('updateend', processAudioDataQueue);
+      }
+      sourceBuffer = null;
+    } catch (e) {
+      console.warn('Error cleaning up sourceBuffer:', e);
+    }
+  }
+  
+  // Clear MediaSource
+  if (typeof mediaSource !== 'undefined' && mediaSource) {
+    try {
+      if (mediaSource.readyState === 'open') {
+        try {
+          mediaSource.endOfStream();
+        } catch (e) {
+          console.warn('Error ending media source stream:', e);
+        }
+      }
+      mediaSource = null;
+    } catch (e) {
+      console.warn('Error cleaning up mediaSource:', e);
+    }
+  }
+  
+  // For iOS-specific buffers
+  if (typeof iosAudioBuffer !== 'undefined') {
+    iosAudioBuffer = [];
+  }
+  if (typeof iosAudioQueue !== 'undefined') {
+    iosAudioQueue = [];
+  }
+  if (typeof isIOSAudioPlaying !== 'undefined') {
+    isIOSAudioPlaying = false;
+  }
+  if (typeof iosAudioElement !== 'undefined' && iosAudioElement) {
+    try {
+      iosAudioElement.pause();
+      iosAudioElement.src = "";
+      iosAudioElement.load();
+      iosAudioElement = null;
+    } catch (e) {
+      console.warn('Error cleaning up iosAudioElement:', e);
+    }
+  }
+  
+  // Reset play promise
+  playPromise = null;
+  
+  // For macOS specifically, properly manage AudioContext
+  const isMac = /Mac/.test(navigator.platform);
+  if (isMac && audioCtx && audioCtx.state !== 'closed') {
+    // Suspend but don't close - we might need it again soon
+    audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
+  }
+  
+  // Hide any spinners
+  $("#monadic-spinner").hide();
+}
+
 // Populate the Web Speech voices in the dropdown
 function populateWebSpeechVoices() {
   const webSpeechSelect = $("#webspeech-voice");
@@ -576,6 +686,7 @@ window.ttsSpeak = ttsSpeak;
 window.ttsStop = ttsStop;
 window.initWebSpeech = initWebSpeech;
 window.populateWebSpeechVoices = populateWebSpeechVoices;
+window.resetAudioVariables = resetAudioVariables;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
@@ -584,6 +695,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ttsSpeak,
     ttsStop,
     initWebSpeech,
-    populateWebSpeechVoices
+    populateWebSpeechVoices,
+    resetAudioVariables
   };
 }

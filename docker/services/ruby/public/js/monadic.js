@@ -1786,7 +1786,14 @@ $(function () {
   resetParams();
 
   $("#tts-provider").on("change", function () {
+    const oldProvider = params["tts_provider"];
     params["tts_provider"] = $("#tts-provider option:selected").val();
+    
+    // Reset audio elements when switching TTS providers
+    if (oldProvider !== params["tts_provider"] && typeof window.resetAudioElements === 'function') {
+      console.log(`[TTS] Switching provider from ${oldProvider} to ${params["tts_provider"]}`);
+      window.resetAudioElements();
+    }
     
     // Hide all voice selection elements first
     $("#elevenlabs-voices").hide();

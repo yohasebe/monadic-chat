@@ -1336,7 +1336,7 @@ function setupAutoUpdater() {
   // Set update notification behavior
   autoUpdater.on('update-available', (info) => {
     // Update the message to indicate an update is available
-    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${info.version}) is available. Use "File" → "Check for Updates" to update.</p>`;
+    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${info.version}) is available. Use "Check for Updates" to update.</p>`;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('command-output', updateMessage);
     }

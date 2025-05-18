@@ -24,7 +24,8 @@ RSpec.shared_examples "a helper that handles symbol keys" do |model_param|
                       end
       
       # Mock HTTP response
-      allow(HTTP).to receive(:post).and_return(
+      http_double = stub_http_client
+      allow(http_double).to receive(:post).and_return(
         mock_successful_response(response_body)
       )
       

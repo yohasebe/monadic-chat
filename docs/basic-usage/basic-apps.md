@@ -111,18 +111,18 @@ This app generates an answer to your question. To verify the validity of that an
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-This app is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
+This app is designed to support academic and scientific research by serving as an intelligent research assistant. It retrieves and analyzes information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
 
 Research Assistant apps are also available for the following models:
 
 - OpenAI
-- Anthropic Claude
+- Anthropic Claude  
 - xAI Grok
 - Google Gemini
 - Mistral AI
 - Perplexity
 
-?> The Research Assistant app needs an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with a 1,000 free API calls per month.
+?> When using web search functionality: OpenAI and Anthropic Claude models use their native web search APIs. For other providers (Gemini, Mistral, etc.), you need an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with 1,000 free API calls per month.
 
 ## Language Related :id=language-related
 

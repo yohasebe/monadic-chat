@@ -7,6 +7,42 @@ process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
+// Splash window for updates
+let updateSplashWindow = null;
+
+// Listen for update events to show splash screen
+autoUpdater.on('before-quit-for-update', () => {
+  console.log('Before quit for update, showing splash screen');
+  showUpdateSplash();
+  
+  // Prevent the splash from being closed by the app quitting
+  if (updateSplashWindow) {
+    updateSplashWindow.setClosable(false);
+  }
+});
+
+function showUpdateSplash() {
+  if (updateSplashWindow) return;
+  
+  updateSplashWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    resizable: false,
+    frame: false,
+    alwaysOnTop: true,
+    center: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  
+  updateSplashWindow.loadFile('update-splash.html');
+  updateSplashWindow.on('closed', () => {
+    updateSplashWindow = null;
+  });
+}
+
 // Disable hardware acceleration to reduce issues on some systems
 app.disableHardwareAcceleration();
 
@@ -2809,6 +2845,11 @@ app.whenReady().then(() => {
   // Setup update-related error handlers first
   process.on('uncaughtException', (error) => {
     console.error('Uncaught exception during update process:', error);
+    // Close splash screen if it's open
+    if (updateSplashWindow && !updateSplashWindow.isDestroyed()) {
+      updateSplashWindow.close();
+      updateSplashWindow = null;
+    }
     // Continue with normal initialization if update process crashes
     initializeApp();
   });
@@ -2818,12 +2859,24 @@ app.whenReady().then(() => {
   if (pendingUpdateState && pendingUpdateState.updateReady) {
     console.log('Found pending update to install:', pendingUpdateState);
     
+    // Show splash screen while applying update
+    showUpdateSplash();
+    
     // Clear update state since we're now starting after an update
     clearUpdateState();
     
-    // Proceed with normal initialization without showing a message
-    console.log('Update has been installed successfully');
+    // Proceed with normal initialization immediately
+    // The splash screen is shown in parallel and doesn't block the update process
     initializeApp();
+    
+    // Close splash screen after a delay to ensure it's visible
+    setTimeout(() => {
+      if (updateSplashWindow && !updateSplashWindow.isDestroyed()) {
+        updateSplashWindow.close();
+        updateSplashWindow = null;
+      }
+      console.log('Update has been installed successfully');
+    }, 2000); // Show splash for 2 seconds
   } else {
     // No pending updates, proceed with normal initialization
     initializeApp();

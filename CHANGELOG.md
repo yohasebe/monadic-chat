@@ -1,4 +1,7 @@
-- [May, 2025] 0.9.92
+- [May, 2025] 0.9.93
+  - Text-to-speech improvements with sentence segmentation for play button
+  - OpenAI and Anthropic models support native web search
+- [May, 2025] 0.9.93
   - Web Speech API (macOS and Windows) support for text-to-speech
   - Image generation app updated to support gpt-image-1 with image editing
   - Issues with copy-to-clipboard built-in browser for macOS fixed

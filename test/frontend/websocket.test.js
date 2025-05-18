@@ -165,6 +165,112 @@ describe('WebSocket Module', () => {
       expect($("#voice").click).not.toHaveBeenCalled();
     });
     
+    it('should not trigger voice input when message is focused', () => {
+      // Skip test if handler wasn't captured
+      if (!keyDownHandler) {
+        console.warn('Test skipped - keyDownHandler not captured');
+        return;
+      }
+      
+      // Create a mock event
+      const mockEvent = {
+        key: 'ArrowRight',
+        preventDefault: jest.fn()
+      };
+      
+      // Mock jQuery behavior for this test
+      $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
+      $("#message").is = jest.fn().mockReturnValue(true); // Focused
+      $("#voice").click = jest.fn();
+      
+      // Now trigger the event handler
+      keyDownHandler(mockEvent);
+      
+      // Verify the expected behavior
+      expect($("#voice").click).not.toHaveBeenCalled();
+    });
+    
+    it('should not trigger voice input when voice button is disabled', () => {
+      // Skip test if handler wasn't captured
+      if (!keyDownHandler) {
+        console.warn('Test skipped - keyDownHandler not captured');
+        return;
+      }
+      
+      // Create a mock event
+      const mockEvent = {
+        key: 'ArrowRight',
+        preventDefault: jest.fn()
+      };
+      
+      // Mock jQuery behavior for this test
+      $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
+      $("#message").is = jest.fn().mockReturnValue(false); // Not focused
+      $("#voice").prop = jest.fn().mockReturnValue(true); // Disabled
+      $("#voice").click = jest.fn();
+      
+      // Now trigger the event handler
+      keyDownHandler(mockEvent);
+      
+      // Verify the expected behavior
+      expect($("#voice").click).not.toHaveBeenCalled();
+    });
+    
+    it('should not trigger voice input when config is visible', () => {
+      // Skip test if handler wasn't captured
+      if (!keyDownHandler) {
+        console.warn('Test skipped - keyDownHandler not captured');
+        return;
+      }
+      
+      // Create a mock event
+      const mockEvent = {
+        key: 'ArrowRight',
+        preventDefault: jest.fn()
+      };
+      
+      // Mock jQuery behavior for this test
+      $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
+      $("#message").is = jest.fn().mockReturnValue(false); // Not focused
+      $("#voice").prop = jest.fn().mockReturnValue(false); // Not disabled
+      $("#config").is = jest.fn().mockReturnValue(true); // Visible
+      $("#voice").click = jest.fn();
+      
+      // Now trigger the event handler
+      keyDownHandler(mockEvent);
+      
+      // Verify the expected behavior
+      expect($("#voice").click).not.toHaveBeenCalled();
+    });
+    
+    it('should not trigger voice input when main panel is not visible', () => {
+      // Skip test if handler wasn't captured
+      if (!keyDownHandler) {
+        console.warn('Test skipped - keyDownHandler not captured');
+        return;
+      }
+      
+      // Create a mock event
+      const mockEvent = {
+        key: 'ArrowRight',
+        preventDefault: jest.fn()
+      };
+      
+      // Mock jQuery behavior for this test
+      $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
+      $("#message").is = jest.fn().mockReturnValue(false); // Not focused
+      $("#voice").prop = jest.fn().mockReturnValue(false); // Not disabled
+      $("#config").is = jest.fn().mockReturnValue(false); // Not visible
+      $("#main-panel").is = jest.fn().mockReturnValue(false); // Not visible
+      $("#voice").click = jest.fn();
+      
+      // Now trigger the event handler
+      keyDownHandler(mockEvent);
+      
+      // Verify the expected behavior
+      expect($("#voice").click).not.toHaveBeenCalled();
+    });
+    
     it('should trigger send on Enter in message field when easy submit is checked', () => {
       // Skip test if handler wasn't captured
       if (!messageKeyDownHandler) {

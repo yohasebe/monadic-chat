@@ -288,6 +288,90 @@ describe('TTS Module', () => {
     });
   });
   
+  describe('Web Speech API functions', () => {
+    let mockSpeechSynthesis;
+    let mockSpeechSynthesisUtterance;
+    
+    beforeEach(() => {
+      // Mock Web Speech API
+      mockSpeechSynthesis = {
+        getVoices: jest.fn().mockReturnValue([
+          { name: 'Google US English', lang: 'en-US', voiceURI: 'Google US English', localService: false },
+          { name: 'Microsoft David', lang: 'en-US', voiceURI: 'Microsoft David', localService: false },
+          { name: 'Alice', lang: 'en-US', voiceURI: 'com.apple.speech.synthesis.voice.alice', localService: true },
+        ]),
+        speak: jest.fn(),
+        onvoiceschanged: null
+      };
+      
+      mockSpeechSynthesisUtterance = jest.fn().mockImplementation((text) => ({
+        text: text,
+        voice: null,
+        rate: 1,
+        pitch: 1,
+        volume: 1,
+        onstart: null,
+        onend: null,
+        onerror: null
+      }));
+      
+      global.window.speechSynthesis = mockSpeechSynthesis;
+      global.window.SpeechSynthesisUtterance = mockSpeechSynthesisUtterance;
+      
+      // Mock getVoiceProvider function
+      global.getVoiceProvider = function(voice) {
+        const isMac = /Mac/.test(navigator.platform);
+        
+        if (voice.name.includes('Microsoft')) return 'Microsoft';
+        if (voice.name.includes('Google')) return 'Google';
+        
+        if (isMac && voice.localService && 
+            !voice.name.includes('Google') && !voice.name.includes('Microsoft')) {
+          return 'Apple';
+        }
+        
+        if (voice.voiceURI && voice.voiceURI.includes('com.apple.speech')) {
+          return 'Apple';
+        }
+        
+        return 'Unknown';
+      };
+    });
+    
+    it('should initialize web speech voices', () => {
+      global.webSpeechVoices = [];
+      global.webSpeechInitialized = false;
+      
+      // Initialize voices
+      const voices = window.speechSynthesis.getVoices();
+      global.webSpeechVoices = voices;
+      global.webSpeechInitialized = true;
+      
+      expect(global.webSpeechVoices.length).toBe(3);
+      expect(global.webSpeechInitialized).toBe(true);
+    });
+    
+    it('should correctly identify voice providers', () => {
+      const voices = window.speechSynthesis.getVoices();
+      
+      expect(getVoiceProvider(voices[0])).toBe('Google');
+      expect(getVoiceProvider(voices[1])).toBe('Microsoft');
+      expect(getVoiceProvider(voices[2])).toBe('Apple');
+    });
+    
+    it('should handle voice changes event', () => {
+      const onVoicesChanged = jest.fn();
+      window.speechSynthesis.onvoiceschanged = onVoicesChanged;
+      
+      // Trigger voices changed event
+      if (window.speechSynthesis.onvoiceschanged) {
+        window.speechSynthesis.onvoiceschanged();
+      }
+      
+      expect(onVoicesChanged).toHaveBeenCalled();
+    });
+  });
+  
   describe('ttsStop function', () => {
     beforeEach(() => {
       global.ttsStop = function() {

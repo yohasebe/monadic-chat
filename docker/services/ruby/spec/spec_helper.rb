@@ -57,10 +57,10 @@ end
 # Shared test utilities
 module TestHelpers
   # Common HTTP response mocks
-  def mock_successful_response(body)
+  def mock_successful_response(body, stream: false)
     double("Response", 
       status: double("Status", success?: true),
-      body: body
+      body: stream ? StringIO.new(body) : body
     )
   end
   
@@ -78,10 +78,33 @@ module TestHelpers
   
   # Stub HTTP client for API helper tests
   def stub_http_client
-    stub_const("HTTP", double)
-    allow(HTTP).to receive(:headers).and_return(HTTP)
-    allow(HTTP).to receive(:timeout).and_return(HTTP)
-    allow(HTTP).to receive(:post).and_return(mock_successful_response('{"text":"Test response"}'))
+    # Create fake HTTP module
+    http_module = Module.new
+    
+    # Define error classes
+    http_error = Class.new(StandardError)
+    http_timeout_error = Class.new(http_error)
+    
+    # Make them available as constants
+    http_module.const_set(:Error, http_error)
+    http_module.const_set(:TimeoutError, http_timeout_error)
+    
+    # Create HTTP mock
+    http_double = double("HTTP")
+    
+    # Mock the module methods to return the double
+    http_module.define_singleton_method(:headers) do |headers|
+      http_double
+    end
+    
+    # Stub the module
+    stub_const("HTTP", http_module)
+    
+    # Allow the double to chain methods
+    allow(http_double).to receive(:timeout).and_return(http_double)
+    allow(http_double).to receive(:post).and_return(mock_successful_response('{"text":"Test response"}'))
+    
+    http_double
   end
 end
 
@@ -114,7 +137,8 @@ RSpec.shared_examples "a vendor API helper" do |vendor_name, default_model|
       stub_const("CONFIG", {})
       
       # For this test we need to override the HTTP mock to return an error
-      allow(HTTP).to receive(:post).and_return(
+      http_double = stub_http_client
+      allow(http_double).to receive(:post).and_return(
         mock_error_response('{"error":{"message":"API key missing"}}')
       )
       

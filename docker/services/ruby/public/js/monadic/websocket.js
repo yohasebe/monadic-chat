@@ -604,6 +604,114 @@ function clearAudioQueue() {
   audioDataQueue = [];
 }
 
+// Initialize MediaSource for audio playback
+function initializeMediaSourceForAudio() {
+  if ('MediaSource' in window && !window.basicAudioMode) {
+    try {
+      mediaSource = new MediaSource();
+      
+      mediaSource.addEventListener('sourceopen', function() {
+        console.log("[Audio] MediaSource opened");
+        
+        if (!sourceBuffer && mediaSource.readyState === 'open') {
+          try {
+            // Check browser and set appropriate codec
+            if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+              console.log("[Audio] Firefox detected, using special audio mode");
+              window.firefoxAudioMode = true;
+              window.firefoxAudioQueue = [];
+            } else {
+              console.log("[Audio] Setting up standard MediaSource audio mode");
+              sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+              sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+            }
+          } catch (e) {
+            console.error("Error setting up MediaSource: ", e);
+            window.basicAudioMode = true;
+          }
+        }
+      });
+      
+      // Create audio element
+      if (!audio) {
+        audio = new Audio();
+        audio.src = URL.createObjectURL(mediaSource);
+        console.log("[Audio] Audio element created with MediaSource");
+      }
+      
+    } catch (e) {
+      console.error("Error creating MediaSource: ", e);
+      window.basicAudioMode = true;
+    }
+  } else {
+    console.log("[Audio] MediaSource not supported, using basic audio mode");
+    window.basicAudioMode = true;
+  }
+}
+
+// Reset audio elements when switching TTS modes
+function resetAudioElements() {
+  console.log("[Audio] Resetting audio elements");
+  
+  // Stop and clean up current audio completely
+  if (audio) {
+    if (!audio.paused) {
+      audio.pause();
+    }
+    audio.currentTime = 0;
+    if (audio.src) {
+      // Don't revoke immediately, let the browser clean up
+      const srcToRevoke = audio.src;
+      setTimeout(() => URL.revokeObjectURL(srcToRevoke), 100);
+      audio.src = '';
+    }
+    audio.load(); // Force the audio element to release resources
+    audio = null;
+  }
+  
+  // Clean up MediaSource
+  if (mediaSource) {
+    if (sourceBuffer && mediaSource.readyState === 'open') {
+      try {
+        sourceBuffer.abort();
+        mediaSource.removeSourceBuffer(sourceBuffer);
+      } catch (e) {
+        console.log("Error cleaning up source buffer:", e);
+      }
+    }
+    
+    // End the media source if still open
+    if (mediaSource.readyState === 'open') {
+      try {
+        mediaSource.endOfStream();
+      } catch (e) {
+        console.log("Error ending media source:", e);
+      }
+    }
+  }
+  
+  // Reset all variables
+  mediaSource = null;
+  sourceBuffer = null;
+  audioDataQueue = [];
+  
+  // Reset browser-specific flags
+  window.basicAudioMode = false;
+  window.firefoxAudioMode = false;
+  window.firefoxAudioQueue = [];
+  
+  // Clear any iOS-specific state
+  iosAudioBuffer = [];
+  isIOSAudioPlaying = false;
+  iosAudioQueue = [];
+  if (iosAudioElement) {
+    iosAudioElement.pause();
+    iosAudioElement = null;
+  }
+  
+  console.log("[Audio] Audio elements reset complete");
+}
+
 // Direct audio playback for iOS devices or browsers without MediaSource support
 function playAudioDirectly(audioData) {
   try {
@@ -962,6 +1070,20 @@ function connect_websocket(callback) {
 
       if (!audio && mediaSource) {
         try {
+          // Reset if switching from Web Speech API mode
+          if (window.lastTTSMode === 'web_speech') {
+            resetAudioElements();
+            // Re-create MediaSource after reset
+            if ('MediaSource' in window && !window.basicAudioMode) {
+              try {
+                mediaSource = new MediaSource();
+              } catch (e) {
+                console.error("Error creating MediaSource after reset: ", e);
+                window.basicAudioMode = true;
+              }
+            }
+          }
+          
           audio = new Audio();
           audio.src = URL.createObjectURL(mediaSource);
         } catch (e) {
@@ -1097,6 +1219,12 @@ function connect_websocket(callback) {
           // Create audio processing function similar to the one in handleAudioMessage
           const processAudio = (audioData) => {
             try {
+              // Ensure MediaSource is initialized if not already
+              if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
+                console.log("[Audio] MediaSource not initialized, creating new one");
+                initializeMediaSourceForAudio();
+              }
+              
               // Handle based on browser environment
               if (window.firefoxAudioMode) {
                 if (!window.firefoxAudioQueue) {
@@ -1157,6 +1285,7 @@ function connect_websocket(callback) {
 
       case "web_speech": {
         // Handle Web Speech API text
+        window.lastTTSMode = 'web_speech';
         $("#monadic-spinner").hide();
         
         if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
@@ -1204,6 +1333,12 @@ function connect_websocket(callback) {
         if (wsHandlers && typeof wsHandlers.handleAudioMessage === 'function') {
           // Custom audio processor for the extracted handler
           const processAudio = (audioData) => {
+            // Ensure MediaSource is initialized if not already
+            if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
+              console.log("[Audio] MediaSource not initialized for audio message, creating new one");
+              initializeMediaSourceForAudio();
+            }
+            
             // Handle Firefox special case
             if (window.firefoxAudioMode) {
               // Add to the Firefox queue instead
@@ -2753,6 +2888,8 @@ window.playWithAudioElement = playWithAudioElement;
 window.playAudioForIOS = playAudioForIOS;
 window.processIOSAudioBuffer = processIOSAudioBuffer;
 window.clearAudioQueue = clearAudioQueue;
+window.resetAudioElements = resetAudioElements;
+window.initializeMediaSourceForAudio = initializeMediaSourceForAudio;
 window.addToAudioQueue = addToAudioQueue;
 
 // Support for Jest testing environment (CommonJS)
@@ -2769,6 +2906,8 @@ if (typeof module !== 'undefined' && module.exports) {
     playAudioForIOS,
     processIOSAudioBuffer,
     clearAudioQueue,
+    resetAudioElements,
+    initializeMediaSourceForAudio,
     addToAudioQueue
   };
 }

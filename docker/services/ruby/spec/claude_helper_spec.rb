@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "spec_helper"
+require 'securerandom'
 
 # Check if the module actually exists, if not create a mock module for testing
 begin
@@ -18,12 +19,18 @@ rescue LoadError
     MAX_RETRIES = 5
     RETRY_DELAY = 2
     
-    WEBSEARCH_TOOLS = [
+    TAVILY_WEBSEARCH_TOOLS = [
       {
-        "name" => "web_search",
-        "description" => "Search the web"
+        "name" => "tavily_search",
+        "description" => "Search the web using Tavily API"
       }
     ]
+    
+    NATIVE_WEBSEARCH_TOOL = {
+      "type" => "web_search_20250305",
+      "name" => "web_search",
+      "max_uses" => 10
+    }
     
     def self.vendor_name
       "Anthropic"
@@ -31,10 +38,6 @@ rescue LoadError
     
     def self.list_models
       ["claude-3-5-sonnet", "claude-3-opus", "claude-3-haiku"]
-    end
-    
-    def send_query(options, model: "claude-3-5-sonnet")
-      "Mock Claude response"
     end
   end
 end
@@ -54,8 +57,10 @@ RSpec.describe ClaudeHelper do
   let(:helper) { ClaudeHelperTest.new }
   
   # Using shared test utilities
+  let(:http_double) { nil }
+  
   before do
-    stub_http_client
+    @http_double = stub_http_client
     
     # Mock CONFIG
     stub_const("CONFIG", {"ANTHROPIC_API_KEY" => "mock-api-key"})
@@ -75,7 +80,7 @@ RSpec.describe ClaudeHelper do
         }
         
         # Expect HTTP to be called with Claude's specific parameter format
-        expect(HTTP).to receive(:post).with(
+        expect(@http_double).to receive(:post).with(
           "#{ClaudeHelper::API_ENDPOINT}/messages",
           hash_including(
             json: hash_including(
@@ -99,7 +104,7 @@ RSpec.describe ClaudeHelper do
         }
         
         # Expect HTTP to be called with Claude's specific parameter format (with string keys)
-        expect(HTTP).to receive(:post).with(
+        expect(@http_double).to receive(:post).with(
           "#{ClaudeHelper::API_ENDPOINT}/messages",
           hash_including(
             json: hash_including(
@@ -125,7 +130,7 @@ RSpec.describe ClaudeHelper do
         }
         
         # For Claude AI User, expect a properly formatted request with system parameter
-        expect(HTTP).to receive(:post).with(
+        expect(@http_double).to receive(:post).with(
           "#{ClaudeHelper::API_ENDPOINT}/messages",
           hash_including(
             json: hash_including(
@@ -145,7 +150,7 @@ RSpec.describe ClaudeHelper do
         options = {"ai_user_system_message" => "Test conversation"}
         
         # Simulate API error
-        allow(HTTP).to receive(:post).and_return(
+        allow(@http_double).to receive(:post).and_return(
           mock_error_response('{"error":{"message":"Invalid request"}}')
         )
         
@@ -171,7 +176,7 @@ RSpec.describe ClaudeHelper do
       )
       
       # Set up HTTP to return different responses in sequence
-      allow(HTTP).to receive(:post).and_return(
+      allow(@http_double).to receive(:post).and_return(
         content_response, 
         message_response, 
         completion_response
@@ -185,25 +190,167 @@ RSpec.describe ClaudeHelper do
   end
   
   describe "websearch capabilities" do
-    it "properly formats tools for web search" do
+    it "properly formats Tavily tools for web search" do
       options = {
         "system" => "You have access to web search",
-        "tools" => ClaudeHelper::WEBSEARCH_TOOLS,
+        "tools" => ClaudeHelper::TAVILY_WEBSEARCH_TOOLS,
         "tool_choice" => "auto"
       }
       
       # Skip examining response structure in detail, just ensure it makes the request
-      allow(HTTP).to receive(:post).and_return(
+      allow(@http_double).to receive(:post).and_return(
         mock_successful_response('{"content":[{"type":"text","text":"I searched the web for you"}]}')
       )
       
       # Just verify the query includes required components without being strict on structure
-      expect(HTTP).to receive(:post).with(
+      expect(@http_double).to receive(:post).with(
         "#{ClaudeHelper::API_ENDPOINT}/messages", 
         anything
       )
       
       helper.send_query(options)
+    end
+    
+    it "properly formats native web search tool in api_request" do
+      # Create a mock session using api_request which handles tools
+      session = {
+        parameters: {
+          "model" => "claude-3-5-sonnet-20241022",
+          "app_name" => "test_app",
+          "websearch" => "true"  # This will trigger native websearch detection
+        },
+        messages: [
+          { "role" => "system", "text" => "You have access to native web search" }
+        ]
+      }
+      
+      # Mock the APPS constant
+      mock_app = double("App", settings: { "tools" => [] })
+      stub_const("APPS", { "test_app" => mock_app })
+      
+      # Expect the API request to include the native web search tool
+      expect(@http_double).to receive(:post).with(
+        "#{ClaudeHelper::API_ENDPOINT}/messages", 
+        hash_including(
+          json: hash_including(
+            "tools" => include(
+              hash_including(
+                type: "web_search_20250305",
+                name: "web_search"
+              )
+            ),
+            "model" => "claude-3-5-sonnet-20241022"
+          )
+        )
+      ).and_return(double("Response", 
+        status: double("Status", success?: true),
+        body: double("Body", each: proc { |&block|
+          block.call('data: {"type":"message_delta","delta":{"text":"Searched the web"}}')
+          block.call('data: {"type":"message_stop","stop_reason":"end_turn"}')
+        })
+      ))
+      
+      # Just verify the request was made with the right parameters
+      # The HTTP expectation above validates that the request includes the correct tools
+      expect {
+        helper.api_request("user", session) { |result| }
+      }.not_to raise_error
+    end
+    
+    it "automatically selects native search for supported models" do
+      # Test with a model that supports native search
+      session = {
+        parameters: {
+          "model" => "claude-3-5-sonnet-20241022",
+          "websearch" => "true",
+          "app_name" => "test_app"
+        },
+        messages: [
+          { "role" => "system", "text" => "You are a helpful assistant" },
+          { "role" => "user", "text" => "Search for something" }
+        ]
+      }
+      
+      # Mock APPS constant
+      mock_app = double("App", settings: { "tools" => [] })
+      stub_const("APPS", { "test_app" => mock_app })
+      
+      # Override CONFIG to ensure native websearch is enabled
+      stub_const("CONFIG", {
+        "ANTHROPIC_API_KEY" => "mock-api-key",
+        "ANTHROPIC_NATIVE_WEBSEARCH" => nil  # nil will use default (enabled)
+      })
+      
+      # Expect the request to include native search tool
+      expect(@http_double).to receive(:post).with(
+        "#{ClaudeHelper::API_ENDPOINT}/messages",
+        hash_including(
+          json: hash_including(
+            "tools" => array_including(
+              hash_including(:type => "web_search_20250305")
+            )
+          )
+        )
+      ).and_return(double("Response", 
+        status: double("Status", success?: true),
+        body: double("Body", each: proc { |&block|
+          block.call('data: {"type":"message_delta","delta":{"text":"Native search result"}}')
+          block.call('data: {"type":"message_stop","stop_reason":"end_turn"}')
+        })
+      ))
+      
+      # Just verify the request was made correctly via the expectation above
+      expect {
+        helper.api_request("user", session) { |result| }
+      }.not_to raise_error
+    end
+    
+    it "falls back to Tavily for non-supported models when API key exists" do
+      # Test with a model that doesn't support native search
+      session = {
+        parameters: {
+          "model" => "claude-3-opus-20240229",
+          "websearch" => "true",
+          "app_name" => "test_app"
+        },
+        messages: [
+          { "role" => "system", "text" => "You are a helpful assistant" },
+          { "role" => "user", "text" => "Search for something" }
+        ]
+      }
+      
+      # Mock APPS constant
+      mock_app = double("App", settings: { "tools" => [] })
+      stub_const("APPS", { "test_app" => mock_app })
+      
+      # Mock CONFIG with TAVILY_API_KEY
+      stub_const("CONFIG", { 
+        "ANTHROPIC_API_KEY" => "mock-api-key",
+        "TAVILY_API_KEY" => "mock-tavily-key"
+      })
+      
+      # Expect the request to include Tavily tools
+      expect(@http_double).to receive(:post).with(
+        "#{ClaudeHelper::API_ENDPOINT}/messages",
+        hash_including(
+          json: hash_including(
+            "tools" => array_including(
+              hash_including(name: "tavily_search")
+            )
+          )
+        )
+      ).and_return(double("Response", 
+        status: double("Status", success?: true),
+        body: double("Body", each: proc { |&block|
+          block.call('data: {"type":"message_delta","delta":{"text":"Tavily search result"}}')
+          block.call('data: {"type":"message_stop","stop_reason":"end_turn"}')
+        })
+      ))
+      
+      # Just verify the request was made correctly via the expectation above
+      expect {
+        helper.api_request("user", session) { |result| }
+      }.not_to raise_error
     end
   end
 end

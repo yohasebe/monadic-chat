@@ -66,10 +66,10 @@ module InteractionUtils
       res_body = JSON.parse(res.body)
 
       result = if res_body && res_body["data"]
-        { "type" => "models", "content" => "API token verified"}
-      else
-        { "type" => "error", "content" => "ERROR: API token is not accepted" }
-      end
+                 { "type" => "models", "content" => "API token verified"}
+               else
+                 { "type" => "error", "content" => "ERROR: API token is not accepted" }
+               end
 
       # Cache the result
       InteractionUtils.api_key_cache.set(api_key, result)
@@ -91,7 +91,7 @@ module InteractionUtils
     end
   end
 
-    def tts_api_request(text,
+  def tts_api_request(text,
                       provider:,
                       voice:,
                       response_format:,
@@ -195,7 +195,7 @@ module InteractionUtils
       unless res.status.success?
         error_report = JSON.parse(res.body)
         res = { "type" => "error", "content" => "ERROR: #{error_report}" }
-        block&.call res
+          block&.call res
         return res
       end
 
@@ -251,7 +251,7 @@ module InteractionUtils
     normalized_format = "mp3" if normalized_format == "mpeg"
     normalized_format = "mp4" if normalized_format == "mp4a-latm"
     normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
-    
+
     num_retrial = 0
 
     url = "#{API_ENDPOINT}/audio/transcriptions"
@@ -262,7 +262,7 @@ module InteractionUtils
       temp_file = Tempfile.new([file_name, ".#{normalized_format}"])
       temp_file.write(blob)
       temp_file.flush
-      
+
       options = {
         "file" => HTTP::FormData::File.new(temp_file.path),
         "model" => model,

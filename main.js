@@ -2877,6 +2877,7 @@ ipcMain.on('zoom-out', () => {
     });
   }
 });
+
 // Find in page: listen for search requests from webview preload
 ipcMain.on('find-in-page', (_event, searchText) => {
   if (webviewWindow && !webviewWindow.isDestroyed() && searchText) {

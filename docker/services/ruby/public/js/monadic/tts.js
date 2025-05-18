@@ -81,13 +81,6 @@ function filterHighQualityVoices(voices) {
     'Mei-Jia', 'Sin-ji', 'Ting-Ting', 'Yuna', 'Thomas', 'Amelie', 'Anna'
   ];
   
-  // Debug voice list if needed
-  const debugVoices = false;
-  if (debugVoices) {
-    console.log("All available voices:");
-    voices.forEach(v => console.log(`${v.name} [${v.lang}] - URI: ${v.voiceURI || 'N/A'}, Local: ${v.localService}`));
-  }
-  
   // Apply more permissive filtering
   return voices.filter(voice => {
     const provider = getVoiceProvider(voice);

@@ -3,7 +3,7 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=0.9.92
+export MONADIC_VERSION=0.9.93
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=4

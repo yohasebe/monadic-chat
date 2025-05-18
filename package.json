@@ -87,6 +87,7 @@
       "index.html",
       "settings.html",
       "update-progress.html",
+      "update-splash.html",
       "icons/**/*"
     ],
     "afterSign": "notarize.js",

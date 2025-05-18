@@ -953,18 +953,42 @@ function checkForUpdates() {
               `);
             }
             
+            // Prompt user to restart now or later (after Docker is cleanly stopped)
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['OK'],
+              buttons: ['Restart Now', 'Later'],
+              defaultId: 0,
+              cancelId: 1,
               message: 'Update Ready',
-              detail: `Version ${info.version} has been downloaded and will be automatically applied the next time you start Monadic Chat. Please quit and restart the application to apply the update.`,
+              detail: `Version ${info.version} has been downloaded.\n` +
+                      `Restart now to apply the update immediately?`,
               icon: path.join(iconDir, 'app-icon.png')
-            }).then(() => {
-              // No special handling needed - the user will manually restart the app
-              // which is the preferred approach for updates
+            }).then(async ({ response }) => {
+              // Clean up listeners for this update session
               removeUpdateListeners();
+              if (response === 0) {
+                // User chose to restart now: stop Docker then install update
+                try {
+                  const isRunning = await dockerManager.checkStatus();
+                  if (isRunning) {
+                    await dockerManager.runCommand(
+                      'stop',
+                      '[HTML]: <p>Stopping all Docker processes before update…</p>',
+                      'Stopping',
+                      'Stopped'
+                    );
+                  }
+                } catch (err) {
+                  console.error('Error stopping Docker before update:', err);
+                }
+                // Bypass quit confirmation and install update
+                forceQuit = true;
+                autoUpdater.quitAndInstall(false, true);
+              }
+              // If response === 1 (Later), do nothing: update will apply on next launch
             }).catch(err => {
-              console.error('Error showing update message dialog:', err);
+              console.error('Error showing update-ready dialog:', err);
+              removeUpdateListeners();
             });
           });
           
@@ -1091,7 +1115,36 @@ let isQuittingDialogShown = false;
 
 async function quitApp() {
   if (isQuittingDialogShown || forceQuit) return;
-
+  // If an update was previously downloaded and deferred, apply on quit
+  try {
+    const pending = readUpdateState && readUpdateState();
+    if (pending && pending.updateReady) {
+      // Prevent reentry
+      isQuittingDialogShown = true;
+      // Stop Docker cleanly before updating
+      try {
+        const running = await dockerManager.checkStatus();
+        if (running) {
+          await dockerManager.runCommand(
+            'stop',
+            '[HTML]: <p>Stopping all Docker processes before applying update…</p>',
+            'Stopping',
+            'Stopped'
+          );
+        }
+      } catch (err) {
+        console.error('Error stopping Docker before deferred update:', err);
+      }
+      // Clear saved update state and install update
+      if (typeof clearUpdateState === 'function') clearUpdateState();
+      forceQuit = true;
+      autoUpdater.quitAndInstall(false, true);
+      return;
+    }
+  } catch (e) {
+    console.error('Error checking deferred update state:', e);
+  }
+  // Proceed with normal quit confirmation
   isQuittingDialogShown = true;
 
   let options = {

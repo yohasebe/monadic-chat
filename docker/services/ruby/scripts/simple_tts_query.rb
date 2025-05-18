@@ -129,9 +129,13 @@ def tts_api_request(text,
       input: text,
       model: model,
       voice: voice,
-      speed: speed,
       response_format: response_format
     }
+    
+    # Only add speed if it's not 1.0
+    if speed.to_f != 1.0
+      body[:speed] = speed.to_f
+    end
 
     unless language == "auto"
       body["language"] = language

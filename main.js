@@ -776,273 +776,11 @@ function compareVersions(version1, version2) {
 
 // Check for updates - called manually when user clicks "Check for Updates"
 function checkForUpdates() {
-  // Temporarily disable writing update messages to the console
-  // This prevents duplicate messages when manually checking for updates
-  const originalSendCommandOutput = mainWindow.webContents.send;
-  const tempSendFunction = function(channel, ...args) {
-    // Block 'command-output' messages that contain update notifications
-    if (channel === 'command-output' && typeof args[0] === 'string' && 
-       (args[0].includes('A new version') || 
-        args[0].includes('You are using the latest version') ||
-        args[0].includes('Unable to check for updates'))) {
-      // Do not send update messages to console during manual check
-      return;
-    }
-    // Pass through all other messages
-    return originalSendCommandOutput.apply(mainWindow.webContents, [channel, ...args]);
-  };
-  
-  // Replace the send function temporarily
-  mainWindow.webContents.send = tempSendFunction;
-  
-  // First try using electron-updater's autoUpdater
-  try {
-    // Prepare event handlers for user feedback
-    const removeUpdateListeners = () => {
-      autoUpdater.removeAllListeners('update-available');
-      autoUpdater.removeAllListeners('update-not-available');
-      autoUpdater.removeAllListeners('error');
-      autoUpdater.removeAllListeners('download-progress');
-      autoUpdater.removeAllListeners('update-downloaded');
-      
-      // Restore original send function
-      mainWindow.webContents.send = originalSendCommandOutput;
-    };
-    
-    // Set up temporary listeners for this manual check
-    autoUpdater.on('update-available', (info) => {
-      removeUpdateListeners(); // Clean up listeners
-      
-      // Always show a dialog when an update is available from manual check
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        buttons: ['Update', 'Cancel'],
-        message: 'Update Available',
-        detail: `A new version (${info.version}) is available. Would you like to update now?`,
-        icon: path.join(iconDir, 'app-icon.png')
-      }).then((result) => {
-        if (result.response === 0) {
-          // Remove existing listeners before starting download
-          removeUpdateListeners();
-          
-          // Create a progress dialog for the download
-          let progressWin = new BrowserWindow({
-            width: 400,
-            height: 220,
-            useContentSize: true,
-            autoHideMenuBar: true,
-            minimizable: false,
-            maximizable: false,
-            resizable: false,
-            alwaysOnTop: true,
-            fullscreenable: false,
-            webPreferences: {
-              nodeIntegration: false,
-              contextIsolation: true,
-              preload: path.isPackaged ? path.join(process.resourcesPath, 'preload.js') : path.join(__dirname, 'preload.js')
-            },
-            parent: mainWindow,
-            modal: true,
-            title: "Downloading Update",
-            backgroundColor: '#f8f9fa',
-            show: false, // Hidden initially to prevent flickering
-            frame: false, // Frameless window looks more modern
-            transparent: false
-          });
-          
-          // Flag to track if progress window was manually closed
-          let progressWinClosed = false;
-          // Flag to track if update was cancelled
-          let updateCancelled = false;
-          
-          // Safety timeout for progress window - if it gets stuck for too long
-          const progressTimeoutID = setTimeout(() => {
-            if (!progressWinClosed && !progressWin.isDestroyed()) {
-              console.log('Progress window timeout - closing stuck window');
-              progressWin.close();
-              
-              dialog.showMessageBox(mainWindow, {
-                type: 'warning',
-                buttons: ['OK'],
-                message: 'Update Download Timeout',
-                detail: 'The update download process is taking longer than expected. Please try again later or check for issues with your internet connection.',
-                icon: path.join(iconDir, 'app-icon.png')
-              });
-            }
-          }, 10 * 60 * 1000); // 10 minute timeout
-          
-          // Track window closed event
-          progressWin.on('closed', () => {
-            progressWinClosed = true;
-            clearTimeout(progressTimeoutID);
-          });
-          
-          // Handle cancel update request
-          ipcMain.once('cancel-update', () => {
-            updateCancelled = true;
-            if (!progressWinClosed && !progressWin.isDestroyed()) {
-              progressWin.close();
-            }
-            autoUpdater.removeAllListeners('download-progress');
-            autoUpdater.removeAllListeners('update-downloaded');
-            autoUpdater.removeAllListeners('error');
-            
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              buttons: ['OK'],
-              message: 'Update Cancelled',
-              detail: 'The update download was cancelled. You can try again later.',
-              icon: path.join(iconDir, 'app-icon.png')
-            });
-          });
-          
-          progressWin.loadFile('update-progress.html');
-          progressWin.once('ready-to-show', () => {
-            progressWin.show();
-          });
-          
-          // Set up new listeners just for this download process
-          // Listen for download progress and update UI
-          autoUpdater.on('download-progress', (progressObj) => {
-            if (!progressWinClosed && !progressWin.isDestroyed() && !updateCancelled) {
-              // Clear timeout and set a new one on each progress update
-              clearTimeout(progressTimeoutID);
-              
-              // Send progress data to the window
-              progressWin.webContents.send('update-progress', progressObj);
-            }
-          });
-          
-          // Once download is complete, close progress window and notify user
-          autoUpdater.on('update-downloaded', (info) => {
-            // Clear safety timeout
-            clearTimeout(progressTimeoutID);
-            
-            if (!progressWinClosed && !progressWin.isDestroyed()) {
-              progressWin.close();
-            }
-            
-            // Save update state to file system for persistence between app sessions
-            try {
-              const saved = saveUpdateState({
-                updateReady: true,
-                version: info.version,
-                timestamp: Date.now()
-              });
-              
-              if (!saved) {
-                console.error('Failed to save update state');
-              }
-            } catch (error) {
-              console.error('Error in update-downloaded handler while saving state:', error);
-            }
-            
-            // Show prominent message in main window that update is ready
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('command-output', `
-                [HTML]: <div style="margin: 10px 0; padding: 10px; background-color: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
-                  <p style="margin: 0; font-weight: bold;">
-                    <i class="fa-solid fa-download" style="color:#2196f3;"></i> 
-                    Update Ready: Version ${info.version}
-                  </p>
-                  <p style="margin: 5px 0 0 0;">
-                    The update has been downloaded. Please quit and restart the application to apply the update.
-                    This update will be automatically applied the next time you start Monadic Chat.
-                  </p>
-                </div>
-              `);
-            }
-            
-            // Prompt user to restart now or later (after Docker is cleanly stopped)
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              buttons: ['Restart Now', 'Later'],
-              defaultId: 0,
-              cancelId: 1,
-              message: 'Update Ready',
-              detail: `Version ${info.version} has been downloaded.\n` +
-                      `Restart now to apply the update immediately?`,
-              icon: path.join(iconDir, 'app-icon.png')
-            }).then(async ({ response }) => {
-              // Clean up listeners for this update session
-              removeUpdateListeners();
-              if (response === 0) {
-                // User chose to restart now: stop Docker then install update
-                try {
-                  const isRunning = await dockerManager.checkStatus();
-                  if (isRunning) {
-                    await dockerManager.runCommand(
-                      'stop',
-                      '[HTML]: <p>Stopping all Docker processes before update…</p>',
-                      'Stopping',
-                      'Stopped'
-                    );
-                  }
-                } catch (err) {
-                  console.error('Error stopping Docker before update:', err);
-                }
-                // Bypass quit confirmation and install update
-                forceQuit = true;
-                autoUpdater.quitAndInstall(false, true);
-              }
-              // If response === 1 (Later), do nothing: update will apply on next launch
-            }).catch(err => {
-              console.error('Error showing update-ready dialog:', err);
-              removeUpdateListeners();
-            });
-          });
-          
-          // Start the download - this will trigger progress events
-          autoUpdater.downloadUpdate();
-        }
-      });
-    });
-
-    autoUpdater.on('update-not-available', () => {
-      // Always show a message when no update is available
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        buttons: ['OK'],
-        message: 'Up to Date',
-        detail: 'You are using the latest version of the application.',
-        icon: path.join(iconDir, 'app-icon.png')
-      }).finally(() => {
-        // Remove listeners and restore original send function after dialog is closed
-        removeUpdateListeners();
-      });
-    });
-    
-    // Special error handler for manual checks
-    autoUpdater.on('error', (error) => {
-      dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        buttons: ['OK'],
-        message: 'Update Check Failed',
-        detail: `Unable to check for updates: ${error.message}\n\nYou can still use the application normally and check our website for updates.`,
-        icon: path.join(iconDir, 'app-icon.png')
-      }).finally(() => {
-        // Remove listeners and restore original send function after dialog is closed
-        removeUpdateListeners();
-      });
-    });
-
-    // Initiate check
-    autoUpdater.checkForUpdates();
-  } catch (err) {
-    // Restore original send function in case of error
-    mainWindow.webContents.send = originalSendCommandOutput;
-    
-    // Fall back to old method if autoUpdater fails
-    console.error('Auto-update check failed, falling back to manual check:', err);
-    checkForUpdatesManual();
-  }
+  checkForUpdatesManual(true); // true = show dialog
 }
 
-// Manual version check as a fallback
-function checkForUpdatesManual() {
-  // No specific handling needed for manual check, as it uses different methods
-  // and doesn't trigger the standard update-available/update-not-available events
-  
+// Version check - shows download link instead of auto-updating
+function checkForUpdatesManual(showDialog = false) {
   const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
   https.get(url, (res) => {
@@ -1061,28 +799,100 @@ function checkForUpdatesManual() {
         const currentVersion = app.getVersion();
 
         if (compareVersions(latestVersion, currentVersion) > 0) {
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            buttons: ['OK'],
-            message: 'Update Available',
-            detail: `A new version (${latestVersion}) of the app is available. Please update to the latest version.`,
-            icon: path.join(iconDir, 'app-icon.png')
-          });
+          if (showDialog) {
+            // Show dialog only when menu is clicked
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              buttons: ['Download Now', 'View All Releases', 'Cancel'],
+              message: 'Update Available',
+              detail: `A new version (${latestVersion}) is available.\nCurrent version: ${currentVersion}\n\nClick "Download Now" to download the version for your system directly.`,
+              icon: path.join(iconDir, 'app-icon.png')
+            }).then((result) => {
+              if (result.response === 0) {
+                // Download directly based on platform and architecture
+                const platform = process.platform;
+                const arch = process.arch;
+                let downloadUrl = '';
+                
+                if (platform === 'darwin') {
+                  // macOS
+                  if (arch === 'arm64') {
+                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/Monadic.Chat-${latestVersion}-arm64.dmg`;
+                  } else {
+                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/Monadic.Chat-${latestVersion}-x64.dmg`;
+                  }
+                } else if (platform === 'win32') {
+                  // Windows
+                  downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/Monadic.Chat.Setup.${latestVersion}.exe`;
+                } else if (platform === 'linux') {
+                  // Linux
+                  if (arch === 'arm64') {
+                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/monadic-chat_${latestVersion}_arm64.deb`;
+                  } else {
+                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/monadic-chat_${latestVersion}_amd64.deb`;
+                  }
+                }
+                
+                if (downloadUrl) {
+                  shell.openExternal(downloadUrl);
+                } else {
+                  // Fallback to releases page
+                  shell.openExternal('https://github.com/yohasebe/monadic-chat/releases');
+                }
+              } else if (result.response === 1) {
+                // View all releases
+                shell.openExternal('https://github.com/yohasebe/monadic-chat/releases');
+              }
+            });
+          } else {
+            // Display update notification in main window only on startup
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('command-output', 
+                `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${latestVersion}) is available. Current version: ${currentVersion}. Click "Check for Updates" from the menu to download it.</p>`);
+            }
+          }
         } else {
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            buttons: ['OK'],
-            message: 'Up to Date',
-            detail: `You are already using the latest version of the app.`,
-            icon: path.join(iconDir, 'app-icon.png')
-          });
+          if (showDialog) {
+            // Show dialog only when menu is clicked
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              buttons: ['OK'],
+              message: 'Up to Date',
+              detail: `You are already using the latest version (${currentVersion}).`,
+              icon: path.join(iconDir, 'app-icon.png')
+            });
+          } else {
+            // Display up-to-date message in main window only on startup
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('command-output', 
+                `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> You are using the latest version (${currentVersion}).</p>`);
+            }
+          }
         }
       } else {
-        dialog.showErrorBox('Error', 'Failed to retrieve the latest version number.');
+        if (showDialog) {
+          // Show error dialog only when menu is clicked
+          dialog.showErrorBox('Error', 'Failed to retrieve the latest version number.');
+        } else {
+          // Display error in main window only on startup
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('command-output', 
+              '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Failed to retrieve the latest version number.</p>');
+          }
+        }
       }
     });
   }).on('error', (err) => {
-    dialog.showErrorBox('Error', err.message);
+    if (showDialog) {
+      // Show error dialog only when menu is clicked
+      dialog.showErrorBox('Error', `Failed to check for updates: ${err.message}`);
+    } else {
+      // Display error in main window only on startup
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('command-output', 
+          `[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Failed to check for updates: ${err.message}</p>`);
+      }
+    }
   });
 }
 
@@ -1115,35 +925,7 @@ let isQuittingDialogShown = false;
 
 async function quitApp() {
   if (isQuittingDialogShown || forceQuit) return;
-  // If an update was previously downloaded and deferred, apply on quit
-  try {
-    const pending = readUpdateState && readUpdateState();
-    if (pending && pending.updateReady) {
-      // Prevent reentry
-      isQuittingDialogShown = true;
-      // Stop Docker cleanly before updating
-      try {
-        const running = await dockerManager.checkStatus();
-        if (running) {
-          await dockerManager.runCommand(
-            'stop',
-            '[HTML]: <p>Stopping all Docker processes before applying update…</p>',
-            'Stopping',
-            'Stopped'
-          );
-        }
-      } catch (err) {
-        console.error('Error stopping Docker before deferred update:', err);
-      }
-      // Clear saved update state and install update
-      if (typeof clearUpdateState === 'function') clearUpdateState();
-      forceQuit = true;
-      autoUpdater.quitAndInstall(false, true);
-      return;
-    }
-  } catch (e) {
-    console.error('Error checking deferred update state:', e);
-  }
+  // Auto-update on quit has been disabled
   // Proceed with normal quit confirmation
   isQuittingDialogShown = true;
 
@@ -1363,52 +1145,8 @@ const menuItems = [
 
 let updateMessage = '';
 
-// Auto-update related functions
-function setupAutoUpdater() {
-  // Allow pre-release versions to be detected for testing
-  autoUpdater.allowPrerelease = true;
-  // Allow downgrading to lower versions during testing
-  autoUpdater.allowDowngrade = true;
-  // Disable automatic downloading of updates
-  autoUpdater.autoDownload = false;
-  // Disable automatic installation of updates when quitting
-  // This prevents issues with the app hanging on exit, especially on Windows
-  autoUpdater.autoInstallOnAppQuit = false;
-  
-  // Global error handler for auto-updater
-  autoUpdater.on('error', (error) => {
-    // Just log errors, don't show dialog for background checks
-    console.error('Auto-update error:', error.message);
-    // Set update message to indicate there was an error checking
-    updateMessage = '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Unable to check for updates. Please check manually later.</p>';
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('command-output', updateMessage);
-    }
-  });
-  
-  // Set update notification behavior
-  autoUpdater.on('update-available', (info) => {
-    // Update the message to indicate an update is available
-    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${info.version}) is available. Use "Check for Updates" to update.</p>`;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('command-output', updateMessage);
-    }
-    
-    // No dialog is shown on startup - user must click "Check for Updates" manually
-  });
-  
-  // Handle the case when no update is available
-  autoUpdater.on('update-not-available', () => {
-    const currentVersion = app.getVersion();
-    updateMessage = `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> You are using the latest version (${currentVersion}).</p>`;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('command-output', updateMessage);
-    }
-  });
-  
-  // Check for updates on startup, but only notify if available (don't auto-download)
-  autoUpdater.checkForUpdates();
-}
+// Auto-update related functions have been removed
+// Updates are now handled manually through checkForUpdatesManual()
 
 // Create update progress HTML file if it doesn't exist
 function createUpdateProgressHTML() {
@@ -1511,11 +1249,7 @@ function initializeApp() {
     clearUpdateState();
   }
   
-  // Setup auto-updater - this will update the updateMessage variable
-  if (autoUpdater.isUpdaterActive()) {
-    console.log('Auto-updater is active, setting up update checking');
-    setupAutoUpdater();
-  }
+  // Manual update checking will be done after main window is created
   
   // Continue with the rest of the initialization
   (async () => {
@@ -2236,6 +1970,11 @@ function createMainWindow() {
     });
     
     writeToScreen(openingText);
+    
+    // Check for updates after main window is loaded (no dialog)
+    setTimeout(() => {
+      checkForUpdatesManual(false); // false = no dialog, only main window notification
+    }, 2000); // Delay to ensure window is fully loaded
   });
 
   mainWindow.on('closed', () => {

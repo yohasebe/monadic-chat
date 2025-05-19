@@ -140,16 +140,21 @@ See the [Server Mode Architecture](../docker-integration/basic-architecture.md#s
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 
-Monadic Chat automatically checks for updates when it starts. If a new version is available, a notification will be displayed in the main console window (not in the status bar). This is a user-controlled update system, not fully automatic.
+Monadic Chat automatically checks for updates when it starts. If a new version is available, a notification will be displayed in the main console window.
 
 The update process follows these steps:
 
 1. When the application starts, it automatically checks for updates in the background
 2. If an update is available, a message appears in the main console window
 3. To download the update, go to `File` → `Check for Updates`
-4. A dialog will appear asking if you want to update now
-5. If you choose to update, a progress dialog will show the download status
-6. Once the download is complete, you'll be asked to restart the application to apply the update
-7. Select "Exit Now" to close the application and install the update
+4. A dialog will appear showing the version information with options to:
+   - **Download Now**: Downloads the update file directly for your platform
+   - **View All Releases**: Opens the GitHub releases page
+   - **Cancel**: Closes the dialog
+5. If you choose "Download Now", your browser will start downloading the appropriate installer for your system
+6. Once downloaded, quit Monadic Chat and run the new installer
+7. The new version will replace the existing installation
 
-You can also download the latest version directly from the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest).
+The system automatically detects your platform (macOS, Windows, or Linux) and architecture (ARM64 or x64) to provide the correct download link.
+
+You can also manually download the latest version from the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest).

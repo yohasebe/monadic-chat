@@ -824,11 +824,7 @@ module GeminiHelper
             video_success = false
             
             # Check if video generation succeeded based on content
-            if tool_result_content.include?("Video generation failed") || !tool_result_content.include?("saved video")
-              video_success = false
-            else
-              video_success = true
-            end
+            video_success = !tool_result_content.include?("Video generation failed") && tool_result_content.include?("saved video")
             
             if video_success
               # Simply return the original tool_result_content for LLM to process
@@ -867,20 +863,14 @@ module GeminiHelper
           
           # Special handling for video generation even in error cases
           if tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
-            # Try to extract video filename from error message
-            video_filename = nil
+            # Check for successful video creation despite error
             video_success = false
-            
-            # Check error message for filename indicators
             error_details = e.message.to_s
             
-            if error_details =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
-              video_filename = $1
-              video_success = true
-            elsif error_details =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
-              video_filename = $1
-              video_success = true
-            elsif error_details =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+            # Extract filename using the same patterns as above
+            if error_details =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/ ||
+               error_details =~ /(\d{10}_\d+_\d+x\d+\.mp4)/ ||
+               error_details =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
               video_filename = $1
               video_success = true
             end
@@ -1027,18 +1017,14 @@ module GeminiHelper
         
         # If this is a video generation function error, provide a more informative message
         if function_name == "generate_video_with_veo"
-          # Extract video filename from error if possible
-          video_filename = nil
+          # Check for successful video creation despite error
           video_success = false
+          video_filename = nil
           
-          # Check multiple patterns for video filename in error message
-          if e.message =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
-            video_filename = $1
-            video_success = true
-          elsif e.message =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
-            video_filename = $1
-            video_success = true
-          elsif e.message =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+          # Extract filename from error message if it exists
+          if e.message =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/ ||
+             e.message =~ /(\d{10}_\d+_\d+x\d+\.mp4)/ ||
+             e.message =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
             video_filename = $1
             video_success = true
           end
@@ -1055,24 +1041,15 @@ module GeminiHelper
               original_prompt = "Video generation"
             end
             
-            # Generate HTML template with proper video display
-            html_content = <<~HTML
-              <div class="prompt">
-                <b>Prompt</b>: #{original_prompt}
-              </div>
-              <div class="generated_video">
-                <video controls width="400">
-                  <source src="/data/#{video_filename}" type="video/mp4" />
-                </video>
-              </div>
-            HTML
+            # Let LLM handle HTML generation - just pass filename information
+            success_content = "Successfully saved video to: /data/#{video_filename}\nOriginal prompt: #{original_prompt}"
             
             session_params["tool_results"] << {
               "functionResponse" => {
                 "name" => function_name,
                 "response" => {
                   "name" => function_name,
-                  "content" => html_content
+                  "content" => success_content
                 }
               }
             }
@@ -1123,8 +1100,6 @@ module GeminiHelper
       end
     end
     
-    # Make API request with tool results (debug logging removed)
-    
     # Make the API request with the tool results
     api_request("tool", session, call_depth: call_depth, &block)
   end
@@ -1144,7 +1119,7 @@ module GeminiHelper
   
   # Helper function to generate video with Veo model
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil)
-    # Construct the command using the approach from image_generation_helper.rb
+    # Construct the command
     parts = []
     parts << "video_generator_veo.rb"
     parts << "-p \"#{prompt.to_s.gsub('"', '\\"')}\""
@@ -1158,15 +1133,12 @@ module GeminiHelper
       parts << "-i \"#{image_path}\""
     end
     
-    # Create the bash command - this approach works in image_generator
+    # Create the bash command
     cmd = "bash -c '#{parts.join(' ')}'"
     
-    # Send command and get output - this will block until completion
-    # The send_command approach is used in all other media generator functions
     begin
+      # Send command and get raw output
       result = send_command(command: cmd, container: "ruby")
-      # Simply return the raw command output for LLM to extract the video information
-      # This is the same pattern as in generate_image_with_imagen
       return result
     rescue => e
       STDERR.puts "Error executing command: #{e.message}"

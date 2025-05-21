@@ -632,6 +632,10 @@ class DockerManager {
       .then((status) => {
         if (!status) {
           writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and try again.</p><hr />');
+          // Reset status to 'Stopped' and update UI
+          currentStatus = 'Stopped';
+          updateStatusIndicator(currentStatus);
+          updateContextMenu(false);
           return;
         } else {
           // Construct the command to execute
@@ -657,71 +661,85 @@ class DockerManager {
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
                 fetchWithRetry('http://localhost:4567')
-                  .then(() => {
-                    updateContextMenu(false);
-                    
-                    // Set status to Ready - this will update UI
-                    currentStatus = "Ready";
-                    updateStatusIndicator("Ready");
-                    
-                    // Signal successful server start with an event
-                    writeToScreen('[HTML]: <p><i class="fa-solid fa-check-circle" style="color:#22ad50;"></i> <span style="color:#22ad50;">Server verification complete</span></p>');
-                    
-                    // Force a small delay to ensure status update is processed first
-                    setTimeout(() => {
-                      // In server mode, show network URL but don't auto-open browser
-                      if (dockerManager.isServerMode()) {
-                        // Get local IP address for network access info
-                        let localIPAddress = '127.0.0.1';
-                        try {
-                          const networkInterfaces = os.networkInterfaces();
-                          for (const interfaceName in networkInterfaces) {
-                            const interfaces = networkInterfaces[interfaceName];
-                            for (const iface of interfaces) {
-                              if (iface.family === 'IPv4' && !iface.internal) {
-                                localIPAddress = iface.address;
-                                break;
-                              }
-                            }
-                            if (localIPAddress !== '127.0.0.1') break;
-                          }
-                        } catch (err) {
-                          console.error('Error getting network interfaces:', err);
-                        }
-                        
-                        // Send a custom command to show network URL exactly once
-                        if (mainWindow && !mainWindow.isDestroyed()) {
-                          mainWindow.webContents.send('display-network-url', {
-                            localIP: localIPAddress
-                          });
-                        }
-                      } else {
-                        // For standalone mode - send network URL event for proper status update first
-                        if (mainWindow && !mainWindow.isDestroyed()) {
-                          mainWindow.webContents.send('display-network-url', {
-                            localIP: '127.0.0.1'
-                          });
-                        }
-
-                        // Then open based on browser mode preference
-                        if (browserMode === 'internal') {
-                          openWebViewWindow('http://localhost:4567');
-                        } else {
+                  .then((success) => {
+                    if (success) {
+                      updateContextMenu(false);
+                      
+                      // Set status to Ready - this will update UI
+                      currentStatus = "Ready";
+                      updateStatusIndicator("Ready");
+                      
+                      // Signal successful server start with an event
+                      writeToScreen('[HTML]: <p><i class="fa-solid fa-check-circle" style="color:#22ad50;"></i> <span style="color:#22ad50;">Server verification complete</span></p>');
+                      
+                      // Force a small delay to ensure status update is processed first
+                      setTimeout(() => {
+                        // In server mode, show network URL but don't auto-open browser
+                        if (dockerManager.isServerMode()) {
+                          // Get local IP address for network access info
+                          let localIPAddress = '127.0.0.1';
                           try {
-                            shell.openExternal('http://localhost:4567').catch(err => {
-                              console.error('Error opening browser:', err);
-                              writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Please open browser manually at http://localhost:4567</p>");
-                            });
-                            writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+                            const networkInterfaces = os.networkInterfaces();
+                            for (const interfaceName in networkInterfaces) {
+                              const interfaces = networkInterfaces[interfaceName];
+                              for (const iface of interfaces) {
+                                if (iface.family === 'IPv4' && !iface.internal) {
+                                  localIPAddress = iface.address;
+                                  break;
+                                }
+                              }
+                              if (localIPAddress !== '127.0.0.1') break;
+                            }
                           } catch (err) {
-                            console.error('Error opening browser:', err);
+                            console.error('Error getting network interfaces:', err);
+                          }
+                          
+                          // Send a custom command to show network URL exactly once
+                          if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('display-network-url', {
+                              localIP: localIPAddress
+                            });
+                          }
+                        } else {
+                          // For standalone mode - send network URL event for proper status update first
+                          if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('display-network-url', {
+                              localIP: '127.0.0.1'
+                            });
+                          }
+
+                          // Then open based on browser mode preference
+                          if (browserMode === 'internal') {
+                            openWebViewWindow('http://localhost:4567');
+                          } else {
+                            try {
+                              shell.openExternal('http://localhost:4567').catch(err => {
+                                console.error('Error opening browser:', err);
+                                writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Please open browser manually at http://localhost:4567</p>");
+                              });
+                              writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+                            } catch (err) {
+                              console.error('Error opening browser:', err);
+                            }
                           }
                         }
-                      }
-                    }, 500);
+                      }, 500);
+                    } else {
+                      // Server verification failed after max retries
+                      writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i> Could not verify server is running. Please check Docker status and try restart.</p>');
+                      // Reset status to allow retry
+                      currentStatus = 'Stopped';
+                      updateStatusIndicator(currentStatus);
+                      updateContextMenu(false);
+                    }
                   })
                   .catch(error => {
                     console.error('Fetch failed:', error);
+                    // Reset status on error to prevent UI from getting stuck
+                    currentStatus = 'Stopped';
+                    updateStatusIndicator(currentStatus);
+                    updateContextMenu(false);
+                    writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i> Error connecting to server. Please check Docker status and try restart.</p>');
                   });
               }
             });
@@ -748,6 +766,10 @@ class DockerManager {
       .catch(error => {
         console.error('Error checking Docker status:', error);
         writeToScreen(`[ERROR]: ${error.message}`);
+        // Reset status on error to prevent UI from getting stuck
+        currentStatus = 'Stopped';
+        updateStatusIndicator(currentStatus);
+        updateContextMenu(false);
       });
   }
 } // End of DockerManager class

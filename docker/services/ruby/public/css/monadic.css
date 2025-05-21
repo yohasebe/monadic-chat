@@ -1210,7 +1210,7 @@ legend {
 }
 
 .navbar {
-  min-width: 720px; /* Updated to match new mobile breakpoint */
+  width: 100%; /* Use 100% instead of min-width to avoid width conflicts */
   margin: 0;
   padding: 0;
 }
@@ -1226,7 +1226,7 @@ legend {
 
 @media (max-width: 767px) {
   .navbar {
-    width: 720px;
+    min-width: 720px; /* Use min-width only for mobile breakpoints */
   }
   
   .navbar-container {

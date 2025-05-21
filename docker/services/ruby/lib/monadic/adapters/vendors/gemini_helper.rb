@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 # frozen_string_literal: true
 
 module GeminiHelper
@@ -532,7 +533,7 @@ module GeminiHelper
 
     target_uri = "#{API_ENDPOINT}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
 
-      http = HTTP.headers(headers)
+    http = HTTP.headers(headers)
 
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
@@ -548,14 +549,14 @@ module GeminiHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)
       res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
-        block&.call res
+      block&.call res
       return [res]
     end
 
     process_json_data(app: app,
                       session: session,
                       query: body,
-                      res: res.body,
+                      res: res.body.to_s,
                       call_depth: call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError => e
     if num_retrial < MAX_RETRIES
@@ -565,12 +566,12 @@ module GeminiHelper
     else
       error_message = e.is_a?(OpenSSL::SSL::SSLError) ? "SSL ERROR: #{e.message}" : "The request has timed out."
       res = { "type" => "error", "content" => "HTTP/SSL ERROR: #{error_message}" }
-        block&.call res
+      block&.call res
       [res]
     end
   rescue StandardError => e
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
-      block&.call res
+    block&.call res
     [res]
   end
 
@@ -581,15 +582,20 @@ module GeminiHelper
       extra_log.puts(JSON.pretty_generate(query))
     end
     
-    # For image generator app, we'll need special processing to remove code blocks
-    is_image_generator = app.to_s.include?("image_generator") || app.to_s.include?("gemini") && session[:parameters]["app_name"].to_s.include?("Image Generator")
+    # For media generator apps, we'll need special processing to remove code blocks
+    is_media_generator = app.to_s.include?("image_generator") || 
+                         app.to_s.include?("video_generator") || 
+                         app.to_s.include?("gemini") && 
+                         (session[:parameters]["app_name"].to_s.include?("Image Generator") || 
+                          session[:parameters]["app_name"].to_s.include?("Video Generator"))
 
     buffer = String.new
     texts = []
     tool_calls = []
     finish_reason = nil
 
-    res.each do |chunk|
+    # Convert the HTTP::Response::Body to a string and then process line by line
+    res.each_line do |chunk|
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -639,56 +645,90 @@ module GeminiHelper
               if part["text"]
                 fragment = part["text"]
                 
-                # Special processing for image generator app to strip code blocks
-                # Extract HTML from code blocks - for both image generator and code interpreter apps
-    if (is_image_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter")) && fragment.include?("```")
-      # Check for HTML tags enclosed in code blocks
-      if fragment =~ /<div class="generated_image">.*?<img src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg)".*?>.*?<\/div>/im
-        # First try the clean approach - extract HTML content from any code block that contains visualization HTML
-        html_sections = []
-        code_sections = []
-        
-        # Extract HTML sections
-        fragment.scan(/<div class="generated_image">.*?<img src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg)".*?>.*?<\/div>/im) do |match|
-          html_sections << match
-        end
-        
-        # Extract code blocks (without the HTML)
-        if fragment.match(/```(\w+)?.*?```/m)
-          fragment.scan(/```(\w+)?(.*?)```/m) do |lang, code|
-            # Skip if the code block contains HTML visualization
-            unless code =~ /<div class="generated_image">.*?<img src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg)".*?>.*?<\/div>/im
-              code_sections << "```#{lang}#{code}```"
-            end
-          end
-        end
-        
-        # Rebuild the fragment with HTML outside of code blocks
-        if !html_sections.empty? || !code_sections.empty?
-          new_fragment = fragment.dup
-          
-          # Remove all code blocks and HTML sections first
-          new_fragment.gsub!(/```(\w+)?.*?```/m, '')
-          html_sections.each { |html| new_fragment.gsub!(html, '') }
-          
-          # Add back the code sections and HTML sections in the right order
-          new_fragment = new_fragment.strip
-          code_sections.each { |code| new_fragment += "\n\n#{code}" }
-          html_sections.each { |html| new_fragment += "\n\n#{html}" }
-          
-          fragment = new_fragment.strip
-        end
-      elsif fragment.include?("```html") && fragment.include?("```")
-        # Extract HTML between code markers
-        html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
-        fragment = html_content
-      elsif fragment.match(/```(\w+)?/)
-        # For image generator app only, remove any code block markers
-        if is_image_generator
-          fragment = fragment.gsub(/```(\w+)?/, "").gsub(/```/, "")
-        end
-      end
-    end
+                # Special processing for media generator app to strip code blocks
+                # Extract HTML from code blocks - for both media generator and code interpreter apps
+                if (is_media_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter") || 
+                    session[:parameters]["app_name"].to_s.include?("Video Generator")) && fragment.include?("```")
+                  # Strip all code block markers for Video Generator app
+                  if session[:parameters]["app_name"].to_s.include?("Video Generator")
+                    # For video generator, we need to handle the entire fragment carefully
+                    # First check if we have an HTML structure with video controls 
+                    if fragment =~ /<div class="(?:prompt|generated_video)">.*?<\/div>/im
+                      # Only keep the HTML content by first extracting all HTML elements
+                      html_pattern = /<div.*?>.*?<\/div>|<p.*?>.*?<\/p>/im
+                      html_elements = []
+                      
+                      # Extract all HTML elements (divs and paragraphs)
+                      fragment.scan(html_pattern) do |match|
+                        html_elements << match
+                      end
+                      
+                      if html_elements.any?
+                        # Join all found HTML elements with newlines
+                        fragment = html_elements.join("\n")
+                      end
+                    else
+                      # If no HTML structure found, try to extract from code blocks
+                      content_inside_blocks = []
+                      fragment.scan(/```(?:html|)\s*(.+?)\s*```/m) do |match|
+                        content_inside_blocks << match[0]
+                      end
+                      
+                      # If we found content inside code blocks, replace the fragment with just that content
+                      if content_inside_blocks.any?
+                        fragment = content_inside_blocks.join("\n\n")
+                      else
+                        # If no content found inside code blocks, just strip the markers
+                        fragment = fragment.gsub(/```(?:html|\w*)?/, "").gsub(/```/, "")
+                      end
+                    end
+                  # Standard processing for other media apps
+                  elsif fragment =~ /<div class="generated_(image|video)">.*?<(img|video).*?src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg|mp4|webm|ogg)".*?>.*?<\/div>/im
+                    # First try the clean approach - extract HTML content from any code block that contains visualization HTML
+                    html_sections = []
+                    code_sections = []
+                    
+                    # Extract HTML sections
+                    fragment.scan(/<div class="generated_(image|video)">.*?<(img|video).*?src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg|mp4|webm|ogg)".*?>.*?<\/div>/im) do |match|
+                      html_sections << match[0]
+                    end
+                    
+                    # Extract code blocks (without the HTML)
+                    if fragment.match(/```(\w+)?.*?```/m)
+                      fragment.scan(/```(\w+)?(.*?)```/m) do |lang, code|
+                        # Skip if the code block contains HTML visualization
+                        unless code =~ /<div class="generated_(image|video)">.*?<(img|video).*?src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg|mp4|webm|ogg)".*?>.*?<\/div>/im
+                          code_sections << "```#{lang}#{code}```"
+                        end
+                      end
+                    end
+                    
+                    # Rebuild the fragment with HTML outside of code blocks
+                    if !html_sections.empty? || !code_sections.empty?
+                      new_fragment = fragment.dup
+                      
+                      # Remove all code blocks and HTML sections first
+                      new_fragment.gsub!(/```(\w+)?.*?```/m, '')
+                      html_sections.each { |html| new_fragment.gsub!(html, '') }
+                      
+                      # Add back the code sections and HTML sections in the right order
+                      new_fragment = new_fragment.strip
+                      code_sections.each { |code| new_fragment += "\n\n#{code}" }
+                      html_sections.each { |html| new_fragment += "\n\n#{html}" }
+                      
+                      fragment = new_fragment.strip
+                    end
+                  elsif fragment.include?("```html") && fragment.include?("```")
+                    # Extract HTML between code markers
+                    html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
+                    fragment = html_content
+                  elsif fragment.match(/```(\w+)?/)
+                    # For media generator app only, remove any code block markers
+                    if is_media_generator
+                      fragment = fragment.gsub(/```(\w+)?/, "").gsub(/```/, "")
+                    end
+                  end
+                end
                 
                 texts << fragment
 
@@ -713,6 +753,8 @@ module GeminiHelper
         buffer = String.new
       end
     rescue StandardError => e
+      # Log error but continue processing
+      STDERR.puts "Error processing JSON data chunk: #{e.message}"
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -760,8 +802,10 @@ module GeminiHelper
             tool_result_content = new_results.to_s.strip
           end
           
-          # If no actual content was returned from the function call, add a notice
-          if tool_result_content.empty?
+          # Handle empty responses from video generation
+          if tool_result_content.empty? && tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
+            tool_result_content = "Video generation completed. Your video has been saved and should be available in your data directory."
+          elsif tool_result_content.empty?
             tool_result_content = "[No additional content received from function call]"
           end
           
@@ -835,36 +879,68 @@ module GeminiHelper
     end
   end
 
-  def process_functions(_app, session, tool_calls, context, call_depth, &block)
+  def process_functions(app, session, tool_calls, context, call_depth, &block)
     return false if tool_calls.empty?
 
-    obj = session[:parameters]
-    # MODIFICATION: Changed the structure of tool_results to only include functionResponse
-    tool_results = []
+    # Get parameters from the session
+    session_params = session[:parameters]
+    
+    # Initialize tool_results array in session parameters if it doesn't exist
+    session_params["tool_results"] ||= []
+    
+    # Process each tool call
     tool_calls.each do |tool_call|
       function_name = tool_call["name"]
 
       begin
-        argument_hash = tool_call["args"]
-      rescue StandardError
-        argument_hash = {}
-      end
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        memo[k.to_sym] = v
-        memo
-      end
+        # Parse arguments from the tool call
+        argument_hash = tool_call["args"] || {}
+        
+        # Convert string keys to symbols for method calling
+        argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+          memo[k.to_sym] = v
+          memo
+        end
 
-      begin
+        # Call the function with the provided arguments
         function_return = send(function_name.to_sym, **argument_hash)
-        # MODIFICATION: Improved error handling and unified the return value format
+        
+        # Process the returned content
         if function_return
-          content = if function_return.is_a?(String)
-                      function_return
-                    else
-                      function_return.to_json
-                    end
+          # Special handling for video generator
+          if function_name == "generate_video_with_veo"
+            video_filename = nil
+            
+            # Try to extract video filename from response
+            begin
+              if function_return.is_a?(String)
+                parsed_json = JSON.parse(function_return)
+                if parsed_json["success"] && parsed_json["videos"] && !parsed_json["videos"].empty?
+                  video_filename = parsed_json["videos"][0]["filename"]
+                end
+              end
+            rescue JSON::ParserError
+              # Try to extract filename from text if JSON parsing fails
+              if function_return.to_s =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+                video_filename = $1
+              elsif function_return.to_s =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
+                video_filename = $1
+              end
+            end
+            
+            # Prepare final content for response
+            if video_filename
+              content = "Video successfully generated and saved as #{video_filename}."
+            else
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            end
+          else
+            # Standard handling for other functions
+            content = function_return.is_a?(String) ? function_return : function_return.to_json
+          end
 
-          tool_results << {
+          # Add to tool results
+          session_params["tool_results"] << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
@@ -873,10 +949,49 @@ module GeminiHelper
               }
             }
           }
+        end
+      rescue StandardError => e
+        # Error handling for function invocation
+        error_message = "ERROR: Function call failed: #{function_name}. #{e.message}"
+        STDERR.puts error_message
+        
+        # If this is a video generation function error, provide a more informative message
+        if function_name == "generate_video_with_veo"
+          # Extract video filename from error if possible
+          video_filename = nil
+          
+          if e.message =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+            video_filename = $1
+          elsif e.message =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
+            video_filename = $1
+          end
+          
+          if video_filename
+            # Add result with found video filename
+            session_params["tool_results"] << {
+              "functionResponse" => {
+                "name" => function_name,
+                "response" => {
+                  "name" => function_name,
+                  "content" => "Video successfully generated and saved as #{video_filename} despite errors."
+                }
+              }
+            }
+          else
+            # Standard error handling
+            session_params["tool_results"] << {
+              "functionResponse" => {
+                "name" => function_name,
+                "response" => {
+                  "name" => function_name,
+                  "content" => error_message
+                }
+              }
+            }
+          end
         else
-          # Error handling
-          error_message = "ERROR: Function (#{function_name}) called with #{argument_hash} returned nil."
-        tool_results << {
+          # For non-video function errors
+          session_params["tool_results"] << {
             "functionResponse" => {
               "name" => function_name,
               "response" => {
@@ -885,33 +1000,15 @@ module GeminiHelper
               }
             }
           }
-        # Send error message to client for better visibility
-        res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>" }
-        block&.call res
         end
-      rescue StandardError => e
-        
-        error_message = "ERROR: Function call failed: #{function_name}. #{e.message}"
-        
-        # Add error to tool_results (not context) to ensure it's properly processed
-        tool_results << {
-          "functionResponse" => {
-            "name" => function_name,
-            "response" => {
-              "name" => function_name,
-              "content" => error_message
-            }
-          }
-        }
         
         # Send error message to client for better visibility
         res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>" }
         block&.call res
       end
     end
-
-    # MODIFICATION: Clear tool_results after processing
-    obj["tool_results"] = tool_results
+    
+    # Make the API request with the tool results
     api_request("tool", session, call_depth: call_depth, &block)
   end
 
@@ -925,6 +1022,115 @@ module GeminiHelper
       "user"
     else
       role.downcase
+    end
+  end
+  
+  # Helper function to generate video with Veo model
+  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil)
+    require 'open3'
+    # Find the script path
+    script_path = if File.exist?("#{Dir.home}/monadic/docker/services/ruby/scripts/video_generator_veo.rb")
+                    "#{Dir.home}/monadic/docker/services/ruby/scripts/video_generator_veo.rb"
+                  elsif File.exist?("/monadic/docker/services/ruby/scripts/video_generator_veo.rb")
+                    "/monadic/docker/services/ruby/scripts/video_generator_veo.rb"
+                  elsif File.exist?("/Users/yohasebe/code/monadic-chat/docker/services/ruby/scripts/video_generator_veo.rb")
+                    "/Users/yohasebe/code/monadic-chat/docker/services/ruby/scripts/video_generator_veo.rb"
+                  else
+                    script_found = $LOAD_PATH.find { |path| File.exist?(File.join(path, "video_generator_veo.rb")) }
+                    script_found ? File.join(script_found, "video_generator_veo.rb") : nil
+                  end
+                  
+    unless script_path
+      return { "error" => "Could not find video_generator_veo.rb script" }.to_json
+    end
+    
+    # Build command with arguments
+    command = ["ruby", script_path, "-p", prompt.to_s]
+    
+    # Add image path if provided
+    if image_path && !image_path.empty?
+      data_paths = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
+      found_image_path = nil
+      
+      data_paths.each do |data_path|
+        potential_path = File.join(data_path, image_path)
+        if File.exist?(potential_path)
+          found_image_path = potential_path
+          break
+        end
+      end
+      
+      # Use original path if not found
+      found_image_path ||= image_path
+      command += ["-i", found_image_path]
+    end
+    
+    # Always force number_of_videos to 1
+    command += ["-n", "1"]
+    command += ["-a", aspect_ratio.to_s] if aspect_ratio
+    command += ["-g", person_generation.to_s] if person_generation
+    command += ["-d", duration_seconds.to_s] if duration_seconds
+    
+    # Execute the command
+    result = nil
+    
+    begin
+      STDERR.puts "Executing: #{command.join(' ')}"
+      stdout_content = ""
+      
+      Open3.popen3(*command) do |stdin, stdout, stderr, wait_thr|
+        stdout_content = stdout.read
+        wait_thr.value
+      end
+      
+      result = stdout_content
+    rescue => e
+      STDERR.puts "Error executing command: #{e.message}"
+      return { 
+        "success" => false, 
+        "message" => "Error executing video generation command: #{e.message}", 
+        "original_prompt" => prompt 
+      }.to_json
+    end
+    
+    # Process the output
+    begin
+      # Try to parse as JSON first
+      json_match = result.match(/\{.*\}/m)
+      if json_match
+        json_result = JSON.parse(json_match[0])
+        if json_result["success"] && json_result["videos"] && !json_result["videos"].empty?
+          # Return success with video information
+          filename = json_result["videos"][0]["filename"]
+          return { 
+            "success" => true, 
+            "videos" => [{"filename" => filename, "aspect_ratio" => aspect_ratio}],
+            "original_prompt" => prompt
+          }.to_json
+        else
+          # Return error from JSON
+          error_message = json_result["message"] || "Unknown error in video generation"
+          return { "success" => false, "message" => error_message, "original_prompt" => prompt }.to_json
+        end
+      end
+      
+      # If no JSON found, try extracting filename directly
+      video_file_match = result.match(/Successfully saved video to: .*?\/([\d_]+[_\dx]+\.mp4)/)
+      if video_file_match
+        filename = video_file_match[1]
+        return { 
+          "success" => true, 
+          "videos" => [{"filename" => filename, "aspect_ratio" => aspect_ratio}],
+          "original_prompt" => prompt
+        }.to_json
+      end
+      
+      # No video information found
+      return { "success" => false, "message" => "No video information found in output", "original_prompt" => prompt }.to_json
+    
+    rescue => e
+      # Handle any errors
+      return { "success" => false, "message" => "Error processing video: #{e.message}", "original_prompt" => prompt }.to_json
     end
   end
   
@@ -955,7 +1161,16 @@ module GeminiHelper
            <img src="/data/image_filename.png" />
          </div>
          
-         Do NOT place this HTML inside a code block. The image will only display if the HTML is outside of code blocks.
+         When displaying videos, place the HTML directly in your response like this:
+         
+         <div class="generated_video">
+           <video controls width="100%">
+             <source src="/data/video_filename.mp4" type="video/mp4">
+             Your browser does not support the video tag.
+           </video>
+         </div>
+         
+         Do NOT place this HTML inside a code block. The media will only display if the HTML is outside of code blocks.
          Users will not see visualizations if you wrap HTML in code blocks.
     INSTRUCTIONS
   end

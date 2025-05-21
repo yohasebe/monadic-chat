@@ -802,10 +802,9 @@ module GeminiHelper
             tool_result_content = new_results.to_s.strip
           end
           
-          # Handle empty responses from video generation
-          if tool_result_content.empty? && tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
-            tool_result_content = "Video generation completed. Your video has been saved and should be available in your data directory."
-          elsif tool_result_content.empty?
+          # Don't add generic content if tool_result_content is empty for video generation
+          # This will let the actual result from the generate_video_with_veo function be displayed
+          if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
             tool_result_content = "[No additional content received from function call]"
           end
           
@@ -818,19 +817,44 @@ module GeminiHelper
           
           final_result = result.join("").strip
           
-          # If we have both initial text and function results, combine them
-          if !final_result.empty? && !tool_result_content.empty?
-            final_result += "\n\n" + tool_result_content
-          # If we only have function results, use those
-          elsif final_result.empty? && !tool_result_content.empty?
-            final_result = tool_result_content
-          # If we have nothing, provide a fallback message
-          elsif final_result.empty? && tool_result_content.empty?
-            final_result = "Function was called but no content was returned."
+          # Special handling for video generation
+          if tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
+            # Extract video filename if available in tool result
+            video_filename = nil
+            video_success = false
+            
+            # Check if video generation succeeded based on content
+            if tool_result_content.include?("Video generation failed") || !tool_result_content.include?("saved video")
+              video_success = false
+            else
+              video_success = true
+            end
+            
+            if video_success
+              # Simply return the original tool_result_content for LLM to process
+              final_result = tool_result_content
+            elsif tool_result_content.include?("Video generation failed")
+              # If we have an explicit failure message, use it and ignore LLM content
+              final_result = tool_result_content
+            elsif !tool_result_content.empty?
+              # Otherwise use the tool result content
+              final_result = tool_result_content
+            end
+          else
+            # Standard handling for non-video tools
+            # If we have both initial text and function results, combine them
+            if !final_result.empty? && !tool_result_content.empty?
+              final_result += "\n\n" + tool_result_content
+            # If we only have function results, use those
+            elsif final_result.empty? && !tool_result_content.empty?
+              final_result = tool_result_content
+            # If we have nothing, provide a fallback message
+            elsif final_result.empty? && tool_result_content.empty?
+              final_result = "Function was called but no content was returned."
+            end
           end
           
-          # Notification of function call completion has been removed
-          
+          # Return final result
           [{ "choices" => [{ "message" => { "content" => final_result } }] }]
         rescue StandardError => e
           # Log the error and send a more informative message
@@ -841,8 +865,39 @@ module GeminiHelper
             result_text = ""
           end
           
-          error_message = "[Error processing function results: #{e.message}]"
-          final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
+          # Special handling for video generation even in error cases
+          if tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
+            # Try to extract video filename from error message
+            video_filename = nil
+            video_success = false
+            
+            # Check error message for filename indicators
+            error_details = e.message.to_s
+            
+            if error_details =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+              video_filename = $1
+              video_success = true
+            elsif error_details =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
+              video_filename = $1
+              video_success = true
+            elsif error_details =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+              video_filename = $1
+              video_success = true
+            end
+            
+            if video_success
+              # We want to let LLM process the error message too
+              # Just pass it the error message
+              final_result = error_details
+            else
+              error_message = "[Error processing video generation results: #{e.message}]"
+              final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
+            end
+          else
+            # Standard error handling for non-video functions
+            error_message = "[Error processing function results: #{e.message}]"
+            final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
+          end
           
           [{ "choices" => [{ "message" => { "content" => final_result } }] }]
         end
@@ -910,28 +965,41 @@ module GeminiHelper
           # Special handling for video generator
           if function_name == "generate_video_with_veo"
             video_filename = nil
+            video_success = false
+            error_message = nil
             
-            # Try to extract video filename from response
+            # Check if there were any errors in the JSON
             begin
               if function_return.is_a?(String)
                 parsed_json = JSON.parse(function_return)
-                if parsed_json["success"] && parsed_json["videos"] && !parsed_json["videos"].empty?
-                  video_filename = parsed_json["videos"][0]["filename"]
+                
+                # Check if we have videos array with filenames (success indicator)
+                if parsed_json["videos"] && !parsed_json["videos"].empty?
+                  video_success = true
+                elsif !parsed_json["success"]
+                  # Extract error message if available
+                  error_message = parsed_json["message"]
+                  video_success = false
                 end
               end
-            rescue JSON::ParserError
-              # Try to extract filename from text if JSON parsing fails
-              if function_return.to_s =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
-                video_filename = $1
-              elsif function_return.to_s =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
-                video_filename = $1
+            rescue JSON::ParserError => e
+              # Just check for success/failure based on text
+              if function_return.to_s.include?("saved video") || 
+                 function_return.to_s.include?("Successfully") ||
+                 function_return.to_s =~ /\d{10}_\d+_\d+x\d+\.mp4/
+                video_success = true
               end
             end
             
             # Prepare final content for response
-            if video_filename
-              content = "Video successfully generated and saved as #{video_filename}."
+            if video_success
+              # Simply pass the raw response to LLM for processing
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            elsif error_message
+              # If we have a specific error message, use it
+              content = "Video generation failed: #{error_message}"
             else
+              # Fallback to the raw response
               content = function_return.is_a?(String) ? function_return : function_return.to_json
             end
           else
@@ -939,7 +1007,7 @@ module GeminiHelper
             content = function_return.is_a?(String) ? function_return : function_return.to_json
           end
 
-          # Add to tool results
+          # Add to tool results and debug
           session_params["tool_results"] << {
             "functionResponse" => {
               "name" => function_name,
@@ -949,6 +1017,8 @@ module GeminiHelper
               }
             }
           }
+          
+          # Tool result added (debug logging removed)
         end
       rescue StandardError => e
         # Error handling for function invocation
@@ -959,35 +1029,80 @@ module GeminiHelper
         if function_name == "generate_video_with_veo"
           # Extract video filename from error if possible
           video_filename = nil
+          video_success = false
           
+          # Check multiple patterns for video filename in error message
           if e.message =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
             video_filename = $1
+            video_success = true
           elsif e.message =~ /(\d{10}_\d+_\d+x\d+\.mp4)/
             video_filename = $1
+            video_success = true
+          elsif e.message =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
+            video_filename = $1
+            video_success = true
           end
           
-          if video_filename
-            # Add result with found video filename
+          if video_filename && video_success
+            # If we have a filename, consider it successful despite errors
+            STDERR.puts "Found video filename in error: #{video_filename}"
+            
+            # Try to extract original prompt from arguments
+            original_prompt = ""
+            begin
+              original_prompt = argument_hash[:prompt].to_s if argument_hash && argument_hash[:prompt]
+            rescue
+              original_prompt = "Video generation"
+            end
+            
+            # Generate HTML template with proper video display
+            html_content = <<~HTML
+              <div class="prompt">
+                <b>Prompt</b>: #{original_prompt}
+              </div>
+              <div class="generated_video">
+                <video controls width="400">
+                  <source src="/data/#{video_filename}" type="video/mp4" />
+                </video>
+              </div>
+            HTML
+            
             session_params["tool_results"] << {
               "functionResponse" => {
                 "name" => function_name,
                 "response" => {
                   "name" => function_name,
-                  "content" => "Video successfully generated and saved as #{video_filename} despite errors."
+                  "content" => html_content
                 }
               }
             }
           else
-            # Standard error handling
-            session_params["tool_results"] << {
-              "functionResponse" => {
-                "name" => function_name,
-                "response" => {
+            # Try to extract more useful error message information
+            error_details = e.message.to_s
+            # Look for common error patterns
+            if error_details =~ /content\s+policy\s+violation/i || error_details =~ /responsible\s+AI/i || error_details =~ /safety/i
+              custom_error_message = "Video generation failed: The prompt appears to violate content policy guidelines. Please try a different prompt with less sensitive content."
+              session_params["tool_results"] << {
+                "functionResponse" => {
                   "name" => function_name,
-                  "content" => error_message
+                  "response" => {
+                    "name" => function_name,
+                    "content" => custom_error_message
+                  }
                 }
               }
-            }
+            else
+              # Standard error handling
+              session_params["tool_results"] << {
+                "functionResponse" => {
+                  "name" => function_name,
+                  "response" => {
+                    "name" => function_name,
+                    "content" => error_message
+                  }
+                }
+              }
+            end
           end
         else
           # For non-video function errors
@@ -1008,6 +1123,8 @@ module GeminiHelper
       end
     end
     
+    # Make API request with tool results (debug logging removed)
+    
     # Make the API request with the tool results
     api_request("tool", session, call_depth: call_depth, &block)
   end
@@ -1027,63 +1144,30 @@ module GeminiHelper
   
   # Helper function to generate video with Veo model
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil)
-    require 'open3'
-    # Find the script path
-    script_path = if File.exist?("#{Dir.home}/monadic/docker/services/ruby/scripts/video_generator_veo.rb")
-                    "#{Dir.home}/monadic/docker/services/ruby/scripts/video_generator_veo.rb"
-                  elsif File.exist?("/monadic/docker/services/ruby/scripts/video_generator_veo.rb")
-                    "/monadic/docker/services/ruby/scripts/video_generator_veo.rb"
-                  elsif File.exist?("/Users/yohasebe/code/monadic-chat/docker/services/ruby/scripts/video_generator_veo.rb")
-                    "/Users/yohasebe/code/monadic-chat/docker/services/ruby/scripts/video_generator_veo.rb"
-                  else
-                    script_found = $LOAD_PATH.find { |path| File.exist?(File.join(path, "video_generator_veo.rb")) }
-                    script_found ? File.join(script_found, "video_generator_veo.rb") : nil
-                  end
-                  
-    unless script_path
-      return { "error" => "Could not find video_generator_veo.rb script" }.to_json
-    end
-    
-    # Build command with arguments
-    command = ["ruby", script_path, "-p", prompt.to_s]
+    # Construct the command using the approach from image_generation_helper.rb
+    parts = []
+    parts << "video_generator_veo.rb"
+    parts << "-p \"#{prompt.to_s.gsub('"', '\\"')}\""
+    parts << "-a \"#{aspect_ratio}\"" if aspect_ratio
+    parts << "-n 1"  # Always force number_of_videos to 1
+    parts << "-g \"#{person_generation}\"" if person_generation
+    parts << "-d #{duration_seconds}" if duration_seconds
     
     # Add image path if provided
     if image_path && !image_path.empty?
-      data_paths = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
-      found_image_path = nil
-      
-      data_paths.each do |data_path|
-        potential_path = File.join(data_path, image_path)
-        if File.exist?(potential_path)
-          found_image_path = potential_path
-          break
-        end
-      end
-      
-      # Use original path if not found
-      found_image_path ||= image_path
-      command += ["-i", found_image_path]
+      parts << "-i \"#{image_path}\""
     end
     
-    # Always force number_of_videos to 1
-    command += ["-n", "1"]
-    command += ["-a", aspect_ratio.to_s] if aspect_ratio
-    command += ["-g", person_generation.to_s] if person_generation
-    command += ["-d", duration_seconds.to_s] if duration_seconds
+    # Create the bash command - this approach works in image_generator
+    cmd = "bash -c '#{parts.join(' ')}'"
     
-    # Execute the command
-    result = nil
-    
+    # Send command and get output - this will block until completion
+    # The send_command approach is used in all other media generator functions
     begin
-      STDERR.puts "Executing: #{command.join(' ')}"
-      stdout_content = ""
-      
-      Open3.popen3(*command) do |stdin, stdout, stderr, wait_thr|
-        stdout_content = stdout.read
-        wait_thr.value
-      end
-      
-      result = stdout_content
+      result = send_command(command: cmd, container: "ruby")
+      # Simply return the raw command output for LLM to extract the video information
+      # This is the same pattern as in generate_image_with_imagen
+      return result
     rescue => e
       STDERR.puts "Error executing command: #{e.message}"
       return { 
@@ -1091,46 +1175,6 @@ module GeminiHelper
         "message" => "Error executing video generation command: #{e.message}", 
         "original_prompt" => prompt 
       }.to_json
-    end
-    
-    # Process the output
-    begin
-      # Try to parse as JSON first
-      json_match = result.match(/\{.*\}/m)
-      if json_match
-        json_result = JSON.parse(json_match[0])
-        if json_result["success"] && json_result["videos"] && !json_result["videos"].empty?
-          # Return success with video information
-          filename = json_result["videos"][0]["filename"]
-          return { 
-            "success" => true, 
-            "videos" => [{"filename" => filename, "aspect_ratio" => aspect_ratio}],
-            "original_prompt" => prompt
-          }.to_json
-        else
-          # Return error from JSON
-          error_message = json_result["message"] || "Unknown error in video generation"
-          return { "success" => false, "message" => error_message, "original_prompt" => prompt }.to_json
-        end
-      end
-      
-      # If no JSON found, try extracting filename directly
-      video_file_match = result.match(/Successfully saved video to: .*?\/([\d_]+[_\dx]+\.mp4)/)
-      if video_file_match
-        filename = video_file_match[1]
-        return { 
-          "success" => true, 
-          "videos" => [{"filename" => filename, "aspect_ratio" => aspect_ratio}],
-          "original_prompt" => prompt
-        }.to_json
-      end
-      
-      # No video information found
-      return { "success" => false, "message" => "No video information found in output", "original_prompt" => prompt }.to_json
-    
-    rescue => e
-      # Handle any errors
-      return { "success" => false, "message" => "Error processing video: #{e.message}", "original_prompt" => prompt }.to_json
     end
   end
   

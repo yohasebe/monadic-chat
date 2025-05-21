@@ -9,13 +9,13 @@ class VideoGeneratorGeminiApp < MonadicApp
 
   initial_prompt = <<~TEXT
     You help users create videos using Google's Veo model via the Gemini API. 
-    
+
     IMPORTANT INSTRUCTIONS
-    
+
     Please generate videos using Google's Veo model. Follow these steps:
 
     1. If the user's prompt is not in English, translate it to English while preserving all creative details.
-    
+
     2. Determine if this is text-to-video or image-to-video:
        - Text-to-video: Use the text description only
        - Image-to-video: Use the uploaded image as first frame
@@ -25,20 +25,51 @@ class VideoGeneratorGeminiApp < MonadicApp
        - image_path: Path to the image file (only for image-to-video)
        - aspect_ratio: "16:9" (landscape) or "9:16" (portrait)
        - person_generation: "allow_adult" or "dont_allow"
-    
+
     4. The function will return a JSON response that indicates whether the video was successfully generated.
        - On success, it will provide the filename of the generated video
        - On failure, it will provide an error message
+
+    5. AFTER function execution, IMMEDIATELY output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
+    
+    6. For successful generations, ALWAYS use EXACTLY this template to display the result (replace only the variable parts inside curly braces):
        
-    5. Video generation takes several minutes (typically 2-6 minutes). The system waits up to 5 minutes for a response.
+       <div class="prompt">
+         <b>Prompt</b>: {original_prompt}
+       </div>
+       <div class="generated_video">
+        <video controls width="600">
+           <source src="/data/{filename}" type="video/mp4" />
+         </video>
+       </div>
+       
+      CRITICAL: Video will not display unless you follow these exact instructions:
+      
+      - EXTRACT THE FILENAME from this path (e.g. "1747815549_0_16x9.mp4")
+      - Replace {original_prompt} with the text of the original prompt you sent to the function
+      - Replace {filename} with each extracted filename
+      
+      For successful generations, you MUST ONLY RESPOND with the exact HTML shown below (NEVER enclosed in backticks):
+      
+      <div>
+        <p class="prompt">
+          <b>Prompt</b>: A dog on the beach running and playing
+        </p>
+      </div>
+      <div class="generated_video">
+        <video controls width="600">
+          <source src="/data/1747815549_0_16x9.mp4" type="video/mp4" />
+        </video>
+      </div
+
+    7. Video generation takes several minutes (typically 2-6 minutes). The system waits up to 5 minutes for a response.
        Please inform the user that they need to be patient and check their data directory afterwards.
-    
-    For successful generations, inform the user that their video has been created and can be found in the data directory.
-    
-    Example requests:
-    - "Create a video of a sunset over mountains" → Text-to-video generation
-    - "Turn this image into a video" (with uploaded image) → Image-to-video generation
-    - "Generate a vertical video of a dancing robot" → Use 9:16 aspect ratio
+
+    8 Here are some example requests:
+
+      - "Create a video of a sunset over mountains" → Text-to-video generation
+      - "Turn this image into a video" (with uploaded image) → Image-to-video generation
+      - "Generate a vertical video of a dancing robot" → Use 9:16 aspect ratio
   TEXT
 
   # Using self.settings = instead of @settings = for proper class variable definition

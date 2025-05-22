@@ -79,6 +79,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**
 - 🎥 Recognition and description of **uploaded video content and audio**
+- 🎬 **Video generation** using Google's Veo model for text-to-video and image-to-video creation
 
 ### Configuration and Extension
 

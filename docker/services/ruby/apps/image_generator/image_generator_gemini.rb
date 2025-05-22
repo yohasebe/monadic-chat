@@ -73,7 +73,7 @@ class ImageGeneratorGeminiApp < MonadicApp
       easy_submit: false,
       auto_speech: false,
       initiate_from_assistant: false,
-      image_generation: true,
+      image_generation: false,
       tools: {
         function_declarations: [
           {

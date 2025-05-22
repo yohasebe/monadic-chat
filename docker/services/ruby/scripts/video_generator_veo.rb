@@ -9,6 +9,7 @@ require "open3"
 
 # Define constants for API and configuration
 
+# Use Vertex AI API endpoint instead of GenerativeLanguage API
 API_PREDICT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning"
 API_OPERATION_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
 CONFIG_PATHS = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"]
@@ -72,18 +73,86 @@ def get_save_path
   end
 end
 
-# Base64 encode an image file
+# Base64 encode an image file and create data URL with validation
 
-def encode_image(image_path)
+def encode_image_to_data_url(image_path)
   return nil unless File.exist?(image_path)
   
   begin
     image_data = File.binread(image_path)
-    Base64.strict_encode64(image_data)
+    
+    # Check file size (Vertex AI supports up to 20MB)
+    file_size = image_data.size
+    if file_size > 20 * 1024 * 1024  # 20MB
+      STDERR.puts "WARNING: Image file too large (#{file_size} bytes). Maximum supported size is 20MB."
+      return nil
+    end
+    
+    # Detect image format from file extension
+    ext = File.extname(image_path).downcase
+    mime_type = case ext
+                when '.png' then 'image/png'
+                when '.jpg', '.jpeg' then 'image/jpeg'
+                when '.gif' then 'image/gif'
+                when '.webp' then 'image/webp'
+                else 'image/jpeg' # default to JPEG
+                end
+    
+    # Validate image format - Veo API typically supports JPEG, PNG
+    unless ['.jpg', '.jpeg', '.png'].include?(ext)
+      STDERR.puts "WARNING: Image format #{ext} may not be supported. Converting to JPEG."
+      # For now, we'll proceed but log the warning
+    end
+    
+    # Log image details
+    STDERR.puts "DEBUG: Image details - Size: #{file_size} bytes, Format: #{ext}, MIME: #{mime_type}"
+    
+    # Additional validation for common issues
+    if file_size < 1024  # Less than 1KB
+      STDERR.puts "WARNING: Image file seems too small (#{file_size} bytes). May be corrupted."
+    end
+    
+    # Check if it's actually an image by reading file header
+    magic_bytes = image_data[0..10]&.unpack("C*") rescue []
+    if magic_bytes.length >= 2
+      # JPEG magic bytes: FF D8
+      # PNG magic bytes: 89 50 4E 47
+      is_jpeg = magic_bytes[0] == 0xFF && magic_bytes[1] == 0xD8
+      is_png = magic_bytes[0] == 0x89 && magic_bytes[1] == 0x50 && magic_bytes[2] == 0x4E && magic_bytes[3] == 0x47
+      
+      if !is_jpeg && !is_png
+        STDERR.puts "WARNING: File does not appear to be a valid JPEG or PNG image based on magic bytes."
+      end
+    end
+    
+    base64_data = Base64.strict_encode64(image_data)
+    "data:#{mime_type};base64,#{base64_data}"
   rescue StandardError => e
     STDERR.puts "WARNING: Failed to encode image: #{e.message}"
     nil
   end
+end
+
+# Resolve image path considering both absolute and relative paths
+def resolve_image_path(image_path)
+  return nil if image_path.nil? || image_path.empty?
+  
+  # If it's already an absolute path and exists, use it
+  return image_path if File.absolute_path?(image_path) && File.exist?(image_path)
+  
+  # Try current working directory
+  current_dir_path = File.join(Dir.pwd, image_path)
+  return current_dir_path if File.exist?(current_dir_path)
+  
+  # Try data directories
+  data_paths = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
+  data_paths.each do |data_path|
+    full_path = File.join(data_path, image_path)
+    return full_path if File.exist?(full_path)
+  end
+  
+  # Return nil if not found anywhere
+  nil
 end
 
 # Save video file from operation response
@@ -158,13 +227,15 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
     "Content-Type": "application/json"
   }
 
-  # Build the request body
+  # Build the request body according to Vertex AI Video Generation API
   body = {
     instances: [
-      { prompt: prompt }
+      { 
+        prompt: prompt
+      }
     ],
     parameters: {
-      # Use the exact parameter names from the example curl command
+      # Use the exact parameter names from Vertex AI documentation
       aspectRatio: aspect_ratio,
       personGeneration: person_generation,
       # Force to generate only one video by explicitly setting sampleCount
@@ -172,17 +243,50 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
     }
   }
   
-  # Add image if provided
+  # Add image if provided - use Vertex AI structure
   if image_path && !image_path.empty?
-    if File.exist?(image_path)
-      base64_image = encode_image(image_path)
-      if base64_image
-        body[:instances][0][:image] = { bytesBase64Encoded: base64_image }
+    resolved_path = resolve_image_path(image_path)
+    if resolved_path
+      data_url = encode_image_to_data_url(resolved_path)
+      if data_url
+        # Extract base64 data without the data URL prefix
+        base64_data = data_url.split(',').last
+        
+        # Use Vertex AI Video Generation API structure
+        # Based on the documentation, the image should include mimeType
+        # Try to read mime type from companion file first
+        mime_info_path = resolved_path + ".mime"
+        mime_type = nil
+        
+        if File.exist?(mime_info_path)
+          mime_type = File.read(mime_info_path).strip
+          STDERR.puts "DEBUG: Read mime type from companion file: #{mime_type}"
+        end
+        
+        # Fallback to extension-based detection if no companion file
+        if mime_type.nil? || mime_type.empty?
+          mime_type = case File.extname(resolved_path).downcase
+                     when '.png' then 'image/png'
+                     when '.jpg', '.jpeg' then 'image/jpeg'
+                     when '.gif' then 'image/gif'
+                     when '.webp' then 'image/webp'
+                     else 'image/jpeg' # default
+                     end
+          STDERR.puts "DEBUG: Determined mime type from extension: #{mime_type}"
+        end
+        
+        body[:instances][0][:image] = {
+          bytesBase64Encoded: base64_data,
+          mimeType: mime_type
+        }
+        
+        STDERR.puts "Successfully encoded image from: #{resolved_path}"
+        STDERR.puts "DEBUG: Added image to request body with base64 encoding and mimeType: #{mime_type}"
       else
         STDERR.puts "Failed to encode image, proceeding with text-to-video generation only"
       end
     else
-      STDERR.puts "Warning: Image file not found at #{image_path}, proceeding with text-to-video generation only"
+      STDERR.puts "Warning: Image file not found at #{image_path} (searched in current dir and data folders), proceeding with text-to-video generation only"
     end
   end
 

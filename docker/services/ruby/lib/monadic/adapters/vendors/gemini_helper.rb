@@ -947,6 +947,11 @@ module GeminiHelper
           memo
         end
 
+        # Add session parameter for functions that need access to uploaded images
+        if function_name == "generate_video_with_veo"
+          argument_hash[:session] = session
+        end
+        
         # Call the function with the provided arguments
         function_return = send(function_name.to_sym, **argument_hash)
         
@@ -1118,7 +1123,173 @@ module GeminiHelper
   end
   
   # Helper function to generate video with Veo model
-  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil)
+  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil, session: nil)
+    # Debug output
+    STDERR.puts "DEBUG: generate_video_with_veo called with:"
+    STDERR.puts "  prompt: #{prompt}"
+    STDERR.puts "  image_path: #{image_path.inspect}"
+    STDERR.puts "  aspect_ratio: #{aspect_ratio}"
+    STDERR.puts "  person_generation: #{person_generation}"
+    STDERR.puts "  session provided: #{!session.nil?}"
+    
+    # Try to get image data from session and create temporary file
+    actual_image_path = nil
+    temp_file_path = nil
+    
+    if session && session[:messages]
+      STDERR.puts "DEBUG: Session messages count: #{session[:messages].size}"
+      # Look for the most recent user message with images
+      user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
+      STDERR.puts "DEBUG: User messages with images: #{user_messages_with_images.size}"
+      
+      if user_messages_with_images.any?
+        latest_message = user_messages_with_images.last
+        STDERR.puts "DEBUG: Latest message keys: #{latest_message.keys}"
+        
+        if latest_message["images"] && latest_message["images"].first
+          # Extract image data from the first image
+          first_image = latest_message["images"].first
+          STDERR.puts "DEBUG: First image data keys: #{first_image.keys}"
+          
+          # Get the base64 data from the session
+          if first_image["data"] && first_image["data"].start_with?("data:image/")
+            # Create a temporary file from the base64 data
+            require 'tempfile'
+            require 'base64'
+            
+            # Extract the base64 data
+            data_url = first_image["data"]
+            # Split the data URL to get the base64 part
+            base64_data = data_url.split(',').last
+            # Decode the base64 data
+            image_binary = Base64.decode64(base64_data)
+            
+            # Determine file extension and mime type from data URL or session data
+            detected_mime_type = nil
+            if first_image["type"]
+              detected_mime_type = first_image["type"]
+              STDERR.puts "DEBUG: Using mime type from session: #{detected_mime_type}"
+            elsif data_url.include?('image/')
+              detected_mime_type = data_url.split(';').first.split(':').last
+              STDERR.puts "DEBUG: Extracted mime type from data URL: #{detected_mime_type}"
+            end
+            
+            extension = case detected_mime_type
+                       when 'image/jpeg', 'image/jpg' then '.jpg'
+                       when 'image/png' then '.png'
+                       when 'image/gif' then '.gif'
+                       when 'image/webp' then '.webp'
+                       else
+                         # Try to detect from data URL if mime type is not available
+                         if data_url.include?('image/jpeg')
+                           '.jpg'
+                         elsif data_url.include?('image/png')
+                           '.png'
+                         elsif data_url.include?('image/gif')
+                           '.gif'
+                         elsif data_url.include?('image/webp')
+                           '.webp'
+                         else
+                           '.jpg' # default
+                         end
+                       end
+            
+            STDERR.puts "DEBUG: Determined file extension: #{extension}, MIME type: #{detected_mime_type}"
+            
+            # Create temporary file in shared data directory
+            # This ensures the file is accessible both locally and in Docker container
+            data_paths = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
+            temp_dir = nil
+            
+            # Find or create the data directory
+            data_paths.each do |path|
+              if Dir.exist?(path)
+                temp_dir = path
+                break
+              else
+                begin
+                  FileUtils.mkdir_p(path)
+                  temp_dir = path
+                  break
+                rescue
+                  next
+                end
+              end
+            end
+            
+            if temp_dir
+              # Create a unique filename with timestamp and mime type info
+              timestamp = Time.now.to_i
+              temp_filename = "video_gen_temp_#{timestamp}_#{rand(1000)}#{extension}"
+              temp_file_path = File.join(temp_dir, temp_filename)
+              
+              # Store mime type information in a companion file for reference
+              mime_info_path = temp_file_path + ".mime"
+              
+              # Check and potentially resize image before writing
+              begin
+                # Check image size
+                image_size = image_binary.size
+                STDERR.puts "DEBUG: Original image size: #{image_size} bytes"
+                
+                # Check image size against Vertex AI limits (20MB)
+                if image_size > 20 * 1024 * 1024
+                  STDERR.puts "ERROR: Image is too large (#{image_size} bytes). Maximum supported size is 20MB."
+                  actual_image_path = nil
+                elsif image_size > 10 * 1024 * 1024
+                  STDERR.puts "WARNING: Image is large (#{image_size} bytes). This may take longer to process."
+                end
+                
+                # Write the image file and mime type info
+                File.open(temp_file_path, 'wb') do |f|
+                  f.write(image_binary)
+                end
+                
+                # Write mime type info to companion file
+                if detected_mime_type
+                  File.write(mime_info_path, detected_mime_type)
+                  STDERR.puts "DEBUG: Saved mime type '#{detected_mime_type}' to #{mime_info_path}"
+                end
+                
+                actual_image_path = temp_filename  # Use just the filename, not full path
+                STDERR.puts "DEBUG: Created temporary image file: #{temp_file_path}"
+                STDERR.puts "DEBUG: Using filename for script: #{actual_image_path}"
+              rescue StandardError => e
+                STDERR.puts "ERROR: Failed to process image: #{e.message}"
+                actual_image_path = nil
+              end
+            else
+              STDERR.puts "ERROR: Could not create temporary file - no accessible data directory"
+            end
+            
+          elsif first_image["filename"]
+            actual_image_path = first_image["filename"]
+            STDERR.puts "DEBUG: Found image filename in session: #{actual_image_path}"
+          elsif first_image["title"]
+            actual_image_path = first_image["title"]
+            STDERR.puts "DEBUG: Found image title in session: #{actual_image_path}"
+          else
+            STDERR.puts "DEBUG: No data, filename or title field in image data, available keys: #{first_image.keys}"
+          end
+        else
+          STDERR.puts "DEBUG: No images array or first image not found"
+        end
+      else
+        STDERR.puts "DEBUG: No user messages with images found"
+      end
+    else
+      STDERR.puts "DEBUG: No session or messages data available"
+    end
+    
+    # Use session image path if available, otherwise use provided image_path (but ignore "image_path" literal)
+    final_image_path = actual_image_path
+    if !final_image_path && image_path && image_path != "image_path"
+      final_image_path = image_path
+      STDERR.puts "DEBUG: Using provided image_path: #{final_image_path}"
+    else
+      STDERR.puts "DEBUG: Final image path: #{final_image_path || 'nil'}"
+    end
+    
     # Construct the command
     parts = []
     parts << "video_generator_veo.rb"
@@ -1128,9 +1299,12 @@ module GeminiHelper
     parts << "-g \"#{person_generation}\"" if person_generation
     parts << "-d #{duration_seconds}" if duration_seconds
     
-    # Add image path if provided
-    if image_path && !image_path.empty?
-      parts << "-i \"#{image_path}\""
+    # Add image path if available
+    if final_image_path && !final_image_path.empty?
+      STDERR.puts "DEBUG: Adding image path to command: #{final_image_path}"
+      parts << "-i \"#{final_image_path}\""
+    else
+      STDERR.puts "DEBUG: No image path available (provided: #{image_path.inspect}, from session: #{actual_image_path.inspect})"
     end
     
     # Create the bash command
@@ -1139,9 +1313,34 @@ module GeminiHelper
     begin
       # Send command and get raw output
       result = send_command(command: cmd, container: "ruby")
+      
+      # Clean up temporary files if we created them
+      if temp_file_path && File.exist?(temp_file_path)
+        File.unlink(temp_file_path)
+        STDERR.puts "DEBUG: Cleaned up temporary file: #{temp_file_path}"
+        # Also clean up mime info file if it exists
+        mime_info_path = temp_file_path + ".mime"
+        if File.exist?(mime_info_path)
+          File.unlink(mime_info_path)
+          STDERR.puts "DEBUG: Cleaned up mime info file: #{mime_info_path}"
+        end
+      end
+      
       return result
     rescue => e
       STDERR.puts "Error executing command: #{e.message}"
+      
+      # Clean up temporary files even if there was an error
+      if temp_file_path && File.exist?(temp_file_path)
+        File.unlink(temp_file_path)
+        STDERR.puts "DEBUG: Cleaned up temporary file after error: #{temp_file_path}"
+        # Also clean up mime info file if it exists
+        mime_info_path = temp_file_path + ".mime"
+        if File.exist?(mime_info_path)
+          File.unlink(mime_info_path)
+          STDERR.puts "DEBUG: Cleaned up mime info file after error: #{mime_info_path}"
+        end
+      end
       return { 
         "success" => false, 
         "message" => "Error executing video generation command: #{e.message}", 

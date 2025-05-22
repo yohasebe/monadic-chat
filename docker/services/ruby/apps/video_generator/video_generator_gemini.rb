@@ -70,6 +70,8 @@ class VideoGeneratorGeminiApp < MonadicApp
       - "Create a video of a sunset over mountains" → Text-to-video generation
       - "Turn this image into a video" (with uploaded image) → Image-to-video generation
       - "Generate a vertical video of a dancing robot" → Use 9:16 aspect ratio
+
+    IMPORTANT: Once again, after function execution, output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
   TEXT
 
   # Using self.settings = instead of @settings = for proper class variable definition
@@ -86,7 +88,7 @@ class VideoGeneratorGeminiApp < MonadicApp
     easy_submit: false,
     auto_speech: false,
     initiate_from_assistant: false,
-    image_generation: true, # Also enables image upload UI
+    image_generation: "upload_only", # Enables image upload but disables mask processing
     format_response: false,  # Don't format response - important for proper HTML handling
     strip_code_blocks: true, # Strip code blocks from the response
     tools: {

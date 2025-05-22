@@ -25,6 +25,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Voice Interpreter | ✅ | | | | | | | |
 | Novel Writer | ✅ | | | | | | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | |
+| Video Generator | | | | | ✅ | | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | |
@@ -239,6 +240,33 @@ Image Generator apps are also available for the following models:
 - OpenAI (using gpt-image-1) - supports image generation, editing, and variation
 - Google Gemini (using Imagen) - supports image generation
 - xAI Grok - supports image generation
+
+### Video Generator
+
+![Video Generator app icon](../assets/icons/video-generator.png ':size=40')
+
+This application generates videos using Google's Veo model through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
+
+**Key Features:**
+- **Text-to-video generation**: Create videos from text descriptions
+- **Image-to-video generation**: Animate existing images by using them as the first frame
+- **Aspect ratio options**: Choose between landscape (16:9) and portrait (9:16) formats
+- **Person generation control**: Option to allow or restrict generation of videos containing people
+
+**Usage:**
+1. For text-to-video: Provide a detailed description of the video you want to create
+2. For image-to-video: Upload an image and describe how it should be animated
+3. Specify the desired aspect ratio and person generation preferences
+4. The AI will process your request using Google's Veo model
+
+**Note:** Video generation typically takes 2-6 minutes to complete. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
+
+**Example requests:**
+- "Create a video of a sunset over mountains" (text-to-video)
+- "Turn this image into a video of waves gently moving" (image-to-video with uploaded image)
+- "Generate a vertical video of a dancing robot" (9:16 aspect ratio)
+
+Video Generator is available exclusively with Google Gemini models.
 
 ### Mail Composer
 

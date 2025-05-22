@@ -211,7 +211,14 @@ function updateFileDisplay(files) {
   const currentApp = $("#apps").val();
   const isImageGenerationEnabled = apps[currentApp] && 
     (apps[currentApp].image_generation === true || 
-     apps[currentApp].image_generation === "true");
+     apps[currentApp].image_generation === "true" ||
+     apps[currentApp].image_generation === "upload_only");
+  
+  // Check if mask editing is enabled - separate from basic image generation
+  const isMaskEditingEnabled = apps[currentApp] && 
+    (apps[currentApp].image_generation === true || 
+     apps[currentApp].image_generation === "true") &&
+    apps[currentApp].image_generation !== "upload_only";
 
   // Create display elements for each file
   files.forEach((file, index) => {
@@ -251,7 +258,7 @@ function updateFileDisplay(files) {
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
-          ${isImageGenerationEnabled ? 
+          ${isMaskEditingEnabled ? 
             `<button class='btn btn-primary btn-sm create-mask ml-2' data-index='${index}' tabindex="100">
               <i class="fas fa-brush"></i> Create Mask
             </button>` : ''
@@ -350,14 +357,15 @@ function updateFileDisplay(files) {
   $(".create-mask").on("click", function() {
     const index = $(this).data("index");
     
-    // Check if image generation is enabled in the current app
+    // Check if mask editing is enabled in the current app
     const currentApp = $("#apps").val();
-    const isImageGenerationEnabled = apps[currentApp] && 
+    const isMaskEditingEnabled = apps[currentApp] && 
       (apps[currentApp].image_generation === true || 
-       apps[currentApp].image_generation === "true");
+       apps[currentApp].image_generation === "true") &&
+      apps[currentApp].image_generation !== "upload_only";
     
-    if (!isImageGenerationEnabled) {
-      setAlert("Mask editing is only available in apps with image generation support", "error");
+    if (!isMaskEditingEnabled) {
+      setAlert("Mask editing is not available in this app", "error");
       return;
     }
     

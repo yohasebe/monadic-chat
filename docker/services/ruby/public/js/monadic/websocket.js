@@ -200,7 +200,6 @@ function stopPing() {
 
 const chatBottom = $("#chat-bottom").get(0);
 let autoScroll = true;
-/* exported autoScroll */
 
 const mainPanel = $("#main-panel").get(0);
 
@@ -598,15 +597,6 @@ const MAX_AUDIO_QUEUE_SIZE = 50; // Maximum number of audio chunks to keep in qu
 window.mediaSource = mediaSource;
 window.audio = audio;
 
-// Function to add audio data to queue with size limit enforcement
-function addToAudioQueue(data, sequenceId) {
-  // Limit the queue size to prevent memory leaks
-  if (audioDataQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-    // Remove oldest audio data (half of the queue) to make room for new data
-    audioDataQueue = audioDataQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-  }
-  audioDataQueue.push(data);
-}
 
 // Function to add to global audio queue (used for segmented playback)
 window.addToGlobalAudioQueue = function(audioItem) {
@@ -618,17 +608,6 @@ window.addToGlobalAudioQueue = function(audioItem) {
   }
 };
 
-// Function to clear the audio queue
-function clearAudioQueue() {
-  audioDataQueue = [];
-  
-  // Clear global audio queue as well
-  if (typeof globalAudioQueue !== 'undefined') {
-    globalAudioQueue = [];
-    isProcessingAudioQueue = false;
-    currentAudioSequenceId = null;
-  }
-}
 
 // Initialize MediaSource for audio playback
 function initializeMediaSourceForAudio() {

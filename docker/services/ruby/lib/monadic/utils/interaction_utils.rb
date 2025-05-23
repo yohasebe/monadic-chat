@@ -193,9 +193,23 @@ module InteractionUtils
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
       unless res.status.success?
-        error_report = JSON.parse(res.body)
+        error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
+        
+        # For ElevenLabs, suppress "something_went_wrong" errors since audio often still works
+        if provider == "elevenlabs" && 
+           (error_report.dig("detail", "status") == "something_went_wrong" ||
+            error_report["detail"].to_s.include?("something_went_wrong"))
+          # Log the error but don't send to client
+          puts "ElevenLabs API warning (suppressed): #{error_report}"
+          # Don't call the block with error and don't return error
+          # This prevents the error from being sent to the client
+          return nil if block_given?
+          # For non-streaming calls, return a silent success to avoid error display
+          return { "type" => "audio", "content" => "" }
+        end
+        
         res = { "type" => "error", "content" => "ERROR: #{error_report}" }
-          block&.call res
+        block&.call res
         return res
       end
 

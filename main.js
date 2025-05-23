@@ -218,6 +218,7 @@ function openWebViewWindow(url) {
 
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn(), 'Zoom In'));
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut(), 'Zoom Out'));
+        container.appendChild(makeBtn('fa-solid fa-magnifying-glass', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomReset(), 'Reset Zoom'));
         container.appendChild(makeBtn('fa-solid fa-arrows-rotate', 'rgba(66,139,202,0.9)', () => {
           if(confirm('Reset will clear all data and return to the initial state, including app selection. Continue?')) {
             window.electronAPI.resetWebUI();
@@ -327,6 +328,13 @@ function openWebViewWindow(url) {
             webviewWindow.webContents.send('zoom-out-menu');
           }
         },
+        { 
+          label: 'Reset Zoom',
+          accelerator: 'CmdOrCtrl+0',
+          click: () => {
+            webviewWindow.webContents.send('zoom-reset-menu');
+          }
+        },
         { type: 'separator' },
         { 
           label: 'Toggle Fullscreen',
@@ -397,6 +405,38 @@ function openWebViewWindow(url) {
           return;
         } else if (key === 'a') {
           webviewWindow.webContents.selectAll();
+          event.preventDefault();
+          return;
+        }
+        // Handle zoom shortcuts
+        else if (key === '+' || key === '=' || (input.shift && key === ';')) {
+          // Handle zoom in: Cmd/Ctrl + '+' or '=' or ';' (with shift for Japanese keyboard)
+          const wc = webviewWindow.webContents;
+          const current = wc.getZoomFactor();
+          Promise.resolve(current).then(f => {
+            const newFactor = f + 0.1;
+            wc.setZoomFactor(newFactor);
+            wc.send('zoom-changed', newFactor);
+          });
+          event.preventDefault();
+          return;
+        } else if (key === '-') {
+          // Handle zoom out: Cmd/Ctrl + '-'
+          const wc = webviewWindow.webContents;
+          const current = wc.getZoomFactor();
+          Promise.resolve(current).then(f => {
+            const newFactor = f - 0.1;
+            wc.setZoomFactor(newFactor);
+            wc.send('zoom-changed', newFactor);
+          });
+          event.preventDefault();
+          return;
+        } else if (key === '0') {
+          // Handle zoom reset: Cmd/Ctrl + '0'
+          const wc = webviewWindow.webContents;
+          const defaultFactor = 1.0;
+          wc.setZoomFactor(defaultFactor);
+          wc.send('zoom-changed', defaultFactor);
           event.preventDefault();
           return;
         }
@@ -2742,6 +2782,15 @@ ipcMain.on('zoom-out', () => {
       wc.setZoomFactor(newFactor);
       wc.send('zoom-changed', newFactor);
     });
+  }
+});
+// Zoom Reset: reset to default zoom factor
+ipcMain.on('zoom-reset', () => {
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    const wc = webviewWindow.webContents;
+    const defaultFactor = 1.0;
+    wc.setZoomFactor(defaultFactor);
+    wc.send('zoom-changed', defaultFactor);
   }
 });
 

@@ -381,18 +381,28 @@ module ClaudeHelper
 
     message = obj["message"].to_s
 
+    # Store the original max_tokens value
+    user_max_tokens = max_tokens
+    
     case obj["reasoning_effort"]
     when "low"
-      budget_tokens = 16000
-      max_tokens = 128000
+      # Use proportional approach based on user's max_tokens
+      budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+      max_tokens = user_max_tokens  # Keep original value
     when "medium"
-      budget_tokens = 32000
-      max_tokens = 128000
+      budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
+      max_tokens = user_max_tokens
     when "high"
-      budget_tokens = 48000
-      max_tokens = 128000
+      budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
+      max_tokens = user_max_tokens
     else
       budget_tokens = nil
+    end
+    
+    # Ensure budget_tokens is less than max_tokens
+    if budget_tokens && budget_tokens >= max_tokens
+      # Adjust budget_tokens to be at most 80% of max_tokens
+      budget_tokens = (max_tokens * 0.8).to_i
     end
 
     if role != "tool"

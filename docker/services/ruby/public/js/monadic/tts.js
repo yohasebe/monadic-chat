@@ -538,35 +538,91 @@ function ttsSpeak(text, stream, callback) {
     voiceData.speed = speed;
   }
 
+  // Check if WebSocket is available and connected
+  if (typeof ws === 'undefined' || !ws || ws.readyState !== WebSocket.OPEN) {
+    console.error("WebSocket is not connected");
+    if (typeof setAlert === 'function') {
+      setAlert('<i class="fas fa-exclamation-triangle"></i> WebSocket connection error', 'error');
+    }
+    return false;
+  }
+
   // Send the request to the server
   ws.send(JSON.stringify(voiceData));
 
-  // Create audio element if it doesn't exist
-  if (!ttsAudio && window.audio) {
-    ttsAudio = window.audio;
-  } else if (!ttsAudio) {
-    ttsAudio = new Audio();
+  // Clear the global queue for new TTS playback
+  if (typeof window.globalAudioQueue !== 'undefined') {
+    window.globalAudioQueue = [];
+    window.isProcessingAudioQueue = false;
   }
   
-  // Start playback (safely)
-  try {
-    if (ttsAudio && ttsAudio.play) {
-      const playPromise = ttsAudio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {});
-      }
+  // Clear MediaSource-based audio queue as well
+  if (typeof clearAudioQueue === 'function') {
+    clearAudioQueue();
+  }
+  
+  // Note: Don't reset audio elements here as it causes issues with ongoing playback
+  // Just ensure we have a working audio element
+  
+  // Create or reuse audio element
+  if (!window.audio || !window.audio.src) {
+    // Only recreate if necessary
+    window.audio = new Audio();
+    
+    // Re-initialize MediaSource if needed
+    if (typeof initializeMediaSourceForAudio === 'function' && !window.basicAudioMode) {
+      initializeMediaSourceForAudio();
     }
-  } catch (e) {
-    // Silently handle errors
+  }
+  ttsAudio = window.audio;
+  
+  // For auto_speech, set flags to enable automatic playback
+  if (stream) {
+    window.autoPlayAudio = true;
+    window.autoSpeechActive = true;
   }
   
-  // Call the callback if provided
-  if (typeof callback === 'function') {
-    callback(true);
+  // For non-streaming TTS (play button), we need to manually start playback
+  // after receiving the first audio chunk
+  if (!stream) {
+    // Set up event listener for when audio can play
+    ttsAudio.oncanplay = function() {
+      try {
+        const playPromise = ttsAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.log("Error playing TTS audio:", err);
+            // For user-initiated playback (play button), this should work
+            // If it doesn't, show an alert
+            if (err.name === 'NotAllowedError') {
+              if (typeof setAlert === 'function') {
+                setAlert('<i class="fas fa-volume-up"></i> Click anywhere to enable audio', 'info');
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Error in TTS playback:", e);
+      }
+    };
   }
+  
+  // Return true to indicate success
+  return true;
 }
 
 function ttsStop() {
+  // Clear the global audio queue first
+  if (typeof clearAudioQueue === 'function') {
+    clearAudioQueue();
+  }
+  
+  // Clear global audio queue
+  if (typeof window.globalAudioQueue !== 'undefined') {
+    window.globalAudioQueue = [];
+    window.isProcessingAudioQueue = false;
+  }
+  
   // Stop Web Speech API if active
   if (typeof window.speechSynthesis !== 'undefined') {
     try {

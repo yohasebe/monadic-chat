@@ -15,6 +15,11 @@ let isIOSAudioPlaying = false;
 let iosAudioQueue = [];
 let iosAudioElement = null;
 
+// Global audio queue for managing TTS playback order
+let globalAudioQueue = [];
+let isProcessingAudioQueue = false;
+let currentAudioSequenceId = null;
+
 // message is submitted upon pressing enter
 const message = $("#message")[0];
 
@@ -589,19 +594,40 @@ let sourceBuffer = null;
 let audioDataQueue = [];
 const MAX_AUDIO_QUEUE_SIZE = 50; // Maximum number of audio chunks to keep in queue
 
+// Export to window for global access
+window.mediaSource = mediaSource;
+window.audio = audio;
+
 // Function to add audio data to queue with size limit enforcement
-function addToAudioQueue(data) {
+function addToAudioQueue(data, sequenceId) {
   // Limit the queue size to prevent memory leaks
   if (audioDataQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
     // Remove oldest audio data (half of the queue) to make room for new data
     audioDataQueue = audioDataQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-    }
+  }
   audioDataQueue.push(data);
 }
+
+// Function to add to global audio queue (used for segmented playback)
+window.addToGlobalAudioQueue = function(audioItem) {
+  globalAudioQueue.push(audioItem);
+  
+  // Process the queue if not already processing
+  if (!isProcessingAudioQueue) {
+    processGlobalAudioQueue();
+  }
+};
 
 // Function to clear the audio queue
 function clearAudioQueue() {
   audioDataQueue = [];
+  
+  // Clear global audio queue as well
+  if (typeof globalAudioQueue !== 'undefined') {
+    globalAudioQueue = [];
+    isProcessingAudioQueue = false;
+    currentAudioSequenceId = null;
+  }
 }
 
 // Initialize MediaSource for audio playback
@@ -636,7 +662,36 @@ function initializeMediaSourceForAudio() {
       if (!audio) {
         audio = new Audio();
         audio.src = URL.createObjectURL(mediaSource);
+        window.audio = audio; // Export to window for global access
         console.log("[Audio] Audio element created with MediaSource");
+        
+        // Set up event listener for automatic playback
+        audio.addEventListener('canplay', function() {
+          // If auto-speech is active or play button was pressed, start playback automatically
+          if (window.autoSpeechActive || window.autoPlayAudio) {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise.then(() => {
+                console.log("[Audio] Automatic playback started successfully");
+              }).catch(err => {
+                console.log("[Audio] Error in automatic playback:", err);
+                if (err.name === 'NotAllowedError') {
+                  // Create a one-time click handler to enable audio
+                  const enableAudio = function() {
+                    audio.play().then(() => {
+                      console.log("[Audio] Playback enabled after user interaction");
+                      document.removeEventListener('click', enableAudio);
+                    }).catch(e => {
+                      console.error("[Audio] Failed to start playback:", e);
+                    });
+                  };
+                  document.addEventListener('click', enableAudio);
+                  setAlert('<i class="fas fa-volume-up"></i> Click anywhere to enable audio', 'info');
+                }
+              });
+            }
+          }
+        });
       }
       
     } catch (e) {
@@ -813,7 +868,241 @@ function playWithAudioElement(audioData) {
   }
 }
 
-// Special function for iOS audio playback with buffering
+// Global audio queue management
+function addToAudioQueue(audioData, sequenceId) {
+  globalAudioQueue.push({
+    data: audioData,
+    sequenceId: sequenceId,
+    timestamp: Date.now()
+  });
+  
+  // Start processing if not already running
+  if (!isProcessingAudioQueue) {
+    processGlobalAudioQueue();
+  }
+}
+
+// Process the global audio queue to ensure sequential playback
+function processGlobalAudioQueue() {
+  if (globalAudioQueue.length === 0) {
+    isProcessingAudioQueue = false;
+    currentAudioSequenceId = null;
+    return;
+  }
+  
+  isProcessingAudioQueue = true;
+  const audioItem = globalAudioQueue.shift();
+  currentAudioSequenceId = audioItem.sequenceId;
+  
+  // Choose appropriate playback method based on device
+  if (window.isIOS || window.basicAudioMode) {
+    playAudioForIOSFromQueue(audioItem.data);
+  } else {
+    playAudioFromQueue(audioItem.data);
+  }
+}
+
+// Clear the audio queue (used by stop button)
+function clearAudioQueue() {
+  globalAudioQueue = [];
+  isProcessingAudioQueue = false;
+  currentAudioSequenceId = null;
+  
+  // Also clear iOS-specific buffers
+  iosAudioBuffer = [];
+  isIOSAudioPlaying = false;
+  
+  // Clear other audio queues
+  if (typeof audioDataQueue !== 'undefined') {
+    audioDataQueue = [];
+  }
+  if (typeof window.firefoxAudioQueue !== 'undefined') {
+    window.firefoxAudioQueue = [];
+  }
+}
+
+// Main audio processing function
+function processAudio(audioData) {
+  try {
+    // Initialize audioDataQueue if not already initialized
+    if (!audioDataQueue) {
+      audioDataQueue = [];
+    }
+    
+    // Ensure MediaSource is initialized if not already
+    if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
+      console.log("[Audio] MediaSource not initialized, creating new one");
+      initializeMediaSourceForAudio();
+    }
+    
+    // Handle based on browser environment
+    if (window.firefoxAudioMode) {
+      if (!window.firefoxAudioQueue) {
+        window.firefoxAudioQueue = [];
+      }
+      
+      // Firefox audio queue management
+      window.firefoxAudioQueue.push(audioData);
+      processAudioDataQueue();
+    } else if (window.basicAudioMode || window.isIOS) {
+      // For iOS and other devices without MediaSource
+      playAudioDirectly(audioData);
+    } else {
+      // Standard approach for modern browsers
+      audioDataQueue.push(audioData);
+      processAudioDataQueue();
+      
+      // Ensure audio playback starts automatically
+      if (audio && audio.paused) {
+        audio.play().catch(err => {
+          console.log("Error playing audio:", err);
+          // User interaction might be required
+          if (err.name === 'NotAllowedError') {
+            setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Error in audio processing:", e);
+  }
+}
+
+// Play audio from queue for standard browsers
+function playAudioFromQueue(audioData) {
+  try {
+    // For segmented TTS playback, use direct blob playback
+    // This is simpler and more reliable than MediaSource
+    const blob = new Blob([audioData], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(blob);
+    
+    // Create a new audio element for this segment
+    const segmentAudio = new Audio();
+    
+    segmentAudio.onended = function() {
+      // Clean up
+      URL.revokeObjectURL(audioUrl);
+      // Process next segment in queue
+      setTimeout(() => {
+        isProcessingAudioQueue = false;
+        processGlobalAudioQueue();
+      }, 100);
+    };
+    
+    segmentAudio.onerror = function(e) {
+      console.error("Segment audio error:", e);
+      URL.revokeObjectURL(audioUrl);
+      // Try next segment
+      setTimeout(() => {
+        isProcessingAudioQueue = false;
+        processGlobalAudioQueue();
+      }, 100);
+    };
+    
+    // Set source and play
+    segmentAudio.src = audioUrl;
+    segmentAudio.play().then(() => {
+      console.log("Playing TTS segment");
+    }).catch(err => {
+      console.error("Failed to play segment:", err);
+      URL.revokeObjectURL(audioUrl);
+      // Try next segment
+      setTimeout(() => {
+        isProcessingAudioQueue = false;
+        processGlobalAudioQueue();
+      }, 100);
+    });
+    
+  } catch (e) {
+    console.error("Error in playAudioFromQueue:", e);
+    // Try next segment
+    setTimeout(() => {
+      isProcessingAudioQueue = false;
+      processGlobalAudioQueue();
+    }, 100);
+  }
+}
+
+// Special function for iOS audio playback with queue support
+function playAudioForIOSFromQueue(audioData) {
+  try {
+    // Add to iOS buffer
+    iosAudioBuffer.push(audioData);
+    
+    // Process if not already playing
+    if (!isIOSAudioPlaying) {
+      processIOSAudioBufferWithQueue();
+    }
+  } catch (e) {
+    // Continue with next item on error
+    setTimeout(() => processGlobalAudioQueue(), 100);
+  }
+}
+
+// Modified iOS buffer processor with queue support
+function processIOSAudioBufferWithQueue() {
+  if (iosAudioBuffer.length === 0) {
+    isIOSAudioPlaying = false;
+    // Process next item in global queue
+    setTimeout(() => processGlobalAudioQueue(), 100);
+    return;
+  }
+  
+  isIOSAudioPlaying = true;
+  
+  try {
+    // Combine all buffered chunks
+    let totalLength = 0;
+    iosAudioBuffer.forEach(chunk => totalLength += chunk.length);
+    
+    const combinedData = new Uint8Array(totalLength);
+    let offset = 0;
+    
+    iosAudioBuffer.forEach(chunk => {
+      combinedData.set(chunk, offset);
+      offset += chunk.length;
+    });
+    
+    iosAudioBuffer = [];
+    
+    // Create and play audio
+    const blob = new Blob([combinedData], { type: 'audio/mpeg' });
+    const blobUrl = URL.createObjectURL(blob);
+    
+    if (!iosAudioElement) {
+      iosAudioElement = new Audio();
+    }
+    
+    iosAudioElement.onended = function() {
+      isIOSAudioPlaying = false;
+      URL.revokeObjectURL(blobUrl);
+      // Process next item in global queue
+      setTimeout(() => processGlobalAudioQueue(), 100);
+    };
+    
+    iosAudioElement.onerror = function() {
+      isIOSAudioPlaying = false;
+      URL.revokeObjectURL(blobUrl);
+      // Process next item in global queue even on error
+      setTimeout(() => processGlobalAudioQueue(), 100);
+    };
+    
+    iosAudioElement.src = blobUrl;
+    iosAudioElement.play().catch(err => {
+      isIOSAudioPlaying = false;
+      URL.revokeObjectURL(blobUrl);
+      // Process next item in global queue
+      setTimeout(() => processGlobalAudioQueue(), 100);
+    });
+    
+  } catch (e) {
+    isIOSAudioPlaying = false;
+    // Process next item in global queue
+    setTimeout(() => processGlobalAudioQueue(), 100);
+  }
+}
+
+// Special function for iOS audio playback with buffering (legacy support)
 function playAudioForIOS(audioData) {
   try {
     // Add current chunk to our global buffer
@@ -967,6 +1256,13 @@ function processAudioDataQueue() {
     const audioData = audioDataQueue.shift();
     try {
       sourceBuffer.appendBuffer(audioData);
+      
+      // For segmented playback, ensure continuous playback
+      if (audio && audio.paused && audio.readyState >= 2) {
+        audio.play().catch(err => {
+          console.log("Error resuming audio playback:", err);
+        });
+      }
     } catch (e) {
       console.error('Error appending buffer:', e);
       
@@ -1086,6 +1382,7 @@ function connect_websocket(callback) {
           
           audio = new Audio();
           audio.src = URL.createObjectURL(mediaSource);
+          window.audio = audio; // Export to window for global access
         } catch (e) {
           console.error("Error creating audio element: ", e);
           // Fallback to basic audio mode
@@ -1359,9 +1656,17 @@ function connect_websocket(callback) {
               audioDataQueue.push(audioData);
               processAudioDataQueue();
               
-              // Make sure audio is playing
-              if (audio && audio.paused) {
-                audio.play();
+              // Make sure audio is playing with error handling
+              if (audio) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                  playPromise.catch(err => {
+                    console.log("Error playing audio:", err);
+                    if (err.name === 'NotAllowedError') {
+                      setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+                    }
+                  });
+                }
               }
             }
           };
@@ -1409,9 +1714,17 @@ function connect_websocket(callback) {
               audioDataQueue.push(audioData);
               processAudioDataQueue();
               
-              // Make sure audio is playing
-              if (audio && audio.paused) {
-                audio.play();
+              // Make sure audio is playing with error handling
+              if (audio) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                  playPromise.catch(err => {
+                    console.log("Error playing audio:", err);
+                    if (err.name === 'NotAllowedError') {
+                      setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+                    }
+                  });
+                }
               }
             }
             
@@ -2272,11 +2585,30 @@ function connect_websocket(callback) {
             $("#monadic-spinner").hide();
             
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+            
+            // For assistant messages, don't show "Ready to start" immediately
+            // Wait for streaming to complete
+            setAlert("<i class='fa-solid fa-circle-check'></i> Response received", "success");
+            
+            // Handle auto_speech for TTS auto-playback
+            if (window.autoSpeechActive || (params && params["auto_speech"] === "true")) {
+              // Use setTimeout to ensure the card is fully rendered before triggering TTS
+              setTimeout(() => {
+                const lastCard = $("#discourse div.card:last");
+                const playButton = lastCard.find(".func-play");
+                if (playButton.length > 0) {
+                  // Simulate a click on the play button to trigger TTS
+                  playButton.click();
+                }
+                // Reset the auto speech flag
+                window.autoSpeechActive = false;
+              }, 100);
+            }
+          } else {
+            // For non-assistant messages, show "Ready to start" immediately
+            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+            setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
           }
-
-          // AI User is no longer automatically triggered
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
 
         } else if (data["content"]["role"] === "user") {
           let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
@@ -2478,6 +2810,25 @@ function connect_websocket(callback) {
                           data.role === "assistant" ? "Assistant" : "System";
           setAlert(`<i class='fas fa-check-circle'></i> Sample ${roleText} message added`, "success");
         }
+        break;
+      }
+      
+      case "streaming_complete": {
+        // Handle streaming completion
+        // Hide the spinner if still showing
+        $("#monadic-spinner").hide();
+        
+        // Update status to "Ready for input"
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+        
+        // Ensure all UI elements are enabled
+        $("#message").prop("disabled", false);
+        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+        $("#select-role").prop("disabled", false);
+        
+        // Focus on the message input
+        setInputFocus();
+        
         break;
       }
       
@@ -2891,6 +3242,9 @@ window.clearAudioQueue = clearAudioQueue;
 window.resetAudioElements = resetAudioElements;
 window.initializeMediaSourceForAudio = initializeMediaSourceForAudio;
 window.addToAudioQueue = addToAudioQueue;
+
+// Export audio element as global for compatibility
+window.audio = audio;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {

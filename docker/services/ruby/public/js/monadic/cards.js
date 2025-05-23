@@ -264,6 +264,9 @@ function attachEventListeners($card) {
   });
   
   $card.on("click.cardEvent", ".func-play", function () {
+    // Get the actual parent card of the clicked button
+    const $currentCard = $(this).closest('.card');
+    
     // Use the more robust tooltip cleanup method
     if (typeof cleanupAllTooltips === 'function') {
       cleanupAllTooltips();
@@ -282,7 +285,7 @@ function attachEventListeners($card) {
       .html('<i class="fas fa-headphones fa-pulse"></i> Processing audio');
     $("#monadic-spinner").show();
 
-    const content = $card.find(".card-text");
+    const content = $currentCard.find(".card-text");
     let text;
     try {
       // Direct approach - use text() to get plain text
@@ -315,7 +318,7 @@ function attachEventListeners($card) {
     text = removeEmojis(text);
     
     // Get the message ID if available
-    const mid = $card.attr('id') || '';
+    const mid = $currentCard.attr('id') || '';
     
     // Send a PLAY_TTS message to have the server handle sentence splitting and TTS
     const ttsProvider = $("#tts-provider").val();

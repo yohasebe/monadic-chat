@@ -110,19 +110,26 @@ function handleFragmentWithAudio(data, processAudio) {
               window.autoSpeechActive = true;
             }
             
-            // Process the audio data
-            processAudio(audioData);
+            // Add to audio queue instead of processing immediately
+            const sequenceId = data.sequence_id || data.audio.sequence_id || Date.now().toString();
             
-            // Immediately ensure audio is playing on standard browsers
-            if (!window.firefoxAudioMode && !window.basicAudioMode && window.audio) {
-              if (window.audio.paused) {
-                window.audio.play().catch(err => console.log("Error auto-playing audio:", err));
+            if (typeof addToAudioQueue === 'function') {
+              addToAudioQueue(audioData, sequenceId);
+            } else {
+              // Fallback to direct processing if queue not available
+              processAudio(audioData);
+              
+              // Immediately ensure audio is playing on standard browsers
+              if (!window.firefoxAudioMode && !window.basicAudioMode && window.audio) {
+                if (window.audio.paused) {
+                  window.audio.play().catch(err => console.log("Error auto-playing audio:", err));
+                }
               }
-            }
-            
-            // For iOS devices, ensure auto-playback
-            if (window.isIOS && !window.isIOSAudioPlaying && window.iosAudioElement) {
-              window.iosAudioElement.play().catch(err => console.log("Error auto-playing iOS audio:", err));
+              
+              // For iOS devices, ensure auto-playback
+              if (window.isIOS && !window.isIOSAudioPlaying && window.iosAudioElement) {
+                window.iosAudioElement.play().catch(err => console.log("Error auto-playing iOS audio:", err));
+              }
             }
           }
         } catch (audioError) {
@@ -202,9 +209,39 @@ function handleAudioMessage(data, processAudio) {
       // Process audio data
       const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
       
-      // If a processing function is provided, call it
-      if (typeof processAudio === 'function') {
-        processAudio(audioData);
+      // Check if this is a finishing marker
+      if (data.finished === true) {
+        // This is just a marker, no audio to process
+        return true;
+      }
+      
+      // Add to audio queue if available
+      const sequenceId = data.sequence_id || data.t_index || Date.now().toString();
+      
+      // Check if this is a segmented TTS playback
+      if (data.is_segment) {
+        // For segmented playback, use global audio queue to ensure proper sequencing
+        if (typeof window.addToGlobalAudioQueue === 'function') {
+          window.addToGlobalAudioQueue({
+            data: audioData,
+            sequenceId: sequenceId,
+            segmentIndex: data.segment_index,
+            totalSegments: data.total_segments
+          });
+        } else if (typeof addToAudioQueue === 'function') {
+          addToAudioQueue(audioData, sequenceId);
+        } else if (typeof processAudio === 'function') {
+          // Fallback to direct processing
+          processAudio(audioData);
+        }
+      } else {
+        // Normal audio processing
+        if (typeof addToAudioQueue === 'function') {
+          addToAudioQueue(audioData, sequenceId);
+        } else if (typeof processAudio === 'function') {
+          // Fallback to direct processing
+          processAudio(audioData);
+        }
       }
       
       return true;

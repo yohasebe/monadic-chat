@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Zoom controls
   zoomIn: () => ipcRenderer.send('zoom-in'),
   zoomOut: () => ipcRenderer.send('zoom-out'),
+  zoomReset: () => ipcRenderer.send('zoom-reset'),
   // Reset web UI session
   resetWebUI: () => ipcRenderer.send('reset-web-ui'),
   // Notify page of zoom changes so overlay can adjust

@@ -858,6 +858,12 @@ module WebSocketHelper
                                           voice: voice,
                                           speed: speed,
                                           response_format: response_format)
+                # Add segment information for proper sequencing
+                if res_hash && res_hash["type"] == "audio"
+                  res_hash["segment_index"] = i
+                  res_hash["total_segments"] = segments.length
+                  res_hash["is_segment"] = true
+                end
               end
               
               # Store for context in next segment
@@ -952,72 +958,91 @@ module WebSocketHelper
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
                 if !cutoff && segments.size > 2
-                  # candidate = segments.first
-                  candidate = segments[0...-1].join
-                  split = candidate.split("---")
-                  if split.empty?
-                    cutoff = true
-                  end
-
-                  # Check if batch processing should be used
-                  # Default to true unless explicitly set to false in config
-                  use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
+                  # Process all complete sentences except the last incomplete one
+                  complete_sentences = segments[0...-1]
+                  incomplete_sentence = segments[-1]
                   
-                  # Process sentence fragments for TTS if auto_speech is enabled
-                  if obj["auto_speech"] && !cutoff && !obj["monadic"]
-                    text = split[0] || ""
-                    if text != "" && candidate != ""
-                      previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
-                      
-                      # Special handling for Web Speech API
-                      if provider == "webspeech" || provider == "web-speech"
-                        # Create a special response for Web Speech API
-                        res_hash = { "type" => "web_speech", "content" => text }
-                      else
-                        # Generate TTS content for other providers
-                        res_hash = tts_api_request(text,
-                                                 previous_text: previous_text, 
-                                                 provider: provider,
-                                                 voice: voice,
-                                                 speed: speed,
-                                                 response_format: response_format)
-                      end
-                      prev_texts_for_tts << text
-                      
-                      # Use batch processing if enabled
-                      if use_batch_processing
-                        begin
-                          # Send fragment and audio as a combined message
-                          # Add auto_speech flag to ensure client knows this should auto-play
-                          batch = {
-                            "type" => "fragment_with_audio",
-                            "fragment" => fragment,
-                            "audio" => res_hash,
-                            "auto_speech" => true,
-                            "sequence_id" => SecureRandom.hex(4) # Add unique ID to track playback
-                          }
-                          @channel.push(batch.to_json)
-                        rescue => e
-                          # Fallback to individual messages on error
-                          puts "Batch processing error: #{e.message}. Falling back to individual messages."
+                  # Process each complete sentence for TTS
+                  complete_sentences.each do |sentence|
+                    split = sentence.split("---")
+                    if split.empty?
+                      cutoff = true
+                      break
+                    end
+
+                    # Check if batch processing should be used
+                    # Default to true unless explicitly set to false in config
+                    use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
+                    
+                    # Process sentence fragments for TTS if auto_speech is enabled
+                    if obj["auto_speech"] && !cutoff && !obj["monadic"]
+                      text = split[0] || ""
+                      if text.strip != ""
+                        previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
+                        
+                        # Generate unique sequence ID for this audio chunk
+                        sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}"
+                        
+                        # Special handling for Web Speech API
+                        if provider == "webspeech" || provider == "web-speech"
+                          # Create a special response for Web Speech API
+                          res_hash = { "type" => "web_speech", "content" => text, "sequence_id" => sequence_id }
+                        else
+                          # Generate TTS content for other providers
+                          res_hash = tts_api_request(text,
+                                                   previous_text: previous_text, 
+                                                   provider: provider,
+                                                   voice: voice,
+                                                   speed: speed,
+                                                   response_format: response_format)
+                          # Add sequence_id to the result if it's a hash
+                          res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
+                        end
+                        
+                        # Only add to prev_texts if TTS was successful
+                        if res_hash && res_hash["type"] != "error"
+                          prev_texts_for_tts << text
+                          
+                          # Use batch processing if enabled
+                          if use_batch_processing
+                            begin
+                              # Send fragment and audio as a combined message
+                              # Add auto_speech flag to ensure client knows this should auto-play
+                              batch = {
+                                "type" => "fragment_with_audio",
+                                "fragment" => fragment,
+                                "audio" => res_hash,
+                                "auto_speech" => true,
+                                "sequence_id" => sequence_id
+                              }
+                              @channel.push(batch.to_json)
+                            rescue => e
+                              # Fallback to individual messages on error
+                              puts "Batch processing error: #{e.message}. Falling back to individual messages."
+                              @channel.push(fragment.to_json)
+                              @channel.push(res_hash.to_json) if res_hash
+                            end
+                          else
+                            # Use traditional separate messages
+                            @channel.push(res_hash.to_json) if res_hash
+                            @channel.push(fragment.to_json)
+                          end
+                        else
+                          # TTS failed, just send the fragment
                           @channel.push(fragment.to_json)
-                          @channel.push(res_hash.to_json)
                         end
                       else
-                        # Use traditional separate messages
-                        @channel.push(res_hash.to_json)
+                        # Empty text, just send the fragment
                         @channel.push(fragment.to_json)
                       end
                     else
-                      # No TTS generated, just send the fragment
+                      # No TTS processing needed, just send the fragment
                       @channel.push(fragment.to_json)
                     end
-                  else
-                    # No TTS processing needed, just send the fragment
-                    @channel.push(fragment.to_json)
                   end
 
-                  buffer = [segments[-1]]
+                  # Keep only the incomplete sentence in the buffer
+                  buffer = [incomplete_sentence]
                 else
                   # Just send the fragment without TTS processing
                   @channel.push(fragment.to_json)
@@ -1043,10 +1068,13 @@ module WebSocketHelper
               if text.strip != ""
                 previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
                 
+                # Generate unique sequence ID for final audio chunk
+                sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}_final"
+                
                 # Special handling for Web Speech API - no server-side processing needed
                 if provider == "webspeech" || provider == "web-speech"
                   # Create a special response for Web Speech API that will be handled client-side
-                  res_hash = { "type" => "web_speech", "content" => text }
+                  res_hash = { "type" => "web_speech", "content" => text, "sequence_id" => sequence_id }
                 else
                   # Generate TTS for remaining text with other providers
                   res_hash = tts_api_request(text, 
@@ -1055,6 +1083,8 @@ module WebSocketHelper
                                             voice: voice,
                                             speed: speed,
                                             response_format: response_format)
+                  # Add sequence_id to the result if it's a hash
+                  res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
                 end
                 
                 # Check if batch processing should be used
@@ -1139,6 +1169,9 @@ module WebSocketHelper
                 queue.push(response)
               end
             end
+            
+            # Send streaming complete message after all responses are processed
+            @channel.push({ "type" => "streaming_complete" }.to_json)
           end
         end
         end

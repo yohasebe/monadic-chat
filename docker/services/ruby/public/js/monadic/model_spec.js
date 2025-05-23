@@ -211,9 +211,23 @@ const modelSpec = {
     "vision_capability": false
   },
   // Anthropic models
+  "claude-opus-4-20250514": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [[1, 32000], 32000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "claude-sonnet-4-20250514": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [[1, 64000], 64000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   "claude-3-7-sonnet-20250219": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [[1, 128000], 64000],
+    "max_output_tokens" : [[1, 64000], 64000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
@@ -404,8 +418,24 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
   // Gemini models
+  "gemini-2.5-flash-preview-05-20": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "gemini-2.5-pro-preview-05-06": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   "gemini-2.5-pro-preview-03-25": {
-    "context_window" : [11048576],
+    "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 0.95],
@@ -553,6 +583,14 @@ const modelSpec = {
     "tool_capability": true
   },
   // mistral models
+  "mistral-medium-2505": {
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true
+  },
   "mistral-large-latest": {
     "max_output_tokens" : [1, 131000],
     "temperature": [[0.0, 1.0], 0.3],

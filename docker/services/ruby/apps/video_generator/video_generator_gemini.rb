@@ -32,7 +32,16 @@ class VideoGeneratorGeminiApp < MonadicApp
 
     5. AFTER function execution, IMMEDIATELY output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
     
-    6. For successful generations, ALWAYS use EXACTLY this template to display the result (replace only the variable parts inside curly braces):
+    6. For ERROR responses (when success is false), use this template:
+       
+       <div class="error-message" style="background-color: #ffebee; color: #c62828; padding: 15px; border-radius: 5px; margin: 10px 0;">
+         <b>Video Generation Failed</b><br/>
+         {error_message}
+       </div>
+       
+       Where {error_message} is the message from the JSON response.
+    
+    7. For successful generations, ALWAYS use EXACTLY this template to display the result (replace only the variable parts inside curly braces):
        
        <div class="prompt">
          <b>Prompt</b>: {original_prompt}
@@ -62,10 +71,10 @@ class VideoGeneratorGeminiApp < MonadicApp
         </video>
       </div
 
-    7. Video generation takes several minutes (typically 2-6 minutes). The system waits up to 5 minutes for a response.
+    8. Video generation takes several minutes (typically 2-6 minutes). The system waits up to 5 minutes for a response.
        Please inform the user that they need to be patient and check their data directory afterwards.
 
-    8 Here are some example requests:
+    9. Here are some example requests:
 
       - "Create a video of a sunset over mountains" → Text-to-video generation
       - "Turn this image into a video" (with uploaded image) → Image-to-video generation

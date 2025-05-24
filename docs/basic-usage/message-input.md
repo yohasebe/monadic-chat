@@ -72,3 +72,13 @@ You can select the Speech-to-Text (STT) model in the settings. Monadic Chat supp
 - gpt-4o-transcribe
 
 The newer models (gpt-4o-mini-transcribe, gpt-4o-transcribe) provide improved accuracy and transcription quality. Monadic Chat automatically optimizes the audio format for each STT model to ensure the best possible transcription results.
+
+## Text-to-Speech Playback
+
+Monadic Chat offers two ways to play synthesized speech:
+
+### Play Button
+Each AI response message includes a `Play` button that allows you to listen to the synthesized speech. Click the `Play` button to start playback, and it will change to a `Stop` button. Click `Stop` to halt the playback. The speech is generated using your selected TTS provider and voice settings.
+
+### Auto Speech
+When `Auto Speech` is enabled in the Chat Interaction Controls, AI responses are automatically read aloud as soon as they are received. This feature works seamlessly with all supported TTS providers (OpenAI, ElevenLabs, Gemini, and Web Speech API). Auto Speech is particularly useful for voice conversations when combined with `Easy Submit` for hands-free interaction.

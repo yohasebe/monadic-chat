@@ -24,9 +24,15 @@
 
 ---
 
+**Q**: What is Gemini TTS and how does it differ from other providers?
+
+**A**: Gemini TTS is Google's text-to-speech service that offers two models: Gemini Flash TTS (faster, uses gemini-2.5-flash-preview-tts) and Gemini Pro TTS (higher quality, uses gemini-2.5-pro-preview-tts). Both models provide 8 unique voices (Aoede, Charon, Fenrir, Kore, Orus, Puck, Schedar, Zephyr) with natural-sounding speech synthesis. Gemini TTS requires a Gemini API key and supports both real-time streaming for interactive conversations and MP3 file generation through the Speech Draft Helper app.
+
+---
+
 **Q**: Can I save the input text as an MP3 file by synthesizing speech?
 
-**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an MP3 file.
+**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an MP3 file. The Speech Draft Helper supports multiple TTS providers including OpenAI, ElevenLabs, and Gemini (using gemini-2.5-flash-preview-tts model), allowing you to choose different voices and providers for MP3 generation.
 
 ---
 

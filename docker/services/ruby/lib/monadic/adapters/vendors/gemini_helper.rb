@@ -1291,24 +1291,35 @@ module GeminiHelper
     end
     
     # Construct the command
+    # Use shellwords to properly escape all parameters
+    require 'shellwords'
+    
     parts = []
     parts << "video_generator_veo.rb"
-    parts << "-p \"#{prompt.to_s.gsub('"', '\\"')}\""
-    parts << "-a \"#{aspect_ratio}\"" if aspect_ratio
-    parts << "-n 1"  # Always force number_of_videos to 1
-    parts << "-g \"#{person_generation}\"" if person_generation
-    parts << "-d #{duration_seconds}" if duration_seconds
+    parts << "-p"
+    parts << prompt.to_s
+    parts << "-a"
+    parts << aspect_ratio if aspect_ratio
+    parts << "-n"
+    parts << "1"  # Always force number_of_videos to 1
+    parts << "-g"
+    parts << person_generation if person_generation
+    if duration_seconds
+      parts << "-d"
+      parts << duration_seconds.to_s
+    end
     
     # Add image path if available
     if final_image_path && !final_image_path.empty?
       STDERR.puts "DEBUG: Adding image path to command: #{final_image_path}"
-      parts << "-i \"#{final_image_path}\""
+      parts << "-i"
+      parts << final_image_path
     else
       STDERR.puts "DEBUG: No image path available (provided: #{image_path.inspect}, from session: #{actual_image_path.inspect})"
     end
     
-    # Create the bash command
-    cmd = "bash -c '#{parts.join(' ')}'"
+    # Create the bash command using Shellwords.join for proper escaping
+    cmd = "bash -c #{Shellwords.escape(Shellwords.join(parts))}"
     
     begin
       # Send command and get raw output

@@ -84,7 +84,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 📊 **DrawIO Grapher**と**Mermaid Grapher**アプリを使用した図表作成
 - 💎 プログラミング言語**Ruby**を使用した機能拡張
 - 🐍 プログラミング言語**Python**を使用した機能拡張
-- 🔍 [Tavily](https://tavily.com/) APIとOpenAIの組み込み検索機能を使用した**Web検索**
+- 🔍 [Tavily](https://tavily.com/) APIとOpenAI、Anthropic Claude、xAI Grokのネイティブ検索機能を使用した**Web検索**
 - 🌎 Seleniumを使用した**Webスクレイピング**
 - 📦 独自の**Dockerコンテナ**の追加
 

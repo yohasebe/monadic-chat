@@ -802,9 +802,9 @@ module GeminiHelper
             tool_result_content = new_results.to_s.strip
           end
           
-          # Don't add generic content if tool_result_content is empty for video generation
-          # This will let the actual result from the generate_video_with_veo function be displayed
-          if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
+          # Don't add generic content if tool_result_content is empty for video/image generation
+          # This will let the actual result from the generate_video_with_veo or generate_image_with_imagen function be displayed
+          if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" || tc["name"] == "generate_image_with_imagen" }
             tool_result_content = "[No additional content received from function call]"
           end
           
@@ -835,6 +835,19 @@ module GeminiHelper
             elsif !tool_result_content.empty?
               # Otherwise use the tool result content
               final_result = tool_result_content
+            end
+          # Special handling for image generation
+          elsif tool_calls.any? { |tc| tc["name"] == "generate_image_with_imagen" }
+            # For image generation, always pass the tool result back to LLM to process
+            # The LLM will extract the filename and generate the appropriate HTML
+            if !tool_result_content.empty?
+              final_result = tool_result_content
+            elsif !final_result.empty?
+              # Use any initial result if tool result is empty
+              final_result = final_result
+            else
+              # Fallback message
+              final_result = "Image generation function was called but no result was returned."
             end
           else
             # Standard handling for non-video tools
@@ -911,12 +924,19 @@ module GeminiHelper
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
+      
+      # Join the result and check if it needs unwrapping
+      final_content = result.join("")
+      
+      # Check if the entire response is a single Markdown code block and unwrap it
+      final_content = unwrap_single_markdown_code_block(final_content)
+      
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason,
-              "message" => { "content" => result.join("") }
+              "message" => { "content" => final_content }
             }
           ]
         }
@@ -1122,34 +1142,46 @@ module GeminiHelper
     end
   end
   
+  # Helper method to unwrap content from a single Markdown code block
+  def unwrap_single_markdown_code_block(content)
+    return content unless content.is_a?(String)
+    
+    # Strip leading/trailing whitespace to normalize
+    trimmed = content.strip
+    
+    # Check if the entire content is wrapped in a single code block
+    # Pattern: starts with ``` (optionally with language), ends with ```
+    # and has no other ``` in between
+    if trimmed =~ /\A```(?:html|HTML|xml|XML|markdown|md|)?\s*\n(.*)\n```\z/m
+      inner_content = $1
+      
+      # Verify there are no nested code blocks
+      if !inner_content.include?('```')
+        return inner_content
+      end
+    end
+    
+    # Return original content if not a single code block
+    content
+  end
+  
   # Helper function to generate video with Veo model
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil, session: nil)
-    # Debug output
-    STDERR.puts "DEBUG: generate_video_with_veo called with:"
-    STDERR.puts "  prompt: #{prompt}"
-    STDERR.puts "  image_path: #{image_path.inspect}"
-    STDERR.puts "  aspect_ratio: #{aspect_ratio}"
-    STDERR.puts "  person_generation: #{person_generation}"
-    STDERR.puts "  session provided: #{!session.nil?}"
     
     # Try to get image data from session and create temporary file
     actual_image_path = nil
     temp_file_path = nil
     
     if session && session[:messages]
-      STDERR.puts "DEBUG: Session messages count: #{session[:messages].size}"
       # Look for the most recent user message with images
       user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
-      STDERR.puts "DEBUG: User messages with images: #{user_messages_with_images.size}"
       
       if user_messages_with_images.any?
         latest_message = user_messages_with_images.last
-        STDERR.puts "DEBUG: Latest message keys: #{latest_message.keys}"
         
         if latest_message["images"] && latest_message["images"].first
           # Extract image data from the first image
           first_image = latest_message["images"].first
-          STDERR.puts "DEBUG: First image data keys: #{first_image.keys}"
           
           # Get the base64 data from the session
           if first_image["data"] && first_image["data"].start_with?("data:image/")
@@ -1168,10 +1200,8 @@ module GeminiHelper
             detected_mime_type = nil
             if first_image["type"]
               detected_mime_type = first_image["type"]
-              STDERR.puts "DEBUG: Using mime type from session: #{detected_mime_type}"
             elsif data_url.include?('image/')
               detected_mime_type = data_url.split(';').first.split(':').last
-              STDERR.puts "DEBUG: Extracted mime type from data URL: #{detected_mime_type}"
             end
             
             extension = case detected_mime_type
@@ -1194,7 +1224,6 @@ module GeminiHelper
                          end
                        end
             
-            STDERR.puts "DEBUG: Determined file extension: #{extension}, MIME type: #{detected_mime_type}"
             
             # Create temporary file in shared data directory
             # This ensures the file is accessible both locally and in Docker container
@@ -1230,7 +1259,6 @@ module GeminiHelper
               begin
                 # Check image size
                 image_size = image_binary.size
-                STDERR.puts "DEBUG: Original image size: #{image_size} bytes"
                 
                 # Check image size against Vertex AI limits (20MB)
                 if image_size > 20 * 1024 * 1024
@@ -1248,12 +1276,9 @@ module GeminiHelper
                 # Write mime type info to companion file
                 if detected_mime_type
                   File.write(mime_info_path, detected_mime_type)
-                  STDERR.puts "DEBUG: Saved mime type '#{detected_mime_type}' to #{mime_info_path}"
                 end
                 
                 actual_image_path = temp_filename  # Use just the filename, not full path
-                STDERR.puts "DEBUG: Created temporary image file: #{temp_file_path}"
-                STDERR.puts "DEBUG: Using filename for script: #{actual_image_path}"
               rescue StandardError => e
                 STDERR.puts "ERROR: Failed to process image: #{e.message}"
                 actual_image_path = nil
@@ -1264,30 +1289,22 @@ module GeminiHelper
             
           elsif first_image["filename"]
             actual_image_path = first_image["filename"]
-            STDERR.puts "DEBUG: Found image filename in session: #{actual_image_path}"
           elsif first_image["title"]
             actual_image_path = first_image["title"]
-            STDERR.puts "DEBUG: Found image title in session: #{actual_image_path}"
           else
-            STDERR.puts "DEBUG: No data, filename or title field in image data, available keys: #{first_image.keys}"
           end
         else
-          STDERR.puts "DEBUG: No images array or first image not found"
         end
       else
-        STDERR.puts "DEBUG: No user messages with images found"
       end
     else
-      STDERR.puts "DEBUG: No session or messages data available"
     end
     
     # Use session image path if available, otherwise use provided image_path (but ignore "image_path" literal)
     final_image_path = actual_image_path
     if !final_image_path && image_path && image_path != "image_path"
       final_image_path = image_path
-      STDERR.puts "DEBUG: Using provided image_path: #{final_image_path}"
     else
-      STDERR.puts "DEBUG: Final image path: #{final_image_path || 'nil'}"
     end
     
     # Construct the command
@@ -1311,11 +1328,9 @@ module GeminiHelper
     
     # Add image path if available
     if final_image_path && !final_image_path.empty?
-      STDERR.puts "DEBUG: Adding image path to command: #{final_image_path}"
       parts << "-i"
       parts << final_image_path
     else
-      STDERR.puts "DEBUG: No image path available (provided: #{image_path.inspect}, from session: #{actual_image_path.inspect})"
     end
     
     # Create the bash command using Shellwords.join for proper escaping
@@ -1328,12 +1343,10 @@ module GeminiHelper
       # Clean up temporary files if we created them
       if temp_file_path && File.exist?(temp_file_path)
         File.unlink(temp_file_path)
-        STDERR.puts "DEBUG: Cleaned up temporary file: #{temp_file_path}"
         # Also clean up mime info file if it exists
         mime_info_path = temp_file_path + ".mime"
         if File.exist?(mime_info_path)
           File.unlink(mime_info_path)
-          STDERR.puts "DEBUG: Cleaned up mime info file: #{mime_info_path}"
         end
       end
       
@@ -1344,12 +1357,10 @@ module GeminiHelper
       # Clean up temporary files even if there was an error
       if temp_file_path && File.exist?(temp_file_path)
         File.unlink(temp_file_path)
-        STDERR.puts "DEBUG: Cleaned up temporary file after error: #{temp_file_path}"
         # Also clean up mime info file if it exists
         mime_info_path = temp_file_path + ".mime"
         if File.exist?(mime_info_path)
           File.unlink(mime_info_path)
-          STDERR.puts "DEBUG: Cleaned up mime info file after error: #{mime_info_path}"
         end
       end
       return { 

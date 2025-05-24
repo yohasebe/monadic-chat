@@ -400,13 +400,14 @@
             <div class="my-1">
               <label for="tts-provider" class="div-label my-2">Text-to-Speech Provider</label>
               <select class="form-select form-select-sm" id="tts-provider">
-                <option id="openai-tts-4o" value="openai-tts-4o" selected>OpenAI (4o TTS)</option>
-                <option id="openai-tts" value="openai-tts">OpenAI (TTS)</option>
-                <option id="openai-tts-hd" value="openai-tts-hd">OpenAI (TTS HD)</option>
-                <option id="elevenlabs-provider-option" value="elevenlabs" disabled>ElevenLabs</option>
-                <option id="gemini-flash-provider-option" value="gemini-flash" disabled>Gemini Flash TTS</option>
-                <option id="gemini-pro-provider-option" value="gemini-pro" disabled>Gemini Pro TTS</option>
-                <option id="webspeech-provider-option" value="webspeech">Web Speech API</option>
+                <option id="openai-tts-4o" value="openai-tts-4o" disabled>OpenAI (4o TTS)</option>
+                <option id="openai-tts" value="openai-tts" disabled>OpenAI (TTS)</option>
+                <option id="openai-tts-hd" value="openai-tts-hd" disabled>OpenAI (TTS HD)</option>
+                <option id="elevenlabs-flash-provider-option" value="elevenlabs-flash" disabled>ElevenLabs (Flash v2.5)</option>
+                <option id="elevenlabs-multilingual-provider-option" value="elevenlabs-multilingual" disabled>ElevenLabs (Multilingual v2)</option>
+                <option id="gemini-flash-provider-option" value="gemini-flash" disabled>Gemini (Flash TTS)</option>
+                <option id="gemini-pro-provider-option" value="gemini-pro" disabled>Gemini (Pro TTS)</option>
+                <option id="webspeech-provider-option" value="webspeech" selected>Web Speech API</option>
               </select>
             </div>
 

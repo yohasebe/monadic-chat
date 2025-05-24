@@ -2012,6 +2012,18 @@ function connect_websocket(callback) {
         if (handled) {
           verified = "full";
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+          
+          // Enable OpenAI TTS options when token is verified
+          $("#openai-tts-4o").prop("disabled", false);
+          $("#openai-tts").prop("disabled", false);
+          $("#openai-tts-hd").prop("disabled", false);
+          
+          // Set OpenAI TTS as default when it becomes available
+          // (unless user has already selected another provider)
+          const currentProvider = $("#tts-provider").val();
+          if (currentProvider === "webspeech") {
+            $("#tts-provider").val("openai-tts-4o").trigger("change");
+          }
           $("#start").prop("disabled", false);
           $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
           
@@ -2034,6 +2046,11 @@ function connect_websocket(callback) {
         $("#send, #clear").prop("disabled", false);
 
         $("#api-token").val("");
+        
+        // Disable OpenAI TTS options when API connection fails
+        $("#openai-tts-4o").prop("disabled", true);
+        $("#openai-tts").prop("disabled", true);
+        $("#openai-tts-hd").prop("disabled", true);
 
         setAlert("<i class='fa-solid fa-bolt'></i> Cannot connect to OpenAI API", "warning");
         break;
@@ -2046,6 +2063,11 @@ function connect_websocket(callback) {
         $("#send, #clear").prop("disabled", false);
 
         $("#api-token").val("");
+        
+        // Disable OpenAI TTS options when token is not verified
+        $("#openai-tts-4o").prop("disabled", true);
+        $("#openai-tts").prop("disabled", true);
+        $("#openai-tts-hd").prop("disabled", true);
 
         setAlert("<i class='fa-solid fa-bolt'></i> Valid OpenAI token not set", "warning");
         break;
@@ -2360,12 +2382,14 @@ function connect_websocket(callback) {
         const cookieValue = getCookie("elevenlabs-tts-voice");
         let voices = data["content"];
         if (voices.length > 0) {
-          // set #elevenlabs-provider-option enabled
-          $("#elevenlabs-provider-option").prop("disabled", false);
+          // set ElevenLabs provider options enabled
+          $("#elevenlabs-flash-provider-option").prop("disabled", false);
+          $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
           // Do not set ElevenLabs as default - prefer openai-tts-4o
         } else {
-          // set #elevenlabs-provider-option disabled
-          $("#elevenlabs-provider-option").prop("disabled", true);
+          // set ElevenLabs provider options disabled
+          $("#elevenlabs-flash-provider-option").prop("disabled", true);
+          $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
         }
         $("#elevenlabs-tts-voice").empty();
         voices.forEach((voice) => {

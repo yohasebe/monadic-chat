@@ -160,19 +160,32 @@ RSpec.describe InteractionUtils do
   
   describe "#tts_api_request" do
     context "with basic mock setup" do
-      # Simplified test focusing on the integration without inspecting the actual request
-      let(:http_double) { instance_double(HTTP::Client) }
-      let(:success_response) do
-        instance_double(HTTP::Response,
-          status: double(success?: true),
-          body: ["audio_data"].to_enum  # Make it enumerable for streaming
+      # Test for OpenAI TTS streaming using Net::HTTP
+      let(:net_http_double) { instance_double(Net::HTTP) }
+      let(:response_double) do
+        instance_double(Net::HTTPResponse,
+          code: "200",
+          body: "audio_data"
         )
       end
+      let(:request_double) { instance_double(Net::HTTP::Post) }
 
       before do
+        # Mock Net::HTTP for OpenAI TTS streaming
+        allow(Net::HTTP).to receive(:new).and_return(net_http_double)
+        allow(net_http_double).to receive(:use_ssl=)
+        allow(net_http_double).to receive(:read_timeout=)
+        allow(Net::HTTP::Post).to receive(:new).and_return(request_double)
+        allow(request_double).to receive(:[]=)
+        allow(request_double).to receive(:body=)
+        
+        # Mock the streaming response
+        allow(net_http_double).to receive(:request).with(request_double).and_yield(response_double)
+        allow(response_double).to receive(:read_body).and_yield("audio_data")
+        
+        # Mock HTTP for headers (still needed for initial setup)
+        http_double = instance_double(HTTP::Client)
         allow(HTTP).to receive(:headers).and_return(http_double)
-        allow(http_double).to receive(:timeout).and_return(http_double)
-        allow(http_double).to receive(:post).and_return(success_response)
       end
       
       it "processes the audio data with a block" do

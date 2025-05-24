@@ -147,16 +147,25 @@ module InteractionUtils
       end
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
-    when "elevenlabs"
+    when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
       api_key = ENV["ELEVENLABS_API_KEY"]
       headers = {
         "Content-Type" => "application/json",
         "xi-api-key" => api_key
       }
 
+      model = case provider
+              when "elevenlabs-multilingual"
+                "eleven_multilingual_v2"
+              when "elevenlabs-flash", "elevenlabs"
+                "eleven_flash_v2_5"
+              else
+                "eleven_flash_v2_5"
+              end
+
       body = {
         "text" => text_converted,
-        "model_id" => "eleven_flash_v2_5"
+        "model_id" => model
       }
 
       if speed

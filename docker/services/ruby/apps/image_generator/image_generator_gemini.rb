@@ -74,6 +74,8 @@ class ImageGeneratorGeminiApp < MonadicApp
       auto_speech: false,
       initiate_from_assistant: false,
       image_generation: false,
+      format_response: false,  # Don't format response - important for proper HTML handling
+      strip_code_blocks: true, # Strip code blocks from the response
       tools: {
         function_declarations: [
           {

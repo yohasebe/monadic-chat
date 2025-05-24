@@ -329,7 +329,7 @@ function attachEventListeners($card) {
     const ttsProvider = $("#tts-provider").val();
     let ttsVoice;
     
-    if (ttsProvider === "elevenlabs") {
+    if (ttsProvider === "elevenlabs" || ttsProvider === "elevenlabs-flash" || ttsProvider === "elevenlabs-multilingual") {
       ttsVoice = $("#elevenlabs-tts-voice").val();
     } else if (ttsProvider === "webspeech") {
       ttsVoice = $("#webspeech-voice").val();

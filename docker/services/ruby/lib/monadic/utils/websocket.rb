@@ -492,7 +492,7 @@ module WebSocketHelper
         case msg
         when "TTS"
           provider = obj["provider"]
-          if provider == "elevenlabs"
+          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
             voice = obj["elevenlabs_voice"]
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_voice"]
@@ -521,7 +521,7 @@ module WebSocketHelper
         when "TTS_STREAM"
           thread&.join
           provider = obj["provider"]
-          if provider == "elevenlabs"
+          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
             voice = obj["elevenlabs_voice"]
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_voice"]
@@ -856,7 +856,7 @@ module WebSocketHelper
           
           # Extract TTS parameters
           provider = obj["tts_provider"]
-          if provider == "elevenlabs"
+          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
             voice = obj["elevenlabs_tts_voice"] 
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_tts_voice"]
@@ -1009,7 +1009,7 @@ module WebSocketHelper
           
           if obj["auto_speech"]
             provider = obj["tts_provider"]
-            if provider == "elevenlabs"
+            if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
               voice = obj["elevenlabs_tts_voice"] 
             elsif provider == "gemini-flash" || provider == "gemini-pro"
               voice = obj["gemini_tts_voice"]

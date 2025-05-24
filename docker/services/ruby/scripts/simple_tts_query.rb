@@ -94,7 +94,7 @@ def tts_api_request(text,
   response = nil
 
   case provider
-  when "elevenlabs"
+  when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
     api_key = nil
     begin
       api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
@@ -106,13 +106,22 @@ def tts_api_request(text,
       return { type: "error", content: "ERROR: ELEVENLABS_API_KEY is not set." }
     end
     
+    model = case provider
+            when "elevenlabs-multilingual"
+              "eleven_multilingual_v2"
+            when "elevenlabs-flash", "elevenlabs"
+              "eleven_flash_v2_5"
+            else
+              "eleven_flash_v2_5"
+            end
+    
     headers = {
       "Content-Type" => "application/json",
       "xi-api-key" => api_key
     }
     body = {
       "text" => text,
-      "model_id" => "eleven_flash_v2_5",
+      "model_id" => model,
     }
 
     unless language == "auto"

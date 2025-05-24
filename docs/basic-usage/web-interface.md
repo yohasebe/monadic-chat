@@ -150,12 +150,15 @@ Clicking the `Export` button saves the current settings and conversation data to
 Select the provider used for speech synthesis. You can choose between:
 - OpenAI (4o TTS, TTS, or TTS HD) - requires an OpenAI API key
 - ElevenLabs - requires an ElevenLabs API key
+- Gemini Flash TTS - requires a Gemini API key (uses gemini-2.5-flash-preview-tts model)
+- Gemini Pro TTS - requires a Gemini API key (uses gemini-2.5-pro-preview-tts model)
 - Web Speech API - uses your browser's built-in speech synthesis (no API key required)
 
 **Text-to-Speech Voice**<br />
 You can specify the voice used for speech synthesis. Available voices depend on the selected provider:
 - For OpenAI: Select from their predefined voice set (Alloy, Echo, Fable, etc.)
 - For ElevenLabs: Choose from your available ElevenLabs voices
+- For Gemini: Select from 8 available voices (Aoede, Charon, Fenrir, Kore, Orus, Puck, Schedar, Zephyr)
 - For Web Speech API: Select from your system's available voices (varies by browser/operating system)
 
 **Text-to-Speech Speed**<br />

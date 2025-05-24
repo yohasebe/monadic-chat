@@ -361,7 +361,10 @@ module ClaudeHelper
       
       # Add cache_control only for the first MAX_PC_PROMPTS system prompts with sufficient tokens
       if obj["prompt_caching"] && system_prompt_count <= MAX_PC_PROMPTS && msg["tokens"] && msg["tokens"] > MIN_PROMPT_CACHING
-        sp["cache_control"] = { "type" => "ephemeral" }
+        sp["cache_control"] = {
+          "type" => "ephemeral",
+          "ttl" => "1h"
+        }
       end
 
       system_prompts << sp
@@ -453,7 +456,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19",
+      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19;extended-cache-ttl-2025-04-11",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }
@@ -539,7 +542,10 @@ module ClaudeHelper
                 "data" => file["data"].split(",")[1]
               }
             }
-            doc["cache_control"] = { "type" => "ephemeral" } if obj["prompt_caching"]
+            doc["cache_control"] = {
+              "type" => "ephemeral",
+              "ttl" => "1h"
+            } if obj["prompt_caching"]
             # PDF is better inserted before the text 
             # https://docs.anthropic.com/en/docs/build-with-claude/pdf-support#optimize-pdf-processing
             content.unshift(doc)
@@ -553,7 +559,10 @@ module ClaudeHelper
                 "data" => file["data"].split(",")[1]
               }
             }
-            img["cache_control"] = { "type" => "ephemeral" } if obj["prompt_caching"]
+            img["cache_control"] = {
+              "type" => "ephemeral",
+              "ttl" => "1h"
+            } if obj["prompt_caching"]
             content << img
           end
         end

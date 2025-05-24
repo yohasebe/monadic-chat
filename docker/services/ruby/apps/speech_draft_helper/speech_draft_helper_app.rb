@@ -36,7 +36,7 @@ class SpeechDraftHelper < MonadicApp
     3. Use ONLY the voice_id value from the results, never the display name
     4. If the user specifies a voice by name (like "Ken"), you must find its corresponding voice_id
 
-    TTS providers are "openai" and "elevenlabs" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
+    TTS providers are "openai", "elevenlabs", and "gemini" may be available according to the environment. You can use the `list_providers_and_voices` function to list the available providers and voice ids.
 
     If you have generated an MP3, present it using the <audio> tag to play the audio (`<audio controls src="FILE_NAME"></audio>`).
   TEXT
@@ -182,7 +182,7 @@ class SpeechDraftHelper < MonadicApp
               },
               provider: {
                 type: "string",
-                enum: ["openai", "elevenlabs"],
+                enum: ["openai", "elevenlabs", "gemini"],
                 description: "Provider of the speech."
               },
               voice_id: {

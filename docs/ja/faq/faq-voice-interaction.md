@@ -30,6 +30,12 @@
 
 ---
 
+**Q**: Gemini TTSとは何ですか？他のプロバイダーとの違いは？
+
+**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、2つのモデルを提供しています：Gemini Flash TTS（より高速、gemini-2.5-flash-preview-ttsを使用）とGemini Pro TTS（より高品質、gemini-2.5-pro-preview-ttsを使用）。両モデルとも8つのユニークな音声（Aoede、Charon、Fenrir、Kore、Orus、Puck、Schedar、Zephyr）を提供し、自然な音声合成を実現します。Gemini TTSはGemini APIキーが必要で、対話型会話用のリアルタイムストリーミングとSpeech Draft Helperアプリを通じたMP3ファイル生成の両方をサポートしています。
+
+---
+
 **Q**: 音声合成の際に実際の言語とは異なる言語で再生されることがあります。どうすればいいですか？
 
 **A**: Webインターフェイスの`Speech-to-Text (STT) Language`セレクタはデフォルトでは`Automatic`になっています。これを特定の言語に設定することで、音声合成の際に指定した言語で再生されるようになります。
@@ -38,5 +44,5 @@
 
 **Q**: 入力テキストを音声合成してMP3ファイルとして保存することはできますか？
 
-**A**: はい、`Speech Draft Helper`アプリを選択して、テキストを入力した上で、MP3ファイルに変換するようにAIエージェントに指示することで、音声合成した結果をファイルとして保存することができます。
+**A**: はい、`Speech Draft Helper`アプリを選択して、テキストを入力した上で、MP3ファイルに変換するようにAIエージェントに指示することで、音声合成した結果をファイルとして保存することができます。Speech Draft HelperはOpenAI、ElevenLabs、Gemini（gemini-2.5-flash-preview-ttsモデルを使用）を含む複数のTTSプロバイダーをサポートしており、MP3生成時に異なる音声とプロバイダーを選択できます。
 

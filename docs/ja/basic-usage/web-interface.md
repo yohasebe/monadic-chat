@@ -154,12 +154,15 @@ Monadic Chatの現在の状況を示します。
 音声合成に使用するプロバイダーを選択します。以下から選択できます：
 - OpenAI（4o TTS、TTS、またはTTS HD）- OpenAI APIキーが必要です
 - ElevenLabs - ElevenLabs APIキーが必要です
+- Gemini Flash TTS - Gemini APIキーが必要です（gemini-2.5-flash-preview-ttsモデルを使用）
+- Gemini Pro TTS - Gemini APIキーが必要です（gemini-2.5-pro-preview-ttsモデルを使用）
 - Web Speech API - ブラウザ内蔵の音声合成を使用します（APIキー不要）
 
 **Text-to-Speech Voice**<br />
 音声合成に使用する声を指定できます。利用可能な声は選択したプロバイダーによって異なります：
 - OpenAI：事前定義された声のセット（Alloy、Echo、Fableなど）から選択
 - ElevenLabs：利用可能なElevenLabsの声から選択
+- Gemini：8つの利用可能な声から選択（Aoede、Charon、Fenrir、Kore、Orus、Puck、Schedar、Zephyr）
 - Web Speech API：システムで利用可能な声から選択（ブラウザ/オペレーティングシステムによって異なります）
 
 **Text-to-Speech Speed**<br />

@@ -1,4 +1,4 @@
-- [May, 2025] 0.9.97
+- [May, 2025] 0.9.98
   - Text-to-speech improvements with sentence segmentation for play button
   - OpenAI and Anthropic models support native web search
   - xAI Grok models now support native web search via Live Search API

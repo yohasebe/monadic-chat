@@ -512,9 +512,11 @@ function ttsSpeak(text, stream, callback) {
     return false;
   }
   
-  // For traditional TTS providers (OpenAI, ElevenLabs)
+  // For traditional TTS providers (OpenAI, ElevenLabs, Gemini)
   const voice = $("#tts-voice").val();
   const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
+  const gemini_voice = $("#gemini-tts-voice").val();
+  
   
   // Determine mode based on streaming flag
   let mode = stream ? "TTS_STREAM" : "TTS";
@@ -530,6 +532,7 @@ function ttsSpeak(text, stream, callback) {
     text: text,
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,
+    gemini_voice: gemini_voice,
     response_format: response_format
   };
 
@@ -547,6 +550,7 @@ function ttsSpeak(text, stream, callback) {
     return false;
   }
 
+  
   // Send the request to the server
   ws.send(JSON.stringify(voiceData));
 

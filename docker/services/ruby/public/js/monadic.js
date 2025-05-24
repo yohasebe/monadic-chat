@@ -1798,11 +1798,14 @@ $(function () {
     // Hide all voice selection elements first
     $("#elevenlabs-voices").hide();
     $("#openai-voices").hide();
+    $("#gemini-voices").hide();
     $("#webspeech-voices").hide();
     
     // Show the appropriate voice selection based on provider
     if (params["tts_provider"] === "elevenlabs") {
       $("#elevenlabs-voices").show();
+    } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
+      $("#gemini-voices").show();
     } else if (params["tts_provider"] === "webspeech") {
       $("#webspeech-voices").show();
       // Initialize Web Speech API voices if they haven't been loaded
@@ -1825,6 +1828,11 @@ $(function () {
   $("#elevenlabs-tts-voice").on("change", function () {
     params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice option:selected").val();
     setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
+  });
+
+  $("#gemini-tts-voice").on("change", function () {
+    params["gemini_tts_voice"] = $("#gemini-tts-voice option:selected").val();
+    setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
   });
 
   $("#asr-lang").on("change", function () {

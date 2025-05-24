@@ -186,14 +186,218 @@ module InteractionUtils
       else
         return { "type" => "web_speech", "content" => text_converted }
       end
+    when "gemini", "gemini-flash", "gemini-pro"
+      api_key = CONFIG["GEMINI_API_KEY"]
+      if api_key.nil?
+        return { "type" => "error", "content" => "ERROR: GEMINI_API_KEY is not set." }
+      end
+      
+      # Minimal debug logging for performance
+      puts "Gemini TTS: voice=#{voice}, provider=#{provider}" if ENV["DEBUG_TTS"]
+      
+      headers = {
+        "Content-Type" => "application/json"
+      }
+      
+      # Construct the text with voice instructions (lowercase voice names)
+      voice_instruction = case voice.downcase
+      when "zephyr"
+        "Say cheerfully with bright tone: "
+      when "puck"
+        "Say with upbeat energy: "
+      when "charon"
+        "Say in an informative tone: "
+      when "kore"
+        "Say warmly: "
+      when "fenrir"
+        "Say expressively: "
+      when "aoede"
+        "Say creatively: "
+      when "orus"
+        "Say clearly: "
+      when "schedar"
+        "Say professionally: "
+      else
+        ""
+      end
+      
+      prompt_text = voice_instruction + text_converted
+      
+      body = {
+        "contents" => [{
+          "parts" => [{
+            "text" => prompt_text
+          }]
+        }],
+        "generationConfig" => {
+          "response_modalities" => ["AUDIO"],
+          "speech_config" => {
+            "voice_config" => {
+              "prebuilt_voice_config" => {
+                "voice_name" => voice.to_s.downcase
+              }
+            }
+          }
+        }
+      }
+      
+      # Use the appropriate Gemini model with TTS capability
+      model_name = case provider
+                   when "gemini-flash"
+                     "gemini-2.5-flash-preview-tts"
+                   when "gemini-pro"
+                     "gemini-2.5-pro-preview-tts"
+                   else
+                     "gemini-2.5-flash-preview-tts" # default
+                   end
+      # Use streaming endpoint when block is given
+      if block_given?
+        target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:streamGenerateContent?key=#{api_key}"
+      else
+        target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
+      end
+    else
+      # Default error case
+      return { "type" => "error", "content" => "ERROR: Unknown TTS provider: #{provider}" }
     end
 
     begin
       http = HTTP.headers(headers)
+      
+      # Use streaming for OpenAI TTS when block is given
+      if block_given? && (provider.include?("openai-tts") || provider == "openai")
+        require 'net/http'
+        require 'uri'
+        
+        uri = URI(target_uri)
+        net_http = Net::HTTP.new(uri.host, uri.port)
+        net_http.use_ssl = true
+        net_http.read_timeout = READ_TIMEOUT
+        
+        request = Net::HTTP::Post.new(uri.path)
+        headers.each { |key, value| request[key] = value }
+        request.body = body.to_json
+        
+        t_index = 0
+        
+        # Stream the response
+        net_http.request(request) do |response|
+          unless response.code.to_i == 200
+            error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
+            block.call(error_res)
+            return
+          end
+          
+          response.read_body do |chunk|
+            if chunk.length > 0
+              t_index += 1
+              content = Base64.strict_encode64(chunk)
+              hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
+              block.call(hash_res)
+              puts "OpenAI TTS: Streamed chunk #{t_index} (#{chunk.length} bytes)" if ENV["DEBUG_TTS"]
+            end
+          end
+        end
+        
+        # Send completion signal
+        t_index += 1
+        finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
+        block.call(finish)
+        return nil
+      end
+      
+      # Use streaming for Gemini TTS when block is given
+      if block_given? && (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro")
+        require 'net/http'
+        require 'uri'
+        
+        uri = URI(target_uri)
+        net_http = Net::HTTP.new(uri.host, uri.port)
+        net_http.use_ssl = true
+        net_http.read_timeout = READ_TIMEOUT
+        
+        request = Net::HTTP::Post.new(uri.path + "?" + uri.query)
+        headers.each { |key, value| request[key] = value }
+        request.body = body.to_json
+        
+        t_index = 0
+        start_time = Time.now
+        first_chunk_time = nil
+        
+        puts "Gemini TTS: Starting streaming request..." if ENV["DEBUG_TTS"]
+        
+        # Stream the response
+        net_http.request(request) do |response|
+          unless response.code.to_i == 200
+            error_res = { "type" => "error", "content" => "ERROR: Gemini TTS API error: #{response.code}" }
+            block.call(error_res)
+            return
+          end
+          
+          # Gemini streams JSON objects separated by newlines
+          buffer = ""
+          response.read_body do |chunk|
+            buffer += chunk
+            
+            # Process complete JSON objects
+            while buffer.include?("\n")
+              line, buffer = buffer.split("\n", 2)
+              next if line.strip.empty?
+              
+              begin
+                json_response = JSON.parse(line.strip)
+                
+                # Extract audio data from streamed response
+                if json_response["candidates"] && 
+                   json_response["candidates"][0] && 
+                   json_response["candidates"][0]["content"] && 
+                   json_response["candidates"][0]["content"]["parts"] &&
+                   json_response["candidates"][0]["content"]["parts"][0] &&
+                   json_response["candidates"][0]["content"]["parts"][0]["inlineData"]
+                  
+                  audio_data = json_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+                  mime_type = json_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+                  
+                  if audio_data && !audio_data.empty?
+                    t_index += 1
+                    
+                    if first_chunk_time.nil?
+                      first_chunk_time = Time.now
+                      latency = first_chunk_time - start_time
+                      puts "Gemini TTS: First chunk latency: #{(latency * 1000).round}ms" if ENV["DEBUG_TTS"]
+                    end
+                    
+                    hash_res = { "type" => "audio", "content" => audio_data, "mime_type" => mime_type, "t_index" => t_index, "finished" => false }
+                    block.call(hash_res)
+                    puts "Gemini TTS: Streamed chunk #{t_index} (#{audio_data.length} bytes)" if ENV["DEBUG_TTS"]
+                  end
+                end
+              rescue JSON::ParserError => e
+                puts "Gemini TTS: JSON parse error in stream: #{e.message}" if ENV["DEBUG_TTS"]
+                next
+              end
+            end
+          end
+        end
+        
+        # Send completion signal
+        t_index += 1
+        finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
+        block.call(finish)
+        return nil
+      end
+      
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
       unless res.status.success?
         error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
+        
+        # Log detailed error for Gemini
+        if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
+          puts "Gemini TTS API Error: #{res.status} - #{error_report}"
+          puts "Request URI: #{target_uri}"
+          puts "Request body: #{body.to_json}"
+        end
         
         # For ElevenLabs, suppress "something_went_wrong" errors since audio often still works
         if provider == "elevenlabs" && 
@@ -213,9 +417,57 @@ module InteractionUtils
         return res
       end
 
+      # Handle Gemini response format
+      if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
+        begin
+          gemini_response = JSON.parse(res.body.to_s)
+          
+          # Minimal debug logging
+          puts "Gemini TTS: Response received" if ENV["DEBUG_TTS"]
+          
+          # Extract audio data from Gemini response
+          if gemini_response["candidates"] && 
+             gemini_response["candidates"][0] && 
+             gemini_response["candidates"][0]["content"] && 
+             gemini_response["candidates"][0]["content"]["parts"] &&
+             gemini_response["candidates"][0]["content"]["parts"][0] &&
+             gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
+            
+            audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+            mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+            
+            puts "Gemini TTS: Audio received (#{audio_data.length} bytes)" if ENV["DEBUG_TTS"]
+            
+            # Audio data is already base64 encoded from Gemini
+            
+            if block_given?
+              # For streaming, send the complete audio at once with MIME type
+              hash_res = { "type" => "audio", "content" => audio_data, "mime_type" => mime_type, "t_index" => 1, "finished" => false }
+              block&.call hash_res
+              finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
+              block&.call finish
+              return nil
+            else
+              return { "type" => "audio", "content" => audio_data, "mime_type" => mime_type }
+            end
+          else
+            puts "Gemini TTS Error: Invalid response format"
+            puts "Full response: #{gemini_response.inspect}"
+            error_res = { "type" => "error", "content" => "ERROR: Invalid response format from Gemini API" }
+            block&.call error_res if block_given?
+            return error_res
+          end
+        rescue JSON::ParserError => e
+          error_res = { "type" => "error", "content" => "ERROR: Failed to parse Gemini response: #{e.message}" }
+          block&.call error_res if block_given?
+          return error_res
+        end
+      end
+
       t_index = 0
 
       if block_given?
+        # For non-OpenAI providers (Gemini, ElevenLabs), use existing chunking approach
         res.body.each do |chunk|
           t_index += 1
           content = Base64.strict_encode64(chunk)

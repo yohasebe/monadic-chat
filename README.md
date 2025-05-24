@@ -88,7 +88,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
-- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and OpenAI's built-in search feature
+- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, and xAI Grok
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
 

@@ -11,8 +11,10 @@ module GrokHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-    # websearch tools
-  WEBSEARCH_TOOLS = [
+  # Grok Live Search is built-in, no tool definition needed
+
+  # Tavily-based websearch tools
+  TAVILY_WEBSEARCH_TOOLS = [
     {
       type: "function",
       function:
@@ -59,7 +61,9 @@ module GrokHelper
     }
   ]
 
-  WEBSEARCH_PROMPT = <<~TEXT
+  # Grok Live Search prompt not needed - it's handled automatically
+
+  TAVILY_WEBSEARCH_PROMPT = <<~TEXT
 
     Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
 
@@ -153,6 +157,11 @@ module GrokHelper
       body["reasoning_effort"] = "low"
     when "medium", "high"
       body["reasoning_effort"] = "high"
+    end
+    
+    # Add search_parameters if requested
+    if options["search_parameters"]
+      body["search_parameters"] = options["search_parameters"]
     end
     
     # Handle system message
@@ -249,7 +258,12 @@ module GrokHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    # Check for websearch configuration
+    websearch = obj["websearch"] == "true"
+    # Grok uses native Live Search by default
+    websearch_native = websearch
+    # Only use Tavily if native is disabled
+    websearch_tavily = CONFIG["TAVILY_API_KEY"] && websearch && CONFIG["GROK_DISABLE_NATIVE_WEBSEARCH"]
 
     message = nil
     data = nil
@@ -320,22 +334,43 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"] || []
-      if websearch
-        websearch_tools = WEBSEARCH_TOOLS.dup
-        body["tools"].concat(websearch_tools)
+      
+      # Only add Tavily tools if using Tavily
+      if websearch_tavily
+        body["tools"].concat(TAVILY_WEBSEARCH_TOOLS)
         body["tools"].uniq!
       end
-
-      body["tool_choice"] = "auto"
-    elsif websearch
-      body["tools"] = WEBSEARCH_TOOLS
+      
+      body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
+    elsif websearch_tavily
+      body["tools"] = TAVILY_WEBSEARCH_TOOLS
       body["tool_choice"] = "auto"
     else
       body.delete("tools")
       body.delete("tool_choice")
     end
+    
+    # Add search_parameters for native Grok Live Search
+    if websearch_native
+      body["search_parameters"] = {
+        "mode" => "on",  # "on" forces live search, "auto" lets model decide
+        "return_citations" => true,
+        "sources" => [
+          { "type" => "web" },
+          { "type" => "news" },
+          { "type" => "x" }
+        ]
+      }
+      
+      # Debug logging
+      if CONFIG["EXTRA_LOGGING"]
+        puts "Grok Live Search enabled with search_parameters:"
+        puts JSON.pretty_generate(body["search_parameters"])
+      end
+    end
 
     # The context is added to the body
+
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
@@ -408,6 +443,29 @@ module GrokHelper
 
     websearch_prompt_added = false
 
+    # Add Tavily websearch prompt if using Tavily
+    if websearch_tavily && !websearch_prompt_added
+      body["messages"].each do |msg|
+        if msg["role"] == "system" && msg["content"]
+          # Handle both string and array content
+          if msg["content"].is_a?(Array)
+            msg["content"].each do |content_item|
+              if content_item["type"] == "text"
+                content_item["text"] = content_item["text"] + "\n\n" + TAVILY_WEBSEARCH_PROMPT
+                websearch_prompt_added = true
+                break
+              end
+            end
+          else
+            msg["content"] = msg["content"] + "\n\n" + TAVILY_WEBSEARCH_PROMPT
+            websearch_prompt_added = true
+          end
+          break if websearch_prompt_added
+        end
+      end
+    end
+
+    # Process tool calls if any
     body["messages"].each do |msg|
       next unless msg["tool_calls"] || msg[:tool_call]
 
@@ -417,11 +475,6 @@ module GrokHelper
       tool_calls = msg["tool_calls"] || msg[:tool_call]
       tool_calls.each do |tool_call|
         tool_call.delete("index")
-      end
-
-      if websearch && !websearch_prompt_added && msg["role"] == "system"
-        msg["content"] = msg["content"] + "\n\n" + WEBSEARCH_PROMPT
-        websearch_prompt_added = true
       end
     end
 

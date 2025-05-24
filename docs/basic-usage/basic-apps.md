@@ -123,7 +123,7 @@ Research Assistant apps are also available for the following models:
 - Mistral AI
 - Perplexity
 
-?> When using web search functionality: OpenAI and Anthropic Claude models use their native web search APIs. For other providers (Gemini, Mistral, etc.), you need an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with 1,000 free API calls per month.
+?> When using web search functionality: OpenAI, Anthropic Claude, and xAI Grok models use their native web search APIs. For other providers (Gemini, Mistral, etc.), you need an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with 1,000 free API calls per month.
 
 ## Language Related :id=language-related
 

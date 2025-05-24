@@ -1,6 +1,7 @@
 - [May, 2025] 0.9.97
   - Text-to-speech improvements with sentence segmentation for play button
   - OpenAI and Anthropic models support native web search
+  - xAI Grok models now support native web search via Live Search API
   - Update mechanism changed to manual download only (no automatic updates)
 - [May, 2025] 0.9.93
   - Web Speech API (macOS and Windows) support for text-to-speech

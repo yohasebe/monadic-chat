@@ -123,7 +123,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 - Mistral AI
 - Perplexity
 
-?> ウェブ検索機能の使用について：OpenAIとAnthropic Claudeのモデルは、それぞれのネイティブのウェブ検索APIを使用します。その他のプロバイダー（Gemini、Mistralなど）では、ウェブ検索APIを利用するために[Tavily](https://tavily.com/)からAPIキーを取得する必要があります。月に1,000回の無料リクエストが利用可能です。
+?> ウェブ検索機能の使用について：OpenAI、Anthropic Claude、xAI Grokのモデルは、それぞれのネイティブのウェブ検索APIを使用します。その他のプロバイダー（Gemini、Mistralなど）では、ウェブ検索APIを利用するために[Tavily](https://tavily.com/)からAPIキーを取得する必要があります。月に1,000回の無料リクエストが利用可能です。
 
 ## 言語関連 :id=language-related
 

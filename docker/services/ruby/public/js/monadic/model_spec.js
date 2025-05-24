@@ -1,6 +1,5 @@
 const modelSpec = {
-  // Opena AI models
-  // gpt-4.5 models
+  // OpenAI models
   "gpt-4.5-preview-2025-02-27": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
@@ -699,28 +698,28 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
   },
   // xAI models
-  "grok-3-beta": {
+  "grok-3": {
     "context_window" : [1, 131072],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "reasoning_effort": [["low", "high"], "low"]
   },
-  "grok-3-mini-beta": {
+  "grok-3-mini": {
     "context_window" : [1, 131072],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "reasoning_effort": [["low", "high"], "low"]
   },
-  "grok-3-fast-beta": {
+  "grok-3-fast": {
     "context_window" : [1, 131072],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "reasoning_effort": [["low", "high"], "low"]
   },
-  "grok-3-mini-fast-beta": {
+  "grok-3-mini-fast": {
     "context_window" : [1, 131072],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],

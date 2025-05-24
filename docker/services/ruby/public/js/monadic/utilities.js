@@ -748,6 +748,7 @@ function setParams() {
   params["tts_provider"] = $("#tts-provider").val();
   params["tts_voice"] = $("#tts-voice").val();
   params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice").val();
+  params["gemini_tts_voice"] = $("#gemini-tts-voice").val();
   params["tts_speed"] = $("#tts-speed").val();
   params["asr_lang"] = $("#asr-lang").val();
   params["easy_submit"] = $("#check-easy-submit").prop('checked');

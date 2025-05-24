@@ -404,6 +404,8 @@
                 <option id="openai-tts" value="openai-tts">OpenAI (TTS)</option>
                 <option id="openai-tts-hd" value="openai-tts-hd">OpenAI (TTS HD)</option>
                 <option id="elevenlabs-provider-option" value="elevenlabs" disabled>ElevenLabs</option>
+                <option id="gemini-flash-provider-option" value="gemini-flash" disabled>Gemini Flash TTS</option>
+                <option id="gemini-pro-provider-option" value="gemini-pro" disabled>Gemini Pro TTS</option>
                 <option id="webspeech-provider-option" value="webspeech">Web Speech API</option>
               </select>
             </div>
@@ -430,6 +432,20 @@
               </select>
             </div>
             
+            <div id="gemini-voices" class="my-1" style="display: none;">
+              <label for="gemini-voice" class="div-label my-2">Gemini Text-to-Speech Voice</label>
+              <select class="form-select form-select-sm" id="gemini-tts-voice">
+                <option value="aoede">Aoede</option>
+                <option value="charon">Charon</option>
+                <option value="fenrir">Fenrir</option>
+                <option value="kore">Kore</option>
+                <option value="orus">Orus</option>
+                <option value="puck">Puck</option>
+                <option value="schedar">Schedar</option>
+                <option value="zephyr">Zephyr</option>
+              </select>
+            </div>
+
             <div id="webspeech-voices" class="my-1" style="display: none;">
               <label for="webspeech-voice" class="div-label my-2">Web Speech API Voice</label>
               <select class="form-select form-select-sm" id="webspeech-voice">

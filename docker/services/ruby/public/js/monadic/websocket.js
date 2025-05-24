@@ -19,6 +19,8 @@ let iosAudioElement = null;
 let globalAudioQueue = [];
 let isProcessingAudioQueue = false;
 let currentAudioSequenceId = null;
+let currentSegmentAudio = null; // Track current playing segment
+let currentPCMSource = null; // Track current PCM audio source
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -848,11 +850,12 @@ function playWithAudioElement(audioData) {
 }
 
 // Global audio queue management
-function addToAudioQueue(audioData, sequenceId) {
+function addToAudioQueue(audioData, sequenceId, mimeType) {
   globalAudioQueue.push({
     data: audioData,
     sequenceId: sequenceId,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    mimeType: mimeType // Store MIME type if provided
   });
   
   // Start processing if not already running
@@ -877,7 +880,7 @@ function processGlobalAudioQueue() {
   if (window.isIOS || window.basicAudioMode) {
     playAudioForIOSFromQueue(audioItem.data);
   } else {
-    playAudioFromQueue(audioItem.data);
+    playAudioFromQueue(audioItem); // Pass full item including mimeType
   }
 }
 
@@ -886,6 +889,27 @@ function clearAudioQueue() {
   globalAudioQueue = [];
   isProcessingAudioQueue = false;
   currentAudioSequenceId = null;
+  
+  // Stop current segment if playing
+  if (currentSegmentAudio) {
+    try {
+      currentSegmentAudio.pause();
+      currentSegmentAudio.src = "";
+      currentSegmentAudio = null;
+    } catch (e) {
+      console.warn("Error stopping current segment:", e);
+    }
+  }
+  
+  // Stop current PCM source if playing
+  if (currentPCMSource) {
+    try {
+      currentPCMSource.stop();
+      currentPCMSource = null;
+    } catch (e) {
+      console.warn("Error stopping PCM source:", e);
+    }
+  }
   
   // Also clear iOS-specific buffers
   iosAudioBuffer = [];
@@ -948,57 +972,76 @@ function processAudio(audioData) {
 }
 
 // Play audio from queue for standard browsers
-function playAudioFromQueue(audioData) {
+function playAudioFromQueue(audioItem) {
   try {
-    // For segmented TTS playback, use direct blob playback
-    // This is simpler and more reliable than MediaSource
-    const blob = new Blob([audioData], { type: 'audio/mpeg' });
+    // Extract data and mimeType from audioItem
+    const audioData = audioItem.data || audioItem;
+    const mimeType = audioItem.mimeType;
+    
+    // Check if this is PCM audio from Gemini
+    if (mimeType && mimeType.includes("audio/L16")) {
+      // Extract sample rate from MIME type
+      const mimeMatch = mimeType.match(/rate=(\d+)/);
+      const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
+      
+      // Use the PCM playback function
+      playPCMAudio(audioData, sampleRate);
+      
+      // Handle queue processing after PCM playback
+      // Note: playPCMAudio handles its own completion callback
+      // so we need to modify it to continue queue processing
+      window.ttsPlaybackCallback = function() {
+        // Process next segment immediately
+        isProcessingAudioQueue = false;
+        processGlobalAudioQueue();
+      };
+      return;
+    }
+    
+    // For non-PCM audio, use standard blob playback
+    const blob = new Blob([audioData], { type: mimeType || 'audio/mpeg' });
     const audioUrl = URL.createObjectURL(blob);
     
     // Create a new audio element for this segment
     const segmentAudio = new Audio();
+    currentSegmentAudio = segmentAudio; // Track current segment
     
     segmentAudio.onended = function() {
       // Clean up
       URL.revokeObjectURL(audioUrl);
-      // Process next segment in queue
-      setTimeout(() => {
-        isProcessingAudioQueue = false;
-        processGlobalAudioQueue();
-      }, 100);
+      currentSegmentAudio = null; // Clear reference
+      // Process next segment in queue immediately
+      isProcessingAudioQueue = false;
+      processGlobalAudioQueue();
     };
     
     segmentAudio.onerror = function(e) {
       console.error("Segment audio error:", e);
       URL.revokeObjectURL(audioUrl);
-      // Try next segment
-      setTimeout(() => {
-        isProcessingAudioQueue = false;
-        processGlobalAudioQueue();
-      }, 100);
+      currentSegmentAudio = null; // Clear reference
+      // Try next segment immediately
+      isProcessingAudioQueue = false;
+      processGlobalAudioQueue();
     };
     
     // Set source and play
     segmentAudio.src = audioUrl;
     segmentAudio.play().then(() => {
-      console.log("Playing TTS segment");
+      // Playing TTS segment
     }).catch(err => {
       console.error("Failed to play segment:", err);
       URL.revokeObjectURL(audioUrl);
-      // Try next segment
-      setTimeout(() => {
-        isProcessingAudioQueue = false;
-        processGlobalAudioQueue();
-      }, 100);
+      currentSegmentAudio = null; // Clear reference
+      // Try next segment immediately
+      isProcessingAudioQueue = false;
+      processGlobalAudioQueue();
     });
     
   } catch (e) {
     console.error("Error in playAudioFromQueue:", e);
-    // Try next segment
-    setTimeout(() => {
-      isProcessingAudioQueue = false;
-      processGlobalAudioQueue();
-    }, 100);
+    // Try next segment immediately
+    isProcessingAudioQueue = false;
+    processGlobalAudioQueue();
   }
 }
 
@@ -1219,6 +1262,124 @@ function processIOSAudioBuffer() {
       setTimeout(processIOSAudioBuffer, 100);
     }
   }
+}
+
+// Function to play PCM audio data from Gemini
+function playPCMAudio(pcmData, sampleRate) {
+  try {
+    // Initialize audio context if needed
+    if (typeof audioInit === 'function') {
+      audioInit();
+    }
+    
+    // Create AudioContext if not exists
+    if (!window.audioCtx) {
+      window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // PCM is 16-bit linear, so we need to convert from bytes to float32
+    const numSamples = pcmData.length / 2; // 2 bytes per sample
+    const audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    // Convert 16-bit PCM to float32
+    for (let i = 0; i < numSamples; i++) {
+      // Read 16-bit signed integer (little-endian)
+      const sample = (pcmData[i * 2] | (pcmData[i * 2 + 1] << 8));
+      // Convert to signed value
+      const signedSample = sample < 0x8000 ? sample : sample - 0x10000;
+      // Normalize to [-1, 1] range
+      channelData[i] = signedSample / 32768.0;
+    }
+    
+    // Create a buffer source and play it
+    const source = window.audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(window.audioCtx.destination);
+    currentPCMSource = source; // Track the current source
+    
+    // Handle playback end
+    source.onended = function() {
+      $("#monadic-spinner").hide();
+      currentPCMSource = null; // Clear reference
+      
+      // Trigger any callbacks if needed
+      if (window.ttsPlaybackCallback) {
+        window.ttsPlaybackCallback(true);
+      }
+    };
+    
+    // Start playback
+    source.start(0);
+    
+  } catch (error) {
+    console.error("Error playing PCM audio:", error);
+    $("#monadic-spinner").hide();
+    
+    // Try fallback method - convert to WAV format
+    try {
+      const wavBlob = createWAVFromPCM(pcmData, sampleRate);
+      const blobUrl = URL.createObjectURL(wavBlob);
+      
+      // Use standard audio element as fallback
+      const audio = new Audio(blobUrl);
+      audio.onended = function() {
+        URL.revokeObjectURL(blobUrl);
+        $("#monadic-spinner").hide();
+      };
+      audio.play().catch(err => {
+        console.error("Fallback audio playback failed:", err);
+        $("#monadic-spinner").hide();
+      });
+    } catch (fallbackError) {
+      console.error("WAV fallback also failed:", fallbackError);
+      $("#monadic-spinner").hide();
+    }
+  }
+}
+
+// Helper function to create WAV file from PCM data
+function createWAVFromPCM(pcmData, sampleRate) {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = pcmData.length;
+  
+  // Create WAV header
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  
+  // "RIFF" chunk descriptor
+  const writeString = (offset, string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, 'WAVE');
+  
+  // "fmt " sub-chunk
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true); // Subchunk1Size
+  view.setUint16(20, 1, true); // AudioFormat (PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  
+  // "data" sub-chunk
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+  
+  // Copy PCM data
+  const dataArray = new Uint8Array(buffer, 44);
+  dataArray.set(pcmData);
+  
+  return new Blob([buffer], { type: 'audio/wav' });
 }
 
 function processAudioDataQueue() {
@@ -1671,6 +1832,23 @@ function connect_websocket(callback) {
               }
             }
 
+            // Check if this is PCM audio from Gemini
+            const provider = $("#tts-provider").val();
+            const isPCMFromGemini = (provider === "gemini-flash" || provider === "gemini-pro") && data.mime_type && data.mime_type.includes("audio/L16");
+            
+            if (isPCMFromGemini) {
+              // Handle PCM audio from Gemini
+              const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
+              
+              // Extract PCM parameters from MIME type (e.g., "audio/L16;codec=pcm;rate=24000")
+              const mimeMatch = data.mime_type.match(/rate=(\d+)/);
+              const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
+              
+              // Convert PCM to playable audio using Web Audio API
+              playPCMAudio(audioData, sampleRate);
+              break;
+            }
+            
             const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
             
             // Device/browser specific audio processing
@@ -1740,6 +1918,19 @@ function connect_websocket(callback) {
         $("#monadic-spinner")
           .find("span")
           .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        
+        break;
+      }
+      
+      case "tts_stopped": {
+        // TTS was stopped, reset the UI state
+        $("#monadic-spinner").hide();
+        
+        // Reset response state
+        responseStarted = false;
+        
+        // Set alert to ready state
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         
         break;
       }
@@ -2195,6 +2386,42 @@ function connect_websocket(callback) {
         const savedProvider = getCookie("tts-provider");
         if (savedProvider === "elevenlabs") {
           $("#tts-provider").val("elevenlabs").trigger("change");
+        }
+        break;
+      }
+      case "gemini_voices": {
+        const cookieValue = getCookie("gemini-tts-voice");
+        let voices = data["content"];
+        if (voices.length > 0) {
+          // set both gemini provider options enabled
+          $("#gemini-flash-provider-option").prop("disabled", false);
+          $("#gemini-pro-provider-option").prop("disabled", false);
+          
+          // Populate the gemini voice select element
+          $("#gemini-tts-voice").empty();
+          voices.forEach((voice) => {
+            if (cookieValue === voice.voice_id) {
+              $("#gemini-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
+            } else {
+              $("#gemini-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
+            }
+          });
+          
+          // Apply saved cookie value for voice if it exists
+          const savedVoice = getCookie("gemini-tts-voice");
+          if (savedVoice && $(`#gemini-tts-voice option[value="${savedVoice}"]`).length > 0) {
+            $("#gemini-tts-voice").val(savedVoice);
+          }
+        } else {
+          // set both gemini provider options disabled
+          $("#gemini-flash-provider-option").prop("disabled", true);
+          $("#gemini-pro-provider-option").prop("disabled", true);
+        }
+        
+        // Apply saved cookie value for provider if it was gemini
+        const savedProvider = getCookie("tts-provider");
+        if (savedProvider === "gemini-flash" || savedProvider === "gemini-pro") {
+          $("#tts-provider").val(savedProvider).trigger("change");
         }
         break;
       }

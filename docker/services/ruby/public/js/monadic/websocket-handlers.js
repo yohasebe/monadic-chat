@@ -112,9 +112,10 @@ function handleFragmentWithAudio(data, processAudio) {
             
             // Add to audio queue instead of processing immediately
             const sequenceId = data.sequence_id || data.audio.sequence_id || Date.now().toString();
+            const mimeType = data.audio.mime_type || null;
             
             if (typeof addToAudioQueue === 'function') {
-              addToAudioQueue(audioData, sequenceId);
+              addToAudioQueue(audioData, sequenceId, mimeType);
             } else {
               // Fallback to direct processing if queue not available
               processAudio(audioData);
@@ -226,10 +227,11 @@ function handleAudioMessage(data, processAudio) {
             data: audioData,
             sequenceId: sequenceId,
             segmentIndex: data.segment_index,
-            totalSegments: data.total_segments
+            totalSegments: data.total_segments,
+            mimeType: data.mime_type // Pass MIME type if available
           });
         } else if (typeof addToAudioQueue === 'function') {
-          addToAudioQueue(audioData, sequenceId);
+          addToAudioQueue(audioData, sequenceId, data.mime_type);
         } else if (typeof processAudio === 'function') {
           // Fallback to direct processing
           processAudio(audioData);
@@ -237,7 +239,7 @@ function handleAudioMessage(data, processAudio) {
       } else {
         // Normal audio processing
         if (typeof addToAudioQueue === 'function') {
-          addToAudioQueue(audioData, sequenceId);
+          addToAudioQueue(audioData, sequenceId, data.mime_type);
         } else if (typeof processAudio === 'function') {
           // Fallback to direct processing
           processAudio(audioData);

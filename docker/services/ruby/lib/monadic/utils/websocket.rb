@@ -259,6 +259,21 @@ module WebSocketHelper
     if elevenlabs_voices && !elevenlabs_voices.empty?
       @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
     end
+    
+    # Send Gemini voices if API key is available
+    if CONFIG["GEMINI_API_KEY"]
+      gemini_voices = [
+        { "voice_id" => "aoede", "name" => "Aoede" },
+        { "voice_id" => "charon", "name" => "Charon" },
+        { "voice_id" => "fenrir", "name" => "Fenrir" },
+        { "voice_id" => "kore", "name" => "Kore" },
+        { "voice_id" => "orus", "name" => "Orus" },
+        { "voice_id" => "puck", "name" => "Puck" },
+        { "voice_id" => "schedar", "name" => "Schedar" },
+        { "voice_id" => "zephyr", "name" => "Zephyr" }
+      ]
+      @channel.push({ "type" => "gemini_voices", "content" => gemini_voices }.to_json)
+    end
   end
   
   # Update message status and push info
@@ -479,6 +494,8 @@ module WebSocketHelper
           provider = obj["provider"]
           if provider == "elevenlabs"
             voice = obj["elevenlabs_voice"]
+          elsif provider == "gemini-flash" || provider == "gemini-pro"
+            voice = obj["gemini_voice"]
           else
             voice = obj["voice"]
           end
@@ -493,6 +510,7 @@ module WebSocketHelper
             res_hash = { "type" => "web_speech", "content" => text }
           else
             # Generate TTS content for other providers
+            puts "TTS: About to call tts_api_request with voice='#{voice}', provider='#{provider}'"
             res_hash = tts_api_request(text,
                                       provider: provider,
                                       voice: voice,
@@ -505,6 +523,8 @@ module WebSocketHelper
           provider = obj["provider"]
           if provider == "elevenlabs"
             voice = obj["elevenlabs_voice"]
+          elsif provider == "gemini-flash" || provider == "gemini-pro"
+            voice = obj["gemini_voice"]
           else
             voice = obj["voice"]
           end
@@ -513,6 +533,7 @@ module WebSocketHelper
           speed = obj["speed"]
           response_format = obj["response_format"]
           # model = obj["model"]
+          
           
           # Special handling for Web Speech API
           if provider == "webspeech" || provider == "web-speech"
@@ -809,15 +830,36 @@ module WebSocketHelper
           end
         when "AUDIO"
           handle_audio_message(ws, obj)
+        when "STOP_TTS"
+          # Stop any running TTS thread
+          if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
+            @tts_thread.kill
+            @tts_thread = nil
+            puts "TTS thread stopped by STOP_TTS message"
+          end
+          
+          # Send confirmation
+          @channel.push({
+            "type" => "tts_stopped"
+          }.to_json)
         when "PLAY_TTS"
           # Handle play TTS message
           # This is similar to auto_speech processing but for card playback
+          
+          # Stop any existing TTS thread first
+          if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
+            @tts_thread.kill
+            @tts_thread = nil
+          end
+          
           thread&.join
           
           # Extract TTS parameters
           provider = obj["tts_provider"]
           if provider == "elevenlabs"
             voice = obj["elevenlabs_tts_voice"] 
+          elsif provider == "gemini-flash" || provider == "gemini-pro"
+            voice = obj["gemini_tts_voice"]
           else
             voice = obj["tts_voice"]
           end
@@ -829,6 +871,49 @@ module WebSocketHelper
           ps = PragmaticSegmenter::Segmenter.new(text: text)
           segments = ps.segment
           
+          # For Gemini TTS, combine short segments to avoid API failures
+          if provider == "gemini-flash" || provider == "gemini-pro"
+            combined_segments = []
+            current_segment = ""
+            
+            segments.each do |segment|
+              # Clean and check text
+              cleaned_text = segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '') # Remove emojis
+              cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ') # Remove special chars
+              cleaned_text = cleaned_text.strip
+              
+              if current_segment.empty?
+                # Start a new segment
+                current_segment = segment
+              elsif cleaned_text.length < 8  # Increased threshold for safety
+                # Current segment is short, combine with existing
+                current_segment += " " + segment
+              else
+                # Check if current accumulated segment should be finalized
+                current_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
+                current_cleaned = current_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
+                
+                if current_cleaned.length < 8  # Combine if still short
+                  current_segment += " " + segment
+                else
+                  # Finalize current segment and start new one
+                  combined_segments << current_segment if current_cleaned.length >= 3
+                  current_segment = segment
+                end
+              end
+            end
+            
+            # Don't forget the last segment - but validate it first
+            unless current_segment.empty?
+              final_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
+              final_cleaned = final_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
+              combined_segments << current_segment if final_cleaned.length >= 3
+            end
+            
+            segments = combined_segments
+            puts "Gemini TTS: #{ps.segment.length} -> #{segments.length} segments" if ENV["DEBUG_TTS"]
+          end
+          
           # Check if batch processing should be used
           use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
           
@@ -836,12 +921,24 @@ module WebSocketHelper
           prev_texts_for_tts = []
           
           # Start a new thread for TTS processing
-          thread = Thread.new do
+          @tts_thread = Thread.new do
             Thread.current[:type] = :tts_playback
             
             segments.each_with_index do |segment, i|
               # Skip empty segments
               next if segment.strip.empty?
+              
+              # Light filtering for Gemini TTS
+              if provider == "gemini-flash" || provider == "gemini-pro"
+                cleaned_segment = segment.strip
+                
+                # Skip if too short after stripping
+                if cleaned_segment.length < 3
+                  next
+                end
+                
+                segment = cleaned_segment
+              end
               
               # Process this segment
               previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
@@ -877,14 +974,16 @@ module WebSocketHelper
                 "progress" => ((i + 1) / segments.length.to_f * 100).round
               }
               
-              # Send the audio/speech message
-              @channel.push(res_hash.to_json)
-              
-              # Send progress update
-              @channel.push(progress_message.to_json)
-              
-              # Small delay between segments for smoother playback
-              sleep 0.1
+              # Send the audio/speech message only if it's valid
+              if res_hash && res_hash["type"] != "error"
+                @channel.push(res_hash.to_json)
+                
+                # Send progress update
+                @channel.push(progress_message.to_json)
+              else
+                # Log the error
+                puts "TTS segment failed: #{res_hash&.dig("content") || "Unknown error"}"
+              end
             end
             
             # Signal completion
@@ -912,6 +1011,8 @@ module WebSocketHelper
             provider = obj["tts_provider"]
             if provider == "elevenlabs"
               voice = obj["elevenlabs_tts_voice"] 
+            elsif provider == "gemini-flash" || provider == "gemini-pro"
+              voice = obj["gemini_tts_voice"]
             else
               voice = obj["tts_voice"]
             end

@@ -274,6 +274,11 @@ function attachEventListeners($card) {
       $(this).tooltip('hide');
       $('.tooltip').remove();
     }
+    
+    // Stop any current TTS playback to prevent double playback
+    if (typeof ttsStop === 'function') {
+      ttsStop();
+    }
 
     // Show TTS-specific spinner
     $("#monadic-spinner")
@@ -328,6 +333,8 @@ function attachEventListeners($card) {
       ttsVoice = $("#elevenlabs-tts-voice").val();
     } else if (ttsProvider === "webspeech") {
       ttsVoice = $("#webspeech-voice").val();
+    } else if (ttsProvider === "gemini-flash" || ttsProvider === "gemini-pro") {
+      ttsVoice = $("#gemini-tts-voice").val();
     } else {
       ttsVoice = $("#tts-voice").val();
     }
@@ -341,11 +348,15 @@ function attachEventListeners($card) {
       tts_provider: ttsProvider,
       tts_voice: ttsVoice,
       elevenlabs_tts_voice: $("#elevenlabs-tts-voice").val(),
+      gemini_tts_voice: $("#gemini-tts-voice").val(),
       tts_speed: ttsSpeed,
       mid: mid
     };
     
-    ws.send(JSON.stringify(ttsMessage));
+    // Small delay to ensure previous TTS is stopped before starting new one
+    setTimeout(() => {
+      ws.send(JSON.stringify(ttsMessage));
+    }, 50);
   });
 
   $card.on("click.cardEvent", ".func-stop", function () {
@@ -363,7 +374,22 @@ function attachEventListeners($card) {
     $("#monadic-spinner")
       .find("span")
       .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    
+    // Stop frontend TTS
     ttsStop();
+    
+    // Send stop signal to backend as well
+    if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ message: "STOP_TTS" }));
+    }
+    
+    // Reset response state and alert message
+    if (typeof window.responseStarted !== 'undefined') {
+      window.responseStarted = false;
+    }
+    if (typeof setAlert === 'function') {
+      setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+    }
   });
 
   $card.on("click.cardEvent", ".func-copy", async function () {

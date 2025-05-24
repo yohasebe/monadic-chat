@@ -48,6 +48,20 @@ def list_elevenlabs_voices
   end
 end
 
+def list_gemini_voices
+  # Gemini TTS voices - updated based on API response
+  [
+    { "name" => "Aoede", "voice_id" => "aoede" },
+    { "name" => "Charon", "voice_id" => "charon" },
+    { "name" => "Fenrir", "voice_id" => "fenrir" },
+    { "name" => "Kore", "voice_id" => "kore" },
+    { "name" => "Orus", "voice_id" => "orus" },
+    { "name" => "Puck", "voice_id" => "puck" },
+    { "name" => "Schedar", "voice_id" => "schedar" },
+    { "name" => "Zephyr", "voice_id" => "zephyr" }
+  ]
+end
+
 def list_providers
   providers = {
     "openai" => {
@@ -57,11 +71,15 @@ def list_providers
     "elevenlabs" => {
       "name" => "elevenlabs",
       "voices" => list_elevenlabs_voices
+    },
+    "gemini" => {
+      "name" => "gemini",
+      "voices" => list_gemini_voices
     }
   }
 
   # remove empty providers
-  providers.reject { |_, voices| voices.empty? }
+  providers.reject { |_, provider| provider["voices"].empty? }
 end
 
 def tts_api_request(text,
@@ -107,6 +125,69 @@ def tts_api_request(text,
 
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+  when "gemini"
+    api_key = nil
+    begin
+      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }.split("=").last
+    rescue Errno::ENOENT
+      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }.split("=").last
+    end
+
+    if api_key.nil?
+      return { type: "error", content: "ERROR: GEMINI_API_KEY is not set." }
+    end
+
+    # Import HTTP for API calls
+    require 'json'
+    
+    headers = {
+      "Content-Type" => "application/json"
+    }
+    
+    # Construct the text with voice instructions (lowercase voice names)
+    voice_instruction = case voice.downcase
+    when "zephyr"
+      "Say cheerfully with bright tone: "
+    when "puck"
+      "Say with upbeat energy: "
+    when "charon"
+      "Say in an informative tone: "
+    when "kore"
+      "Say warmly: "
+    when "fenrir"
+      "Say expressively: "
+    when "aoede"
+      "Say creatively: "
+    when "orus"
+      "Say clearly: "
+    when "schedar"
+      "Say professionally: "
+    else
+      ""
+    end
+    
+    prompt_text = voice_instruction + text
+    
+    body = {
+      "contents" => [{
+        "parts" => [{
+          "text" => prompt_text
+        }]
+      }],
+      "generationConfig" => {
+        "response_modalities" => ["AUDIO"],
+        "speech_config" => {
+          "voice_config" => {
+            "prebuilt_voice_config" => {
+              "voice_name" => voice.to_s.downcase
+            }
+          }
+        }
+      }
+    }
+    
+    # Use the Gemini 2.5 Flash model with TTS capability (default)
+    target_uri = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=#{api_key}"
   else # openai
     begin
       api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
@@ -152,7 +233,35 @@ def tts_api_request(text,
       error_message = error_report["error"] ? error_report["error"]["message"] : "API request failed"
       return { type: "error", content: "ERROR: #{error_message}" }
     end
-    response = res.body
+    
+    # Handle Gemini response format
+    if provider == "gemini"
+      begin
+        gemini_response = JSON.parse(res.body.to_s)
+        
+        # Extract audio data from Gemini response
+        if gemini_response["candidates"] && 
+           gemini_response["candidates"][0] && 
+           gemini_response["candidates"][0]["content"] && 
+           gemini_response["candidates"][0]["content"]["parts"] &&
+           gemini_response["candidates"][0]["content"]["parts"][0] &&
+           gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
+          
+          audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+          mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+          
+          # Decode base64 audio data
+          require 'base64'
+          response = Base64.decode64(audio_data)
+        else
+          return { type: "error", content: "ERROR: Invalid response format from Gemini API" }
+        end
+      rescue JSON::ParserError => e
+        return { type: "error", content: "ERROR: Failed to parse Gemini response: #{e.message}" }
+      end
+    else
+      response = res.body
+    end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1

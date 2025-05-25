@@ -120,7 +120,7 @@ module GrokHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "grok-3-mini-beta")
+  def send_query(options, model: "grok-3-mini")
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     

@@ -5,7 +5,7 @@ app "ResearchAssistantGrok" do
 
   llm do
     provider "xai"
-    model "grok-3-beta"
+    model "grok-3"
   end
 
   display_name "Research Assistant"

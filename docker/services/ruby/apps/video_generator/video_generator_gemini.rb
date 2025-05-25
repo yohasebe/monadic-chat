@@ -4,7 +4,7 @@ class VideoGeneratorGeminiApp < MonadicApp
   icon = "<i class='fa-solid fa-film'></i>"
 
   description = <<~TEXT
-    This app generates videos using Google's Veo model through the Gemini API. It supports text-to-video and image-to-video generation with different aspect ratios and durations.
+    This app generates videos using Google's Veo model through the Gemini API. It supports text-to-video and image-to-video generation with different aspect ratios and durations. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

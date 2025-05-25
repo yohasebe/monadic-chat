@@ -803,20 +803,19 @@ module OpenAIHelper
               choice["message"] ||= choice["delta"].dup
               choice["message"]["content"] ||= ""
               fragment = json.dig("choices", 0, "delta", "content").to_s
-
-              # Skip if duplicate fragment is found in the reasoning model
-              # if choice["message"]["content"].end_with?(fragment) && reasoning_model
-              #   next
-              # end
-
               choice["message"]["content"] << fragment
               next if !fragment || fragment == ""
 
-              res = {
-                "type" => "fragment",
-                "content" => fragment
-              }
-              block&.call res
+              if fragment.length > 0
+                res = {
+                  "type" => "fragment",
+                  "content" => fragment,
+                  "index" => choice["message"]["content"].length - fragment.length,
+                  "timestamp" => Time.now.to_f,
+                  "is_first" => choice["message"]["content"].length == fragment.length
+                }
+                block&.call res
+              end
 
               texts[id]["choices"][0].delete("delta")
             end

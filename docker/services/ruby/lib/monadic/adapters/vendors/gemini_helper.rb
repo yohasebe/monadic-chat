@@ -732,11 +732,16 @@ module GeminiHelper
                 
                 texts << fragment
 
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment
-                }
-                block&.call res
+                if fragment.length > 0
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment,
+                    "index" => texts.length - 1,
+                    "timestamp" => Time.now.to_f,
+                    "is_first" => texts.length == 1
+                  }
+                  block&.call res
+                end
 
               elsif part["functionCall"]
 

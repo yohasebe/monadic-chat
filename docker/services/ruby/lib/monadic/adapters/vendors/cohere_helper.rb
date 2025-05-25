@@ -804,11 +804,16 @@ module CohereHelper
                   texts << text
 
                   unless text.strip.empty?
-                    res = {
-                      "type" => "fragment",
-                      "content" => text
-                    }
-                    block&.call res
+                    if text.length > 0
+                      res = {
+                        "type" => "fragment",
+                        "content" => text,
+                        "index" => texts.length - 1,
+                        "timestamp" => Time.now.to_f,
+                        "is_first" => texts.length == 1
+                      }
+                      block&.call res
+                    end
                   end
                 end
               end
@@ -818,11 +823,16 @@ module CohereHelper
                 texts << text
 
                 unless text.strip.empty?
-                  res = {
-                    "type" => "fragment",
-                    "content" => text
-                  }
-                  block&.call res
+                  if text.length > 0
+                    res = {
+                      "type" => "fragment",
+                      "content" => text,
+                      "index" => texts.length - 1,
+                      "timestamp" => Time.now.to_f,
+                      "is_first" => texts.length == 1
+                    }
+                    block&.call res
+                  end
                 end
               end
             when "tool-call-start"

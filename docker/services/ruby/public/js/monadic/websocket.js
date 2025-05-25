@@ -206,15 +206,27 @@ let autoScroll = true;
 const mainPanel = $("#main-panel").get(0);
 
 // Handle fragment message from streaming response
-// This function will be used by the fragment_with_audio handler
+// This function will be used by the fragment_with_audio handler and all vendor helpers
 window.handleFragmentMessage = function(fragment) {
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
     
-    // Create or clear temporary card
-    if (!$("#temp-card").length) {
+    // Skip empty fragments
+    if (!text) return;
+    
+    // Create or get temporary card
+    let tempCard = $("#temp-card");
+    if (!tempCard.length) {
+      // Initialize tracking
+      window._lastProcessedIndex = -1;
+      
+      // Only clear #chat if it exists and has content from old streaming approach
+      if ($("#chat").length && $("#chat").html().trim() !== "") {
+        $("#chat").empty();
+      }
+      
       // Create a new temporary card for streaming text
-      const tempCard = $(`
+      tempCard = $(`
         <div id="temp-card" class="card mt-3 streaming-card"> 
           <div class="card-header p-2 ps-3">
             <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
@@ -228,23 +240,43 @@ window.handleFragmentMessage = function(fragment) {
     } else if (fragment.start === true || fragment.is_first === true) {
       // If this is marked as the first fragment of a streaming response, clear the existing content
       $("#temp-card .card-text").empty();
+      window._lastProcessedIndex = -1;
+    }
+    
+    // Check for duplicate fragments by index
+    if (fragment.index !== undefined) {
+      if (window._lastProcessedIndex >= fragment.index) {
+        // Skip duplicate or out-of-order fragments
+        return;
+      }
+      window._lastProcessedIndex = fragment.index;
     }
     
     // Add to streaming text display
     const tempText = $("#temp-card .card-text");
     if (tempText.length) {
-      // Append text to the temporary card
-      tempText.append(text);
+      // Use DocumentFragment for efficient DOM manipulation while preserving newlines
+      const docFrag = document.createDocumentFragment();
+      const lines = text.split('\n');
       
-      // Scroll to bottom if auto-scroll is enabled
-      if (autoScroll) {
-        chatBottom.scrollIntoView({ behavior: 'smooth' });
-      }
+      lines.forEach((line, index) => {
+        // Add line break for all lines except the first
+        if (index > 0) {
+          docFrag.appendChild(document.createElement('br'));
+        }
+        // Add text node for each line (automatically escapes HTML)
+        if (line) {
+          docFrag.appendChild(document.createTextNode(line));
+        }
+      });
+      
+      // Append all at once for better performance
+      tempText[0].appendChild(docFrag);
     }
     
-    // If this is a final fragment, we might want to do additional processing
+    // If this is a final fragment, clean up
     if (fragment.final) {
-      console.log("Processing final fragment");
+      window._lastProcessedIndex = -1;
     }
   }
 };
@@ -2777,6 +2809,9 @@ function connect_websocket(callback) {
         responseStarted = false;
         callingFunction = false;
         
+        // Hide the temp-card as we're about to show the final HTML
+        $("#temp-card").hide();
+        
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
@@ -2912,6 +2947,7 @@ function connect_websocket(callback) {
         if ($("#temp-card").length) {
           $("#temp-card .card-text").empty(); // Clear any existing content
           $("#temp-card").show();
+          window._lastProcessedIndex = -1; // Reset index tracking
         } else {
           // Create a new temp card if it doesn't exist
           const tempCard = $(`
@@ -3119,22 +3155,42 @@ function connect_websocket(callback) {
 
       
       default: {
-        let content = data["content"];
-        if (!responseStarted || callingFunction) {
-          setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
-          callingFunction = false;
-          responseStarted = true;
-          // Update spinner message for streaming
-          $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
-          // remove the leading new line characters from content
-          content = content.replace(/^\n+/, "");
-        }
-        $("#indicator").show();
-        if (content !== undefined) {
-          $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
-        }
-        if (autoScroll && !isElementInViewport(chatBottom)) {
-          chatBottom.scrollIntoView(false);
+        // Check if this is a fragment message
+        if (data.type === "fragment") {
+          // Handle fragment messages from all vendors
+          if (!responseStarted) {
+            setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
+            responseStarted = true;
+            // Update spinner message for streaming
+            $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
+          }
+          
+          // Use the dedicated fragment handler
+          window.handleFragmentMessage(data);
+          
+          $("#indicator").show();
+          if (autoScroll && !isElementInViewport(chatBottom)) {
+            chatBottom.scrollIntoView(false);
+          }
+        } else {
+          // Handle other default messages (for backward compatibility)
+          let content = data["content"];
+          if (!responseStarted || callingFunction) {
+            setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
+            callingFunction = false;
+            responseStarted = true;
+            // Update spinner message for streaming
+            $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
+            // remove the leading new line characters from content
+            content = content.replace(/^\n+/, "");
+          }
+          $("#indicator").show();
+          if (content !== undefined) {
+            $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
+          }
+          if (autoScroll && !isElementInViewport(chatBottom)) {
+            chatBottom.scrollIntoView(false);
+          }
         }
       }
     }

@@ -4,7 +4,7 @@ module ResearchAssistant
   ICON = "flask"
 
   DESCRIPTION = <<~TEXT
-    This application is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
+    This application is designed to support academic and scientific research by serving as an intelligent research assistant. It leverages web search via the Tavily API to retrieve and analyze information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   INITIAL_PROMPT = <<~TEXT

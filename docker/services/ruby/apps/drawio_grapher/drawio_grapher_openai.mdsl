@@ -1,7 +1,7 @@
 app "DrawIOGrapherOpenAI" do
   display_name "DrawIO Grapher"
   description <<~TEXT
-    This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. <a href='#' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=drawio-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "diagram"
   

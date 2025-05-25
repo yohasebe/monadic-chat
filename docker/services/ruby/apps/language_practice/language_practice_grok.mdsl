@@ -15,7 +15,7 @@ app "LanguagePracticeGrok" do
   
   llm do
     provider "xai"
-    model "grok-3-mini-beta"
+    model "grok-3-mini"
   end
   
   display_name "Language Practice"

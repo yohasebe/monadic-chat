@@ -19,7 +19,7 @@ app "VoiceChatGrok" do
   
   llm do
     provider "xai"
-    model "grok-3-mini-beta"
+    model "grok-3-mini"
   end
   
   display_name "Voice Chat"

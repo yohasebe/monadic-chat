@@ -451,8 +451,16 @@ module MistralHelper
               content_buffer += content
 
               # Send content to the client
-              res = { "type" => "fragment", "content" => content }
-              block&.call res
+              if content.length > 0
+                res = {
+                  "type" => "fragment",
+                  "content" => content,
+                  "index" => content_buffer.length - content.length,
+                  "timestamp" => Time.now.to_f,
+                  "is_first" => content_buffer.length == content.length
+                }
+                block&.call res
+              end
             end
 
             # Check for tool calls

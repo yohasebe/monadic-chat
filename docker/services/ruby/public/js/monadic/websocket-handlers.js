@@ -47,7 +47,23 @@ function handleFragmentWithAudio(data, processAudio) {
             // Add text to the temporary card
             const tempText = $("#temp-card .card-text");
             if (tempText.length) {
-              tempText.append(text);
+              // Use DocumentFragment for efficient DOM manipulation while preserving newlines
+              const docFrag = document.createDocumentFragment();
+              const lines = text.split('\n');
+              
+              lines.forEach((line, index) => {
+                // Add line break for all lines except the first
+                if (index > 0) {
+                  docFrag.appendChild(document.createElement('br'));
+                }
+                // Add text node for each line (automatically escapes HTML)
+                if (line) {
+                  docFrag.appendChild(document.createTextNode(line));
+                }
+              });
+              
+              // Append all at once for better performance
+              tempText[0].appendChild(docFrag);
             } else {
               // Basic fallback - append to some container if available
               const streamingContainer = document.getElementById('streaming-container');
@@ -264,6 +280,9 @@ function handleAudioMessage(data, processAudio) {
  */
 function handleHtmlMessage(data, messages, createCardFunc) {
   if (data && data.type === 'html' && data.content) {
+    // Hide the temp-card as we're about to show the final HTML
+    $('#temp-card').hide();
+    
     // Safely update messages array if it exists
     if (Array.isArray(messages)) {
       messages.push(data.content);

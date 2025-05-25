@@ -456,7 +456,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19;extended-cache-ttl-2025-04-11",
+      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19,extended-cache-ttl-2025-04-11",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }
@@ -650,7 +650,7 @@ module ClaudeHelper
       end
 
       begin
-        break if /\Rdata: [DONE]\R/ =~ buffer
+        break if /\Rdata: \[DONE\]\R/ =~ buffer
       rescue
         next
       end
@@ -704,13 +704,19 @@ module ClaudeHelper
               # Handle text content
               if json.dig("delta", "text")
                 fragment = json.dig("delta", "text").to_s
-                texts << fragment
+                
+                if fragment.length > 0
+                  texts << fragment
 
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment
-                }
-                block&.call res
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment,
+                    "index" => texts.length - 1,
+                    "timestamp" => Time.now.to_f,
+                    "is_first" => texts.length == 1
+                  }
+                  block&.call res
+                end
               elsif json.dig("delta", "thinking")
                 fragment = json.dig("delta", "thinking").to_s
                 thinking << fragment

@@ -141,7 +141,7 @@ class CodeInterpreterGrok < MonadicApp
 
   @settings = {
     group: "xAI",
-    model: "grok-3-beta",
+    model: "grok-3",
     models: GrokHelper.list_models,
     temperature: 0.0,
     context_size: 3,

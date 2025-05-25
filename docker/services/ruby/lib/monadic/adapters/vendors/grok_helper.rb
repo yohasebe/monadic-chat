@@ -624,25 +624,35 @@ module GrokHelper
                 # This will display correctly but have a different "signature" for TTS
                 # Zero-width space won't be visible but will make the fragment unique
                 # to avoid being played twice
-                res = {
-                  "type" => "fragment",
-                  "content" => "\u200B" + fragment
-                }
-                block&.call res
+                if fragment.length > 0
+                  res = {
+                    "type" => "fragment",
+                    "content" => "\u200B" + fragment,
+                    "index" => 0,
+                    "timestamp" => Time.now.to_f,
+                    "is_first" => true
+                  }
+                  block&.call res
+                end
                 
                 # Store original fragment (without zero-width space) in message content
                 choice["message"]["content"] = fragment
                 next
               end
               
-              res = {
-                "type" => "fragment",
-                "content" => fragment
-              }
-              block&.call res
-              
               # Append to existing content
               choice["message"]["content"] << fragment
+              
+              if fragment.length > 0
+                res = {
+                  "type" => "fragment",
+                  "content" => fragment,
+                  "index" => choice["message"]["content"].length - fragment.length,
+                  "timestamp" => Time.now.to_f,
+                  "is_first" => false
+                }
+                block&.call res
+              end
               next if !fragment || fragment == ""
 
               texts[id]["choices"][0].delete("delta")

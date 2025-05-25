@@ -622,11 +622,16 @@ module PerplexityHelper
             fragment = delta["content"].to_s
             choice["message"]["content"] << fragment
 
-            res = {
-              "type" => "fragment",
-              "content" => fragment
-            }
-            block&.call res
+            if fragment.length > 0
+              res = {
+                "type" => "fragment",
+                "content" => fragment,
+                "index" => choice["message"]["content"].length - fragment.length,
+                "timestamp" => Time.now.to_f,
+                "is_first" => choice["message"]["content"].length == fragment.length
+              }
+              block&.call res
+            end
 
             texts[id]["choices"][0].delete("delta")
           elsif delta && delta["tool_calls"]

@@ -803,8 +803,8 @@ module GeminiHelper
           end
           
           # Don't add generic content if tool_result_content is empty for video/image generation
-          # This will let the actual result from the generate_video_with_veo or generate_image_with_imagen function be displayed
-          if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" || tc["name"] == "generate_image_with_imagen" }
+          # This will let the actual result from the generate_video_with_veo function be displayed
+          if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" || tc["name"] == "generate_image_with_gemini" }
             tool_result_content = "[No additional content received from function call]"
           end
           
@@ -836,8 +836,8 @@ module GeminiHelper
               # Otherwise use the tool result content
               final_result = tool_result_content
             end
-          # Special handling for image generation
-          elsif tool_calls.any? { |tc| tc["name"] == "generate_image_with_imagen" }
+          # Special handling for new image generation with Gemini
+          elsif tool_calls.any? { |tc| tc["name"] == "generate_image_with_gemini" }
             # For image generation, always pass the tool result back to LLM to process
             # The LLM will extract the filename and generate the appropriate HTML
             if !tool_result_content.empty?
@@ -849,6 +849,7 @@ module GeminiHelper
               # Fallback message
               final_result = "Image generation function was called but no result was returned."
             end
+            
           else
             # Standard handling for non-video tools
             # If we have both initial text and function results, combine them
@@ -968,7 +969,7 @@ module GeminiHelper
         end
 
         # Add session parameter for functions that need access to uploaded images
-        if function_name == "generate_video_with_veo"
+        if function_name == "generate_video_with_veo" || function_name == "generate_image_with_gemini"
           argument_hash[:session] = session
         end
         
@@ -977,7 +978,7 @@ module GeminiHelper
         
         # Process the returned content
         if function_return
-          # Special handling for video generator
+          # Special handling for video generator and image generator
           if function_name == "generate_video_with_veo"
             video_filename = nil
             video_success = false
@@ -1013,6 +1014,43 @@ module GeminiHelper
             elsif error_message
               # If we have a specific error message, use it
               content = "Video generation failed: #{error_message}"
+            else
+              # Fallback to the raw response
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            end
+          elsif function_name == "generate_image_with_gemini"
+            # Special handling for image generator
+            image_success = false
+            error_message = nil
+            
+            # Check if there were any errors in the JSON
+            begin
+              if function_return.is_a?(String)
+                parsed_json = JSON.parse(function_return)
+                
+                # Check if we have success indicator
+                if parsed_json["success"]
+                  image_success = true
+                else
+                  # Extract error message if available
+                  error_message = parsed_json["error"]
+                  image_success = false
+                end
+              end
+            rescue JSON::ParserError => e
+              # If JSON parsing fails, check for text indicators
+              if function_return.to_s.include?("success") && function_return.to_s.include?("filename")
+                image_success = true
+              end
+            end
+            
+            # Prepare final content for response
+            if image_success
+              # Simply pass the raw response to LLM for processing
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            elsif error_message
+              # If we have a specific error message, use it
+              content = "Image generation failed: #{error_message}"
             else
               # Fallback to the raw response
               content = function_return.is_a?(String) ? function_return : function_return.to_json
@@ -1410,5 +1448,292 @@ module GeminiHelper
          Do NOT place this HTML inside a code block. The media will only display if the HTML is outside of code blocks.
          Users will not see visualizations if you wrap HTML in code blocks.
     INSTRUCTIONS
+  end
+
+  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", session: nil)
+    require 'net/http'
+    require 'json'
+    require 'base64'
+    require 'tempfile'
+    
+    begin
+      api_key = CONFIG["GEMINI_API_KEY"]
+      return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
+      
+      # For editing operations, force use of Gemini model
+      if operation == "edit"
+        model = "gemini"
+      end
+      
+      # If Imagen 3 is selected for generation, use direct API implementation
+      if model == "imagen3" && operation == "generate"
+        return generate_image_with_imagen_direct(prompt: prompt)
+      end
+      
+      # Set up shared folder path
+      shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
+                       MonadicApp::SHARED_VOL
+                      else
+                       MonadicApp::LOCAL_SHARED_VOL
+                      end
+      
+      # Prepare the request body with corrected structure
+      request_body = {
+        contents: [{
+          parts: []
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95
+        }
+      }
+      
+      # For edit operation, add the uploaded image to the request
+      if operation == "edit" && session && session[:messages]
+        # Look for the most recent user message with images
+        user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
+        
+        if user_messages_with_images.empty?
+          return { success: false, error: "No image found for editing. Please upload an image first." }.to_json
+        end
+        
+        latest_message = user_messages_with_images.last
+        first_image = latest_message["images"].first
+        
+        if first_image && first_image["data"] && first_image["data"].start_with?("data:image/")
+          # Extract base64 data from data URL
+          data_url = first_image["data"]
+          base64_data = data_url.split(',').last
+          
+          # Determine mime type
+          mime_type = if first_image["type"]
+                       first_image["type"]
+                     elsif data_url.include?('image/')
+                       data_url.split(';').first.split(':').last
+                     else
+                       "image/jpeg"
+                     end
+          
+          # Add image to request parts
+          request_body[:contents][0][:parts] << {
+            inline_data: {
+              mime_type: mime_type,
+              data: base64_data
+            }
+          }
+          
+          # Add editing instruction
+          request_body[:contents][0][:parts] << {
+            text: prompt
+          }
+        else
+          return { success: false, error: "Invalid image data format" }.to_json
+        end
+      else
+        # For generate operation, just add the text prompt
+        request_body[:contents][0][:parts] << {
+          text: prompt
+        }
+      end
+      
+      # Make API request
+      # Use the correct model for image generation
+      model_name = "gemini-2.0-flash-preview-image-generation"
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
+      
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 300 # 5 minutes timeout
+      
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request.body = request_body.to_json
+      
+      response = http.request(request)
+      
+      if response.code == '200'
+        result = JSON.parse(response.body)
+        
+        
+        # Extract generated image from response
+        if result["candidates"] && result["candidates"][0]
+          candidate = result["candidates"][0]
+          
+          if candidate["content"] && candidate["content"]["parts"]
+            parts = candidate["content"]["parts"]
+            
+            # Look for image data in parts
+            image_found = false
+            parts.each_with_index do |part, index|
+              
+              if part["inlineData"] && part["inlineData"]["mimeType"] && part["inlineData"]["mimeType"].start_with?("image/")
+                # Found image data
+                image_found = true
+                image_data = Base64.decode64(part["inlineData"]["data"])
+                timestamp = Time.now.to_i
+                
+                # Determine file extension from mime type
+                extension = case part["inlineData"]["mimeType"]
+                           when "image/png" then "png"
+                           when "image/jpeg", "image/jpg" then "jpg"
+                           when "image/webp" then "webp"
+                           else "png"
+                           end
+                
+                filename = "gemini_#{operation}_#{timestamp}.#{extension}"
+                filepath = File.join(shared_folder, filename)
+                
+                File.open(filepath, 'wb') do |f|
+                  f.write(image_data)
+                end
+                
+                
+                return { 
+                  success: true, 
+                  filename: filename,
+                  operation: operation,
+                  prompt: prompt,
+                  model: "gemini"
+                }.to_json
+              elsif part["inline_data"] && part["inline_data"]["mime_type"] && part["inline_data"]["mime_type"].start_with?("image/")
+                # Alternative key naming (inline_data vs inlineData)
+                image_found = true
+                image_data = Base64.decode64(part["inline_data"]["data"])
+                timestamp = Time.now.to_i
+                
+                extension = case part["inline_data"]["mime_type"]
+                           when "image/png" then "png"
+                           when "image/jpeg", "image/jpg" then "jpg"
+                           when "image/webp" then "webp"
+                           else "png"
+                           end
+                
+                filename = "gemini_#{operation}_#{timestamp}.#{extension}"
+                filepath = File.join(shared_folder, filename)
+                
+                File.open(filepath, 'wb') do |f|
+                  f.write(image_data)
+                end
+                
+                
+                return { 
+                  success: true, 
+                  filename: filename,
+                  operation: operation,
+                  prompt: prompt,
+                  model: "gemini"
+                }.to_json
+              end
+            end
+            
+          end
+        end
+        
+        # If no image was found in response
+        return { 
+          success: false, 
+          error: "No image was generated. Response parts: #{result["candidates"]&.first&.dig("content", "parts")&.map { |p| p.keys }}"
+        }.to_json
+      else
+        error_data = JSON.parse(response.body) rescue {}
+        error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
+        return { success: false, error: error_message }.to_json
+      end
+      
+    rescue StandardError => e
+      return { success: false, error: "Error: #{e.message}" }.to_json
+    end
+  end
+
+
+  # Direct Imagen 3 API implementation
+  def generate_image_with_imagen_direct(prompt:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT")
+    require 'net/http'
+    require 'json'
+    require 'base64'
+    
+    begin
+      api_key = CONFIG["GEMINI_API_KEY"]
+      return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
+      
+      
+      # Set up shared folder path
+      shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
+                       MonadicApp::SHARED_VOL
+                      else
+                       MonadicApp::LOCAL_SHARED_VOL
+                      end
+      
+      # Prepare the request body for Imagen 3
+      request_body = {
+        instances: [{
+          prompt: prompt
+        }],
+        parameters: {
+          sampleCount: sample_count,
+          aspectRatio: aspect_ratio,
+          personGeneration: person_generation
+        }
+      }
+      
+      # Make API request to Imagen 3
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=#{api_key}")
+      
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 300 # 5 minutes timeout
+      
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request.body = request_body.to_json
+      
+      response = http.request(request)
+      
+      if response.code == '200'
+        result = JSON.parse(response.body)
+        
+        # Process Imagen 3 response
+        if result["predictions"] && !result["predictions"].empty?
+          prediction = result["predictions"].first
+          
+          if prediction["bytesBase64Encoded"]
+            # Save the generated image
+            image_data = Base64.decode64(prediction["bytesBase64Encoded"])
+            timestamp = Time.now.to_i
+            filename = "imagen3_#{timestamp}_0_#{aspect_ratio.gsub(':', 'x')}.png"
+            filepath = File.join(shared_folder, filename)
+            
+            File.open(filepath, 'wb') do |f|
+              f.write(image_data)
+            end
+            
+            result = {
+              success: true,
+              filename: filename,
+              operation: "generate",
+              prompt: prompt,
+              model: "imagen3"
+            }.to_json
+            return result
+          end
+        end
+        
+        # If no image was found in response
+        error_result = {
+          success: false,
+          error: "No image was generated by Imagen 3. Response: #{result}"
+        }.to_json
+        return error_result
+      else
+        error_data = JSON.parse(response.body) rescue {}
+        error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
+        return { success: false, error: error_message }.to_json
+      end
+      
+    rescue StandardError => e
+      return { success: false, error: "Error with Imagen 3: #{e.message}" }.to_json
+    end
   end
 end

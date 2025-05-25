@@ -71,7 +71,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### 動画・画像の認識と生成
 
-- 🖼️ DALL·E 3 APIとGoogle Imagenを利用した**画像生成**
+- 🖼️ DALL·E 3、Google Imagen 3 & Gemini 2.0 Flash、xAI Grokを利用した**画像生成・編集**
 - ✏️ OpenAIのgpt-image-1モデルによる**画像編集**機能で既存画像を修正
 - 👀 アップロードされた**画像の認識と説明**
 - 📚 **複数の画像**のアップロードと認識

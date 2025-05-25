@@ -238,7 +238,7 @@ All generated images are saved in the `Shared Folder` and also displayed in the 
 Image Generator apps are also available for the following models:
 
 - OpenAI (using gpt-image-1) - supports image generation, editing, and variation
-- Google Gemini (using Imagen) - supports image generation
+- Google Gemini (using Imagen 3 and Gemini 2.0 Flash) - supports image generation with automatic model selection and image editing
 - xAI Grok - supports image generation
 
 ### Video Generator

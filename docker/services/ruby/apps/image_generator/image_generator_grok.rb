@@ -37,7 +37,7 @@ class ImageGenerationGrok < MonadicApp
     display_name: "Image Generator",
     disabled: !CONFIG["XAI_API_KEY"],
     models: GrokHelper.list_models,
-    model: "grok-3-mini-beta",
+    model: "grok-3-mini",
     temperature: 0.0,
     initial_prompt: initial_prompt,
     description: description,

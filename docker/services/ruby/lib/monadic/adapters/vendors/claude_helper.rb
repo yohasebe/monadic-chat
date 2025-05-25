@@ -456,7 +456,7 @@ module ClaudeHelper
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19,extended-cache-ttl-2025-04-11",
+      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19,extended-cache-ttl-2025-04-11,interleaved-thinking-2025-05-14",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }

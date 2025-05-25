@@ -6,7 +6,7 @@ class CodeInterpreterCohere < MonadicApp
   icon = "<i class='fab fa-python'></i>"
 
   description = <<~TEXT
-    This is an application that allows you to run Python code with Cohere models. The assistant can help you write and run code, visualize data, and provide detailed instructions on how to do so. <a href="https://yohasebe.github.io/monadic-chat/#/language-models?id=cohere" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This is an application that allows you to run Python code with Cohere models. The assistant can help you write and run code, visualize data, and provide detailed instructions on how to do so. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   initial_prompt = <<~TEXT

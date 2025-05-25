@@ -73,7 +73,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Image/Video Recognition and Generation
 
-- 🖼️ **Image generation** using OpenAI's gpt-image-1 model, Google Imagen, and xAI Grok
+- 🖼️ **Image generation and editing** using OpenAI's gpt-image-1, Google Imagen 3 & Gemini 2.0 Flash, and xAI Grok
 - ✏️ **Image editing** with OpenAI's gpt-image-1 model for modifying existing images
 - 🎭 **Mask editor** for precise control over which areas of an image to edit
 - 👀 Recognition and description of **uploaded images**

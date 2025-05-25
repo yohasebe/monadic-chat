@@ -237,7 +237,7 @@ OpenAIバージョンはgpt-image-1モデルを使用し、3つの主な操作�
 下記の言語モデルでImage Generatorアプリが利用可能です。
 
 - OpenAI（gpt-image-1を使用） - 画像生成、編集、バリエーション生成に対応
-- Google Gemini（Imagenを使用） - 画像生成に対応
+- Google Gemini（Imagen 3とGemini 2.0 Flashを使用） - 自動モデル選択による画像生成と画像編集に対応
 - xAI Grok - 画像生成に対応
 
 ### Video Generator

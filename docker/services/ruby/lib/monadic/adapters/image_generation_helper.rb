@@ -69,21 +69,6 @@ module MonadicHelper
     send_command(command: cmd, container: "ruby")
   end
 
-  def generate_image_with_imagen(prompt: "", aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT")
-
-    sample_count = [[sample_count.to_i, 1].max, 4].min
-    
-    command = <<~CMD
-      bash -c 'image_generator_imagen.rb -p "#{prompt}" -a "#{aspect_ratio}" -n #{sample_count} -g "#{person_generation}"'
-    CMD
-    
-    # Simply pass the command output directly to the LLM
-    # Let the LLM extract the filename(s) from the output text
-    result = send_command(command: command, container: "ruby")
-    
-    # Just return the raw command output - LLM will extract filename
-    return result
-  end
 
   def generate_image_with_grok(prompt: "")
 

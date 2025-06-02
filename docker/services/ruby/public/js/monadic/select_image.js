@@ -57,10 +57,9 @@ $("#imageFile").on("change", function() {
 // File selection button click handler
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
-  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
+  const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
   const currentApp = $("#apps").val();
-  const isImageGenerationApp = apps[currentApp] && 
-    (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
+  const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
 
   // Update modal UI based on model capabilities and app settings
   if (isPdfEnabled && !isImageGenerationApp) {
@@ -84,10 +83,9 @@ $("#uploadImage").on("click", function () {
   const fileInput = $('#imageFile')[0];
   const file = fileInput.files[0];
   const selectedModel = $("#model").val();
-  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
+  const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
   const currentApp = $("#apps").val();
-  const isImageGenerationApp = apps[currentApp] && 
-    (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
+  const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
 
   if (file) {
     // Check file size for PDF files (35MB limit)
@@ -209,16 +207,12 @@ function updateFileDisplay(files) {
 
   // Check if image generation is enabled in the current app
   const currentApp = $("#apps").val();
-  const isImageGenerationEnabled = apps[currentApp] && 
-    (apps[currentApp].image_generation === true || 
-     apps[currentApp].image_generation === "true" ||
-     apps[currentApp].image_generation === "upload_only");
+  const isImageGenerationEnabled = window.isImageGenerationApp ? 
+    (window.isImageGenerationApp(currentApp) || 
+     (apps[currentApp] && apps[currentApp].image_generation === "upload_only")) : false;
   
   // Check if mask editing is enabled - separate from basic image generation
-  const isMaskEditingEnabled = apps[currentApp] && 
-    (apps[currentApp].image_generation === true || 
-     apps[currentApp].image_generation === "true") &&
-    apps[currentApp].image_generation !== "upload_only";
+  const isMaskEditingEnabled = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp) : false;
 
   // Create display elements for each file
   files.forEach((file, index) => {
@@ -359,10 +353,7 @@ function updateFileDisplay(files) {
     
     // Check if mask editing is enabled in the current app
     const currentApp = $("#apps").val();
-    const isMaskEditingEnabled = apps[currentApp] && 
-      (apps[currentApp].image_generation === true || 
-       apps[currentApp].image_generation === "true") &&
-      apps[currentApp].image_generation !== "upload_only";
+    const isMaskEditingEnabled = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp) : false;
     
     if (!isMaskEditingEnabled) {
       setAlert("Mask editing is not available in this app", "error");

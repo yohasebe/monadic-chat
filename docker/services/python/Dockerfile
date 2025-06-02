@@ -28,7 +28,7 @@ RUN pip install -U pip && \
     selenium html2text \
     openpyxl python-docx python-pptx \
     requests beautifulsoup4 \
-    lxml pygraphviz pydotplus networkx pyvis \
+    lxml pygraphviz graphviz pydotplus networkx pyvis \
     svgwrite cairosvg tinycss cssselect pygal \
     pyecharts pyecharts-snapshot \
     opencv-python moviepy==2.0.0.dev2

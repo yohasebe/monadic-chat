@@ -1,4 +1,4 @@
-- [May, 2025] 0.9.981
+- [May, 2025] 0.9.982
   - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models
   - OpenAI and Anthropic models support native web search
   - xAI Grok models now support native web search via Live Search API

@@ -133,16 +133,15 @@ function adjustImageUploadButton(selectedModel) {
   const imageFileElement = $("#image-file");
   const currentApp = $("#apps").val();
   
-  // Check if current app is an image generation app
-  const isImageGenerationApp = apps[currentApp] && 
-    (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
+  // Check if current app is an image generation app using the common function
+  const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
   
   if (modelData && modelData.vision_capability) {
     // Enable the button
     imageFileElement.prop("disabled", false);
     
-    // Update button text based on PDF support and image generation capability
-    const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
+    // Check if the model's provider supports PDF using the common function
+    const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
     
     // If it's an image generation app, show "Image" regardless of PDF support
     if (isImageGenerationApp) {
@@ -151,6 +150,16 @@ function adjustImageUploadButton(selectedModel) {
       imageFileElement.html('<i class="fas fa-file"></i> Image/PDF');
     } else {
       imageFileElement.html('<i class="fas fa-image"></i> Image');
+    }
+    
+    // Also update the file input's accept attribute
+    const imageFileInput = $('#imageFile');
+    if (imageFileInput.length) {
+      if (isImageGenerationApp || !isPdfEnabled) {
+        imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
+      } else {
+        imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
+      }
     }
     
     if (imageFileElement.show) {

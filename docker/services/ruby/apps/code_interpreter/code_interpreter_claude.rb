@@ -2,6 +2,7 @@
 
 class CodeInterpreterClaude < MonadicApp
   include ClaudeHelper
+  include WebSearchAgent
 
   icon = "<i class='fab fa-python'></i>"
 
@@ -184,7 +185,6 @@ class CodeInterpreterClaude < MonadicApp
   @settings = {
     group: "Anthropic",
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
-    temperature: 0.0,
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     image_generation: true,
@@ -200,7 +200,7 @@ class CodeInterpreterClaude < MonadicApp
     image: true,
     toggle: true,
     models: ClaudeHelper.list_models,
-    model: "claude-3-7-sonnet-20250219",
+    model: "claude-sonnet-4-20250514",
     tools: [
       {
         name: "run_code",

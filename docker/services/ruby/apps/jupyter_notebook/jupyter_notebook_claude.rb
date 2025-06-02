@@ -2,6 +2,7 @@
 
 class JupyterNotebookClaude < MonadicApp
   include ClaudeHelper
+  include WebSearchAgent
 
   icon = "<i class='fas fa-rocket'></i>"
 
@@ -123,9 +124,8 @@ class JupyterNotebookClaude < MonadicApp
     initial_prompt: initial_prompt,
     prompt_suffix: prompt_suffix,
     disabled: !CONFIG["ANTHROPIC_API_KEY"],
-    context_size: 20,
-    temperature: 0.0,
     image_generation: true,
+    context_size: 40,
     sourcecode: true,
     easy_submit: false,
     auto_speech: false,
@@ -137,7 +137,7 @@ class JupyterNotebookClaude < MonadicApp
     toggle: true,
     jupyter: true,
     models: ClaudeHelper.list_models,
-    model: "claude-3-7-sonnet-20250219",
+    model: "claude-sonnet-4-20250514",
     tools: [
       {
         name: "run_script",

@@ -153,33 +153,61 @@ const modelSpec = {
     "vision_capability": true
   },
   // reasoning models
-  "o1-pro": {
+  "o4-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
-  "o1-pro-2025-03-19": {
+  "o4-mini-2025-04-16": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
+  },
+  "o3": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "o3-2025-04-16": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "o3-mini": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": false
+  },
+  "o3-mini-2025-01-31": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": false
   },
   "o1": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": false
   },
   "o1-2024-12-17": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": false
   },
   "o1-mini": {
     "context_window" : [1, 128000],
@@ -195,19 +223,19 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": false
   },
-  "o3-mini": {
+  "o1-pro": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": false
+    "vision_capability": true
   },
-  "o3-mini-2025-01-31": {
+  "o1-pro-2025-03-19": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": false
+    "vision_capability": true
   },
   // Anthropic models
   "claude-opus-4-20250514": {

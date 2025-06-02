@@ -27,6 +27,7 @@ class ResearchAssistantOpenAI < MonadicApp
 end
 
 class ResearchAssistantClaude < MonadicApp
+  include ClaudeHelper
   include ResearchAssistant
 end
 

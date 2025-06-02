@@ -58,28 +58,6 @@ function updateAppSelectIcon(appValue) {
   }
 }
 
-// Adjust scroll buttons visibility
-function adjustScrollButtons() {
-  const $main = $("#main");
-  const scrollTop = $main.scrollTop();
-  const scrollHeight = $main.prop("scrollHeight");
-  const clientHeight = $main.height();
-
-  // Check if content is actually scrollable
-  const isScrollable = scrollHeight > clientHeight;
-
-  // Only show buttons if content is scrollable
-  if (isScrollable) {
-    $("#back_to_top").css("opacity", scrollTop > 200 ? "0.5" : "0.0");
-    $("#back_to_bottom").css("opacity", 
-      scrollTop < scrollHeight - clientHeight - 200 ? "0.5" : "0.0");
-    
-    // Removed iOS spacer code as it was causing more problems than it solved
-  } else {
-    // Hide both buttons if content is not scrollable
-    $("#back_to_top, #back_to_bottom").css("opacity", "0.0");
-  }
-}
 
 function setCookie(name, value, days) {
   const date = new Date();
@@ -805,22 +783,31 @@ function checkParams() {
   return true;
 }
 
-function adjustImageUploadButton(selectedModel) {
-  // PDF is enabled for models whose name contains either "sonnet", "gemini", "4o", "4o-mini", or "o1"
-  const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1/.test(selectedModel);
-  const imageFileBtn = $("#image-file");
-  const imageFileInput = $('#imageFile');
+// Check if a model supports PDF input
+// PDF is supported only by OpenAI, Anthropic (Claude), and Google (Gemini) models with vision capability
+function isPdfSupportedForModel(selectedModel) {
+  return /^(gpt-|o\d|o4|claude-|gemini-)/.test(selectedModel);
+}
 
-  if (isPdfEnabled) {
-    imageFileBtn.html('<i class="fas fa-image"></i> Image/PDF');
-    imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
-  } else {
-    imageFileBtn.html('<i class="fas fa-image"></i> Image');
-    imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
-    // Remove any PDF files from images array when switching to non-PDF model
-    images = images.filter(img => !img.type.includes('pdf'));
-    updateFileDisplay(images);
+// Check if the current app supports image generation
+function isImageGenerationApp(appName) {
+  if (!appName) {
+    appName = $("#apps").val();
   }
+  return apps[appName] && 
+    (apps[appName].image_generation === true || 
+     apps[appName].image_generation === "true");
+}
+
+// Check if the current app supports mask editing (distinct from basic image generation)
+function isMaskEditingEnabled(appName) {
+  if (!appName) {
+    appName = $("#apps").val();
+  }
+  return apps[appName] && 
+    (apps[appName].image_generation === true || 
+     apps[appName].image_generation === "true") &&
+    apps[appName].image_generation !== "upload_only";
 }
 
 function resetEvent(_event) {
@@ -1066,6 +1053,11 @@ function applyCollapseStates() {
   updateItemStates();
 }
 
+// Export functions to window for browser environment
+window.isPdfSupportedForModel = isPdfSupportedForModel;
+window.isImageGenerationApp = isImageGenerationApp;
+window.isMaskEditingEnabled = isMaskEditingEnabled;
+
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1079,8 +1071,10 @@ if (typeof module !== 'undefined' && module.exports) {
     setCookie,
     getCookie,
     updateAppSelectIcon,
-    adjustScrollButtons,
     deleteMessage,
-    applyCollapseStates
+    applyCollapseStates,
+    isPdfSupportedForModel,
+    isImageGenerationApp,
+    isMaskEditingEnabled
   };
 }

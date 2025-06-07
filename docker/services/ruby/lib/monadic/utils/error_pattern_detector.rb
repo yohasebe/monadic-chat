@@ -1,0 +1,190 @@
+# frozen_string_literal: true
+
+module ErrorPatternDetector
+  # Common error patterns that indicate system/environment issues rather than code issues
+  SYSTEM_ERROR_PATTERNS = [
+    # Font-related errors
+    /findfont:.*Font family.*not found/i,
+    /cannot find font/i,
+    /font.*not available/i,
+    /missing.*font/i,
+    
+    # Package/module errors
+    /no module named/i,
+    /modulenotfounderror/i,
+    /importerror/i,
+    
+    # Permission errors
+    /permission denied/i,
+    /access denied/i,
+    /operation not permitted/i,
+    
+    # Resource errors
+    /out of memory/i,
+    /disk full/i,
+    /no space left/i,
+    
+    # Network errors
+    /connection refused/i,
+    /network unreachable/i,
+    /timeout/i
+  ].freeze
+  
+  # Track error patterns per session
+  def self.initialize_session(session)
+    session[:error_patterns] ||= {
+      history: [],        # Array of { error: String, timestamp: Time, function: String }
+      similar_count: 0,   # Count of similar consecutive errors
+      last_pattern: nil   # Last detected error pattern
+    }
+  end
+  
+  def self.add_error(session, error_message, function_name)
+    initialize_session(session)
+    
+    # Add to history
+    session[:error_patterns][:history] << {
+      error: error_message,
+      timestamp: Time.now,
+      function: function_name
+    }
+    
+    # Keep only last 10 errors
+    if session[:error_patterns][:history].length > 10
+      session[:error_patterns][:history].shift
+    end
+    
+    # Check if this is similar to recent errors
+    if similar_to_recent?(session, error_message)
+      session[:error_patterns][:similar_count] += 1
+      session[:error_patterns][:last_pattern] = detect_pattern(error_message)
+    else
+      session[:error_patterns][:similar_count] = 0
+      session[:error_patterns][:last_pattern] = nil
+    end
+  end
+  
+  def self.should_stop_retrying?(session)
+    return false unless session[:error_patterns]
+    
+    # Stop if we've seen 3 or more similar errors
+    session[:error_patterns][:similar_count] >= 3
+  end
+  
+  def self.get_error_suggestion(session)
+    return nil unless session[:error_patterns][:last_pattern]
+    
+    pattern = session[:error_patterns][:last_pattern]
+    
+    case pattern
+    when :font_error
+      <<~MSG
+        I'm encountering repeated font-related errors. This appears to be an environment issue.
+        
+        Suggestions:
+        1. You can use a different plotting backend that doesn't require specific fonts
+        2. Try using `plt.rcParams['font.family'] = 'DejaVu Sans'` or another available font
+        3. Generate plots without text labels temporarily
+        4. Contact your system administrator to install the missing fonts
+        
+        Would you like me to try one of these alternatives, or would you prefer to address the font issue first?
+      MSG
+    when :module_error
+      <<~MSG
+        I'm encountering repeated module import errors. The required packages may not be installed.
+        
+        Suggestions:
+        1. Install the missing package using pip: `!pip install package_name`
+        2. Use alternative packages that are already installed
+        3. Check the environment with the `check_environment` function
+        
+        What would you like me to do?
+      MSG
+    when :permission_error
+      <<~MSG
+        I'm encountering repeated permission errors. This appears to be a system configuration issue.
+        
+        This might be due to:
+        1. File system permissions
+        2. Docker container restrictions
+        3. Security policies
+        
+        Please check your system configuration or contact your administrator.
+      MSG
+    when :resource_error
+      <<~MSG
+        I'm encountering repeated resource errors (memory/disk space).
+        
+        Suggestions:
+        1. Try processing smaller datasets
+        2. Free up system resources
+        3. Restart the container
+        
+        Would you like me to try a different approach?
+      MSG
+    else
+      <<~MSG
+        I'm encountering repeated errors while executing this task.
+        
+        Recent errors:
+        #{session[:error_patterns][:history].last(3).map { |e| "- #{e[:error].lines.first.strip}" }.join("\n")}
+        
+        Would you like me to:
+        1. Try a different approach
+        2. Break down the task into smaller steps
+        3. Check the environment configuration
+        
+        Please let me know how you'd like to proceed.
+      MSG
+    end
+  end
+  
+  private
+  
+  def self.similar_to_recent?(session, error_message)
+    return false if session[:error_patterns][:history].empty?
+    
+    # Get last 3 errors
+    recent_errors = session[:error_patterns][:history].last(3).map { |e| e[:error] }
+    
+    # Check if error matches any system error pattern
+    pattern = detect_pattern(error_message)
+    return false unless pattern
+    
+    # Check if recent errors have the same pattern
+    recent_errors.any? { |e| detect_pattern(e) == pattern }
+  end
+  
+  def self.detect_pattern(error_message)
+    return nil unless error_message
+    
+    error_lower = error_message.downcase
+    
+    # Check font errors
+    if error_lower.include?('font') || error_lower.include?('findfont')
+      return :font_error
+    end
+    
+    # Check module errors
+    if error_lower.include?('no module named') || error_lower.include?('modulenotfounderror')
+      return :module_error
+    end
+    
+    # Check permission errors
+    if error_lower.include?('permission denied') || error_lower.include?('access denied')
+      return :permission_error
+    end
+    
+    # Check resource errors
+    if error_lower.include?('out of memory') || error_lower.include?('disk full')
+      return :resource_error
+    end
+    
+    # Check for any system error pattern
+    SYSTEM_ERROR_PATTERNS.each_with_index do |pattern, index|
+      return "system_error_#{index}".to_sym if pattern =~ error_message
+    end
+    
+    nil
+  end
+end

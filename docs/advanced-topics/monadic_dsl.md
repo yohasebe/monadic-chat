@@ -6,21 +6,18 @@ The Monadic DSL provides a simplified way to create AI applications with specifi
 
 Monadic DSL is a Ruby-based configuration system that makes it easier to define AI-powered applications without writing advanced Ruby code. The DSL uses a declarative approach to specify application behavior.
 
-## File Formats
+## File Format
 
-Monadic Chat supports two formats for app definitions:
+Monadic Chat uses the **`.mdsl` format** (Monadic Domain Specific Language) for all app definitions. This declarative format provides a clean, maintainable way to define AI-powered applications.
 
-1. **`.mdsl` files** - Simplified DSL format with cleaner syntax
-2. **`.rb` files** - Traditional Ruby class definitions
-
-The `.mdsl` format is recommended for most applications as it's more concise and easier to maintain.
+**Important**: The traditional Ruby class format (`.rb` files) is no longer supported. All apps must use the MDSL format.
 
 ## Basic Structure
 
 A basic MDSL application definition looks like this:
 
 ```ruby
-app "Application Name" do  # This name is used to generate a unique class name internally
+app "AppNameProvider" do  # Follow the naming convention: AppName + Provider (e.g., ChatOpenAI, ResearchAssistantClaude)
   description "A brief description of what this application does"
   
   icon "fa-solid fa-icon-name"  # FontAwesome icon or custom HTML
@@ -48,7 +45,7 @@ end
 ### 1. App Metadata
 
 ```ruby
-app "Application Name" do
+app "AppNameProvider" do  # e.g., "ChatOpenAI", "CodingAssistantClaude", "ResearchAssistantGemini"
   description "Application description"
   
   # Icon can be specified in multiple formats with smart matching:
@@ -121,10 +118,10 @@ features do
   # The following features are tied to specific system components:
   
   pdf true                # Enable PDF file upload and processing UI elements
-  toggle true             # Enable collapsible JSON content sections in the UI
+  toggle true             # Enable collapsible sections for meta information and tool usage (primarily for Claude apps)
   jupyter_access true     # Enable access to Jupyter notebook interface (alias: jupyter)
   image_generation true   # Enable AI image generation tools in conversation
-  monadic true            # Process responses as structured JSON for enhanced display
+  monadic true            # Process responses as structured JSON for enhanced display (see Monadic Mode documentation)
   initiate_from_assistant true # Allow assistant to send first message in conversation
 end
 ```
@@ -133,17 +130,16 @@ end
 
 ```ruby
 tools do
-  tool "book_search" do
-    description "Search for books by title, author, or ISBN"
-    parameters do
-      parameter "query", type: "string", description: "Search terms (book title, author name, or ISBN)"
-      parameter "search_type", type: "string", enum: ["title", "author", "isbn", "any"], description: "Type of search to perform", required: false
-      parameter "category", type: "string", enum: ["fiction", "non-fiction", "science", "history", "biography"], description: "Book category to filter results", required: false
-      parameter "max_results", type: "integer", description: "Maximum number of results to return", required: false
-    end
+  define_tool "book_search", "Search for books by title, author, or ISBN" do
+    parameter :query, "string", "Search terms (book title, author name, or ISBN)", required: true
+    parameter :search_type, "string", "Type of search to perform", enum: ["title", "author", "isbn", "any"]
+    parameter :category, "string", "Book category to filter results", enum: ["fiction", "non-fiction", "science", "history", "biography"]
+    parameter :max_results, "integer", "Maximum number of results to return (default: 10)"
   end
 end
 ```
+
+**Note**: The `parameter` method doesn't support the `default` keyword. Include default values in the description instead.
 
 ## Example Applications
 
@@ -174,8 +170,7 @@ app "Math Tutor" do
   description "AI assistant that helps solve math problems step-by-step"
   icon "fa-solid fa-calculator"
   
-  # Using display_name to standardize UI appearance
-  display_name "Math"
+  display_name "Math Tutor"
   
   system_prompt <<~PROMPT
     You are a helpful math tutor. When presented with math problems:
@@ -223,6 +218,134 @@ end
 
 > For developers interested in understanding the internal implementation of MDSL and how it works behind the scenes, see [MDSL Internals](mdsl-internals.md).
 
+### MDSL Tool Auto-Completion System
+
+Monadic Chat includes an automatic tool completion system that dynamically generates MDSL tool definitions from Ruby implementation files. This reduces manual work and ensures consistency between tool definitions and implementations.
+
+#### How Auto-Completion Works
+
+1. **Runtime Detection**: When MDSL files are loaded, the system automatically scans corresponding `*_tools.rb` files
+2. **Method Analysis**: Public methods in Ruby implementation files are analyzed for tool candidacy
+3. **Type Inference**: Parameter types are inferred from default values and naming patterns
+4. **Dynamic Completion**: Missing tool definitions are automatically added to the LLM's available tools
+5. **File Writing**: Auto-generated definitions are optionally written back to MDSL files
+
+#### Configuration
+
+Control auto-completion behavior with the `MDSL_AUTO_COMPLETE` environment variable:
+
+```bash
+# Default (auto-completion enabled with basic logging)
+# MDSL_AUTO_COMPLETE=  # unset - same as 'true'
+
+# Enable auto-completion with basic logging
+export MDSL_AUTO_COMPLETE=true
+
+# Enable auto-completion with detailed debug information
+export MDSL_AUTO_COMPLETE=debug
+
+# Disable auto-completion entirely
+export MDSL_AUTO_COMPLETE=false
+```
+
+#### File Structure Requirements
+
+The auto-completion system works with standard Monadic Chat file naming conventions:
+
+```text
+apps/app_name/
+├── app_name_constants.rb    # Optional: Shared constants (ICON, DESCRIPTION, etc.)
+├── app_name_tools.rb        # Tool method implementations
+├── app_name_provider.mdsl   # MDSL interface (e.g., app_name_openai.mdsl)
+└── app_name_provider.mdsl   # Additional provider versions
+```
+
+#### Method Detection Rules
+
+**Included Methods:**
+- Public methods in `*_tools.rb` files
+- Methods not matching exclusion patterns
+- Methods not in the standard tools list
+
+**Excluded Methods:**
+- Private methods (after `private` keyword)
+- Methods matching patterns: `initialize`, `validate`, `format`, `parse`, `setup`, `teardown`, `before`, `after`, `test_`, `spec_`
+- Standard MonadicApp methods (automatically detected)
+
+#### Type Inference
+
+The system automatically infers parameter types from default values:
+
+```ruby
+def example_tool(text: "", count: 0, enabled: false, items: [], config: {})
+  # text: "string", count: "integer", enabled: "boolean"
+  # items: "array", config: "object"
+end
+```
+
+#### Generated Tool Definitions
+
+Example of auto-generated MDSL tool definition:
+
+```ruby
+tools do
+  # Auto-generated tool definitions from Ruby implementation
+  define_tool "count_num_of_words", "Count the num of words" do
+    parameter :text, "string", "The text content to process"
+  end
+end
+```
+
+#### User-Defined Plugins Support
+
+The auto-completion system supports both built-in apps and user-defined plugins:
+
+**Built-in Apps:** `docker/services/ruby/apps/`
+**User Plugins:** `~/monadic/data/plugins/` (or `/monadic/data/plugins/` in container)
+
+#### Development Tools
+
+**CLI Tool for Testing:**
+```bash
+# Preview auto-completion for an app
+ruby bin/mdsl_tool_completer novel_writer
+
+# Validate tool consistency
+ruby bin/mdsl_tool_completer --action validate app_name
+
+# Detailed analysis with debug info
+ruby bin/mdsl_tool_completer --action analyze --verbose app_name
+```
+
+**RSpec Tests:**
+The system includes comprehensive tests in `spec/app_loading_spec.rb`:
+- Tool implementation validation
+- Auto-completion consistency checks  
+- System prompt reference validation
+- Multi-provider tool consistency
+
+#### Best Practices
+
+1. **Keep Ruby methods simple**: Use clear parameter names and appropriate default values
+2. **Add meaningful defaults**: Default values help with type inference
+3. **Use descriptive method names**: Method names are used to generate descriptions
+4. **Separate public and private**: Use `private` keyword to exclude helper methods
+5. **Test auto-completion**: Use the CLI tools to verify generated definitions
+
+#### Troubleshooting
+
+**Common Issues:**
+- **No auto-completion**: Check `MDSL_AUTO_COMPLETE` environment variable
+- **Wrong type inference**: Verify default values in Ruby method definitions
+- **Missing methods**: Ensure methods are public (before `private` keyword)
+- **File not found**: Verify file naming conventions match patterns
+
+**Debug Mode:**
+```bash
+export MDSL_AUTO_COMPLETE=debug
+# Restart Monadic Chat to see detailed auto-completion logs
+```
+
 ### Tool/Function Calling
 
 The DSL supports defining tools (functions) that the AI can call. These automatically get translated to the appropriate format for each provider.
@@ -242,20 +365,21 @@ end
 
 ### Implementing Tools with MDSL
 
-When using the MDSL format, tool implementation follows a two-part approach:
+Tool implementation in MDSL follows a structured approach using the facade pattern:
 
-1. **Tool Definition**: Define the tool structure in the MDSL file using the `define_tool` method
-2. **Tool Implementation**: Implement the actual methods in a companion Ruby file
+1. **Tool Definition**: Tools can be defined explicitly in the MDSL file or auto-completed from Ruby implementations
+2. **Tool Implementation**: Implement methods in a companion `*_tools.rb` file using the facade pattern
 
-#### Method 1: Using a Companion Ruby File
+#### Recommended: Facade Pattern with Auto-Completion
 
-First, create your MDSL file with tool definitions:
+Create your MDSL file with minimal or no tool definitions:
 
 ```ruby
-# mermaid_grapher.mdsl
-app "Mermaid Grapher" do
+# mermaid_grapher_openai.mdsl
+app "MermaidGrapherOpenAI" do
   description "Create diagrams using mermaid.js syntax"
   icon "diagram"
+  display_name "Mermaid Grapher"
   
   system_prompt <<~PROMPT
     You help visualize data using mermaid.js.
@@ -273,36 +397,41 @@ app "Mermaid Grapher" do
     image true
   end
   
-  # The tool is defined here, but implemented elsewhere
   tools do
-    define_tool "mermaid_documentation", "Get documentation and examples for a specific mermaid diagram type." do
-      parameter :diagram_type, "string", "The type of mermaid diagram (e.g., flowchart, sequenceDiagram, etc.)", required: true
+    # Tools will be auto-completed from mermaid_grapher_tools.rb
+  end
+end
+```
+
+Then create a tools file with facade methods:
+
+```ruby
+# mermaid_grapher_tools.rb
+class MermaidGrapherOpenAI < MonadicApp
+  # Facade method with validation and error handling
+  def mermaid_documentation(diagram_type: "graph")
+    raise ArgumentError, "diagram_type is required" if diagram_type.nil? || diagram_type.empty?
+    
+    begin
+      result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
+      { success: true, content: result }
+    rescue => e
+      { success: false, error: e.message }
     end
   end
 end
 ```
 
-Then, create a companion Ruby file with the same base name to implement the method:
+#### Using Helper Modules with Facade Pattern
+
+For shared functionality across providers:
 
 ```ruby
-# mermaid_grapher.rb
-class MermaidGrapher < MonadicApp
-  # Implement the actual method that will be called
-  def mermaid_documentation(diagram_type: "graph")
-    fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
-  end
-end
-```
-
-#### Method 2: Using Helper Modules
-
-For more complex implementations or shared functionality:
-
-```ruby
-# wikipedia.mdsl
-app "Wikipedia" do
+# wikipedia_openai.mdsl
+app "WikipediaOpenAI" do
   description "Search Wikipedia articles"
   icon "fa-brands fa-wikipedia-w"
+  display_name "Wikipedia"
   
   system_prompt <<~PROMPT
     Use search_wikipedia to find information.
@@ -314,40 +443,35 @@ app "Wikipedia" do
     temperature 0.3
   end
   
-  # Define the tool interface
+  features do
+    group "OpenAI"
+  end
+  
+  include_modules ["WikipediaHelper"]
+  
   tools do
-    define_tool "search_wikipedia", "Search Wikipedia articles" do
-      parameter :search_query, "string", "Query for the search", required: true
-      parameter :language_code, "string", "Language code", required: true
-    end
+    # Auto-completed from wikipedia_tools.rb
   end
 end
 ```
 
-Create a minimal app class that includes a helper module:
+Create a tools file with facade methods that wrap the helper:
 
 ```ruby
-# wikipedia_app.rb
-class Wikipedia < MonadicApp
-  include WikipediaHelper  # This module contains the actual implementation
-end
-```
-
-Then implement the actual functionality in the helper module:
-
-```ruby
-# wikipedia_helper.rb
-module WikipediaHelper
+# wikipedia_tools.rb
+class WikipediaOpenAI < MonadicApp
+  include WikipediaHelper
+  
+  # Facade method with validation
   def search_wikipedia(search_query: "", language_code: "en")
-    # Implementation code...
-    result = perform_search(search_query, language_code)
-    return result
-  end
-  
-  private
-  
-  def perform_search(query, language)
-    # Private helper methods...
+    raise ArgumentError, "search_query is required" if search_query.empty?
+    
+    begin
+      # Call the helper module method
+      super(search_query: search_query, language_code: language_code)
+    rescue => e
+      { error: e.message }
+    end
   end
 end
 ```
@@ -390,50 +514,42 @@ Error logs are stored in `~/monadic/data/error.log` when apps fail to load.
 5. Test thoroughly with different inputs
 6. Organize related apps into logical groups
 
-## Converting Old-Style Apps to MDSL
+## Migration Notice
 
-If you have existing apps in the traditional Ruby class format, you can convert them to the new MDSL format:
+**Important**: The traditional Ruby class format is no longer supported. All apps must use the MDSL format.
 
-**Old format:**
+If you have custom apps in the old Ruby class format, you must convert them to MDSL:
+
+1. Create a new `.mdsl` file for each provider
+2. Move tool implementations to a `*_tools.rb` file using the facade pattern
+3. Use `include_modules` for any helper modules
+4. Delete the old `.rb` app files
+
+## Common Issues and Solutions
+
+### Empty Tools Block Error
+
+**Problem**: Empty `tools do` blocks cause "Maximum function call depth exceeded" errors.
+
+**Solution**: Either define tools explicitly or create a companion `*_tools.rb` file:
+
 ```ruby
-class MathTutorApp < MonadicApp
-  include ClaudeHelper
-  
-  @settings = {
-    display_name: "Math Tutor",
-    icon: "fa-solid fa-calculator",
-    description: "AI assistant that helps solve math problems step-by-step",
-    initial_prompt: "You are a helpful math tutor...",
-    pdf: false,
-    image: true,
-    sourcecode: true,
-    # other settings...
-  }
-  
-  # Custom methods...
+# Option 1: Explicit tool definition
+tools do
+  define_tool "my_tool", "Tool description" do
+    parameter :param, "string", "Parameter description"
+  end
+end
+
+# Option 2: Create app_name_tools.rb
+class AppNameProvider < MonadicApp
+  # Tool methods will be auto-completed
 end
 ```
 
-**New MDSL format:**
-```ruby
-app "Math Tutor" do
-  description "AI assistant that helps solve math problems step-by-step"
-  icon "calculator"  # Icons can use simplified names without fa-solid prefix
-  
-  system_prompt "You are a helpful math tutor..."
-  
-  llm do
-    provider "anthropic"
-    model "claude-3-opus-20240229"
-    temperature 0.7
-  end
-  
-  features do
-    image true
-    sourcecode true
-    pdf false
-  end
-  
-  # Other configuration...
-end
-```
+### Provider-Specific Considerations
+
+- **Function Limits**: OpenAI/Gemini support up to 20 function calls, Claude supports up to 16
+- **Code Execution**: All providers now consistently use `run_code` (previously Claude used `run_script`)
+- **Array Parameters**: OpenAI requires `items` property for arrays
+- **Error Prevention**: Built-in error pattern detection prevents infinite retry loops

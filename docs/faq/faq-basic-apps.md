@@ -58,3 +58,32 @@ Note that this doesn't delete any saved files in the shared folder or reset conf
 **Q**: Can I have multiple conversations in parallel?
 
 **A**: Currently, Monadic Chat supports one conversation at a time. However, you can save and export conversations, and switch between different applications to work on different topics.
+
+**Q**: What happens if code execution fails repeatedly in Code Interpreter?
+
+**A**: The Code Interpreter app includes automatic error handling to prevent infinite retry loops. If code execution encounters repeated errors:
+
+1. The app will automatically stop retrying after a reasonable number of attempts
+2. An error message will be displayed indicating the issue
+3. The AI will provide suggestions for fixing the code or alternative approaches
+
+This prevents the app from getting stuck in infinite loops when encountering persistent errors.
+
+**Q**: How can I display Japanese text in matplotlib plots?
+
+**A**: The Python container includes built-in Japanese font support. When using matplotlib:
+
+- The Noto Sans CJK JP font is automatically configured
+- Japanese text will render correctly in plots without additional setup
+- The configuration is handled through the `/monadic/matplotlibrc` file
+- You can customize font settings by creating your own `matplotlibrc` file in the shared folder
+
+Example code that will work correctly:
+```python
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3], [1, 4, 9])
+plt.title('日本語のタイトル')
+plt.xlabel('横軸')
+plt.ylabel('縦軸')
+plt.show()
+```

@@ -17,7 +17,7 @@ app "CodingAssistantMistral" do
   
   llm do
     provider "mistral"
-    model "mistral-large-2"
+    model "mistral-large-latest"
     temperature 0.0
   end
   

@@ -1,0 +1,98 @@
+app "ImageGeneratorGemini" do
+  description <<~TEXT
+    This app generates and edits images using Google's AI models. For image generation, it automatically selects between Imagen 3 (high-quality, photorealistic) and Gemini 2.0 Flash (versatile, fast) based on your requirements. For image editing, it uses Gemini 2.0 Flash which supports natural language-based editing of uploaded images. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+
+  icon "fa-regular fa-image"
+
+  display_name "Image Generator"
+
+  llm do
+    provider "gemini"
+    model "gemini-2.5-flash-preview-05-20"
+  end
+
+  system_prompt <<~TEXT
+    You help users create and edit images using Google's AI models (Imagen 3 and Gemini 2.0 Flash). 
+    
+    EXTREMELY IMPORTANT: Never use markdown code blocks (```) in your responses. Output pure HTML without any code markers.
+    
+    Follow this process for each request:
+
+    1. Determine if this is image generation or editing:
+       - If no image is uploaded: Use text-to-image generation
+       - If an image is uploaded: Use image editing
+
+    2. If the user's prompt is not in English, politely translate it to English while preserving all creative details.
+    
+    3. For TEXT-TO-IMAGE generation, call `generate_image_with_gemini` function with:
+       - prompt: The English version of the user's request (required)
+       - operation: "generate"
+       - model: Choose between "imagen3" (high quality, precise) or "gemini" (versatile, fast)
+    
+    4. For IMAGE EDITING (when an image is uploaded), call `generate_image_with_gemini` function with:
+       - prompt: The English version of the editing instructions (required)
+       - operation: "edit"
+       
+    5. Analyze the function response:
+       - Check the "success" field in the JSON response
+       - If success is true, extract the filename from the "filename" field
+       - If success is false, display the error message from the "error" field
+       - Check the "model" field to show which model was used
+       
+    6. AFTER function execution, IMMEDIATELY output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
+    
+    CRITICAL: You MUST parse the JSON response from the function and display the result.
+    Even if the model is "imagen3", you MUST still display the image using the template above.
+    
+    7. For successful operations, ALWAYS use EXACTLY this template to display the result:
+       
+      <div class="prompt">
+        <b>{operation_type}</b> (using {model_name}): {original_prompt}
+      </div>
+      <div class="generated_image">
+        <img src="/data/{filename}">
+      </div>
+  TEXT
+
+  features do
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant false
+    image true
+    pdf false
+    group "Google"
+  end
+
+  tools do
+    define_tool "generate_image_with_gemini", "Generate or edit images using Google's AI models." do
+      parameter :prompt, "string", "Text description of the desired image or editing instructions", required: true
+      parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: false
+      parameter :model, "string", "Model to use: 'imagen3' for high quality, 'gemini' for versatile editing", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    # Auto-generated tool definitions
+    define_tool "generate_image_with_openai", "Generate Image With Openai" do
+      parameter :operation, "string", "The operation", required: true
+      parameter :model, "string", "The model", required: true
+      parameter :prompt, "string", "The prompt"
+      parameter :images, "string", "The images"
+      parameter :mask, "string", "The mask"
+      parameter :n, "integer", "The n"
+      parameter :size, "string", "The size"
+      parameter :quality, "string", "The quality"
+      parameter :output_format, "string", "The output format"
+      parameter :background, "string", "The background"
+      parameter :output_compression, "string", "The output compression"
+    end
+
+    define_tool "generate_image_with_grok", "Generate Image With Grok" do
+      parameter :model, "string", "The model", required: true
+      parameter :prompt, "string", "The prompt", required: true
+      parameter :n, "integer", "The n"
+      parameter :size, "string", "The size"
+      parameter :output_format, "string", "The output format"
+    end
+  end
+end

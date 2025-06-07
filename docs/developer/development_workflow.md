@@ -2,7 +2,7 @@
 
 This document contains guidelines and instructions for developers contributing to the Monadic Chat project.
 
-?> This document is for developers of Monadic Chat itself, not for developers of Monadic Chat recipe files.
+?> This document is for developers of Monadic Chat itself, not for developers of Monadic Chat applications.
 
 ## Testing
 
@@ -35,6 +35,246 @@ npm run test:coverage # Run tests with coverage report
 ```bash
 rake test  # Run both Ruby and JavaScript tests
 ```
+
+## MDSL Development Tools
+
+### CLI Tool: mdsl_tool_completer
+
+The `mdsl_tool_completer` is a command-line tool for testing and validating MDSL auto-completion functionality. It helps developers preview and debug tool auto-completion for MDSL applications.
+
+#### Location
+```bash
+docker/services/ruby/bin/mdsl_tool_completer
+```
+
+#### Usage
+
+**Basic Preview:**
+```bash
+# Preview auto-completion for a specific app
+ruby bin/mdsl_tool_completer novel_writer
+ruby bin/mdsl_tool_completer drawio_grapher
+```
+
+**Validation Mode:**
+```bash
+# Validate tool consistency between definitions and implementations
+ruby bin/mdsl_tool_completer --action validate app_name
+ruby bin/mdsl_tool_completer --action validate novel_writer
+```
+
+**Analysis Mode:**
+```bash
+# Detailed analysis with verbose output
+ruby bin/mdsl_tool_completer --action analyze app_name
+ruby bin/mdsl_tool_completer --action analyze --verbose novel_writer
+```
+
+**All Apps Analysis:**
+```bash
+# Analyze all apps in the system
+ruby bin/mdsl_tool_completer --action analyze --all
+```
+
+#### Command Options
+
+- `--action validate`: Check tool implementation consistency
+- `--action analyze`: Perform detailed method analysis
+- `--verbose`: Enable detailed output for analysis
+- `--all`: Process all available apps
+- `--help`: Display usage information
+
+#### Example Output
+
+**Preview Mode:**
+```bash
+$ ruby bin/mdsl_tool_completer novel_writer
+
+=== MDSL Tool Completer ===
+App: novel_writer
+Tools file: /path/to/novel_writer_tools.rb
+
+Auto-completed tools:
+- count_num_of_words (text: string)
+- count_num_of_characters (text: string)
+- save_content_to_file (content: string, filename: string)
+
+Total methods found: 3
+```
+
+**Validation Mode:**
+```bash
+$ ruby bin/mdsl_tool_completer --action validate novel_writer
+
+=== Tool Implementation Validation ===
+✓ count_num_of_words: Implementation found
+✓ count_num_of_characters: Implementation found  
+✓ save_content_to_file: Implementation found
+
+All tools have valid implementations.
+```
+
+#### Environment Variables
+
+The tool respects the unified debug system:
+- `MONADIC_DEBUG=mdsl`: Enable MDSL debug output
+- `MONADIC_DEBUG_LEVEL=debug`: Set debug verbosity level
+
+Legacy variables (still supported but deprecated):
+- `MDSL_AUTO_COMPLETE=debug`: Enable MDSL debug output
+- `APP_DEBUG=1`: Enable general debug output
+
+## Debug System
+
+Monadic Chat uses a unified debug system controlled via environment variables:
+
+### Debug Categories
+- `all`: All debug messages
+- `app`: General application debugging
+- `embeddings`: Text embeddings operations
+- `mdsl`: MDSL tool completion
+- `tts`: Text-to-Speech operations
+- `drawio`: DrawIO grapher operations
+- `ai_user`: AI user agent
+- `web_search`: Web search operations (includes Tavily)
+- `api`: API requests and responses
+
+### Debug Levels
+- `none`: No debug output (default)
+- `error`: Only errors
+- `warning`: Errors and warnings
+- `info`: General information
+- `debug`: Detailed debug information
+- `verbose`: Everything including raw data
+
+### Error Handling Improvements
+- **Error Pattern Detection**: System automatically detects repeated errors and stops after 3 similar occurrences
+- **UTF-8 Encoding**: All responses are properly handled with fallback encoding replacement
+- **Infinite Loop Prevention**: Tool calls are limited to prevent "Maximum function call depth exceeded" errors
+- **Graceful Degradation**: Missing API keys result in clear error messages, not crashes
+
+### Usage Examples
+```bash
+# Enable web search debug output
+export MONADIC_DEBUG=web_search
+export MONADIC_DEBUG_LEVEL=debug
+
+# Enable multiple categories
+export MONADIC_DEBUG=api,web_search,mdsl
+
+# Enable all debug output
+export MONADIC_DEBUG=all
+export MONADIC_DEBUG_LEVEL=verbose
+
+# API debugging (equivalent to Electron's "Extra Logging")
+export MONADIC_DEBUG=api
+```
+
+### MDSL Development Best Practices
+
+#### File Structure
+Monadic Chat applications now use the MDSL (Monadic Domain Specific Language) format exclusively:
+
+- **App Definition**: `app_name_provider.mdsl` (e.g., `chat_openai.mdsl`)
+- **Tool Implementation**: `app_name_tools.rb` (e.g., `chat_tools.rb`)
+- **Shared Constants**: `app_name_constants.rb` (optional)
+
+#### Tool Implementation Pattern
+
+When developing MDSL applications, always implement the facade pattern for custom tools:
+
+```ruby
+# app_name_tools.rb
+class AppNameProvider < MonadicApp
+  def custom_method(param:, options: {})
+    # 1. Input validation
+    raise ArgumentError, "Parameter required" if param.nil?
+    
+    # 2. Call underlying implementation
+    result = perform_operation(param, options)
+    
+    # 3. Return structured response
+    { success: true, data: result }
+  rescue StandardError => e
+    { success: false, error: e.message }
+  end
+end
+```
+
+#### Empty Tools Block Issue
+
+**Important**: Empty `tools do` blocks in MDSL files can cause "Maximum function call depth exceeded" errors. Always either:
+
+1. **Define tools explicitly** in the MDSL file:
+```ruby
+tools do
+  define_tool "fetch_text_from_pdf", "Extract text from PDF" do
+    parameter :pdf, "string", "PDF filename", required: true
+  end
+end
+```
+
+2. **Create a companion tools file** that inherits standard tools:
+```ruby
+# app_name_tools.rb
+class AppNameProvider < MonadicApp
+  # Inherits standard tools from MonadicApp
+end
+```
+
+#### Common Development Issues
+
+**Missing Method Errors:**
+- Symptom: `undefined method 'method_name' for an instance of AppName`
+- Solution: Create facade methods in `*_tools.rb` file with proper validation
+
+**Maximum function call depth exceeded:**
+- Symptom: Error when running app with empty `tools do` block
+- Solution: Add explicit tool definitions or create `*_tools.rb` file
+
+**Tool Implementation Validation:**
+```bash
+# Check if your tools are properly defined
+ruby bin/mdsl_tool_completer --action validate your_app_name
+```
+
+**Auto-completion Debugging:**
+```bash
+# Preview what tools will be auto-completed
+ruby bin/mdsl_tool_completer your_app_name
+
+# Debug auto-completion issues (new unified system)
+export MONADIC_DEBUG=mdsl
+export MONADIC_DEBUG_LEVEL=debug
+ruby bin/mdsl_tool_completer your_app_name
+
+# Or using legacy method (deprecated)
+export MDSL_AUTO_COMPLETE=debug
+ruby bin/mdsl_tool_completer your_app_name
+```
+
+#### Provider-Specific Considerations
+
+- **Function Limits**: OpenAI/Gemini support up to 20 function calls, Claude supports up to 16
+- **Code Execution**: All providers now use `run_code` (previously Anthropic used `run_script`)
+- **Array Parameters**: OpenAI requires `items` property for array parameters
+## MDSL Auto-Completion Control
+
+The MDSL auto-completion system can be controlled using environment variables:
+
+```bash
+# Disable auto-completion (useful when debugging MDSL files)
+export MDSL_AUTO_COMPLETE=false
+
+# Enable with detailed debug logging
+export MDSL_AUTO_COMPLETE=debug
+
+# Enable normally (default)
+export MDSL_AUTO_COMPLETE=true
+# or just unset the variable
+unset MDSL_AUTO_COMPLETE
+```
+
 ## Important: Managing Setup Scripts
 
 The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:

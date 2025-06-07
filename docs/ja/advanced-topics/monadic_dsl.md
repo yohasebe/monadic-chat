@@ -8,19 +8,16 @@ Monadic DSLは、Ruby言語をベースとした設定システムで、高度�
 
 ## ファイル形式
 
-Monadic Chatは2つの形式のアプリ定義をサポートしています：
+Monadic Chatは**`.mdsl`形式**（Monadic Domain Specific Language）をすべてのアプリ定義に使用します。この宣言的な形式により、クリーンで保守しやすいAI駆動アプリケーションを定義できます。
 
-1. **`.mdsl`ファイル** - よりシンプルで読みやすい構文のDSL形式
-2. **`.rb`ファイル** - 従来のRubyクラス定義
-
-`.mdsl`形式は、より簡潔で保守しやすいため、ほとんどのアプリケーションで推奨されます。
+**重要**: 従来のRubyクラス形式（`.rb`ファイル）はサポートされなくなりました。すべてのアプリはMDSL形式を使用する必要があります。
 
 ## 基本構造
 
 基本的なMDSLアプリケーション定義は次のようになります：
 
 ```ruby
-app "アプリケーション名" do  # この名前は内部的に一意のクラス名を生成するために使用されます
+app "AppNameProvider" do  # 命名規則に従う: AppName + Provider (例: ChatOpenAI, ResearchAssistantClaude)
   description "このアプリケーションが何をするかの簡単な説明"
   
   icon "fa-solid fa-icon-name"  # FontAwesomeアイコンまたはカスタムHTML
@@ -133,17 +130,16 @@ end
 
 ```ruby
 tools do
-  tool "book_search" do
-    description "タイトル、著者、またはISBNで書籍を検索する"
-    parameters do
-      parameter "query", type: "string", description: "検索語句（書籍タイトル、著者名、またはISBN）"
-      parameter "search_type", type: "string", enum: ["title", "author", "isbn", "any"], description: "実行する検索のタイプ", required: false
-      parameter "category", type: "string", enum: ["fiction", "non-fiction", "science", "history", "biography"], description: "結果をフィルタリングする書籍カテゴリ", required: false
-      parameter "max_results", type: "integer", description: "返す最大結果数", required: false
-    end
+  define_tool "book_search", "タイトル、著者、またはISBNで書籍を検索する" do
+    parameter :query, "string", "検索語句（書籍タイトル、著者名、またはISBN）", required: true
+    parameter :search_type, "string", "実行する検索のタイプ", enum: ["title", "author", "isbn", "any"]
+    parameter :category, "string", "結果をフィルタリングする書籍カテゴリ", enum: ["fiction", "non-fiction", "science", "history", "biography"]
+    parameter :max_results, "integer", "返す最大結果数（デフォルト: 10）"
   end
 end
 ```
+
+**注意**: `parameter`メソッドは`default`キーワードをサポートしていません。デフォルト値は説明文に含めてください。
 
 ## アプリケーション例
 
@@ -223,6 +219,134 @@ end
 
 > MDSLの内部実装とその仕組みについて詳しく知りたい開発者の方は、[MDSLの内部実装](mdsl-internals.md)をご覧ください。
 
+### MDSLツール自動補完システム
+
+Monadic Chatには、Rubyの実装ファイルからMDSLツール定義を動的に生成する自動補完システムが含まれています。これにより手動作業を削減し、ツール定義と実装の一貫性を確保できます。
+
+#### 自動補完の仕組み
+
+1. **実行時検出**: MDSLファイルが読み込まれる際、システムは対応する`*_tools.rb`ファイルを自動的にスキャンします
+2. **メソッド分析**: Rubyの実装ファイル内のパブリックメソッドがツール候補として分析されます
+3. **型推論**: パラメータの型がデフォルト値や命名パターンから推論されます
+4. **動的補完**: 不足しているツール定義がLLMの利用可能ツールに自動的に追加されます
+5. **ファイル書き込み**: 自動生成された定義は、オプションでMDSLファイルに書き戻されます
+
+#### 設定
+
+`MDSL_AUTO_COMPLETE`環境変数で自動補完の動作を制御できます：
+
+```bash
+# デフォルト（基本的なロギング付きで自動補完が有効）
+# MDSL_AUTO_COMPLETE=  # 未設定 - 'true'と同じ
+
+# 基本的なロギング付きで自動補完を有効にする
+export MDSL_AUTO_COMPLETE=true
+
+# 詳細なデバッグ情報付きで自動補完を有効にする
+export MDSL_AUTO_COMPLETE=debug
+
+# 自動補完を完全に無効にする
+export MDSL_AUTO_COMPLETE=false
+```
+
+#### ファイル構造の要件
+
+自動補完システムは標準的なMonadic Chatのファイル命名規則で動作します：
+
+```text
+apps/app_name/
+├── app_name_constants.rb    # オプション: 共有定数（ICON、DESCRIPTION等）
+├── app_name_tools.rb        # ツールメソッドの実装
+├── app_name_provider.mdsl   # MDSLインターフェース（例：app_name_openai.mdsl）
+└── app_name_provider.mdsl   # 追加のプロバイダーバージョン
+```
+
+#### メソッド検出のルール
+
+**含まれるメソッド:**
+- `*_tools.rb`ファイル内のパブリックメソッド
+- 除外パターンに一致しないメソッド
+- 標準ツールリストにないメソッド
+
+**除外されるメソッド:**
+- プライベートメソッド（`private`キーワード以降）
+- パターンに一致するメソッド: `initialize`, `validate`, `format`, `parse`, `setup`, `teardown`, `before`, `after`, `test_`, `spec_`
+- 標準MonadicAppメソッド（自動検出）
+
+#### 型推論
+
+システムはデフォルト値から自動的にパラメータの型を推論します：
+
+```ruby
+def example_tool(text: "", count: 0, enabled: false, items: [], config: {})
+  # text: "string", count: "integer", enabled: "boolean"
+  # items: "array", config: "object"
+end
+```
+
+#### 生成されるツール定義
+
+自動生成されるMDSLツール定義の例：
+
+```ruby
+tools do
+  # Rubyの実装から自動生成されたツール定義
+  define_tool "count_num_of_words", "Count the num of words" do
+    parameter :text, "string", "The text content to process"
+  end
+end
+```
+
+#### ユーザー定義プラグインのサポート
+
+自動補完システムは組み込みアプリとユーザー定義プラグインの両方をサポートします：
+
+**組み込みアプリ:** `docker/services/ruby/apps/`
+**ユーザープラグイン:** `~/monadic/data/plugins/`（またはコンテナ内では`/monadic/data/plugins/`）
+
+#### 開発ツール
+
+**テスト用CLIツール:**
+```bash
+# アプリの自動補完をプレビュー
+ruby bin/mdsl_tool_completer novel_writer
+
+# ツールの一貫性を検証
+ruby bin/mdsl_tool_completer --action validate app_name
+
+# デバッグ情報付きで詳細分析
+ruby bin/mdsl_tool_completer --action analyze --verbose app_name
+```
+
+**RSpecテスト:**
+システムには`spec/app_loading_spec.rb`に包括的なテストが含まれています：
+- ツール実装の検証
+- 自動補完の一貫性チェック  
+- システムプロンプト参照の検証
+- マルチプロバイダーツールの一貫性
+
+#### ベストプラクティス
+
+1. **Rubyメソッドをシンプルに保つ**: 明確なパラメータ名と適切なデフォルト値を使用
+2. **意味のあるデフォルト値を追加**: デフォルト値は型推論に役立ちます
+3. **わかりやすいメソッド名を使用**: メソッド名は説明の生成に使用されます
+4. **パブリックとプライベートを分離**: ヘルパーメソッドを除外するために`private`キーワードを使用
+5. **自動補完をテスト**: CLIツールを使用して生成された定義を確認
+
+#### トラブルシューティング
+
+**よくある問題:**
+- **自動補完が機能しない**: `MDSL_AUTO_COMPLETE`環境変数を確認
+- **型推論が間違っている**: Rubyメソッド定義のデフォルト値を確認
+- **メソッドが見つからない**: メソッドがパブリック（`private`キーワードより前）であることを確認
+- **ファイルが見つからない**: ファイル命名規則がパターンと一致することを確認
+
+**デバッグモード:**
+```bash
+export MDSL_AUTO_COMPLETE=debug
+# Monadic Chatを再起動して詳細な自動補完ログを確認
+```
+
 ### ツール/関数呼び出し
 
 DSLはAIが呼び出せるツール（関数）の定義をサポートしています。これらは自動的に各プロバイダーに適した形式に変換されます。
@@ -242,20 +366,21 @@ end
 
 ### MDSLでのツールの実装
 
-MDSL形式を使用する場合、ツールの実装は2つの部分に分かれています：
+MDSLでのツール実装は、ファサードパターンを使用した構造化されたアプローチに従います：
 
-1. **ツールの定義**: MDSLファイルで`define_tool`メソッドを使ってツールの構造を定義する
-2. **ツールの実装**: 実際のメソッドを別のRubyファイルで実装する
+1. **ツールの定義**: ツールはMDSLファイルで明示的に定義するか、Ruby実装から自動補完されます
+2. **ツールの実装**: ファサードパターンを使用してコンパニオン`*_tools.rb`ファイルにメソッドを実装します
 
-#### 方法1: 同名のRubyファイルを使用する
+#### 推奨: 自動補完付きファサードパターン
 
-まず、MDSLファイルでツールを定義します：
+最小限または空のツール定義でMDSLファイルを作成：
 
 ```ruby
-# mermaid_grapher.mdsl
-app "Mermaid Grapher" do
+# mermaid_grapher_openai.mdsl
+app "MermaidGrapherOpenAI" do
   description "mermaid.js構文を使用して図を作成する"
   icon "diagram"
+  display_name "Mermaid Grapher"
   
   system_prompt <<~PROMPT
     mermaid.jsを使用してデータを視覚化するのを手伝います。
@@ -273,36 +398,41 @@ app "Mermaid Grapher" do
     image true
   end
   
-  # ツールはここで定義されますが、実装は別の場所にあります
   tools do
-    define_tool "mermaid_documentation", "特定のmermaidダイアグラムタイプのドキュメントと例を取得する" do
-      parameter :diagram_type, "string", "mermaidダイアグラムのタイプ（例：flowchart、sequenceDiagramなど）", required: true
+    # ツールはmermaid_grapher_tools.rbから自動補完されます
+  end
+end
+```
+
+ファサードメソッドを含むツールファイルを作成：
+
+```ruby
+# mermaid_grapher_tools.rb
+class MermaidGrapherOpenAI < MonadicApp
+  # 検証とエラーハンドリング付きファサードメソッド
+  def mermaid_documentation(diagram_type: "graph")
+    raise ArgumentError, "diagram_type is required" if diagram_type.nil? || diagram_type.empty?
+    
+    begin
+      result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
+      { success: true, content: result }
+    rescue => e
+      { success: false, error: e.message }
     end
   end
 end
 ```
 
-次に、同じベース名を持つRubyファイルを作成して、メソッドを実装します：
+#### ファサードパターンを使用したヘルパーモジュール
+
+プロバイダー間で共有される機能の場合：
 
 ```ruby
-# mermaid_grapher.rb
-class MermaidGrapher < MonadicApp
-  # 呼び出されるメソッドを実際に実装する
-  def mermaid_documentation(diagram_type: "graph")
-    fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
-  end
-end
-```
-
-#### 方法2: ヘルパーモジュールを使用する
-
-より複雑な実装や共有機能の場合：
-
-```ruby
-# wikipedia.mdsl
-app "Wikipedia" do
+# wikipedia_openai.mdsl
+app "WikipediaOpenAI" do
   description "Wikipedia記事を検索"
   icon "fa-brands fa-wikipedia-w"
+  display_name "Wikipedia"
   
   system_prompt <<~PROMPT
     情報を検索するにはsearch_wikipediaを使用してください。
@@ -314,40 +444,35 @@ app "Wikipedia" do
     temperature 0.3
   end
   
-  # ツールインターフェースを定義
+  features do
+    group "OpenAI"
+  end
+  
+  include_modules ["WikipediaHelper"]
+  
   tools do
-    define_tool "search_wikipedia", "Wikipedia記事を検索する" do
-      parameter :search_query, "string", "検索クエリ", required: true
-      parameter :language_code, "string", "言語コード", required: true
-    end
+    # wikipedia_tools.rbから自動補完
   end
 end
 ```
 
-ヘルパーモジュールを含む最小限のアプリクラスを作成します：
+ヘルパーをラップするファサードメソッドを含むツールファイルを作成：
 
 ```ruby
-# wikipedia_app.rb
-class Wikipedia < MonadicApp
-  include WikipediaHelper  # 実際の実装を含むモジュール
-end
-```
-
-そして、ヘルパーモジュールで実際の機能を実装します：
-
-```ruby
-# wikipedia_helper.rb
-module WikipediaHelper
+# wikipedia_tools.rb
+class WikipediaOpenAI < MonadicApp
+  include WikipediaHelper
+  
+  # 検証付きファサードメソッド
   def search_wikipedia(search_query: "", language_code: "en")
-    # 実装コード...
-    result = perform_search(search_query, language_code)
-    return result
-  end
-  
-  private
-  
-  def perform_search(query, language)
-    # プライベートヘルパーメソッド...
+    raise ArgumentError, "search_query is required" if search_query.empty?
+    
+    begin
+      # ヘルパーモジュールメソッドを呼び出す
+      super(search_query: search_query, language_code: language_code)
+    rescue => e
+      { error: e.message }
+    end
   end
 end
 ```
@@ -390,38 +515,44 @@ DSLアプリのトラブルシューティング時には、次の点を確認�
 5. さまざまな入力でテストを徹底的に行う
 6. 関連するアプリを論理的なグループに整理する
 
-## 従来のアプリスタイルからMDSLへの変換
+## 移行に関する注意
 
-従来のRubyクラス形式で既存のアプリがある場合は、新しいMDSL形式に変換することを推奨します。
+**重要**: 従来のRubyクラス形式はサポートされなくなりました。すべてのアプリはMDSL形式を使用する必要があります。
 
-**旧形式：**
+古いRubyクラス形式のカスタムアプリがある場合は、MDSLに変換する必要があります：
+
+1. 各プロバイダー用に新しい`.mdsl`ファイルを作成
+2. ツール実装をファサードパターンを使用して`*_tools.rb`ファイルに移動
+3. ヘルパーモジュールには`include_modules`を使用
+4. 古い`.rb`アプリファイルを削除
+
+## よくある問題と解決策
+
+### 空のツールブロックエラー
+
+**問題**: 空の`tools do`ブロックは「Maximum function call depth exceeded」エラーを引き起こします。
+
+**解決策**: ツールを明示的に定義するか、コンパニオン`*_tools.rb`ファイルを作成します：
+
 ```ruby
-class MathTutorApp < MonadicApp
-  include ClaudeHelper
-  
-  @settings = {
-    display_name: "数学チューター",
-    icon: "fa-solid fa-calculator",
-    description: "数学問題を段階的に解決するAIアシスタント",
-    initial_prompt: "あなたは有能な数学チューターです...",
-    pdf: false,
-    image: true,
-    sourcecode: true,
-    # その他の設定...
-  }
-  
-  # カスタムメソッド...
+# オプション1: 明示的なツール定義
+tools do
+  define_tool "my_tool", "ツールの説明" do
+    parameter :param, "string", "パラメータの説明"
+  end
+end
+
+# オプション2: app_name_tools.rbを作成
+class AppNameProvider < MonadicApp
+  # ツールメソッドが自動補完されます
 end
 ```
 
-**新しいMDSL形式：**
-```ruby
-app "数学チューター" do
-  description "数学問題を段階的に解決するAIアシスタント"
-  icon "calculator"  # アイコンはfa-solid接頭辞なしで簡略化された名前を使用できます
-  
-  system_prompt "あなたは有能な数学の先生です..."
-  
+### プロバイダー固有の考慮事項
+
+- **関数制限**: OpenAI/Geminiは最大20回の呼び出し、Claudeは最大16回をサポート
+- **コード実行**: すべてのプロバイダが`run_code`を使用（以前はAnthropicが`run_script`を使用）
+- **配列パラメータ**: OpenAIは配列に`items`プロパティが必要
   llm do
     provider "anthropic"
     model "claude-3-opus-20240229"

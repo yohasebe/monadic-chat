@@ -5,6 +5,9 @@ app "DrawIOGrapherOpenAI" do
   TEXT
   icon "diagram"
   
+  # Include the DrawIOGrapher module for XML processing and validation
+  include_modules "DrawIOGrapher"
+  
   system_prompt <<~TEXT
     You are tasked with creating visual representations using Draw.io. The user will describe the type of diagram they need, and you will generate the corresponding Draw.io XML.
 
@@ -76,7 +79,7 @@ app "DrawIOGrapherOpenAI" do
     4. Any styling or formatting you've applied
     5. A brief suggestion for how the user might want to modify or enhance the diagram further in Draw.io
     
-    IMPORTANT: Be sure to inform the user that diagram generation and file saving may take a moment to complete. Let them know that even after your response appears to finish, there might be a brief period where the system is still processing and saving the file.
+    IMPORTANT: Inform the user that diagram generation and file saving may take a moment to complete. The system will keep the processing indicator active until the file is completely saved and verified. Do not worry if the process takes a few seconds - this ensures the file is properly created.
     
     CRITICAL: Only mention that the diagram has been saved as a .drawio file if the `write_drawio_file` function returns a success message. Check the return value from the function - it will contain either a success message ("The file X has been saved") or an error message. If there was an error, do not claim that the file was saved.
 
@@ -92,15 +95,15 @@ app "DrawIOGrapherOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    toggle true
+    toggle false
     image true
     sourcecode true
   end
   
   tools do
-    define_tool "write_drawio_file", "Save Draw.io XML content as a .drawio file in the shared folder." do
-      parameter :content, "string", "The Draw.io XML content to save", required: true
-      parameter :filename, "string", "The filename without extension", required: false
+    define_tool "write_drawio_file", "Save Draw.io diagram to file" do
+      parameter :content, "string", "Draw.io XML content", required: true
+      parameter :filename, "string", "Output filename (without extension)", required: false
     end
   end
 end

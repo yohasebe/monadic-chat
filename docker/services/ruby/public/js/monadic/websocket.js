@@ -1654,7 +1654,7 @@ function connect_websocket(callback) {
     const messageTimeout = setTimeout(function() {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
         console.log("Safety: Re-enabling controls after WebSocket message timeout");
-        $("#send, #clear, #image-file, #voice, #doc, #url, #ai_user").prop("disabled", false);
+        $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
         $("#message").prop("disabled", false);
         $("#select-role").prop("disabled", false);
         $("#monadic-spinner").hide();
@@ -1981,7 +1981,7 @@ function connect_websocket(callback) {
           handled = wsHandlers.handleErrorMessage(data);
         } else {
           // Fallback to inline handling
-          $("#send, #clear, #image-file, #voice, #doc, #url, #ai_user").prop("disabled", false);
+          $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
           $("#message").show();
           $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
@@ -2110,6 +2110,7 @@ function connect_websocket(callback) {
         $("#monadic-version-number").html(version_string);
         
         if (Object.keys(apps).length === 0) {
+          console.log("[DEBUG] Apps data received:", data["content"]);
           // Prepare arrays for app classification
           let regularApps = [];
           let specialApps = {};
@@ -2118,10 +2119,11 @@ function connect_websocket(callback) {
           for (const [key, value] of Object.entries(data["content"])) {
             const group = value["group"];
             
-            // Check if app belongs to special group
-            if (group && group.trim() !== "" && ["openai"].includes(group.trim().toLowerCase())) {
+            // Check if app belongs to OpenAI group (regular apps)
+            if (group && group.trim().toLowerCase() === "openai") {
               regularApps.push([key, value]);
             } else if (group && group.trim() !== "") {
+              // Other groups go to special apps
               if (!specialApps[group]) {
                 specialApps[group] = [];
               }
@@ -2740,6 +2742,7 @@ function connect_websocket(callback) {
         $("#voice").prop("disabled", false);
         $("#doc").prop("disabled", false);
         $("#url").prop("disabled", false);
+        $("#pdf-import").prop("disabled", false);
         $("#ai_user").prop("disabled", false);
         $("#select-role").prop("disabled", false);
 
@@ -2844,7 +2847,7 @@ function connect_websocket(callback) {
             $("#message").val(""); // Clear the message after successful response
             $("#message").prop("disabled", false);
             // Re-enable all input controls
-            $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+            $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
             $("#select-role").prop("disabled", false);
             
             $("#monadic-spinner").hide();
@@ -3084,16 +3087,44 @@ function connect_websocket(callback) {
         // Hide the spinner if still showing
         $("#monadic-spinner").hide();
         
-        // Update status to "Ready for input"
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+        // Check if there are any pending operations before showing "Ready for input"
+        // This includes checking for active spinners or recent DOM updates
+        let pendingOperations = false;
         
-        // Ensure all UI elements are enabled
-        $("#message").prop("disabled", false);
-        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
+        // Check if any spinner is still visible (in case of multiple spinners)
+        if ($(".spinner:visible").length > 0 || $(".fa-spinner:visible").length > 0) {
+          pendingOperations = true;
+        }
         
-        // Focus on the message input
-        setInputFocus();
+        // Set a small delay to ensure all DOM updates are complete
+        setTimeout(function() {
+          // Only show "Ready for input" if no pending operations detected
+          if (!pendingOperations) {
+            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+          } else {
+            // If operations are still pending, wait and check again
+            let checkInterval = setInterval(function() {
+              if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0) {
+                clearInterval(checkInterval);
+                setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+              }
+            }, 500); // Check every 500ms
+            
+            // Safety timeout to prevent infinite checking
+            setTimeout(function() {
+              clearInterval(checkInterval);
+              setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+            }, 10000); // Maximum wait of 10 seconds
+          }
+          
+          // Always ensure UI elements are enabled
+          $("#message").prop("disabled", false);
+          $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
+          $("#select-role").prop("disabled", false);
+          
+          // Focus on the message input
+          setInputFocus();
+        }, 250); // Initial 250ms delay
         
         break;
       }
@@ -3317,7 +3348,7 @@ function reconnect_websocket(ws, callback) {
         startPing();
         
         // Update UI
-        setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "success");
+        setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "info");
         
         // Execute callback if provided
         if (callback && typeof callback === 'function') {
@@ -3382,7 +3413,7 @@ function handleVisibilityChange() {
                 ? `<i class='fa-solid fa-circle-check'></i> Connected${connectionMessage}`
                 : "<i class='fa-solid fa-circle-check'></i> Connected";
                 
-              setAlert(successMessage, "success");
+              setAlert(successMessage, "info");
             }
           });
           break;
@@ -3394,7 +3425,7 @@ function handleVisibilityChange() {
         case WebSocket.OPEN:
           // Connection is already open, verify it's still active
           ws.send(JSON.stringify({ message: "PING" }));
-          setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "success");
+          setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "info");
           break;
       }
     } catch (error) {

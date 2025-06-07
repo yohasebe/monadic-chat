@@ -17,7 +17,7 @@ app "CodingAssistantGemini" do
   
   llm do
     provider "gemini"
-    model "gemini-2.0-flash-exp"
+    model "gemini-2.5-flash-preview-05-20"
     temperature 0.0
   end
   

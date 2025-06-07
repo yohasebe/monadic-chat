@@ -184,18 +184,18 @@ def tts_api_request(text,
         }]
       }],
       "generationConfig" => {
-        "response_modalities" => ["AUDIO"],
-        "speech_config" => {
-          "voice_config" => {
-            "prebuilt_voice_config" => {
-              "voice_name" => voice.to_s.downcase
+        "responseModalities" => ["AUDIO"],
+        "speechConfig" => {
+          "voiceConfig" => {
+            "prebuiltVoiceConfig" => {
+              "voiceName" => voice.to_s.downcase
             }
           }
         }
       }
     }
     
-    # Use the Gemini 2.5 Flash model with TTS capability (default)
+    # Use the Gemini 2.5 Flash Preview TTS model
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=#{api_key}"
   else # openai
     begin
@@ -238,7 +238,7 @@ def tts_api_request(text,
   begin
     res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
     unless res.status.success?
-      error_report = JSON.parse(res.body.to_s)
+      error_report = JSON.parse(res.body.to_s) rescue { "error" => { "message" => res.body.to_s } }
       error_message = error_report["error"] ? error_report["error"]["message"] : "API request failed"
       return { type: "error", content: "ERROR: #{error_message}" }
     end
@@ -261,7 +261,55 @@ def tts_api_request(text,
           
           # Decode base64 audio data
           require 'base64'
-          response = Base64.decode64(audio_data)
+          decoded_audio = Base64.decode64(audio_data)
+          
+          # Log the actual format received
+          STDERR.puts "INFO: Gemini returned audio in #{mime_type} format"
+          
+          # Handle PCM audio data by adding WAV header if needed
+          if mime_type && mime_type.include?("L16") && mime_type.include?("pcm")
+            # Extract sample rate from mime type
+            sample_rate = 24000  # Default
+            if mime_type =~ /rate=(\d+)/
+              sample_rate = $1.to_i
+            end
+            
+            # Create WAV header for 16-bit mono PCM
+            require 'stringio'
+            wav_data = StringIO.new
+            wav_data.binmode
+            
+            # Write WAV header
+            channels = 1
+            bits_per_sample = 16
+            byte_rate = sample_rate * channels * bits_per_sample / 8
+            block_align = channels * bits_per_sample / 8
+            data_size = decoded_audio.bytesize
+            
+            wav_data.write("RIFF")
+            wav_data.write([36 + data_size].pack("V"))  # File size - 8
+            wav_data.write("WAVE")
+            wav_data.write("fmt ")
+            wav_data.write([16].pack("V"))              # Subchunk1Size
+            wav_data.write([1].pack("v"))               # AudioFormat (1 = PCM)
+            wav_data.write([channels].pack("v"))        # NumChannels
+            wav_data.write([sample_rate].pack("V"))     # SampleRate
+            wav_data.write([byte_rate].pack("V"))       # ByteRate
+            wav_data.write([block_align].pack("v"))     # BlockAlign
+            wav_data.write([bits_per_sample].pack("v")) # BitsPerSample
+            wav_data.write("data")
+            wav_data.write([data_size].pack("V"))       # Subchunk2Size
+            wav_data.write(decoded_audio)
+            
+            decoded_audio = wav_data.string
+            mime_type = "audio/wav"
+          end
+          
+          # Return both audio data and mime type for proper file extension handling
+          response = {
+            audio_data: decoded_audio,
+            mime_type: mime_type
+          }
         else
           return { type: "error", content: "ERROR: Invalid response format from Gemini API" }
         end
@@ -365,21 +413,43 @@ begin
   save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
 
   # Create output filename from input filename
-
   outfile = File.basename(textpath, ".*")
-  filename = "#{outfile}.mp3"
+  
+  # Determine file extension based on provider and response
+  file_extension = if provider == "gemini" && response.is_a?(Hash) && response[:mime_type]
+    # Extract extension from mime type (e.g., "audio/wav" -> "wav")
+    mime_ext = response[:mime_type].split("/").last
+    # Default to wav if we can't determine the format
+    %w[mp3 wav ogg flac aac].include?(mime_ext) ? mime_ext : "wav"
+  else
+    "mp3"
+  end
+  
+  filename = "#{outfile}.#{file_extension}"
   file_path = File.join(save_path, filename)
 
   # Save the audio file
-
-  File.open(file_path, "wb") do |f|
-    f.write(response)
+  audio_content = if provider == "gemini" && response.is_a?(Hash)
+    response[:audio_data]
+  else
+    response
   end
 
-  # Save a copy in the current directory
+  File.open(file_path, "wb") do |f|
+    f.write(audio_content)
+  end
 
-  File.write(outfile, response)
-  puts "Text-to-speech audio MP3 saved to #{filename}"
+  # Save a copy in the current directory (skip for Gemini to avoid issues)
+  if provider != "gemini"
+    File.write(outfile, response)
+  end
+  
+  # Display appropriate message based on file format
+  if provider == "gemini" && file_extension != "mp3"
+    puts "Text-to-speech audio saved to #{filename} (#{file_extension.upcase} format)"
+  else
+    puts "Text-to-speech audio MP3 saved to #{filename}"
+  end
 rescue StandardError => e
   puts "An error occurred: #{e.message}"
   puts e.backtrace.join("\n")

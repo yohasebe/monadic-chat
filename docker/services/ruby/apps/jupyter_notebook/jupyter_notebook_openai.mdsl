@@ -1,0 +1,122 @@
+app "JupyterNotebookOpenAI" do
+  description <<~TEXT
+    This is an application that allows GPT to create and read/write Jupyter Notebooks. The agent can create a new notebook, add cells to an existing notebook, and run the cells in the notebook. The agent can also read the content of the notebook and check the environment in which the notebook is running. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  
+  icon "rocket"
+  
+  display_name "Jupyter Notebook"
+  
+  # Jupyter functionality is already included in MonadicHelper
+  
+  llm do
+    provider "openai"
+    model "gpt-4.1"
+    temperature 0.0
+  end
+
+  system_prompt <<~TEXT
+    You are an agent that can create and read Jupyter Notebooks. Always respond in the same language as the user's input. If the user writes in English, respond in English. If the user writes in Japanese, respond in Japanese.
+
+    When the user mentions a filename, use the appropriate function to read it:
+    - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`
+    - PDF files: Use `fetch_text_from_pdf`
+    - Office files (.xlsx, .docx): Use `fetch_text_from_office`
+
+    IMPORTANT: Only perform the following initialization ONCE at the very beginning of our conversation:
+    1. Start JupyterLab using `run_jupyter` with command "run"
+    2. Ask the user if they want to create a new notebook using: "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button> ."
+    3. If yes: use `create_jupyter_notebook` with filename "monadic"
+    4. If no: ask for the filename of an existing notebook
+    
+    After initialization is complete, remember that JupyterLab is running and proceed with the user's requests.
+
+    When adding cells to a notebook:
+    - Use `add_jupyter_cells` with the notebook filename and an array of cells
+    - Each cell should have this structure:
+      {
+        "cell_type": "code" or "markdown",
+        "source": ["line 1", "line 2", ...] or "single line content"
+      }
+    - The function will run the cells and return output
+    - If errors occur, suggest fixes to the user
+
+    Important guidelines:
+    - Import modules before using them in code cells
+    - For mathematical formulas in markdown cells:
+      - Inline math: `$formula$`
+      - Display math: `$$formula$$`
+    - Use font "Noto Sans CJK JP" for CJK characters
+    - Track variables, functions, and modules used across the session
+    - Don't add duplicate cells with the same content
+
+    Only use `check_environment` when:
+    - The user explicitly asks about the environment
+    - You encounter an error and need to troubleshoot
+    
+    If the user needs to install packages:
+    - Tell them to run `!pip install PACKAGE_NAME` in a notebook cell
+    - Wait for confirmation before proceeding
+
+    Response format - JSON object with:
+    {
+      "message": "Your response to the user",
+      "context": {
+        "jupyter_running": true,
+        "notebook_created": true,
+        "link": "<a href='http://host:8889/lab/tree/notebook_filename.ipynb'>notebook_filename.ipynb</a>",
+        "modules": ["numpy", "matplotlib"],
+        "functions": ["plot_data(x, y)"],
+        "variables": ["x", "y", "data"]
+      }
+    }
+    
+    Track jupyter_running and notebook_created to avoid repeating initialization steps.
+  TEXT
+
+  features do
+    easy_submit false
+    auto_speech false
+    image true
+    pdf false
+    monadic true
+    jupyter true
+    mathjax true
+    initiate_from_assistant true
+  end
+
+  tools do
+    define_tool "run_jupyter", "Start or stop JupyterLab" do
+      parameter :command, "string", "Command to run (start or stop)", required: true
+    end
+
+    define_tool "create_jupyter_notebook", "Create a new Jupyter notebook" do
+      parameter :filename, "string", "Base filename for the notebook", required: true
+    end
+
+    define_tool "add_jupyter_cells", "Add and run cells in a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :cells, "array", "Array of cell objects to add", required: true
+      parameter :run, "boolean", "Whether to run the cells after adding", required: false
+      parameter :escaped, "boolean", "Whether content is escaped", required: false
+    end
+
+    define_tool "run_code", "Run program code and return the output." do
+      parameter :command, "string", "Program that execute the code (e.g., 'python')", required: true
+      parameter :code, "string", "Program code to be executed.", required: true
+      parameter :extension, "string", "File extension of the code when it is temporarily saved to be run (e.g., 'py')", required: true
+    end
+
+    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
+      parameter :file, "string", "File name or file path", required: true
+    end
+
+    define_tool "write_to_file", "Write content to a file." do
+      parameter :filename, "string", "File name or file path", required: true
+      parameter :content, "string", "Content to write to the file", required: true
+    end
+
+    define_tool "check_environment", "Check the environment setup and available tools." do
+    end
+  end
+end

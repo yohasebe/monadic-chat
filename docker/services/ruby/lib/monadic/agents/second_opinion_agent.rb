@@ -45,6 +45,34 @@ module SecondOpinionAgent
       puts "SecondOpinionAgent: Using model #{model} for second opinion"
     end
 
-    send_query(parameters, model: model)
+    response = send_query(parameters, model: model)
+    
+    # Parse the response to extract comments, validity, and model
+    if response.is_a?(String)
+      comments = ""
+      validity = "unknown"
+      
+      # Extract comments
+      if response =~ /### COMMENTS\s*\n(.*?)(?=\n### VALIDITY|\z)/m
+        comments = $1.strip
+      end
+      
+      # Extract validity
+      if response =~ /### VALIDITY\s*\n(\d+)\/10/
+        validity = "#{$1}/10"
+      end
+      
+      {
+        comments: comments,
+        validity: validity,
+        model: model
+      }
+    else
+      {
+        comments: "Failed to get second opinion",
+        validity: "error",
+        model: model
+      }
+    end
   end
 end

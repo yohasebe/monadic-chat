@@ -50,6 +50,9 @@ helpers WebSocketHelper
 
 require_relative "monadic/utils/pdf_text_extractor"
 require_relative "monadic/utils/text_embeddings"
+require_relative "monadic/utils/debug_helper"
+require_relative "monadic/utils/json_repair"
+require_relative "monadic/utils/error_pattern_detector"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"
@@ -368,7 +371,7 @@ def init_apps
       RSUFFIX
     end
 
-    if app.settings["pdf"]
+    if app.settings["pdf_vector_storage"]
       app.embeddings_db = EMBEDDINGS_DB
     end
 
@@ -452,8 +455,8 @@ configure do
   set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
   set :public_folder, "public"
   set :views, "views"
-  set :api_key, ENV["OPENAI_API_KEY"]
-  set :elevenlabs_api_key, ENV["ELEVENLABS_API_KEY"]
+  set :api_key, CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
+  set :elevenlabs_api_key, CONFIG["ELEVENLABS_API_KEY"] || ENV["ELEVENLABS_API_KEY"]
   enable :cross_origin
   
   # Add MIME type for WebAssembly files
@@ -816,6 +819,10 @@ post "/pdf" do
     
     if params["pdfFile"]
       begin
+        # Check if EMBEDDINGS_DB is available
+        unless EMBEDDINGS_DB
+          return { success: false, error: "Database connection not available" }.to_json
+        end
         pdf_file_handler = params["pdfFile"]["tempfile"]
         temp_file = Tempfile.new("temp_pdf")
         temp_file.binmode
@@ -853,10 +860,19 @@ post "/pdf" do
           items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
         end
         
-        EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
+        api_key = settings.api_key
+        if api_key.nil? || api_key.empty?
+          return { success: false, error: "API key not configured" }.to_json
+        end
+        
+        EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: api_key)
         return { success: true, filename: params["pdfFile"]["filename"] }.to_json
+      rescue TextEmbeddings::DatabaseError => e
+        return { success: false, error: "Database error: #{e.message}" }.to_json
+      rescue PG::Error => e
+        return { success: false, error: "PostgreSQL error: #{e.message}" }.to_json
       rescue => e
-        return { success: false, error: "Error processing PDF: #{e.message}" }.to_json
+        return { success: false, error: "Error processing PDF: #{e.class.name} - #{e.message}" }.to_json
       end
     else
       return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json

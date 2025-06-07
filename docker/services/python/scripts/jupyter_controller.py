@@ -66,12 +66,32 @@ def add_cells_to_notebook(notebook_path, new_cells, max_retries=5, retry_delay=1
         try:
             nb = read_notebook(notebook_path)
             for cell in new_cells:
-                if cell['type'] == 'markdown':
-                    nb['cells'].append(nbf.v4.new_markdown_cell(cell['content']))
-                elif cell['type'] == 'code':
-                    nb['cells'].append(nbf.v4.new_code_cell(cell['content']))
+                # Support both 'type' and 'cell_type' fields
+                cell_type = cell.get('type') or cell.get('cell_type')
+                # Support both 'content' and 'source' fields
+                content = cell.get('content')
+                if content is None:
+                    source = cell.get('source', '')
+                    # If source is a list, join it
+                    if isinstance(source, list):
+                        # Remove trailing newlines from each line before joining
+                        # This prevents double newlines when lines already have \n
+                        cleaned_lines = []
+                        for line in source:
+                            if isinstance(line, str) and line.endswith('\n'):
+                                cleaned_lines.append(line.rstrip('\n'))
+                            else:
+                                cleaned_lines.append(line)
+                        content = '\n'.join(cleaned_lines)
+                    else:
+                        content = source
+                
+                if cell_type == 'markdown':
+                    nb['cells'].append(nbf.v4.new_markdown_cell(content))
+                elif cell_type == 'code':
+                    nb['cells'].append(nbf.v4.new_code_cell(content))
                 else:
-                    raise ValueError(f"Invalid cell type: {cell['type']}")
+                    raise ValueError(f"Invalid cell type: {cell_type}")
             write_notebook(notebook_path, nb)
             print(f"Cells added to notebook at {notebook_path}")
             return

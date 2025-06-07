@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "../../utils/interaction_utils"
+
 module PerplexityHelper
-  MAX_FUNC_CALLS = 8
+  include InteractionUtils
+  MAX_FUNC_CALLS = 16
   API_ENDPOINT = "https://api.perplexity.ai"
 
   OPEN_TIMEOUT = 5
@@ -501,13 +504,13 @@ module PerplexityHelper
 
     unless res.status.success?
       begin
-        status = res.status
-        error_message = res.body.to_s
-        res = { "type" => "error", "content" => "API ERROR: #{status} - #{error_message}" }
+        error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
+        formatted_error = format_api_error(error_data, "perplexity")
+        res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
         block&.call res
         return [res]
       rescue StandardError
-        res = { "type" => "error", "content" => "API ERROR" }
+        res = { "type" => "error", "content" => "API ERROR: Unknown error occurred" }
         block&.call res
         return [res]
       end

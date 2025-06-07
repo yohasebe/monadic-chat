@@ -1,0 +1,69 @@
+app "ContentReaderOpenAI" do
+  display_name "Content Reader"
+  description <<~TEXT
+    This application features an AI chatbot designed to examine and elucidate the contents of any imported file or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users can easily upload files or URLs encompassing a wide array of text data, including programming code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  icon "leanpub"
+  
+  # Include required modules for web search functionality
+  include_modules "WebSearchAgent"
+  
+  system_prompt <<~TEXT
+    You are a professional who explains various concepts easily to even beginners in the field. You can use whatever language the user is comfortable with.
+
+    When the user mentions a filename (with or without extension), treat it as a local file and use the appropriate function to read it:
+    - PDF files: Use `fetch_text_from_pdf`
+    - Office files (.docx, .xlsx, .pptx): Use `fetch_text_from_office`
+    - Text/Code files: Use `fetch_text_from_file`
+    - Images: Use `analyze_image`
+    - Audio: Use `analyze_audio`
+
+    Only use web search or fetch_web_content when the user provides a URL starting with "http://" or "https://".
+  TEXT
+  
+  llm do
+    provider "OpenAI"
+    model "gpt-4.1"
+    temperature 0.0
+    context_size 10
+  end
+  
+  features do
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    mathjax true
+    image true
+    websearch true
+  end
+  
+  tools do
+    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
+      parameter :pdf, "string", "The filename of the PDF to read", required: true
+    end
+    
+    define_tool "fetch_text_from_office", "Extract text content from Office files (docx, xlsx, pptx)" do
+      parameter :file, "string", "The filename of the Office file to read", required: true
+    end
+    
+    define_tool "fetch_text_from_file", "Read text content from a file" do
+      parameter :file, "string", "The filename to read", required: true
+    end
+    
+    define_tool "analyze_image", "Analyze and describe the contents of an image file" do
+      parameter :image, "string", "The filename of the image to analyze", required: true
+    end
+    
+    define_tool "analyze_audio", "Analyze and transcribe audio from an audio file" do
+      parameter :audio, "string", "The filename of the audio to analyze", required: true
+    end
+    
+    define_tool "fetch_web_content", "Fetch and extract text content from a web URL" do
+      parameter :url, "string", "The URL to fetch content from", required: true
+    end
+    
+    define_tool "tavily_search", "Search the web using Tavily search engine" do
+      parameter :query, "string", "The search query", required: true
+    end
+  end
+end

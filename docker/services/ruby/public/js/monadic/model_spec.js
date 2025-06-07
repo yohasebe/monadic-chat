@@ -445,10 +445,18 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
   // Gemini models
+  "gemini-2.5-pro-preview-06-05": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   "gemini-2.5-flash-preview-05-20": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "temperature": [[0.0, 2.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -456,7 +464,7 @@ const modelSpec = {
   "gemini-2.5-pro-preview-05-06": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "temperature": [[0.0, 2.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -464,7 +472,7 @@ const modelSpec = {
   "gemini-2.5-pro-preview-03-25": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "temperature": [[0.0, 2.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -473,7 +481,7 @@ const modelSpec = {
   "gemini-2.5-pro-exp": {
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 64000],
-    "temperature": [[0.0, 2.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -481,7 +489,7 @@ const modelSpec = {
   "gemini-2.5-pro-exp-03-25": {
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 64000],
-    "temperature": [[0.0, 2.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true

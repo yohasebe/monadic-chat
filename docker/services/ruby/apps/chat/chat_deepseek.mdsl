@@ -28,6 +28,7 @@ app "ChatDeepSeek" do
     image false
     sourcecode true
     toggle true
+    websearch false
     group "DeepSeek"
   end
 end

@@ -38,7 +38,7 @@ class PDF2Text
     shared_volume = "/monadic/data/"
     container = "monadic-chat-python-container"
     command = <<~CMD
-      bash -c '/monadic/scripts/pdf2txt.py "#{new_file_name}" --format md'
+      bash -c '/monadic/scripts/pdf2txt.py "#{new_file_name}" --format md --json'
     CMD
     docker_command = <<~DOCKER
       docker exec -w #{shared_volume} #{container} #{command.strip}

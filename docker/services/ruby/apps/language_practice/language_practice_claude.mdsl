@@ -21,7 +21,6 @@ app "LanguagePracticeClaude" do
   display_name "Language Practice"
   
   features do
-    group "Anthropic"
     temperature 0.5
     context_size 100
     easy_submit true

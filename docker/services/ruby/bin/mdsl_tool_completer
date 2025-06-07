@@ -1,0 +1,242 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Tool for previewing and generating MDSL tool auto-completion
+# Usage: bin/mdsl_tool_completer [preview|validate] [app_name|file_path]
+
+require_relative '../lib/monadic/dsl/tool_auto_completer'
+require 'optparse'
+require 'json'
+
+class MDSLToolCompleterCLI
+  def initialize
+    @options = {
+      action: 'preview',
+      format: 'text',
+      verbose: false
+    }
+    
+    @parser = OptionParser.new do |opts|
+      opts.banner = "Usage: #{$0} [options] [app_name|file_path]"
+      
+      opts.on("-a", "--action ACTION", ["preview", "validate", "analyze"], 
+              "Action to perform: preview, validate, or analyze (default: preview)") do |action|
+        @options[:action] = action
+      end
+      
+      opts.on("-f", "--format FORMAT", ["text", "json"], 
+              "Output format: text or json (default: text)") do |format|
+        @options[:format] = format
+      end
+      
+      opts.on("-v", "--verbose", "Verbose output") do
+        @options[:verbose] = true
+      end
+      
+      opts.on("-h", "--help", "Show this help message") do
+        puts opts
+        exit
+      end
+    end
+  end
+  
+  def run(args)
+    @parser.parse!(args)
+    
+    target = args.first || detect_current_app
+    
+    if target.nil?
+      puts "Error: No app name or file path specified, and could not detect current app"
+      puts @parser
+      exit 1
+    end
+    
+    completer = MonadicDSL::ToolAutoCompleter.new
+    
+    case @options[:action]
+    when 'preview'
+      preview_auto_completion(completer, target)
+    when 'validate'
+      validate_tools(completer, target)
+    when 'analyze'
+      analyze_tools(completer, target)
+    else
+      puts "Unknown action: #{@options[:action]}"
+      exit 1
+    end
+  end
+  
+  private
+  
+  def detect_current_app
+    # Try to detect if we're in an app directory
+    current_dir = Dir.pwd
+    
+    if current_dir.include?('/apps/')
+      # Extract app name from path
+      app_path_match = current_dir.match(/\/apps\/([^\/]+)/)
+      return app_path_match[1] if app_path_match
+    end
+    
+    nil
+  end
+  
+  def resolve_target_path(target)
+    if File.exist?(target)
+      return target if target.end_with?('.mdsl')
+      return nil
+    end
+    
+    # Try to find MDSL files for app name
+    app_dir = File.join(Dir.pwd, "apps", target)
+    app_dir = File.join(Dir.pwd, "docker", "services", "ruby", "apps", target) unless File.directory?(app_dir)
+    
+    return nil unless File.directory?(app_dir)
+    
+    mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
+    mdsl_files.first # Return first MDSL file found
+  end
+  
+  def preview_auto_completion(completer, target)
+    mdsl_file = resolve_target_path(target)
+    
+    unless mdsl_file
+      puts "Error: Could not find MDSL file for: #{target}"
+      exit 1
+    end
+    
+    analysis = completer.preview_auto_completion(mdsl_file)
+    
+    if @options[:format] == 'json'
+      puts JSON.pretty_generate(analysis)
+      return
+    end
+    
+    # Text format output
+    puts "=== Auto-Completion Preview ==="
+    puts "MDSL File: #{analysis[:mdsl_file]}"
+    puts "Ruby Files: #{analysis[:ruby_files].join(', ')}"
+    puts
+    
+    if analysis[:missing_definitions].empty?
+      puts "✓ No missing tool definitions found"
+    else
+      puts "Missing Tool Definitions:"
+      analysis[:missing_definitions].each do |tool|
+        puts "  - #{tool}"
+      end
+      
+      if analysis[:auto_completion_preview]
+        puts
+        puts "Auto-Generated Definitions:"
+        analysis[:auto_completion_preview].each do |tool_def|
+          puts format_tool_definition(tool_def)
+        end
+      end
+    end
+    
+    unless analysis[:orphaned_definitions].empty?
+      puts
+      puts "⚠ Orphaned Definitions (defined but not implemented):"
+      analysis[:orphaned_definitions].each do |tool|
+        puts "  - #{tool}"
+      end
+    end
+  end
+  
+  def validate_tools(completer, target)
+    if File.directory?(target) || !target.include?('.')
+      # Validate directory
+      app_dir = resolve_target_path(target)
+      analyses = completer.analyze_directory(File.dirname(app_dir))
+      
+      issues = []
+      analyses.each do |analysis|
+        analysis[:missing_definitions].each do |tool|
+          issues << "Missing definition: #{tool} in #{File.basename(analysis[:mdsl_file])}"
+        end
+        
+        analysis[:orphaned_definitions].each do |tool|
+          issues << "Orphaned definition: #{tool} in #{File.basename(analysis[:mdsl_file])}"
+        end
+      end
+      
+      if issues.empty?
+        puts "✓ All tools are properly defined and implemented"
+        exit 0
+      else
+        puts "✗ Issues found:"
+        issues.each { |issue| puts "  #{issue}" }
+        exit 1
+      end
+    else
+      # Validate single file
+      preview_auto_completion(completer, target)
+    end
+  end
+  
+  def analyze_tools(completer, target)
+    mdsl_file = resolve_target_path(target)
+    
+    unless mdsl_file
+      puts "Error: Could not find MDSL file for: #{target}"
+      exit 1
+    end
+    
+    analysis = completer.analyze_single_file(mdsl_file)
+    
+    if @options[:format] == 'json'
+      puts JSON.pretty_generate(analysis)
+      return
+    end
+    
+    # Detailed text analysis
+    puts "=== Tool Analysis ==="
+    puts "MDSL File: #{analysis[:mdsl_file]}"
+    puts "Ruby Implementation Files: #{analysis[:ruby_files].size}"
+    
+    analysis[:ruby_files].each do |ruby_file|
+      puts "  - #{File.basename(ruby_file)}"
+    end
+    
+    puts
+    puts "Tool Summary:"
+    puts "  Explicitly Defined: #{analysis[:explicit_tools].size}"
+    puts "  Implemented: #{analysis[:implemented_tools].size}"
+    puts "  Missing Definitions: #{analysis[:missing_definitions].size}"
+    puts "  Orphaned Definitions: #{analysis[:orphaned_definitions].size}"
+    
+    if @options[:verbose]
+      puts
+      puts "Detailed Breakdown:"
+      
+      unless analysis[:explicit_tools].empty?
+        puts "  Explicit Tools:"
+        analysis[:explicit_tools].each { |tool| puts "    - #{tool}" }
+      end
+      
+      unless analysis[:implemented_tools].empty?
+        puts "  Implemented Tools:"
+        analysis[:implemented_tools].each { |tool| puts "    - #{tool}" }
+      end
+    end
+  end
+  
+  def format_tool_definition(tool_def)
+    definition = "define_tool \"#{tool_def[:name]}\", \"#{tool_def[:description]}\" do\n"
+    
+    tool_def[:parameters].each do |param|
+      required_text = param[:required] ? ", required: true" : ""
+      definition += "  parameter :#{param[:name]}, \"#{param[:type]}\", \"#{param[:description]}\"#{required_text}\n"
+    end
+    
+    definition += "end"
+    definition
+  end
+end
+
+# Run CLI if this file is executed directly
+if __FILE__ == $0
+  cli = MDSLToolCompleterCLI.new
+  cli.run(ARGV)
+end

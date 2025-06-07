@@ -353,6 +353,20 @@ class MonadicApp
 
     stdout, stderr, status = self.capture_command(system_command)
 
+    # Debug output for PDF processing
+    if command.include?("pdf2txt.py")
+      puts "DEBUG send_command:"
+      puts "Original command: #{command}"
+      puts "System command: #{system_command}"
+      puts "Status success?: #{status.success?}"
+      puts "Stdout length: #{stdout.length}"
+      puts "Stdout empty?: #{stdout.strip.empty?}"
+      puts "Stderr: #{stderr}" unless stderr.empty?
+      puts "Exit status: #{status.exitstatus}"
+      puts "Success message: '#{success}'"
+      puts "Success with output: '#{success_with_output}'"
+    end
+
     if block_given?
       yield(stdout, stderr, status)
     elsif status.success?
@@ -476,14 +490,18 @@ class MonadicApp
 
         output
       else
-        # Create detailed error information
-        last_error = {
-          message: stderr,
-          type: detect_error_type(stderr),
-          code_snippet: code,
-          attempt: retries + 1
-        }
-        raise StandardError, generate_error_suggestions(last_error)
+        # Format error message for better clarity
+        error_msg = stderr.strip
+        if error_msg.empty? && !stdout.strip.empty?
+          error_msg = stdout.strip
+        end
+        
+        # Add context about what was attempted
+        error_details = "Error executing #{command} code"
+        error_details += " (attempt #{retries + 1} of #{max_retries})" if retries > 0
+        error_details += ": #{error_msg}"
+        
+        raise StandardError, error_details
       end
     rescue StandardError => e
       if retries < max_retries
@@ -496,47 +514,6 @@ class MonadicApp
     end
   end
 
-  def detect_error_type(error_message)
-    case error_message
-    when /SyntaxError/
-      "SyntaxError"
-    when /ImportError|ModuleNotFoundError/
-      "ImportError"
-    when /NameError/
-      "NameError"
-    when /TypeError/
-      "TypeError"
-    when /ValueError/
-      "ValueError"
-    when /IndexError/
-      "IndexError"
-    when /KeyError/
-      "KeyError"
-    else
-      "UnknownError"
-    end
-  end
-
-  def generate_error_suggestions(error)
-    case error[:type]
-    when "SyntaxError"
-      "Check the code syntax: verify indentation, matching brackets, and proper statement termination."
-    when "ImportError"
-      "Required library might be missing. Check if all necessary packages are installed."
-    when "NameError"
-      "Variable or function might be undefined. Verify all names are properly defined before use."
-    when "TypeError"
-      "Operation might be performed on incompatible types. Check variable types and operations."
-    when "ValueError"
-      "Invalid value provided for operation. Verify input values and their formats."
-    when "IndexError"
-      "Array index out of bounds. Check array lengths and index values."
-    when "KeyError"
-      "Dictionary key not found. Verify key existence before access."
-    else
-      "Unexpected error occurred. Review the code logic and implementation."
-    end
-  end
 
   def run_code(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
     return "Error: code, command, and extension are required." if !code || !command || !extension
@@ -544,10 +521,41 @@ class MonadicApp
     send_code(code: code, command: command, extension: extension, success: success)
   end
 
-  # This is currently not used in the app
-  # Created to experiment with Google Gemini's function calling feature
+  # DEPRECATED: Legacy method for code execution with escape character processing
+  # 
+  # This method was previously used by Anthropic Claude to handle escaped code strings.
+  # As of January 2025, ALL providers (OpenAI, Claude, Gemini, Grok, etc.) use run_code instead.
+  # 
+  # Key differences:
+  # - run_script: Processes escape characters in code strings (e.g., \n, \t, \")
+  # - run_code: Accepts code strings as-is without escape processing
+  #
+  # This method is retained for backward compatibility only and should not be used
+  # in new applications or MDSL files.
+  #
+  # @deprecated Use {#run_code} instead
 
   def run_script(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
+    # Log parameter issues for debugging
+    if !code || !command || !extension
+      error_details = []
+      error_details << "code: #{code.nil? ? 'nil' : (code.empty? ? 'empty' : "present (#{code.length} chars)")}" 
+      error_details << "command: #{command.nil? ? 'nil' : (command.empty? ? 'empty' : command)}"
+      error_details << "extension: #{extension.nil? ? 'nil' : (extension.empty? ? 'empty' : extension)}"
+      
+      error_msg = "Error: code, command, and extension are required. Received: #{error_details.join(', ')}"
+      
+      # Log to command log for debugging
+      File.open(COMMAND_LOG_FILE, "a") do |f|
+        f.puts "Time: #{Time.now}"
+        f.puts "run_script called with missing parameters:"
+        f.puts error_msg
+        f.puts "-----------------------------------"
+      end
+      
+      return error_msg
+    end
+    
     # remove escape characters from the code
     if code
       code = code.gsub(/\\n/) { "\n" }
@@ -555,9 +563,6 @@ class MonadicApp
       code = code.gsub(/\\"/) { '"' }
       code = code.gsub(/\\\\/) { "\\" }
     end
-
-    # return the error message unless all the arguments are provided
-    return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension, success: success)
   end
@@ -622,7 +627,6 @@ class MonadicApp
     end
   end
 
-  # ファイルにログを書き出すための関数
   def log_to_file(message)
     log_file_path = File.join(Dir.home, "monadic", "log", "monadic_app_debug.log")
     File.open(log_file_path, "a") do |f|
@@ -638,7 +642,7 @@ class MonadicApp
       "openai" => "gpt-4.1",
       "anthropic" => "claude-3-5-sonnet-20240620",
       "cohere" => "command-r-plus",
-      "gemini" => "gemini-2.0-flash-exp",
+      "gemini" => "gemini-2.5-flash-preview-05-20",
       "mistral" => "mistral-large-latest",
       "grok" => "grok-2-1212",
       "perplexity" => "sonar",

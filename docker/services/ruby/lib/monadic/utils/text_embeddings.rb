@@ -39,7 +39,7 @@ class TextEmbeddings
       yield
     rescue PG::Error => e
       if attempts < RETRY_CONFIG[:max_attempts]
-        puts "#{operation_name} failed (attempt #{attempts}/#{RETRY_CONFIG[:max_attempts]}): #{e.message}"
+        puts "#{operation_name} failed (attempt #{attempts}/#{RETRY_CONFIG[:max_attempts]}): #{e.message}" if ENV['EMBEDDINGS_DEBUG']
         exponential_backoff(attempts)
         retry
       else
@@ -255,7 +255,7 @@ class TextEmbeddings
 
     true
   rescue DatabaseError => e
-    puts "Error during deletion process: #{e.message}"
+    puts "Error during deletion process: #{e.message}" if ENV['EMBEDDINGS_DEBUG']
     false
   end
   
@@ -282,7 +282,7 @@ class TextEmbeddings
   def get_embeddings(text, api_key: nil, retries: 3)
     raise ArgumentError, "Text cannot be empty" if text.empty?
 
-    uri = URI("https://api.openai.com/v1/engines/#{EMBEDDINGS_MODEL}/embeddings")
+    uri = URI("https://api.openai.com/v1/embeddings")
     request = Net::HTTP::Post.new(uri)
     request["Content-Type"] = "application/json"
 
@@ -293,7 +293,7 @@ class TextEmbeddings
                 end
 
     request["Authorization"] = "Bearer #{api_key}"
-    request.body = { input: text }.to_json
+    request.body = { input: text, model: EMBEDDINGS_MODEL }.to_json
 
     retries.times do |i|
       begin
@@ -304,14 +304,40 @@ class TextEmbeddings
         end
 
         if response.is_a?(Net::HTTPSuccess)
-          return JSON.parse(response.body)["data"][0]["embedding"]
+          begin
+            parsed_response = JSON.parse(response.body)
+            if parsed_response["data"] && parsed_response["data"][0] && parsed_response["data"][0]["embedding"]
+              return parsed_response["data"][0]["embedding"]
+            else
+              raise StandardError, "Invalid response format: missing embedding data"
+            end
+          rescue JSON::ParserError => e
+            raise StandardError, "Failed to parse API response: #{e.message}"
+          end
+        else
+          # Handle non-success responses
+          error_body = response.body
+          error_msg = if error_body && !error_body.empty?
+                        begin
+                          JSON.parse(error_body)["error"]["message"] rescue error_body
+                        rescue
+                          error_body
+                        end
+                      else
+                        "HTTP #{response.code} #{response.message}"
+                      end
+          
+          if i == retries - 1
+            raise StandardError, "API request failed: #{error_msg}"
+          else
+            exponential_backoff(i)
+          end
         end
       rescue StandardError => e
         last_attempt = (i == retries - 1)
         if last_attempt
           raise StandardError, "Failed to retrieve embeddings: #{e.message}"
         else
-          puts "API request failed (attempt #{i + 1}/#{retries}): #{e.message}"
           exponential_backoff(i)
         end
       end

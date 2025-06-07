@@ -1,4 +1,5 @@
-app "Wikipedia" do
+app "WikipediaOpenAI" do
+  display_name "Wikipedia"
   description <<~TEXT
     This is essentially the same as Chat, but for questions that GPT cannot answer, such as questions about events that occurred after the language model cutoff time, it searches Wikipedia to answer them. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
@@ -41,13 +42,6 @@ app "Wikipedia" do
   end
   
   tools do
-    define_tool "search_wikipedia", "A function to search Wikipedia articles, requiring one argument representing the query for the search." do
-      parameter :search_query, "string", "query for the search", required: true
-      parameter :language_code, "string", "language code of the Wikipedia to be searched", required: true
-    end
-    
-    define_tool "fetch_web_content", "Fetch the content of the web page of the given URL and save it to a file." do
-      parameter :url, "string", "URL of the web page.", required: true
-    end
+    # Standard tools will be auto-completed from MonadicApp base class
   end
 end

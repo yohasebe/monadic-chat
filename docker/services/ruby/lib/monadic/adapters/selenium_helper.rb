@@ -1,5 +1,6 @@
 module MonadicHelper
   def fetch_web_content(url: "")
+    puts "DEBUG: fetch_web_content called with url: #{url}" if ENV['APP_DEBUG']
     selenium_fetch(url: url)
   end
 

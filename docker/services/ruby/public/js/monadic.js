@@ -695,13 +695,23 @@ $(function () {
       }
     }
     lastApp = appValue;
+    // Preserve the current state of mathjax checkbox if not defined in app
+    const currentMathjax = $("#mathjax").prop('checked');
     Object.assign(params, apps[appValue]);
+    // Default 'initiate_from_assistant' to false if not explicitly set in app parameters
+    if (!apps[appValue].hasOwnProperty('initiate_from_assistant')) {
+      params['initiate_from_assistant'] = false;
+    }
+    // Restore mathjax state if not explicitly set in app parameters
+    if (!apps[appValue].hasOwnProperty('mathjax')) {
+      params['mathjax'] = currentMathjax;
+    }
     loadParams(params, "changeApp");
     
     // Update app icon in the select dropdown
     updateAppSelectIcon(appValue);
 
-    if (apps[appValue]["pdf"]) {
+    if (apps[appValue]["pdf"] || apps[appValue]["pdf_vector_storage"]) {
       $("#file-div").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
@@ -1148,7 +1158,7 @@ $(function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+      $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
       $("#message").prop("disabled", false);
       $("#select-role").prop("disabled", false);
       $("#monadic-spinner").hide();
@@ -1238,7 +1248,7 @@ $(function () {
     // Reset AI user state if active
     $("#message").attr("placeholder", "Type your message . . .");
     $("#message").prop("disabled", false);
-    $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
+    $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
     $("#ai_user_provider").prop("disabled", false);
     $("#ai_user").prop("disabled", false);
 
@@ -1452,7 +1462,7 @@ $(function () {
     $("#load-spinner").hide();
   });
 
-  $("#file").on("click", function (event) {
+  $("#pdf-import").on("click", function (event) {
     event.preventDefault();
     $("#file-title").val("");
     $("#fileFile").val("");
@@ -1461,9 +1471,18 @@ $(function () {
 
   let fileTitle = "";
 
-  $("#uploadFile").on("click", async function () {
+  // Ensure event handler is properly attached when document is ready
+  $(document).on("click", "#uploadFile", async function (e) {
+    e.preventDefault();
+    
     const fileInput = $("#fileFile")[0];
     const file = fileInput.files[0];
+    
+    // Check if formHandlers is available
+    if (typeof formHandlers === 'undefined' || !formHandlers.uploadPdf) {
+      setAlert("Upload functionality not available", "error");
+      return;
+    }
     
     try {
       // Disable UI elements during upload
@@ -1482,9 +1501,10 @@ $(function () {
         $("#fileModal button").prop('disabled', false);
         $("#fileModal").modal("hide");
         
-        // Refresh PDF titles and show success message
+        // Refresh PDF titles and show success message with filename
         ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-        setAlert("<i class='fa-solid fa-circle-check'></i> File uploaded successfully", "success");
+        const uploadedFilename = response.filename || "PDF file";
+        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" uploaded successfully`, "success");
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";

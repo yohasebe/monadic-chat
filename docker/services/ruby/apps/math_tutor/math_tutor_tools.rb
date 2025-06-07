@@ -1,0 +1,2 @@
+class MathTutorOpenAI < MonadicApp
+end

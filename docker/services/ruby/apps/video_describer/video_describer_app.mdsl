@@ -36,8 +36,9 @@ app "VideoDescriberApp" do
   
   display_name "Video Describer"
   
+  include_modules "VideoAnalyzeAgent"
+
   features do
-    group "OpenAI"
     disabled !CONFIG["OPENAI_API_KEY"]
     temperature 0.0
     presence_penalty 0.2
@@ -48,10 +49,10 @@ app "VideoDescriberApp" do
   end
   
   tools do
-    define_tool "analyze_video", "Analyze the video content and provide a description of the contents of the video." do
-      parameter :file, "string", "File name or file path", required: true
-      parameter :fps, "number", "Frames per second to extract from the video", required: true
-      parameter :query, "string", "Query to be used for generating the description of the video content. If omitted, a default query 'What is happening in the video?' will be used."
+    define_tool "analyze_video", "Analyze video content and generate description" do
+      parameter :filename, "string", "The video file to analyze", required: true
+      parameter :fps, "integer", "Frames per second to extract (default: 1)", required: false
+      parameter :query, "string", "Query to guide the analysis", required: false
     end
   end
 end

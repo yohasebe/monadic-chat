@@ -104,7 +104,12 @@ PERPLEXITY_API_KEY=api_key
 
 ![DeepSeek apps icon](../assets/icons/d.png ':size=40')
 
-By setting the DeepSeek API key, you can use apps that utilize DeepSeek. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the DeepSeek API key, you can use apps that utilize DeepSeek. DeepSeek provides powerful AI models with function calling support. Available models include:
+
+- deepseek-chat (default)
+- deepseek-reasoner
+
+Note: DeepSeek's Code Interpreter app works best with simpler, direct prompts due to the model's sensitivity to prompt complexity.
 
 ```
 DEEPSEEK_API_KEY=api_key

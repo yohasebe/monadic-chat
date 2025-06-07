@@ -8,6 +8,16 @@ Monadic Chat では、Python コンテナを使用して Python のコードを�
 
 ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
+## 日本語フォントサポート
+
+Pythonコンテナには、matplotlibやその他の可視化ライブラリ用の日本語フォントサポートが含まれています。Noto Sans CJK JPフォントがインストールされ、`matplotlibrc`設定を通じて設定されています：
+
+- フォントファミリー: Noto Sans CJK JP
+- 設定ファイル: `/monadic/matplotlibrc`
+- これにより、matplotlibのプロットや図で日本語テキストが正しく表示されます
+
+日本語テキストを含むチャートやプロットを生成する場合、追加の設定なしで自動的にフォントが使用されます。
+
 ## ライブラリの追加
 
 追加のライブラリをインストールする場合は、下記のいずれかを行なってください。
@@ -69,4 +79,15 @@ pip install sudachipy==0.6.8
 
 # Download spaCy models
 python -m spacy download ja_core_news_sm
+```
+
+### Matplotlib設定のカスタマイズ
+
+matplotlibの設定をさらにカスタマイズする必要がある場合は、共有フォルダに`matplotlibrc`ファイルを作成または変更できます。このファイルはコンテナのセットアップ中に適切な場所にコピーされます：
+
+```ini
+# matplotlibrc設定の例
+font.family: Noto Sans CJK JP
+font.size: 12
+axes.unicode_minus: False
 ```

@@ -15,13 +15,12 @@ app "LanguagePracticeGemini" do
   
   llm do
     provider "gemini"
-    model "gemini-2.0-flash-exp"
+    model "gemini-2.5-flash-preview-05-20"
   end
   
   display_name "Language Practice"
   
   features do
-    group "Google"
     temperature 0.5
     context_size 100
     easy_submit true

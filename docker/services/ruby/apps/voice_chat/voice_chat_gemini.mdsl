@@ -19,7 +19,7 @@ app "VoiceChatGemini" do
   
   llm do
     provider "gemini"
-    model "gemini-2.0-flash-exp"
+    model "gemini-2.5-flash-preview-05-20"
   end
   
   display_name "Voice Chat"

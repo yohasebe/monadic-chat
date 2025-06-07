@@ -2,9 +2,16 @@
 
 require 'fileutils'
 require 'base64'
+require 'securerandom'
+require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_pattern_detector"
+require_relative "../../utils/function_call_error_handler"
 
 module OpenAIHelper
-  MAX_FUNC_CALLS = 12
+  include InteractionUtils
+  include ErrorPatternDetector
+  include FunctionCallErrorHandler
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
 
   OPEN_TIMEOUT = 20
@@ -699,7 +706,8 @@ module OpenAIHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
       pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
+      formatted_error = format_api_error(error_report, "openai")
+      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
       block&.call res
       return [res]
     end
@@ -872,12 +880,33 @@ module OpenAIHelper
       call_depth += 1
 
       if call_depth > MAX_FUNC_CALLS
+        # Send notice fragment
         res = {
           "type" => "fragment",
           "content" => "NOTICE: Maximum function call depth exceeded"
         }
         block&.call res
-        new_results = nil
+        
+        # Create a mock HTML response to properly end the conversation
+        html_res = {
+          "type" => "html",
+          "content" => {
+            "role" => "assistant",
+            "text" => "NOTICE: Maximum function call depth exceeded",
+            "html" => "<p>NOTICE: Maximum function call depth exceeded</p>",
+            "lang" => "en",
+            "mid" => SecureRandom.hex(4)
+          }
+        }
+        block&.call html_res
+        
+        # Return appropriate result to end the conversation
+        if result
+          result["choices"][0]["finish_reason"] = "stop"
+          return [result]
+        else
+          return [{ "type" => "message", "content" => "DONE", "finish_reason" => "stop" }]
+        end
       else
         context = []
         if result
@@ -889,6 +918,18 @@ module OpenAIHelper
 
         tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
         new_results = process_functions(app, session, tools, context, call_depth, &block)
+        
+        # Check if we should stop retrying due to repeated errors
+        if should_stop_for_errors?(session)
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+          if result
+            result["choices"][0]["finish_reason"] = "stop"
+            return [result]
+          else
+            return [res]
+          end
+        end
       end
 
       # return Array
@@ -941,6 +982,20 @@ module OpenAIHelper
         pp e.message
         pp e.backtrace
         function_return = "ERROR: #{e.message}"
+      end
+
+      # Use the error handler module to check for repeated errors
+      if handle_function_error(session, function_return, function_name, &block)
+        # Stop retrying - add a special response
+        context << {
+          tool_call_id: tool_call["id"],
+          role: "tool",
+          name: function_name,
+          content: function_return.to_s
+        }
+        
+        obj["function_returns"] = context
+        return api_request("tool", session, call_depth: call_depth, &block)
       end
 
       context << {

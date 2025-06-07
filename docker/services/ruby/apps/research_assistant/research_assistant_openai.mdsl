@@ -11,8 +11,7 @@ app "ResearchAssistantOpenAI" do
   display_name "Research Assistant"
 
   features do
-    group "OpenAI"
-    disabled !CONFIG["OPENAI_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
+    disabled !CONFIG["OPENAI_API_KEY"]
     websearch true
     temperature 0.2
     easy_submit false
@@ -22,33 +21,18 @@ app "ResearchAssistantOpenAI" do
     toggle true
   end
 
-  # OpenAI tools
+  include_modules "WebSearchAgent"
+  
   tools do
-    define_tool "fetch_text_from_office", "Fetch the text from the Microsoft Word/Excel/PowerPoint file and return it." do
-      parameter :file, "string", "File name or file path of the Microsoft Word/Excel/PowerPoint file.", required: true
+    # Standard tools will be auto-completed from MonadicApp base class
+    
+    define_tool "websearch_agent", "Search the web for information" do
+      parameter :query, "string", "The search query", required: true
     end
-
-    define_tool "fetch_text_from_pdf", "Fetch the text from the PDF file and return it." do
-      parameter :pdf, "string", "File name or file path of the PDF", required: true
-    end
-
-    define_tool "analyze_image", "Analyze the image and return the result." do
-      parameter :message, "string", "Text prompt asking about the image (e.g. 'What is in the image?').", required: true
-      parameter :image_path, "string", "Path to the image file. It can be either a local file path or a URL.", required: true
-    end
-
-    define_tool "analyze_audio", "Analyze the audio and return the transcript." do
-      parameter :audio, "string", "File path of the audio file", required: true
-    end
-
-    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
-      parameter :file, "string", "File name or file path", required: true
-    end
-
-    define_tool "run_code", "Run program code and return the output." do
-      parameter :command, "string", "Code execution command (e.g., 'python')", required: true
-      parameter :code, "string", "Code to be executed.", required: true
-      parameter :extension, "string", "File extension of the code (e.g., 'py')", required: true
+    
+    define_tool "tavily_search", "Search the web using Tavily API" do
+      parameter :query, "string", "The search query", required: true
+      parameter :n, "integer", "Number of results to return (default: 5)"
     end
   end
 end

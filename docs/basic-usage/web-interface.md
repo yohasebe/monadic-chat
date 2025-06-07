@@ -63,7 +63,7 @@ The maximum number of utterances to keep active in the ongoing chat. Only active
 
 These elements are sent as parameters to the API. For details on each parameter, see the Chat API [Reference](https://platform.openai.com/docs/api-reference/chat). Note that parameters not supported by the selected model are ignored.
 
-- Temperature
+- Temperature (Note: For thinking models like Gemini 2.5 Flash Thinking or Claude 3.5 Sonnet New, this is replaced by "Reasoning Effort")
 - Top P
 - Presence Penalty
 - Frequency Penalty

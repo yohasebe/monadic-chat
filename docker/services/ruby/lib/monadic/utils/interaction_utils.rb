@@ -1,3 +1,5 @@
+require 'json'
+
 module InteractionUtils
   API_ENDPOINT = "https://api.openai.com/v1"
   TEMP_AUDIO_FILE = "temp_audio_file"
@@ -34,6 +36,168 @@ module InteractionUtils
   # Initialize cache as a singleton
   def self.api_key_cache
     @api_key_cache ||= ApiKeyCache.new
+  end
+
+  # Format API error JSON for better readability
+  # @param error_data [Hash] The error data (can be nested)
+  # @param provider [String] The provider name (optional, for context)
+  # @return [String] Formatted error message
+  def format_api_error(error_data, provider = nil)
+    return error_data.to_s unless error_data.is_a?(Hash)
+
+    error_parts = []
+    
+    # Add provider context if available
+    error_parts << "[#{provider.upcase}]" if provider
+
+    # Extract main error message
+    main_message = extract_error_message(error_data)
+    if main_message && main_message != error_data.to_s
+      error_parts << main_message
+      
+      # Add additional context for specific error types
+      context = extract_error_context(error_data)
+      error_parts << context if context && !context.empty?
+    else
+      # If we couldn't extract a meaningful message, include the full error data
+      # but format it more readably
+      formatted_full_error = format_full_error_data(error_data)
+      error_parts << formatted_full_error
+    end
+
+    # In debug mode, also include the original error data
+    if ENV['APP_DEBUG'] && main_message && main_message != error_data.to_s
+      error_parts << "(Raw: #{error_data.to_s.slice(0, 200)}#{error_data.to_s.length > 200 ? '...' : ''})"
+    end
+
+    error_parts.join(" ")
+  end
+
+  private
+
+  def extract_error_message(error_data)
+    # Try various common error message paths
+    return error_data["message"] if error_data["message"]
+    return error_data["error"]["message"] if error_data.dig("error", "message")
+    return error_data["detail"] if error_data["detail"]
+    return error_data["error"] if error_data["error"].is_a?(String)
+    
+    # For nested structures, try to find the most relevant message
+    if error_data["error"].is_a?(Hash)
+      nested_error = error_data["error"]
+      return nested_error["message"] || nested_error["detail"] || nested_error["description"]
+    end
+
+    # Fallback to the entire error object
+    error_data.to_s
+  end
+
+  def extract_error_context(error_data)
+    context_parts = []
+
+    # Handle quota errors specifically
+    if error_data.dig("error", "code") == 429 || error_data["code"] == 429
+      context_parts << "Rate limit exceeded"
+      
+      # Extract quota information
+      if error_data.dig("error", "details")
+        details = error_data["error"]["details"]
+        quota_failures = details.find { |detail| detail["@type"]&.include?("QuotaFailure") }
+        if quota_failures && quota_failures["violations"]
+          violations = quota_failures["violations"]
+          violation_types = violations.map { |v| v["quotaMetric"]&.split("/")&.last }.compact.uniq
+          context_parts << "Quotas: #{violation_types.join(", ")}" unless violation_types.empty?
+        end
+      end
+    end
+
+    # Handle other specific error codes
+    case error_data.dig("error", "code") || error_data["code"]
+    when 401
+      context_parts << "Authentication failed"
+    when 403
+      context_parts << "Access forbidden"
+    when 404
+      context_parts << "Resource not found"
+    when 500, 502, 503
+      context_parts << "Server error"
+    end
+
+    # Extract status information
+    if error_data.dig("error", "status") && error_data["error"]["status"] != "RESOURCE_EXHAUSTED"
+      context_parts << "Status: #{error_data["error"]["status"]}"
+    end
+
+    context_parts.join(", ")
+  end
+
+  def format_full_error_data(error_data)
+    # Try to format the full error data in a more readable way
+    # while preserving all information
+    case error_data
+    when Hash
+      # If it's a hash, try to extract key information
+      key_info = []
+      
+      # Look for common error fields and present them clearly
+      if error_data["error"]
+        if error_data["error"].is_a?(Hash)
+          key_info << "Error: #{format_nested_hash(error_data["error"])}"
+        else
+          key_info << "Error: #{error_data["error"]}"
+        end
+      end
+      
+      if error_data["message"]
+        key_info << "Message: #{error_data["message"]}"
+      end
+      
+      if error_data["details"]
+        key_info << "Details: #{format_nested_hash(error_data["details"])}"
+      end
+      
+      if error_data["code"]
+        key_info << "Code: #{error_data["code"]}"
+      end
+      
+      if error_data["status"]
+        key_info << "Status: #{error_data["status"]}"
+      end
+      
+      # If we found key information, use it. Otherwise, fall back to JSON.
+      if key_info.any?
+        key_info.join(", ")
+      else
+        # Format as readable JSON but limit depth to avoid huge output
+        JSON.pretty_generate(error_data).lines.first(10).join.chomp
+      end
+    else
+      error_data.to_s
+    end
+  rescue JSON::GeneratorError, StandardError
+    # If JSON formatting fails, just convert to string
+    error_data.to_s
+  end
+
+  def format_nested_hash(hash, max_depth = 2, current_depth = 0)
+    return hash.to_s if current_depth >= max_depth || !hash.is_a?(Hash)
+    
+    parts = []
+    hash.each do |key, value|
+      if value.is_a?(Hash) && current_depth < max_depth - 1
+        nested = format_nested_hash(value, max_depth, current_depth + 1)
+        parts << "#{key}: {#{nested}}"
+      elsif value.is_a?(Array)
+        # For arrays, show first few elements
+        array_preview = value.first(3).map(&:to_s).join(", ")
+        array_preview += "..." if value.length > 3
+        parts << "#{key}: [#{array_preview}]"
+      else
+        parts << "#{key}: #{value}"
+      end
+    end
+    
+    parts.join(", ")
   end
 
   # Check if the API key is valid with caching mechanism
@@ -601,16 +765,19 @@ module InteractionUtils
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
       if res.status.success?
-        res = JSON.parse(res.body)
+        res_json = JSON.parse(res.body)
+        res_json.dig("results", 0, "raw_content") || "No content found"
       else
         # Parse the response body only once
         error_report = JSON.parse(res.body)
-        res = "ERROR: #{error_report}"
+        "ERROR: #{error_report}"
       end
-
-      res.dig("results", 0, "raw_content") || "No content found"
     rescue HTTP::Error, HTTP::TimeoutError => e
       "Error occurred: #{e.message}"
+    rescue JSON::ParserError => e
+      "Error parsing response: #{e.message}"
+    rescue StandardError => e
+      "Unexpected error in tavily_fetch: #{e.message}"
     end
   end
 end

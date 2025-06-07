@@ -119,6 +119,31 @@ def export_as_json(pdf_path: str, output_format: str, all_pages: bool, show_prog
         print(f"Error processing PDF: {str(e)}")
         raise
 
+def export_as_text(pdf_path: str, output_format: str, all_pages: bool, show_progress: bool = False) -> None:
+    """
+    Export extracted text as plain text.
+    
+    Args:
+        pdf_path: Path to the PDF file
+        output_format: Output format ('md', 'txt', 'html', 'xml')
+        all_pages: If True, combine all pages into single output
+        show_progress: Show progress bar for markdown format (default: False)
+    
+    Raises:
+        Exception: If any error occurs during processing
+    """
+    try:
+        pages = []
+        for page_text in extract_text(pdf_path, output_format, all_pages, show_progress):
+            pages.append(page_text.strip())
+        
+        # Print the text directly to stdout (no JSON wrapping)
+        print('\n\n'.join(pages))
+
+    except Exception as e:
+        print(f"Error processing PDF: {str(e)}")
+        raise
+
 def main() -> None:
     """
     Main function to handle command line arguments and process PDF file.
@@ -149,16 +174,29 @@ def main() -> None:
         action="store_true",
         help="Enable progress bar (markdown format only)"
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON format (default is plain text)"
+    )
 
     args = parser.parse_args()
 
     try:
-        export_as_json(
-            args.pdf_path,
-            args.format,
-            args.all_pages,
-            show_progress=args.show_progress
-        )
+        if args.json:
+            export_as_json(
+                args.pdf_path,
+                args.format,
+                args.all_pages,
+                show_progress=args.show_progress
+            )
+        else:
+            export_as_text(
+                args.pdf_path,
+                args.format,
+                args.all_pages,
+                show_progress=args.show_progress
+            )
     except Exception as e:
         print(f"Error: {str(e)}")
         sys.exit(1)

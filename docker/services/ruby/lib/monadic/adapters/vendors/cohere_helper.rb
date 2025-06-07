@@ -1,7 +1,9 @@
 # frozen_string_literal: true
+require_relative "../../utils/interaction_utils"
 
 module CohereHelper
-  MAX_FUNC_CALLS = 8
+  include InteractionUtils
+  MAX_FUNC_CALLS = 16
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
   OPEN_TIMEOUT = 5
@@ -596,6 +598,9 @@ module CohereHelper
 
     websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
     message = obj["message"]
+    
+    # Debug logging for websearch
+    DebugHelper.debug("Cohere websearch enabled: #{websearch}", category: :api, level: :info) if websearch
 
     # Handle non-tool messages and update session
     if role != "tool"
@@ -682,10 +687,13 @@ module CohereHelper
       body["tools"] = APPS[app].settings["tools"]
       body["tools"].push(*WEBSEARCH_TOOLS) if websearch
       body["tools"].uniq!
+      DebugHelper.debug("Cohere tools with websearch: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
+      DebugHelper.debug("Cohere tools (websearch only): #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
     else
       body.delete("tools")
+      DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
     end
 
     # Handle tool results in v2 format
@@ -728,7 +736,8 @@ module CohereHelper
                       { "message" => "Unknown error occurred" }
                     end
       pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
+      formatted_error = format_api_error(error_report, "cohere")
+      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
       block&.call res
       return [res]
     end

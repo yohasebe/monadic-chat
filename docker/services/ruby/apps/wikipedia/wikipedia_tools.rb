@@ -1,0 +1,2 @@
+class WikipediaOpenAI < MonadicApp
+end

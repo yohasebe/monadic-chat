@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "../../utils/debug_helper"
+
 module TavilyHelper
+  include DebugHelper
   OPEN_TIMEOUT = 10 # Timeout for opening a connection (seconds)
   READ_TIMEOUT = 60 # Timeout for reading data (seconds)
   WRITE_TIMEOUT = 60 # Timeout for writing data (seconds)
@@ -12,6 +15,12 @@ module TavilyHelper
 
   def tavily_fetch(url:)
     api_key = CONFIG["TAVILY_API_KEY"]
+    
+    # Check if API key is present
+    if api_key.nil? || api_key.empty?
+      return { error: "Tavily API key is not configured. Please set TAVILY_API_KEY in your environment." }
+    end
+    
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
@@ -45,7 +54,15 @@ module TavilyHelper
   end
 
   def tavily_search(query:, n: 1)
+    DebugHelper.debug("tavily_search called with query: #{query}, n: #{n}", category: :web_search, level: :debug)
+    
     api_key = CONFIG["TAVILY_API_KEY"]
+    
+    # Check if API key is present
+    if api_key.nil? || api_key.empty?
+      return { error: "Tavily API key is not configured. Please set TAVILY_API_KEY in your environment." }
+    end
+    
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"

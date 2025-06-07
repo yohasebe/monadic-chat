@@ -193,6 +193,11 @@ module WebSocketHelper
         end
       end
       v.api_key = settings.api_key if v.respond_to?(:api_key=) && settings.respond_to?(:api_key)
+      
+      # Debug output for specific apps
+      if k == "Wikipedia" || k == "NovelWriterOpenAI"
+        puts "DEBUG prepare_apps_data: #{k} has group = #{apps[k]["group"].inspect}"
+      end
     end
     apps
   end

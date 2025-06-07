@@ -4,17 +4,38 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 
 ## How to Add a Simple App
 
-1. Create a recipe file for the app. The recipe file is written in Ruby.
-2. Save the recipe file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
+### MDSL Format (Primary Method)
+
+1. Create an MDSL (Monadic Domain Specific Language) file for the app.
+2. Save the MDSL file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
 3. Restart Monadic Chat.
 
-The recipe file can be saved in any directory under the `apps` directory as long as it is correctly written.
+**MDSL Auto-Completion Feature**: Monadic Chat includes an automatic tool completion system that dynamically generates tool definitions from Ruby implementation files. This reduces manual work and ensures consistency between tool definitions and implementations.
 
-For information on how to write a recipe file, see [Writing the Recipe File](#writing-the-recipe-file).
+**Common App Patterns**:
+- **Facade Pattern**: Apps with `*_tools.rb` files using facade methods for all custom functionality (Recommended)
+- **Module Integration**: Apps using `include_modules` + facade methods for shared capabilities
+- **Standard Tools**: Apps using only built-in MonadicApp methods
+
+**Error Prevention**: The system includes error pattern detection that prevents infinite retry loops by:
+- Detecting repeated errors (font, module, permission issues)
+- Stopping after 3 similar errors
+- Providing context-aware suggestions
+
+**Important**: Empty `tools do` blocks can cause "Maximum function call depth exceeded" errors. Always define tools explicitly or create a companion `*_tools.rb` file.
+
+For detailed information on MDSL format and auto-completion, see [Monadic DSL Documentation](monadic_dsl.md).
 
 ### How to Add an Advanced App
 
-The recipe file for an app defines a class that inherits from `MonadicApp` and describes the application settings in the instance variable `@settings`. Files in the `helpers` folder are loaded before the recipe file, so you can use helper files to extend the functionality of the application. For example, you can define a module in the helper folder and include it in the class that inherits from `MonadicApp` defined in the recipe file. This way, you can consolidate common functions into a module and reuse them in multiple apps.
+For robust app development, use MDSL with the facade pattern:
+- Create `app_name_provider.mdsl` for each provider (e.g., `chat_openai.mdsl`)
+- Create `app_name_tools.rb` with facade methods extending MonadicApp
+- Include input validation and error handling in facade methods
+- Use `include_modules` for shared functionality with facade wrappers
+- Rely on auto-completion from facade methods
+
+Files in the `helpers` folder are loaded before the app files, so you can use helper files to extend the functionality of the application. This way, you can consolidate common functions into a module and reuse them in multiple apps.
 
 If you want to add a new container other than the standard container, store Docker-related files in the `services` folder. When you want to execute a specific command available in each container or use a Python function, use the `send_command` method or `send_code` method defined in `MonadicApp`, which is the base class for all additional apps (for more information, see [Calling Functions in the App](#calling-functions-in-the-app)).
 
@@ -26,7 +47,10 @@ When defining an app by combining these elements, the folder structure will look
     └── data
         ├── apps
         │   └── my_app
-        │       └── my_app.rb
+        │       ├── my_app_openai.mdsl
+        │       ├── my_app_claude.mdsl
+        │       ├── my_app_tools.rb
+        │       └── my_app_constants.rb (optional)
         ├── helpers
         │   └── my_helper.rb
         └── services
@@ -49,7 +73,9 @@ To create a plugin, create a folder under `~/monadic/data/plugins` and create `a
             └── my_plugin
                 ├── apps
                 │   └── my_app
-                │       └── my_app.rb
+                │       ├── my_app_openai.mdsl
+                │       ├── my_app_claude.mdsl
+                │       └── my_app_tools.rb
                 ├── helpers
                 │   └── my_helper.rb
                 └── services
@@ -60,11 +86,117 @@ To create a plugin, create a folder under `~/monadic/data/plugins` and create `a
 
 The above file structure is an example of a plugin that includes an app, a helper, and a service; a rather complex plugin structure. You can create a simpler plugin structure by omitting the `helpers` and `services` folders.
 
-## Writing the Recipe File :id=writing-the-recipe-file
+## Best Practices for MDSL Development
 
-!> The documentation below describes the traditional Ruby class-based approach for creating apps. For simpler app development, consider using the new [Monadic DSL format](/advanced-topics/monadic_dsl.md), which provides a more concise and readable syntax.
+### Always Use Facade Pattern
 
-In the recipe file, define a class that inherits from `MonadicApp` and describe the application settings in the instance variable `@settings`. The class name must be unique across all recipe files, as it is used internally as an identifier for registration.
+For maintainable and robust MDSL applications:
+
+**Benefits of Facade Pattern:**
+- **Clear API**: Explicit method signatures for auto-completion
+- **Input Validation**: Prevent invalid function calls
+- **Error Handling**: Consistent error response format
+- **Debugging**: Easy to trace and log method calls
+- **Future-proof**: Interface stability when underlying implementation changes
+
+**Implementation Template:**
+
+Create a corresponding MDSL file:
+```ruby
+# my_app_openai.mdsl
+app "MyAppOpenAI" do
+  description "My custom app"
+  icon "🚀"
+  display_name "My App"
+  
+  llm do
+    provider "openai"
+    model "gpt-4o"
+  end
+  
+  system_prompt "You are a helpful assistant."
+  
+  tools do
+    # Tools will be auto-completed from my_app_tools.rb
+  end
+end
+```
+
+**Note on App Naming Convention**: The app name in the MDSL file should follow the pattern `AppNameProvider` where:
+- `AppName` is your application name in PascalCase
+- `Provider` is the LLM provider name capitalized (e.g., `OpenAI`, `Claude`, `Gemini`)
+- Examples: `ChatOpenAI`, `CodingAssistantClaude`, `ResearchAssistantGemini`
+
+And a tools file with facade pattern:
+```ruby
+# my_app_tools.rb
+class MyAppOpenAI < MonadicApp  # Class name must match the app name in MDSL
+  # Facade method with full validation and error handling
+  def method_name(required_param:, optional_param: nil)
+    # 1. Input validation
+    validate_inputs!(required_param, optional_param)
+    
+    # 2. Call underlying implementation
+    result = underlying_implementation(required_param, optional_param)
+    
+    # 3. Return structured response
+    format_response(result)
+  rescue StandardError => e
+    handle_error(e)
+  end
+  
+  private
+  
+  def validate_inputs!(required_param, optional_param)
+    raise ArgumentError, "Required parameter missing" if required_param.nil?
+    # Add specific validations
+  end
+  
+  def format_response(result)
+    { success: true, data: result }
+  end
+  
+  def handle_error(error)
+    { success: false, error: error.message }
+  end
+end
+```
+
+## Troubleshooting Common Issues
+
+### Missing Method Errors
+If you encounter "undefined method" errors:
+
+1. **Create facade methods**: Use `*_tools.rb` files with facade pattern for all custom methods
+2. **Add module integration**: Use `include_modules` with facade wrappers for shared functionality
+3. **Verify class naming**: Class name in tools file must match the app ID
+
+**Facade Pattern Fix**:
+```ruby
+# app_name_tools.rb
+class AppNameProvider < MonadicApp
+  def custom_method(param:, options: {})
+    # Input validation
+    raise ArgumentError, "Parameter required" if param.nil?
+    
+    # Call underlying implementation
+    result = underlying_service.method(param, options)
+    
+    # Return structured response
+    { success: true, data: result }
+  rescue StandardError => e
+    { success: false, error: e.message }
+  end
+end
+```
+
+## Legacy Ruby Class Approach :id=writing-the-recipe-file
+
+!> **Note**: The Ruby class-based approach described below is no longer supported. All apps must now use the [Monadic DSL format](/advanced-topics/monadic_dsl.md). This section is retained for historical reference only.
+
+### Historical Context
+
+Prior to the current MDSL-only architecture, apps were defined as Ruby classes that inherited from `MonadicApp` with settings in the `@settings` instance variable.
 
 ```ruby
 class RobotApp < MonadicApp
@@ -91,7 +223,7 @@ The following modules are available for use in the recipe file:
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
 
-?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, and `MistralHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Currently, these functions are not available in `GeminiHelper`, `GrokHelper`, `PerplexityHelper`, or `DeepSeekHelper`.
+?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, `MistralHelper`, `GeminiHelper`, `GrokHelper`, and `DeepSeekHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Function calling support varies by provider - check the specific provider's documentation for limitations.
 
 !> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed. Details of the specific error are recorded in a log file saved in the shared folder (`~/monadic/data/error.log`).
 
@@ -119,22 +251,27 @@ There are many optional settings. See [Setting Items](./setting-items.md) for de
 
 ## Calling Functions in the App :id=calling-functions-in-the-app
 
-You can define functions and tools that the AI agent can use in the app. There are three ways to define functions and tools: 1) Define Ruby methods in the recipe file; 2) Execute commands or shell scripts; and 3) Execute program code in languages other than Ruby.
+You can define functions and tools that the AI agent can use in the app. With the MDSL format, tools are defined in the `tools do` block or auto-completed from `*_tools.rb` files. There are three ways to implement the underlying functionality: 1) Define Ruby methods in the tools file; 2) Execute commands or shell scripts; and 3) Execute program code in languages other than Ruby.
 
 ### Define Ruby Methods
 
-There are three steps to define a Ruby method that the AI agent can use:
+With MDSL, there are two approaches to define Ruby methods that the AI agent can use:
 
-1. Define a Ruby method (function) in the recipe file
-2. Specify the function name and arguments in JSON schema in `tools` of `@settings`
-3. Describe how to use the method (function) in `initial_prompt`
+**Option 1: Auto-completion (Recommended)**
+1. Create a `*_tools.rb` file with facade methods
+2. Leave the `tools do` block empty or minimal in the MDSL file
+3. The system will auto-complete tool definitions from the Ruby methods
 
-The ways to specify the function name and arguments in `tools` are somewhat different among the language models. Refer to the following documentation for details:
+**Option 2: Explicit Definition**
+1. Define tools explicitly in the MDSL file's `tools do` block
+2. Implement corresponding methods in the `*_tools.rb` file
+3. Ensure the method signatures match the tool definitions
 
-- OpenAI GPT-4: [Function calling guide](https://platform.openai.com/docs/guides/function-calling/function-calling-with-structured-outputs)
-- Anthropic Claude: [Tool use (function calling)](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
-- Cohere Command R:  [Tool use](https://docs.cohere.com/docs/tools)
-- Mistral AI:  [Function calling](https://docs.mistral.ai/capabilities/function_calling/)
+The tool definition format varies slightly among providers:
+- OpenAI/Gemini: Support up to 20 function calls
+- Claude: Supports up to 16 function calls
+- Code execution: All providers now consistently use `run_code` for code execution (previously Claude used `run_script`)
+- Array parameters: OpenAI requires `items` property
 
 ### Execute Commands or Shell Scripts
 
@@ -193,23 +330,26 @@ The hash of API parameters must specify an array of messages as the value of the
 
 In queries using `send_query`, `stream` is set to `false` (it is already set to `false` by default, so there is no need to specify it explicitly).
 
-The following is an example of how to use `send_query` in a function or tool created using Ruby in the recipe file.
+The following is an example of how to use `send_query` in a function or tool created using Ruby in the tools file.
 
 ```ruby
-def my_function
-  # Set parameters
-  parameters = {
-    message: {
-      model: "gpt-4.1",
-      messages: [
-        {
-          role: "user",
-          content: "What is the name of the capital city of Argentina?"
-        }
-      ]
+# my_app_tools.rb
+class MyAppOpenAI < MonadicApp
+  def my_function
+    # Set parameters
+    parameters = {
+      message: {
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: "What is the name of the capital city of Argentina?"
+          }
+        ]
+      }
     }
-  }
-  # Send a request to OpenAI
-  send_query(parameters)
+    # Send a request to OpenAI
+    send_query(parameters)
+  end
 end
 ```

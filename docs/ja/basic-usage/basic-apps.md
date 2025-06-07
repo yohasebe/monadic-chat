@@ -123,7 +123,10 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 - Mistral AI
 - Perplexity
 
-?> ウェブ検索機能の使用について：OpenAI、Anthropic Claude、xAI Grokのモデルは、それぞれのネイティブのウェブ検索APIを使用します。その他のプロバイダー（Gemini、Mistralなど）では、ウェブ検索APIを利用するために[Tavily](https://tavily.com/)からAPIキーを取得する必要があります。月に1,000回の無料リクエストが利用可能です。
+?> **ウェブ検索機能について**: 
+> - **ネイティブ検索**（Tavily API不要）：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Perplexity（sonarモデルに組み込み）
+> - **Tavily API必須**：Google Gemini、Mistral AI、Cohere。[Tavily](https://tavily.com/)から無料APIキーを取得できます（月1,000回の無料API呼び出し）
+> - 注：Perplexityは全モデルにウェブ検索機能が含まれているため、個別のResearch Assistantアプリはありません
 
 ## 言語関連 :id=language-related
 
@@ -288,7 +291,18 @@ Video GeneratorはGoogle Geminiモデルでのみ利用可能です。
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-[mermaid.js](https://mermaid.js.org/) を活用してデータを視覚化するアプリケーションです。任意のデータや指示文を入力すると、エージェントがフローチャートのMermaid コードを生成して画像を描画します。
+[mermaid.js](https://mermaid.js.org/) を活用してデータを視覚化するアプリケーションです。任意のデータや指示文を入力すると、エージェントが最適な図の種類を選択してMermaidコードを生成し、図を描画します。
+
+**主な機能:**
+- **自動的な図の種類選択**: AIがデータに最適な図の種類を選択（フローチャート、シーケンス図、クラス図、状態図、ER図、ガントチャート、円グラフ、サンキー図、マインドマップなど）
+- **強化された検証システム**: Seleniumを使用して実際のMermaid.jsエンジンで図を検証し、正確な構文チェックを実現
+- **エラー自動修正**: 構文エラーが発生した場合、AIが自動的に分析して修正
+- **プレビュー生成**: PNG形式のプレビュー画像を共有フォルダに保存
+
+**使用のヒント:**
+- 視覚化したい内容を説明するだけで、AIが適切な図を作成します
+- サンキー図では、矢印記法ではなくCSV形式（source,target,value）を使用することに注意
+- すべてのプレビュー画像は共有フォルダに `mermaid_preview_[タイムスタンプ].png` として保存されます
 
 ### DrawIO Grapher
 
@@ -305,7 +319,7 @@ Draw.io ダイアグラムを作成するためのアプリケーションです
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-このアプリでは、AIエージェントにスピーチのドラフト作成を依頼することができます。ドラフトを一から作成することもできますし、既存のドラフトを、テキスト文字列、Wordファイル、PDFファイルの形で提出することもできます。AIエージェントはそれらを分析し、修正版を返します。また、必要であれば、スピーチをより魅力的で効果的なものにするための改善案やヒントを提供します。スピーチのmp3ファイルを提供することもできます。
+このアプリでは、AIエージェントにスピーチのドラフト作成を依頼することができます。ドラフトを一から作成することもできますし、既存のドラフトを、テキスト文字列、Wordファイル、PDFファイルの形で提出することもできます。AIエージェントはそれらを分析し、修正版を返します。また、必要であれば、スピーチをより魅力的で効果的なものにするための改善案やヒントを提供します。スピーチの音声ファイルを提供することもできます（OpenAIとElevenLabsはMP3形式、GeminiはWAV形式）。
 
 ## コンテンツ分析 :id=content-analysis
 
@@ -325,7 +339,7 @@ Draw.io ダイアグラムを作成するためのアプリケーションです
 
 PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
 
-?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストと埋め込みデータは [PGVector](https://github.com/pgvector/pgvector) データベースに保存されます。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
+?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストと埋め込みデータは [PGVector](https://github.com/pgvector/pgvector) データベースに確実に保存され、アプリケーションは適切にベクトルデータベースに接続してPDFコンテンツの検索と取得を行います。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
 
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
@@ -362,10 +376,15 @@ AIにプログラムコードを作成・実行させるアプリケーション
 
 AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
 
+**重要な注意事項：**
+- コード実行に失敗した場合の無限ループを防ぐため、自動エラーハンドリングが実装されています
+- コード実行で繰り返しエラーが発生する場合、アプリは自動的に再試行を停止し、エラーメッセージを表示します
+- 日本語テキストを含むmatplotlibプロットでは、Pythonコンテナに日本語フォントサポート（Noto Sans CJK JP）がmatplotlibrcを通じて設定されています
+
 下記の言語モデルでCode Interpreterアプリが利用可能です。
 
 - OpenAI
-- Anthropic Claude
+- Anthropic Claude（コード実行には`run_code`ツールを使用）
 - Cohere
 - DeepSeek
 - Google Gemini

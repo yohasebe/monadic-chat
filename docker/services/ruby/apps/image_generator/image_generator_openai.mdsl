@@ -1,0 +1,102 @@
+app "ImageGeneratorOpenAI" do
+  description <<~TEXT
+    This application generates and edits images based on text prompts. It supports creating new images from prompts, editing existing images with optional masks, and generating variations of images. You can customize output options such as number of images, image size, format, quality, background and compression. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+
+  icon "fa-regular fa-image"
+
+  display_name "Image Generator"
+
+  llm do
+    provider "openai"
+    model "gpt-4.1"
+    temperature 0.0
+  end
+
+  system_prompt <<~TEXT
+    You help the user generate and edit images using OpenAI's gpt-image-1 model.
+    1. For new image generation, call generate_image_with_openai({
+         operation: "generate",
+         model: "gpt-image-1",
+         prompt,
+         n,
+         size,
+         quality,
+         output_format,
+         background,
+         output_compression
+       }).
+    2. For image editing, call generate_image_with_openai({
+         operation: "edit",
+         model: "gpt-image-1",
+         prompt,
+         n,
+         images,
+         mask,
+         size,
+         quality,
+         output_format,
+         background,
+         output_compression
+       }).
+       IMPORTANT: When mask images are provided, ALWAYS include the mask parameter in your function call.
+       The mask parameter should specify the mask image filename in the shared folder.
+    3. For variation, call generate_image_with_openai({
+         operation: "variation",
+         model: "gpt-image-1",
+         n,
+         images
+       }).
+    After receiving a response, embed the returned image URLs using Markdown image syntax WITHOUT placing them in code blocks. For example:
+      
+      ![Generated Image](/data/FILENAME1.png)
+      ![Generated Image](/data/FILENAME2.png)
+      
+    Do not use HTML `<img>` tags and do not place the Markdown images inside code blocks or triple backticks.
+    If an error occurs, return the error message without retrying automatically.
+  TEXT
+
+  features do
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant false
+    image true
+    pdf false
+  end
+
+  tools do
+    define_tool "generate_image_with_openai", "Generate, edit, or create variations of images using OpenAI models." do
+      parameter :operation, "string", "Type of operation: 'generate', 'edit', or 'variation'", required: true, enum: ["generate", "edit", "variation"]
+      parameter :model, "string", "Model to use for image generation", required: true
+      parameter :prompt, "string", "Text description of the desired image or editing instructions", required: false
+      parameter :images, "array", "Array of image filenames for editing or variation operations", required: false, items: {
+        type: "string",
+        description: "Image filename"
+      }
+      parameter :mask, "string", "Mask image filename for precise editing control", required: false
+      parameter :n, "integer", "Number of images to generate (1-4)", required: false
+      parameter :size, "string", "Image dimensions", required: false, enum: ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]
+      parameter :quality, "string", "Image quality level", required: false, enum: ["standard", "hd"]
+      parameter :output_format, "string", "Output image format", required: false, enum: ["png", "webp", "jpeg"]
+      parameter :background, "string", "Background color for transparent images", required: false
+      parameter :output_compression, "integer", "Compression level for JPEG images (1-100)", required: false
+    end
+
+    # Auto-generated tool definitions
+    define_tool "generate_image_with_grok", "Generate Image With Grok" do
+      parameter :model, "string", "The model", required: true
+      parameter :prompt, "string", "The prompt", required: true
+      parameter :n, "integer", "The n"
+      parameter :size, "string", "The size"
+      parameter :output_format, "string", "The output format"
+    end
+
+    define_tool "generate_image_with_gemini", "Generate Image With Gemini" do
+      parameter :model, "string", "The model", required: true
+      parameter :prompt, "string", "The prompt", required: true
+      parameter :n, "integer", "The n"
+      parameter :size, "string", "The size"
+      parameter :output_format, "string", "The output format"
+    end
+  end
+end

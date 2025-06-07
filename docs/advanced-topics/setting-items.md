@@ -1,6 +1,6 @@
 # Application Setting Items
 
-The setting items for the application are described in the recipe file, where the class that inherits from `MonadicApp` is defined. The settings are defined in the `@settings` variable in the recipe file. There are required and optional settings. If the required settings are not specified, an error message will be displayed on the browser screen when the application is launched.
+The setting items for applications are defined in MDSL (Monadic Domain Specific Language) files with the `.mdsl` extension. These settings configure the behavior and appearance of each application. There are required and optional settings. If required settings are not specified, an error message will be displayed when the application is launched.
 
 ## Required Settings
 
@@ -28,7 +28,7 @@ Specify the group name for grouping the app on the Base App selector on the web 
 Specify the default model. If not specified, the default model provided by the included helper module (e.g., `gpt-4o` for `OpenAIHelper`) is used.
 
 `temperature` (float)
-Specify the default temperature.
+Specify the default temperature. Note: For Gemini 2.5 thinking models (e.g., `gemini-2.5-flash-thinking`), temperature is replaced by `reasoning_effort` in the UI.
 
 `presence_penalty` (float)
 Specify the default `presence_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
@@ -85,7 +85,7 @@ Specify whether to enable AI image generation capabilities within the conversati
 Specify whether to enable Mermaid diagram rendering and interaction. This allows creating and displaying flowcharts, sequence diagrams, and other visual representations directly in the conversation.
 
 `reasoning_effort` (string)
-Specify the depth of reasoning for the model (e.g., "high"). This parameter is used to control how thoroughly the model reasons through complex problems.
+Specify the depth of reasoning for thinking models (e.g., "high", "medium", "low"). This parameter replaces `temperature` for certain models like Gemini 2.5 Flash Thinking and Claude's thinking models. It controls how thoroughly the model reasons through complex problems. For Gemini models, this maps to thinking budget tokens.
 
 `abc` (bool)
 Specify whether to enable the display and playback of musical scores entered in [ABC notation](https://abcnotation.com/) in the AI agent's response. ABC notation is a text-based format for describing musical scores.
@@ -94,7 +94,7 @@ Specify whether to enable the display and playback of musical scores entered in 
 Specify whether to disable the app. Disabled apps are not displayed in the Monadic Chat menu.
 
 `toggle` (bool)
-Specify whether to toggle the display of parts of the AI agent's response (meta information, tool usage). Currently, this is only available for apps including the `ClaudeHelper` module.
+Specify whether to enable collapsible sections for displaying meta information and tool usage in the AI agent's response. This feature allows users to show/hide detailed information about the AI's reasoning process and tool calls. Currently, this is primarily used in Claude-based apps to provide a cleaner interface while still allowing access to detailed information when needed. When enabled, meta information appears in collapsible sections marked with disclosure triangles.
 
 `models` (array)
 Specify a list of available models. If not specified, the list of models provided by the included helper module (e.g., `OpenAIHelper`) is used.
@@ -113,7 +113,7 @@ The following settings are managed at the system level and are not directly conf
 Specifies the Speech-to-Text model to use for voice transcription across the application. Available options include 'whisper-1', 'gpt-4o-mini-transcribe', and 'gpt-4o-transcribe'. The audio format is automatically optimized based on the selected model.
 
 `AI_USER_MODEL` (string)
-Specifies the model used for AI-generated user messages. Available options include 'gpt-4o-mini', 'gpt-4o', 'o3-mini', 'o1-mini', and 'o1'.
+Specifies the model used for AI-generated user messages. Available options include 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4.1-nano', 'o3-mini', 'o1-mini', and 'o1'.
 
 `EMBEDDING_MODEL` (string)
 Specifies the model used for generating text embeddings. Available options include 'text-embedding-3-small' and 'text-embedding-3-large'.

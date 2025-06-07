@@ -21,7 +21,6 @@ app "LanguagePracticeMistralAI" do
   display_name "Language Practice"
   
   features do
-    group "Mistral"
     temperature 0.5
     context_size 100
     easy_submit true

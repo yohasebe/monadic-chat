@@ -8,6 +8,16 @@ The standard Python container is built with the following Dockerfile.
 
 ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
+## Japanese Font Support
+
+The Python container includes Japanese font support for matplotlib and other visualization libraries. The Noto Sans CJK JP font is installed and configured through `matplotlibrc` settings:
+
+- Font family: Noto Sans CJK JP
+- Configuration file: `/monadic/matplotlibrc`
+- This enables proper rendering of Japanese text in matplotlib plots and figures
+
+When generating charts or plots with Japanese text, the font will be automatically used without additional configuration.
+
 ## Adding Programs and Libraries
 
 If you want to install additional programs and libraries, you can do one of the following:
@@ -65,5 +75,16 @@ pip install sudachipy==0.6.8
 
 # Download spaCy models
 python -m spacy download ja_core_news_md
+```
+
+### Customizing Matplotlib Settings
+
+If you need to customize matplotlib settings further, you can create or modify the `matplotlibrc` file in the shared folder. This file will be copied to the appropriate location during container setup:
+
+```ini
+# Example matplotlibrc settings
+font.family: Noto Sans CJK JP
+font.size: 12
+axes.unicode_minus: False
 ```
 

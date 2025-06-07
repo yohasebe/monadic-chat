@@ -29,6 +29,7 @@ app "ChatMistralAI" do
     image true
     pdf false
     sourcecode true
+    websearch false
     group "Mistral"
   end
 end

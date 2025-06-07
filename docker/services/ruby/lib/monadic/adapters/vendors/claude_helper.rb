@@ -1,7 +1,15 @@
 require 'fileutils'
+require 'securerandom'
+require_relative "../../utils/interaction_utils"
+require_relative "../../utils/json_repair"
+require_relative "../../utils/error_pattern_detector"
+require_relative "../../utils/function_call_error_handler"
 
 module ClaudeHelper
-  MAX_FUNC_CALLS = 8
+  include InteractionUtils
+  include ErrorPatternDetector
+  include FunctionCallErrorHandler
+  MAX_FUNC_CALLS = 16
   API_ENDPOINT = "https://api.anthropic.com/v1"
   OPEN_TIMEOUT = 5 * 2
   READ_TIMEOUT = 60 * 5
@@ -314,11 +322,11 @@ module ClaudeHelper
     # Determine which web search implementation to use
     # Models that support native web search: Claude 3.5/3.7 Sonnet, Claude 3.5 Haiku
     native_websearch_models = [
-      "claude-3-5-sonnet", 
+      "claude-opus-4",
+      "claude-sonnet-4",
       "claude-3-7-sonnet", 
-      "claude-3-5-haiku",
-      "claude-3-5-sonnet-20241022",
-      "claude-3-5-haiku-20241022"
+      "claude-3-5-sonnet", 
+      "claude-3-5-haiku"
     ]
     
     # Check if model supports native web search and native is enabled
@@ -593,7 +601,8 @@ module ClaudeHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
       pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report["message"]}" }
+      formatted_error = format_api_error(error_report, "claude")
+      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
       block&.call res
       return [res]
     end
@@ -690,6 +699,12 @@ module ClaudeHelper
                 fragment = json.dig("delta", "partial_json").to_s
 
                 tool_calls.last["input"] << fragment
+                
+                # Debug logging for tool input accumulation
+                if CONFIG["EXTRA_LOGGING"] && extra_log
+                  extra_log.puts "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}"
+                  extra_log.puts "[Tool Input Total] Length: #{tool_calls.last["input"].length}"
+                end
               end
               if json.dig("delta", "stop_reason")
                 stop_reason = json.dig("delta", "stop_reason")
@@ -825,8 +840,45 @@ module ClaudeHelper
         # Parse tool call input
         begin
           input_hash = JSON.parse(tool_call["input"])
-        rescue JSON::ParserError
-          input_hash = {}
+        rescue JSON::ParserError => e
+          # Log the error for debugging
+          debug_log = "[Claude Tool Call JSON Parse Error at #{Time.now}]\n"
+          debug_log += "Tool: #{tool_call["name"]}\n"
+          debug_log += "Raw input length: #{tool_call["input"].to_s.length}\n"
+          debug_log += "Raw input (first 500 chars): #{tool_call["input"].to_s[0..500].inspect}\n"
+          debug_log += "Raw input (last 100 chars): #{tool_call["input"].to_s[-100..-1].inspect}\n"
+          debug_log += "Error: #{e.message}\n"
+          
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts debug_log
+          end
+          
+          # Attempt to repair truncated JSON
+          if tool_call["name"] == "run_script"
+            input_hash = JSONRepair.extract_run_script_params(tool_call["input"])
+            
+            # Log repair attempt
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "Attempted JSON repair for run_script"
+              f.puts "Extracted params: #{input_hash.inspect}"
+              f.puts "-" * 50
+            end
+          elsif tool_call["name"] == "run_code"
+            input_hash = JSONRepair.extract_run_code_params(tool_call["input"])
+            
+            # Log repair attempt
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "Attempted JSON repair for run_code"
+              f.puts "Extracted params: #{input_hash.inspect}"
+              f.puts "-" * 50
+            end
+          else
+            # Try general repair for other tools
+            input_hash = JSONRepair.attempt_repair(tool_call["input"])
+          end
+          
+          # If repair failed completely, return empty hash
+          input_hash = {} if input_hash["_json_repair_failed"]
         end
 
         tool_call["input"] = input_hash
@@ -848,11 +900,28 @@ module ClaudeHelper
     elsif text_result
 
       if call_depth > MAX_FUNC_CALLS
+        # Send notice fragment
         res = {
           "type" => "fragment",
           "content" => "NOTICE: Maximum function call depth exceeded"
         }
         block&.call res
+        
+        # Create a mock HTML response to properly end the conversation
+        html_res = {
+          "type" => "html",
+          "content" => {
+            "role" => "assistant",
+            "text" => "NOTICE: Maximum function call depth exceeded",
+            "html" => "<p>NOTICE: Maximum function call depth exceeded</p>",
+            "lang" => "en",
+            "mid" => SecureRandom.hex(4)
+          }
+        }
+        block&.call html_res
+        
+        # Return immediately to end the conversation
+        return [{ "type" => "message", "content" => "DONE", "finish_reason" => "stop" }]
       end
 
       # Apply monadic transformation if enabled

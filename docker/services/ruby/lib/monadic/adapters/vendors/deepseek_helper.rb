@@ -1,7 +1,10 @@
 # frozen_string_literal: false
 
+require_relative "../../utils/interaction_utils"
+
 module DeepSeekHelper
-  MAX_FUNC_CALLS = 8
+  include InteractionUtils
+  MAX_FUNC_CALLS = 16
   API_ENDPOINT = "https://api.deepseek.com"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
@@ -168,6 +171,10 @@ module DeepSeekHelper
     
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
+    
+    # Debug the full request body
+    DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+    
     http = HTTP.headers(headers)
     
     # Simple retry logic
@@ -297,16 +304,28 @@ module DeepSeekHelper
       end
     end
 
-    if settings["tools"]
-      body["tools"] = settings["tools"] || []
+    # Debug app loading
+    DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
+    
+    if APPS[app] && APPS[app].settings["tools"]
+      body["tools"] = APPS[app].settings["tools"] || []
       if websearch
         websearch_tools = WEBSEARCH_TOOLS.dup
         body["tools"].concat(websearch_tools)
         body["tools"].uniq!
       end
+      
+      # Try different tool_choice values to see if DeepSeek responds differently
+      # "auto" should work, but let's add more explicit logging
       body["tool_choice"] = "auto"
+      
+      # Debug logging for tools
+      DebugHelper.debug("DeepSeek tools configured: #{body["tools"].map { |t| t.dig(:function, :name) || t.dig("function", "name") }.join(", ")}", category: :api, level: :debug)
+      DebugHelper.debug("DeepSeek tool_choice: #{body["tool_choice"]}", category: :api, level: :debug)
+      DebugHelper.debug("DeepSeek tools full: #{body["tools"].inspect}", category: :api, level: :verbose)
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
+      body["tool_choice"] = "auto"
     else
       body.delete("tools")
       body.delete("tool_choice")
@@ -315,7 +334,7 @@ module DeepSeekHelper
     if role == "tool"
       body["messages"] += obj["function_returns"]
     elsif role == "user"
-      body["messages"].last["content"] += "\n\n" + settings["prompt_suffix"] if settings["prompt_suffix"]
+      body["messages"].last["content"] += "\n\n" + APPS[app].settings["prompt_suffix"] if APPS[app].settings["prompt_suffix"]
     end
 
     if obj["model"].include?("reasoner")
@@ -338,6 +357,10 @@ module DeepSeekHelper
 
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
+    
+    # Debug the final API request body
+    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+    
     http = HTTP.headers(headers)
 
     MAX_RETRIES.times do
@@ -354,7 +377,8 @@ module DeepSeekHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)
       pp error_report
-      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
+      formatted_error = format_api_error(error_report, "deepseek")
+      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
       block&.call res
       return [res]
     end
@@ -444,6 +468,8 @@ module DeepSeekHelper
 
               # Process finish reason
               finish_reason = json.dig("choices", 0, "finish_reason")
+              DebugHelper.debug("DeepSeek finish_reason: #{finish_reason}", category: :api, level: :verbose) if finish_reason
+              
               case finish_reason
               when "length"
                 finish_reason = "length"
@@ -451,6 +477,7 @@ module DeepSeekHelper
                 finish_reason = "stop"
               when "tool_calls"
                 finish_reason = "function_call"
+                DebugHelper.debug("DeepSeek detected tool_calls finish reason", category: :api, level: :debug)
               else
                 finish_reason = nil
               end
@@ -503,19 +530,46 @@ module DeepSeekHelper
 
                 # Process tool calls
                 if delta["tool_calls"]
+                  DebugHelper.debug("DeepSeek tool call detected: #{delta["tool_calls"].inspect}", category: :api, level: :debug)
+                  DebugHelper.debug("Full JSON at tool call: #{json.inspect}", category: :api, level: :verbose)
+                  
                   res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                   block&.call res
 
                   tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
 
                   if tid
-                    tools[tid] = json
-                    tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
+                    # Clone the json object
+                    tools[tid] = JSON.parse(JSON.generate(json))
+                    tools[tid]["choices"][0]["message"] ||= {}
+                    tools[tid]["choices"][0]["message"]["role"] = "assistant"
+                    tools[tid]["choices"][0]["message"]["content"] = ""
+                    tools[tid]["choices"][0]["message"]["tool_calls"] ||= []
+                    
+                    # Copy the tool call info from delta
+                    tool_call_delta = json.dig("choices", 0, "delta", "tool_calls", 0)
+                    if tool_call_delta
+                      new_tool_call = {
+                        "id" => tool_call_delta["id"],
+                        "type" => tool_call_delta["type"] || "function",
+                        "function" => {
+                          "name" => tool_call_delta.dig("function", "name") || "",
+                          "arguments" => tool_call_delta.dig("function", "arguments") || ""
+                        }
+                      }
+                      tools[tid]["choices"][0]["message"]["tool_calls"] << new_tool_call
+                    end
+                    
                     tools[tid]["choices"][0].delete("delta")
                   else
+                    # Accumulate arguments for existing tool call
                     new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                    existing_tool_call = tools.values.last.dig("choices", 0, "message")
-                    existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
+                    if tools.values.any? && new_tool_call && new_tool_call.dig("function", "arguments")
+                      last_tool = tools.values.last
+                      if last_tool && last_tool.dig("choices", 0, "message", "tool_calls", 0)
+                        last_tool["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] += new_tool_call["function"]["arguments"]
+                      end
+                    end
                   end
                 end
               end
@@ -551,15 +605,31 @@ module DeepSeekHelper
       end
     end
 
+    # If we have tool calls, ignore the finish_reason from streaming
+    # as it will be "tool_calls" and we need to wait for the actual completion
+    if tools.any?
+      finish_reason = nil
+    end
+
     if tools.any?
       # Handle tool/function calls
-      tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+      DebugHelper.debug("DeepSeek tools before processing: #{tools.inspect}", category: :api, level: :verbose)
+      
+      tools_data = tools.first[1].dig("choices", 0, "message", "tool_calls")
+      
+      # If tool_calls is not an array, make it one
+      if tools_data && !tools_data.is_a?(Array)
+        tools_data = [tools_data]
+      end
+      
+      DebugHelper.debug("DeepSeek tools_data after processing: #{tools_data.inspect}", category: :api, level: :debug)
+      
       context = []
       res = {
         "role" => "assistant",
         "content" => "The AI model is calling functions to process the data."
       }
-      res["tool_calls"] = tools.map do |tool|
+      res["tool_calls"] = tools_data.map do |tool|
         {
           "id" => tool["id"],
           "type" => "function",
@@ -574,8 +644,8 @@ module DeepSeekHelper
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
-      # Process function calls and get new results
-      new_results = process_functions(app, session, tools, context, call_depth, &block)
+      # Process function calls and get new results - don't send DONE here
+      new_results = process_functions(app, session, tools_data, context, call_depth, &block)
 
       if new_results
         new_results
@@ -583,7 +653,7 @@ module DeepSeekHelper
         [text_result]
       end
     elsif text_result
-      # Return final result with finish reason
+      # Only send DONE when there are no tool calls
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason

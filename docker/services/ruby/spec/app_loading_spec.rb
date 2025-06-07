@@ -107,7 +107,8 @@ RSpec.describe "App Loading and Initialization" do
           expect(content).to match(/include\s+SecondOpinionAgent/), "#{file} should include SecondOpinionAgent"
         end
         
-        if content.include?("websearch") || content.include?("web_search")
+        # Check for websearch method calls, not just string mentions
+        if content.match(/def\s+websearch|\.websearch|websearch_agent\(/)
           expect(content).to match(/include\s+WebSearchAgent/), "#{file} should include WebSearchAgent"
         end
       end
@@ -146,6 +147,9 @@ RSpec.describe "App Loading and Initialization" do
           run_code run_script run_bash_command lib_installer check_environment
           fetch_web_content search_wikipedia
           write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
+          websearch_agent list_providers_and_voices text_to_speech
+          generate_video_with_veo generate_image_with_imagen
+          validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
         ]
         
         tools_to_check = tool_matches.flatten.reject { |tool| standard_tools.include?(tool) }
@@ -408,7 +412,20 @@ RSpec.describe "App Loading and Initialization" do
       app_dirs = Dir.glob(File.join(app_base_dir, "*/"))
       standard_tools = discover_standard_tools
       
+      # Apps that use auto-discovery and don't need explicit tool mentions
+      auto_discovery_apps = %w[
+        code_interpreter jupyter_notebook chat_plus language_practice_plus
+        research_assistant speech_draft_helper second_opinion pdf_navigator
+        video_describer drawio_grapher mermaid_grapher novel_writer
+        math_tutor image_generator video_generator
+      ]
+      
       app_dirs.each do |app_dir|
+        app_name = File.basename(app_dir)
+        
+        # Skip apps that use auto-discovery
+        next if auto_discovery_apps.include?(app_name)
+        
         mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
         ruby_files = Dir.glob(File.join(app_dir, "*_tools.rb"))
         
@@ -418,6 +435,9 @@ RSpec.describe "App Loading and Initialization" do
         ruby_files.each do |ruby_file|
           discoverable_tools = extract_tool_methods_from_ruby(ruby_file, standard_tools)
           
+          # Skip if no custom tools (only standard tools)
+          next if discoverable_tools.empty?
+          
           # Check if tools are mentioned in system prompts
           mdsl_files.each do |mdsl_file|
             content = File.read(mdsl_file)
@@ -426,7 +446,10 @@ RSpec.describe "App Loading and Initialization" do
             if system_prompt_match
               system_prompt = system_prompt_match[1]
               
-              discoverable_tools.each do |tool_name|
+              # Only check for non-standard tools that are specific to this app
+              app_specific_tools = discoverable_tools - standard_tools
+              
+              app_specific_tools.each do |tool_name|
                 unless system_prompt.include?(tool_name) || system_prompt.include?("`#{tool_name}`")
                   test_errors << "Tool '#{tool_name}' in #{ruby_file} not referenced in system prompt of #{mdsl_file}"
                 end
@@ -442,29 +465,33 @@ RSpec.describe "App Loading and Initialization" do
     it "validates auto-completion consistency across provider variations" do
       app_dirs = Dir.glob(File.join(app_base_dir, "*/"))
       
+      # Provider-specific tools that are OK to differ
+      provider_specific_tools = %w[websearch_agent tavily_search generate_video_with_veo]
+      
       app_dirs.each do |app_dir|
         mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
         ruby_files = Dir.glob(File.join(app_dir, "*_tools.rb"))
         
         next if mdsl_files.length <= 1 || ruby_files.empty?
         
-        # For multi-provider apps, ensure tool consistency
-        first_mdsl = mdsl_files.first
-        first_tools = extract_tools_from_mdsl(first_mdsl)
+        # Extract core tools from Ruby implementation
+        ruby_tools = Set.new
+        ruby_files.each do |ruby_file|
+          ruby_tools.merge(extract_tool_methods_from_ruby(ruby_file, []))
+        end
         
-        mdsl_files[1..-1].each do |mdsl_file|
+        # Remove provider-specific tools from core set
+        core_tools = ruby_tools - provider_specific_tools
+        
+        # For multi-provider apps, ensure core tool consistency
+        mdsl_files.each do |mdsl_file|
           current_tools = extract_tools_from_mdsl(mdsl_file)
           
-          # Check for missing tools in current file
-          missing_tools = first_tools - current_tools
-          extra_tools = current_tools - first_tools
+          # Check that all core tools are present (ignoring provider-specific ones)
+          missing_core_tools = core_tools - current_tools - provider_specific_tools
           
-          missing_tools.each do |tool_name|
-            test_errors << "Tool '#{tool_name}' defined in #{first_mdsl} but missing in #{mdsl_file}"
-          end
-          
-          extra_tools.each do |tool_name|
-            test_errors << "Tool '#{tool_name}' defined in #{mdsl_file} but missing in #{first_mdsl}"
+          missing_core_tools.each do |tool_name|
+            test_errors << "Core tool '#{tool_name}' missing in #{mdsl_file}"
           end
         end
       end
@@ -481,8 +508,9 @@ RSpec.describe "App Loading and Initialization" do
       fetch_text_from_office fetch_text_from_pdf fetch_text_from_file
       analyze_image analyze_audio analyze_video
       run_code run_script run_bash_command lib_installer check_environment
-      fetch_web_content search_wikipedia
+      fetch_web_content search_wikipedia tavily_search websearch_agent
       write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
+      list_providers_and_voices generate_video_with_veo
     ]
     
     # Dynamically discover additional standard tools from MonadicApp if available

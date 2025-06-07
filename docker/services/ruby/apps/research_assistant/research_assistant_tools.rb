@@ -2,6 +2,9 @@
 # Provides clear interfaces for WebSearchAgent functionality
 
 class ResearchAssistantOpenAI < MonadicApp
+  include OpenAIHelper
+  include WebSearchAgent
+  
   # Performs web search using native OpenAI search or Tavily API fallback
   # @param query [String] The search query
   # @return [String] Search results
@@ -29,6 +32,8 @@ class ResearchAssistantOpenAI < MonadicApp
 end
 
 class ResearchAssistantClaude < MonadicApp
+  include ClaudeHelper
+  include WebSearchAgent
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results
@@ -44,6 +49,8 @@ class ResearchAssistantClaude < MonadicApp
 end
 
 class ResearchAssistantGemini < MonadicApp
+  include GeminiHelper
+  include WebSearchAgent
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results
@@ -59,6 +66,8 @@ class ResearchAssistantGemini < MonadicApp
 end
 
 class ResearchAssistantGrok < MonadicApp
+  include GrokHelper
+  include WebSearchAgent
   # Performs web search using native Grok search
   # @param query [String] The search query
   # @return [String] Search results
@@ -86,6 +95,8 @@ class ResearchAssistantGrok < MonadicApp
 end
 
 class ResearchAssistantCohere < MonadicApp
+  include CohereHelper
+  include WebSearchAgent
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results
@@ -101,6 +112,8 @@ class ResearchAssistantCohere < MonadicApp
 end
 
 class ResearchAssistantMistral < MonadicApp
+  include MistralHelper
+  include WebSearchAgent
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @return [String] Search results

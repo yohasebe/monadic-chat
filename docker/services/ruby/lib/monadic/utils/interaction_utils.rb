@@ -200,6 +200,8 @@ module InteractionUtils
     parts.join(", ")
   end
 
+  public
+
   # Check if the API key is valid with caching mechanism
   # @param api_key [String] The API key to check
   # @return [Hash] A hash containing the result of the check

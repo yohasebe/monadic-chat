@@ -42,7 +42,24 @@ module ErrorPatternDetector
   def self.add_error(session, error_message, function_name)
     initialize_session(session)
     
-    # Add to history
+    # Detect pattern for current error
+    current_pattern = detect_pattern(error_message)
+    
+    # Check if this matches the last pattern before adding to history
+    if current_pattern && current_pattern == session[:error_patterns][:last_pattern]
+      # Same pattern as last error - increment count
+      session[:error_patterns][:similar_count] += 1
+    elsif current_pattern
+      # New pattern detected - start counting from 0
+      session[:error_patterns][:similar_count] = 0
+      session[:error_patterns][:last_pattern] = current_pattern
+    else
+      # No pattern detected - reset
+      session[:error_patterns][:similar_count] = 0
+      session[:error_patterns][:last_pattern] = nil
+    end
+    
+    # Add to history after checking pattern
     session[:error_patterns][:history] << {
       error: error_message,
       timestamp: Time.now,
@@ -53,22 +70,14 @@ module ErrorPatternDetector
     if session[:error_patterns][:history].length > 10
       session[:error_patterns][:history].shift
     end
-    
-    # Check if this is similar to recent errors
-    if similar_to_recent?(session, error_message)
-      session[:error_patterns][:similar_count] += 1
-      session[:error_patterns][:last_pattern] = detect_pattern(error_message)
-    else
-      session[:error_patterns][:similar_count] = 0
-      session[:error_patterns][:last_pattern] = nil
-    end
   end
   
   def self.should_stop_retrying?(session)
     return false unless session[:error_patterns]
     
-    # Stop if we've seen 3 or more similar errors
-    session[:error_patterns][:similar_count] >= 3
+    # Stop if we've seen 3 or more similar errors (similar_count starts at 0)
+    # So after 3 errors: 0, 1, 2 - we should stop
+    session[:error_patterns][:similar_count] >= 2
   end
   
   def self.get_error_suggestion(session)

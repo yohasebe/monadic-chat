@@ -2,6 +2,7 @@
 # Provides clear interfaces for image generation functionality
 
 class ImageGeneratorOpenAI < MonadicApp
+  include OpenAIHelper if defined?(OpenAIHelper)
   # Generate, edit, or create variations of images using OpenAI
   # @param operation [String] Type of operation: 'generate', 'edit', or 'variation'
   # @param model [String] Model to use for image generation
@@ -33,6 +34,7 @@ class ImageGeneratorOpenAI < MonadicApp
 end
 
 class ImageGeneratorGrok < MonadicApp
+  include GrokHelper if defined?(GrokHelper)
   # Generate images using Grok/xAI
   # @param prompt [String] Text description of the desired image
   # @return [String] Generated image information from the script
@@ -50,6 +52,7 @@ class ImageGeneratorGrok < MonadicApp
 end
 
 class ImageGeneratorGemini < MonadicApp
+  include GeminiHelper if defined?(GeminiHelper)
   # Generate or edit images using Google's AI models
   # @param prompt [String] Text description of the desired image or editing instructions
   # @param operation [String] Type of operation: 'generate' or 'edit'

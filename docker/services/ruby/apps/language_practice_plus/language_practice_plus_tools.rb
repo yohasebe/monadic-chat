@@ -2,6 +2,8 @@
 # Provides clear interface for WebSearchAgent functionality
 
 class LanguagePracticePlusOpenAI < MonadicApp
+  include OpenAIHelper if defined?(OpenAIHelper)
+  include WebSearchAgent if defined?(WebSearchAgent)
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results to return

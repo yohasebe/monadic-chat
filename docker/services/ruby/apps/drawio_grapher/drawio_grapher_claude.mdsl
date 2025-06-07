@@ -97,7 +97,7 @@ app "DrawIOGrapherClaude" do
     toggle false
     image true
     sourcecode true
-    group "Claude"
+    group "Anthropic"
   end
   
   tools do

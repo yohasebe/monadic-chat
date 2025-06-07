@@ -1,8 +1,15 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_pattern_detector"
+require_relative "../../utils/function_call_error_handler"
+
 module GeminiHelper
-  MAX_FUNC_CALLS = 12
+  include InteractionUtils
+  include ErrorPatternDetector
+  include FunctionCallErrorHandler
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
   OPEN_TIMEOUT = 10
   READ_TIMEOUT = 120
@@ -398,6 +405,10 @@ module GeminiHelper
     request_id = SecureRandom.hex(4)
 
     websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    
+    # Handle thinking models based on reasoning_effort parameter presence
+    reasoning_effort = obj["reasoning_effort"]
+    is_thinking_model = !reasoning_effort.nil? && !reasoning_effort.empty?
 
     if role != "tool"
       message = obj["message"].to_s
@@ -444,10 +455,52 @@ module GeminiHelper
       safety_settings: SAFETY_SETTINGS
     }
 
-    if temperature || max_tokens
+    if temperature || max_tokens || is_thinking_model
       body["generationConfig"] = {}
       body["generationConfig"]["temperature"] = temperature if temperature
       body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
+      
+      # Configure thinking for Gemini 2.5 models with reasoning_effort
+      if is_thinking_model && reasoning_effort
+        model = obj["model"]
+        is_flash_model = model && model.include?("flash")
+        
+        # Calculate thinking budget based on reasoning_effort
+        # Gemini 2.5 Flash: 0-24,576, Pro: 128-32,768
+        user_max_tokens = max_tokens || 8192
+        
+        case reasoning_effort
+        when "low"
+          if is_flash_model
+            budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
+          else  # Pro model
+            budget_tokens = [[(user_max_tokens * 0.3).to_i, 10000].max, 32768].min
+            budget_tokens = [budget_tokens, 128].max
+          end
+        when "medium"
+          if is_flash_model
+            budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
+          else  # Pro model
+            budget_tokens = [[(user_max_tokens * 0.6).to_i, 20000].max, 32768].min
+            budget_tokens = [budget_tokens, 128].max
+          end
+        when "high"
+          if is_flash_model
+            budget_tokens = [(user_max_tokens * 0.8).to_i, 24000].min(24576)
+          else  # Pro model
+            budget_tokens = [[(user_max_tokens * 0.8).to_i, 28000].max, 32768].min
+            budget_tokens = [budget_tokens, 128].max
+          end
+        else
+          budget_tokens = is_flash_model ? 8000 : 10000
+        end
+        
+        # Set thinking configuration using correct structure
+        body["generationConfig"]["thinkingConfig"] = {
+          "thinkingBudget" => budget_tokens,
+          "includeThoughts" => true
+        }
+      end
     end
 
     websearch_suffixed = false
@@ -531,7 +584,10 @@ module GeminiHelper
       }
     end
 
-    target_uri = "#{API_ENDPOINT}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
+    # Use v1beta for thinking models, v1alpha for others
+    endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
+    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
+
 
     http = HTTP.headers(headers)
 
@@ -548,7 +604,8 @@ module GeminiHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
+      formatted_error = format_api_error(error_report, "gemini")
+      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
       block&.call res
       return [res]
     end
@@ -591,6 +648,7 @@ module GeminiHelper
 
     buffer = String.new
     texts = []
+    thinking_parts = []  # Store thinking content
     tool_calls = []
     finish_reason = nil
 
@@ -642,7 +700,19 @@ module GeminiHelper
             next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
 
             content["parts"]&.each do |part|
-              if part["text"]
+              # Check if this part contains thinking content
+              if part["thought"] == true && part["text"]
+                thinking_fragment = part["text"]
+                thinking_parts << thinking_fragment
+                
+                # Send thinking content as a special type (similar to Claude)
+                res = {
+                  "type" => "thinking",
+                  "content" => thinking_fragment
+                }
+                block&.call res
+                
+              elsif part["text"]
                 fragment = part["text"]
                 
                 # Special processing for media generator app to strip code blocks
@@ -937,16 +1007,21 @@ module GeminiHelper
       # Check if the entire response is a single Markdown code block and unwrap it
       final_content = unwrap_single_markdown_code_block(final_content)
       
-      [
-        {
-          "choices" => [
-            {
-              "finish_reason" => finish_reason,
-              "message" => { "content" => final_content }
-            }
-          ]
-        }
-      ]
+      response_data = {
+        "choices" => [
+          {
+            "finish_reason" => finish_reason,
+            "message" => { "content" => final_content }
+          }
+        ]
+      }
+      
+      # Add thinking content if present (similar to Claude)
+      if thinking_parts.any?
+        response_data["thinking"] = thinking_parts.join("\n")
+      end
+      
+      [response_data]
     end
   end
 
@@ -976,6 +1051,12 @@ module GeminiHelper
         # Add session parameter for functions that need access to uploaded images
         if function_name == "generate_video_with_veo" || function_name == "generate_image_with_gemini"
           argument_hash[:session] = session
+        end
+        
+        # Special handling for tavily_search - convert n parameter to options hash
+        if function_name == "tavily_search" && argument_hash[:n]
+          n_value = argument_hash.delete(:n)
+          argument_hash[:options] = { n: n_value }
         end
         
         # Call the function with the provided arguments

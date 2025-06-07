@@ -1,0 +1,77 @@
+app "PDFNavigatorOpenAI" do
+  display_name "PDF Navigator"
+  description <<~TEXT
+    This is an application that reads PDF files, and the assistant answers the user's questions based on their contents. Click on the "Upload PDF" button and specify the file. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=pdf-navigator' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  icon "file-pdf"
+  
+  system_prompt <<~TEXT
+    You are an agent to assist users in navigating PDF documents contained in the database. According to the user's input, you provide information based on the contents of the text snippets in the database.
+
+    Respond to the user based on the "text" property of the JSON object returned by the function "find_closest_text". The function takes parameter "text" and "top_n" (number of closest text snippets to return). The input text is used to find the closest text snippet in the database. The text is converted to a text embedding to find the closest text snippet in the database. The function returns an array of JSON objects in the following format. The recommended value of "top_n" is 2.
+
+      [{
+        text: text snippet from the document
+        doc_id: document id
+        doc_title: document title
+        position: positional order of the text snippet within the document
+        total_items: total number of text snippets of the same document id
+        metadata: {
+          tokens: number of tokens in the text snippet
+        }
+      }]
+
+    Present your response in the following format:
+
+      YOUR_RESPONSE
+
+      ---
+
+      Doc ID: doc_id
+      Doc Title: doc_title
+      Snippet tokens: tokens
+      Snippet position: position/total_items
+
+    If the user requests a text snippet in a specific position, you can use the function "get_text_snippet" with the parameters "doc_id" and "position" to retrieve the text snippet.
+
+    Please make sure that if your response does not have a particular reference to a text snippet, you shouldn't include every property in the JSON object. Only include the properties that are relevant to the response.
+  TEXT
+  
+  llm do
+    provider "OpenAI"
+    model "gpt-4.1"
+    temperature 0.0
+  end
+  
+  features do
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant false
+    pdf_vector_storage true
+    image true
+    mathjax true
+  end
+  
+  tools do
+    define_tool "find_closest_text", "Find the closest text in the database based on the input text" do
+      parameter :text, "string", "The input text", required: true
+      parameter :top_n, "integer", "The number of closest text snippets to return", required: true
+    end
+    
+    define_tool "get_text_snippet", "Retrieve the text snippet from the database" do
+      parameter :doc_id, "integer", "The document id", required: true
+      parameter :position, "integer", "The position of the text snippet within the document", required: true
+    end
+    
+    define_tool "list_titles", "List objects of the doc id and the title value from the docs table"
+    
+    define_tool "find_closest_doc", "Get the embedding of the input text and find the closest doc in the database" do
+      parameter :text, "string", "The input text", required: true
+      parameter :top_n, "integer", "The number of closest documents to return", required: true
+    end
+    
+    define_tool "get_text_snippets", "Retrieve all the text snippets of a document from the database" do
+      parameter :doc_id, "integer", "The document id", required: true
+    end
+  end
+end

@@ -1,0 +1,129 @@
+app "JupyterNotebookClaude" do
+  description <<~TEXT
+    This is an application that allows Anthropic Claude to create and read/write Jupyter Notebooks. The agent can create a new notebook, add cells to an existing notebook, and run the cells in the notebook. The agent can also read the content of the notebook and check the environment in which the notebook is running. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=anthropic-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  
+  icon "rocket"
+  
+  display_name "Jupyter Notebook"
+  
+  include_modules "WebSearchAgent"
+  
+  llm do
+    provider "anthropic"
+    model "claude-sonnet-4-20250514"
+    temperature 0.0
+    context_size 40
+  end
+
+  system_prompt <<~TEXT
+    You are an agent that can create and read Jupyter Notebooks. Always respond in the same language as the user's input. If the user writes in English, respond in English. If the user writes in Japanese, respond in Japanese.
+
+    When the user mentions a filename, use the appropriate function to read it:
+    - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`
+    - PDF files: Use `fetch_text_from_pdf`
+    - Office files (.xlsx, .docx): Use `fetch_text_from_office`
+
+    IMPORTANT: Only perform the following initialization ONCE at the very beginning of our conversation:
+    1. Start JupyterLab using `run_jupyter` with command "run"
+    2. Ask the user if they want to create a new notebook using: "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button> ."
+    3. If yes: use `create_jupyter_notebook` with filename "monadic"
+    4. If no: ask for the filename of an existing notebook
+    
+    After initialization is complete, remember that JupyterLab is running and proceed with the user's requests.
+
+    When adding cells to a notebook:
+    - Use `add_jupyter_cells` with:
+      - filename: the notebook filename
+      - cells: array of cell objects
+      - escaped: false
+    - Each cell should have:
+      {
+        "cell_type": "code" or "markdown",
+        "source": ["line 1", "line 2", ...] or "single line content"
+      }
+    - The function runs cells and returns output
+    - If errors occur, suggest fixes
+
+    Important guidelines:
+    - Import modules before using them in code cells
+    - For mathematical formulas in markdown cells:
+      - Inline math: `$formula$`
+      - Display math: `$$formula$$`
+    - Use font "Noto Sans CJK JP" for CJK characters
+    - Track variables, functions, and modules used across the session
+    - Don't add duplicate cells
+
+    Only use `check_environment` when:
+    - The user explicitly asks about the environment
+    - You encounter an error and need to troubleshoot
+    
+    If the user needs packages not available:
+    - Tell them to run `!pip install PACKAGE_NAME` in a notebook cell
+    - Wait for confirmation before proceeding
+
+    Your response should be accompanied with a JSON object:
+
+    ```
+    Your response here. It is followed by the JSON object below.
+
+    <div class="toggle"><pre>
+      JupyterRunning: true,
+      NotebookCreated: true,
+      Link: "<a href='http://host:8889/lab/tree/notebook.ipynb' target='_blank' rel='noopener noreferrer'>notebook.ipynb</a>",
+      Modules: ["numpy", "matplotlib"],
+      Functions: ["plot_data(x, y)"],
+      Variables: ["x", "y", "data"]
+    </pre></div>
+    ```
+    
+    Track JupyterRunning and NotebookCreated to avoid repeating initialization steps.
+  TEXT
+
+  features do
+    easy_submit false
+    auto_speech false
+    image true
+    pdf false
+    toggle true
+    jupyter true
+    mathjax true
+    initiate_from_assistant true
+    group "Anthropic"
+  end
+
+  tools do
+    define_tool "run_jupyter", "Start or stop JupyterLab" do
+      parameter :command, "string", "Command to run (start or stop)", required: true
+    end
+
+    define_tool "create_jupyter_notebook", "Create a new Jupyter notebook" do
+      parameter :filename, "string", "Base filename for the notebook", required: true
+    end
+
+    define_tool "add_jupyter_cells", "Add and run cells in a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :cells, "array", "Array of cell objects to add", required: true
+      parameter :run, "boolean", "Whether to run the cells after adding", required: false
+      parameter :escaped, "boolean", "Whether content is escaped", required: false
+    end
+
+    define_tool "run_code", "Run script code and return the output." do
+      parameter :command, "string", "Program that execute the code (e.g., 'python')", required: true
+      parameter :code, "string", "Program code to be executed.", required: true
+      parameter :extension, "string", "File extension of the code when it is temporarily saved to be run (e.g., 'py')", required: true
+    end
+
+    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
+      parameter :file, "string", "File name or file path", required: true
+    end
+
+    define_tool "write_to_file", "Write content to a file." do
+      parameter :filename, "string", "File name or file path", required: true
+      parameter :content, "string", "Content to write to the file", required: true
+    end
+
+    define_tool "check_environment", "Check the environment setup and available tools." do
+    end
+  end
+end

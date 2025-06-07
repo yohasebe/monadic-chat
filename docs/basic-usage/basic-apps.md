@@ -123,7 +123,10 @@ Research Assistant apps are also available for the following models:
 - Mistral AI
 - Perplexity
 
-?> When using web search functionality: OpenAI, Anthropic Claude, and xAI Grok models use their native web search APIs. For other providers (Gemini, Mistral, etc.), you need an API key from [Tavily](https://tavily.com/) to access the web search API. You can obtain a free API key by signing up on the Tavily website. It comes with 1,000 free API calls per month.
+?> **Web Search Functionality**: 
+> - **Native search** (no Tavily API required): OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)
+> - **Tavily API required**: Google Gemini, Mistral AI, and Cohere. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
+> - Note: Perplexity doesn't have a separate Research Assistant app because all its models include web search capabilities
 
 ## Language Related :id=language-related
 
@@ -289,7 +292,26 @@ Mail Composer apps are available for the following models:
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for a flowchart and renders the image.
+This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for the appropriate diagram type and renders it.
+
+**Key Features:**
+- **Automatic diagram type selection**: The AI chooses the best diagram type for your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, etc.)
+- **Real-time validation**: Diagrams are validated using Selenium and the actual Mermaid.js engine before being displayed
+- **Error correction**: If syntax errors occur, the AI automatically analyzes and fixes them
+- **Automatic error fixing**: The AI can detect common issues (like incorrect Sankey syntax) and automatically apply fixes
+- **Preview generation**: A PNG preview image is saved to your shared folder for easy access
+- **Web search integration**: Can fetch the latest Mermaid.js documentation and examples for unfamiliar diagram types
+
+**Enhanced Validation:**
+- Uses Selenium WebDriver to validate diagrams with the actual Mermaid.js rendering engine
+- Falls back to static validation if Selenium is unavailable
+- Provides specific error messages and suggestions for fixing common issues
+
+**Usage Tips:**
+- Simply describe what you want to visualize, and the AI will create the appropriate diagram
+- For Sankey diagrams, note that the syntax uses CSV format (source,target,value) not arrow notation
+- All preview images are saved as `mermaid_preview_[timestamp].png` in your shared folder
+- The AI will always validate diagrams before showing them to ensure they render correctly
 
 ### DrawIO Grapher
 
@@ -306,7 +328,7 @@ DrawIO Grapher apps are available for the following models:
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate an MP3 file of the speech.
+This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate audio files of the speech (MP3 format for OpenAI and ElevenLabs, WAV format for Gemini).
 
 ## Content Analysis :id=content-analysis
 
@@ -324,7 +346,20 @@ To use this app, store the video file in the `Shared Folder` and provide the fil
 
 This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
 
-?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation.
+**Key Features:**
+- **Vector database integration**: Properly connects to PGVector database through the `@embeddings_db` instance variable
+- **Multiple search methods**: Can find closest text snippets, documents, or retrieve specific segments
+- **Document management**: List all uploaded PDFs and navigate through different documents
+- **Contextual retrieval**: Finds the most relevant text segments based on semantic similarity
+
+**Available Functions:**
+- `find_closest_text`: Search for text snippets most similar to your query
+- `find_closest_doc`: Find entire documents most relevant to your query
+- `list_titles`: View all PDFs currently in the database
+- `get_text_snippet`: Retrieve a specific text segment by position
+- `get_text_snippets`: Get all text segments from a specific document
+
+?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database. The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
@@ -360,10 +395,15 @@ Supported file formats:
 
 This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.  If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
 
+**Important Notes:**
+- The app implements automatic error handling to prevent infinite loops when code execution fails
+- If code execution encounters repeated errors, the app will automatically stop retrying and provide an error message
+- For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc
+
 Code Interpreter apps are also available for the following models:
 
 - OpenAI
-- Anthropic Claude
+- Anthropic Claude (uses the `run_code` tool for code execution)
 - Cohere
 - DeepSeek
 - Google Gemini

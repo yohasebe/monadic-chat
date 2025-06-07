@@ -647,12 +647,17 @@ function resetParams() {
   setTimeout(function () {
     // Don't change app selection to default - it will be preserved from the current app
     // $("#apps select").val(params["app_name"]);
-    if (params["pdf"] === "true") {
+    console.log("Debug: params['pdf']:", params["pdf"]);
+    console.log("Debug: params['pdf_vector_storage']:", params["pdf_vector_storage"]);
+    
+    if (params["pdf"] === "true" || params["pdf_vector_storage"] === true || params["pdf_vector_storage"] === "true") {
+      console.log("Debug: Showing PDF controls");
       $("#file-div").show();
       $("#pdf-panel").show();
     } else if (params["file"] === "true") {
       $("#file-div").show();
     } else {
+      console.log("Debug: Hiding PDF controls");
       $("#file-div").hide();
       $("#pdf-panel").hide();
     }
@@ -661,7 +666,10 @@ function resetParams() {
 
 function setParams() {
   const app_name = $("#apps").val();
+  console.log("Debug: Selected app:", app_name);
+  console.log("Debug: App data:", apps[app_name]);
   params = Object.assign({}, apps[app_name]);
+  console.log("Debug: Final params:", params);
   params["app_name"] = app_name;
 
   if ($("#ai-user-toggle").is(":checked")) {

@@ -102,6 +102,10 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 
 - `extra.log`: Monadic Chatの起動から終了時までに行なったチャットの記録がレスポンス時にストリーミングされるJSONオブジェクト単位で記録されるログファイル
 
+?> **デバッグログ**: GUIの「Extra Logging」オプションは`MONADIC_DEBUG=api`の設定と同等です。より詳細なデバッグ制御には、環境変数を使用できます：
+> - `MONADIC_DEBUG`: 特定のデバッグカテゴリを有効化（例：`api`、`embeddings`、`mdsl`、`tts`、`drawio`、`ai_user`、`web_search`、または`all`）
+> - `MONADIC_DEBUG_LEVEL`: ログレベルを設定（`debug`、`info`、`warning`、`error`）
+
 **Open Console** <br />
 Monadic Chatのコンソールパネルを開きます。
 
@@ -186,4 +190,8 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
 
 **Extra Logging** <br />
-詳しいログ情報を有効にするかどうかを選択します。詳しいログ情報が有効な場合、Monadic Chatの開始から終了までのチャットログがストリーミングJSONオブジェクトとして記録されます。ログファイルは`~/monadic/logs/extra.log`に保存されます。
+詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは`~/monadic/logs/extra.log`に保存されます。この設定は環境変数`MONADIC_DEBUG=api`を設定することと同等です。
+
+注：より詳細なデバッグ制御には、統一デバッグシステムの環境変数を使用できます：
+- `MONADIC_DEBUG=api,embeddings`（カンマ区切りのカテゴリ）
+- `MONADIC_DEBUG_LEVEL=debug`（none, error, warning, info, debug, verbose）

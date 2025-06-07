@@ -32,6 +32,7 @@ function uploadPdf(file, fileTitle) {
       data: formData,
       processData: false,
       contentType: false,
+      dataType: "json", // Explicitly expect JSON response
       timeout: 120000, // 2 minute timeout (PDF processing can take time)
       success: resolve,
       error: reject

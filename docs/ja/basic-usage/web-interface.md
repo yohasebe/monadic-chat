@@ -65,7 +65,7 @@ OpenAIの高度な推論が可能なモデル（`o1`や`o3-mini`）では、推�
 
 下記の要素はパラメターとしてAPIに送られます。各パラメターの詳細はChat APIの[Reference](https://platform.openai.com/docs/api-reference/chat)を参照してください。なお、選択中のモデルで使用できないパラメターは無視されます。
 
-- Temperature
+- Temperature（注：Gemini 2.5 Flash ThinkingやClaude 3.5 Sonnet Newなどの思考モデルでは「Reasoning Effort」に置き換わります）
 - Top P
 - Presence Penalty
 - Frequency Penalty

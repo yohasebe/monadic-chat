@@ -317,6 +317,12 @@ function handleHtmlMessage(data, messages, createCardFunc) {
       $('#select-role').prop('disabled', false);
       $('#monadic-spinner').hide();
       $('#cancel_query').hide();
+      
+      // Clear the "Connected" status and show "Ready for input"
+      if (typeof setAlert === 'function') {
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+      }
+      
       return true;
     }
     return false;

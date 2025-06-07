@@ -1,7 +1,11 @@
 # frozen_string_literal: false
 
+require 'securerandom'
+require_relative "../../utils/interaction_utils"
+
 module MistralHelper
-  MAX_FUNC_CALLS = 8
+  include InteractionUtils
+  MAX_FUNC_CALLS = 16
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT   = 5
   READ_TIMEOUT   = 60
@@ -64,10 +68,14 @@ module MistralHelper
 
   WEBSEARCH_PROMPT = <<~TEXT
 
+    IMPORTANT: You MUST use the tavily_search function to search for information about any topic, person, or subject that you don't have reliable information about. DO NOT make up or hallucinate information.
+
     Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
 
     - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
     - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+
+    When asked about specific people, companies, or any factual information, ALWAYS use tavily_search first before responding.
 
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
@@ -288,6 +296,9 @@ module MistralHelper
     request_id = SecureRandom.hex(4)
 
     websearch = obj["websearch"] == "true"
+    
+    # Debug logging for websearch
+    DebugHelper.debug("Mistral websearch enabled: #{websearch}", category: :api, level: :info) if websearch
 
     if role != "tool"
       message = obj["message"].to_s
@@ -342,13 +353,28 @@ module MistralHelper
     # Add tools if available
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
+      # Add websearch tools if websearch is enabled
+      if websearch
+        body["tools"] = body["tools"] + WEBSEARCH_TOOLS
+        body["tools"].uniq! { |tool| tool.dig(:function, :name) }
+        
+        # Add websearch prompt to system message
+        system_msg = context.first
+        if system_msg && system_msg["role"] == "system"
+          system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+          DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
+        end
+      end
+      DebugHelper.debug("Mistral tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
     elsif websearch
       body["tools"] = WEBSEARCH_TOOLS
+      DebugHelper.debug("Mistral websearch tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
 
       # Add websearch prompt to system message
       system_msg = context.first
       if system_msg && system_msg["role"] == "system"
         system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+        DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
       end
     end
 
@@ -361,12 +387,20 @@ module MistralHelper
     end
 
     if role == "tool"
+      # For Mistral, we need to include the assistant message with tool calls
+      # before adding tool responses
+      if obj["tool_calls_message"]
+        body["messages"] << obj["tool_calls_message"]
+      end
+      
       # Add the function response to the body
       body["messages"] += obj["function_returns"].map do |resp|
+        # Ensure content is never nil
+        content = resp[:content] || resp["content"] || "No result returned"
         { "role" => "tool",
-          "content" => resp["content"],
-          "tool_call_id" => resp["tool_call_id"],
-          "name" => resp["name"] }
+          "content" => content.to_s,
+          "tool_call_id" => resp[:tool_call_id] || resp["tool_call_id"],
+          "name" => resp[:name] || resp["name"] }
       end
     end
 
@@ -382,7 +416,8 @@ module MistralHelper
 
       unless res.status.success?
         err_json = JSON.parse(res.body)
-        error_message = "API ERROR: #{err_json["error"]["message"]}" rescue "API ERROR: API call failed: #{res.status}"
+        formatted_error = format_api_error(err_json, "mistral")
+        error_message = "API ERROR: #{formatted_error}"
         res = { "type" => "error", "content" => error_message }
         block&.call res
         return [res]
@@ -411,7 +446,16 @@ module MistralHelper
     finish_reason = nil
 
     res.body.each do |chunk|
-      chunk = chunk.force_encoding("UTF-8")
+      # Handle encoding issues
+      begin
+        chunk = chunk.force_encoding("UTF-8")
+        unless chunk.valid_encoding?
+          chunk = chunk.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+        end
+      rescue => e
+        DebugHelper.debug("Encoding error in chunk: #{e.message}", category: :api, level: :error)
+        next
+      end
 
       if /\A\s*data:\s+\[DONE\]\s*\z/ =~ chunk
         # Handle stream end
@@ -511,10 +555,23 @@ module MistralHelper
       call_depth += 1
 
       if call_depth > MAX_FUNC_CALLS
-        # Avoid excessive function calls
-        res = { "type" => "fragment", "content" => "\n\nMAXIMUM FUNCTION CALL DEPTH EXCEEDED" }
+        # Send notice fragment
+        res = { "type" => "fragment", "content" => "\n\nNOTICE: Maximum function call depth exceeded" }
         block&.call res
-        return []
+        
+        # Create a mock HTML response to properly end the conversation
+        html_res = {
+          "type" => "html",
+          "content" => {
+            "role" => "assistant",
+            "text" => "NOTICE: Maximum function call depth exceeded",
+            "html" => "<p>NOTICE: Maximum function call depth exceeded</p>",
+            "lang" => "en",
+            "mid" => SecureRandom.hex(4)
+          }
+        }
+        block&.call html_res
+        return [{ "type" => "message", "content" => "DONE", "finish_reason" => "stop" }]
       end
 
       # Process tool calls
@@ -552,26 +609,40 @@ module MistralHelper
           function_return = "ERROR: #{e.message}"
         end
 
-        # Add to function returns
+        # Add to function returns with proper encoding
+        content = function_return.to_s
+        # Ensure content is not nil or empty
+        content = "No result returned" if content.nil? || content.empty?
+        # Ensure UTF-8 encoding
+        content = content.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?') unless content.valid_encoding?
+        
         function_returns << {
           tool_call_id: tool_call["id"],
           role: "tool",
           name: function_name,
-          content: function_return.to_s
+          content: content
         }
       end
 
-      # Update session with function returns
+      # Create assistant message with tool calls for Mistral's message ordering
+      tool_calls_message = {
+        "role" => "assistant",
+        "content" => content_buffer,
+        "tool_calls" => tool_calls.map do |tc|
+          {
+            "id" => tc["id"],
+            "type" => "function",
+            "function" => tc["function"]
+          }
+        end
+      }
+      
+      # Update session with function returns and tool calls message
       session[:parameters]["function_returns"] = function_returns
+      session[:parameters]["tool_calls_message"] = tool_calls_message
 
       # Make recursive API call with tool responses
-      new_results = api_request("tool", session, call_depth: call_depth, &block)
-      
-      # Wrap up the call with "DONE" message
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-      block&.call res
-      
-      return new_results
+      return api_request("tool", session, call_depth: call_depth, &block)
     end
 
     # Finish up the standard response

@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "../../utils/interaction_utils"
+
 module GrokHelper
-  MAX_FUNC_CALLS = 8
+  include InteractionUtils
+  MAX_FUNC_CALLS = 16
   API_ENDPOINT = "https://api.x.ai/v1"
 
   OPEN_TIMEOUT = 5
@@ -363,9 +366,8 @@ module GrokHelper
       }
       
       # Debug logging
-      if CONFIG["EXTRA_LOGGING"]
-        puts "Grok Live Search enabled with search_parameters:"
-        puts JSON.pretty_generate(body["search_parameters"])
+      if DebugHelper.extra_logging?
+        DebugHelper.debug("Grok Live Search enabled with search_parameters:\n#{JSON.pretty_generate(body["search_parameters"])}", category: :api, level: :info)
       end
     end
 
@@ -489,13 +491,16 @@ module GrokHelper
 
     unless res.status.success?
       begin
-        status = res.status
-        error_message = res.body.to_s
-        res = { "type" => "error", "content" => "API ERROR: #{status} - #{error_message}" }
+        error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
+        formatted_error = format_api_error(error_data, "grok")
+        res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
         block&.call res
         return [res]
-      rescue StandardError
-        res = { "type" => "error", "content" => "API ERROR" }
+      rescue StandardError => e
+        DebugHelper.debug("Error parsing API error response: #{e.message}", category: :api, level: :error)
+        DebugHelper.debug("Raw response body: #{res.body.to_s[0..500]}", category: :api, level: :debug)
+        DebugHelper.debug("Response status: #{res.status}", category: :api, level: :debug)
+        res = { "type" => "error", "content" => "API ERROR: Unknown error occurred (#{res.status})" }
         block&.call res
         return [res]
       end
@@ -521,15 +526,16 @@ module GrokHelper
       sleep RETRY_DELAY
       retry
     else
-      pp error_message = "The request has timed out."
+      error_message = "The request has timed out."
+      DebugHelper.debug(error_message, category: :api, level: :error)
       res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
       block&.call res
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
+    DebugHelper.debug("API request error: #{e.message}", category: :api, level: :error)
+    DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
+    DebugHelper.debug("Error details: #{e.inspect}", category: :api, level: :debug)
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
     block&.call res
     [res]
@@ -538,8 +544,8 @@ module GrokHelper
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      DebugHelper.debug("Processing query at #{Time.now} (Call depth: #{call_depth})", category: :api, level: :info)
+      DebugHelper.debug("Query: #{JSON.pretty_generate(query)}", category: :api, level: :debug)
     end
 
     obj = session[:parameters]
@@ -578,7 +584,7 @@ module GrokHelper
             json = JSON.parse(json_data)
 
             if CONFIG["EXTRA_LOGGING"]
-              extra_log.puts(JSON.pretty_generate(json))
+              DebugHelper.debug("Response: #{JSON.pretty_generate(json)}", category: :api, level: :debug)
             end
 
             finish_reason = json.dig("choices", 0, "finish_reason")
@@ -667,9 +673,9 @@ module GrokHelper
         end
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      DebugHelper.debug("JSON parsing error: #{e.message}", category: :api, level: :error)
+      DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
+      DebugHelper.debug("Error details: #{e.inspect}", category: :api, level: :debug)
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -750,8 +756,8 @@ module GrokHelper
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
       rescue StandardError => e
-        pp e.message
-        pp e.backtrace
+        DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
+        DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
         function_return = "ERROR: #{e.message}"
       end
 

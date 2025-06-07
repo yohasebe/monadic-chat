@@ -5,7 +5,7 @@ require "rspec/core/rake_task"
 require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
 
-RSpec::Core::RakeTask.new(:spec)
+# RSpec::Core::RakeTask.new(:spec) # Commented out as we define custom :spec task below
 
 require "rubocop/rake_task"
 
@@ -588,7 +588,9 @@ end
 
 # Test ruby code with rspec ./docker/services/ruby/spec
 task :spec do
-  sh "rspec ./docker/services/ruby/spec --format documentation --no-fail-fast --no-profile"
+  Dir.chdir("docker/services/ruby") do
+    sh "bundle exec rspec spec --format documentation --no-fail-fast --no-profile"
+  end
 end
 
 # Test JavaScript code with Jest

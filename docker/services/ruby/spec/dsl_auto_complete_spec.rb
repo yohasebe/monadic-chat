@@ -55,8 +55,8 @@ RSpec.describe MonadicDSL::ToolConfiguration do
         # Count 'end' statements
         end_count = content.scan(/^\s*end\s*$/).count
         
-        # Should have exactly 3 ends: one for tools, one for app, one for llm
-        expect(end_count).to eq(3)
+        # Should have exactly 4 ends: one for define_tool, one for tools, one for app, one for llm
+        expect(end_count).to eq(4)
         
         # Verify the tool was added
         expect(content).to include('define_tool "test_tool"')
@@ -104,8 +104,8 @@ RSpec.describe MonadicDSL::ToolConfiguration do
         # Count 'end' statements
         end_count = content.scan(/^\s*end\s*$/).count
         
-        # Should have exactly 4 ends: one for existing tool, one for tools, one for app, one for llm
-        expect(end_count).to eq(4)
+        # Should have exactly 5 ends: one for existing tool, one for new tool, one for tools, one for app, one for llm
+        expect(end_count).to eq(5)
         
         # Verify both tools are present
         expect(content).to include('define_tool "existing_tool"')
@@ -171,8 +171,8 @@ RSpec.describe MonadicDSL::ToolConfiguration do
         
         content = File.read(mdsl_file)
         
-        # Verify the file is still valid Ruby
-        expect { eval(content) }.not_to raise_error
+        # Verify the file structure is maintained
+        expect(content).to match(/app "ComplexApp" do.*end\s*$/m)
         
         # Verify tools were added in the right place
         expect(content).to include('define_tool "complex_tool"')

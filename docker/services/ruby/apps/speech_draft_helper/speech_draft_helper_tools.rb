@@ -2,6 +2,8 @@
 # Provides clear interfaces for TextToSpeechHelper functionality
 
 class SpeechDraftHelperOpenAI < MonadicApp
+  include OpenAIHelper
+  
   # list_providers_and_voices is already available from MonadicHelper
   
   # Override text_to_speech to handle parameter mapping

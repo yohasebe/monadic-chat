@@ -322,11 +322,18 @@ module OllamaHelper
   end
 
   def process_json_data(app, session, body, _call_depth, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing Ollama streaming response at #{Time.now}")
+    end
+
     obj = session[:parameters]
 
     buffer = String.new
     texts = []
     finish_reason = nil
+    fragment_index = 0
+    is_first_fragment = true
 
     body.each do |chunk|
       begin
@@ -338,10 +345,19 @@ module OllamaHelper
           fragment = json.dig("message", "content").to_s
           res = {
             "type" => "fragment",
-            "content" => fragment
+            "content" => fragment,
+            "index" => fragment_index,
+            "is_first" => is_first_fragment
           }
+          
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log.puts("Fragment: index=#{fragment_index}, is_first=#{is_first_fragment}, length=#{fragment.length}, content=#{fragment.inspect}")
+          end
+          
           block&.call res
           texts << fragment
+          fragment_index += fragment.length
+          is_first_fragment = false
         end
       rescue JSON::ParserError
         buffer << chunk
@@ -353,6 +369,12 @@ module OllamaHelper
     end
 
     result = texts.join("")
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.puts("Total fragments processed: #{texts.length}")
+      extra_log.puts("Final result length: #{result.length}")
+      extra_log.close
+    end
 
     if result && obj["monadic"]
       modified = APPS[app].monadic_map(result)

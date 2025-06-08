@@ -16,6 +16,7 @@ MISTRAL_DEFAULT_MODEL=mistral-large-latest
 GROK_DEFAULT_MODEL=grok-2
 PERPLEXITY_DEFAULT_MODEL=sonar
 DEEPSEEK_DEFAULT_MODEL=deepseek-chat
+OLLAMA_DEFAULT_MODEL=llama3.2:3b
 ```
 
 これらの環境変数は以下の場合に使用されます：
@@ -115,15 +116,33 @@ DeepSeek APIキーを設定すると、DeepSeekを用いたアプリを使用す
 DEEPSEEK_API_KEY=api_key
 ```
 
-## Ollama Models
+## Ollamaモデル
 
 ![Ollama apps icon](../assets/icons/ollama.png ':size=40')
 
-追加のイメージとコンテナを導入することで、Ollamaを用いたアプリを使用することができます。[Ollama](https://ollama.com/)を使うと、下記のようなLLMをローカルのDocker環境で使用することができます。
+OllamaはMonadic Chatに組み込まれました！[Ollama](https://ollama.com/)は、言語モデルをローカルで実行できるプラットフォームです。自分のマシンで動作するため、APIキーは不要です。
 
-  - Llama
-  - Phi
-  - Mistral
-  - Gemma
+### 人気のモデル
 
-Monadic ChatでOllamaを導入する方法については、[Ollamaの利用](./ollama)を参照してください。
+- **Llama 3.2** (1B, 3B) - 最新のLlamaモデル、性能とサイズの優れたバランス
+- **Llama 3.1** (8B, 70B) - Metaによる最先端モデル
+- **Gemma 2** (2B, 9B, 27B) - Googleの軽量モデル
+- **Qwen 2.5** (0.5B-72B) - 様々なサイズから選べるAlibabaのモデル
+- **Mistral** (7B) - 高速で高性能なモデル
+- **Phi 3** (3.8B, 14B) - Microsoftの効率的なモデル
+
+### Ollamaのセットアップ
+
+1. Ollamaコンテナをビルド：Actions → Build Ollama Container
+2. Monadic Chatを起動：Actions → Start
+3. OllamaグループにChatアプリ（Ollama対応）が表示されます
+
+### デフォルトモデルの設定
+
+`~/monadic/config/env`でデフォルトのOllamaモデルを設定できます：
+
+```
+OLLAMA_DEFAULT_MODEL=llama3.2:3b
+```
+
+詳細なセットアップ手順とモデル管理については、[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。

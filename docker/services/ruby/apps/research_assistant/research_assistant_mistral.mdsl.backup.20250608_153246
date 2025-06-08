@@ -1,19 +1,19 @@
-app "ResearchAssistantGrok" do
+app "ResearchAssistantMistral" do
   icon ResearchAssistant::ICON
   description ResearchAssistant::DESCRIPTION
   system_prompt ResearchAssistant::INITIAL_PROMPT
 
   llm do
-    provider "xai"
-    model "grok-3"
+    provider "mistral"
+    model "mistral-large-latest"
   end
 
   display_name "Research Assistant"
 
   features do
-    disabled !CONFIG["XAI_API_KEY"]
+    disabled !CONFIG["MISTRAL_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
     websearch true
-    temperature 0.2
+    temperature 0.0
     easy_submit false
     auto_speech false
     mathjax true
@@ -25,8 +25,9 @@ app "ResearchAssistantGrok" do
   
   tools do
     # Auto-generated tool definitions from Ruby implementation
-    define_tool "websearch_agent", "Websearch Agent" do
+    define_tool "tavily_search", "Tavily Search" do
       parameter :query, "string", "The query", required: true
+      parameter :n, "integer", "The n"
     end
   end
 end

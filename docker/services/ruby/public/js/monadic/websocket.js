@@ -2188,10 +2188,10 @@ function connect_websocket(callback) {
           }
 
           // sort specialApps by group name in the order:
-          // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"
+          // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"
           // and set it to the specialApps object
           specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
-            const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Extra"];
+            const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
             return order.indexOf(a[0]) - order.indexOf(b[0]);
           }));
           
@@ -2201,39 +2201,44 @@ function connect_websocket(callback) {
           // Add special groups with their labels
           for (const group of Object.keys(specialApps)) {
             if (specialApps[group].length > 0) {
-              // Add group header to standard select
-              // Add group header to standard select
-              $("#apps").append(`<option disabled>──${group}──</option>`);
+              // Check if there are any non-disabled apps in this group
+              const hasEnabledApps = specialApps[group].some(([key, value]) => value.disabled !== "true");
               
-              // Add group header to custom dropdown
-              $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="${group}">
-                <span>──${group}──</span>
-                <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-              </div>`);
-              
-              // Create container for this group's apps
-              const normalizedGroupId = normalizeGroupId(group);
-              $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
-              
-              for (const [key, value] of specialApps[group]) {
-                // Skip apps disabled due to missing API token
-                if (value.disabled === "true") {
-                  continue;
-                }
-                apps[key] = value;
-                // Use display_name if available, otherwise fall back to app_name
-                const displayText = value["display_name"] || value["app_name"];
-                const appIcon = value["icon"] || "";
+              // Only show the separator if there are enabled apps
+              if (hasEnabledApps) {
+                // Add group header to standard select
+                $("#apps").append(`<option disabled>──${group}──</option>`);
                 
-                // Add option to standard select
-                $("#apps").append(`<option value="${key}">${displayText}</option>`);
+                // Add group header to custom dropdown
+                $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="${group}">
+                  <span>──${group}──</span>
+                  <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                </div>`);
                 
-                // Add the same option to custom dropdown with icon
-                const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
-                  <span style="margin-right: 8px;">${appIcon}</span>
-                  <span>${displayText}</span></div>`);
+                // Create container for this group's apps
                 const normalizedGroupId = normalizeGroupId(group);
-                $(`#group-${normalizedGroupId}`).append($option);
+                $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
+                
+                for (const [key, value] of specialApps[group]) {
+                  // Skip apps disabled due to missing API token
+                  if (value.disabled === "true") {
+                    continue;
+                  }
+                  apps[key] = value;
+                  // Use display_name if available, otherwise fall back to app_name
+                  const displayText = value["display_name"] || value["app_name"];
+                  const appIcon = value["icon"] || "";
+                  
+                  // Add option to standard select
+                  $("#apps").append(`<option value="${key}">${displayText}</option>`);
+                  
+                  // Add the same option to custom dropdown with icon
+                  const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
+                    <span style="margin-right: 8px;">${appIcon}</span>
+                    <span>${displayText}</span></div>`);
+                  const normalizedGroupId = normalizeGroupId(group);
+                  $(`#group-${normalizedGroupId}`).append($option);
+                }
               }
             }
           }
@@ -2349,9 +2354,20 @@ function connect_websocket(callback) {
         let openai = currentApp["group"].toLowerCase() === "openai";
         let modelList = listModels(models, openai);
         $("#model").html(modelList);
-        let model = currentApp["models"][0];
+        
+        // Select the appropriate model
+        let model;
+        const isOllama = currentApp["group"].toLowerCase() === "ollama";
+        
         if (currentApp["model"] && models.includes(currentApp["model"])) {
+          // If app has a specific model set and it's available, use it
           model = currentApp["model"];
+        } else if (isOllama && models.length > 0) {
+          // For Ollama apps without specific model, select first available
+          model = models[0];
+        } else if (models.length > 0) {
+          // For other apps, select the first model
+          model = models[0];
         }
         
         // Extract provider name from current app group using shared function if available
@@ -2377,6 +2393,8 @@ function connect_websocket(callback) {
               provider = "DeepSeek";
             } else if (group.includes("grok") || group.includes("xai")) {
               provider = "xAI";
+            } else if (group.includes("ollama")) {
+              provider = "Ollama";
             }
           }
         }

@@ -1,0 +1,31 @@
+app "ChatOllama" do
+  description <<~TEXT
+  This app accesses the Ollama API to answer questions about a wide range of topics.
+  <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  
+  icon "fa-solid fa-horse"
+  
+  system_prompt <<~PROMPT
+  You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is unclear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+  PROMPT
+  
+  include_modules "OllamaHelper"
+  
+  llm do
+    provider "ollama"
+    # Model will use default from OllamaHelper::DEFAULT_MODEL or environment variable
+  end
+  
+  display_name "Chat"
+  
+  features do
+    disabled !CONFIG["OLLAMA_AVAILABLE"]
+    easy_submit false
+    auto_speech false
+    image true
+    toggle true
+    initiate_from_assistant false
+    context_size 100
+  end
+end

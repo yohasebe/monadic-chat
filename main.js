@@ -1760,6 +1760,21 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
+            label: 'Build Ollama Container',
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_ollama_container',
+                '[HTML]: <p>Building Ollama container . . .<br>This may take several minutes on first build.</p>',
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+          },
+          {
+            type: 'separator'
+          },
+          {
             label: 'Start JupyterLab',
             click: () => {
               // First check if we're in server mode

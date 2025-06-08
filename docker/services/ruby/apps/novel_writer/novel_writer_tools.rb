@@ -1,4 +1,4 @@
-class NovelWriter < MonadicApp
+class NovelWriterOpenAI < MonadicApp
   def count_num_of_words(text: "")
     text.split.size
   end

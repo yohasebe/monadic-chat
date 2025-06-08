@@ -2,41 +2,56 @@
 
 ## セットアップ
 
-Ollamaを利用するためには[Monadic Chat Extra](https://github.com/yohasebe/monadic-chat-extra)から追加ファイルをダウンロードする必要があります。ダウンロードしたファイルを共有フォルダに配置することでOllamaを利用することができます。
+OllamaはMonadic Chatのオプション機能として組み込まれています。Ollamaを使用するには：
 
-!> `0.9.38`より、`MonadicApp`クラスの仕様が一部変更されました。それに伴い、Monadic Chat Extraのファイルも変更されています。`0.9.38`以降のバージョンを利用する場合は、Monadic Chat Extraの最新版をダウンロードしてください。
+1. Monadic Chatが停止していることを確認（Actions → Stop）
+2. Actions → Build Ollama Containerを選択（これは「Build All」とは別です）
+3. ビルドが完了するまで待ちます（初回ビルド時は数分かかる場合があります）
+4. Monadic Chatを起動（Actions → Start）
+5. OllamaグループにChatアプリが表示されます
 
-以下のように必要なファイルを配置してMonadic Chatを再構築してください。
-
-1. Ollama用追加ファイルをダウンロードします。
-
-2. 共有フォルダの`plugins`フォルダ内にファイルを配置します。
-
-```
-~
-└── monadic
-    └── data
-        └── plugins
-            └── ollama
-                ├── apps
-                │   └── talk_to_ollama
-                │       └── talk_to_ollama_app.rb
-                ├── services
-                │   └── ollama
-                │       ├── compose.yml
-                │       ├── Dockerfile
-                │       └── entrypoint.sh
-                └── helpers
-                    └── ollama_helper.rb
-```
-
-3. Monadic Chatを再構築します。
-
-4. Monadic Chatを起動します。Ollama (Chat)アプリが追加されていることを確認します。
+!> Ollamaコンテナはリソース節約のため「Build All」では自動的にビルドされません。この機能を使用するには明示的に「Build Ollama Container」を選択する必要があります。
 
 ## 言語モデルの追加
 
-標準では、`llama3.2 (3B)`モデルが利用可能になっています。他の言語モデルを利用する場合は、ターミナルからOllamaコンテナーに接続して、追加したいモデルをダウンロードしてください。下記は`gemma2:2b`モデルを追加する例です。
+### olsetup.shを使う方法（推奨）
+
+configディレクトリに`olsetup.sh`ファイルを作成することで、モデルのインストールを自動化できます：
+
+1. `~/monadic/config/olsetup.sh`を作成し、必要なモデルを記述します：
+
+```bash
+#!/bin/bash
+# olsetup.shの例 - デフォルトモデルのインストール
+
+echo "Ollamaモデルをインストール中..."
+
+# 推奨モデルのインストール
+ollama pull llama3.2:3b
+ollama pull gemma2:2b
+ollama pull mistral:7b
+
+# 他のモデルも追加可能
+# ollama pull phi3:3.8b
+# ollama pull qwen2.5:3b
+
+echo "モデルのインストールが完了しました！"
+```
+
+2. 実行権限を付与します：
+```bash
+chmod +x ~/monadic/config/olsetup.sh
+```
+
+3. Ollamaコンテナをビルドします（Actions → Build Ollama Container）
+
+モデルはコンテナ起動時に自動的にインストールされ、`~/monadic/ollama/`に永続的に保存されます。
+
+### 手動インストール
+
+`olsetup.sh`が見つからない場合、システムは自動的に`llama3.2`をデフォルトとしてプルします。デフォルトモデルは`~/monadic/config/env`ファイルで`OLLAMA_DEFAULT_MODEL`環境変数を設定することで変更できます。
+
+さらにモデルを手動で追加するには、ターミナルからOllamaコンテナーに接続します：
 
 
 ```shell
@@ -56,7 +71,34 @@ success
 
 `ollama`のインタラクティブシェルが起動して、モデルのダウンロードが完了すると、`>>>`プロンプトが表示されます。`/bye`と入力してシェルを終了します。
 
-ターミナルからダウンロードしたモデルは、`Talk to Ollama`アプリを選択するとモデルのセレクターに選択肢として表示されます。
+ターミナルからダウンロードしたモデルは、Chat（Ollama版）アプリを選択するとモデルのセレクターに選択肢として表示されます。
+
+## 人気モデル一覧
+
+Ollamaで利用できる人気モデルを、一般的なチャット用途への適性順に紹介します：
+
+| モデル | サイズ | 説明 |
+|-------|-------|-----|
+| **llama3.2** | 1B, 3B | 最新のLlamaモデル、性能とサイズのバランスが良い |
+| **llama3.1** | 8B, 70B | Metaによる最先端モデル |
+| **gemma2** | 2B, 9B, 27B | Googleの軽量モデル、シングルGPUで優れた性能 |
+| **qwen2.5** | 0.5B-72B | Alibabaのモデル、様々なサイズから選択可能 |
+| **mistral** | 7B | 高速で高性能な7Bモデル |
+| **phi3** | 3.8B, 14B | Microsoftの効率的なモデル |
+
+一般的なチャット用途には以下をお勧めします：
+- **llama3.2:3b** （デフォルト） - 品質と速度の最良のバランス
+- **gemma2:2b** - より高速な応答、素早いやり取りに最適
+- **mistral:7b** - より高品質だがリソースを多く使用
+
+これらのモデルを追加するには、上記と同じ手順で `ollama run [モデル名]` を実行してください。
 
 !> ローカルでダウンロードしたモデルは、ロードに時間がかかる場合があります。コンテナを再構築した後や、Monadic Chatを再起動した後、webインターフェイスにモデルが表示されるまでに時間がかかることがあります。そのような時は少し時間を空けてからwebインターフェイスをリロードしてください。
+
+## 技術詳細
+
+- **モデル保存場所**: すべてのモデルはホストマシンの`~/monadic/ollama/`に永続的に保存されます
+- **デフォルトモデル**: `OLLAMA_DEFAULT_MODEL`環境変数で設定可能（デフォルト: `llama3.2:latest`）
+- **モデルリスト**: アプリはOllamaサービス実行時に利用可能なモデルを動的にチェックします
+- **コンテナ管理**: 条件付きビルドのためにDockerプロファイル（profile: `ollama`）を使用します
 

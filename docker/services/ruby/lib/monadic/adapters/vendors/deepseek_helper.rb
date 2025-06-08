@@ -361,6 +361,10 @@ module DeepSeekHelper
     # Debug the final API request body
     DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
     
+    # Send initial spinner/waiting message
+    res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
+    block&.call res
+    
     http = HTTP.headers(headers)
 
     MAX_RETRIES.times do

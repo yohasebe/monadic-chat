@@ -1101,6 +1101,8 @@ module MonadicDSL
         provider_env_var = "PERPLEXITY_DEFAULT_MODEL"
       elsif provider_name.include?("deepseek")
         provider_env_var = "DEEPSEEK_DEFAULT_MODEL"
+      elsif provider_name.include?("ollama")
+        provider_env_var = "OLLAMA_DEFAULT_MODEL"
       end
 
       # If a value is provided, it takes precedence over environment variables
@@ -1109,6 +1111,9 @@ module MonadicDSL
       # Otherwise, try to use environment variable if available
       elsif provider_env_var && ENV[provider_env_var]
         @state.settings[:model] = ENV[provider_env_var]
+      # Special handling for Ollama - use default from OllamaHelper
+      elsif provider_name.include?("ollama") && defined?(OllamaHelper::DEFAULT_MODEL)
+        @state.settings[:model] = OllamaHelper::DEFAULT_MODEL
       end
     end
     
@@ -1243,6 +1248,13 @@ module MonadicDSL
         api_key: 'OPENAI_API_KEY',
         display_group: 'OpenAI',
         aliases: []
+      },
+      # Ollama (local)
+      "ollama" => {
+        helper_module: 'OllamaHelper',
+        api_key: nil,  # Ollama doesn't need an API key
+        display_group: 'Ollama',
+        aliases: ['local', 'ollama-local']
       }
     }
     
@@ -1350,6 +1362,8 @@ module MonadicDSL
       provider_env_var = "PERPLEXITY_DEFAULT_MODEL"
     elsif provider_name.include?("deepseek")
       provider_env_var = "DEEPSEEK_DEFAULT_MODEL"
+    elsif provider_name.include?("ollama")
+      provider_env_var = "OLLAMA_DEFAULT_MODEL"
     end
 
     # Determine model value for class definition
@@ -1368,6 +1382,7 @@ module MonadicDSL
                                     when /grok|xai/ then "grok-2"
                                     when /perplexity/ then "sonar"
                                     when /deepseek/ then "deepseek-chat"
+                                    when /ollama/ then "(defined?(OllamaHelper) && OllamaHelper.list_models.first) || 'llama3.2:3b'"
                                     else "gpt-4.1" # Default fallback
                                     end
                     "ENV['#{provider_env_var}'] || #{default_model.inspect}"
@@ -1378,7 +1393,14 @@ module MonadicDSL
                   end
 
     # Construct disabled logic based on API key availability and server mode restrictions
-    if jupyter_disabled_in_server
+    if provider_config.api_key_name.nil?
+      # For providers that don't need API keys (like Ollama)
+      if jupyter_disabled_in_server
+        disabled_condition = "(defined?(CONFIG) && CONFIG[\"DISTRIBUTED_MODE\"] == \"server\")"
+      else
+        disabled_condition = "false"  # Never disabled if no API key needed
+      end
+    elsif jupyter_disabled_in_server
       disabled_condition = "!defined?(CONFIG) || !CONFIG[\"#{provider_config.api_key_name}\"] || (defined?(CONFIG) && CONFIG[\"DISTRIBUTED_MODE\"] == \"server\")"
     else
       disabled_condition = "!defined?(CONFIG) || !CONFIG[\"#{provider_config.api_key_name}\"]"

@@ -94,7 +94,8 @@ PROMPT
 CONFIG = {
   "DISTRIBUTED_MODE" => "off",  # Default to off/standalone mode
   "EXTRA_LOGGING" => false,     # Default to no extra logging
-  "JUPYTER_PORT" => "8889"      # Default Jupyter port
+  "JUPYTER_PORT" => "8889",     # Default Jupyter port
+  "OLLAMA_AVAILABLE" => ENV["OLLAMA_AVAILABLE"] == "true"  # Check if Ollama container is available
 }
 
 begin
@@ -287,6 +288,39 @@ def init_apps
     app = a.new
     app.settings = ActiveSupport::HashWithIndifferentAccess.new(a.instance_variable_get(:@settings))
 
+    # Evaluate the disabled expression if it's a string containing Ruby code
+    if app.settings["disabled"].is_a?(String) && app.settings["disabled"].match?(/defined\?|CONFIG/)
+      begin
+        app.settings["disabled"] = eval(app.settings["disabled"])
+      rescue => e
+        # If evaluation fails, assume the app is disabled
+        app.settings["disabled"] = true
+        puts "Warning: Failed to evaluate disabled condition for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    # Evaluate the models expression if it's a string containing Ruby code
+    if app.settings["models"].is_a?(String) && app.settings["models"].match?(/defined\?|list_models/)
+      begin
+        app.settings["models"] = eval(app.settings["models"])
+      rescue => e
+        # If evaluation fails, use empty array
+        app.settings["models"] = []
+        puts "Warning: Failed to evaluate models for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    # Evaluate the model expression if it's a string containing Ruby code
+    if app.settings["model"].is_a?(String) && app.settings["model"].match?(/ENV\[|defined\?|\|\|/)
+      begin
+        app.settings["model"] = eval(app.settings["model"])
+      rescue => e
+        # If evaluation fails, use a default model
+        app.settings["model"] = "gpt-4.1"
+        puts "Warning: Failed to evaluate model for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
     vendor = app.settings["group"]
     models = app.settings["models"]
     if vendor && models
@@ -317,10 +351,10 @@ def init_apps
       app.settings["display_name"] = app_name.gsub(/([A-Z])/) { " #{$1}" }.lstrip
     end
 
-    # Skip disabled apps
-    next if app.settings["disabled"]
+    # Don't skip disabled apps - they need to be sent to frontend
+    # The frontend will handle the disabled state appropriately
     
-    # Register the app if it passed all filters
+    # Register the app regardless of disabled state
     MonadicApp.register_app_settings(app.settings["app_name"], app)
     
     app_name = app.settings["app_name"]

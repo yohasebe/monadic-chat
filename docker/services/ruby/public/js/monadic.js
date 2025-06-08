@@ -22,6 +22,8 @@ function getProviderFromGroup(group) {
     return "DeepSeek";
   } else if (groupLower.includes("grok") || groupLower.includes("xai")) {
     return "xAI";
+  } else if (groupLower.includes("ollama")) {
+    return "Ollama";
   } else {
     return "OpenAI";
   }
@@ -738,7 +740,14 @@ $(function () {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
       $("#model").html(modelList);
-      model = models[1];
+      // For Ollama apps without a specific model, select the first available model
+      // For other apps, select models[1] if available (to skip the disabled option)
+      const isOllama = apps[appValue]["group"].toLowerCase() === "ollama";
+      if (isOllama && !apps[appValue]["model"]) {
+        model = models[0]; // Select first available model for Ollama
+      } else {
+        model = models[1] || models[0]; // Select second model if available, otherwise first
+      }
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
       }

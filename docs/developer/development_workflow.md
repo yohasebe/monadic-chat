@@ -277,7 +277,7 @@ unset MDSL_AUTO_COMPLETE
 
 ## Important: Managing Setup Scripts
 
-The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:
+The `pysetup.sh`, `rbsetup.sh`, and `olsetup.sh` files located in `docker/services/python/`, `docker/services/ruby/`, and `docker/services/ollama/` respectively are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages or models. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:
 
 #### Method 1: Using the Reset Script
 
@@ -294,7 +294,7 @@ This will restore the original versions of the setup scripts from git.
 Alternatively, you can manually reset the files using git:
 
 ```bash
-git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh
+git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh docker/services/ollama/olsetup.sh
 ```
 
 ### Git Pre-commit Hook (Optional)

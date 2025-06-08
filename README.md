@@ -46,6 +46,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Python (+ pip)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
+  - Ollama (optional, for local LLM models)
 - ⚡️ Use of LLMs via **online and local** APIs
 - 📦 Each container can be managed via **SSH**
 - 📓 Integration with **Jupyter Notebook**
@@ -61,10 +62,11 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📜 Set **roles** for messages (user, assistant, system)
 - 🔢 Generate and import/export **text embeddings** from PDFs
 - 📼 **Logging** of code execution and tool/function use for debugging
+- 📋 **Extract content** from URLs and various file formats (PDF, DOCX, PPTX, XLSX, etc.)
 
 ### Voice Interaction
 
-- 🔈 **Text-to-speech** for AI assistant responses (OpenAI or Elevenlabs)
+- 🔈 **Text-to-speech** for AI assistant responses (OpenAI, Elevenlabs, Google Gemini, or Web Speech API)
 - 🎙️ **Speech recognition** using the Speech-to-Text API (+ display of p-values)
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
@@ -81,6 +83,16 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🎥 Recognition and description of **uploaded video content and audio**
 - 🎬 **Video generation** using Google's Veo model for text-to-video and image-to-video creation
 
+### Specialized Applications
+
+- 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis (OpenAI, Claude)
+- 🎥 **Video Generator** - Create videos from text or images using Google's Veo model
+- 🗣️ **Voice Interpreter** - Real-time voice conversation with AI assistants
+- 📊 **DrawIO Grapher** - Create diagrams using DrawIO format
+- 🧮 **Math Tutor** - Interactive mathematics tutoring with visualization support
+- 💬 **Second Opinion** - Get alternative perspectives from different AI models
+- 📄 **PDF Navigator** - Navigate and analyze PDF documents with AI assistance
+
 ### Configuration and Extension
 
 - 💡 Specify and edit **API parameters** and **system prompts**
@@ -88,9 +100,11 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
-- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, and xAI Grok
+- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, xAI Grok, and Perplexity
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
+- 📝 **Declarative DSL** for simplified app development
+- 🔧 Optional setup scripts (`rbsetup.sh`, `pysetup.sh`, `olsetup.sh`) for custom environment configuration
 
 ### Support for Multiple LLM APIs
 
@@ -109,6 +123,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Mistral
   - Gemma
   - DeepSeek
+  - And many more models available through Ollama
 - 🤖💬🤖 **AI-to-AI** chat functionality
 
 ### Conversations as Monads

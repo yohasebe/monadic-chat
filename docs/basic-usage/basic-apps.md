@@ -29,6 +29,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | |
+| Syntax Tree | ✅ | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
@@ -320,6 +321,25 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder.
 
 DrawIO Grapher apps are available for the following models:
+
+- OpenAI
+- Anthropic Claude
+
+### Syntax Tree
+
+![Syntax Tree app icon](../assets/icons/syntactic-analysis.png ':size=40')
+
+This application generates linguistic syntax trees from sentences in multiple languages. It analyzes the grammatical structure of sentences and creates visual tree diagrams using LaTeX and tikz-qtree. The app supports:
+
+- Multiple languages including English, Japanese, Chinese, and other languages
+- Binary branching analysis (each node has at most 2 children)
+- Editable SVG output that can be modified in vector graphics editors
+- Comprehensive particle analysis for Japanese (includes all 助詞)
+- Professional linguistic notation following syntactic theory standards
+
+The generated syntax trees are displayed as SVG images with transparent backgrounds, styled with CSS for web display.
+
+Syntax Tree apps are available for the following models:
 
 - OpenAI
 - Anthropic Claude

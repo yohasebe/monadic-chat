@@ -29,6 +29,7 @@
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | |
+| Syntax Tree | ✅ | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
@@ -311,6 +312,25 @@ Video GeneratorはGoogle Geminiモデルでのみ利用可能です。
 Draw.io ダイアグラムを作成するためのアプリケーションです。必要な図の仕様を説明すると、AIエージェントがDraw.io XMLファイルを生成し、共有フォルダに保存します。生成されたファイルはDraw.ioにインポートして編集することができます。フローチャート、UMLダイアグラム、ER図、ネットワーク図、組織図、マインドマップ、BPMNダイアグラム、ベン図、ワイヤフレームなど、様々な種類の図を作成できます。
 
 下記の言語モデルでDrawIO Grapherアプリが利用可能です。
+
+- OpenAI
+- Anthropic Claude
+
+### Syntax Tree
+
+![Syntax Tree app icon](../assets/icons/syntactic-analysis.png ':size=40')
+
+言語学的な構文木（統語樹）を生成するアプリケーションです。複数の言語の文を分析し、その文法構造を視覚的な樹形図として表示します。LaTeXとtikz-qtreeを使用して生成されます。主な機能：
+
+- 英語、日本語、中国語を含む多言語対応
+- 二分枝分析（各ノードが最大2つの子ノードを持つ）
+- ベクターグラフィックエディタで編集可能なSVG出力
+- 日本語の包括的な助詞分析（すべての助詞を含む）
+- 統語理論に基づいた専門的な言語学記法
+
+生成された構文木は透明背景のSVG画像として表示され、Web表示用にCSSでスタイリングされます。
+
+下記の言語モデルでSyntax Treeアプリが利用可能です。
 
 - OpenAI
 - Anthropic Claude

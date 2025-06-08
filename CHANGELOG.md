@@ -1,3 +1,6 @@
+- [June, 2025] 1.0.0
+  - Version updated from 0.9.982
+
 - [May, 2025] 0.9.982
   - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models
   - OpenAI and Anthropic models support native web search

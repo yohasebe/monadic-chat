@@ -35,6 +35,12 @@ namespace :server do
   desc "Start the Monadic server in debug mode (non-daemonized)"
   task :debug do
     puts "Starting Monadic server in debug mode..."
+    
+    # Check if Ollama container exists and set OLLAMA_AVAILABLE accordingly
+    ollama_exists = system("docker ps -a --format '{{.Names}}' | grep -q 'monadic-chat-ollama-container'")
+    ENV['OLLAMA_AVAILABLE'] = ollama_exists ? 'true' : 'false'
+    puts "Ollama container: #{ollama_exists ? 'detected' : 'not found'}"
+    
     sh "./bin/monadic_server.sh debug"
   end
   

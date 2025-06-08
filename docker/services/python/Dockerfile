@@ -11,7 +11,7 @@ RUN apt-get update && \
     pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
     imagemagick libmagickwand-dev \
     texlive-xetex texlive-latex-base texlive-fonts-recommended \
-    texlive-latex-extra texlive-pictures texlive-lang-cjk pdf2svg \
+    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all pdf2svg \
     && fc-cache -fv \
     && apt-get autoremove -y \
     && apt-get clean \

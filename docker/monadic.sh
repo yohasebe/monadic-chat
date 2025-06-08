@@ -125,20 +125,24 @@ ensure_data_dir() {
   local data_dir
   local log_dir
   local config_dir
+  local ollama_dir
 
   if [[ -f "/.dockerenv" ]]; then
     data_dir="/monadic/data"
     log_dir="/monadic/log"
     config_dir="/monadic/config"
+    ollama_dir="/monadic/ollama"
   else
     data_dir="${HOME_DIR}/monadic/data"
     log_dir="${HOME_DIR}/monadic/log"
     config_dir="${HOME_DIR}/monadic/config"
+    ollama_dir="${HOME_DIR}/monadic/ollama"
   fi
 
   mkdir -p "${data_dir}"
   mkdir -p "${log_dir}"
   mkdir -p "${config_dir}"
+  mkdir -p "${ollama_dir}"
 
   rm -f "${log_dir}/command.log"
   rm -f "${log_dir}/jupyter.log"
@@ -238,6 +242,38 @@ build_python_container() {
   # build_docker_compose
 
   remove_older_images yohasebe/monadic-chat
+  remove_project_dangling_images
+}
+
+# Function to build Ollama container
+build_ollama_container() {
+  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
+  
+  # Create directory if it doesn't exist
+  mkdir -p "$(dirname "${log_file}")"
+
+  # Build Ollama container with the ollama profile
+  echo "Building Ollama container..." | tee -a "${log_file}"
+  
+  # Use docker compose with the ollama profile to build only the Ollama container
+  # Use the main compose file which includes all service definitions
+  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama build ollama_service 2>&1 | tee -a "${log_file}"
+  
+  # Check if the build was successful
+  if ${DOCKER} images | grep -q "yohasebe/ollama"; then
+    echo "Ollama container built successfully" | tee -a "${log_file}"
+    
+    # Create the container (but don't start it yet)
+    echo "Creating Ollama container..." | tee -a "${log_file}"
+    ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama create ollama_service 2>&1 | tee -a "${log_file}"
+    
+    echo "Ollama container created. It will start automatically when you start Monadic Chat." | tee -a "${log_file}"
+  else
+    echo "Failed to build Ollama container" | tee -a "${log_file}"
+    return 1
+  fi
+  
+  remove_older_images yohasebe/ollama
   remove_project_dangling_images
 }
 
@@ -550,6 +586,12 @@ start_docker_compose() {
   
   ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat" up -d 
 
+  # Start Ollama container if it exists (it uses a profile so needs explicit start)
+  if ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^monadic-chat-ollama-container$"; then
+    echo "[HTML]: <p>Starting Ollama container...</p>"
+    ${DOCKER} compose -f "${COMPOSE_MAIN}" -p "monadic-chat" --profile ollama up -d ollama_service
+  fi
+
   local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
 
   if [[ "$1" != "silent" ]]; then
@@ -789,6 +831,21 @@ build_user_containers)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+  fi
+  ;;
+build_ollama_container)
+  ensure_data_dir "" &&
+
+  while ! ${DOCKER} info > /dev/null 2>&1; do
+    sleep ${DOCKER_CHECK_INTERVAL}
+  done
+
+  build_ollama_container
+
+  if ${DOCKER} images | grep -q "yohasebe/ollama"; then
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Ollama container has finished: Check the console panel for details.</p><hr />"
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Ollama container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
   fi
   ;;
 build)

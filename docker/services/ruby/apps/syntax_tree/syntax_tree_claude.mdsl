@@ -2,6 +2,10 @@ app "SyntaxTreeClaude" do
   icon "fa-solid fa-tree"
 
   display_name "Syntax Tree"
+  description <<~TEXT
+    This application generates syntactic parse trees for sentences in multiple languages. It provides professional linguistic analysis, creates visual tree diagrams, and supports interactive refinement of the syntactic structures.
+    <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
   
   include_modules "ClaudeHelper"
 

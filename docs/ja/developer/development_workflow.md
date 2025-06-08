@@ -174,7 +174,7 @@ unset MDSL_AUTO_COMPLETE
 
 ## 重要：セットアップスクリプトの管理
 
-`docker/services/python/`と`docker/services/ruby/`にある`pysetup.sh`と`rbsetup.sh`ファイルは、コンテナビルド中、追加パッケージをインストールするためにユーザーが共有フォルダの`config`ディレクトリに配置したものに置き換えられます。バージョン管理システム（Git）には、常にこれらのスクリプトのオリジナルバージョンをコミットする必要があります。リポジトリに変更をコミットする前に、以下のいずれかの方法でこれらのファイルをリセットします。
+`docker/services/python/`、`docker/services/ruby/`、`docker/services/ollama/`にある`pysetup.sh`、`rbsetup.sh`、`olsetup.sh`ファイルは、コンテナビルド中、追加パッケージやモデルをインストールするためにユーザーが共有フォルダの`config`ディレクトリに配置したものに置き換えられます。バージョン管理システム（Git）には、常にこれらのスクリプトのオリジナルバージョンをコミットする必要があります。リポジトリに変更をコミットする前に、以下のいずれかの方法でこれらのファイルをリセットします。
 
 #### 方法1：リセットスクリプトの使用
 
@@ -191,7 +191,7 @@ unset MDSL_AUTO_COMPLETE
 あるいは、gitを使用して手動でファイルをリセットすることもできます：
 
 ```bash
-git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh
+git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh docker/services/ollama/olsetup.sh
 ```
 
 ### Gitプリコミットフック（オプション）

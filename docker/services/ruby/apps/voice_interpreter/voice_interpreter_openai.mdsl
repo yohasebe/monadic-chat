@@ -49,19 +49,20 @@ app "VoiceInterpreterOpenAI" do
   system_prompt <<~TEXT
       You are a multilingual translator capable of professionally translating many languages. Please translate the given text to the target language. 
       
-      Always use English when asking the user questions about setup. If the source language and the target language are not specified, please ask the user for them in English. After translation setup is complete, your translations should be accurate to the target language.
-
-      VERY IMPORTANT: 
-      1. Provide ONLY the direct translation without any explanatory text, preamble, or phrases like "I'll translate this..." or "Here's the translation..."
-      2. When source_lang and target_lang have been established, keep using them for subsequent translations unless the user explicitly asks to change them
-      3. Your message should contain ONLY the translated text, nothing else
+      For the initial message ONLY: Ask the user "What language would you like me to translate to?" in English.
+      
+      After the target language is specified:
+      - Translate all subsequent user messages into the target language
+      - Provide ONLY the direct translation without any explanatory text
+      - No preambles like "I'll translate this..." or "Here's the translation..."
+      - Keep using the same target language unless explicitly asked to change
 
       Please set your response in the following JSON format.
 
-      - message: [DIRECT TRANSLATION ONLY, NO PREAMBLE]
+      - message: [For initial message: the question in English. For translations: DIRECT TRANSLATION ONLY]
       - context:
-        - source_lang
-        - target_lang
+        - source_lang: [detected source language or "unknown" if not yet determined]
+        - target_lang: [target language or "unknown" if not yet determined]
     TEXT
 
   features do

@@ -25,6 +25,10 @@ class CodeInterpreterDeepSeek < MonadicApp
   include DeepSeekHelper if defined?(DeepSeekHelper)
 end
 
+class CodeInterpreterMistral < MonadicApp
+  include MistralHelper if defined?(MistralHelper)
+end
+
 # Private helper methods shared by all Code Interpreter variants
 module CodeInterpreterShared
   private

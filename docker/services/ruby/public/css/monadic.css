@@ -2044,3 +2044,30 @@ h1 {
   max-width: 100%;
   background-color: #f8f8f8;
 }
+
+/* Syntax Tree SVG styling */
+.generated_image img {
+  background-color: white;
+  padding: 15px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+.generated_image img:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Alternative selector for syntax tree SVGs if needed */
+.message .generated_image img[src*="syntree_"] {
+  background-color: white;
+  padding: 15px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+  max-width: 100%;
+  height: auto;
+}

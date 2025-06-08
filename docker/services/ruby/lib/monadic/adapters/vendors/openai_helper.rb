@@ -401,12 +401,12 @@ module OpenAIHelper
 
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
-    session[:messages].each { |msg| msg["active"] = false }
-    context = [session[:messages].first]
+    session[:messages].each { |msg| msg["active"] = false if msg }
+    context = [session[:messages].first].compact
     if session[:messages].length > 1
-      context += session[:messages][1..].last(context_size)
+      context += session[:messages][1..].last(context_size).compact
     end
-    context.each { |msg| msg["active"] = true }
+    context.each { |msg| msg["active"] = true if msg }
 
     # Set the headers for the API request
     headers = {

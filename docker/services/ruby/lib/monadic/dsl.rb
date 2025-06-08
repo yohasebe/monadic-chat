@@ -608,6 +608,7 @@ module MonadicDSL
     FORMATTERS = {
       openai: ToolFormatters::OpenAIFormatter,
       anthropic: ToolFormatters::AnthropicFormatter,
+      claude: ToolFormatters::AnthropicFormatter,
       cohere: ToolFormatters::CohereFormatter,
       gemini: ToolFormatters::GeminiFormatter,
       mistral: ToolFormatters::MistralFormatter,

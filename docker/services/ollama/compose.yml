@@ -1,0 +1,21 @@
+services:
+  ollama_service:
+    image: yohasebe/ollama
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
+    container_name: monadic-chat-ollama-container
+    profiles:
+      - ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - monadic-chat-network
+    volumes:
+      - ~/monadic/ollama:/root/.ollama
+      - ~/monadic/config:/monadic/config:ro
+      - data:/monadic/data
+      - ~/monadic/data:/monadic/data
+    entrypoint: ["/usr/bin/bash", "-c", "/entrypoint.sh"]

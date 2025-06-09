@@ -166,10 +166,11 @@ export MDSL_AUTO_COMPLETE=false
 # 詳細なデバッグログ付きで有効化
 export MDSL_AUTO_COMPLETE=debug
 
-# 通常通り有効化（デフォルト）
+# 通常通り有効化
 export MDSL_AUTO_COMPLETE=true
-# または変数を解除
-unset MDSL_AUTO_COMPLETE
+
+# デフォルトの動作（自動補完は無効）
+# MDSL_AUTO_COMPLETEは未設定またはデフォルトでfalse
 ```
 
 ## 重要：セットアップスクリプトの管理

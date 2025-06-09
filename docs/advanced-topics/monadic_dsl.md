@@ -235,8 +235,8 @@ Monadic Chat includes an automatic tool completion system that dynamically gener
 Control auto-completion behavior with the `MDSL_AUTO_COMPLETE` environment variable:
 
 ```bash
-# Default (auto-completion enabled with basic logging)
-# MDSL_AUTO_COMPLETE=  # unset - same as 'true'
+# Default behavior (auto-completion disabled)
+# MDSL_AUTO_COMPLETE is unset or false by default
 
 # Enable auto-completion with basic logging
 export MDSL_AUTO_COMPLETE=true

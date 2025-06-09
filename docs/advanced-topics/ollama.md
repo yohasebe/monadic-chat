@@ -99,6 +99,7 @@ To add any of these models, use the same process described above with `ollama ru
 ## Technical Details
 
 - **Model Storage**: All models are stored in `~/monadic/ollama/` on your host machine for persistence
-- **Default Model**: Configurable via `OLLAMA_DEFAULT_MODEL` environment variable (default: `llama3.2:latest`)
+- **Default Model**: `OLLAMA_DEFAULT_MODEL` environment variable specifies which model to download during build when no `olsetup.sh` exists (default: `llama3.2`)
+- **Model Selection**: The web UI automatically selects the first available model from the Ollama service
 - **Model List**: The app dynamically checks for available models when the Ollama service is running
 - **Container Management**: Uses Docker profiles for conditional building (profile: `ollama`)

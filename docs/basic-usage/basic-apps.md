@@ -30,6 +30,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Mermaid Grapher | ✅ | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | |
 | Syntax Tree | ✅ | ✅ | | | | | | |
+| Concept Visualizer | ✅ | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
 | Video Describer | ✅ | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | |
@@ -340,6 +341,32 @@ This application generates linguistic syntax trees from sentences in multiple la
 The generated syntax trees are displayed as SVG images with transparent backgrounds, styled with CSS for web display.
 
 Syntax Tree apps are available for the following models:
+
+- OpenAI
+- Anthropic Claude
+
+### Concept Visualizer :id=concept-visualizer
+
+![Concept Visualizer app icon](../assets/icons/diagram-draft.png ':size=40')
+
+This application visualizes various concepts and relationships through diagrams using LaTeX/TikZ. It can create mind maps, flowcharts, organizational charts, network diagrams, and many other types of visual representations based on natural language descriptions. The app supports:
+
+- **Wide variety of diagram types**: Mind maps, flowcharts, organizational charts, network diagrams, timelines, Venn diagrams, 3D visualizations, and more
+- **Natural language input**: Simply describe what you want to visualize in plain language
+- **Multiple domains**: Business diagrams (SWOT, business models), educational diagrams (concept maps, learning paths), scientific diagrams (molecular structures, food webs, 3D plots), and technical diagrams (system architecture, UML)
+- **Multi-language support**: Handles text in various languages including CJK (Chinese, Japanese, Korean)
+- **Professional output**: Generates high-quality SVG diagrams suitable for presentations and publications
+- **Customizable styling**: Appropriate colors, layouts, and visual elements for each diagram type
+- **3D capabilities**: Supports 3D scatter plots, surfaces, and other three-dimensional visualizations using tikz-3dplot
+
+The generated diagrams are displayed as editable SVG images that can be further modified in vector graphics editors.
+
+**Technical Notes:**
+- Requires LaTeX packages pre-installed in the Python container (texlive-science, texlive-pstricks, etc.)
+- Generated SVG files are saved to the shared folder and displayed via the `/data/` endpoint
+- Supports both 2D and 3D visualizations with automatic library detection
+
+Concept Visualizer apps are available for the following models:
 
 - OpenAI
 - Anthropic Claude

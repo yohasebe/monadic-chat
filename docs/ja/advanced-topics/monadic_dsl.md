@@ -236,8 +236,8 @@ Monadic Chatには、Rubyの実装ファイルからMDSLツール定義を動的
 `MDSL_AUTO_COMPLETE`環境変数で自動補完の動作を制御できます：
 
 ```bash
-# デフォルト（基本的なロギング付きで自動補完が有効）
-# MDSL_AUTO_COMPLETE=  # 未設定 - 'true'と同じ
+# デフォルトの動作（自動補完は無効）
+# MDSL_AUTO_COMPLETEは未設定またはデフォルトでfalse
 
 # 基本的なロギング付きで自動補完を有効にする
 export MDSL_AUTO_COMPLETE=true

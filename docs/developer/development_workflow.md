@@ -269,10 +269,11 @@ export MDSL_AUTO_COMPLETE=false
 # Enable with detailed debug logging
 export MDSL_AUTO_COMPLETE=debug
 
-# Enable normally (default)
+# Enable normally
 export MDSL_AUTO_COMPLETE=true
-# or just unset the variable
-unset MDSL_AUTO_COMPLETE
+
+# Default behavior (auto-completion disabled)
+# MDSL_AUTO_COMPLETE is unset or false by default
 ```
 
 ## Important: Managing Setup Scripts

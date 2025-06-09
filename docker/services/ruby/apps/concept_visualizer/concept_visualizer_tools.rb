@@ -49,7 +49,7 @@ class ConceptVisualizerOpenAI < MonadicApp
       MISSING_PACKAGES=""
       
       # Check for essential packages
-      for package in tikz.sty pgf.sty tikz-3dplot.sty; do
+      for package in tikz.sty pgf.sty tikz-3dplot.sty pgfplots.sty; do
         if ! kpsewhich $package >/dev/null 2>&1; then
           MISSING_PACKAGES="$MISSING_PACKAGES $package"
         fi
@@ -86,6 +86,15 @@ class ConceptVisualizerOpenAI < MonadicApp
       echo "Generating #{diagram_type} diagram..."
       echo "Title: #{title}"
       
+      # Function to compile LaTeX
+      compile_latex() {
+        local tex_file=$1
+        local attempt=$2
+        echo "Compilation attempt $attempt..."
+        latex -interaction=nonstopmode "$tex_file" 2>&1 | tee ${tex_file%.tex}_compile.log
+        return $?
+      }
+      
       # Always use latex + dvisvgm for consistent SVG output
       # XeLaTeX + pdf2svg can produce incompatible SVG files
       if false; then
@@ -94,12 +103,78 @@ class ConceptVisualizerOpenAI < MonadicApp
       else
         # Use latex + dvisvgm for CJK languages or as fallback
         echo "Using latex + dvisvgm for compilation..."
-        latex -interaction=nonstopmode #{base_filename}.tex 2>&1 | tee #{base_filename}_compile.log
+        
+        # First compilation attempt
+        compile_latex #{base_filename}.tex 1
         
         # Check if compilation was successful
         if [ $? -ne 0 ]; then
-          echo "LaTeX compilation failed. Showing error log:"
-          tail -n 20 #{base_filename}.log
+          echo "LaTeX compilation failed. Analyzing errors..."
+          
+          # Attempt to fix common LaTeX errors using sed
+          echo "Attempting automatic error correction..."
+          
+          # Save original file
+          cp #{base_filename}.tex #{base_filename}_original.tex
+          
+          # Check for common errors and apply fixes
+          if grep -q "I do not know the key.*tdplot_main_coords" #{base_filename}.log; then
+            echo "Fixing: tdplot_main_coords error"
+            # Move tdplotsetmaincoords outside tikzpicture if needed
+            if ! grep -q "\\\\tdplotsetmaincoords" #{base_filename}.tex; then
+              sed -i 's/\\\\begin{tikzpicture}\\[.*tdplot_main_coords/\\\\tdplotsetmaincoords{70}{110}\\n\\\\begin{tikzpicture}[/' #{base_filename}.tex
+            else
+              sed -i 's/\\[tdplot_main_coords.*\\]/[]/' #{base_filename}.tex
+            fi
+          fi
+          
+          if grep -q "Undefined control sequence.*\\\\plot3" #{base_filename}.log; then
+            echo "Fixing: plot3 command"
+            sed -i 's/\\\\draw\\[\\(.*\\)\\] plot3\\[/\\\\draw[\\1] plot[/g' #{base_filename}.tex
+            sed -i 's/plot3\\[/plot[/g' #{base_filename}.tex
+          fi
+          
+          if grep -q "Undefined control sequence.*\\\\U\\|\\\\V\\|\\\\R\\|\\\\r" #{base_filename}.log; then
+            echo "Fixing: undefined variables"
+            # Fix variable declarations in plot commands
+            sed -i 's/variable=\\\\U/variable=\\\\t/g' #{base_filename}.tex
+            sed -i 's/variable=\\\\V/variable=\\\\s/g' #{base_filename}.tex
+            # Fix usage in expressions - more careful replacement
+            sed -i 's/{\\\\U\\*/{\\\\t\\*/g' #{base_filename}.tex
+            sed -i 's/{\\\\V\\*/{\\\\s\\*/g' #{base_filename}.tex
+            sed -i 's/(\\\\U\\*/(\\\\t\\*/g' #{base_filename}.tex
+            sed -i 's/(\\\\V\\*/(\\\\s\\*/g' #{base_filename}.tex
+          fi
+          
+          if grep -q "Environment axis undefined" #{base_filename}.log; then
+            echo "Fixing: Missing pgfplots package"
+            # Add pgfplots if not present
+            if ! grep -q "\\\\usepackage{pgfplots}" #{base_filename}.tex; then
+              sed -i '/\\\\usepackage{tikz}/a\\\\usepackage{pgfplots}\\n\\\\pgfplotsset{compat=1.18}' #{base_filename}.tex
+            fi
+          fi
+          
+          # Fix nested tikzpicture environments
+          if grep -q "\\\\begin{tikzpicture}.*\\\\begin{tikzpicture}" #{base_filename}.tex; then
+            echo "Fixing: Nested tikzpicture environments"
+            # Remove inner tikzpicture begin/end
+            perl -i -0pe 's/\\\\begin{tikzpicture}(.*?)\\\\begin{tikzpicture}/\\\\begin{tikzpicture}$1/gs' #{base_filename}.tex
+            perl -i -0pe 's/\\\\end{tikzpicture}(.*?)\\\\end{tikzpicture}/\\\\end{tikzpicture}$1/gs' #{base_filename}.tex
+          fi
+          
+          # Show what changed
+          if ! diff -q #{base_filename}_original.tex #{base_filename}.tex > /dev/null; then
+            echo "Applied fixes to LaTeX file:"
+            diff #{base_filename}_original.tex #{base_filename}.tex | head -20
+          fi
+          
+          # Second compilation attempt with fixed code
+          compile_latex #{base_filename}.tex 2
+          
+          if [ $? -ne 0 ]; then
+            echo "Compilation still failed after fixes. Showing error log:"
+            tail -n 30 #{base_filename}.log
+          fi
         fi
         
         if [ -f #{base_filename}.dvi ]; then
@@ -111,7 +186,7 @@ class ConceptVisualizerOpenAI < MonadicApp
           # Set encoding to UTF-8 for proper character handling
           export LANG=en_US.UTF-8
           export LC_ALL=en_US.UTF-8
-          dvisvgm --bbox=min --precision=3 --encoding=utf8 #{base_filename}.dvi -o #{base_filename}.svg 2>&1
+          dvisvgm --bbox=min --precision=3 #{base_filename}.dvi -o #{base_filename}.svg 2>&1
           
           # Check if SVG was created and has content
           if [ -f #{base_filename}.svg ] && [ -s #{base_filename}.svg ]; then
@@ -317,10 +392,13 @@ class ConceptVisualizerOpenAI < MonadicApp
       libraries << "\\usepackage{chemfig}"
     when /matrix/
       libraries << "\\usetikzlibrary{matrix,positioning}"
-    when /3d|three.*dimensional|scatter/
+    when /3d|three.*dimensional|scatter|plot/i
       # 3D plotting libraries
       libraries << "\\usetikzlibrary{3d,perspective}"
+      libraries << "\\usepackage{pgfplots}"
+      libraries << "\\pgfplotsset{compat=1.18}"
       libraries << "\\usepackage{tikz-3dplot}"
+      libraries << "\\usetikzlibrary{plotmarks}"
     else
       # Default libraries for general diagrams
       libraries << "\\usetikzlibrary{shapes,arrows.meta,positioning,shadows,patterns}"

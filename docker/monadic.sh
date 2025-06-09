@@ -263,11 +263,49 @@ build_ollama_container() {
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
     echo "Ollama container built successfully" | tee -a "${log_file}"
     
-    # Create the container (but don't start it yet)
-    echo "Creating Ollama container..." | tee -a "${log_file}"
-    ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama create ollama_service 2>&1 | tee -a "${log_file}"
+    # Start the container temporarily to download models
+    echo "Starting Ollama container to download models..." | tee -a "${log_file}"
+    ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama up -d ollama_service 2>&1 | tee -a "${log_file}"
     
-    echo "Ollama container created. It will start automatically when you start Monadic Chat." | tee -a "${log_file}"
+    # Wait for Ollama service to be ready
+    echo "Waiting for Ollama service to be ready..." | tee -a "${log_file}"
+    OLLAMA_READY=false
+    for i in {1..30}; do
+      if ${DOCKER} exec monadic-chat-ollama-container curl -s http://localhost:11434 >/dev/null 2>&1; then
+        OLLAMA_READY=true
+        echo "Ollama service is ready." | tee -a "${log_file}"
+        break
+      fi
+      echo "Waiting for Ollama service... ($i/30)" | tee -a "${log_file}"
+      sleep 2
+    done
+    
+    if [ "$OLLAMA_READY" = false ]; then
+      echo "ERROR: Ollama service failed to start" | tee -a "${log_file}"
+      return 1
+    fi
+    
+    # Check if olsetup.sh exists and run it
+    if [ -f "${HOME_DIR}/monadic/config/olsetup.sh" ]; then
+      echo "Running custom model setup..." | tee -a "${log_file}"
+      # Make sure the script is executable
+      ${DOCKER} exec monadic-chat-ollama-container chmod +x /monadic/config/olsetup.sh 2>&1 | tee -a "${log_file}"
+      ${DOCKER} exec monadic-chat-ollama-container /monadic/config/olsetup.sh 2>&1 | tee -a "${log_file}"
+      echo "Custom model setup completed." | tee -a "${log_file}"
+    else
+      echo "No custom setup script found. Downloading default model..." | tee -a "${log_file}"
+      # Get default model from environment variable or use llama3.2 as fallback
+      DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-llama3.2}"
+      echo "Default model: ${DEFAULT_MODEL}" | tee -a "${log_file}"
+      ${DOCKER} exec monadic-chat-ollama-container ollama pull "${DEFAULT_MODEL}" 2>&1 | tee -a "${log_file}"
+      echo "Default model downloaded." | tee -a "${log_file}"
+    fi
+    
+    # Stop the container after model download
+    echo "Stopping Ollama container..." | tee -a "${log_file}"
+    ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama stop ollama_service 2>&1 | tee -a "${log_file}"
+    
+    echo "Ollama container setup completed. Models are now available." | tee -a "${log_file}"
   else
     echo "Failed to build Ollama container" | tee -a "${log_file}"
     return 1

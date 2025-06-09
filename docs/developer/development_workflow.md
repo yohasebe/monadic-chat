@@ -13,8 +13,16 @@ This document contains guidelines and instructions for developers contributing t
 ### Test Structure
 - JavaScript tests are in `test/frontend/`
 - Ruby tests are in `docker/services/ruby/spec/`
+- App-specific test scripts are in `docker/services/ruby/apps/{app_name}/test/`
 - Jest configuration in `jest.config.js`
 - Global test setup for JavaScript in `test/setup.js`
+
+### App-Specific Test Scripts
+For applications that require specific testing or diagnosis:
+- Place test scripts in the app's test directory: `docker/services/ruby/apps/{app_name}/test/`
+- Use descriptive names: `test_feature_name.sh` or `diagnose_issue.rb`
+- Avoid placing app-specific test scripts in the project root directory
+- Example: Concept Visualizer test scripts are in `docker/services/ruby/apps/concept_visualizer/test/`
 
 ### Running Tests
 #### Ruby Tests
@@ -340,10 +348,27 @@ exit 0
 
 This pre-commit hook will automatically detect and reset any changes to the setup scripts before committing.
 
+## Container-Based Development
+
+### Local Development with Containers
+When developing locally while using container features:
+- **Ruby container**: Can be stopped to use local Ruby environment
+- **Other containers**: Must remain running for apps that depend on them
+- **Python container**: Required for apps like Concept Visualizer and Syntax Tree that use LaTeX
+- **Paths**: Automatically adjusted via `IN_CONTAINER` environment variable
+
+### Testing Apps with Container Dependencies
+For apps that require specific containers (e.g., Concept Visualizer needs Python container for LaTeX):
+1. Ensure required containers are running: `./docker/monadic.sh check`
+2. If developing locally, stop only the Ruby container
+3. Run your local Ruby code - it will communicate with other running containers
+4. Container paths (`/monadic/data`) are automatically mapped to host paths (`~/monadic/data`)
+
 ## For Users
 
 Users who want to customize their containers should place custom scripts in:
 - `~/monadic/config/pysetup.sh` for Python customizations
 - `~/monadic/config/rbsetup.sh` for Ruby customizations
+- `~/monadic/config/olsetup.sh` for Ollama model installations
 
 These will be automatically used when building containers locally, but won't affect the repository files.

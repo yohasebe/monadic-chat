@@ -13,8 +13,16 @@
 ### テスト構造
 - JavaScriptテストは `test/frontend/` に配置
 - Rubyテストは `docker/services/ruby/spec/` に配置
+- アプリ固有のテストスクリプトは `docker/services/ruby/apps/{app_name}/test/` に配置
 - Jestの設定は `jest.config.js` に定義
 - JavaScriptのグローバルテスト設定は `test/setup.js` に定義
+
+### アプリ固有のテストスクリプト
+特定のテストや診断が必要なアプリケーションの場合：
+- テストスクリプトはアプリのテストディレクトリに配置: `docker/services/ruby/apps/{app_name}/test/`
+- 説明的な名前を使用: `test_feature_name.sh` または `diagnose_issue.rb`
+- アプリ固有のテストスクリプトをプロジェクトルートディレクトリに配置しない
+- 例: Concept Visualizerのテストスクリプトは `docker/services/ruby/apps/concept_visualizer/test/` に配置
 
 ### テスト実行方法
 #### Rubyテスト
@@ -237,11 +245,28 @@ exit 0
 
 このプリコミットフックは、コミット前にセットアップスクリプトへの変更を自動的に検出してリセットします。
 
+## コンテナベースの開発
+
+### コンテナを使用したローカル開発
+コンテナ機能を使用しながらローカルで開発する場合：
+- **Rubyコンテナ**: ローカルRuby環境を使用するために停止可能
+- **その他のコンテナ**: 依存するアプリのために実行を継続する必要がある
+- **Pythonコンテナ**: LaTeXを使用するConcept VisualizerやSyntax Treeなどのアプリに必要
+- **パス**: `IN_CONTAINER`環境変数により自動調整
+
+### コンテナ依存アプリのテスト
+特定のコンテナを必要とするアプリ（例：LaTeX用のPythonコンテナが必要なConcept Visualizer）の場合：
+1. 必要なコンテナが実行中であることを確認: `./docker/monadic.sh check`
+2. ローカル開発の場合、Rubyコンテナのみを停止
+3. ローカルRubyコードを実行 - 他の実行中のコンテナと通信します
+4. コンテナパス（`/monadic/data`）は自動的にホストパス（`~/monadic/data`）にマッピングされます
+
 ## ユーザー向け
 
 コンテナをカスタマイズしたいユーザーは、以下の場所にカスタムスクリプトを配置する必要があります：
 - Pythonのカスタマイズには`~/monadic/config/pysetup.sh`
 - Rubyのカスタマイズには`~/monadic/config/rbsetup.sh`
+- Ollamaモデルインストールには`~/monadic/config/olsetup.sh`
 
 これらはローカルでコンテナをビルドする際に自動的に使用されますが、リポジトリファイルには影響しません。
 

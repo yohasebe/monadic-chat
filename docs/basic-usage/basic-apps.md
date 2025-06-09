@@ -362,9 +362,13 @@ This application visualizes various concepts and relationships through diagrams 
 The generated diagrams are displayed as editable SVG images that can be further modified in vector graphics editors.
 
 **Technical Notes:**
-- Requires LaTeX packages pre-installed in the Python container (texlive-science, texlive-pstricks, etc.)
+- Uses LaTeX/TikZ for diagram generation with comprehensive package support including:
+  - Core LaTeX packages for basic diagram creation
+  - `texlive-science` for 3D visualizations with tikz-3dplot
+  - CJK language support for multi-language text rendering
+  - `dvisvgm` for high-quality SVG output
 - Generated SVG files are saved to the shared folder and displayed via the `/data/` endpoint
-- Supports both 2D and 3D visualizations with automatic library detection
+- Automatically detects and loads appropriate TikZ libraries based on diagram type
 
 Concept Visualizer apps are available for the following models:
 

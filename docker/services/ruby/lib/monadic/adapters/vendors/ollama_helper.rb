@@ -64,10 +64,10 @@ module OllamaHelper
       end
     end
 
-    # If no endpoint found, return default model list
+    # If no endpoint found, return empty array
     unless ollama_endpoint
-      # Return default model so the app can still be configured
-      return [DEFAULT_MODEL]
+      # Return empty array - Ollama service is not available
+      return []
     end
 
     headers = {
@@ -88,14 +88,14 @@ module OllamaHelper
         end
         # Cache and return models if found
         $MODELS[:ollama] = models unless models.empty?
-        models.empty? ? [DEFAULT_MODEL] : models
+        models.empty? ? [] : models
       else
-        # Return default model on API error
-        [DEFAULT_MODEL]
+        # Return empty array on API error
+        []
       end
     rescue HTTP::Error, HTTP::TimeoutError
-      # Return default model on connection error
-      [DEFAULT_MODEL]
+      # Return empty array on connection error
+      []
     end
   end
   module_function :list_models

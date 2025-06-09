@@ -1111,9 +1111,10 @@ module MonadicDSL
       # Otherwise, try to use environment variable if available
       elsif provider_env_var && ENV[provider_env_var]
         @state.settings[:model] = ENV[provider_env_var]
-      # Special handling for Ollama - use default from OllamaHelper
-      elsif provider_name.include?("ollama") && defined?(OllamaHelper::DEFAULT_MODEL)
-        @state.settings[:model] = OllamaHelper::DEFAULT_MODEL
+      # For Ollama, don't set a default model here - let the UI handle it
+      elsif provider_name.include?("ollama")
+        # Don't set a default model - the UI will select the first available model
+        @state.settings[:model] = nil
       end
     end
     

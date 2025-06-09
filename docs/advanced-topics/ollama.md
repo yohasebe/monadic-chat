@@ -45,7 +45,9 @@ chmod +x ~/monadic/config/olsetup.sh
 
 3. Build the Ollama container (Actions → Build Ollama Container)
 
-The models will be automatically installed during container startup and stored in `~/monadic/ollama/` for persistence.
+The models will be automatically installed during the container build process and stored in `~/monadic/ollama/` for persistence.
+
+!> **Important**: When using `olsetup.sh`, only the models specified in the script will be installed. The default model (defined by `OLLAMA_DEFAULT_MODEL` environment variable or `llama3.2` if not set) will NOT be automatically installed. If you want the default model, you must explicitly include it in your script.
 
 ### Manual Installation
 

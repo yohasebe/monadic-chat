@@ -8,6 +8,26 @@ Monadic Chat では、Python コンテナを使用して Python のコードを�
 
 ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
+## 事前インストール済みLaTeXパッケージ
+
+PythonコンテナにはConcept VisualizerやSyntax Treeなどの図形生成アプリのための包括的なLaTeXサポートが含まれています：
+
+### コアLaTeXパッケージ
+- `texlive-latex-base` - 基本的なLaTeX機能
+- `texlive-latex-extra` - 追加のLaTeXパッケージとツール
+- `texlive-fonts-recommended` - 標準LaTeXフォント
+- `texlive-lang-chinese`、`texlive-lang-japanese`、`texlive-lang-korean` - CJK言語サポート
+- `latex-cjk-all` - LaTeX用の完全なCJKサポート
+
+### 特殊パッケージ
+- `texlive-science` - 3D視覚化用の`tikz-3dplot`を含む科学パッケージ
+- `texlive-pstricks` - PSTricksグラフィックパッケージ
+- `texlive-latex-recommended` - 推奨LaTeXパッケージ
+- `texlive-pictures` - TikZを含む図形描画パッケージ
+- `dvisvgm` - ベクターグラフィックス生成用のDVIからSVGへのコンバータ
+
+これらのパッケージにより、複雑な図表、フローチャート、3D視覚化、数学的図形の生成が可能になります。
+
 ## 日本語フォントサポート
 
 Pythonコンテナには、matplotlibやその他の可視化ライブラリ用の日本語フォントサポートが含まれています。Noto Sans CJK JPフォントがインストールされ、`matplotlibrc`設定を通じて設定されています：

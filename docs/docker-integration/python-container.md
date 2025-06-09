@@ -8,6 +8,26 @@ The standard Python container is built with the following Dockerfile.
 
 ![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
 
+## Pre-installed LaTeX Packages
+
+The Python container includes comprehensive LaTeX support for diagram generation apps like Concept Visualizer and Syntax Tree:
+
+### Core LaTeX Packages
+- `texlive-latex-base` - Basic LaTeX functionality
+- `texlive-latex-extra` - Additional LaTeX packages and tools
+- `texlive-fonts-recommended` - Standard LaTeX fonts
+- `texlive-lang-chinese`, `texlive-lang-japanese`, `texlive-lang-korean` - CJK language support
+- `latex-cjk-all` - Complete CJK support for LaTeX
+
+### Specialized Packages
+- `texlive-science` - Scientific packages including `tikz-3dplot` for 3D visualizations
+- `texlive-pstricks` - PSTricks graphics package
+- `texlive-latex-recommended` - Recommended LaTeX packages
+- `texlive-pictures` - Picture drawing packages including TikZ
+- `dvisvgm` - DVI to SVG converter for generating vector graphics
+
+These packages enable generation of complex diagrams, flowcharts, 3D visualizations, and mathematical figures.
+
 ## Japanese Font Support
 
 The Python container includes Japanese font support for matplotlib and other visualization libraries. The Noto Sans CJK JP font is installed and configured through `matplotlibrc` settings:

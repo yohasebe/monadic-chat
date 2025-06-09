@@ -3,6 +3,19 @@ ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
 # Install necessary packages
+# LaTeX packages for Concept Visualizer:
+# - texlive-latex-base: Basic LaTeX
+# - texlive-latex-extra: Additional LaTeX packages
+# - texlive-pictures: TikZ and PGF
+# - texlive-science: Scientific diagrams (including tikz-3dplot)
+# - texlive-pstricks: PSTricks for advanced graphics
+# - texlive-latex-recommended: Recommended packages
+# - texlive-fonts-extra: Additional fonts
+# - texlive-plain-generic: Generic packages
+# - texlive-lang-cjk: CJK language support
+# - latex-cjk-all: Complete CJK support
+# - dvisvgm: DVI to SVG converter
+# - pdf2svg: PDF to SVG converter (backup option)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential wget curl git gnupg \
@@ -12,6 +25,8 @@ RUN apt-get update && \
     imagemagick libmagickwand-dev \
     texlive-xetex texlive-latex-base texlive-fonts-recommended \
     texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
+    texlive-science texlive-pstricks texlive-latex-recommended \
+    texlive-fonts-extra texlive-plain-generic \
     pdf2svg dvisvgm \
     && fc-cache -fv \
     && apt-get autoremove -y \

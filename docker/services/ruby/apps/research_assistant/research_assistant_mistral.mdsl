@@ -25,8 +25,9 @@ app "ResearchAssistantMistral" do
   
   tools do
     # Auto-generated tool definitions from Ruby implementation
-    define_tool "websearch_agent", "Websearch Agent" do
+    define_tool "tavily_search", "Tavily Search" do
       parameter :query, "string", "The query", required: true
+      parameter :n, "integer", "The n"
     end
   end
 end

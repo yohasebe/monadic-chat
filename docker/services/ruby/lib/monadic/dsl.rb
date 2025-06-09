@@ -688,7 +688,7 @@ module MonadicDSL
       
       # Write auto-completed definitions to MDSL file if any were found
       if auto_completed_tools.any?
-        auto_complete_mode = ENV['MDSL_AUTO_COMPLETE'] || 'true'
+        auto_complete_mode = ENV['MDSL_AUTO_COMPLETE'] || 'false'
         
         case auto_complete_mode.downcase
         when 'false'

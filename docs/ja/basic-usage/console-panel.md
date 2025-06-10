@@ -45,6 +45,9 @@ Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`m
 **Build Python Container** <br />
 AIエージェントが利用するDockerイメージおよびコンテナ（`monadic-chat-python-container`）を構築します。
 
+**Build Ollama Container** <br />
+Ollama経由でローカル言語モデルを実行するためのDockerイメージおよびコンテナ（`monadic-chat-ollama-container`）を構築します。このコンテナはリソースを節約するため「Build All」では自動的に構築されません。Ollama機能を使用するには、このオプションを明示的に選択する必要があります。
+
 **Build User Containers** <br />
 ユーザーが定義したDockerイメージおよびコンテナを構築します。なお、ユーザー定義コンテナはMonadic Chat起動時に自動的には構築されませんので、ユーザーコンテナ定義を追加または変更した後は、このメニューオプションを使用して手動で構築する必要があります。
 

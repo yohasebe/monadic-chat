@@ -86,6 +86,7 @@ Supported providers:
 - `deepseek` (DeepSeek models)
 - `perplexity` (Perplexity models)
 - `xai` (Grok models)
+- `ollama` (Local models via Ollama)
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
 

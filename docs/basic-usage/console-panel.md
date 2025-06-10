@@ -44,6 +44,9 @@ Build the Docker image and container (`monadic-chat-ruby-container`) that powers
 **Build Python Container** <br />
 Build the Docker image and container (`monadic-chat-python-container`) used by the AI agents.
 
+**Build Ollama Container** <br />
+Build the Docker image and container (`monadic-chat-ollama-container`) for running local language models via Ollama. This container is not built automatically with "Build All" to save resources. You must explicitly choose this option to use Ollama features.
+
 **Build User Containers** <br />
 Build the Docker images and containers defined by the user. Note that user-defined containers are not automatically built when starting Monadic Chat - you must use this menu option to build them manually after adding or modifying user container definitions.
 
@@ -145,6 +148,9 @@ Enter your Mistral API key. This key is required to use the Mistral AI models. I
 
 **XAI_API_KEY** <br />
 Enter your xAI API key. This key is required to use the xAI Grok models. It can be obtained from [https://x.ai/api].
+
+**PERPLEXITY_API_KEY** <br />
+Enter your Perplexity API key. This key is required to use the Perplexity models. It can be obtained from [https://www.perplexity.ai/settings/api].
 
 **DEEPSEEK_API_KEY** <br />
 Enter your DeepSeek API key. This key is required to use the DeepSeek models. It can be obtained from [https://platform.deepseek.com/].

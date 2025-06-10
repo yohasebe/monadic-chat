@@ -10,34 +10,34 @@ For information on how to develop your own apps, refer to the [App Development](
 
 The table below shows which apps are available for which AI model providers. If not specified in the app's description, the app is available for OpenAI's models only.
 
-| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity |
-|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
-| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | | | | | | | |
-| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Wikipedia | ✅ | | | | | | | |
-| Math Tutor | ✅ | | | | | | | |
-| Second Opinion | ✅ | | | | | | | |
-| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ |
-| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | | | | | | | |
-| Translate | ✅ | | | | | | | |
-| Voice Interpreter | ✅ | | | | | | | |
-| Novel Writer | ✅ | | | | | | | |
-| Image Generator | ✅ | | | | ✅ | ✅ | | |
-| Video Generator | | | | | ✅ | | | |
-| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mermaid Grapher | ✅ | | | | | | | |
-| DrawIO Grapher | ✅ | ✅ | | | | | | |
-| Syntax Tree | ✅ | ✅ | | | | | | |
-| Concept Visualizer | ✅ | ✅ | | | | | | |
-| Speech Draft Helper | ✅ | | | | | | | |
-| Video Describer | ✅ | | | | | | | |
-| PDF Navigator | ✅ | | | | | | | |
-| Content Reader | ✅ | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Jupyter Notebook | ✅ | ✅ | | | | | | |
+| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
+|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
+| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | | | | | | | | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Wikipedia | ✅ | | | | | | | | |
+| Math Tutor | ✅ | | | | | | | | |
+| Second Opinion | ✅ | | | | | | | | |
+| Research Assistant | ✅ | ✅ | | | ✅ | ✅ | ✅ | | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Language Practice Plus | ✅ | | | | | | | | |
+| Translate | ✅ | | | | | | | | |
+| Voice Interpreter | ✅ | | | | | | | | |
+| Novel Writer | ✅ | | | | | | | | |
+| Image Generator | ✅ | | | | ✅ | ✅ | | | |
+| Video Generator | | | | | ✅ | | | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Mermaid Grapher | ✅ | | | | | | | | |
+| DrawIO Grapher | ✅ | ✅ | | | | | | | |
+| Syntax Tree | ✅ | ✅ | | | | | | | |
+| Concept Visualizer | ✅ | ✅ | | | | | | | |
+| Speech Draft Helper | ✅ | | | | | | | | |
+| Video Describer | ✅ | | | | | | | | |
+| PDF Navigator | ✅ | | | | | | | | |
+| Content Reader | ✅ | | | | | | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Jupyter Notebook | ✅ | ✅ | | | | | | | |
 
 ## Assistant :id=assistant
 
@@ -56,6 +56,8 @@ Chat apps are also available for the following models:
 - Mistral AI
 - Perplexity
 - DeepSeek
+- Cohere
+- Ollama (local models)
 
 ### Chat Plus
 
@@ -89,6 +91,7 @@ Voice Chat apps are also available for the following models:
 - Mistral AI
 - Cohere
 - DeepSeek
+- Perplexity
 
 ### Wikipedia
 
@@ -123,7 +126,6 @@ Research Assistant apps are also available for the following models:
 - xAI Grok
 - Google Gemini
 - Mistral AI
-- Perplexity
 
 ?> **Web Search Functionality**: 
 > - **Native search** (no Tavily API required): OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)
@@ -459,6 +461,7 @@ Code Interpreter apps are also available for the following models:
 - DeepSeek
 - Google Gemini
 - xAI Grok
+- Mistral AI
 
 ### Coding Assistant
 
@@ -477,6 +480,7 @@ Coding Assistant apps are also available for the following models:
 - Mistral AI
 - Perplexity
 - DeepSeek
+- Cohere
 
 ### Jupyter Notebook :id=jupyter-notebook
 

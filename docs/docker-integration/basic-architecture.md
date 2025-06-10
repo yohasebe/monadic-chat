@@ -43,21 +43,31 @@ To enable Server Mode when running from source code, set the environment variabl
 
 This section explains the standard Docker containers available in Monadic Chat. By default, the following containers are built:
 
-**Ruby Container** (`monadic-chat-ruby-container`)
+### Ruby Container (`monadic-chat-ruby-container`)
 This container is necessary to run Monadic Chat applications. It is also used to provide the web interface.
+- **Port**: 4567 (Web interface)
+- **Main features**: Sinatra web server, WebSocket support, Docker management
+- **Shared volumes**: `/monadic/data`, `/monadic/config`, `/monadic/log`
 
-**Python Container** (`monadic-chat-python-container`)
+### Python Container (`monadic-chat-python-container`)
 This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab also runs on this container.
+- **Ports**: 
+  - 8889 (JupyterLab)
+  - 5070 (Flask API server for tokenization and other services)
+- **Main features**: Python code execution, JupyterLab, Flask API server, LaTeX support (for diagram generation)
+- **Apps that use this container**: `Code Interpreter`, `Jupyter Notebook`, `Video Describer`, `Syntax Tree`, `Concept Visualizer`
 
-Apps that use this container include: `Code Interpreter`, `Jupyter Notebook`, `Video Describer`
-
-**Selenium Container** (`monadic-chat-selenium-container`)
+### Selenium Container (`monadic-chat-selenium-container`)
 This container is used to operate a virtual web browser using Selenium for web scraping.
+- **Ports**: 4444, 5900, 7900 (Selenium Grid)
+- **Main features**: Chrome browser automation, web scraping
+- **Apps that use this container**: `Code Interpreter`, `Content Reader`, `Mermaid Grapher`
 
-Apps that use this container include: `Code Interpreter`, `Content Reader`
-
-**pgvector Container** (`monadic-chat-pgvector-container`)
-This container is used to store text embedding vector data on PostgreSQL for using pgvector. Apps that use this container include: `PDF Navigator`.
+### pgvector Container (`monadic-chat-pgvector-container`)
+This container is used to store text embedding vector data on PostgreSQL for using pgvector.
+- **Port**: No exposed ports (internal use only)
+- **Main features**: Vector similarity search, PDF content storage
+- **Apps that use this container**: `PDF Navigator`
 
 
 You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
@@ -68,6 +78,29 @@ For more information on adding Docker containers, see [Adding Docker Containers]
 In addition to the standard containers, Monadic Chat supports optional containers provided via plugins:
 
 - **Ollama Container** (`monadic-chat-ollama-container`): Provides local LLMs via [Ollama](https://ollama.com) through the Monadic Chat Extra plugin. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
+
+## Container Network Architecture
+
+All containers communicate through a shared Docker network:
+
+### Network Configuration
+- **Network name**: `monadic-chat-network`
+- **Network driver**: Bridge
+- **Inter-container communication**: Enabled using container names as hostnames
+
+### Container Dependencies and Startup Order
+1. **pgvector** starts first (provides database services)
+2. **Selenium** starts next (provides browser automation)
+3. **Python** starts after Selenium (may use Selenium for certain operations)
+4. **Ruby** starts last (depends on pgvector with health check, and Python)
+
+This startup order ensures all required services are available when dependent containers start.
+
+### Shared Data Volumes
+All containers share access to:
+- **User data**: `~/monadic/data` (mounted as `/monadic/data` in containers)
+- **Configuration**: Ruby container has exclusive access to `/monadic/config`
+- **Logs**: Ruby container has exclusive access to `/monadic/log`
 
 ## Container Rebuilding Process
 

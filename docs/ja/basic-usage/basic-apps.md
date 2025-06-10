@@ -10,34 +10,34 @@
 
 以下の表は、各アプリケーションがどのAIモデルプロバイダで利用可能かを示しています。アプリの説明で特に記載がない場合は、OpenAIモデルのみで利用可能です。
 
-| アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity |
-|-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|
-| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | | | | | | | |
-| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Wikipedia | ✅ | | | | | | | |
-| Math Tutor | ✅ | | | | | | | |
-| Second Opinion | ✅ | | | | | | | |
-| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ |
-| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | | | | | | | |
-| Translate | ✅ | | | | | | | |
-| Voice Interpreter | ✅ | | | | | | | |
-| Novel Writer | ✅ | | | | | | | |
-| Image Generator | ✅ | | | | ✅ | ✅ | | |
-| Video Generator | | | | | ✅ | | | |
-| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mermaid Grapher | ✅ | | | | | | | |
-| DrawIO Grapher | ✅ | ✅ | | | | | | |
-| Syntax Tree | ✅ | ✅ | | | | | | |
-| Concept Visualizer | ✅ | ✅ | | | | | | |
-| Speech Draft Helper | ✅ | | | | | | | |
-| Video Describer | ✅ | | | | | | | |
-| PDF Navigator | ✅ | | | | | | | |
-| Content Reader | ✅ | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Jupyter Notebook | ✅ | ✅ | | | | | | |
+| アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
+|-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
+| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | | | | | | | | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Wikipedia | ✅ | | | | | | | | |
+| Math Tutor | ✅ | | | | | | | | |
+| Second Opinion | ✅ | | | | | | | | |
+| Research Assistant | ✅ | ✅ | | | ✅ | ✅ | ✅ | | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Language Practice Plus | ✅ | | | | | | | | |
+| Translate | ✅ | | | | | | | | |
+| Voice Interpreter | ✅ | | | | | | | | |
+| Novel Writer | ✅ | | | | | | | | |
+| Image Generator | ✅ | | | | ✅ | ✅ | | | |
+| Video Generator | | | | | ✅ | | | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Mermaid Grapher | ✅ | | | | | | | | |
+| DrawIO Grapher | ✅ | ✅ | | | | | | | |
+| Syntax Tree | ✅ | ✅ | | | | | | | |
+| Concept Visualizer | ✅ | ✅ | | | | | | | |
+| Speech Draft Helper | ✅ | | | | | | | | |
+| Video Describer | ✅ | | | | | | | | |
+| PDF Navigator | ✅ | | | | | | | | |
+| Content Reader | ✅ | | | | | | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Jupyter Notebook | ✅ | ✅ | | | | | | | |
 
 ## アシスタント :id=assistant
 

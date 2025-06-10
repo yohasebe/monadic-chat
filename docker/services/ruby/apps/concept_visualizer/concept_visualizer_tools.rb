@@ -1,7 +1,9 @@
 require 'cgi'
+require_relative '../../lib/monadic/adapters/latex_helper'
 
 class ConceptVisualizerOpenAI < MonadicApp
   include OpenAIHelper
+  include LatexHelper
 
   def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english")
     return "Error: TikZ code is required." if tikz_code.to_s.empty?
@@ -300,23 +302,7 @@ class ConceptVisualizerOpenAI < MonadicApp
 
   private
   
-  def decode_html_entities(text)
-    # Decode common HTML entities
-    text = text.gsub(/&amp;/, '&')
-    text = text.gsub(/&lt;/, '<')
-    text = text.gsub(/&gt;/, '>')
-    text = text.gsub(/&quot;/, '"')
-    text = text.gsub(/&#39;/, "'")
-    text = text.gsub(/&apos;/, "'")
-    
-    # Decode numeric entities (&#123; etc.)
-    text = text.gsub(/&#(\d+);/) { |m| $1.to_i.chr(Encoding::UTF_8) rescue m }
-    
-    # Decode hex entities (&#x263A; etc.)
-    text = text.gsub(/&#x([0-9a-fA-F]+);/) { |m| $1.to_i(16).chr(Encoding::UTF_8) rescue m }
-    
-    text
-  end
+  # Note: decode_html_entities method is now provided by LatexHelper module
   
   def extract_tikz_content(latex_code)
     # Extract TikZ content from a complete LaTeX document
@@ -414,6 +400,7 @@ end
 # Claude version inherits all functionality
 class ConceptVisualizerClaude < MonadicApp
   include ClaudeHelper
+  include LatexHelper
 
   def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english")
     ConceptVisualizerOpenAI.new.generate_concept_diagram(

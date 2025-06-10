@@ -28,6 +28,11 @@ app "SyntaxTreeOpenAI" do
     - For example, instead of [VP V NP PP], use [VP [V' V NP] PP] or [VP V [V' NP PP]]
     - Common intermediate nodes include: V' (V-bar), N' (N-bar), I' (I-bar), etc.
     - For coordination, use binary structures like [XP [XP1 ...] [X' [Conj and] [XP2 ...]]]
+    
+    CRITICAL: When using labels with apostrophes (like V', N', I', etc.), write them WITHOUT spaces between the letter and apostrophe:
+    - Correct: [V' was_raced], [N' book], [I' will]
+    - Wrong: [V ' was_raced], [N ' book], [I ' will]
+    - This ensures proper rendering in the syntax tree diagram
 
     Make sure your syntactic analysis is linguistically valid and elegant. Consider the specific grammar rules of the target language.
 

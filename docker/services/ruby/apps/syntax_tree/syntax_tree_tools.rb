@@ -179,13 +179,32 @@ class SyntaxTreeOpenAI < MonadicApp
     # Then, escape LaTeX special characters in the entire notation
     escaped_notation = escape_latex(simplified_notation)
     
+    # Fix separated apostrophes before processing
+    # Handle cases where V' is written as "V '" with a space
+    escaped_notation = escaped_notation.gsub(/\[(\w+)\s+(['''])([\s\[\]])/) do
+      "[#{$1}#{$2}#{$3}"
+    end
+    
+    # Convert underscores to spaces in terminal nodes (leaf nodes)
+    # This allows "was_raced" to be displayed as "was raced" in the SVG
+    escaped_notation = escaped_notation.gsub(/(\s)([^\[\]]+?)(\s*\])/) do |match|
+      prefix = $1
+      content = $2
+      suffix = $3
+      # Only convert underscores in terminal nodes (not in category labels)
+      if content !~ /\[/ && content !~ /\]/
+        content = content.gsub('_', ' ')
+      end
+      "#{prefix}#{content}#{suffix}"
+    end
+    
     # Add dots to all nodes (both terminal and non-terminal)
     # Updated regex to handle node labels with apostrophes and other characters
     # Wrap labels containing apostrophes in braces to keep them together
     result = escaped_notation.gsub(/\[([^\s\[\]]+)/) do |match|
       label = $1
-      # If the label contains an apostrophe, wrap it in braces
-      if label.include?("'") || label.include?("'") || label.include?("'")
+      # If the label contains an apostrophe (including regular apostrophe), wrap it in braces
+      if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
         "[.{#{label}}"
       else
         "[.#{label}"

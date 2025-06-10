@@ -30,11 +30,11 @@ module ReadWriteHelperTest
         else
           "PDF document content"
         end
-      when /simple_content_fetcher\.rb/
+      when /content_fetcher\.rb/
         if command.include?("empty.txt")
           ""
         elsif command.include?("error.txt")
-          "Error message from simple_content_fetcher"
+          "Error message from content_fetcher"
         else
           "Text file content"
         end
@@ -105,7 +105,7 @@ RSpec.describe MonadicHelper do
     
     it "handles error messages from command execution" do
       result = helper.fetch_text_from_file(file: "error.txt")
-      expect(result).to eq("Error message from simple_content_fetcher")
+      expect(result).to eq("Error message from content_fetcher")
     end
   end
   

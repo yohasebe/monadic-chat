@@ -323,8 +323,7 @@ module StringUtils
         rescue => e
           # If an exception occurs, add the line as-is and continue
           result_lines << line
-          # Optional: Logging etc.
-          # puts "Error processing line: #{e.message}"
+          # Error occurred but continue processing
           
         end
       end # End of each_with_index
@@ -659,8 +658,7 @@ module StringUtils
       text
     rescue => e
       # For any error that occurs, return the original text
-      # puts "Error in normalize_markdown: #{e.message}"
-      # puts e.backtrace.join("\n")
+      # Error in markdown normalization - return original
       return text
     end
   end

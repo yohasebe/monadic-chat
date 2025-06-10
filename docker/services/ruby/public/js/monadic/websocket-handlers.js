@@ -172,6 +172,12 @@ function handleTokenVerification(data) {
   if (data && data.type === 'token_verified') {
     $('#api-token').val(data.token);
     $('#ai-user-initial-prompt').val(data.ai_user_initial_prompt);
+    
+    // Update status to "Ready for input" after token verification
+    if (typeof setAlert === 'function') {
+      setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+    }
+    
     return true;
   }
   return false;

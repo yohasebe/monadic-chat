@@ -126,12 +126,15 @@ The Flask server is automatically started when the container launches and provid
 
 ## Scripts Directory Structure
 
-The Python container includes various utility scripts in `/monadic/scripts/`:
+The Python container includes various utility scripts organized in subdirectories under `/monadic/scripts/`:
 
-- **System Utilities**: `sysinfo.sh` (system information), `run_jupyter.sh` (JupyterLab launcher)
-- **CLI Tools**: `simple_content_fetcher.py`, `webpage_fetcher.py`
-- **File Converters**: `pdf2txt.py`, `office2txt.py`, `extract_frames.py`
-- **Services**: `jupyter_controller.py` (Jupyter kernel management)
+```
+/monadic/scripts/
+├── utilities/          # System utilities (sysinfo.sh, run_jupyter.sh)
+├── cli_tools/          # CLI tools (content_fetcher.py, webpage_fetcher.py)
+├── converters/         # File converters (pdf2txt.py, office2txt.py, extract_frames.py)
+└── services/           # API services (jupyter_controller.py)
+```
 
-These scripts are added to the PATH and can be executed as commands within the container.
+These scripts are added to the PATH and can be executed as commands within the container. All Python and shell scripts in these subdirectories have execute permissions set during container build.
 

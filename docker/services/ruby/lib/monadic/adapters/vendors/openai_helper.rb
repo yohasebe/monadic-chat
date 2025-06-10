@@ -6,6 +6,7 @@ require 'securerandom'
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/debug_helper"
 
 module OpenAIHelper
   include InteractionUtils
@@ -202,7 +203,13 @@ module OpenAIHelper
         res = http.get(target_uri)
 
         if res.status.success?
-          res_body = JSON.parse(res.body)
+          begin
+            res_body = JSON.parse(res.body)
+          rescue JSON::ParserError => e
+            DebugHelper.debug("Invalid JSON from OpenAI models API: #{res.body[0..200]}", "api", level: :error)
+            return []
+          end
+          
           if res_body && res_body["data"]
             # Cache the filtered and sorted models
             $MODELS[:openai] = res_body["data"].sort_by do |item|
@@ -265,9 +272,7 @@ module OpenAIHelper
       response_format = options["response_format"] || options[:response_format]
       body["response_format"] = response_format.is_a?(Hash) ? response_format : { "type" => "json_object" }
       
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "OpenAIHelper.send_query: Using response format: #{body['response_format'].inspect}"
-      end
+      DebugHelper.debug("Using response format: #{body['response_format'].inspect}", "api")
     end
     
     # Set API endpoint

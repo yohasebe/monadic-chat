@@ -100,9 +100,7 @@ module WebSocketHelper
       count_active_tokens = active_messages.sum { |m| m["tokens"] || 0 }
       count_all_tokens = messages.sum { |m| m["tokens"] || 0 }
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      STDERR.puts "Error in token counting: #{e.message}"
       tokenizer_available = false
     end
 
@@ -140,12 +138,23 @@ module WebSocketHelper
       return [] unless response.is_a?(Net::HTTPSuccess)
       
       voices = response.read_body
-      JSON.parse(voices)&.dig("voices")&.map do |voice|
+      
+      begin
+        parsed_voices = JSON.parse(voices)
+      rescue JSON::ParserError => e
+        DebugHelper.debug("Invalid JSON from ElevenLabs API: #{voices[0..200]}", "api", level: :error)
+        return []
+      end
+      
+      parsed_voices&.dig("voices")&.map do |voice|
         {
           "voice_id" => voice["voice_id"],
           "name" => voice["name"]
         }
       end || []
+    rescue Net::ReadTimeout => e
+      DebugHelper.debug("Timeout reading ElevenLabs voices", "api", level: :warning)
+      []
     rescue StandardError => e
       []
     end
@@ -487,7 +496,14 @@ module WebSocketHelper
       ws.on :message do |event|
         # Websocket message logging removed for performance
         
-        obj = JSON.parse(event.data)
+        begin
+          obj = JSON.parse(event.data)
+        rescue JSON::ParserError => e
+          DebugHelper.debug("Invalid JSON in WebSocket message: #{event.data[0..100]}", "websocket", level: :error)
+          @channel.push({ "type" => "error", "content" => "Invalid message format received" }.to_json)
+          next
+        end
+        
         msg = obj["message"] || ""
         
         case msg
@@ -700,9 +716,7 @@ module WebSocketHelper
               @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
               @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
             rescue StandardError => e
-              pp queue
-              pp e.message
-              pp e.backtrace
+              STDERR.puts "Error processing request: #{e.message}"
               @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
             end
           end
@@ -1226,7 +1240,7 @@ module WebSocketHelper
             responses.each do |response|
               # if response is not a hash, skip with error message
               unless response.is_a?(Hash)
-                pp response
+                STDERR.puts "Invalid API response format: #{response.class}"
                 next
               end
 

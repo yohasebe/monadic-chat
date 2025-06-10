@@ -1,7 +1,7 @@
 module MonadicHelper
   def list_providers_and_voices
     command = <<~CMD
-      bash -c 'simple_tts_query.rb --list'
+      bash -c 'tts_query.rb --list'
     CMD
     send_command(command: command, container: "ruby")
   end
@@ -36,7 +36,7 @@ module MonadicHelper
     end
 
     command = <<~CMD
-      bash -c 'simple_tts_query.rb "#{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language} --instructions="#{instructions}"'
+      bash -c 'tts_query.rb "#{textpath}" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language} --instructions="#{instructions}"'
     CMD
     send_command(command: command, container: "ruby")
   end

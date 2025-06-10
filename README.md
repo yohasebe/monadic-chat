@@ -21,7 +21,7 @@ Monadic Chat is an AI framework grounded in the real world. The term **grounding
 
 Typically, discourse involves context and purpose, which are referenced and updated as the conversation progresses. Just as in human-to-human conversations, **maintaining and referencing context** is useful, or even essential, in conversations with AI agents. By defining the format and structure of meta-information in advance, it is expected that conversations with AI agents will become more purposeful. The process of users and AI agents advancing discourse while sharing a foundational background is the first meaning of "grounding."
 
-Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. Since it is an environment on Docker containers, it does not affect the host system. This is the second meaning of "grounding."
+Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. The system includes error pattern detection that prevents infinite retry loops, ensuring stable operation. Since it is an environment on Docker containers, it does not affect the host system. This is the second meaning of "grounding."
 
 ## Features
 
@@ -43,7 +43,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🐳 Tools available to LLMs via **Docker containers**
   - Linux (+ apt)
   - Ruby (+ gem)
-  - Python (+ pip)
+  - Python (+ pip, Flask API server)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
   - Ollama (optional, for local LLM models)
@@ -67,11 +67,11 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Voice Interaction
 
 - 🔈 **Text-to-speech** for AI assistant responses (OpenAI, Elevenlabs, Google Gemini, or Web Speech API)
-- 🎙️ **Speech recognition** using the Speech-to-Text API (+ display of p-values)
+- 🎙️ **Speech recognition** using the Speech-to-Text API (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
-- 🎧 Save AI assistant's spoken responses as **MP3 audio** files
+- 🎧 Save AI assistant's spoken responses as **MP3/WAV audio** files
 
 ### Image/Video Recognition and Generation
 
@@ -85,25 +85,27 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Specialized Applications
 
-- 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis (OpenAI, Claude)
-- 🎥 **Video Generator** - Create videos from text or images using Google's Veo model
-- 🗣️ **Voice Interpreter** - Real-time voice conversation with AI assistants
-- 📊 **DrawIO Grapher** - Create diagrams using DrawIO format
-- 🧮 **Math Tutor** - Interactive mathematics tutoring with visualization support
-- 💬 **Second Opinion** - Get alternative perspectives from different AI models
-- 📄 **PDF Navigator** - Navigate and analyze PDF documents with AI assistance
+- 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
+- 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
+- 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
+- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation
+- 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
+- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering
+- 💬 **Second Opinion** - Compare responses from the same AI model for validation
+- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (RAG)
 
 ### Configuration and Extension
 
 - 💡 Specify and edit **API parameters** and **system prompts**
 - 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
-- 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps
+- 🤖 **MDSL Auto-completion** system that automatically generates tool definitions from Ruby implementations
+- 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps with real-time validation
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
 - 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, xAI Grok, and Perplexity
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
-- 📝 **Declarative DSL** for simplified app development
+- 📝 **Declarative DSL** for simplified app development with error pattern detection
 - 🔧 Optional setup scripts (`rbsetup.sh`, `pysetup.sh`, `olsetup.sh`) for custom environment configuration
 
 ### Support for Multiple LLM APIs

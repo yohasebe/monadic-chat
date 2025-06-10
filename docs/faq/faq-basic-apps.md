@@ -38,13 +38,19 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (3330, 3000, 8889) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 5070, 8889) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application or rebuilding the containers from the console.
 
 **Q**: Can I use Monadic Chat offline?
 
-**A**: No, Monadic Chat requires internet access to communicate with the language model APIs. The application itself runs locally, but the AI features depend on online services.
+**A**: While most features require internet access to communicate with language model APIs, you can use Monadic Chat offline with Ollama:
+
+1. Build the Ollama container (Actions → Build Ollama Container)
+2. Install local models using the `olsetup.sh` script
+3. Use the Chat app with Ollama provider
+
+Note that other features like web search, image generation, and cloud-based language models still require internet access.
 
 **Q**: How can I reset the app to the initial state?
 

@@ -165,7 +165,7 @@ You can specify the voice used for speech synthesis. Available voices depend on 
 You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, but quality may vary by browser and operating system.
 
 **Speech-to-Text (STT) Language**<br />
-Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector.
+Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. Monadic Chat uses the STT model configured in the system settings (gpt-4o-transcribe by default).
 Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 

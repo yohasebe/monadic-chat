@@ -55,8 +55,10 @@ module MonadicHelper
       
       if mask_files.any?
         # Use the most recent mask file (in case there are multiple)
-        mask_path = mask_files.sort_by { |f| File.mtime(f) }.last
-        if File.exist?(mask_path)
+        # Filter out directories just in case
+        mask_files = mask_files.reject { |f| File.directory?(f) }
+        mask_path = mask_files.sort_by { |f| File.mtime(f) }.last if mask_files.any?
+        if mask_path && File.exist?(mask_path)
           # Pass the mask filename to preserve it in output
           mask_filename = File.basename(mask_path)
           parts << "--mask \"#{mask_path}\""

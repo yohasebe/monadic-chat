@@ -62,7 +62,22 @@ docker/services/ruby/
 - テストスクリプトは代わりに `scripts/diagnostics/apps/` に配置してください
 
 ### スクリプトの構成
+
+#### Rubyスクリプト (`docker/services/ruby/scripts/`)
 - **utilities/**: ビルドとセットアップタスク用のスクリプト
 - **cli_tools/**: スタンドアロンのコマンドラインツール（旧 `simple_*.rb`）
 - **generators/**: コンテンツ（画像、動画など）を生成するスクリプト
 - **diagnostics/**: アプリ別に整理されたテストと診断スクリプト
+
+#### Pythonスクリプト (`docker/services/python/scripts/`)
+- **utilities/**: システムユーティリティ (`sysinfo.sh`、`run_jupyter.sh`)
+- **cli_tools/**: CLIツール (`content_fetcher.py`、`webpage_fetcher.py`)
+- **converters/**: ファイルコンバーター (`pdf2txt.py`、`office2txt.py`、`extract_frames.py`)
+- **services/**: APIサービス (`jupyter_controller.py`)
+
+### コンテナビルドに関する注意事項
+- スクリプトの権限はコンテナビルド時に再帰的に設定されます：
+  ```dockerfile
+  RUN find /path/to/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+  ```
+- すべてのサブディレクトリがPATHに追加され、スクリプトの実行が簡単になります

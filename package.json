@@ -20,7 +20,7 @@
   "author": "Yoichiro Hasebe <yohasebe@gmail.com>",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@electron/notarize": "",
+    "@electron/notarize": "^3.0.1",
     "@eslint/js": "^9.11.1",
     "@jest/globals": "^29.7.0",
     "electron": "^32.1.2",

@@ -131,30 +131,6 @@ RSpec.describe MonadicAppTest::MonadicApp do
         expect(result).to include("required")
       end
     end
-    
-    context "#run_script" do
-      it "unescapes special characters in code" do
-        result = app.run_script(
-          code: "print(\\'hello\\')\nprint(\\\"world\\\")",
-          command: "python",
-          extension: "py"
-        )
-        
-        expect(app).to have_received(:send_code).with(
-          code: "print('hello')\nprint(\"world\")",
-          command: "python",
-          extension: "py",
-          success: "The code has been executed successfully"
-        )
-        expect(result).to eq("Code executed successfully")
-      end
-      
-      it "returns error when parameters are missing" do
-        result = app.run_script(code: "print('hello')")
-        expect(result).to include("Error")
-        expect(result).to include("required")
-      end
-    end
   end
   
   describe ".capture_command" do
@@ -213,7 +189,7 @@ RSpec.describe MonadicAppTest::MonadicApp do
       result = described_class.doc2markdown("document.txt")
       
       expect(described_class).to have_received(:capture_command) do |cmd|
-        expect(cmd).to include("simple_content_fetcher.py")
+        expect(cmd).to include("content_fetcher.py")
         expect(cmd).to include("document.txt")
       end
       expect(result).to eq("Markdown content")

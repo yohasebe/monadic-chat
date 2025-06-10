@@ -130,11 +130,14 @@ Flaskサーバーはコンテナ起動時に自動的に開始され、Rubyバ�
 
 ## スクリプトディレクトリ構造
 
-Pythonコンテナには `/monadic/scripts/` に各種ユーティリティスクリプトが含まれています：
+Pythonコンテナには `/monadic/scripts/` 以下のサブディレクトリに整理された各種ユーティリティスクリプトが含まれています：
 
-- **システムユーティリティ**: `sysinfo.sh`（システム情報）、`run_jupyter.sh`（JupyterLabランチャー）
-- **CLIツール**: `simple_content_fetcher.py`、`webpage_fetcher.py`
-- **ファイルコンバーター**: `pdf2txt.py`、`office2txt.py`、`extract_frames.py`
-- **サービス**: `jupyter_controller.py`（Jupyterカーネル管理）
+```
+/monadic/scripts/
+├── utilities/          # システムユーティリティ (sysinfo.sh, run_jupyter.sh)
+├── cli_tools/          # CLIツール (content_fetcher.py, webpage_fetcher.py)
+├── converters/         # ファイルコンバーター (pdf2txt.py, office2txt.py, extract_frames.py)
+└── services/           # APIサービス (jupyter_controller.py)
+```
 
-これらのスクリプトはPATHに追加され、コンテナ内でコマンドとして実行できます。
+これらのスクリプトはPATHに追加され、コンテナ内でコマンドとして実行できます。これらのサブディレクトリ内のすべてのPythonおよびシェルスクリプトには、コンテナビルド時に実行権限が設定されます。

@@ -159,11 +159,11 @@ RSpec.describe MonadicHelper do
   end
   
   describe "#list_providers_and_voices" do
-    it "calls the simple_tts_query.rb script" do
+    it "calls the tts_query.rb script" do
       # Expect send_command to be called with the correct arguments
       expect(test_instance).to receive(:send_command).with(
         hash_including(
-          command: /simple_tts_query\.rb --list/,
+          command: /tts_query\.rb --list/,
           container: "ruby"
         )
       )

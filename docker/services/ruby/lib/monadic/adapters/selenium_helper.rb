@@ -6,7 +6,7 @@ module MonadicHelper
 
   def selenium_fetch(url: "")
     max_retrials = 10
-    command = "bash -c '/monadic/scripts/webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
+    command = "bash -c 'webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\" '"
 
     result = nil 
 

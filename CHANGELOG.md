@@ -1,5 +1,46 @@
 - [June, 2025] 1.0.0
-  - Version updated from 0.9.982
+  - **Major Release**: First stable release of Monadic Chat
+  
+  ### Breaking Changes
+  - `run_script` method removed - use `run_code` instead (all providers now use `run_code`)
+  - Python scripts reorganized into categorized directories (`utilities/`, `cli_tools/`, `converters/`, `services/`)
+  - `sysinfo` renamed to `sysinfo.sh` with proper extension
+  - `app.py` renamed to `flask_server.py` for clarity
+  - Minimum Ruby version requirement (>= 2.6.10)
+  
+  ### New Features
+  - **Concept Visualizer app**: Generate scientific and mathematical diagrams with LaTeX/TikZ
+  - **Syntax Tree app**: Visualize syntactic structures for linguistic analysis
+  - **Ollama integration**: Local LLM support with automatic model management
+  - **Debug system**: Unified debug control with `MONADIC_DEBUG` environment variable
+  - **MDSL auto-completion**: Disabled by default, configurable via `MDSL_AUTO_COMPLETE`
+  
+  ### Improvements
+  - **Performance optimizations**:
+    - Command execution delay reduced from 1.5s to 1.0s
+    - Audio queue processing improved (100ms → 20ms delay)
+    - JavaScript debug logging disabled by default in production
+  - **Code organization**:
+    - Ruby and Python scripts restructured into logical directories
+    - Test scripts moved to `scripts/diagnostics/` to prevent app loading conflicts
+  - **Error handling**:
+    - Error pattern detection prevents infinite retry loops
+    - Improved error messages and logging
+  - **Dependencies**:
+    - Major gem versions locked for stability
+    - Security updates included
+  
+  ### Developer Experience
+  - Comprehensive documentation in `CLAUDE.md` for development guidelines
+  - Improved test coverage with RSpec and Jest
+  - Debug output streamlined with `DebugHelper` module
+  - OStruct deprecation warning resolved for Ruby 3.5.0 compatibility
+  
+  ### Bug Fixes
+  - App menu display and grouping issues resolved
+  - Voice interpreter app functionality restored
+  - Streaming text duplication with Ollama fixed
+  - LaTeX rendering improvements for mathematical content
 
 - [May, 2025] 0.9.982
   - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models

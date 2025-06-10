@@ -296,6 +296,7 @@ end
 - `GrokHelper`
 - `PerplexityHelper`
 - `DeepSeekHelper`
+- `OllamaHelper`
 
 どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
 

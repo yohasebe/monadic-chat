@@ -111,3 +111,30 @@ font.family: Noto Sans CJK JP
 font.size: 12
 axes.unicode_minus: False
 ```
+
+## Flask APIサーバー
+
+Pythonコンテナはポート5070でFlask APIサーバーを実行し、トークン化サービスを提供します：
+
+- **場所**: `/monadic/flask/flask_server.py`
+- **ポート**: 5070
+- **エンドポイント**:
+  - `/health` - ヘルスチェックエンドポイント
+  - `/warmup` - トークナイザーエンコーディングの事前読み込み
+  - `/count_tokens` - テキストのトークン数をカウント
+  - `/get_tokens_sequence` - テキストからトークンシーケンスを取得
+  - `/decode_tokens` - トークンをテキストにデコード
+  - `/get_encoding_name` - モデルのエンコーディング名を取得
+
+Flaskサーバーはコンテナ起動時に自動的に開始され、Rubyバックエンドが使用する必須のトークン化サービスを提供します。
+
+## スクリプトディレクトリ構造
+
+Pythonコンテナには `/monadic/scripts/` に各種ユーティリティスクリプトが含まれています：
+
+- **システムユーティリティ**: `sysinfo.sh`（システム情報）、`run_jupyter.sh`（JupyterLabランチャー）
+- **CLIツール**: `simple_content_fetcher.py`、`webpage_fetcher.py`
+- **ファイルコンバーター**: `pdf2txt.py`、`office2txt.py`、`extract_frames.py`
+- **サービス**: `jupyter_controller.py`（Jupyterカーネル管理）
+
+これらのスクリプトはPATHに追加され、コンテナ内でコマンドとして実行できます。

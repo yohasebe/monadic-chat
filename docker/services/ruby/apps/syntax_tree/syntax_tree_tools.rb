@@ -1,7 +1,9 @@
 require 'cgi'
+require_relative '../../lib/monadic/adapters/latex_helper'
 
 class SyntaxTreeOpenAI < MonadicApp
   include OpenAIHelper
+  include LatexHelper
 
 
   def render_syntax_tree(bracket_notation:, language:)
@@ -13,7 +15,7 @@ class SyntaxTreeOpenAI < MonadicApp
     # Convert bracket notation to LaTeX code
     latex_code = generate_latex_syntax_tree(bracket_notation, language)
     
-    # Create a shell script to run LaTeX and convert to SVG
+    # Create a shell script to run LaTeX and convert to SVG with error recovery
     script_code = <<~BASH
       #!/bin/bash
       cd /monadic/data
@@ -44,6 +46,37 @@ class SyntaxTreeOpenAI < MonadicApp
       # Always use latex + dvisvgm for editable SVG (works for both CJK and non-CJK)
       echo "Running latex to generate DVI..."
       latex -interaction=nonstopmode #{base_filename}.tex
+      
+      # Check if compilation failed and try to recover
+      if [ ! -f #{base_filename}.dvi ] && [ -f #{base_filename}.log ]; then
+        echo "LaTeX compilation failed. Attempting automatic recovery..."
+        
+        # Save original for backup
+        cp #{base_filename}.tex #{base_filename}.tex.original
+        
+        # Check for common tikz-qtree errors
+        if grep -q "Paragraph ended before.*was complete" #{base_filename}.log; then
+          echo "Detected unmatched delimiter error. Attempting to fix..."
+          # Try to fix missing dots in node labels
+          perl -i -pe 's/\[([^\s\[\]\.]+)(\s+[^\[\]]+\])/[.$1$2/g' #{base_filename}.tex
+          echo "Applied qtree format fixes."
+        fi
+        
+        # Check for missing escape characters
+        if grep -q "Missing \\$ inserted" #{base_filename}.log || grep -q "Extra }, or forgotten \\$" #{base_filename}.log; then
+          echo "Detected unescaped special characters. Already handled in preprocessing."
+        fi
+        
+        # Show diff if any changes were made
+        if ! diff -q #{base_filename}.tex.original #{base_filename}.tex >/dev/null 2>&1; then
+          echo "Changes applied:"
+          diff -u #{base_filename}.tex.original #{base_filename}.tex || true
+          
+          # Retry compilation
+          echo "Retrying LaTeX compilation..."
+          latex -interaction=nonstopmode #{base_filename}.tex
+        fi
+      fi
       
       if [ -f #{base_filename}.dvi ]; then
         echo "DVI created successfully, converting to editable SVG with dvisvgm..."
@@ -140,18 +173,24 @@ class SyntaxTreeOpenAI < MonadicApp
     # Process the bracket notation recursively to add dots before all node labels
     # This is necessary because tikz-qtree requires dots on all nodes
     
-    # First, add dots to all nodes (both terminal and non-terminal)
-    result = bracket_notation.gsub(/\[(\w+)/) do
+    # First, escape LaTeX special characters in the entire notation
+    escaped_notation = escape_latex(bracket_notation)
+    
+    # Add dots to all nodes (both terminal and non-terminal)
+    # Updated regex to handle node labels with apostrophes and other characters
+    result = escaped_notation.gsub(/\[([^\s\[\]]+)/) do
       "[.#{$1}"
     end
     
     # Ensure proper spacing after terminal nodes
-    result = result.gsub(/(\[\.[\w]+)\s+([^\[\]]+)\]/) do
+    result = result.gsub(/(\[\.[^\s\[\]]+)\s+([^\[\]]+)\]/) do
       "#{$1} #{$2.strip} ]"
     end
     
     result
   end
+  
+  # Note: escape_latex method is now provided by LatexHelper module
 
   def parse_bracket_notation(notation)
     # Simple bracket notation parser
@@ -249,6 +288,7 @@ end
 # Claude version
 class SyntaxTreeClaude < MonadicApp
   include ClaudeHelper
+  include LatexHelper
 
   def render_syntax_tree(bracket_notation:, language:)
     SyntaxTreeOpenAI.new.render_syntax_tree(

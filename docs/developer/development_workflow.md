@@ -13,16 +13,18 @@ This document contains guidelines and instructions for developers contributing t
 ### Test Structure
 - JavaScript tests are in `test/frontend/`
 - Ruby tests are in `docker/services/ruby/spec/`
-- App-specific test scripts are in `docker/services/ruby/apps/{app_name}/test/`
+- App-specific test scripts are in `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 - Jest configuration in `jest.config.js`
 - Global test setup for JavaScript in `test/setup.js`
 
 ### App-Specific Test Scripts
 For applications that require specific testing or diagnosis:
-- Place test scripts in the app's test directory: `docker/services/ruby/apps/{app_name}/test/`
+- Place test scripts in the diagnostics directory: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 - Use descriptive names: `test_feature_name.sh` or `diagnose_issue.rb`
 - Avoid placing app-specific test scripts in the project root directory
-- Example: Concept Visualizer test scripts are in `docker/services/ruby/apps/concept_visualizer/test/`
+- Example: Concept Visualizer test scripts are in `docker/services/ruby/scripts/diagnostics/apps/concept_visualizer/`
+
+?> **Important**: Test scripts should NOT be placed in `apps/{app_name}/test/` directories, as files in `test/` subdirectories within apps are ignored during app loading to prevent test scripts from being loaded as applications.
 
 ### Running Tests
 #### Ruby Tests
@@ -286,7 +288,9 @@ export MDSL_AUTO_COMPLETE=true
 
 ## Important: Managing Setup Scripts
 
-The `pysetup.sh`, `rbsetup.sh`, and `olsetup.sh` files located in `docker/services/python/`, `docker/services/ruby/`, and `docker/services/ollama/` respectively are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages or models. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:
+The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` respectively are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:
+
+Note: The `olsetup.sh` script is created by users in `~/monadic/config/` to install Ollama models and does not have an original version in the repository.
 
 #### Method 1: Using the Reset Script
 
@@ -303,7 +307,7 @@ This will restore the original versions of the setup scripts from git.
 Alternatively, you can manually reset the files using git:
 
 ```bash
-git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh docker/services/ollama/olsetup.sh
+git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh
 ```
 
 ### Git Pre-commit Hook (Optional)

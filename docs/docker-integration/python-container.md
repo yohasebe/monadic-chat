@@ -108,3 +108,30 @@ font.size: 12
 axes.unicode_minus: False
 ```
 
+## Flask API Server
+
+The Python container runs a Flask API server on port 5070 that provides tokenization services:
+
+- **Location**: `/monadic/flask/flask_server.py`
+- **Port**: 5070
+- **Endpoints**:
+  - `/health` - Health check endpoint
+  - `/warmup` - Pre-load tokenizer encodings
+  - `/count_tokens` - Count tokens in text
+  - `/get_tokens_sequence` - Get token sequence from text
+  - `/decode_tokens` - Decode tokens back to text
+  - `/get_encoding_name` - Get encoding name for a model
+
+The Flask server is automatically started when the container launches and provides essential tokenization services used by the Ruby backend.
+
+## Scripts Directory Structure
+
+The Python container includes various utility scripts in `/monadic/scripts/`:
+
+- **System Utilities**: `sysinfo.sh` (system information), `run_jupyter.sh` (JupyterLab launcher)
+- **CLI Tools**: `simple_content_fetcher.py`, `webpage_fetcher.py`
+- **File Converters**: `pdf2txt.py`, `office2txt.py`, `extract_frames.py`
+- **Services**: `jupyter_controller.py` (Jupyter kernel management)
+
+These scripts are added to the PATH and can be executed as commands within the container.
+

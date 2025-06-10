@@ -36,7 +36,7 @@ module VideoAnalyzeAgent
     model = check_vision_capability(model) || "gpt-4.1"
 
     video_command = <<~CMD
-      bash -c 'simple_video_query.rb "#{json_file}" #{query} "#{model}"'
+      bash -c 'video_query.rb "#{json_file}" #{query} "#{model}"'
     CMD
 
     description = send_command(command: video_command, container: "ruby")
@@ -46,7 +46,7 @@ module VideoAnalyzeAgent
       stt_model = "whisper-1" 
       
       audio_command = <<~CMD
-        bash -c 'simple_stt_query.rb "#{audio_file}" "." "srt" "" "#{stt_model}"'
+        bash -c 'stt_query.rb "#{audio_file}" "." "srt" "" "#{stt_model}"'
       CMD
       audio_description = send_command(command: audio_command, container: "ruby")
 

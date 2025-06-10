@@ -62,11 +62,11 @@ COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
 # Copy scripts and set permissions
 COPY scripts /monadic/scripts
-RUN chmod +x /monadic/scripts/*
+RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
 RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:${PATH}"
+ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
 

@@ -114,7 +114,7 @@ class MonadicApp
   LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
 
   # delay to wait for the command execution
-  COMMAND_DELAY = 1.5
+  COMMAND_DELAY = 1.0
 
   AI_USER_INITIAL_PROMPT = <<~PROMPT
       You are generating a response from the perspective of the human user in an ongoing conversation with an AI assistant.
@@ -339,22 +339,35 @@ class MonadicApp
       SYS
     when "python"
       container = "monadic-chat-python-container"
-      system_command = <<~DOCKER
-        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +'
-        docker exec -w #{SHARED_VOL} #{container} #{command}
+      # Combine commands into a single bash command to avoid multi-line execution issues
+      # Escape single quotes in the command to prevent shell interpretation issues
+      escaped_command = command.gsub("'", "'\"'\"'")
+      # Add all Python script directories to PATH
+      python_script_dirs = [
+        "/monadic/scripts",
+        "/monadic/scripts/utilities",
+        "/monadic/scripts/services",
+        "/monadic/scripts/cli_tools",
+        "/monadic/scripts/converters",
+        "#{USER_SCRIPT_DIR}"
+      ].join(":")
+      system_command = <<~DOCKER.strip
+        docker exec -w #{SHARED_VOL} #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH="#{python_script_dirs}:${PATH}"; #{escaped_command}'
       DOCKER
     else
       container = "monadic-chat-#{container}-container"
-      system_command = <<~DOCKER
-        docker exec #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} +'
-        docker exec -w #{SHARED_VOL} #{container} #{command}
+      # Combine commands into a single bash command to avoid multi-line execution issues
+      # Escape single quotes in the command to prevent shell interpretation issues
+      escaped_command = command.gsub("'", "'\"'\"'")
+      system_command = <<~DOCKER.strip
+        docker exec -w #{SHARED_VOL} #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; #{escaped_command}'
       DOCKER
     end
 
     stdout, stderr, status = self.capture_command(system_command)
 
-    # Debug output for PDF processing
-    if command.include?("pdf2txt.py")
+    # Debug output for PDF processing (only when MONADIC_DEBUG is set)
+    if ENV["MONADIC_DEBUG"] && command.include?("pdf2txt.py")
       puts "DEBUG send_command:"
       puts "Original command: #{command}"
       puts "System command: #{system_command}"
@@ -419,9 +432,22 @@ class MonadicApp
       local_files1 = {}
       Dir[File.join(files_dir, "*")].each do |f|
         begin
+          # Skip directories
+          next if File.directory?(f)
           local_files1[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
-        rescue => e
-          # Skip if file access error occurs
+        rescue Errno::EACCES => e
+          # Permission denied - skip this file
+          DebugHelper.debug("Permission denied accessing file: #{f}", "app", level: :warning)
+          next
+        rescue Errno::ENOENT => e
+          # File was deleted between Dir[] and File.exist? - skip
+          next
+        rescue Errno::EISDIR => e
+          # Is a directory - skip
+          next
+        rescue IOError => e
+          # General I/O error - skip this file
+          DebugHelper.debug("IO error accessing file: #{f} - #{e.message}", "app", level: :warning)
           next
         end
       end
@@ -451,9 +477,22 @@ class MonadicApp
         local_files2 = {}
         Dir[File.join(files_dir, "*")].each do |f|
           begin
+            # Skip directories
+            next if File.directory?(f)
             local_files2[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
-          rescue => e
-            # Skip if file access error occurs
+          rescue Errno::EACCES => e
+            # Permission denied - skip this file
+            DebugHelper.debug("Permission denied accessing file after execution: #{f}", "app", level: :warning)
+            next
+          rescue Errno::ENOENT => e
+            # File was deleted - skip
+            next
+          rescue Errno::EISDIR => e
+            # Is a directory - skip
+            next
+          rescue IOError => e
+            # General I/O error - skip this file
+            DebugHelper.debug("IO error accessing file after execution: #{f} - #{e.message}", "app", level: :warning)
             next
           end
         end
@@ -521,51 +560,6 @@ class MonadicApp
     send_code(code: code, command: command, extension: extension, success: success)
   end
 
-  # DEPRECATED: Legacy method for code execution with escape character processing
-  # 
-  # This method was previously used by Anthropic Claude to handle escaped code strings.
-  # As of January 2025, ALL providers (OpenAI, Claude, Gemini, Grok, etc.) use run_code instead.
-  # 
-  # Key differences:
-  # - run_script: Processes escape characters in code strings (e.g., \n, \t, \")
-  # - run_code: Accepts code strings as-is without escape processing
-  #
-  # This method is retained for backward compatibility only and should not be used
-  # in new applications or MDSL files.
-  #
-  # @deprecated Use {#run_code} instead
-
-  def run_script(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
-    # Log parameter issues for debugging
-    if !code || !command || !extension
-      error_details = []
-      error_details << "code: #{code.nil? ? 'nil' : (code.empty? ? 'empty' : "present (#{code.length} chars)")}" 
-      error_details << "command: #{command.nil? ? 'nil' : (command.empty? ? 'empty' : command)}"
-      error_details << "extension: #{extension.nil? ? 'nil' : (extension.empty? ? 'empty' : extension)}"
-      
-      error_msg = "Error: code, command, and extension are required. Received: #{error_details.join(', ')}"
-      
-      # Log to command log for debugging
-      File.open(COMMAND_LOG_FILE, "a") do |f|
-        f.puts "Time: #{Time.now}"
-        f.puts "run_script called with missing parameters:"
-        f.puts error_msg
-        f.puts "-----------------------------------"
-      end
-      
-      return error_msg
-    end
-    
-    # remove escape characters from the code
-    if code
-      code = code.gsub(/\\n/) { "\n" }
-      code = code.gsub(/\\'/) { "'" }
-      code = code.gsub(/\\"/) { '"' }
-      code = code.gsub(/\\\\/) { "\\" }
-    end
-
-    send_code(code: code, command: command, extension: extension, success: success)
-  end
 
   def current_time
     Time.now.to_s
@@ -611,7 +605,7 @@ class MonadicApp
       DOCKER
     else
       docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c 'simple_content_fetcher.py "#{basename}"'
+        docker exec -w #{SHARED_VOL} #{container} bash -c 'content_fetcher.py "#{basename}"'
       DOCKER
     end
 

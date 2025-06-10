@@ -70,8 +70,8 @@ COPY views/ $WORKSPACE/views/
 RUN mkdir -p log/ bin/
 
 COPY scripts/ $WORKSPACE/scripts/
-RUN chmod +x $WORKSPACE/scripts/*
-ENV PATH="$WORKSPACE/scripts:/usr/local/bundle/bin:${PATH}"
+RUN find $WORKSPACE/scripts -type f \( -name "*.sh" -o -name "*.rb" \) -exec chmod +x {} \;
+ENV PATH="$WORKSPACE/scripts:$WORKSPACE/scripts/cli_tools:$WORKSPACE/scripts/diagnostics:$WORKSPACE/scripts/diagnostics/apps:$WORKSPACE/scripts/diagnostics/apps/concept_visualizer:$WORKSPACE/scripts/diagnostics/apps/wikipedia:/usr/local/bundle/bin:${PATH}"
 
 # Copy assets list for vendor assets
 COPY bin/assets_list.sh $WORKSPACE/bin/assets_list.sh

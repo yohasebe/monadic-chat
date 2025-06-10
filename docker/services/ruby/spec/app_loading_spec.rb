@@ -144,7 +144,7 @@ RSpec.describe "App Loading and Initialization" do
         standard_tools = %w[
           fetch_text_from_office fetch_text_from_pdf fetch_text_from_file
           analyze_image analyze_audio analyze_video
-          run_code run_script run_bash_command lib_installer check_environment
+          run_code run_bash_command lib_installer check_environment
           fetch_web_content search_wikipedia
           write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
           websearch_agent list_providers_and_voices text_to_speech

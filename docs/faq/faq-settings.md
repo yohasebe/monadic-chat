@@ -2,9 +2,14 @@
 
 **Q**: Do I need an OpenAI API token to use Monadic Chat?
 
-**A**: An OpenAI API token is not necessarily required if you do not use functions such as speech recognition, speech synthesis, and text embedding. You can also use APIs such as Anthropic Claude, Google Gemini, Cohere, and Mistral AI.
+**A**: An OpenAI API token is not necessarily required if you do not use functions such as speech recognition, speech synthesis, and text embedding. You can also use APIs such as Anthropic Claude, Google Gemini, Cohere, Mistral AI, Perplexity, DeepSeek, and xAI Grok.
 
-If you do not want to use commercial APIs, you can use the Ollama container. For information on using Ollama with Monadic Chat, see [Using Ollama](/advanced-topics/ollama.md).
+If you do not want to use commercial APIs, you can use the Ollama container to run local language models:
+1. Build the Ollama container via Actions → Build Ollama Container
+2. Install models using an `olsetup.sh` script or let it download the default model (llama3.2)
+3. Use the Chat app with Ollama provider selected
+
+For detailed information on using Ollama with Monadic Chat, see [Using Ollama](/advanced-topics/ollama.md).
 
 ---
 

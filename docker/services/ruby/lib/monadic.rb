@@ -184,6 +184,7 @@ def load_app_files
   Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
     basename = File.basename(file)
     next if basename.start_with?("_") # ignore files that start with an underscore
+    next if file.include?("/test/") # ignore test directories
     
     # If the basename already exists as a key, create a unique key by adding a suffix
     if apps_to_load.key?(basename)
@@ -198,6 +199,7 @@ def load_app_files
     Dir["#{File.join(user_plugins_dir, "**", "apps", "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
       basename = File.basename(file)
       next if basename.start_with?("_") # ignore files that start with an underscore
+      next if file.include?("/test/") # ignore test directories
       
       # If the basename already exists as a key, create a unique key by adding a suffix
       if apps_to_load.key?(basename)

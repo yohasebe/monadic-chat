@@ -2,7 +2,7 @@ module MonadicHelper
 
   def system_info
     command = <<~CMD
-      bash -c 'sysinfo'
+      bash -c 'sysinfo.sh'
     CMD
     send_command(command: command, container: "python")
   end

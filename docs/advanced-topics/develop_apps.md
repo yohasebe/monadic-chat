@@ -220,6 +220,7 @@ The following modules are available for use in the recipe file:
 - `GrokHelper` to use the xAI Grok API
 - `PerplexityHelper` to use the Perplexity API
 - `DeepSeekHelper` to use the DeepSeek API
+- `OllamaHelper` to use local Ollama models
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
 

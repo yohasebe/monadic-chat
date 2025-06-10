@@ -150,6 +150,7 @@ RSpec.describe "App Loading and Initialization" do
           websearch_agent list_providers_and_voices text_to_speech
           generate_video_with_veo generate_image_with_imagen
           validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
+          current_time
         ]
         
         tools_to_check = tool_matches.flatten.reject { |tool| standard_tools.include?(tool) }

@@ -22,6 +22,10 @@ let currentAudioSequenceId = null;
 let currentSegmentAudio = null; // Track current playing segment
 let currentPCMSource = null; // Track current PCM audio source
 
+// Audio queue processing delays (configurable)
+const AUDIO_QUEUE_DELAY = window.AUDIO_QUEUE_DELAY || 20; // Default 20ms instead of 100ms
+const AUDIO_ERROR_DELAY = window.AUDIO_ERROR_DELAY || 50; // Error retry delay
+
 // message is submitted upon pressing enter
 const message = $("#message")[0];
 
@@ -1089,7 +1093,7 @@ function playAudioForIOSFromQueue(audioData) {
     }
   } catch (e) {
     // Continue with next item on error
-    setTimeout(() => processGlobalAudioQueue(), 100);
+    setTimeout(() => processGlobalAudioQueue(), AUDIO_ERROR_DELAY);
   }
 }
 
@@ -1098,7 +1102,7 @@ function processIOSAudioBufferWithQueue() {
   if (iosAudioBuffer.length === 0) {
     isIOSAudioPlaying = false;
     // Process next item in global queue
-    setTimeout(() => processGlobalAudioQueue(), 100);
+    setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     return;
   }
   
@@ -1131,14 +1135,14 @@ function processIOSAudioBufferWithQueue() {
       isIOSAudioPlaying = false;
       URL.revokeObjectURL(blobUrl);
       // Process next item in global queue
-      setTimeout(() => processGlobalAudioQueue(), 100);
+      setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     };
     
     iosAudioElement.onerror = function() {
       isIOSAudioPlaying = false;
       URL.revokeObjectURL(blobUrl);
       // Process next item in global queue even on error
-      setTimeout(() => processGlobalAudioQueue(), 100);
+      setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     };
     
     iosAudioElement.src = blobUrl;
@@ -1146,13 +1150,13 @@ function processIOSAudioBufferWithQueue() {
       isIOSAudioPlaying = false;
       URL.revokeObjectURL(blobUrl);
       // Process next item in global queue
-      setTimeout(() => processGlobalAudioQueue(), 100);
+      setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     });
     
   } catch (e) {
     isIOSAudioPlaying = false;
     // Process next item in global queue
-    setTimeout(() => processGlobalAudioQueue(), 100);
+    setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
   }
 }
 
@@ -1232,7 +1236,7 @@ function processIOSAudioBuffer() {
         
         // Process any new chunks that arrived during playback
         if (iosAudioBuffer.length > 0) {
-          setTimeout(processIOSAudioBuffer, 100);
+          setTimeout(processIOSAudioBuffer, AUDIO_QUEUE_DELAY);
         }
         
         // Clean up URL
@@ -1251,7 +1255,7 @@ function processIOSAudioBuffer() {
         
         // Check if we have more chunks to try
         if (iosAudioBuffer.length > 0) {
-          setTimeout(processIOSAudioBuffer, 100);
+          setTimeout(processIOSAudioBuffer, AUDIO_QUEUE_DELAY);
         }
       };
     } else if (iosAudioElement.src) {
@@ -1291,7 +1295,7 @@ function processIOSAudioBuffer() {
     
     // Try to process any remaining chunks
     if (iosAudioBuffer.length > 0) {
-      setTimeout(processIOSAudioBuffer, 100);
+      setTimeout(processIOSAudioBuffer, AUDIO_QUEUE_DELAY);
     }
   }
 }

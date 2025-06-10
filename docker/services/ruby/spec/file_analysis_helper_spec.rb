@@ -41,7 +41,7 @@ RSpec.describe MonadicHelper do
   describe "#analyze_image" do
     it "calls send_command with correct parameters" do
       expect(helper).to receive(:send_command).with(
-        command: match(/simple_image_query\.rb.*test message.*\/path\/to\/image\.jpg.*gpt-4\.1/),
+        command: match(/image_query\.rb.*test message.*\/path\/to\/image\.jpg.*gpt-4\.1/),
         container: "ruby"
       )
       
@@ -54,7 +54,7 @@ RSpec.describe MonadicHelper do
     
     it "escapes quotes in message" do
       expect(helper).to receive(:send_command).with(
-        command: match(/simple_image_query\.rb.*message with \\\"quotes\\\"/),
+        command: match(/image_query\.rb.*message with \\\"quotes\\\"/),
         container: "ruby"
       )
       
@@ -106,7 +106,7 @@ RSpec.describe MonadicHelper do
   describe "#analyze_audio" do
     it "calls send_command with correct parameters" do
       expect(helper).to receive(:send_command).with(
-        command: match(/simple_stt_query\.rb.*\/path\/to\/audio\.mp3.*\.*json.*.*gpt-4o-transcribe/),
+        command: match(/stt_query\.rb.*\/path\/to\/audio\.mp3.*\.*json.*.*gpt-4o-transcribe/),
         container: "ruby"
       )
       
@@ -128,7 +128,7 @@ RSpec.describe MonadicHelper do
     it "formats command correctly with all parameters" do
       expect(helper).to receive(:send_command) do |args|
         command = args[:command]
-        expect(command).to include('simple_stt_query.rb')
+        expect(command).to include('stt_query.rb')
         expect(command).to include('"/path/to/audio.mp3"')
         expect(command).to include('"."')  # output directory
         expect(command).to include('"json"')  # format

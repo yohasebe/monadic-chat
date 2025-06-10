@@ -62,7 +62,22 @@ By separating code into **agents**, **adapters**, and **utils**, the project mai
 - Test scripts should be placed in `scripts/diagnostics/apps/` instead
 
 ### Scripts Organization
+
+#### Ruby Scripts (`docker/services/ruby/scripts/`)
 - **utilities/**: Scripts for building and setup tasks
 - **cli_tools/**: Standalone command-line tools (formerly `simple_*.rb`)
 - **generators/**: Scripts that generate content (images, videos, etc.)
 - **diagnostics/**: Test and diagnostic scripts organized by app
+
+#### Python Scripts (`docker/services/python/scripts/`)
+- **utilities/**: System utilities (`sysinfo.sh`, `run_jupyter.sh`)
+- **cli_tools/**: CLI tools (`content_fetcher.py`, `webpage_fetcher.py`)
+- **converters/**: File converters (`pdf2txt.py`, `office2txt.py`, `extract_frames.py`)
+- **services/**: API services (`jupyter_controller.py`)
+
+### Container Build Notes
+- Script permissions are set recursively during container build using:
+  ```dockerfile
+  RUN find /path/to/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+  ```
+- All subdirectories are added to PATH for easy script execution

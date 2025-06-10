@@ -1180,9 +1180,9 @@ $(function () {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
         console.log("Safety timeout: Re-enabling controls that were left in disabled state");
         ensureControlsEnabled();
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "info");
+        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
       }
-    }, 5000); // 5 second timeout is enough for normal operations to complete
+    }, 3000); // 3 second timeout is enough for normal operations to complete
 
     if (messages.length > 0) {
       $("#config").hide();

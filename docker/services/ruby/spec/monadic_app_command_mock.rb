@@ -380,7 +380,7 @@ module MonadicAppTest
         DOCKER
       else
         docker_command = <<~DOCKER
-          docker exec -w #{SHARED_VOL} #{container} bash -c 'simple_content_fetcher.py "#{basename}"'
+          docker exec -w #{SHARED_VOL} #{container} bash -c 'content_fetcher.py "#{basename}"'
         DOCKER
       end
       

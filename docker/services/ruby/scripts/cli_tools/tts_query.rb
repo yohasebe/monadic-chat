@@ -335,10 +335,10 @@ end
 # Usage:
 
 # To list providers and voices:
-#   simple_tts_query.rb --list
+#   tts_query.rb --list
 #
 # To convert text to speech:
-#   simple_tts_query.rb <textfile> --provider=<provider> --speed=<speed> --voice=<voice> --language=<language>
+#   tts_query.rb <textfile> --provider=<provider> --speed=<speed> --voice=<voice> --language=<language>
 
 # Check if --list option is specified
 

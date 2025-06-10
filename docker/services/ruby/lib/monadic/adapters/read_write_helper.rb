@@ -25,7 +25,7 @@ module MonadicHelper
 
   def fetch_text_from_file(file: "")
     command = <<~CMD
-      bash -c 'simple_content_fetcher.rb "#{file}"'
+      bash -c 'content_fetcher.rb "#{file}"'
     CMD
     res = send_command(command: command, container: "ruby")
     if res.to_s == ""
@@ -46,8 +46,16 @@ module MonadicHelper
     filepath = File.join(data_dir, "#{filename}.#{extension}")
 
     # create a temporary file inside the data directory
-    File.open(filepath, "w") do |f|
-      f.write(text)
+    begin
+      File.open(filepath, "w") do |f|
+        f.write(text)
+      end
+    rescue Errno::ENOENT => e
+      return "Error: Directory does not exist for file: #{filename}.#{extension}"
+    rescue Errno::EACCES => e
+      return "Error: Permission denied when writing file: #{filename}.#{extension}"
+    rescue Errno::ENOSPC => e
+      return "Error: Not enough disk space to save file: #{filename}.#{extension}"
     end
 
     # check the availability of the file with the interval of 1 second
@@ -81,7 +89,13 @@ module MonadicHelper
     else
       "Error: The file could not be written."
     end
+  rescue IOError => e
+    "Error: File I/O operation failed for #{filename}.#{extension}"
+  rescue SystemCallError => e
+    # Catches any system-level errors not specifically handled above
+    "Error: System error occurred while writing file: #{e.message}"
   rescue StandardError => e
+    # Keep as fallback for any unexpected errors - maintaining backward compatibility
     "Error: The code could not be executed.\n#{e}"
   end
 end

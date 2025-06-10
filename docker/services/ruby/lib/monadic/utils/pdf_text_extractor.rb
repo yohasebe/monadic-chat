@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require "parallel"
+require_relative "debug_helper"
 
 RAG_TOKENS = 2000
 RAG_OVERLAP_LINES = 2
@@ -38,14 +39,19 @@ class PDF2Text
     shared_volume = "/monadic/data/"
     container = "monadic-chat-python-container"
     command = <<~CMD
-      bash -c '/monadic/scripts/pdf2txt.py "#{new_file_name}" --format md --json'
+      bash -c 'pdf2txt.py "#{new_file_name}" --format md --json'
     CMD
     docker_command = <<~DOCKER
       docker exec -w #{shared_volume} #{container} #{command.strip}
     DOCKER
     stdout, stderr, status = Open3.capture3(docker_command)
     if status.success?
-      JSON.parse(stdout)
+      begin
+        JSON.parse(stdout)
+      rescue JSON::ParserError => e
+        DebugHelper.debug("Invalid JSON from pdf2txt.py: #{stdout[0..200]}", "app", level: :error)
+        raise "PDF extraction returned invalid JSON format"
+      end
     else
       raise "Error extracting text: #{stderr}"
     end
@@ -56,10 +62,18 @@ class PDF2Text
     doc_json = pdf2text(@file_path)
     @text_data = ""
 
-    Parallel.each(doc_json["pages"], in_threads: THREADS) do |page|
-      text = page["text"].gsub(/[^[:print:]\s]/, " ")
-      text = text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-      @text_data += "#{text}\n"
+    begin
+      pages = doc_json["pages"]
+      raise "No pages found in PDF" if pages.nil? || pages.empty?
+      
+      Parallel.each(pages, in_threads: THREADS) do |page|
+        text = page["text"].gsub(/[^[:print:]\s]/, " ")
+        text = text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+        @text_data += "#{text}\n"
+      end
+    rescue NoMethodError => e
+      DebugHelper.debug("Invalid PDF structure: #{e.message}", "app", level: :error)
+      raise "PDF file appears to be corrupted or empty"
     end
 
     @text_data

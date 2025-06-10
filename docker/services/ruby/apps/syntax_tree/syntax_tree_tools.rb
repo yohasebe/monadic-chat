@@ -173,13 +173,23 @@ class SyntaxTreeOpenAI < MonadicApp
     # Process the bracket notation recursively to add dots before all node labels
     # This is necessary because tikz-qtree requires dots on all nodes
     
-    # First, escape LaTeX special characters in the entire notation
-    escaped_notation = escape_latex(bracket_notation)
+    # First, simplify redundant parent-child structures
+    simplified_notation = simplify_redundant_nodes(bracket_notation)
+    
+    # Then, escape LaTeX special characters in the entire notation
+    escaped_notation = escape_latex(simplified_notation)
     
     # Add dots to all nodes (both terminal and non-terminal)
     # Updated regex to handle node labels with apostrophes and other characters
-    result = escaped_notation.gsub(/\[([^\s\[\]]+)/) do
-      "[.#{$1}"
+    # Wrap labels containing apostrophes in braces to keep them together
+    result = escaped_notation.gsub(/\[([^\s\[\]]+)/) do |match|
+      label = $1
+      # If the label contains an apostrophe, wrap it in braces
+      if label.include?("'") || label.include?("'") || label.include?("'")
+        "[.{#{label}}"
+      else
+        "[.#{label}"
+      end
     end
     
     # Ensure proper spacing after terminal nodes
@@ -188,6 +198,111 @@ class SyntaxTreeOpenAI < MonadicApp
     end
     
     result
+  end
+  
+  def simplify_redundant_nodes(notation)
+    # Simplify redundant parent-child structures where a parent has only one child with the same category
+    # For example: [NP [NP ...]] becomes [NP ...]
+    
+    # Parse the notation into a tree structure
+    tree = parse_s_expression(notation)
+    
+    # Simplify the tree
+    simplified_tree = simplify_tree(tree)
+    
+    # Convert back to S-expression
+    tree_to_s_expression(simplified_tree)
+  end
+  
+  def parse_s_expression(expr)
+    # Remove extra whitespace and normalize
+    expr = expr.gsub(/\s+/, ' ').strip
+    
+    # Parse recursively
+    parse_s_expression_helper(expr)[0]
+  end
+  
+  def parse_s_expression_helper(expr)
+    expr = expr.strip
+    return [nil, expr] if expr.empty?
+    
+    if expr[0] == '['
+      # Find the matching closing bracket
+      depth = 0
+      i = 0
+      expr.each_char.with_index do |char, idx|
+        depth += 1 if char == '['
+        depth -= 1 if char == ']'
+        if depth == 0
+          i = idx
+          break
+        end
+      end
+      
+      inner = expr[1...i].strip
+      rest = expr[(i+1)..-1].strip
+      
+      # Parse the inner content
+      if match = inner.match(/^(\w+)\s*(.*)$/)
+        label = match[1]
+        remaining = match[2]
+        
+        children = []
+        while remaining && !remaining.empty?
+          if remaining[0] == '['
+            child, remaining = parse_s_expression_helper(remaining)
+            children << child if child
+          else
+            # Terminal node - find the next bracket or end
+            next_bracket = remaining.index('[') || remaining.length
+            terminal_text = remaining[0...next_bracket].strip
+            remaining = remaining[next_bracket..-1] || ""
+            unless terminal_text.empty?
+              children << { label: terminal_text, children: [] }
+            end
+          end
+        end
+        
+        return [{ label: label, children: children }, rest]
+      end
+    else
+      # Terminal value
+      next_bracket = expr.index('[') || expr.length
+      value = expr[0...next_bracket].strip
+      rest = expr[next_bracket..-1] || ""
+      return [{ label: value, children: [] }, rest] unless value.empty?
+    end
+    
+    [nil, ""]
+  end
+  
+  def simplify_tree(node)
+    return node unless node && node[:children]
+    
+    # First, recursively simplify all children
+    simplified_children = node[:children].map { |child| simplify_tree(child) }
+    
+    # Check if this node has exactly one child with the same label
+    if simplified_children.length == 1 && 
+       simplified_children[0][:label] == node[:label] &&
+       simplified_children[0][:children] && 
+       !simplified_children[0][:children].empty?
+      # Replace this node with its child's children
+      return { label: node[:label], children: simplified_children[0][:children] }
+    end
+    
+    { label: node[:label], children: simplified_children }
+  end
+  
+  def tree_to_s_expression(node)
+    return "" unless node
+    
+    if node[:children] && !node[:children].empty?
+      children_str = node[:children].map { |child| tree_to_s_expression(child) }.join(' ')
+      "[#{node[:label]} #{children_str}]"
+    else
+      node[:label]
+    end
   end
   
   # Note: escape_latex method is now provided by LatexHelper module

@@ -33,6 +33,18 @@ rake db:export
 
 # Import document database
 rake db:import
+
+# Build help database (incremental)
+rake help:build
+
+# Rebuild help database from scratch
+rake help:rebuild
+
+# Export help database
+rake help:export
+
+# Show help database statistics
+rake help:stats
 ```
 
 ## Asset Management

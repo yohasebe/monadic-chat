@@ -1,0 +1,5 @@
+# Development override to expose PostgreSQL port
+services:
+  pgvector_service:
+    ports:
+      - "5433:5432"  # Map to 5433 to avoid conflict with local PostgreSQL

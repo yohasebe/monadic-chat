@@ -38,6 +38,7 @@
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Monadic Chat Help | ✅ | | | | | | | | |
 
 ## アシスタント :id=assistant
 
@@ -472,4 +473,12 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 - OpenAI
 - Anthropic Claude
+
+### Monadic Chat Help
+
+![Help app icon](../assets/icons/help.png ':size=40')
+
+Monadic Chat用のAI駆動ヘルプアシスタントです。プロジェクトのドキュメントに基づいて、機能、使用方法、トラブルシューティングについての質問に任意の言語で文脈に応じた支援を提供します。
+
+ヘルプシステムは、英語のドキュメントから作成された事前構築されたナレッジベースを使用します。質問をすると、関連情報を検索し、公式ドキュメントに基づいて正確な回答を提供します。ヘルプシステムのアーキテクチャの詳細については、[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。
 

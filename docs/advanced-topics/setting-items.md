@@ -119,7 +119,7 @@ Specifies the model used for AI-generated user messages. Available options inclu
 Specifies the model used for generating text embeddings. Available options include 'text-embedding-3-small' and 'text-embedding-3-large'.
 
 `WEBSEARCH_MODEL` (string)
-Specifies the model used for web search functionality. Available options include 'gpt-4o-mini-search-preview' and 'gpt-4o-search-preview'.
+Specifies the model used for web search functionality. Available options include 'gpt-4.1-mini' and 'gpt-4.1'. This model is also used as a fallback when web search is enabled with OpenAI reasoning models (o1, o3, etc.) that don't have native web search capabilities. Default is 'gpt-4.1-mini'.
 
 `ROUGE_THEME` (string)
 Specifies the syntax highlighting theme used across the application.

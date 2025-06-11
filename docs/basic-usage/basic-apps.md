@@ -337,7 +337,7 @@ This application generates linguistic syntax trees from sentences in multiple la
 - Multiple languages including English, Japanese, Chinese, and other languages
 - Binary branching analysis (each node has at most 2 children)
 - Editable SVG output that can be modified in vector graphics editors
-- Comprehensive particle analysis for Japanese (includes all 助詞)
+- Comprehensive particle analysis for Japanese (includes all particles/joshi)
 - Professional linguistic notation following syntactic theory standards
 
 The generated syntax trees are displayed as SVG images with transparent backgrounds, styled with CSS for web display.

@@ -5,6 +5,17 @@ require "rspec/core/rake_task"
 require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
 
+# Set development environment variables if not in Docker container
+unless File.file?("/.dockerenv")
+  ENV['POSTGRES_HOST'] ||= 'localhost'
+  ENV['POSTGRES_PORT'] ||= '5433'  # Use 5433 to avoid conflict with local PostgreSQL
+  ENV['IN_CONTAINER'] = 'false'
+  ENV['OPENAI_API_KEY'] ||= ENV['OPENAI_API_KEY']
+  ENV['ANTHROPIC_API_KEY'] ||= ENV['ANTHROPIC_API_KEY']
+  ENV['GEMINI_API_KEY'] ||= ENV['GEMINI_API_KEY']
+  # Add other API keys as needed
+end
+
 # RSpec::Core::RakeTask.new(:spec) # Commented out as we define custom :spec task below
 
 require "rubocop/rake_task"
@@ -1000,5 +1011,175 @@ namespace :release do
     processed_entry += "\n\n---\nGenerated on #{Time.now.strftime('%Y-%m-%d')}"
     
     processed_entry
+  end
+end
+
+# Help database namespace
+namespace :help do
+  desc "Build help database from documentation (incremental update)"
+  task :build do
+    puts "Building help database from documentation..."
+    
+    # Check if pgvector container is running
+    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
+    unless pgvector_running
+      puts "Error: pgvector container is not running. Please start it with 'rake server:start' first."
+      exit 1
+    end
+    
+    # Ensure the script has proper Ruby path
+    script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
+    
+    # Set environment variables for batch processing
+    ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
+    ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
+    
+    # Check if Ruby container is running
+    ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
+    
+    # Change to the project root directory before running the script
+    Dir.chdir(__dir__) do
+      if ruby_running
+        # Run inside Ruby container
+        puts "Running inside Ruby container..."
+        docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb'"
+        system(docker_cmd)
+      else
+        # Run locally
+        puts "Running locally (Ruby container not running)..."
+        system("ruby #{script_path}")
+      end
+      
+      if $?.success?
+        puts "Help database built successfully!"
+        puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
+        puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
+        
+        # Export the database for container builds
+        puts "\nExporting help database..."
+        export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
+        
+        if ruby_running
+          # Run export inside Ruby container
+          docker_cmd = "docker exec monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/export_help_database_docker.rb'"
+          if system(docker_cmd)
+            puts "Help database exported successfully!"
+          else
+            puts "Warning: Failed to export help database"
+          end
+        else
+          # Run export locally
+          if system("ruby #{export_script}")
+            puts "Help database exported successfully!"
+          else
+            puts "Warning: Failed to export help database"
+          end
+        end
+      else
+        puts "Error building help database"
+        exit 1
+      end
+    end
+  end
+  
+  desc "Rebuild help database (drop existing data first)"
+  task :rebuild do
+    puts "Rebuilding help database from scratch..."
+    
+    # Check if pgvector container is running
+    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
+    unless pgvector_running
+      puts "Error: pgvector container is not running. Please start it with 'rake server:start' first."
+      exit 1
+    end
+    
+    script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
+    
+    # Set environment variables for batch processing
+    ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
+    ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
+    
+    # Check if Ruby container is running and suggest using it
+    ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
+    
+    if ruby_running
+      # Run inside Ruby container
+      puts "Running inside Ruby container..."
+      docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb --recreate'"
+      system(docker_cmd)
+    else
+      # Run locally but with proper database connection
+      puts "Running locally (Ruby container not running)..."
+      system("ruby #{script_path} --recreate")
+    end
+    
+    if $?.success?
+      puts "Help database rebuilt successfully!"
+      puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
+      puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
+      
+      # Export the database for container builds
+      puts "\nExporting help database..."
+      export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
+      
+      if ruby_running
+        # Run export inside Ruby container
+        docker_cmd = "docker exec monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/export_help_database_docker.rb'"
+        if system(docker_cmd)
+          puts "Help database exported successfully!"
+        else
+          puts "Warning: Failed to export help database"
+        end
+      else
+        # Run export locally
+        if system("ruby #{export_script}")
+          puts "Help database exported successfully!"
+        else
+          puts "Warning: Failed to export help database"
+        end
+      end
+    else
+      puts "Error rebuilding help database"
+      exit 1
+    end
+  end
+  
+  desc "Show help database statistics"
+  task :stats do
+    # Define IN_CONTAINER constant before requiring help_embeddings
+    IN_CONTAINER = File.file?("/.dockerenv")
+    
+    require_relative "docker/services/ruby/lib/monadic/utils/help_embeddings"
+    
+    help_db = HelpEmbeddings.new
+    stats = help_db.get_stats
+    
+    puts "\n=== Help Database Statistics ==="
+    puts "Documents by language:"
+    stats[:documents_by_language].each do |lang, count|
+      puts "  #{lang}: #{count} documents"
+    end
+    puts "Total items: #{stats[:total_items]}"
+    puts "Average items per document: #{stats[:avg_items_per_doc]}"
+  end
+  
+  desc "Export help database to files"
+  task :export do
+    puts "Exporting help database..."
+    
+    # Check if pgvector container is running
+    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
+    unless pgvector_running
+      puts "Error: pgvector container is not running. Please start it with 'rake server:start' first."
+      exit 1
+    end
+    
+    export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
+    if system("ruby #{export_script}")
+      puts "Help database exported successfully!"
+    else
+      puts "Error exporting help database"
+      exit 1
+    end
   end
 end

@@ -57,7 +57,10 @@ class TextEmbeddings
       conn = if IN_CONTAINER
                PG.connect(dbname: "postgres", host: "pgvector_service", port: 5432, user: "postgres")
              else
-               PG.connect(dbname: "postgres")
+               # For local development, connect to Docker container's PostgreSQL
+               host = ENV['POSTGRES_HOST'] || "localhost"
+               port = (ENV['POSTGRES_PORT'] || 5432).to_i
+               PG.connect(dbname: "postgres", host: host, port: port, user: "postgres")
              end
     end
 
@@ -88,7 +91,10 @@ class TextEmbeddings
       new_conn = if IN_CONTAINER
                    PG.connect(dbname: db_name, host: "pgvector_service", port: 5432, user: "postgres")
                  else
-                   PG.connect(dbname: db_name)
+                   # For local development, connect to Docker container's PostgreSQL
+                   host = ENV['POSTGRES_HOST'] || "localhost"
+                   port = (ENV['POSTGRES_PORT'] || 5432).to_i
+                   PG.connect(dbname: db_name, host: host, port: port, user: "postgres")
                  end
     end
 
@@ -344,6 +350,89 @@ class TextEmbeddings
     end
 
     raise StandardError, "Failed to retrieve embeddings after #{retries} attempts"
+  end
+
+  # Batch processing method for multiple texts
+  def get_embeddings_batch(texts, api_key: nil, batch_size: nil, retries: 3)
+    return [] if texts.empty?
+    
+    # Get batch size from environment or use default
+    batch_size ||= (ENV['EMBEDDINGS_BATCH_SIZE'] || '50').to_i
+    batch_size = [batch_size, 2048].min # OpenAI max is 2048 inputs per request
+    
+    api_key ||= if Object.const_defined?("API_KEY")
+                  API_KEY
+                else
+                  ENV["OPENAI_API_KEY"]
+                end
+    
+    all_embeddings = []
+    
+    # Process texts in batches
+    texts.each_slice(batch_size) do |batch|
+      puts "Processing batch of #{batch.size} texts..." if ENV['EMBEDDINGS_DEBUG']
+      
+      uri = URI("https://api.openai.com/v1/embeddings")
+      request = Net::HTTP::Post.new(uri)
+      request["Content-Type"] = "application/json"
+      request["Authorization"] = "Bearer #{api_key}"
+      request.body = { input: batch, model: EMBEDDINGS_MODEL }.to_json
+      
+      retries.times do |i|
+        begin
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.read_timeout = 900 # 15min
+            http.open_timeout = 120 # 2min
+            http.request(request)
+          end
+
+          if response.is_a?(Net::HTTPSuccess)
+            begin
+              parsed_response = JSON.parse(response.body)
+              if parsed_response["data"]
+                # Extract embeddings in the correct order
+                batch_embeddings = parsed_response["data"]
+                                   .sort_by { |item| item["index"] }
+                                   .map { |item| item["embedding"] }
+                all_embeddings.concat(batch_embeddings)
+                break # Success, move to next batch
+              else
+                raise StandardError, "Invalid response format: missing embedding data"
+              end
+            rescue JSON::ParserError => e
+              raise StandardError, "Failed to parse API response: #{e.message}"
+            end
+          else
+            # Handle non-success responses
+            error_body = response.body
+            error_msg = if error_body && !error_body.empty?
+                          begin
+                            JSON.parse(error_body)["error"]["message"] rescue error_body
+                          rescue
+                            error_body
+                          end
+                        else
+                          "HTTP #{response.code} #{response.message}"
+                        end
+            
+            if i == retries - 1
+              raise StandardError, "API request failed for batch: #{error_msg}"
+            else
+              exponential_backoff(i)
+            end
+          end
+        rescue StandardError => e
+          last_attempt = (i == retries - 1)
+          if last_attempt
+            raise StandardError, "Failed to retrieve embeddings for batch: #{e.message}"
+          else
+            exponential_backoff(i)
+          end
+        end
+      end
+    end
+    
+    all_embeddings
   end
 end
 

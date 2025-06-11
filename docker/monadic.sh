@@ -390,8 +390,15 @@ build_docker_compose() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
   
+  # Get help export ID for build arg
+  local help_export_id="initial_empty_database"
+  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  if [ -f "$help_export_file" ]; then
+    help_export_id=$(cat "$help_export_file")
+  fi
+  
   # Execute docker compose build and redirect output to log file with or without cache
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" build ${use_cache} 2>&1 | tee "${log_file}"
+  HELP_EXPORT_ID="${help_export_id}" ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" build ${use_cache} 2>&1 | tee "${log_file}"
 
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
 
@@ -436,13 +443,21 @@ save_container_versions() {
   local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
   local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
   
+  # Get help export ID if it exists
+  local help_export_id="initial_empty_database"
+  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  if [ -f "$help_export_file" ]; then
+    help_export_id=$(cat "$help_export_file")
+  fi
+  
   # Create JSON file with version information and hashes
   cat <<EOF > "$json_file"
 {
   "version": "${MONADIC_VERSION}",
   "python_hash": "${python_hash}",
   "selenium_hash": "${selenium_hash}",
-  "pgvector_hash": "${pgvector_hash}"
+  "pgvector_hash": "${pgvector_hash}",
+  "help_export_id": "${help_export_id}"
 }
 EOF
   
@@ -466,6 +481,7 @@ check_dockerfiles_changed() {
   local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   local stored_pgvector_hash=$(grep -o '"pgvector_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   
   # Calculate current hashes
   local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
@@ -477,8 +493,15 @@ check_dockerfiles_changed() {
   local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
   local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
   
+  # Get current help export ID
+  local help_export_id="initial_empty_database"
+  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  if [ -f "$help_export_file" ]; then
+    help_export_id=$(cat "$help_export_file")
+  fi
+  
   # If any hash is different, return true (changes detected)
-  if [[ "$stored_python_hash" != "$python_hash" || "$stored_selenium_hash" != "$selenium_hash" || "$stored_pgvector_hash" != "$pgvector_hash" ]]; then
+  if [[ "$stored_python_hash" != "$python_hash" || "$stored_selenium_hash" != "$selenium_hash" || "$stored_pgvector_hash" != "$pgvector_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
     return 0 # true - changes detected
   fi
   

@@ -3,8 +3,8 @@
 require "parallel"
 require_relative "debug_helper"
 
-RAG_TOKENS = 2000
-RAG_OVERLAP_LINES = 2
+RAG_TOKENS = ENV.fetch("PDF_RAG_TOKENS", "4000").to_i
+RAG_OVERLAP_LINES = ENV.fetch("PDF_RAG_OVERLAP_LINES", "4").to_i
 
 class PDF2Text
   THREADS = 4

@@ -33,6 +33,18 @@ rake db:export
 
 # ドキュメントデータベースをインポート
 rake db:import
+
+# ヘルプデータベースを構築（増分）
+rake help:build
+
+# ヘルプデータベースを最初から再構築
+rake help:rebuild
+
+# ヘルプデータベースをエクスポート
+rake help:export
+
+# ヘルプデータベースの統計情報を表示
+rake help:stats
 ```
 
 ## アセット管理

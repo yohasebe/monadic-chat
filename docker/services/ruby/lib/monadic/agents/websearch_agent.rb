@@ -13,13 +13,8 @@ module WebSearchAgent
     use_tavily_fallback = CONFIG["TAVILY_API_KEY"] && 
                          CONFIG["OPENAI_NATIVE_WEBSEARCH_FALLBACK"] != "false"
     
-    # First try with search-capable model
-    model = ENV["WEBSEARCH_MODEL"] || "gpt-4o-search-preview"
-    
-    # Make sure we're using a search model
-    unless model.include?("search")
-      model = "gpt-4o-search-preview"
-    end
+    # Use the configured WEBSEARCH_MODEL (defaults to gpt-4.1-mini)
+    model = ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
     
     begin
       messages = [

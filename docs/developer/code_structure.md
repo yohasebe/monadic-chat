@@ -14,6 +14,10 @@ docker/services/ruby/
 │   ├── version.rb        # Monadic Chat version
 │   ├── monadic.rb        # Main entry point and environment setup
 │   ├── app.rb            # MonadicApp class and application loader
+│   ├── app_extensions.rb # Monadic functionality extensions
+│   ├── core.rb           # Core functional programming operations
+│   ├── json_handler.rb   # JSON serialization for monadic mode
+│   ├── html_renderer.rb  # HTML rendering for monadic context
 │   ├── dsl.rb            # Monadic DSL loader and definitions
 │   ├── agents/           # Business-logic agents (formerly helpers/agents)
 │   │   ├── ai_user_agent.rb
@@ -47,6 +51,10 @@ docker/services/ruby/
 - **version.rb**: Defines the Monadic Chat version constant.
 - **monadic.rb**: Loads dependencies, environment configuration, utility setup, and initializes apps.
 - **app.rb**: Contains the `MonadicApp` class, responsible for loading adapters and agents, and defining core methods like `send_command` and `send_code`.
+- **app_extensions.rb**: Provides monadic functionality methods (`monadic_unit`, `monadic_unwrap`, `monadic_map`, `monadic_html`) to MonadicApp.
+- **core.rb**: Implements core functional programming operations (wrap, unwrap, transform, bind) for monadic mode.
+- **json_handler.rb**: Handles JSON serialization/deserialization for monadic state management.
+- **html_renderer.rb**: Renders monadic context as collapsible HTML sections with improved UI for empty objects.
 - **dsl.rb**: Implements the Monadic DSL loader for `.rb` and `.mdsl` recipe files.
 - **agents/**: Contains agent modules defining business logic behaviors.
 - **adapters/**: Contains helper modules for executing commands, handling container interactions, and other integrations. Subfolder `vendors/` holds API client helpers.

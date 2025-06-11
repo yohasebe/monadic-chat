@@ -153,6 +153,20 @@ const modelSpec = {
     "vision_capability": true
   },
   // reasoning models
+  "o3-pro-2025-06-10": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "o3-pro": {
+    "context_window" : [1, 200000],
+    "max_output_tokens" : [25000, 100000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   "o4-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],

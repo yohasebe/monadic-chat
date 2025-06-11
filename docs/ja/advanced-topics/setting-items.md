@@ -154,7 +154,7 @@ AI生成によるユーザーメッセージに使用されるモデルを指定
 
 `WEBSEARCH_MODEL` (string)
 
-ウェブ検索機能に使用されるモデルを指定します。利用可能なオプションにはgpt-4o-mini-search-preview、gpt-4o-search-previewがあります。
+ウェブ検索機能に使用されるモデルを指定します。利用可能なオプションには 'gpt-4.1-mini' と 'gpt-4.1' があります。このモデルは、ネイティブな Web 検索機能を持たない OpenAI の推論モデル（o1、o3 など）で Web 検索が有効になっている場合のフォールバックとしても使用されます。デフォルトは 'gpt-4.1-mini' です。
 
 `ROUGE_THEME` (string)
 

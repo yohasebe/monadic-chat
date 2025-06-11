@@ -430,6 +430,25 @@ module OpenAIHelper
     non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
     search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
     
+    # If websearch is enabled and the current model is a reasoning model without native search,
+    # switch to the WEBSEARCH_MODEL (defaults to gpt-4.1-mini if not set)
+    if websearch && reasoning_model && !search_model
+      original_model = model
+      model = ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
+      body["model"] = model
+      
+      # Update model flags after switching
+      reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
+      non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
+      non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
+      search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
+      
+      # Add a note about the model switch in the initial prompt
+      if context && context.first && context.first["text"]
+        context.first["text"] = "[Note: Automatically switched from #{original_model} to #{model} for web search functionality]\n\n" + context.first["text"]
+      end
+    end
+    
     # Determine which prompt to use based on web search type
     websearch_prompt = if obj["use_tavily_websearch"]
                        TAVILY_WEBSEARCH_PROMPT

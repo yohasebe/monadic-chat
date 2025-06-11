@@ -257,8 +257,8 @@
 
           <label for="websearch-model">WEBSEARCH_MODEL</label>
           <select id="websearch-model" name="websearch-model">
-            <option value="gpt-4o-mini-search-preview">gpt-4o-mini-search-preview</option>
-            <option value="gpt-4o-search-preview">gpt-4o-search-preview</option>
+            <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+            <option value="gpt-4.1">gpt-4.1</option>
           </select>
           
           <label for="ai-user-max-tokens">AI_USER_MAX_TOKENS</label>
@@ -456,7 +456,7 @@
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
         document.getElementById('ai-user-max-tokens').value = data.AI_USER_MAX_TOKENS || '2000';
         document.getElementById('embedding-model').value = data.EMBEDDING_MODEL || 'text-embedding-3-small';
-        document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4o-mini-search-preview';
+        document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4.1-mini';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         

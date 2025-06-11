@@ -267,6 +267,9 @@ module InteractionUtils
                       language: "auto",
                       &block)
 
+    # Handle nil text
+    return nil if text.nil? || text.empty?
+    
     if CONFIG["TTS_DICT"]
       text_converted = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
     else

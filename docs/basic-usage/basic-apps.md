@@ -38,6 +38,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Monadic Chat Help | ✅ | | | | | | | | |
 
 ## Assistant :id=assistant
 
@@ -495,3 +496,11 @@ Jupyter Notebook apps are also available for the following models:
 
 - OpenAI
 - Anthropic Claude
+
+### Monadic Chat Help
+
+![Help app icon](../assets/icons/help.png ':size=40')
+
+This is an AI-powered help assistant for Monadic Chat. It provides contextual assistance based on the project's documentation, answering questions about features, usage, and troubleshooting in any language.
+
+The help system uses a pre-built knowledge base created from the English documentation. When you ask questions, it searches for relevant information and provides accurate answers based on the official documentation. For more details about the help system architecture, see [Help System](../advanced-topics/help-system.md).

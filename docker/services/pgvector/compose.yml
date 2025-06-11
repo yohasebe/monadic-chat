@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
       args:
         PROJECT_TAG: "monadic-chat"
+        HELP_EXPORT_ID: "${HELP_EXPORT_ID:-initial_empty_database}"
     container_name: monadic-chat-pgvector-container
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"

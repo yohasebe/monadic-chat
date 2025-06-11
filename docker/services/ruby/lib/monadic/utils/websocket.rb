@@ -1273,13 +1273,22 @@ module WebSocketHelper
                 response.dig("choices", 0, "message")["content"] = content
 
                 if obj["auto_speech"] && obj["monadic"]
-                  message = JSON.parse(content)["message"]
-                  res_hash = tts_api_request(message,
-                                            provider: provider,
-                                            voice: voice,
-                                            speed: speed,
-                                            response_format: response_format)
-                  @channel.push(res_hash.to_json)
+                  begin
+                    parsed_content = JSON.parse(content)
+                    message = parsed_content["message"]
+                    
+                    if message && !message.empty?
+                      res_hash = tts_api_request(message,
+                                                provider: provider,
+                                                voice: voice,
+                                                speed: speed,
+                                                response_format: response_format)
+                      @channel.push(res_hash.to_json) if res_hash
+                    end
+                  rescue JSON::ParserError => e
+                    # Log the error but don't crash
+                    puts "[TTS] Failed to parse monadic response for TTS: #{e.message}"
+                  end
                 end
 
                 queue.push(response)

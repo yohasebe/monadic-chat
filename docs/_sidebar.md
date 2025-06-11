@@ -31,6 +31,7 @@
     - [Monadic Mode](/advanced-topics/monadic-mode.md)
     - [Adding Docker Containers](/advanced-topics/adding-containers.md)
     - [Using Ollama](/advanced-topics/ollama.md)
+    - [Help System Configuration](/advanced-topics/help-system.md)
     
 - **Frequently Asked Questions**
 

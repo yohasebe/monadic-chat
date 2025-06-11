@@ -1,0 +1,7 @@
+# Ignore exported data files, but keep the directory structure
+*.json
+export_id.txt
+# Keep the schema file
+!schema.sql
+# Keep this file
+!.gitignore

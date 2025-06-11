@@ -19,11 +19,15 @@ Dir.glob(File.expand_path(user_helpers_dir + "/**/*.rb")).sort.each do |rb|
   require rb
 end
 
+# Require new monadic modules
+require_relative "./app_extensions"
+
 class MonadicApp
   include MonadicAgent
   include MonadicHelper
   include StringUtils
   include TavilyHelper
+  include MonadicChat::AppExtensions
 
   @model_data = {}
   @app_settings = {}
@@ -163,21 +167,11 @@ class MonadicApp
     end
   end
 
-  # Wrap the user's message in a monad
-  def monadic_unit(message)
-    res = { "message": message,
-            "context": @context }
-    res.to_json
-  end
+  # Monadic methods are now provided by MonadicChat::AppExtensions
+  # See lib/monadic/app_extensions.rb for implementation
+  
 
-  # Unwrap the monad and return the message
-  def monadic_unwrap(monad)
-    JSON.parse(monad)
-  rescue JSON::ParserError
-    { "message" => monad.to_s, "context" => @context }
-  end
-
-  # sanitize the data to remove invalid characters
+  # sanitize_data is still used by other parts of the code
   def sanitize_data(data)
     if data.is_a? String
       return data.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
@@ -194,19 +188,6 @@ class MonadicApp
     end
 
     data
-  end
-
-  # Unwrap the monad and return the message after applying a given process (if any)
-  def monadic_map(monad)
-    obj = monadic_unwrap(monad)
-    @context = block_given? ? yield(obj["context"]) : obj["context"]
-    JSON.pretty_generate(sanitize_data(obj))
-  end
-
-  # Convert a monad to HTML
-  def monadic_html(monad)
-    obj = monadic_unwrap(monad)
-    json2html(obj, mathjax: settings["mathjax"])
   end
 
   # Convert snake_case to space ceparated capitalized words
@@ -329,11 +310,17 @@ class MonadicApp
         user_system_script_dir = LOCAL_USER_SCRIPT_DIR
         shared_volume = LOCAL_SHARED_VOL
       end
+      ruby_script_dirs = [
+        system_script_dir,
+        "#{system_script_dir}/cli_tools",
+        "#{system_script_dir}/utilities",
+        "#{system_script_dir}/generators",
+        user_system_script_dir
+      ].join(":")
       system_command = <<~SYS
         find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
         find #{user_system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        export PATH="#{system_script_dir}:${PATH}" && \
-        export PATH="#{user_system_script_dir}:${PATH}" && \
+        export PATH="#{ruby_script_dirs}:${PATH}" && \
         cd #{shared_volume} && \
         #{command}
       SYS

@@ -5,16 +5,12 @@ module MonadicHelper
     model = settings["model"] || settings[:model]
     model = check_vision_capability(model) || "gpt-4.1"
 
-    command = <<~CMD
-      bash -c 'image_query.rb "#{message}" "#{image_path}" "#{model}"'
-    CMD
+    command = "image_query.rb \"#{message}\" \"#{image_path}\" \"#{model}\""
     send_command(command: command, container: "ruby")
   end
 
   def analyze_audio(audio: "", model: "gpt-4o-transcribe")
-    command = <<~CMD
-      bash -c 'stt_query.rb "#{audio}" "." "json" "" "#{model}"'
-    CMD
+    command = "stt_query.rb \"#{audio}\" \".\" \"json\" \"\" \"#{model}\""
     send_command(command: command, container: "ruby")
   end
 end

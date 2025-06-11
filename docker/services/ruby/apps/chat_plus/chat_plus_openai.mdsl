@@ -88,5 +88,6 @@ app "ChatPlusOpenAI" do
     image true
     pdf false
     monadic true
+    # enhanced_monadic_html true  # Temporarily disabled
   end
 end

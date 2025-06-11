@@ -1,0 +1,97 @@
+/* Improvements for monadic context display */
+
+/* Make field labels (keys) more prominent */
+.json-item > span:first-child {
+  font-weight: 600;
+  color: #495057;
+}
+
+/* Special styling for context section keys */
+.json-item[data-depth="2"] > span:first-child {
+  font-weight: 600;
+  color: #343a40;
+  margin-right: 0.25rem;
+}
+
+/* Style for value text (second span in most cases) */
+.json-item > span:nth-child(2) {
+  color: #6c757d;
+}
+
+/* Special case for "no value" - will be styled via JavaScript */
+.no-value {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Style for empty objects/arrays */
+.json-item.empty-object > .json-header {
+  cursor: default;
+}
+
+.json-item.empty-object > .json-header:hover {
+  background: inherit;
+}
+
+.json-item.empty-object > .json-header .fa-chevron-down,
+.json-item.empty-object > .json-header .toggle-text {
+  display: none;
+}
+
+/* Add "empty" text after empty object headers */
+.json-item.empty-object > .json-header::after {
+  content: ": empty";
+  color: #6c757d;
+  font-style: italic;
+  font-weight: normal;
+  margin-left: 0.25rem;
+}
+
+/* Hide the empty content div */
+.json-item.empty-object > .json-content {
+  display: none;
+}
+
+/* Style for percentage values */
+.json-item span:last-child {
+  color: #212529;
+}
+
+/* Improve spacing for better readability */
+.json-item[data-depth="2"] {
+  margin-bottom: 0.5rem;
+}
+
+.json-item[data-depth="2"]:last-child {
+  margin-bottom: 0;
+}
+
+/* Style for the main Context header - keep original size */
+.json-item.context > .json-header > span {
+  /* Remove font size override to keep original */
+}
+
+/* Subtle background for context content */
+.json-item.context .json-content {
+  background-color: rgba(248, 249, 250, 0.5);
+  padding: 1rem;
+  border-radius: 0.25rem;
+}
+
+/* Better visual hierarchy for nested objects */
+.json-item .json-header span {
+  font-weight: 600;
+  color: #343a40;
+}
+
+/* Inquiry section styling */
+.json-item[data-key="inquiry"] {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.json-item[data-key="inquiry"] > span:first-child {
+  font-weight: 600;
+  color: #0056b3;
+}

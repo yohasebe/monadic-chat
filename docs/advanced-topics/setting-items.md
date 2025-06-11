@@ -67,7 +67,7 @@ Specify whether to enable rendering of mathematical expressions using [MathJax](
 Specify `true` to enable access to Jupyter notebooks in the conversation. Also available as `jupyter_access`.
 
 `monadic` (bool)
-Specify the app to run in Monadic mode. For Monadic mode, refer to [Monadic Mode](./monadic-mode.md).
+Specify the app to run in Monadic mode. For Monadic mode, refer to [Monadic Mode](./monadic-mode.md). This feature is supported by OpenAI, Ollama, DeepSeek, Perplexity, and Grok providers. Note that this setting is mutually exclusive with `toggle` - never enable both.
 
 `prompt_suffix` (string)
 Specify a text string to be added to every message from the user before sending it to the AI agent. This is useful for adding a reminder to the AI agent about highly important information (often specified in the system prompt) to ensure it is considered when preparing the response.
@@ -94,7 +94,7 @@ Specify whether to enable the display and playback of musical scores entered in 
 Specify whether to disable the app. Disabled apps are not displayed in the Monadic Chat menu.
 
 `toggle` (bool)
-Specify whether to enable collapsible sections for displaying meta information and tool usage in the AI agent's response. This feature allows users to show/hide detailed information about the AI's reasoning process and tool calls. Currently, this is primarily used in Claude-based apps to provide a cleaner interface while still allowing access to detailed information when needed. When enabled, meta information appears in collapsible sections marked with disclosure triangles.
+Specify whether to enable collapsible sections for displaying meta information and tool usage in the AI agent's response. This feature allows users to show/hide detailed information about the AI's reasoning process and tool calls. Currently, this is used by Claude, Gemini, Mistral, and Cohere providers to provide a cleaner interface while still allowing access to detailed information when needed. When enabled, meta information appears in collapsible sections marked with disclosure triangles. Note that this setting is mutually exclusive with `monadic` - never enable both.
 
 `models` (array)
 Specify a list of available models. If not specified, the list of models provided by the included helper module (e.g., `OpenAIHelper`) is used.

@@ -406,6 +406,7 @@ module OpenAIHelper
 
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
+    session[:messages] ||= []
     session[:messages].each { |msg| msg["active"] = false if msg }
     context = [session[:messages].first].compact
     if session[:messages].length > 1
@@ -608,13 +609,13 @@ module OpenAIHelper
       body["messages"] += obj["function_returns"]
     end
 
-    last_text = context.last["text"]
+    last_text = context.last&.dig("text")
 
     # Split the last message if it matches /\^__DATA__$/
-    if last_text.match?(/\^\s*__DATA__\s*$/m)
+    if last_text&.match?(/\^\s*__DATA__\s*$/m)
       last_text, data = last_text.split("__DATA__")
       # set last_text to the last message in the context
-      context.last["text"] = last_text
+      context.last["text"] = last_text if context.last
     end
 
     # Decorate the last message in the context with the message with the snippet

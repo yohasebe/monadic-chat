@@ -3,6 +3,7 @@ require 'csv'
 require 'commonmarker'
 
 module StringUtils
+  extend self
   # Process TTS dictionary data from CSV format
   def self.process_tts_dictionary(csv_content)
     tts_dict = {}

@@ -1,8 +1,6 @@
 module MonadicHelper
   def fetch_text_from_office(file: "")
-    command = <<~CMD
-      bash -c 'office2txt.py "#{file}"'
-    CMD
+    command = "office2txt.py \"#{file}\""
     res = send_command(command: command, container: "python")
     if res.to_s == ""
       "Error: The file looks like empty or not an office file."
@@ -12,9 +10,7 @@ module MonadicHelper
   end
 
   def fetch_text_from_pdf(pdf: "")
-    command = <<~CMD
-      bash -c 'pdf2txt.py "#{pdf}" --format md --all-pages'
-    CMD
+    command = "pdf2txt.py \"#{pdf}\" --format md --all-pages"
     res = send_command(command: command, container: "python")
     if res.to_s == ""
       "Error: The file looks like empty or not a PDF file."
@@ -24,9 +20,7 @@ module MonadicHelper
   end
 
   def fetch_text_from_file(file: "")
-    command = <<~CMD
-      bash -c 'content_fetcher.rb "#{file}"'
-    CMD
+    command = "content_fetcher.rb \"#{file}\""
     res = send_command(command: command, container: "ruby")
     if res.to_s == ""
       "Error: The file looks like empty."

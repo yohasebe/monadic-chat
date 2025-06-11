@@ -84,12 +84,35 @@ This prevents the app from getting stuck in infinite loops when encountering per
 - The configuration is handled through the `/monadic/matplotlibrc` file
 - You can customize font settings by creating your own `matplotlibrc` file in the shared folder
 
-Example code that will work correctly:
+Example code that will work correctly with Japanese text:
 ```python
 import matplotlib.pyplot as plt
 plt.plot([1, 2, 3], [1, 4, 9])
-plt.title('日本語のタイトル')
-plt.xlabel('横軸')
-plt.ylabel('縦軸')
+plt.title('Sample Plot')
+plt.xlabel('X-axis')
+plt.ylabel('Y-axis')
 plt.show()
+# Japanese characters like あいうえお, 漢字, etc. will display correctly
 ```
+
+**Q**: Why does Jupyter Notebook fail to start in the Jupyter Notebook app?
+
+**A**: If Jupyter Notebook fails to start, it might be due to command execution issues. Check the following:
+
+1. Ensure the Python container is running (check container status in the console)
+2. Try manually starting JupyterLab by accessing the console and running "Start JupyterLab"
+3. Check if port 8889 is available and not blocked by another application
+4. If using local development mode, ensure the Ruby container paths are correctly configured
+
+The app should automatically start JupyterLab when you use the `run_jupyter` function.
+
+**Q**: Why does text-to-speech (TTS) fail with "command not found" errors?
+
+**A**: This can occur when running in local development mode. The issue typically happens because:
+
+1. Script paths are not properly configured when Ruby container is stopped
+2. The TTS scripts are located in subdirectories that need to be in PATH
+
+To resolve:
+- Ensure all containers are running normally, or
+- If developing locally, the system will automatically configure the correct paths for scripts in `cli_tools`, `utilities`, and other subdirectories

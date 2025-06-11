@@ -67,16 +67,14 @@ module MonadicHelper
       end
     end
     
-    cmd = "bash -c '#{parts.join(' ')}'"
+    cmd = parts.join(' ')
     send_command(command: cmd, container: "ruby")
   end
 
 
   def generate_image_with_grok(prompt: "")
 
-    command = <<~CMD
-      bash -c 'image_generator_grok.rb -p "#{prompt}"'
-    CMD
+    command = "image_generator_grok.rb -p \"#{prompt}\""
     
     # Simply pass the command output directly to the LLM
     # Let the LLM extract the filename(s) from the output text

@@ -1,30 +1,22 @@
 module MonadicHelper
 
   def system_info
-    command = <<~CMD
-      bash -c 'sysinfo.sh'
-    CMD
+    command = "sysinfo.sh"
     send_command(command: command, container: "python")
   end
 
   def get_dockerfile
-    command = <<~CMD
-      bash -c '/usr/bin/cat /monadic/Dockerfile 2>/dev/null'
-    CMD
+    command = "/usr/bin/cat /monadic/Dockerfile 2>/dev/null"
     send_command(command: command, container: "python")
   end
 
   def get_rbsetup
-    command = <<~CMD
-    bash -c '/usr/bin/cat /monadic/rbsetup.sh 2>/dev/null'
-    CMD
+    command = "/usr/bin/cat /monadic/rbsetup.sh 2>/dev/null"
     send_command(command: command, container: "ruby")
   end
 
   def get_pysetup
-    command = <<~CMD
-    bash -c '/usr/bin/cat /monadic/pysetup.sh 2>/dev/null'
-    CMD
+    command = "/usr/bin/cat /monadic/pysetup.sh 2>/dev/null"
     send_command(command: command, container: "python")
   end
 

@@ -125,7 +125,7 @@ module MonadicHelper
     end
 
     results1 = if success
-                 command = "sh -c 'jupyter_controller.py add_from_json #{filename} #{tempfile}' "
+                 command = "jupyter_controller.py add_from_json #{filename} #{tempfile}"
                  send_command(command: command,
                               container: "python",
                               success: "The cells have been added to the notebook successfully.\n")
@@ -195,7 +195,7 @@ module MonadicHelper
     rescue StandardError
       filename = ""
     end
-    command = "sh -c 'jupyter_controller.py create #{filename}'"
+    command = "jupyter_controller.py create #{filename}"
     
     # Get result from command
     result = send_command(command: command, container: "python")
@@ -241,9 +241,9 @@ module MonadicHelper
   def run_jupyter(command: "")
     command = case command
               when "start", "run"
-                "sh -c 'run_jupyter.sh run'"
+                "run_jupyter.sh run"
               when "stop"
-                "sh -c 'run_jupyter.sh stop'"
+                "run_jupyter.sh stop"
               else
                 return "Error: Invalid command."
               end

@@ -14,6 +14,10 @@ docker/services/ruby/
 │   ├── version.rb        # Monadic Chatのバージョン定義
 │   ├── monadic.rb        # エントリポイントおよび環境設定の読み込み
 │   ├── app.rb            # MonadicAppクラスとアプリケーションローダー
+│   ├── app_extensions.rb # Monadic機能拡張
+│   ├── core.rb           # コア関数型プログラミング操作
+│   ├── json_handler.rb   # MonadicモードのJSONシリアライゼーション
+│   ├── html_renderer.rb  # MonadicコンテキストのHTMLレンダリング
 │   ├── dsl.rb            # Monadic DSLローダーと定義
 │   ├── agents/           # ビジネスロジック用エージェントモジュール
 │   │   ├── ai_user_agent.rb
@@ -47,6 +51,10 @@ docker/services/ruby/
 - **version.rb**: Monadic Chat のバージョン情報を定義します。
 - **monadic.rb**: 依存関係の読み込み、環境設定の初期化、ユーティリティ設定、アプリケーションの初期化を行います。
 - **app.rb**: `MonadicApp` クラスを含み、adapters と agents の読み込み、`send_command` や `send_code` といったコアメソッドを定義します。
+- **app_extensions.rb**: MonadicAppにMonadic機能メソッド（`monadic_unit`、`monadic_unwrap`、`monadic_map`、`monadic_html`）を提供します。
+- **core.rb**: Monadicモードのためのコア関数型プログラミング操作（wrap、unwrap、transform、bind）を実装します。
+- **json_handler.rb**: Monadic状態管理のためのJSONシリアライゼーション/デシリアライゼーションを処理します。
+- **html_renderer.rb**: Monadicコンテキストを折りたたみ可能なHTMLセクションとしてレンダリングし、空のオブジェクトのUIを改善します。
 - **dsl.rb**: レシピファイル（`.rb`）および DSL ファイル（`.mdsl`）を読み込むローダーを実装します。
 - **agents/**: ビジネスロジック用エージェントモジュールを格納します。
 - **adapters/**: コマンド実行やコンテナ操作などの外部連携モジュールを格納します。`vendors/` サブフォルダには API クライアントヘルパーを配置します。

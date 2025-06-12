@@ -194,4 +194,7 @@ EOF
 '
 
 # Copy exported files from container to host
-docker cp monadic-chat-ruby-container:/monadic/help_data_export/. /Users/yohasebe/code/monadic-chat/docker/services/pgvector/help_data/
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+docker cp monadic-chat-ruby-container:/monadic/help_data_export/. "$PROJECT_ROOT/docker/services/pgvector/help_data/"

@@ -924,6 +924,7 @@ build)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
   ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down

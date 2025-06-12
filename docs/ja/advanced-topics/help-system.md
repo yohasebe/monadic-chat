@@ -219,3 +219,12 @@ rake help:build
    - ヘルプシステムスクリプトは、ハードコーディングされた絶対パスの代わりに相対パスを使用するようになりました
    - スクリプトは正しいベースディレクトリを自動的に検出します
    - インポートが失敗した場合は、`docker/services/pgvector/help_data/`にエクスポートファイルが存在することを確認してください
+
+6. **新しいコンテナでヘルプデータベースが読み込まれない**
+   - 症状: Monadic Helpアプリのfunction callingが停止し、レスポンスが返ってこない
+   - データの存在確認: `docker exec monadic-chat-pgvector-container psql -U postgres -d monadic_help -c "SELECT COUNT(*) FROM help_items"`
+   - 一般的な原因:
+     - コンテナ初期化中にPostgreSQLの初期化スクリプトが失敗
+     - 起動時にPython psycopg2がlocalhostに接続できない
+   - システムは現在、PostgreSQLの準備完了後にインポートを実行するカスタムエントリーポイントスクリプトを使用しています
+   - 自動インポートが失敗してもコンテナは実行を継続し、help:build rakeタスクを使用できます

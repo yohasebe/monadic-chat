@@ -48,6 +48,7 @@ This container is necessary to run Monadic Chat applications. It is also used to
 - **Port**: 4567 (Web interface)
 - **Main features**: Sinatra web server, WebSocket support, Docker management
 - **Shared volumes**: `/monadic/data`, `/monadic/config`, `/monadic/log`
+- **Apps that require this container**: All apps (this is the core container that runs the web interface and manages all Monadic Chat functionality)
 
 ### Python Container (`monadic-chat-python-container`)
 This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab also runs on this container.
@@ -55,20 +56,65 @@ This container is used to run Python scripts that extend the functionality of Mo
   - 8889 (JupyterLab)
   - 5070 (Flask API server for tokenization and other services)
 - **Main features**: Python code execution, JupyterLab, Flask API server, LaTeX support (for diagram generation)
-- **Apps that use this container**: `Code Interpreter`, `Jupyter Notebook`, `Video Describer`, `Syntax Tree`, `Concept Visualizer`
+- **Apps that use this container**: 
+  - `Code Interpreter` - Executes Python code for data analysis and calculations
+  - `Jupyter Notebook` - Interactive notebook interface for code execution
+  - `Video Describer` - Analyzes video files using Python libraries
+  - `Syntax Tree` - Generates linguistic syntax trees using LaTeX/TikZ
+  - `Concept Visualizer` - Creates conceptual diagrams using LaTeX/TikZ
+  - Any app using `run_code` or `run_script` tools for Python execution
 
 ### Selenium Container (`monadic-chat-selenium-container`)
 This container is used to operate a virtual web browser using Selenium for web scraping.
 - **Ports**: 4444, 5900, 7900 (Selenium Grid)
 - **Main features**: Chrome browser automation, web scraping
-- **Apps that use this container**: `Code Interpreter`, `Content Reader`, `Mermaid Grapher`
+- **Apps that use this container**: 
+  - `Code Interpreter` - Can use Selenium for web scraping tasks
+  - `Content Reader` - Fetches and extracts content from web pages
+  - `Mermaid Grapher` - Validates Mermaid diagrams and creates preview screenshots
+  - `Research Assistant` - Uses web scraping for gathering information
+  - Any app using `fetch_html_content` or `selenium_agent` tools
 
 ### pgvector Container (`monadic-chat-pgvector-container`)
 This container is used to store text embedding vector data on PostgreSQL for using pgvector.
 - **Port**: No exposed ports (internal use only)
-- **Main features**: Vector similarity search, PDF content storage
-- **Apps that use this container**: `PDF Navigator`
+- **Main features**: Vector similarity search, PDF content storage, help database
+- **Apps that use this container**: 
+  - `PDF Navigator` - Stores and searches PDF content using embeddings
+  - `Monadic Chat Help` - Searches documentation using vector similarity
+  - Any custom RAG (Retrieval-Augmented Generation) apps using the TextEmbeddings class
 
+
+## Container Requirements by App Type
+
+### Minimal Setup
+For basic chat functionality, only the Ruby container is strictly required. Apps that work with just the Ruby container include:
+- Chat (all providers)
+- Voice Chat
+- Mail Composer
+- Coding Assistant (without code execution)
+- Language Practice
+- Novel Writer
+- Translate
+
+### Extended Functionality
+The following containers enable additional features:
+
+**Python Container**: Required for:
+- Code execution (Code Interpreter, Jupyter Notebook)
+- Diagram generation (Syntax Tree, Concept Visualizer)
+- Video analysis (Video Describer)
+- Any app using LaTeX rendering
+
+**Selenium Container**: Required for:
+- Web content fetching (Content Reader, Research Assistant)
+- Mermaid diagram validation and preview
+- Web scraping functionality
+
+**pgvector Container**: Required for:
+- PDF content search (PDF Navigator)
+- Help system (Monadic Chat Help)
+- Custom RAG applications
 
 You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
 For more information on adding Docker containers, see [Adding Docker Containers](../advanced-topics/adding-containers.md).

@@ -27,7 +27,8 @@ DEFAULT_OPTIONS = {
   number_of_videos: 1,          # Default to 1 video
   aspect_ratio: "16:9",         # Default aspect ratio
   person_generation: "allow_adult", # Default person generation setting
-  duration_seconds: 5           # Default duration in seconds
+  duration_seconds: 5,          # Default duration in seconds
+  debug: false                  # Debug mode flag
 }
 
 # Get API key from environment files
@@ -105,7 +106,7 @@ def encode_image_to_data_url(image_path)
     end
     
     # Log image details
-    STDERR.puts "DEBUG: Image details - Size: #{file_size} bytes, Format: #{ext}, MIME: #{mime_type}"
+    STDERR.puts "DEBUG: Image details - Size: #{file_size} bytes, Format: #{ext}, MIME: #{mime_type}" if $debug
     
     # Additional validation for common issues
     if file_size < 1024  # Less than 1KB
@@ -260,7 +261,7 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
         
         if File.exist?(mime_info_path)
           mime_type = File.read(mime_info_path).strip
-          STDERR.puts "DEBUG: Read mime type from companion file: #{mime_type}"
+          STDERR.puts "DEBUG: Read mime type from companion file: #{mime_type}" if $debug
         end
         
         # Fallback to extension-based detection if no companion file
@@ -272,7 +273,7 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
                      when '.webp' then 'image/webp'
                      else 'image/jpeg' # default
                      end
-          STDERR.puts "DEBUG: Determined mime type from extension: #{mime_type}"
+          STDERR.puts "DEBUG: Determined mime type from extension: #{mime_type}" if $debug
         end
         
         body[:instances][0][:image] = {
@@ -281,7 +282,7 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
         }
         
         STDERR.puts "Successfully encoded image from: #{resolved_path}"
-        STDERR.puts "DEBUG: Added image to request body with base64 encoding and mimeType: #{mime_type}"
+        STDERR.puts "DEBUG: Added image to request body with base64 encoding and mimeType: #{mime_type}" if $debug
       else
         STDERR.puts "Failed to encode image, proceeding with text-to-video generation only"
       end
@@ -419,7 +420,7 @@ def process_operation_result(operation_data, prompt, aspect_ratio, params, api_k
   
   # Formatted output for debug but kept to STDERR only
   begin
-    STDERR.puts "DEBUG: Operation data ready for processing"
+    STDERR.puts "DEBUG: Operation data ready for processing" if $debug
     STDERR.puts JSON.pretty_generate(operation_data)
   rescue => e
     STDERR.puts "Error formatting debug data: #{e.message}"
@@ -428,7 +429,7 @@ def process_operation_result(operation_data, prompt, aspect_ratio, params, api_k
   if operation_data["response"]
     response = operation_data["response"]
     begin
-      STDERR.puts "DEBUG: Response structure ready for processing"
+      STDERR.puts "DEBUG: Response structure ready for processing" if $debug
       STDERR.puts JSON.pretty_generate(response)
     rescue => e
       STDERR.puts "Error formatting response data: #{e.message}"
@@ -448,7 +449,7 @@ def process_operation_result(operation_data, prompt, aspect_ratio, params, api_k
       # Use a constant index of 0 for the first (and only) video
       [first_sample].each_with_index do |sample, index|
         begin
-          STDERR.puts "DEBUG: Sample structure for index #{index}"
+          STDERR.puts "DEBUG: Sample structure for index #{index}" if $debug
           STDERR.puts JSON.pretty_generate(sample)
         rescue => e
           STDERR.puts "Error formatting sample data: #{e.message}"
@@ -723,6 +724,9 @@ if __FILE__ == $PROGRAM_NAME
 
   options = parse_options
   
+  # Set global debug flag
+  $debug = options[:debug]
+  
   # Generate the video with the provided options - force number_of_videos to 1 
   # to fix the issue of generating 2 videos
 
@@ -737,7 +741,7 @@ if __FILE__ == $PROGRAM_NAME
   
   # Only output the JSON to stdout for the caller to consume
   # Make sure debugging output goes to STDERR and clean JSON goes to STDOUT
-  STDERR.puts "DEBUG: Final response data structure:"
+  STDERR.puts "DEBUG: Final response data structure:" if $debug
   
   begin
     STDERR.puts JSON.pretty_generate(res)

@@ -117,6 +117,14 @@ volumes:
 EOF
     COMPOSE_MAIN="${HOME_DIR}/monadic/config/compose.yml"
   fi
+  
+  # Check for compose.override.yml
+  COMPOSE_OVERRIDE="${ROOT_DIR}/services/compose.override.yml"
+  if [[ -f "${COMPOSE_OVERRIDE}" ]]; then
+    COMPOSE_FILES="-f ${COMPOSE_MAIN} -f ${COMPOSE_OVERRIDE}"
+  else
+    COMPOSE_FILES="-f ${COMPOSE_MAIN}"
+  fi
 }
 
 # Function to ensure data directory exists
@@ -398,7 +406,7 @@ build_docker_compose() {
   fi
   
   # Execute docker compose build and redirect output to log file with or without cache
-  HELP_EXPORT_ID="${help_export_id}" ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" build ${use_cache} 2>&1 | tee "${log_file}"
+  HELP_EXPORT_ID="${help_export_id}" ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee "${log_file}"
 
   ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
 
@@ -572,7 +580,7 @@ start_docker_compose() {
     if check_dockerfiles_changed; then
       remove_containers
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}) with Dockerfile changes. Full rebuild required.</p>"
-      ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
+      ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down
       needs_full_rebuild=true
     else
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Only rebuilding Ruby container.</p>"
@@ -645,12 +653,12 @@ start_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
   
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat" up -d 
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} -p "monadic-chat" up -d 
 
   # Start Ollama container if it exists (it uses a profile so needs explicit start)
   if ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^monadic-chat-ollama-container$"; then
     echo "[HTML]: <p>Starting Ollama container...</p>"
-    ${DOCKER} compose -f "${COMPOSE_MAIN}" -p "monadic-chat" --profile ollama up -d ollama_service
+    ${DOCKER} compose ${COMPOSE_FILES} -p "monadic-chat" --profile ollama up -d ollama_service
   fi
 
   local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
@@ -669,7 +677,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans
 }
 
 # Define a function to stop Docker Compose
@@ -698,20 +706,20 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop the Docker Compose services
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build and start the Docker Compose services
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" build --no-cache
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} build --no-cache
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
   # Stop the Docker Compose services
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down --remove-orphans
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
@@ -918,11 +926,11 @@ build)
 
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" down
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down
   build_docker_compose "no-cache"
   
   # Start the containers after building to match the behavior of 'start' command
-  ${DOCKER} compose ${REPORTING} -f "${COMPOSE_MAIN}" -p "monadic-chat" up -d
+  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} -p "monadic-chat" up -d
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"

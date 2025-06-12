@@ -14,7 +14,7 @@ require_relative "../../lib/monadic/utils/help_embeddings"
 # for storage in the help embeddings database
 class ProcessDocumentation
   # The docs directory is at the root of the monadic-chat project
-  # Script is at: /Users/yohasebe/code/monadic-chat/docker/services/ruby/scripts/utilities/
+  # Script is at: {project_root}/docker/services/ruby/scripts/utilities/
   # So we need to go up 5 levels to reach the project root
   DOCS_PATH = File.expand_path("../../../../../docs", __dir__)
   CHUNK_SIZE = ENV.fetch("HELP_CHUNK_SIZE", "3000").to_i # Larger chunks for better context

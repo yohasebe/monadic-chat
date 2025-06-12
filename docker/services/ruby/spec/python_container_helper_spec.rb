@@ -48,10 +48,10 @@ RSpec.describe MonadicHelper do
       expect(result).to eq("System info result")
     end
     
-    it "uses bash -c wrapper for sysinfo.sh command" do
+    it "calls sysinfo.sh command directly" do
       expect(helper).to receive(:send_command) do |args|
         command = args[:command]
-        expect(command).to include("bash -c 'sysinfo.sh'")
+        expect(command).to eq("sysinfo.sh")
         "System info result"
       end
       

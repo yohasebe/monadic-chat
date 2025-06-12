@@ -70,3 +70,19 @@ rake update_version[from_version,to_version]
 # アプリケーションパッケージをビルド
 rake build
 ```
+
+## テスト
+
+```bash
+# Rubyテストの実行
+rake spec
+
+# JavaScriptテストの実行（合格するテストのみ）
+rake jstest
+
+# 全てのJavaScriptテストの実行
+rake jstest_all
+
+# 全てのテストの実行（RubyとJavaScript）
+rake test
+```

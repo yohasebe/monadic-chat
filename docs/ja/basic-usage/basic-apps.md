@@ -99,7 +99,7 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 
 ### Math Tutor
 
-![Math Tutor app icon](../assets/icons/math.png ':size=40')
+![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
 AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。数式の表示が必要なやりとりを行うのに適しています。
 
@@ -172,7 +172,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 ### Novel Writer
 
-![Novel Writer app icon](../assets/icons/novel.png ':size=40')
+![Novel Writer app icon](../assets/icons/novel-writer.png ':size=40')
 
 アシスタントと共同で小説を執筆するためのアプリケーションです。ユーザーのプロンプトに基づいてストーリーを展開し、一貫性と流れを維持します。AIエージェントは最初に、物語の舞台、登場人物、ジャンル、最終的な文章の量を尋ねます。その後、ユーザーが提供するプロンプトに基づいて、AIエージェントが物語を展開します。
 
@@ -320,7 +320,7 @@ Draw.io ダイアグラムを作成するためのアプリケーションです
 
 ### Syntax Tree
 
-![Syntax Tree app icon](../assets/icons/syntactic-analysis.png ':size=40')
+![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
 言語学的な構文木（統語樹）を生成するアプリケーションです。複数の言語の文を分析し、その文法構造を視覚的な樹形図として表示します。LaTeXとtikz-qtreeを使用して生成されます。主な機能：
 
@@ -377,7 +377,7 @@ LaTeX/TikZを使用して、様々な概念や関係性を図式化するアプ�
 
 ### Video Describer
 
-![Video Describer app icon](../assets/icons/video.png ':size=40')
+![Video Describer app icon](../assets/icons/video-describer.png ':size=40')
 
 動画コンテンツを分析し、その内容を説明するアプリケーションです。AIが動画コンテンツを分析し中で何が起こっているのかを詳細に説明します。
 
@@ -401,7 +401,7 @@ PDFファイルを読み込み、その内容に基づいてユーザーの質�
 
 ### Content Reader
 
-![Content Reader app icon](../assets/icons/document-reader.png ':size=40')
+![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
 
 提供されたファイルやWeb URLの内容を調べて説明するAIチャットボットを特徴とするアプリケーションです。説明は、わかりやすく、初心者にも理解しやすいように提示されます。ユーザーは、プログラミングコードを含む、さまざまなテキストデータを含むファイルやURLをアップロードすることができます。プロンプトメッセージにURLが記載されている場合、アプリは自動的にコンテンツを取得し、GPTとの会話にシームレスに統合します。
 

@@ -1,0 +1,97 @@
+MONADIC CHAT ICON ANALYSIS
+========================
+
+APPS IN CODEBASE (27 unique apps):
+1. chat
+2. chat_plus
+3. code_interpreter
+4. coding_assistant
+5. concept_visualizer
+6. content_reader
+7. drawio_grapher
+8. image_generator
+9. jupyter_notebook
+10. language_practice
+11. language_practice_plus
+12. mail_composer
+13. math_tutor
+14. mermaid_grapher
+15. monadic_help
+16. novel_writer
+17. pdf_navigator
+18. research_assistant
+19. second_opinion
+20. speech_draft_helper
+21. syntax_tree
+22. translate
+23. video_describer
+24. video_generator
+25. voice_chat
+26. voice_interpreter
+27. wikipedia
+
+EXISTING PNG ICONS IN docs/assets/icons/:
+1. chat.png ✓
+2. chat-plus.png ✓
+3. code-interpreter.png ✓
+4. coding-assistant.png ✓
+5. diagram-draft.png (used for multiple apps)
+6. discourse-analysis.png (not used)
+7. document-reader.png (used for content_reader)
+8. image-generator.png ✓
+9. jupyter-notebook.png ✓
+10. language-practice.png ✓
+11. language-practice-plus.png ✓
+12. linguistic-analysis.png (not used)
+13. mail-composer.png ✓
+14. math.png (used for math_tutor)
+15. music.png (not used)
+16. novel.png (used for novel_writer)
+17. pdf-navigator.png ✓
+18. research-assistant.png ✓
+19. second-opinion.png ✓
+20. speech-draft-helper.png ✓
+21. syntactic-analysis.png (used for syntax_tree)
+22. translate.png ✓
+23. video.png (used for video_describer)
+24. video-generator.png ✓
+25. voice-chat.png ✓
+26. wikipedia.png ✓
+27. [Single letter icons: a.png, c.png, d.png, m.png, p.png, x.png, google.png, ollama.png - provider icons]
+
+MISSING ICONS (apps without dedicated icons):
+1. concept_visualizer - Currently uses diagram-draft.png (shared)
+2. content_reader - Uses document-reader.png (different name)
+3. drawio_grapher - Currently uses diagram-draft.png (shared)
+4. math_tutor - Uses math.png (different name)
+5. mermaid_grapher - Currently uses diagram-draft.png (shared)
+6. monadic_help - Referenced as help.png in docs but doesn't exist!
+7. novel_writer - Uses novel.png (different name)
+8. syntax_tree - Uses syntactic-analysis.png (different name)
+9. video_describer - Uses video.png (different name)
+10. voice_interpreter - Currently uses voice-chat.png (shared with voice_chat)
+
+ICONS WITH INCORRECT NAMES (should match app names):
+1. document-reader.png → should be content-reader.png
+2. math.png → should be math-tutor.png
+3. novel.png → should be novel-writer.png
+4. syntactic-analysis.png → should be syntax-tree.png
+5. video.png → should be video-describer.png
+
+UNUSED ICONS:
+1. discourse-analysis.png
+2. linguistic-analysis.png
+3. music.png
+
+CRITICAL ISSUE:
+- help.png is referenced in basic-apps.md line 502 but doesn't exist in the icons folder!
+- This should be monadic-help.png to match the app name
+
+APPS SHARING ICONS (need separate icons):
+1. diagram-draft.png is shared by:
+   - mermaid_grapher
+   - drawio_grapher
+   - concept_visualizer
+2. voice-chat.png is shared by:
+   - voice_chat (correct)
+   - voice_interpreter (needs its own icon)

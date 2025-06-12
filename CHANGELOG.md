@@ -2,6 +2,9 @@
   - **Major Release**: First stable release of Monadic Chat
   
   ### Breaking Changes
+  - **Embedding model changed**: Now uses `text-embedding-3-large` (3072 dimensions) exclusively
+    - Help database must be rebuilt with `rake help:rebuild`
+    - `text-embedding-3-small` option removed from settings
   - `run_script` method removed - use `run_code` instead (all providers now use `run_code`)
   - Python scripts reorganized into categorized directories (`utilities/`, `cli_tools/`, `converters/`, `services/`)
   - `sysinfo` renamed to `sysinfo.sh` with proper extension

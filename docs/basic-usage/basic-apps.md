@@ -102,7 +102,7 @@ This is basically the same as Chat, but for questions about events that occurred
 
 ### Math Tutor
 
-![Math Tutor app icon](../assets/icons/math.png ':size=40')
+![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
 This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
 
@@ -175,7 +175,7 @@ This app translates the user's voice input into another language and speaks the 
 
 ### Novel Writer
 
-![Novel Writer app icon](../assets/icons/novel.png ':size=40')
+![Novel Writer app icon](../assets/icons/novel-writer.png ':size=40')
 
 This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, genre, and target word count.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
 
@@ -331,7 +331,7 @@ DrawIO Grapher apps are available for the following models:
 
 ### Syntax Tree
 
-![Syntax Tree app icon](../assets/icons/syntactic-analysis.png ':size=40')
+![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
 This application generates linguistic syntax trees from sentences in multiple languages. It analyzes the grammatical structure of sentences and creates visual tree diagrams using LaTeX and tikz-qtree. The app supports:
 
@@ -388,7 +388,7 @@ This application helps you draft speeches. You can ask the assistant to draft a 
 
 ### Video Describer
 
-![Video Describer app icon](../assets/icons/video.png ':size=40')
+![Video Describer app icon](../assets/icons/video-describer.png ':size=40')
 
 This application analyzes video content and describes what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data, saving it as an MP3 file. Based on this information, the AI provides a description of the visual and audio content.
 
@@ -423,7 +423,7 @@ This application reads PDF files and allows the assistant to answer user questio
 
 ### Content Reader
 
-![Content Reader app icon](../assets/icons/document-reader.png ':size=40')
+![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
 
 This application features an AI chatbot that examines and explains the content of provided files or web URLs in a clear, beginner-friendly manner.  Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves and integrates the content into the conversation with GPT.
 

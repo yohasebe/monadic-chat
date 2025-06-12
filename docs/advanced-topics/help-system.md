@@ -190,7 +190,7 @@ rake help:build
 - Requires OpenAI API key (no support for other embedding providers)
 - English documentation only (responses are machine-translated)
 - Maximum context limited by model constraints
-- Embedding dimensions fixed at 1536 (OpenAI text-embedding-3-small)
+- Embedding dimensions fixed at 3072 (OpenAI text-embedding-3-large)
 
 ## Troubleshooting
 

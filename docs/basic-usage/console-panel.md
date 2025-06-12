@@ -163,11 +163,8 @@ Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" 
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 
-**EMBEDDING_MODEL** <br />
-Select the model used for text embedding. Currently, `text-embedding-3-small` and `text-embedding-3-large` are available. The default is `text-embedding-3-small`.
-
 **WEBSEARCH_MODEL** <br />
-Select the model used for web search in apps that use OpenAI models. This setting applies when using OpenAI's native web search feature with your OPENAI_API_KEY. Currently, `gpt-4o-mini-search-preview` and `gpt-4o-search-preview` are available. The default is `gpt-4o-mini-search-preview`.
+Select the model used for web search in apps that use OpenAI models. This setting applies when using OpenAI's native web search feature with your OPENAI_API_KEY. Currently, `gpt-4.1` and `gpt-4.1-mini` are available. The default is `gpt-4o-mini-search-preview`.
 
 **AI_USER_MAX_TOKENS** <br />
 Select the maximum number of tokens for the AI user. This setting is used to limit the number of tokens that can be used in a single request. The default is `2000`.

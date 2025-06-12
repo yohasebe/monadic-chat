@@ -47,6 +47,10 @@ namespace :server do
   task :debug do
     puts "Starting Monadic server in debug mode..."
     
+    # Force EXTRA_LOGGING to true in debug mode
+    ENV['EXTRA_LOGGING'] = 'true'
+    puts "Extra logging: enabled (forced in debug mode)"
+    
     # Check if Ollama container exists and set OLLAMA_AVAILABLE accordingly
     ollama_exists = system("docker ps -a --format '{{.Names}}' | grep -q 'monadic-chat-ollama-container'")
     ENV['OLLAMA_AVAILABLE'] = ollama_exists ? 'true' : 'false'

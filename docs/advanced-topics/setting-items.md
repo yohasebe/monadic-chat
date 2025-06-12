@@ -115,9 +115,6 @@ Specifies the Speech-to-Text model to use for voice transcription across the app
 `AI_USER_MODEL` (string)
 Specifies the model used for AI-generated user messages. Available options include 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4.1-nano', 'o3-mini', 'o1-mini', and 'o1'.
 
-`EMBEDDING_MODEL` (string)
-Specifies the model used for generating text embeddings. Available options include 'text-embedding-3-small' and 'text-embedding-3-large'.
-
 `WEBSEARCH_MODEL` (string)
 Specifies the model used for web search functionality. Available options include 'gpt-4.1-mini' and 'gpt-4.1'. This model is also used as a fallback when web search is enabled with OpenAI reasoning models (o1, o3, etc.) that don't have native web search capabilities. Default is 'gpt-4.1-mini'.
 

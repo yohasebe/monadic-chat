@@ -29,11 +29,12 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 - 🤖 Use of **AI assistants** via various web and local APIs
 - ⚛️ Easy Docker environment setup using a GUI app with **Electron**
-- 📁 **Synchronized folder** for syncing local files with files inside Docker containers
+- 📁 **Shared folder** for syncing local files with files inside Docker containers
 - 📦 User-added **apps** and **containers** functionality
 - 💬 Support for both **Human/AI chat** and **AI/AI chat**
 - ✨ Chat functionality utilizing **multiple AI models**
 - 🔄 **Automatic updates** with in-app notifications and download management
+- ❓ **Help function**: Built-in assistance and documentation
 - 🌐 **Server mode** for multiple clients to connect to a single server
 - 🔍 **Built-in browser** for viewing the web interface within the application
 
@@ -120,12 +121,8 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [Perplexity](https://docs.perplexity.ai/home)
   - [DeepSeek](https://www.deepseek.com/)
 - 🦙 [Ollama](https://ollama.com/) in the local Docker environment
-  - Llama
-  - Phi
-  - Mistral
-  - Gemma
-  - DeepSeek
-  - And many more models available through Ollama
+  - Various open source LLM models
+  - New models can be added anytime
 - 🤖💬🤖 **AI-to-AI** chat functionality
 
 ### Conversations as Monads

@@ -1027,8 +1027,31 @@ namespace :help do
     # Check if pgvector container is running
     pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
     unless pgvector_running
-      puts "Error: pgvector container is not running. Please start it with 'rake server:start' first."
-      exit 1
+      puts "pgvector container is not running. Starting it..."
+      if system("docker start monadic-chat-pgvector-container")
+        puts "pgvector container started successfully."
+        # Wait for PostgreSQL to be ready
+        puts "Waiting for PostgreSQL to be ready..."
+        max_attempts = 30
+        attempt = 0
+        while attempt < max_attempts
+          if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
+            puts "PostgreSQL is ready!"
+            break
+          end
+          attempt += 1
+          print "."
+          sleep 1
+        end
+        
+        if attempt >= max_attempts
+          puts "\nError: PostgreSQL did not become ready in time."
+          exit 1
+        end
+      else
+        puts "Error: Failed to start pgvector container."
+        exit 1
+      end
     end
     
     # Ensure the script has proper Ruby path
@@ -1093,8 +1116,31 @@ namespace :help do
     # Check if pgvector container is running
     pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
     unless pgvector_running
-      puts "Error: pgvector container is not running. Please start it with 'rake server:start' first."
-      exit 1
+      puts "pgvector container is not running. Starting it..."
+      if system("docker start monadic-chat-pgvector-container")
+        puts "pgvector container started successfully."
+        # Wait for PostgreSQL to be ready
+        puts "Waiting for PostgreSQL to be ready..."
+        max_attempts = 30
+        attempt = 0
+        while attempt < max_attempts
+          if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
+            puts "PostgreSQL is ready!"
+            break
+          end
+          attempt += 1
+          print "."
+          sleep 1
+        end
+        
+        if attempt >= max_attempts
+          puts "\nError: PostgreSQL did not become ready in time."
+          exit 1
+        end
+      else
+        puts "Error: Failed to start pgvector container."
+        exit 1
+      end
     end
     
     script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
@@ -1103,17 +1149,24 @@ namespace :help do
     ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
     ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
     
-    # Check if Ruby container is running and suggest using it
+    # Check if Ruby container is running
     ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
     
     if ruby_running
-      # Run inside Ruby container
-      puts "Running inside Ruby container..."
-      docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb --recreate'"
-      system(docker_cmd)
+      # Ruby container is running but docs directory is not mounted
+      # Always run documentation processing locally
+      puts "Ruby container is running, but documentation processing must run locally..."
+      puts "Running locally with proper database connection..."
+      
+      # Set database connection for local execution when containers are running
+      ENV['POSTGRES_HOST'] ||= 'localhost'
+      ENV['POSTGRES_PORT'] ||= '5433'
+      system("ruby #{script_path} --recreate")
     else
-      # Run locally but with proper database connection
+      # Run locally with proper database connection
       puts "Running locally (Ruby container not running)..."
+      ENV['POSTGRES_HOST'] ||= 'localhost'
+      ENV['POSTGRES_PORT'] ||= '5433'
       system("ruby #{script_path} --recreate")
     end
     

@@ -9,7 +9,7 @@ app "MonadicHelpOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1-mini"
+    model "gpt-4.1"
     
   end
   
@@ -18,6 +18,7 @@ app "MonadicHelpOpenAI" do
     auto_speech false
     quick_response false
     web_search false
+    math false
     initiate_from_assistant true
     sourcecode true
     context_size 50
@@ -143,6 +144,8 @@ app "MonadicHelpOpenAI" do
        Related features you might find useful:
        - [Feature 1]
        - [Feature 2]
+       
+       📖 **Learn more**: [Documentation page title](https://yohasebe.github.io/monadic-chat/#/path/to/page)
        ```
        
        FOR DEVELOPERS:
@@ -156,7 +159,17 @@ app "MonadicHelpOpenAI" do
        
        Example code:
        [code snippet if relevant]
+       
+       📖 **Learn more**: [Documentation page title](https://yohasebe.github.io/monadic-chat/#/path/to/page)
        ```
+       
+       **IMPORTANT for Links**:
+       - ALWAYS include relevant documentation links at the end of your response
+       - Use the file_path from search results to construct the URL
+       - Convert file paths like "docs/basic-usage/console-panel.md" to "https://yohasebe.github.io/monadic-chat/#/basic-usage/console-panel"
+       - Remove the "docs/" prefix and ".md" extension when constructing URLs
+       - Use HTML format for links: <a href="URL" target="_blank">Page Title</a>
+       - Include multiple links if the answer draws from multiple documentation pages
     
     5. **Language & Translation**:
        - Detect user's language and respond in that language
@@ -186,9 +199,11 @@ app "MonadicHelpOpenAI" do
     
     "Hello! I'm the Monadic Chat Help Assistant. I have access to the complete documentation and can help you with any questions about Monadic Chat.
     
+    ⚠️ **Please note**: While I strive to provide accurate information based on the documentation, my responses are AI-generated and may occasionally contain errors or outdated information. Always verify critical information and refer to the official documentation when in doubt.
+    
     What would you like to know?"
     
-    (Detect the user's language from their first message and respond in their language)
+    (Detect the user's language from their first message and respond in their language. For Japanese users, translate the greeting but keep the same structure and warning.)
     
     **IMPORTANT**: 
     - DO NOT search or provide any information until the user asks a specific question

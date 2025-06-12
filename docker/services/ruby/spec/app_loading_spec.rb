@@ -89,7 +89,7 @@ RSpec.describe "App Loading and Initialization" do
         
         # Check for required helper includes based on provider
         # Skip MDSL-only support files and module-based files
-        module_based_files = ["chat_app.rb", "coding_assistant_constants.rb", "drawio_grapher_tools.rb", "mermaid_grapher_tools.rb", "novel_writer_tools.rb", "research_assistant_constants.rb"]
+        module_based_files = ["chat_app.rb", "coding_assistant_constants.rb", "drawio_grapher_tools.rb", "mermaid_grapher_tools.rb", "novel_writer_tools.rb", "research_assistant_constants.rb", "monadic_help_openai.rb"]
         unless module_based_files.any? { |f| file.end_with?(f) } || content.match(/include\s+\w+Agent/)
           if content.include?("OpenAI") || content.include?("gpt-")
             expect(content).to match(/include\s+OpenAIHelper/), "#{file} should include OpenAIHelper"
@@ -418,7 +418,7 @@ RSpec.describe "App Loading and Initialization" do
         code_interpreter jupyter_notebook chat_plus language_practice_plus
         research_assistant speech_draft_helper second_opinion pdf_navigator
         video_describer drawio_grapher mermaid_grapher novel_writer
-        math_tutor image_generator video_generator
+        math_tutor image_generator video_generator monadic_help
       ]
       
       app_dirs.each do |app_dir|
@@ -546,7 +546,7 @@ RSpec.describe "App Loading and Initialization" do
     methods = public_content.scan(/def\s+(\w+)/).flatten
     
     # Filter out obvious non-tool methods
-    excluded_patterns = /^(initialize|private|protected|validate|format|parse|setup|teardown|before|after|test_|spec_)/
+    excluded_patterns = /^(initialize|private|protected|validate|format|parse|setup|teardown|before|after|test_|spec_|help_embeddings_db)/
     potential_tools = methods.reject { |method| 
       method.match?(excluded_patterns) || standard_tools.include?(method)
     }

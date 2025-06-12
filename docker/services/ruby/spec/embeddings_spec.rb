@@ -26,7 +26,7 @@ RSpec.describe "get_embeddings" do
         mock_response = double('response')
         allow(mock_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
         allow(mock_response).to receive(:body).and_return(
-          { data: [{ embedding: Array.new(1536) { rand } }] }.to_json
+          { data: [{ embedding: Array.new(3072) { rand } }] }.to_json
         )
         
         # Mock the HTTP request

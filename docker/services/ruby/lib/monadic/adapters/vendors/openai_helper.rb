@@ -50,6 +50,7 @@ module OpenAIHelper
   # partial string match
   REASONING_MODELS = [
     "o3",
+    "o4",
     "o1"
   ]
 
@@ -65,14 +66,15 @@ module OpenAIHelper
 
   # complete string match
   SEARCH_MODELS = [
-    "gpt-4o-search-preview",
-    "gpt-4o-mini-search-preview"
+    "gpt-4.1",
+    "gpt-4.1-mini",
   ]
 
   # complete string match
   NON_STREAM_MODELS = [
     "o1-pro",
-    "o1-pro-2025-03-19"
+    "o1-pro-2025-03-19",
+    "o3-pro"
   ]
 
   # Native OpenAI websearch tools

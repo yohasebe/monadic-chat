@@ -29,11 +29,11 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 - 🤖 Use of **AI assistants** via various web and local APIs
 - ⚛️ Easy Docker environment setup using a GUI app with **Electron**
-- 📁 **Synchronized folder** for syncing local files with files inside Docker containers
+- 📁 **Shared folder** for syncing local files with files inside Docker containers
 - 📦 User-added **apps** and **containers** functionality
 - 💬 Support for both **Human/AI chat** and **AI/AI** chat
 - ✨ Chat functionality utilizing **multiple AI models**
-- 🔄 **Automatic updates** with in-app notifications and download management
+- ❓ **Help function**: Built-in assistance and documentation
 
 ### AI + Linux Environment
 
@@ -41,7 +41,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🐳 Tools available to LLMs via **Docker containers**
   - Linux (+ apt)
   - Ruby (+ gem)
-  - Python (+ pip)
+  - Python (+ pip, Flask API server)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
 - ⚡️ Use of LLMs via **online and local** APIs
@@ -58,7 +58,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💬 Specify the number of messages to send to the API as **context size**
 - 📜 Set **roles** for messages (user, assistant, system)
 - 🔢 Generate and import/export **text embeddings** from PDFs
-- 📼 **Logging** of code execution and tool/function use for debugging
+- 📼 **Logging** of code execution and tool/function use for debugging and export
 
 ### Voice Interaction
 
@@ -75,6 +75,16 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**
 - 🎥 Recognition and description of **uploaded video content and audio**
+
+### Specialized Applications
+
+- **Research Assistant**: Academic paper analysis and literature review
+- **Code Interpreter**: Advanced programming support with execution
+- **Language Practice**: Interactive language learning with native speakers
+- **Math Tutor**: Step-by-step mathematical problem solving
+- **Novel Writer**: Creative writing assistance with character development
+- **Reasoner**: Complex logical reasoning and analysis
+- **Monadic Chat Help**: Built-in help system with intelligent assistance
 
 ### Configuration and Extension
 
@@ -99,11 +109,8 @@ Human users can use various tools to achieve their goals. However, in many cases
   - [Perplexity](https://docs.perplexity.ai/home)
   - [DeepSeek](https://www.deepseek.com/)
 - 🦙 [**Ollama**](https://ollama.com/) in the local Docker environment
-  - Llama
-  - Phi
-  - Mistral
-  - Gemma
-  - DeepSeek
+  - Various open source LLM models
+  - New models can be added anytime
 - 🤖💬🤖 **AI-to-AI** chat functionality
 
 ### Conversations as Monads

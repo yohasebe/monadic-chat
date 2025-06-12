@@ -70,7 +70,7 @@ class HelpDatabaseExporter
         language VARCHAR(10) NOT NULL,
         items INTEGER NOT NULL,
         metadata JSONB NOT NULL,
-        embedding vector(1536),
+        embedding vector(3072),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(file_path, language)
@@ -84,13 +84,13 @@ class HelpDatabaseExporter
         position INTEGER NOT NULL,
         heading TEXT,
         metadata JSONB NOT NULL,
-        embedding vector(1536),
+        embedding vector(3072),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
       -- Create indexes for better performance
-      CREATE INDEX IF NOT EXISTS idx_help_docs_embedding ON help_docs USING ivfflat (embedding vector_cosine_ops);
-      CREATE INDEX IF NOT EXISTS idx_help_items_embedding ON help_items USING ivfflat (embedding vector_cosine_ops);
+      -- Note: ivfflat indexes removed due to 2000 dimension limit with text-embedding-3-large (3072 dims)
+      -- Consider using HNSW index or no vector index for now
       CREATE INDEX IF NOT EXISTS idx_help_items_doc_id ON help_items(doc_id);
       CREATE INDEX IF NOT EXISTS idx_help_docs_language ON help_docs(language);
     SQL

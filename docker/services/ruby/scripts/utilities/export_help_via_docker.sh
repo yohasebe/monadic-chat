@@ -2,7 +2,10 @@
 # Export help database using docker exec commands
 
 CONTAINER="monadic-chat-pgvector-container"
-EXPORT_DIR="/Users/yohasebe/code/monadic-chat/docker/services/pgvector/help_data"
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+EXPORT_DIR="$PROJECT_ROOT/docker/services/pgvector/help_data"
 
 # Ensure export directory exists
 mkdir -p "$EXPORT_DIR"

@@ -2,7 +2,9 @@
 # Check if PGVector container needs rebuilding due to help data updates
 
 # Path to help export ID file
-EXPORT_ID_FILE="/Users/yohasebe/code/monadic-chat/docker/services/pgvector/help_data/export_id.txt"
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXPORT_ID_FILE="$SCRIPT_DIR/help_data/export_id.txt"
 
 # Check if export ID file exists
 if [ ! -f "$EXPORT_ID_FILE" ]; then

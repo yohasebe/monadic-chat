@@ -43,28 +43,78 @@ Monadic Chatは主に2つのモードで動作します：
 
 標準では下記のコンテナが構築されます。
 
-**Rubyコンテナ**（`monadic-chat-ruby-container`）
-
+### Rubyコンテナ（`monadic-chat-ruby-container`）
 Monadic Chatのアプリケーションを実行するために必要なコンテナです。Webインターフェイスを提供するためにも使用されます。
+- **ポート**: 4567（Webインターフェイス）
+- **主な機能**: Sinatra Webサーバー、WebSocketサポート、Docker管理
+- **共有ボリューム**: `/monadic/data`、`/monadic/config`、`/monadic/log`
+- **このコンテナが必要なアプリ**: すべてのアプリ（Webインターフェイスを実行し、すべてのMonadic Chat機能を管理するコアコンテナです）
 
-**Pythonコンテナ**（`monadic-chat-python-container`）
-
+### Pythonコンテナ（`monadic-chat-python-container`）
 Monadic Chatの機能を拡張するためのPythonスクリプトを実行するために使用されます。JupyterLabもこのコンテナ上で実行されます。
+- **ポート**: 
+  - 8889（JupyterLab）
+  - 5070（Flask APIサーバー：トークン化などのサービス用）
+- **主な機能**: Pythonコード実行、JupyterLab、Flask APIサーバー、LaTeXサポート（図の生成用）
+- **このコンテナを使用するアプリ**: 
+  - `Code Interpreter` - データ分析と計算のためのPythonコード実行
+  - `Jupyter Notebook` - コード実行用のインタラクティブなノートブックインターフェイス
+  - `Video Describer` - Pythonライブラリを使用したビデオファイルの分析
+  - `Syntax Tree` - LaTeX/TikZを使用した言語学的構文木の生成
+  - `Concept Visualizer` - LaTeX/TikZを使用した概念図の作成
+  - Python実行用の`run_code`または`run_script`ツールを使用するアプリ
 
-使用しているアプリの例：`Code Interpreter`, `Jupyter Notebook`, `Video Describer`
-
-**Seleniumコンテナ**（`monadic-chat-selenium-container`）
-
+### Seleniumコンテナ（`monadic-chat-selenium-container`）
 Seleniumを使用して仮想的なWebブラウザを操作して、Webページのスクレイピングを行うために使用されます。
+- **ポート**: 4444、5900、7900（Selenium Grid）
+- **主な機能**: Chromeブラウザの自動化、Webスクレイピング
+- **このコンテナを使用するアプリ**: 
+  - `Code Interpreter` - Webスクレイピングタスクに使用可能
+  - `Content Reader` - WebページからのコンテンツのフェッチとExtraction
+  - `Mermaid Grapher` - Mermaid図の検証とプレビュースクリーンショットの作成
+  - `Research Assistant` - 情報収集のためのWebスクレイピングを使用
+  - `fetch_html_content`または`selenium_agent`ツールを使用するアプリ
 
-使用しているアプリの例：`Code Interpreter`, `Content Reader`
-
-**pgvectorコンテナ**（`monadic-chat-pgvector-container`）
-
+### pgvectorコンテナ（`monadic-chat-pgvector-container`）
 Postgresql上にテキスト埋め込みのベクトルデータを保存するため、pgvectorを使用するためのコンテナです。
+- **ポート**: 公開ポートなし（内部使用のみ）
+- **主な機能**: ベクトル類似性検索、PDFコンテンツストレージ、ヘルプデータベース
+- **このコンテナを使用するアプリ**: 
+  - `PDF Navigator` - エンベディングを使用したPDFコンテンツの保存と検索
+  - `Monadic Chat Help` - ベクトル類似性を使用したドキュメント検索
+  - TextEmbeddingsクラスを使用するカスタムRAG（Retrieval-Augmented Generation）アプリ
 
-使用しているアプリの例：`PDF Navigator`
 
+## アプリタイプ別のコンテナ要件
+
+### 最小構成
+基本的なチャット機能には、Rubyコンテナのみが厳密に必要です。Rubyコンテナだけで動作するアプリには以下が含まれます：
+- Chat（すべてのプロバイダー）
+- Voice Chat
+- Mail Composer
+- Coding Assistant（コード実行なし）
+- Language Practice
+- Novel Writer
+- Translate
+
+### 拡張機能
+以下のコンテナは追加機能を有効にします：
+
+**Pythonコンテナ**: 以下に必要：
+- コード実行（Code Interpreter、Jupyter Notebook）
+- 図の生成（Syntax Tree、Concept Visualizer）
+- ビデオ分析（Video Describer）
+- LaTeXレンダリングを使用するアプリ
+
+**Seleniumコンテナ**: 以下に必要：
+- Webコンテンツの取得（Content Reader、Research Assistant）
+- Mermaid図の検証とプレビュー
+- Webスクレイピング機能
+
+**pgvectorコンテナ**: 以下に必要：
+- PDFコンテンツ検索（PDF Navigator）
+- ヘルプシステム（Monadic Chat Help）
+- カスタムRAGアプリケーション
 
 ?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
   
@@ -73,6 +123,29 @@ Postgresql上にテキスト埋め込みのベクトルデータを保存する�
 Monadic Chatは、追加のプラグインにより以下のようなオプションのDockerコンテナをサポートしています：
 
 - **Ollamaコンテナ**（`monadic-chat-ollama-container`）：[Ollama](https://ollama.com) を使用してローカルLLM（Llama、Phi、Mistral、Gemma、DeepSeekなど）を提供します。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
+
+## コンテナネットワークアーキテクチャ
+
+すべてのコンテナは共有Dockerネットワークを介して通信します：
+
+### ネットワーク構成
+- **ネットワーク名**: `monadic-chat-network`
+- **ネットワークドライバー**: Bridge
+- **コンテナ間通信**: コンテナ名をホスト名として使用して有効化
+
+### コンテナの依存関係と起動順序
+1. **pgvector**が最初に起動（データベースサービスを提供）
+2. **Selenium**が次に起動（ブラウザ自動化を提供）
+3. **Python**がSeleniumの後に起動（特定の操作でSeleniumを使用する可能性）
+4. **Ruby**が最後に起動（pgvectorとヘルスチェックで依存、Pythonにも依存）
+
+この起動順序により、依存コンテナが起動する際に必要なすべてのサービスが利用可能になります。
+
+### 共有データボリューム
+すべてのコンテナは以下へのアクセスを共有します：
+- **ユーザーデータ**: `~/monadic/data`（コンテナ内では`/monadic/data`としてマウント）
+- **設定**: Rubyコンテナのみが`/monadic/config`への排他的アクセスを持つ
+- **ログ**: Rubyコンテナのみが`/monadic/log`への排他的アクセスを持つ
 
 ## コンテナの再ビルドプロセス
 

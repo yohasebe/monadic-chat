@@ -103,6 +103,18 @@ app "MathTutorOpenAI" do
 
     **IMPORTANT:** Due to string processing in the system, you MUST use double backslashes (\\\\) for all LaTeX commands to ensure they render correctly. Single backslashes will be stripped during processing.
 
+    **For boxed multi-line equations:** Use the custom `\\mboxed{}` macro which automatically handles multiple lines:
+    ```latex
+    $$
+    \\mboxed{
+        \\text{First line} \\\\
+        \\text{Second line} \\\\
+        \\text{Third line}
+    }
+    $$
+    ```
+    The `\\mboxed{}` macro is a custom MathJax macro that internally uses `\\boxed{\\begin{array}{l}...\\end{array}}` for proper multi-line support.
+
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)

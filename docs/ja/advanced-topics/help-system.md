@@ -190,7 +190,7 @@ rake help:build
 - OpenAI APIキーが必要（他のエンベディングプロバイダーのサポートなし）
 - 英語のドキュメントのみ（応答は機械翻訳）
 - モデルの制約により最大コンテキストが制限
-- エンベディング次元は1536に固定（OpenAI text-embedding-3-small）
+- エンベディング次元は3072に固定（OpenAI text-embedding-3-large）
 
 ## トラブルシューティング
 

@@ -164,9 +164,6 @@ Tavily APIキーを入力します。このキーは、2つの目的で使用さ
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 
-**EMBEDDING_MODEL** <br />
-テキスト埋め込みに使用するモデルを選択します。現在、`text-embedding-3-small`と`text-embedding-3-large`が利用可能です。デフォルトは`text-embedding-3-small`です。
-
 **WEBSEARCH_MODEL** <br />
 OpenAIモデルを使用するアプリでのWeb検索に使用する検索モデルを選択します。この設定は、OPENAI_API_KEYを使用してOpenAIのネイティブWeb検索機能を使用する場合に適用されます。現在、`gpt-4o-mini-search-preview`と`gpt-4o-search-preview`が利用可能です。デフォルトは`gpt-4o-mini-search-preview`です。
 

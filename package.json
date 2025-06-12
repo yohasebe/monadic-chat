@@ -114,6 +114,7 @@
     "electron-updater": "^6.6.2"
   },
   "overrides": {
-    "semver": "^7.5.3"
+    "semver": "^7.5.3",
+    "minimatch": "^9.0.3"
   }
 }

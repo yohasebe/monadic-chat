@@ -273,7 +273,7 @@ class HelpEmbeddings < TextEmbeddings
           language text DEFAULT 'en',
           items integer DEFAULT 0,
           metadata jsonb DEFAULT '{}',
-          embedding vector(1536),
+          embedding vector(3072),
           created_at timestamp DEFAULT CURRENT_TIMESTAMP,
           updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(file_path, language)
@@ -289,7 +289,7 @@ class HelpEmbeddings < TextEmbeddings
           position smallint NOT NULL,
           heading text,
           metadata jsonb DEFAULT '{}',
-          embedding vector(1536),
+          embedding vector(3072),
           created_at timestamp DEFAULT CURRENT_TIMESTAMP
         )
       SQL
@@ -297,8 +297,8 @@ class HelpEmbeddings < TextEmbeddings
       # Create indexes for better performance
       @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_language ON help_docs(language)")
       @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_file_path ON help_docs(file_path)")
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_embedding ON help_docs USING ivfflat (embedding vector_cosine_ops)")
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_items_embedding ON help_items USING ivfflat (embedding vector_cosine_ops)")
+      # Note: ivfflat indexes removed due to 2000 dimension limit with text-embedding-3-large (3072 dims)
+      # Consider using HNSW or no index for now
       @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_items_doc_id ON help_items(doc_id)")
     end
   end

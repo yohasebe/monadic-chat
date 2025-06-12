@@ -148,10 +148,6 @@ JSON形式で出力する場合の出力形式を指定します。詳細につ�
 
 AI生成によるユーザーメッセージに使用されるモデルを指定します。利用可能なオプションにはgpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o-mini、gpt-4o、o3-mini、o1-mini、o1があります。
 
-`EMBEDDING_MODEL` (string)
-
-テキスト埋め込み生成に使用されるモデルを指定します。利用可能なオプションにはtext-embedding-3-small、text-embedding-3-largeがあります。
-
 `WEBSEARCH_MODEL` (string)
 
 ウェブ検索機能に使用されるモデルを指定します。利用可能なオプションには 'gpt-4.1-mini' と 'gpt-4.1' があります。このモデルは、ネイティブな Web 検索機能を持たない OpenAI の推論モデル（o1、o3 など）で Web 検索が有効になっている場合のフォールバックとしても使用されます。デフォルトは 'gpt-4.1-mini' です。

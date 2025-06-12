@@ -70,3 +70,19 @@ rake update_version[from_version,to_version]
 # Build application packages
 rake build
 ```
+
+## Testing
+
+```bash
+# Run Ruby tests
+rake spec
+
+# Run JavaScript tests (passing tests only)
+rake jstest
+
+# Run all JavaScript tests
+rake jstest_all
+
+# Run all tests (Ruby and JavaScript)
+rake test
+```

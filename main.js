@@ -2495,11 +2495,11 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.EMBEDDING_MODEL) {
-        envConfig.EMBEDDING_MODEL = 'text-embedding-3-small';
+        envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
     }
 
     if (!envConfig.WEBSEARCH_MODEL) {
-        envConfig.WEBSEARCH_MODEL = 'gpt-4o-mini-search-preview';
+        envConfig.WEBSEARCH_MODEL = 'gpt-4.1';
     }
 
     // Set default models for each provider if not already specified
@@ -2508,7 +2508,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.ANTHROPIC_DEFAULT_MODEL) {
-        envConfig.ANTHROPIC_DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+        envConfig.ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
     }
 
     if (!envConfig.COHERE_DEFAULT_MODEL) {
@@ -2516,7 +2516,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.GEMINI_DEFAULT_MODEL) {
-        envConfig.GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
+        envConfig.GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash-preview-05-20';
     }
 
     if (!envConfig.MISTRAL_DEFAULT_MODEL) {
@@ -2524,7 +2524,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.GROK_DEFAULT_MODEL) {
-        envConfig.GROK_DEFAULT_MODEL = 'grok-2';
+        envConfig.GROK_DEFAULT_MODEL = 'grok';
     }
 
     if (!envConfig.PERPLEXITY_DEFAULT_MODEL) {

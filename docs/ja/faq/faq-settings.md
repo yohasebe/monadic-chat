@@ -16,3 +16,16 @@
 
 `pysetup.log` を使ってPythonコンテナにライブラリを追加している場合は、`docker_build.log` にエラーメッセージが表示されることがあります。エラーメッセージを確認して、インストールスクリプトを修正してください。
 
+---
+
+**Q**: パッケージ化されたアプリを使用すると「コンテナが見つかりません」のようなDockerエラーが発生します。どうすればよいですか？
+
+**A**: これは通常、Docker Composeプロジェクト名の不一致が原因です。Monadic Chatはすべてのコンテナ操作に「monadic-chat」というプロジェクト名を使用します。解決方法：
+
+1. すべてのMonadic Chatコンテナを停止： `docker compose -p "monadic-chat" down`
+2. 孤立したコンテナをリスト： `docker ps -a | grep monadic`
+3. 孤立したコンテナがあれば削除： `docker rm [container_id]`
+4. アプリケーションからMonadic Chatを再起動
+
+アプリケーションは今、この問題を防ぐためにプロジェクト名の一貫性を確保しています。
+

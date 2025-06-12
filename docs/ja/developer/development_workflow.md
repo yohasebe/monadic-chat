@@ -19,10 +19,12 @@
 
 ### アプリ固有のテストスクリプト
 特定のテストや診断が必要なアプリケーションの場合：
-- テストスクリプトはアプリのテストディレクトリに配置: `docker/services/ruby/apps/{app_name}/test/`
+- テストスクリプトは診断ディレクトリに配置: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 - 説明的な名前を使用: `test_feature_name.sh` または `diagnose_issue.rb`
 - アプリ固有のテストスクリプトをプロジェクトルートディレクトリに配置しない
-- 例: Concept Visualizerのテストスクリプトは `docker/services/ruby/apps/concept_visualizer/test/` に配置
+- 例: Concept Visualizerのテストスクリプトは `docker/services/ruby/scripts/diagnostics/apps/concept_visualizer/` に配置
+
+?> **重要**: テストスクリプトは `apps/{app_name}/test/` ディレクトリに配置してはいけません。アプリ内の `test/` サブディレクトリ内のファイルは、テストスクリプトがアプリケーションとしてロードされるのを防ぐため、アプリロード時に無視されます。
 
 ### テスト実行方法
 #### Rubyテスト
@@ -260,6 +262,13 @@ exit 0
 2. ローカル開発の場合、Rubyコンテナのみを停止
 3. ローカルRubyコードを実行 - 他の実行中のコンテナと通信します
 4. コンテナパス（`/monadic/data`）は自動的にホストパス（`~/monadic/data`）にマッピングされます
+
+### Docker Composeプロジェクトの一貫性
+Docker Composeコマンドを使用する際は、常にプロジェクト名フラグを使用して一貫性を確保してください：
+```bash
+docker compose -p "monadic-chat" [command]
+```
+これは特にパッケージ化されたElectronアプリで適切なコンテナ管理を維持するために重要です。
 
 ## ユーザー向け
 

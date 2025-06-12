@@ -14,7 +14,7 @@ DOCKER_CHECK_INTERVAL=1
 REPORTING=
 
 # Define the path to the root directory
-ROOT_DIR=$(dirname "$0")
+ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=$(eval echo ~${SUDO_USER})
 
 # Define the full path to docker-compose
@@ -31,8 +31,7 @@ if [ -z "$DOCKER" ]; then
   DOCKER="docker"
 fi
 
-# escape spaces in the path to docker
-DOCKER=$(echo "${DOCKER}" | sed 's/ /\\ /g')
+# Don't escape spaces - we'll quote the variable when using it
 
 # Define the paths to the support scripts
 SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
@@ -43,7 +42,7 @@ normalize_path() {
 }
 
 check_if_docker_desktop_is_running() {
-  if ${DOCKER} info >/dev/null 2>&1; then
+  if "${DOCKER}" info >/dev/null 2>&1; then
     echo "1"
   else
     echo "0"
@@ -54,7 +53,7 @@ check_if_docker_desktop_is_running() {
 docker_start_log() {
   local log_file="${HOME_DIR}/monadic/log/docker_startup.log"
   local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-  local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
+  local containers=$("${DOCKER}" ps --filter "name=monadic-chat" --format "{{.Names}}")
 
   mkdir -p "$(dirname "${log_file}")"
 
@@ -114,10 +113,10 @@ set_docker_compose() {
   else
     cat <<EOF >"${HOME_DIR}/monadic/config/compose.yml"
 include:
-  - ${ROOT_DIR}/services/ruby/compose.yml
-  - ${ROOT_DIR}/services/pgvector/compose.yml
-  - ${ROOT_DIR}/services/python/compose.yml
-  - ${ROOT_DIR}/services/selenium/compose.yml
+  - "${ROOT_DIR}/services/ruby/compose.yml"
+  - "${ROOT_DIR}/services/pgvector/compose.yml"
+  - "${ROOT_DIR}/services/python/compose.yml"
+  - "${ROOT_DIR}/services/selenium/compose.yml"
 ${compose_user}
 
 networks:
@@ -133,9 +132,20 @@ EOF
   # Check for compose.override.yml
   COMPOSE_OVERRIDE="${ROOT_DIR}/services/compose.override.yml"
   if [[ -f "${COMPOSE_OVERRIDE}" ]]; then
-    COMPOSE_FILES="-f ${COMPOSE_MAIN} -f ${COMPOSE_OVERRIDE}"
+    COMPOSE_FILES="-f \"${COMPOSE_MAIN}\" -f \"${COMPOSE_OVERRIDE}\""
   else
-    COMPOSE_FILES="-f ${COMPOSE_MAIN}"
+    COMPOSE_FILES="-f \"${COMPOSE_MAIN}\""
+  fi
+  
+  # Debug: log the compose files being used
+  echo "[DEBUG] COMPOSE_MAIN='${COMPOSE_MAIN}'" >&2
+  echo "[DEBUG] COMPOSE_FILES='${COMPOSE_FILES}'" >&2
+  
+  # Ensure COMPOSE_FILES is not empty
+  if [ -z "${COMPOSE_FILES}" ]; then
+    echo "[ERROR] COMPOSE_FILES is empty!" >&2
+    COMPOSE_FILES="-f \"${ROOT_DIR}/services/compose.yml\""
+    echo "[DEBUG] Using fallback COMPOSE_FILES='${COMPOSE_FILES}'" >&2
   fi
 }
 
@@ -236,7 +246,7 @@ build_ruby_container() {
   local dockerfile="${ROOT_DIR}/services/ruby/Dockerfile"
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
 
-  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
+  "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   
   # Don't call build_docker_compose here to avoid rebuilding the same container again
   # build_docker_compose
@@ -256,7 +266,7 @@ build_python_container() {
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/python" 2>&1 | tee "${log_file}"
 
-  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
+  "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   
   # Don't call build_docker_compose here to avoid rebuilding the same container again
   # build_docker_compose
@@ -384,7 +394,7 @@ EOF
   # Execute docker compose build and redirect output to log file
   ${DOCKER} compose ${REPORTING} -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
 
-  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
+  "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   # remove compose_user.yml
   rm -f "${compose}"
 
@@ -417,10 +427,17 @@ build_docker_compose() {
     help_export_id=$(cat "$help_export_file")
   fi
   
+  # Debug: log the actual command being executed
+  echo "[DEBUG] DOCKER='${DOCKER}'" >> "${log_file}"
+  echo "[DEBUG] COMPOSE_FILES='${COMPOSE_FILES}'" >> "${log_file}"
+  echo "[DEBUG] REPORTING='${REPORTING}'" >> "${log_file}"
+  echo "[DEBUG] use_cache='${use_cache}'" >> "${log_file}"
+  echo "[DEBUG] Executing: HELP_EXPORT_ID='${help_export_id}' '${DOCKER}' compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache}" >> "${log_file}"
+  
   # Execute docker compose build and redirect output to log file with or without cache
-  HELP_EXPORT_ID="${help_export_id}" ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee "${log_file}"
+  eval "HELP_EXPORT_ID=\"${help_export_id}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
 
-  ${DOCKER} tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
+  "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
 
   # Save container version information after building
   save_container_versions "silent"
@@ -592,7 +609,7 @@ start_docker_compose() {
     if check_dockerfiles_changed; then
       remove_containers
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}) with Dockerfile changes. Full rebuild required.</p>"
-      ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down
+      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down"
       needs_full_rebuild=true
     else
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Only rebuilding Ruby container.</p>"
@@ -665,15 +682,15 @@ start_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
   
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} -p "monadic-chat" up -d 
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
   # Start Ollama container if it exists (it uses a profile so needs explicit start)
   if ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^monadic-chat-ollama-container$"; then
     echo "[HTML]: <p>Starting Ollama container...</p>"
-    ${DOCKER} compose ${COMPOSE_FILES} -p "monadic-chat" --profile ollama up -d ollama_service
+    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
   fi
 
-  local containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
+  local containers=$("${DOCKER}" ps --filter "name=monadic-chat" --format "{{.Names}}")
 
   if [[ "$1" != "silent" ]]; then
     echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
@@ -689,7 +706,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans"
 }
 
 # Define a function to stop Docker Compose
@@ -707,31 +724,31 @@ stop_container() {
 
 # Define a function to import the database contents from an external file
 import_database() {
-  sh "${ROOT_DIR}/services/support_scripts/import_vector_db.sh"
+  bash "${ROOT_DIR}/services/support_scripts/import_vector_db.sh"
 }
 
 # Define a function to export the database contents to an external file
 export_database() {
-  sh "${ROOT_DIR}/services/support_scripts/export_vector_db.sh"
+  bash "${ROOT_DIR}/services/support_scripts/export_vector_db.sh"
 }
 
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop the Docker Compose services
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans"
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build and start the Docker Compose services
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} build --no-cache
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build --no-cache"
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
   # Stop the Docker Compose services
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans"
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
@@ -864,7 +881,7 @@ case "$1" in
 build_ruby_container)
   ensure_data_dir "ruby" &&
 
-  while ! ${DOCKER} info > /dev/null 2>&1; do
+  while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
@@ -882,7 +899,7 @@ build_ruby_container)
 build_python_container)
   ensure_data_dir "python" &&
 
-  while ! ${DOCKER} info > /dev/null 2>&1; do
+  while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
@@ -897,7 +914,7 @@ build_python_container)
 build_user_containers)
   ensure_data_dir "" &&
 
-  while ! ${DOCKER} info > /dev/null 2>&1; do
+  while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
@@ -917,7 +934,7 @@ build_user_containers)
 build_ollama_container)
   ensure_data_dir "" &&
 
-  while ! ${DOCKER} info > /dev/null 2>&1; do
+  while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
@@ -932,18 +949,18 @@ build_ollama_container)
 build)
   ensure_data_dir "" &&
 
-  while ! ${DOCKER} info > /dev/null 2>&1; do
+  while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
   set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} down
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down"
   build_docker_compose "no-cache"
   
   # Start the containers after building to match the behavior of 'start' command
-  ${DOCKER} compose ${REPORTING} ${COMPOSE_FILES} -p "monadic-chat" up -d
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"

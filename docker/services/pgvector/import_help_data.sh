@@ -3,6 +3,9 @@
 
 set -e
 
+# During container initialization, we need to use the postgres user
+export PGUSER=postgres
+
 # Check if help data exists
 if [ ! -f "/help_data/metadata.json" ]; then
   echo "No help data to import"
@@ -14,11 +17,17 @@ echo "Importing help database..."
 # Create database if it doesn't exist
 psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'monadic_help'" | grep -q 1 || psql -U postgres -c "CREATE DATABASE monadic_help"
 
-# No need to check or clear - this runs only on container initialization
-
-# Import schema
+# Import schema first
 if [ -f "/help_data/schema.sql" ]; then
   psql -U postgres -f /help_data/schema.sql
+fi
+
+# Check if data already exists after schema is created
+EXISTING_COUNT=$(psql -U postgres -d monadic_help -tc "SELECT COUNT(*) FROM help_items" 2>/dev/null || echo "0")
+EXISTING_COUNT=$(echo $EXISTING_COUNT | tr -d ' ')
+if [ "$EXISTING_COUNT" != "0" ]; then
+  echo "Help database already contains $EXISTING_COUNT items, skipping import"
+  exit 0
 fi
 
 # Import data using a Python script for JSON handling
@@ -28,11 +37,11 @@ import json
 import psycopg2
 from psycopg2.extras import Json
 
-# Connect to database
+# Connect to database via Unix socket during initialization
 conn = psycopg2.connect(
     dbname="monadic_help",
     user="postgres",
-    host="localhost"
+    host="/var/run/postgresql"
 )
 cur = conn.cursor()
 
@@ -96,6 +105,56 @@ conn.close()
 print("Help database imported successfully!")
 EOF
 
-python3 /tmp/import_help.py
+python3 /tmp/import_help.py || {
+  echo "Python import failed, retrying with alternative method..."
+  
+  # Alternative: Use psql with JSON processing
+  psql -U postgres -d monadic_help << 'SQLEOF'
+  -- Import help_docs
+  CREATE TEMP TABLE temp_docs (data text);
+  \copy temp_docs FROM '/help_data/help_docs.json'
+  
+  INSERT INTO help_docs (id, title, file_path, section, language, items, metadata, embedding, created_at)
+  SELECT 
+    (elem->>'id')::integer,
+    elem->>'title',
+    elem->>'file_path', 
+    elem->>'section',
+    elem->>'language',
+    (elem->>'items')::integer,
+    (elem->'metadata')::jsonb,
+    NULL, -- Skip embeddings in fallback
+    (elem->>'created_at')::timestamp
+  FROM (
+    SELECT jsonb_array_elements(data::jsonb) AS elem 
+    FROM temp_docs
+  ) t
+  ON CONFLICT (file_path, language) DO NOTHING;
+  
+  -- Import help_items
+  CREATE TEMP TABLE temp_items (data text);
+  \copy temp_items FROM '/help_data/help_items.json'
+  
+  INSERT INTO help_items (id, doc_id, text, position, heading, metadata, embedding, created_at)
+  SELECT 
+    (elem->>'id')::integer,
+    (elem->>'doc_id')::integer,
+    elem->>'text',
+    (elem->>'position')::integer,
+    elem->>'heading',
+    (elem->'metadata')::jsonb,
+    NULL, -- Skip embeddings in fallback
+    (elem->>'created_at')::timestamp
+  FROM (
+    SELECT jsonb_array_elements(data::jsonb) AS elem 
+    FROM temp_items
+  ) t
+  ON CONFLICT DO NOTHING;
+  
+  -- Update sequences
+  SELECT setval('help_docs_id_seq', COALESCE((SELECT MAX(id) FROM help_docs), 1));
+  SELECT setval('help_items_id_seq', COALESCE((SELECT MAX(id) FROM help_items), 1));
+SQLEOF
+}
 
 echo "Help database import completed!"

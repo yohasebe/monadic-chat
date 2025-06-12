@@ -23,3 +23,10 @@ ARG HELP_EXPORT_ID=""
 RUN echo "${HELP_EXPORT_ID}" > /help_export_id.txt
 
 COPY Dockerfile /monadic/Dockerfile
+
+# Copy custom entrypoint
+COPY custom-entrypoint.sh /custom-entrypoint.sh
+RUN chmod +x /custom-entrypoint.sh
+
+# Use custom entrypoint
+ENTRYPOINT ["/custom-entrypoint.sh"]

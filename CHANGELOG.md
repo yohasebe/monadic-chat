@@ -106,6 +106,11 @@
   - Monadic DSL system introduced
   - App selection behavior made consistent for startup and reset
   - Setup script management improved
+  - Fixed hardcoded local paths in help system scripts
+  - Fixed undefined COMPOSE_FILES variable in build command
+  - Fixed Docker Compose execution in packaged Electron apps with paths containing spaces
+  - Added proper quoting for Docker commands to handle installation paths with spaces
+  - Improved path handling in monadic.sh for production environments
 - [February, 2025] 0.9.58
   - Declarative DSL for app authoring with documentation
   - IconHelper utility for simplified app icon management

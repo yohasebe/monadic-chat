@@ -20,3 +20,16 @@ For detailed information on using Ollama with Monadic Chat, see [Using Ollama](/
 If you are developing additional apps or modifying existing apps, check the contents of `server.log` in the log folder. If an error message is displayed, correct the app code based on the error message.
 
 If you are adding libraries to the Python container using `pysetup.log`, error messages may be displayed in `docker_build.log`. Check the error message and correct the installation script.
+
+---
+
+**Q**: I get "container not found" or similar Docker errors when using the packaged app. What should I do?
+
+**A**: This is typically caused by Docker Compose project name inconsistencies. Monadic Chat uses the project name "monadic-chat" for all container operations. To resolve:
+
+1. Stop all Monadic Chat containers: `docker compose -p "monadic-chat" down`
+2. List any orphaned containers: `docker ps -a | grep monadic`
+3. Remove orphaned containers if found: `docker rm [container_id]`
+4. Restart Monadic Chat from the application
+
+The application now ensures consistent use of the project name to prevent this issue.

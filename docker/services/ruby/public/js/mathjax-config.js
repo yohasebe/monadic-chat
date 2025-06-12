@@ -12,7 +12,9 @@ window.MathJax = {
       "N": "{\\mathbb{N}}",
       "Z": "{\\mathbb{Z}}",
       "Q": "{\\mathbb{Q}}",
-      "C": "{\\mathbb{C}}"
+      "C": "{\\mathbb{C}}",
+      // Custom macro for multi-line boxed equations
+      "mboxed": ["\\boxed{\\begin{array}{l} #1 \\end{array}}", 1]
     }
   },
   options: {

@@ -219,3 +219,12 @@ rake help:build
    - Help system scripts now use relative paths instead of hardcoded absolute paths
    - Scripts automatically detect the correct base directory
    - If import fails, check that export files exist in `docker/services/pgvector/help_data/`
+
+6. **Help database not loading in new containers**
+   - Symptom: Monadic Help app's function calling stops with no response
+   - Check if data exists: `docker exec monadic-chat-pgvector-container psql -U postgres -d monadic_help -c "SELECT COUNT(*) FROM help_items"`
+   - Common causes:
+     - PostgreSQL init scripts fail during container initialization
+     - Python psycopg2 cannot connect to localhost during startup
+   - The system now uses a custom entrypoint script that ensures import runs after PostgreSQL is ready
+   - If the automatic import still fails, the container will continue running and you can use the help:build rake task

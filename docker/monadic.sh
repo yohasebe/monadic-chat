@@ -19,6 +19,18 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 
 # Define the full path to docker-compose
 DOCKER=$(command -v docker)
+
+# If docker not found and we're in an Electron app, try harder to find it
+if [ -z "$DOCKER" ]; then
+  # Check if we can find docker using 'which' command
+  DOCKER=$(which docker 2>/dev/null)
+fi
+
+# If still not found, default to 'docker' and let the system handle it
+if [ -z "$DOCKER" ]; then
+  DOCKER="docker"
+fi
+
 # escape spaces in the path to docker
 DOCKER=$(echo "${DOCKER}" | sed 's/ /\\ /g')
 

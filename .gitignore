@@ -62,7 +62,7 @@ Gemfile.lock
 
 .solargraph.yml
 
-rsync.sh
+scripts/deploy/rsync.sh
 
 *.pid
 *.log

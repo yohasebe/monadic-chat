@@ -368,6 +368,13 @@ For apps that require specific containers (e.g., Concept Visualizer needs Python
 3. Run your local Ruby code - it will communicate with other running containers
 4. Container paths (`/monadic/data`) are automatically mapped to host paths (`~/monadic/data`)
 
+### Docker Compose Project Consistency
+When working with Docker Compose commands, always use the project name flag to ensure consistency:
+```bash
+docker compose -p "monadic-chat" [command]
+```
+This is especially important for packaged Electron apps to maintain proper container management.
+
 ## For Users
 
 Users who want to customize their containers should place custom scripts in:

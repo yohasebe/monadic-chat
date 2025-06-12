@@ -214,3 +214,8 @@ rake help:build
    - Check pgvector container logs
    - Ensure export files are valid JSON
    - Verify Python and psycopg2 are installed in container
+
+5. **Path-related issues in packaged apps**
+   - Help system scripts now use relative paths instead of hardcoded absolute paths
+   - Scripts automatically detect the correct base directory
+   - If import fails, check that export files exist in `docker/services/pgvector/help_data/`

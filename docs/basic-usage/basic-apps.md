@@ -112,7 +112,7 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-This app generates an answer to your question. To verify the validity of that answer, it also asks the same question to the same LLM model and compares the answers. This application can be used to prevent hallucinations or misunderstandings in AI responses.
+This app provides a two-step consultation process. First, it generates an answer to your question. Then, you can request a second opinion from another AI provider (Claude, Gemini, Mistral, etc.) to verify or provide alternative perspectives on the answer. This helps ensure accuracy and provides diverse viewpoints on complex topics. The second opinion feature supports multiple providers, allowing you to choose which AI model should review the initial response.
 
 ### Research Assistant
 

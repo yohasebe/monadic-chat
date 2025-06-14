@@ -92,7 +92,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation
 - 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
 - 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering
-- 💬 **Second Opinion** - Compare responses from the same AI model for validation
+- 💬 **Second Opinion** - Get verification from different AI providers for accuracy
 - 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (RAG)
 
 ### Configuration and Extension

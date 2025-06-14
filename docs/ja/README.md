@@ -88,7 +88,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話
 - 📊 **DrawIO Grapher** - DrawIO形式でプロフェッショナルな図表を作成（OpenAI、Claude）
 - 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導
-- 💬 **Second Opinion** - 検証のために同じAIモデルから異なる応答を比較
+- 💬 **Second Opinion** - 異なるAIプロバイダーから検証意見を取得
 - 📄 **PDF Navigator** - ベクトルデータベース（RAG）を使用したPDF文書のナビゲートと分析
 
 ### 設定と拡張

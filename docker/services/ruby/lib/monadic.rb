@@ -94,7 +94,7 @@ PROMPT
 # Initialize CONFIG with default values
 CONFIG = {
   "DISTRIBUTED_MODE" => "off",  # Default to off/standalone mode
-  "EXTRA_LOGGING" => false,     # Default to no extra logging
+  "EXTRA_LOGGING" => ENV["EXTRA_LOGGING"] == "true" || false,  # Check ENV first, then default to false
   "JUPYTER_PORT" => "8889",     # Default Jupyter port
   "OLLAMA_AVAILABLE" => ENV["OLLAMA_AVAILABLE"] == "true"  # Check if Ollama container is available
 }
@@ -139,6 +139,12 @@ begin
                         value
                       end
     CONFIG[key] = converted_value
+  end
+  
+  # Override with environment variables if they exist
+  # This allows rake server:debug to force EXTRA_LOGGING=true
+  if ENV["EXTRA_LOGGING"]
+    CONFIG["EXTRA_LOGGING"] = ENV["EXTRA_LOGGING"] == "true"
   end
 rescue Errno::ENOENT
   puts "Environment file not found at #{Paths::ENV_PATH}"

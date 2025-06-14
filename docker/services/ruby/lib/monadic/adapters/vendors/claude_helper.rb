@@ -198,16 +198,39 @@ module ClaudeHelper
       body["system"] = options["ai_user_system_message"]
     end
     
-    # Simple AI User message for more reliable responses
-    body["messages"] = [{
-      "role" => "user",
-      "content" => [
-        {
-          "type" => "text",
-          "text" => "What might the user say next in this conversation? Please respond as if you were the user."
-        }
-      ]
-    }]
+    # Handle messages - check if custom messages are provided (e.g., from SecondOpinionAgent)
+    if options["messages"]
+      # Convert messages to Claude's expected format
+      body["messages"] = options["messages"].map do |msg|
+        content = msg["content"]
+        # Ensure content is in the expected format for Claude API
+        if content.is_a?(String)
+          {
+            "role" => msg["role"],
+            "content" => [
+              {
+                "type" => "text",
+                "text" => content
+              }
+            ]
+          }
+        else
+          # Already in the correct format
+          msg
+        end
+      end
+    else
+      # Default AI User message for backward compatibility
+      body["messages"] = [{
+        "role" => "user",
+        "content" => [
+          {
+            "type" => "text",
+            "text" => "What might the user say next in this conversation? Please respond as if you were the user."
+          }
+        ]
+      }]
+    end
     
     # Set API endpoint
     target_uri = "#{API_ENDPOINT}/messages"

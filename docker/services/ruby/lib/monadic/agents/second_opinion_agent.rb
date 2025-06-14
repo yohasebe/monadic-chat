@@ -1,78 +1,199 @@
 module SecondOpinionAgent
-  def second_opinion_agent(user_query: "", agent_response: "")
-    model = ENV["AI_USER_MODEL"] || "gpt-4.1"
+  # Default models for each provider based on Chat app configurations
+  PROVIDER_DEFAULT_MODELS = {
+    "openai" => "gpt-4.1-mini",
+    "claude" => "claude-3-5-sonnet-20241022",
+    "gemini" => "gemini-2.5-flash-preview-05-20",
+    "mistral" => "mistral-large-latest",
+    "cohere" => "command-a-03-2025",
+    "perplexity" => "sonar",
+    "grok" => "grok-3-mini-fast",
+    "deepseek" => "deepseek-chat",
+    "ollama" => nil  # Will be determined dynamically
+  }.freeze
 
-    prompt = <<~TEXT
-      Your are an agent that verify and make comments about given pairs of query and response. If the response is correct, you should say 'The response is correct'. But you are rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
+  def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
+    # Determine provider and model
+    target_provider, target_model = determine_provider_and_model(provider, model)
+    
+    # Get the appropriate helper module
+    helper = get_provider_helper(target_provider)
+    
+    # For debugging
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "SecondOpinionAgent: Using provider #{target_provider} with model #{target_model}"
+    end
 
-      You should point out the errors or possible caveats in the response and suggest corrections where necessary. Your response should be formatted as follows with the validity of the original response out of 10 and the model used for the evaluation which is specified in the text below:
+    # Create a single user message containing all context
+    user_message_content = <<~TEXT
+      Please verify and make comments about the following query and response pair. If the response is correct, you should say 'The response is correct'. But you should be rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
+
+      You should point out the errors or possible caveats in the response and suggest corrections where necessary.
+      
+      ### Query
+      #{user_query}
+
+      ### Response
+      #{agent_response}
+      
+      IMPORTANT: Your response MUST be formatted EXACTLY as follows:
 
       ### COMMENTS
-      YOUR_COMMENTS
+      YOUR_COMMENTS_HERE
 
       ### VALIDITY
-      VALIDITY_OF_ORIGINAL_RESPONSE/10
+      X/10
 
       ### Evaluation Model
-      #{model}
+      #{target_provider}:#{target_model}
+
+      Replace YOUR_COMMENTS_HERE with your actual comments and X with a number from 1 to 10.
     TEXT
 
+    # All providers will receive the same single user message format
     messages = [
       {
-        "role" => "system",
-        "content" => prompt
-      },
-      {
         "role" => "user",
-        "content" => <<~TEXT
-          ### Query
-          #{user_query}
-
-          ### Response
-          #{agent_response}
-        TEXT
+        "content" => user_message_content
       }
     ]
     
-    # Use explicit string keys consistently
     parameters = {
       "messages" => messages,
-      "model" => model
+      "model" => target_model
     }
-    
-    # Debug logging
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-      puts "SecondOpinionAgent: Using model #{model} for second opinion"
-    end
 
-    response = send_query(parameters, model: model)
+    begin
+      # Use the provider's helper to send the query
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "SecondOpinionAgent: Sending query to #{target_provider} with model #{target_model}"
+        puts "SecondOpinionAgent: Messages: #{messages.inspect}"
+      end
+      
+      response = helper.send_query(parameters, model: target_model)
+      
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "SecondOpinionAgent: Received response: #{response.inspect[0..200]}..."
+      end
+    rescue => e
+      # Error handling
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "SecondOpinionAgent Error: #{e.message}"
+        puts "SecondOpinionAgent Error Backtrace: #{e.backtrace.first(3).join("\n")}"
+      end
+      return {
+        comments: "Failed to get second opinion from #{target_provider}: #{e.message}",
+        validity: "error",
+        model: "#{target_provider}:#{target_model}"
+      }
+    end
     
     # Parse the response to extract comments, validity, and model
     if response.is_a?(String)
       comments = ""
       validity = "unknown"
       
-      # Extract comments
-      if response =~ /### COMMENTS\s*\n(.*?)(?=\n### VALIDITY|\z)/m
+      # Extract comments - make regex more flexible with whitespace
+      if response =~ /###\s*COMMENTS\s*\n(.*?)(?=\n###\s*VALIDITY|\z)/mi
         comments = $1.strip
       end
       
-      # Extract validity
-      if response =~ /### VALIDITY\s*\n(\d+)\/10/
+      # Extract validity - handle variations in formatting
+      if response =~ /###\s*VALIDITY\s*\n\s*(\d+)\s*\/\s*10/mi
         validity = "#{$1}/10"
+      end
+      
+      # If parsing failed, try to use the entire response as comments
+      if comments.empty? && validity == "unknown"
+        # Log for debugging if enabled
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "SecondOpinionAgent: Failed to parse structured response, using full response as comments"
+        end
+        comments = response.strip
       end
       
       {
         comments: comments,
         validity: validity,
-        model: model
+        model: "#{target_provider}:#{target_model}"
       }
     else
       {
         comments: "Failed to get second opinion",
         validity: "error",
-        model: model
+        model: "#{target_provider}:#{target_model}"
       }
     end
+  end
+
+  private
+
+  def determine_provider_and_model(provider, model)
+    # If both provider and model are specified, use them
+    if provider && model
+      return [provider.downcase, model]
+    end
+    
+    # If only provider is specified, use default model for that provider
+    if provider && !model
+      provider_name = provider.downcase
+      default_model = PROVIDER_DEFAULT_MODELS[provider_name]
+      
+      # Special handling for Ollama
+      if provider_name == "ollama" && default_model.nil?
+        default_model = get_ollama_default_model
+      end
+      
+      return [provider_name, default_model]
+    end
+    
+    # If neither is specified, use AI_USER_MODEL or default
+    ai_user_model = ENV["AI_USER_MODEL"] || "gpt-4.1"
+    
+    # Check if AI_USER_MODEL contains provider:model format
+    if ai_user_model.include?(":")
+      provider_name, model_name = ai_user_model.split(":", 2)
+      return [provider_name.downcase, model_name]
+    else
+      # Default to OpenAI if no provider specified
+      return ["openai", ai_user_model]
+    end
+  end
+
+  def get_provider_helper(provider)
+    # Create a temporary object that includes the appropriate helper
+    case provider.downcase
+    when "openai"
+      Class.new { extend OpenAIHelper }.tap { |c| c.extend(OpenAIHelper) }
+    when "claude", "anthropic"
+      Class.new { extend ClaudeHelper }.tap { |c| c.extend(ClaudeHelper) }
+    when "gemini", "google"
+      Class.new { extend GeminiHelper }.tap { |c| c.extend(GeminiHelper) }
+    when "mistral"
+      Class.new { extend MistralHelper }.tap { |c| c.extend(MistralHelper) }
+    when "ollama"
+      Class.new { extend OllamaHelper }.tap { |c| c.extend(OllamaHelper) }
+    when "cohere"
+      Class.new { extend CohereHelper }.tap { |c| c.extend(CohereHelper) }
+    when "perplexity"
+      Class.new { extend PerplexityHelper }.tap { |c| c.extend(PerplexityHelper) }
+    when "grok"
+      Class.new { extend GrokHelper }.tap { |c| c.extend(GrokHelper) }
+    when "deepseek"
+      Class.new { extend DeepSeekHelper }.tap { |c| c.extend(DeepSeekHelper) }
+    else
+      raise "Unknown provider: #{provider}"
+    end
+  end
+
+  def get_ollama_default_model
+    # Try to get the first available Ollama model
+    if defined?(OllamaHelper)
+      models = OllamaHelper.list_models
+      return models.first if models && !models.empty?
+    end
+    
+    # Fallback to environment variable or default
+    ENV["OLLAMA_DEFAULT_MODEL"] || "llama3.2"
   end
 end

@@ -1,7 +1,3 @@
----
-sidebar_label: Code Organization
----
-
 # Code Organization and File Structure
 
 This document describes the directory and file structure of the Ruby backend code for Monadic Chat, located under `docker/services/ruby/lib/monadic`.
@@ -41,9 +37,9 @@ docker/services/ruby/
 │   ├── utilities/        # Build and setup utilities
 │   ├── cli_tools/        # Command-line tools
 │   ├── generators/       # Content generators
-│   └── diagnostics/      # Test and diagnostic scripts
-│       └── apps/         # App-specific tests
-└── spec/                 # RSpec test files
+│   └── diagnostics/      # Diagnostic and verification scripts
+│       └── apps/         # App-specific diagnostics
+└── spec/                 # RSpec unit test files
 ```
 
 ## Layer Descriptions
@@ -65,17 +61,17 @@ By separating code into **agents**, **adapters**, and **utils**, the project mai
 ## Important Notes
 
 ### App Loading
-- All `.rb` and `.mdsl` files in the `apps/` directory are automatically loaded during initialization
+- All `.rb` and `.mdsl` files in the `docker/services/ruby/apps/` directory are automatically loaded during initialization
 - Files in `test/` subdirectories within apps are ignored to prevent test scripts from being loaded as applications
-- Test scripts should be placed in `scripts/diagnostics/apps/` instead
+- Diagnostic scripts for verifying app functionality should be placed in `docker/services/ruby/scripts/diagnostics/apps/` instead
 
 ### Scripts Organization
 
 #### Ruby Scripts (`docker/services/ruby/scripts/`)
 - **utilities/**: Scripts for building and setup tasks
-- **cli_tools/**: Standalone command-line tools (formerly `simple_*.rb`)
+- **cli_tools/**: Standalone command-line tools
 - **generators/**: Scripts that generate content (images, videos, etc.)
-- **diagnostics/**: Test and diagnostic scripts organized by app
+- **diagnostics/**: Diagnostic and verification scripts organized by app
 
 #### Python Scripts (`docker/services/python/scripts/`)
 - **utilities/**: System utilities (`sysinfo.sh`, `run_jupyter.sh`)
@@ -83,9 +79,28 @@ By separating code into **agents**, **adapters**, and **utils**, the project mai
 - **converters/**: File converters (`pdf2txt.py`, `office2txt.py`, `extract_frames.py`)
 - **services/**: API services (`jupyter_controller.py`)
 
+### Testing and Diagnostics
+
+#### Unit Tests (RSpec)
+- Located in `docker/services/ruby/spec/`
+- Automated tests for Ruby code modules and helpers
+- Run with `rake spec` or `bundle exec rspec`
+- Follow RSpec naming convention: `*_spec.rb`
+
+#### Diagnostic Scripts
+- Located in `docker/services/ruby/scripts/diagnostics/`
+- Manual verification scripts for app functionality
+- Used to test content generation, API integrations, etc.
+- Run individually to verify specific features work correctly
+
 ### Container Build Notes
 - Script permissions are set recursively during container build using:
   ```dockerfile
   RUN find /path/to/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
   ```
 - All subdirectories are added to PATH for easy script execution
+
+### User Scripts
+- Users can add custom scripts to `~/monadic/data/scripts` (host) / `/monadic/data/scripts` (container)
+- These scripts are automatically made executable and added to PATH during command execution
+- See [Shared Folder Documentation](../docker-integration/shared-folder.md#scripts) for details

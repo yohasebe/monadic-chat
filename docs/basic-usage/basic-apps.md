@@ -32,6 +32,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Syntax Tree | ✅ | ✅ | | | | | | | |
 | Concept Visualizer | ✅ | ✅ | | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | | |
+| Visual Web Explorer | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Video Describer | ✅ | | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
@@ -385,6 +386,36 @@ Concept Visualizer apps are available for the following models:
 This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate audio files of the speech (MP3 format for OpenAI and ElevenLabs, WAV format for Gemini).
 
 ## Content Analysis :id=content-analysis
+
+### Visual Web Explorer :id=visual-web-explorer
+
+This application captures web pages as screenshots or extracts their text content in Markdown format. It's perfect for creating documentation, archiving web content, or analyzing page content.
+
+**Key Features:**
+- **Screenshot Mode**: Capture entire web pages as multiple viewport-sized images with automatic scrolling
+- **Text Extraction Mode**: Convert web content to clean Markdown format
+- **Provider-specific Image Recognition**: When HTML parsing fails, uses each provider's native vision API for text extraction
+- **Customizable Viewports**: Desktop (1920×1080), tablet (1024×768), mobile (375×812), and print (794×1123) presets
+- **Overlap Control**: Configure overlap between screenshots for seamless reading
+- **Automatic Naming**: Files are named with domain and timestamp
+
+**Usage Examples:**
+- `"Capture screenshots of https://github.com"` - Takes multiple screenshots
+- `"Extract text from https://example.com"` - Converts to Markdown
+- `"Extract text from https://example.com with image recognition"` - Uses vision API when needed
+- `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
+
+**Technical Notes:**
+- Uses Selenium WebDriver for page rendering
+- `webpage_fetcher.py` handles HTML to Markdown conversion
+- Falls back to provider-specific image recognition APIs when text extraction fails
+- Each provider (OpenAI, Claude, Gemini, Grok) uses its native image format
+
+Visual Web Explorer apps are available for the following models:
+- OpenAI
+- Anthropic Claude
+- Google Gemini
+- xAI Grok
 
 ### Video Describer
 

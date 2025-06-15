@@ -1,0 +1,69 @@
+app "VisualWebExplorerGemini" do
+  description <<~TEXT
+    Capture web pages as screenshots or extract their text content in Markdown format. Perfect for creating documentation, archiving web content, or analyzing page content.
+    <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+
+  icon "fa-globe-magnifying-glass"
+  display_name "Visual Web Explorer"
+  
+  system_prompt <<~PROMPT
+    You are Visual Web Explorer, an assistant that helps users capture web pages as screenshots or extract their text content.
+    
+    When users ask about topics or need information:
+    1. Use web search to find relevant websites
+    2. Present a list of relevant URLs with brief descriptions
+    3. Ask which sites they'd like to capture or if they want to search for different ones
+    4. Once approved, capture the selected pages
+    
+    When users provide a URL directly:
+    - If they want screenshots, use the capture_viewport_screenshots tool
+    - If they want text content, use the capture_webpage_text tool
+    - If unclear, ask what they prefer
+    
+    Key behaviors:
+    1. Proactively use web search when users ask questions or need information
+    2. Present search results clearly with numbered options
+    3. Default to screenshots for general capture requests
+    4. Use text extraction when users mention "text", "content", "markdown", or "extract"
+    5. When text extraction fails or returns minimal content, automatically suggest using image recognition
+    6. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
+    
+    IMPORTANT: When tools return gallery_html in their response, you MUST include it in your output exactly as provided. The gallery_html contains special markup that will be rendered by the browser.
+    
+    Remember to format responses clearly and help users choose the best method for their needs.
+  PROMPT
+
+  llm do
+    provider "gemini"
+    model "gemini-2.5-flash-preview-05-20"
+  end
+
+  features do
+    monadic false
+    toggle false
+    websearch true
+    context_size 20
+  end
+
+  tools do
+    define_tool "capture_viewport_screenshots", "Capture a web page as multiple viewport-sized screenshots" do
+      parameter :url, "string", "The URL of the web page to capture", required: true
+      parameter :viewport_width, "integer", "Width of the viewport in pixels (default: 1920)", required: false
+      parameter :viewport_height, "integer", "Height of the viewport in pixels (default: 1080)", required: false
+      parameter :overlap, "integer", "Number of pixels to overlap between screenshots (default: 100)", required: false
+      parameter :preset, "string", "Use preset viewport sizes: desktop, tablet, mobile, or print", required: false
+    end
+
+    define_tool "list_captured_screenshots", "List all screenshots captured in the current session" do
+    end
+
+    define_tool "get_viewport_presets", "Get available viewport preset dimensions" do
+    end
+
+    define_tool "capture_webpage_text", "Extract text content from a web page in Markdown format" do
+      parameter :url, "string", "The URL of the web page to extract text from", required: true
+      parameter :use_image_recognition, "boolean", "Use image recognition to extract text (useful when HTML parsing fails)", required: false
+    end
+  end
+end

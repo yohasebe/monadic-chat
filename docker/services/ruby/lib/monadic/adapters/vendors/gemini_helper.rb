@@ -142,6 +142,12 @@ module GeminiHelper
     api_key = CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]
     return "Error: GEMINI_API_KEY not found" if api_key.nil?
 
+    # Check if this is a thinking model (Gemini 2.5) - moved before body creation
+    is_thinking_model = false
+    if options["reasoning_effort"] || model =~ /2\.5.*preview/i
+      is_thinking_model = true
+    end
+    
     # Set headers
     headers = {
       "content-type" => "application/json"
@@ -151,10 +157,51 @@ module GeminiHelper
     body = {
       "safety_settings" => SAFETY_SETTINGS,
       "generationConfig" => {
-        "maxOutputTokens" => options["max_tokens"] || 800,
-        "temperature" => options["temperature"] || 0.7
+        "maxOutputTokens" => options["max_tokens"] || 800
       }
     }
+    
+    # Only add temperature for non-thinking models
+    if !is_thinking_model
+      body["generationConfig"]["temperature"] = options["temperature"] || 0.7
+    else
+      # For thinking models, configure thinking budget
+      reasoning_effort = options["reasoning_effort"] || "low"
+      is_flash_model = model && model.include?("flash")
+      user_max_tokens = options["max_tokens"] || 800
+      
+      case reasoning_effort
+      when "low"
+        if is_flash_model
+          budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
+        else  # Pro model
+          budget_tokens = [[(user_max_tokens * 0.3).to_i, 10000].max, 32768].min
+          budget_tokens = [budget_tokens, 128].max
+        end
+      when "medium"
+        if is_flash_model
+          budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
+        else  # Pro model
+          budget_tokens = [[(user_max_tokens * 0.6).to_i, 20000].max, 32768].min
+          budget_tokens = [budget_tokens, 128].max
+        end
+      when "high"
+        if is_flash_model
+          budget_tokens = [[(user_max_tokens * 0.8).to_i, 24000].min, 24576].min
+        else  # Pro model
+          budget_tokens = [[(user_max_tokens * 0.8).to_i, 28000].max, 32768].min
+          budget_tokens = [budget_tokens, 128].max
+        end
+      else
+        budget_tokens = is_flash_model ? 8000 : 10000
+      end
+      
+      # Set thinking configuration
+      body["generationConfig"]["thinkingConfig"] = {
+        "thinkingBudget" => budget_tokens,
+        "includeThoughts" => true
+      }
+    end
     
     # Format messages for Gemini API
     formatted_messages = []
@@ -194,8 +241,9 @@ module GeminiHelper
     # Log the model being used
     # Model details are logged to dedicated log files
     
-    # Set up API endpoint
-    target_uri = "#{API_ENDPOINT}/models/#{model}:generateContent?key=#{api_key}"
+    # Set up API endpoint - use v1beta for thinking models, v1alpha for others
+    endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
+    target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
     http = HTTP.headers(headers)
     
     # Make request
@@ -226,6 +274,12 @@ module GeminiHelper
       if response.status.success?
         parsed_response = JSON.parse(response.body)
         
+        # Debug logging for second opinion
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "GeminiHelper send_query: Full response structure:"
+          puts JSON.pretty_generate(parsed_response)
+        end
+        
         # Extract text from standard response format
         if parsed_response["candidates"] && 
            parsed_response["candidates"][0] && 
@@ -237,6 +291,8 @@ module GeminiHelper
           if content["parts"]
             text_parts = []
             content["parts"].each do |part|
+              # Skip thinking parts for non-streaming response
+              next if part["thought"] == true
               text_parts << part["text"] if part["text"]
             end
             
@@ -262,7 +318,14 @@ module GeminiHelper
           end
         end
         
-        # Unable to extract text from response
+        # Unable to extract text from response - log the structure
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "GeminiHelper send_query ERROR: Unable to extract text. Response structure:"
+          puts "Candidates: #{parsed_response["candidates"]&.inspect}"
+          if parsed_response["candidates"] && parsed_response["candidates"][0]
+            puts "First candidate: #{parsed_response["candidates"][0].inspect}"
+          end
+        end
         return "Error: Unable to extract text from Gemini response"
       else
         # Handle error response
@@ -486,7 +549,7 @@ module GeminiHelper
           end
         when "high"
           if is_flash_model
-            budget_tokens = [(user_max_tokens * 0.8).to_i, 24000].min(24576)
+            budget_tokens = [[(user_max_tokens * 0.8).to_i, 24000].min, 24576].min
           else  # Pro model
             budget_tokens = [[(user_max_tokens * 0.8).to_i, 28000].max, 32768].min
             budget_tokens = [budget_tokens, 128].max

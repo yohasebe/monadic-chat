@@ -45,7 +45,44 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 
 **`scripts`**
 
-Pythonコンテナ（`monadic-chat-python-container`内で実行可能なスクリプトを格納するフォルダです。ここに格納されたスクリプトはPythonコンテナ上でパスが通った状態になります。そのため、追加アプリ内で`send_command`メソッドを使用してスクリプトを実行することができます。
+実行可能なスクリプト（シェルスクリプト、Pythonスクリプト、Rubyスクリプトなど）を格納するフォルダです。ここに配置されたスクリプトは自動的に実行権限が付与され、コンテナのPATHに追加されるため、フルパスを指定せずに名前だけで直接実行できます。
+
+### ユーザースクリプトの仕組み
+
+1. **配置場所**: ホストマシンの`~/monadic/data/scripts`にスクリプトを配置
+2. **コンテナパス**: コンテナ内では`/monadic/data/scripts`で利用可能
+3. **自動権限設定**: 各コマンド実行前にスクリプトに実行権限が自動的に付与されます
+4. **直接実行**: スクリプト名のみで呼び出し可能（例：`/monadic/data/scripts/my_script.py`ではなく`my_script.py`）
+5. **コンテナサポート**: Ruby、Python、その他のコンテナで動作
+
+### アプリでの使用例
+
+```ruby
+# カスタムPythonスクリプトの実行
+send_command(
+  command: "analyze_data.py input.csv output.json",
+  container: "python"
+)
+
+# カスタムRubyスクリプトの実行
+send_command(
+  command: "process_text.rb document.txt",
+  container: "ruby"
+)
+
+# シェルスクリプトの実行
+send_command(
+  command: "backup_data.sh",
+  container: "python"  # またはbashを持つ任意のコンテナ
+)
+```
+
+### 技術的詳細
+
+- Monadic Chatの`send_command`メソッドは自動的に`/monadic/data/scripts`をPATH環境変数に追加します
+- コマンド実行時の作業ディレクトリは`/monadic/data`に設定されます
+- スクリプトは相対パスを使用して共有フォルダ内の他のファイルにアクセスできます
+- この仕組みにより、コアコードを変更せずにMonadic Chatの機能を拡張できます
 
 **`plugins`**
 

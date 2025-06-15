@@ -13,7 +13,7 @@ This document contains guidelines and instructions for developers contributing t
 ### Test Structure
 - JavaScript tests are in `test/frontend/`
 - Ruby tests are in `docker/services/ruby/spec/`
-- App-specific test scripts are in `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
+- App-specific diagnostic scripts are in `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 - Jest configuration in `jest.config.js`
 - Global test setup for JavaScript in `test/setup.js`
 
@@ -27,6 +27,9 @@ For applications that require specific testing or diagnosis:
 ?> **Important**: Test scripts should NOT be placed in `apps/{app_name}/test/` directories, as files in `test/` subdirectories within apps are ignored during app loading to prevent test scripts from being loaded as applications.
 
 ### Running Tests
+
+**Note**: When using `rake server:debug` for development, Ruby tests run directly on the host using your local Ruby environment.
+
 #### Ruby Tests
 ```bash
 rake spec
@@ -48,81 +51,77 @@ rake test  # Run both Ruby and JavaScript tests
 
 ## MDSL Development Tools
 
-### CLI Tool: mdsl_tool_completer
+### MDSL Auto-Completion System (Experimental)
 
-The `mdsl_tool_completer` is a command-line tool for testing and validating MDSL auto-completion functionality. It helps developers preview and debug tool auto-completion for MDSL applications.
+**⚠️ Note: This is an experimental feature and may change or be removed in future versions.**
 
-#### Location
-```bash
-docker/services/ruby/bin/mdsl_tool_completer
+The MDSL auto-completion system aims to solve a development challenge: keeping tool definitions synchronized between Ruby implementations and MDSL declarations.
+
+#### The Problem It Solves
+
+In Monadic Chat apps, you need to:
+1. Implement tool methods in Ruby (`*_tools.rb` files)
+2. Declare those tools in MDSL (`*.mdsl` files) so the LLM knows about them
+
+Without auto-completion, you must manually duplicate every method signature, which is:
+- Time-consuming and error-prone
+- Difficult to maintain when parameters change
+- Easy to forget, leaving tools unavailable to the LLM
+
+#### How It Works
+
+When enabled, the system automatically:
+1. **Detects** Ruby methods in `*_tools.rb` files
+2. **Analyzes** method signatures and infers parameter types
+3. **Generates** corresponding MDSL tool definitions
+4. **Updates** the MDSL file with missing definitions
+
+#### Example
+
+You write this Ruby method:
+```ruby
+# novel_writer_tools.rb
+def count_num_of_words(text: "")
+  text.split.size
+end
 ```
 
-#### Usage
-
-**Basic Preview:**
-```bash
-# Preview auto-completion for a specific app
-ruby bin/mdsl_tool_completer novel_writer
-ruby bin/mdsl_tool_completer drawio_grapher
+The system automatically generates this MDSL definition:
+```ruby
+# novel_writer_openai.mdsl
+define_tool "count_num_of_words", "Count the num of words" do
+  parameter :text, "string", "The text content to process"
+end
 ```
 
-**Validation Mode:**
+#### Controlling Auto-Completion
+
 ```bash
-# Validate tool consistency between definitions and implementations
-ruby bin/mdsl_tool_completer --action validate app_name
-ruby bin/mdsl_tool_completer --action validate novel_writer
+# Disable (default) - Tools work at runtime but MDSL files aren't modified
+export MDSL_AUTO_COMPLETE=false
+
+# Enable - Automatically updates MDSL files with missing tool definitions
+export MDSL_AUTO_COMPLETE=true
+
+# Debug mode - Same as enabled but with detailed logging
+export MDSL_AUTO_COMPLETE=debug
 ```
 
-**Analysis Mode:**
-```bash
-# Detailed analysis with verbose output
-ruby bin/mdsl_tool_completer --action analyze app_name
-ruby bin/mdsl_tool_completer --action analyze --verbose novel_writer
-```
+#### Important Notes
 
-**All Apps Analysis:**
-```bash
-# Analyze all apps in the system
-ruby bin/mdsl_tool_completer --action analyze --all
-```
+- **Experimental Feature**: This feature is still under development and may have unexpected behavior
+- **Default is OFF**: You must explicitly enable it to modify MDSL files
+- **Runtime vs Build Time**: Even when disabled, tools are still available at runtime
+- **Backup Files**: Creates backups before modifying MDSL files
+- **Standard Tools**: Automatically excludes tools inherited from MonadicApp
+- **Smart Detection**: Only processes public methods with tool-like signatures
 
-#### Command Options
+#### Known Limitations
 
-- `--action validate`: Check tool implementation consistency
-- `--action analyze`: Perform detailed method analysis
-- `--verbose`: Enable detailed output for analysis
-- `--all`: Process all available apps
-- `--help`: Display usage information
-
-#### Example Output
-
-**Preview Mode:**
-```bash
-$ ruby bin/mdsl_tool_completer novel_writer
-
-=== MDSL Tool Completer ===
-App: novel_writer
-Tools file: /path/to/novel_writer_tools.rb
-
-Auto-completed tools:
-- count_num_of_words (text: string)
-- count_num_of_characters (text: string)
-- save_content_to_file (content: string, filename: string)
-
-Total methods found: 3
-```
-
-**Validation Mode:**
-```bash
-$ ruby bin/mdsl_tool_completer --action validate novel_writer
-
-=== Tool Implementation Validation ===
-✓ count_num_of_words: Implementation found
-✓ count_num_of_characters: Implementation found  
-✓ save_content_to_file: Implementation found
-
-All tools have valid implementations.
-```
+- May not correctly infer complex parameter types
+- Could potentially overwrite manual customizations
+- Performance impact on app loading when enabled
+- Not recommended for production use
 
 #### Environment Variables
 
@@ -156,6 +155,23 @@ Monadic Chat uses a unified debug system controlled via environment variables:
 - `info`: General information
 - `debug`: Detailed debug information
 - `verbose`: Everything including raw data
+
+### Usage Examples
+```bash
+# Enable web search debug output
+export MONADIC_DEBUG=web_search
+export MONADIC_DEBUG_LEVEL=debug
+
+# Enable multiple categories
+export MONADIC_DEBUG=api,web_search,mdsl
+
+# Enable all debug output
+export MONADIC_DEBUG=all
+export MONADIC_DEBUG_LEVEL=verbose
+
+# API debugging (equivalent to Electron's "Extra Logging")
+export MONADIC_DEBUG=api
+```
 
 ### Error Handling Improvements
 - **Error Pattern Detection**: System automatically detects repeated errors and stops after 3 similar occurrences
@@ -242,25 +258,24 @@ end
 - Symptom: Error when running app with empty `tools do` block
 - Solution: Add explicit tool definitions or create `*_tools.rb` file
 
-**Tool Implementation Validation:**
-```bash
-# Check if your tools are properly defined
-ruby bin/mdsl_tool_completer --action validate your_app_name
-```
-
 **Auto-completion Debugging:**
 ```bash
-# Preview what tools will be auto-completed
-ruby bin/mdsl_tool_completer your_app_name
-
-# Debug auto-completion issues (new unified system)
-export MONADIC_DEBUG=mdsl
-export MONADIC_DEBUG_LEVEL=debug
-ruby bin/mdsl_tool_completer your_app_name
-
-# Or using legacy method (deprecated)
+# Enable auto-completion with debug output
 export MDSL_AUTO_COMPLETE=debug
-ruby bin/mdsl_tool_completer your_app_name
+
+# Then start the server and load your app
+rake server:start
+
+# Check the console output for auto-completion messages
+```
+
+**Manual Tool Verification:**
+```bash
+# Check if tools are properly implemented in Ruby
+grep -n "def " apps/your_app/your_app_tools.rb
+
+# Verify tool definitions in MDSL
+grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 ```
 
 #### Provider-Specific Considerations
@@ -288,9 +303,9 @@ export MDSL_AUTO_COMPLETE=true
 
 ## Important: Managing Setup Scripts
 
-The `pysetup.sh` and `rbsetup.sh` files located in `docker/services/python/` and `docker/services/ruby/` respectively are replaced during container build with files that users might place in the `config` directory of the shared folder to install additional packages. You should always commit the original versions of these scripts to the version control system (Git). Before committing changes to the repository, reset these files using one of the methods below:
+The `pysetup.sh` and `rbsetup.sh` files in the repository are placeholder scripts that get replaced during container build with user-provided versions from `~/monadic/config/`. Always commit the original placeholder versions to Git. Before committing changes, reset these files using one of the methods below:
 
-Note: The `olsetup.sh` script is created by users in `~/monadic/config/` to install Ollama models and does not have an original version in the repository.
+Note: The `olsetup.sh` script is only created by users in `~/monadic/config/` for Ollama model installation and has no placeholder version in the repository.
 
 #### Method 1: Using the Reset Script
 
@@ -352,7 +367,28 @@ exit 0
 
 This pre-commit hook will automatically detect and reset any changes to the setup scripts before committing.
 
-## Container-Based Development
+## Development Environment Setup
+
+### Running Monadic Chat for Development
+
+For development purposes, you can run Monadic Chat without the Electron app:
+
+```bash
+rake server:debug
+```
+
+This command:
+- Starts the server in debug mode with `EXTRA_LOGGING=true`
+- Does NOT start the Ruby container - uses host Ruby runtime instead
+- Starts all other containers (Python, PostgreSQL, pgvector, Ollama if available)
+- Uses files from `/docker/services/ruby/` directly on the host
+- Makes the web UI accessible via browser at `http://localhost:4567`
+
+This setup allows you to:
+- Edit Ruby code and see changes immediately without rebuilding containers
+- Use your local Ruby development tools (debuggers, linters, etc.)
+- Test changes quickly in the browser interface
+- Keep other required services running in containers
 
 ### Local Development with Containers
 When developing locally while using container features:
@@ -382,4 +418,4 @@ Users who want to customize their containers should place custom scripts in:
 - `~/monadic/config/rbsetup.sh` for Ruby customizations
 - `~/monadic/config/olsetup.sh` for Ollama model installations
 
-These will be automatically used when building containers locally, but won't affect the repository files.
+These user-provided scripts will be automatically used when building containers locally, replacing the placeholder scripts during the build process. However, they won't be committed to the Git repository.

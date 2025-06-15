@@ -73,6 +73,7 @@ Seleniumを使用して仮想的なWebブラウザを操作して、Webページ
   - `Content Reader` - WebページからのコンテンツのフェッチとExtraction
   - `Mermaid Grapher` - Mermaid図の検証とプレビュースクリーンショットの作成
   - `Research Assistant` - 情報収集のためのWebスクレイピングを使用
+  - `Visual Web Explorer` - Webページのスクリーンショット撮影とテキストコンテンツ抽出
   - `fetch_html_content`または`selenium_agent`ツールを使用するアプリ
 
 ### pgvectorコンテナ（`monadic-chat-pgvector-container`）

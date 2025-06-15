@@ -85,6 +85,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🌳 **Syntax Tree** - 自動エラー回復機能付きのテキスト解析用言語構文木生成（OpenAI、Claude）
 - 🎨 **Concept Visualizer** - LaTeX/TikZを使用した3D可視化を含む各種図表の作成（OpenAI、Claude）
 - 🎥 **Video Generator** - GoogleのVeoモデルを使用したテキストまたは画像からの動画作成（Gemini）
+- 🌐 **Visual Web Explorer** - Webページのスクリーンショット撮影やテキスト抽出（OpenAI、Claude、Gemini、Grok）
 - 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話
 - 📊 **DrawIO Grapher** - DrawIO形式でプロフェッショナルな図表を作成（OpenAI、Claude）
 - 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導

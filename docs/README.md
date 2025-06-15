@@ -83,7 +83,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 - **Language Practice**: Interactive language learning with native speakers
 - **Math Tutor**: Step-by-step mathematical problem solving
 - **Novel Writer**: Creative writing assistance with character development
-- **Reasoner**: Complex logical reasoning and analysis
+- **Visual Web Explorer**: Capture web pages as screenshots or extract text content
+- **Second Opinion**: Get verification from different AI providers for accuracy
 - **Monadic Chat Help**: Built-in help system with intelligent assistance
 
 ### Configuration and Extension

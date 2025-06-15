@@ -18,7 +18,7 @@
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
 | Second Opinion | ✅ | | | | | | | | |
-| Research Assistant | ✅ | ✅ | | | ✅ | ✅ | ✅ | | |
+| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
 | Translate | ✅ | | | | | | | | |
@@ -58,6 +58,8 @@
 - Mistral AI
 - Perplexity
 - DeepSeek
+- Cohere
+- Ollama (ローカルモデル)
 
 ### Chat Plus
 
@@ -91,6 +93,7 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 - Mistral AI
 - Cohere
 - DeepSeek
+- Perplexity
 
 ### Wikipedia
 
@@ -125,7 +128,7 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 - xAI Grok
 - Google Gemini
 - Mistral AI
-- Perplexity
+- Cohere
 
 ?> **ウェブ検索機能について**: 
 > - **ネイティブ検索**（Tavily API不要）：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Perplexity（sonarモデルに組み込み）

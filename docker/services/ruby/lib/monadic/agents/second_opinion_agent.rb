@@ -62,6 +62,16 @@ module SecondOpinionAgent
       "messages" => messages,
       "model" => target_model
     }
+    
+    # Check if this is a reasoning/thinking model that uses reasoning_effort
+    is_reasoning_model = is_model_reasoning_based?(target_provider, target_model)
+    
+    if is_reasoning_model
+      parameters["reasoning_effort"] = "low"  # Use low effort for quick second opinions
+      # Don't include temperature for thinking models
+    else
+      parameters["temperature"] = 0.7
+    end
 
     begin
       # Use the provider's helper to send the query
@@ -195,5 +205,25 @@ module SecondOpinionAgent
     
     # Fallback to environment variable or default
     ENV["OLLAMA_DEFAULT_MODEL"] || "llama3.2"
+  end
+  
+  def is_model_reasoning_based?(provider, model)
+    return false if provider.nil? || model.nil?
+    
+    # Known reasoning models patterns
+    reasoning_patterns = {
+      # Gemini 2.5 preview models use reasoning_effort
+      "gemini" => /2\.5.*preview/i,
+      # OpenAI o1/o3 models use reasoning
+      "openai" => /^o[13](-|$)/i,
+      # Add more patterns here as new reasoning models are released
+      # "claude" => /reasoning-model-pattern/i,
+    }
+    
+    # Check if the model matches known reasoning patterns for the provider
+    pattern = reasoning_patterns[provider.downcase]
+    return false unless pattern
+    
+    model.match?(pattern)
   end
 end

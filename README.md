@@ -89,6 +89,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
 - 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
 - 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
+- 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)
 - 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation
 - 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
 - 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering

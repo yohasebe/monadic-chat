@@ -146,6 +146,9 @@ module GeminiHelper
     is_thinking_model = false
     if options["reasoning_effort"] || model =~ /2\.5.*preview/i
       is_thinking_model = true
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"
+      end
     end
     
     # Set headers
@@ -293,10 +296,17 @@ module GeminiHelper
             content["parts"].each do |part|
               # Skip thinking parts for non-streaming response
               next if part["thought"] == true
-              text_parts << part["text"] if part["text"]
+              
+              # Handle both part["text"] and part itself being a hash with "text" key
+              if part["text"]
+                text_parts << part["text"]
+              elsif part.is_a?(Hash) && part.key?("text")
+                text_parts << part["text"]
+              end
             end
             
-            return text_parts.join(" ") if text_parts.any?
+            result = text_parts.join(" ").strip
+            return result unless result.empty?
           end
           
           # 2. Check for direct text in content (some Gemini versions)

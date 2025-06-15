@@ -58,9 +58,13 @@ module SecondOpinionAgent
       }
     ]
     
+    # Use AI_USER_MAX_TOKENS from environment or default to 2000 for second opinions
+    max_tokens = ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
+    
     parameters = {
       "messages" => messages,
-      "model" => target_model
+      "model" => target_model,
+      "max_tokens" => max_tokens
     }
     
     # Check if this is a reasoning/thinking model that uses reasoning_effort
@@ -113,9 +117,15 @@ module SecondOpinionAgent
         validity = "#{$1}/10"
       end
       
-      # If parsing failed, try to use the entire response as comments
-      if comments.empty? && validity == "unknown"
+      # If we have comments but no validity (e.g., response was cut off)
+      if !comments.empty? && validity == "unknown"
         # Log for debugging if enabled
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "SecondOpinionAgent: Found comments but no validity score (response may have been truncated)"
+        end
+        validity = "incomplete"
+      elsif comments.empty? && validity == "unknown"
+        # If parsing failed completely, use the entire response as comments
         if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
           puts "SecondOpinionAgent: Failed to parse structured response, using full response as comments"
         end

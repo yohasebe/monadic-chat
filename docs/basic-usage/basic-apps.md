@@ -18,7 +18,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
 | Second Opinion | ✅ | | | | | | | | |
-| Research Assistant | ✅ | ✅ | | | ✅ | ✅ | ✅ | | |
+| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
 | Translate | ✅ | | | | | | | | |
@@ -128,6 +128,7 @@ Research Assistant apps are also available for the following models:
 - xAI Grok
 - Google Gemini
 - Mistral AI
+- Cohere
 
 ?> **Web Search Functionality**: 
 > - **Native search** (no Tavily API required): OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)

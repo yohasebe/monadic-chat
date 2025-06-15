@@ -73,6 +73,7 @@ This container is used to operate a virtual web browser using Selenium for web s
   - `Content Reader` - Fetches and extracts content from web pages
   - `Mermaid Grapher` - Validates Mermaid diagrams and creates preview screenshots
   - `Research Assistant` - Uses web scraping for gathering information
+  - `Visual Web Explorer` - Captures web page screenshots and extracts text content
   - Any app using `fetch_html_content` or `selenium_agent` tools
 
 ### pgvector Container (`monadic-chat-pgvector-container`)

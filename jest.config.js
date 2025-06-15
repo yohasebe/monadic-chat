@@ -1,7 +1,7 @@
 module.exports = {
   testEnvironment: 'jsdom',
   testMatch: ['**/test/**/*.test.js'],
-  collectCoverage: true,
+  collectCoverage: false,  // Temporarily disable coverage to avoid minimatch error
   collectCoverageFrom: [
     'docker/services/ruby/public/js/monadic/**/*.js',
     'docker/services/ruby/public/js/monadic.js',

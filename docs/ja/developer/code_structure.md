@@ -1,7 +1,3 @@
----
-sidebar_label: コード構成
----
-
 # コード構成とファイル構造
 
 このドキュメントでは、Monadic Chat の Ruby バックエンドコードのディレクトリおよびファイル構造を説明します。対象パスは `docker/services/ruby/lib/monadic` です。
@@ -41,9 +37,9 @@ docker/services/ruby/
 │   ├── utilities/        # ビルドとセットアップユーティリティ
 │   ├── cli_tools/        # コマンドラインツール
 │   ├── generators/       # コンテンツジェネレーター
-│   └── diagnostics/      # テストと診断スクリプト
-│       └── apps/         # アプリ別テスト
-└── spec/                 # RSpecテストファイル
+│   └── diagnostics/      # 診断・検証スクリプト
+│       └── apps/         # アプリ別診断
+└── spec/                 # RSpecユニットテストファイル
 ```
 
 ## 各層の説明
@@ -65,17 +61,17 @@ docker/services/ruby/
 ## 重要な注意事項
 
 ### アプリの読み込み
-- `apps/` ディレクトリ内のすべての `.rb` および `.mdsl` ファイルは初期化時に自動的に読み込まれます
+- `docker/services/ruby/apps/` ディレクトリ内のすべての `.rb` および `.mdsl` ファイルは初期化時に自動的に読み込まれます
 - アプリ内の `test/` サブディレクトリ内のファイルは、テストスクリプトがアプリケーションとして読み込まれないように無視されます
-- テストスクリプトは代わりに `scripts/diagnostics/apps/` に配置してください
+- アプリ機能の検証用診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/` に配置してください
 
 ### スクリプトの構成
 
 #### Rubyスクリプト (`docker/services/ruby/scripts/`)
 - **utilities/**: ビルドとセットアップタスク用のスクリプト
-- **cli_tools/**: スタンドアロンのコマンドラインツール（旧 `simple_*.rb`）
+- **cli_tools/**: スタンドアロンのコマンドラインツール
 - **generators/**: コンテンツ（画像、動画など）を生成するスクリプト
-- **diagnostics/**: アプリ別に整理されたテストと診断スクリプト
+- **diagnostics/**: アプリ別に整理された診断・検証スクリプト
 
 #### Pythonスクリプト (`docker/services/python/scripts/`)
 - **utilities/**: システムユーティリティ (`sysinfo.sh`、`run_jupyter.sh`)
@@ -83,9 +79,28 @@ docker/services/ruby/
 - **converters/**: ファイルコンバーター (`pdf2txt.py`、`office2txt.py`、`extract_frames.py`)
 - **services/**: APIサービス (`jupyter_controller.py`)
 
+### テストと診断
+
+#### ユニットテスト（RSpec）
+- 配置先：`docker/services/ruby/spec/`
+- Rubyコードモジュールとヘルパーの自動テスト
+- `rake spec`または`bundle exec rspec`で実行
+- RSpecの命名規則に従う：`*_spec.rb`
+
+#### 診断スクリプト
+- 配置先：`docker/services/ruby/scripts/diagnostics/`
+- アプリ機能の手動検証スクリプト
+- コンテンツ生成、API連携などのテストに使用
+- 特定の機能が正しく動作するか個別に実行して検証
+
 ### コンテナビルドに関する注意事項
 - スクリプトの権限はコンテナビルド時に再帰的に設定されます：
   ```dockerfile
   RUN find /path/to/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
   ```
 - すべてのサブディレクトリがPATHに追加され、スクリプトの実行が簡単になります
+
+### ユーザースクリプト
+- ユーザーは`~/monadic/data/scripts`（ホスト）/ `/monadic/data/scripts`（コンテナ）にカスタムスクリプトを追加できます
+- これらのスクリプトはコマンド実行時に自動的に実行可能になり、PATHに追加されます
+- 詳細は[共有フォルダのドキュメント](../docker-integration/shared-folder.md#scripts)を参照してください

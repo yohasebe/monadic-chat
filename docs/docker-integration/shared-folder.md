@@ -49,7 +49,44 @@ This folder stores helper Ruby files containing functions (methods) used by your
 
 **`scripts`**
 
-This folder contains executable scripts (e.g., shell scripts, Python scripts) that can be run within the Python container (`monadic-chat-python-container`).  Scripts placed here are added to the container's PATH, making them directly accessible via the `send_command` method in your apps.
+This folder contains executable scripts (e.g., shell scripts, Python scripts, Ruby scripts) that can be run within any Monadic Chat container. Scripts placed here are automatically made executable and added to the container's PATH, allowing direct execution by name without specifying the full path.
+
+### How User Scripts Work
+
+1. **Location**: Place scripts in `~/monadic/data/scripts` on your host machine
+2. **Container Path**: Scripts are available at `/monadic/data/scripts` in containers
+3. **Automatic Permissions**: Scripts are automatically made executable before each command execution
+4. **Direct Execution**: Call scripts by name only (e.g., `my_script.py` instead of `/monadic/data/scripts/my_script.py`)
+5. **Container Support**: Works with Ruby, Python, and other containers
+
+### Example Usage in Apps
+
+```ruby
+# Execute a custom Python script
+send_command(
+  command: "analyze_data.py input.csv output.json",
+  container: "python"
+)
+
+# Execute a custom Ruby script
+send_command(
+  command: "process_text.rb document.txt",
+  container: "ruby"
+)
+
+# Execute a shell script
+send_command(
+  command: "backup_data.sh",
+  container: "python"  # or any container with bash
+)
+```
+
+### Technical Details
+
+- The `send_command` method in Monadic Chat automatically adds `/monadic/data/scripts` to the PATH environment variable
+- Working directory is set to `/monadic/data` when executing commands
+- Scripts can access other files in the shared folder using relative paths
+- This mechanism allows extending Monadic Chat's functionality without modifying core code
 
 **`plugins`**
 

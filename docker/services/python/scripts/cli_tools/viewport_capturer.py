@@ -36,10 +36,14 @@ def create_driver():
     chrome_options.add_argument("--disable-features=VizDisplayCompositor")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-plugins")
-    chrome_options.add_argument("--disable-images")
-    chrome_options.add_argument("--disable-javascript")
-    chrome_options.add_argument("--enable-javascript")  # Re-enable JS for dynamic content
+    # chrome_options.add_argument("--disable-images")  # Commented out to ensure images are loaded
+    chrome_options.add_argument("--enable-javascript")  # Enable JS for dynamic content
     chrome_options.add_argument("--start-maximized")
+    
+    # High quality screenshot settings
+    chrome_options.add_argument("--force-device-scale-factor=2")  # 2x resolution for better quality
+    chrome_options.add_argument("--high-dpi-support=1")  # Enable high DPI support
+    chrome_options.add_argument("--force-color-profile=srgb")  # Ensure accurate colors
     
     driver = webdriver.Remote(
         command_executor='http://selenium_service:4444/wd/hub',
@@ -81,7 +85,7 @@ def take_viewport_screenshots(driver, url, output_dir, viewport_width=1920, view
         WebDriverWait(driver, 30).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
-        time.sleep(2)  # Additional wait for dynamic content
+        time.sleep(3)  # Additional wait for dynamic content and better rendering
         
         # Set viewport size
         driver.set_window_size(viewport_width, viewport_height)
@@ -107,7 +111,7 @@ def take_viewport_screenshots(driver, url, output_dir, viewport_width=1920, view
         while current_position < total_height:
             # Scroll to position
             driver.execute_script(f"window.scrollTo(0, {current_position})")
-            time.sleep(0.5)  # Wait for rendering
+            time.sleep(1)  # Wait for rendering and high-quality image loading
             
             # Take screenshot
             screenshot_count += 1

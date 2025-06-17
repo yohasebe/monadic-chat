@@ -2071,3 +2071,71 @@ h1 {
   max-width: 100%;
   height: auto;
 }
+
+/* Thinking block specific styles - Added for cleaner reasoning model display */
+.thinking-block {
+  margin: 1em 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fafafa;
+}
+
+.thinking-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75em 1em;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.thinking-block-header:hover {
+  background-color: #eeeeee;
+}
+
+.thinking-block-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.9em;
+  font-weight: 500;
+  color: #666;
+}
+
+.thinking-block-icon {
+  font-size: 0.85em;
+  transition: transform 0.3s ease;
+}
+
+.thinking-block.expanded .thinking-block-icon {
+  transform: rotate(90deg);
+}
+
+.thinking-block-content {
+  padding: 0;
+  background-color: #ffffff;
+  border-top: none;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+}
+
+.thinking-block.expanded .thinking-block-content {
+  max-height: 2000px;
+  padding: 1em;
+  transition: max-height 0.5s ease-in, padding 0.3s ease-in;
+}
+
+.thinking-block-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: #444;
+}

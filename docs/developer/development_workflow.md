@@ -49,99 +49,14 @@ npm run test:coverage # Run tests with coverage report
 rake test  # Run both Ruby and JavaScript tests
 ```
 
-## MDSL Development Tools
-
-### MDSL Auto-Completion System (Experimental)
-
-**⚠️ Note: This is an experimental feature and may change or be removed in future versions.**
-
-The MDSL auto-completion system aims to solve a development challenge: keeping tool definitions synchronized between Ruby implementations and MDSL declarations.
-
-#### The Problem It Solves
-
-In Monadic Chat apps, you need to:
-1. Implement tool methods in Ruby (`*_tools.rb` files)
-2. Declare those tools in MDSL (`*.mdsl` files) so the LLM knows about them
-
-Without auto-completion, you must manually duplicate every method signature, which is:
-- Time-consuming and error-prone
-- Difficult to maintain when parameters change
-- Easy to forget, leaving tools unavailable to the LLM
-
-#### How It Works
-
-When enabled, the system automatically:
-1. **Detects** Ruby methods in `*_tools.rb` files
-2. **Analyzes** method signatures and infers parameter types
-3. **Generates** corresponding MDSL tool definitions
-4. **Updates** the MDSL file with missing definitions
-
-#### Example
-
-You write this Ruby method:
-```ruby
-# novel_writer_tools.rb
-def count_num_of_words(text: "")
-  text.split.size
-end
-```
-
-The system automatically generates this MDSL definition:
-```ruby
-# novel_writer_openai.mdsl
-define_tool "count_num_of_words", "Count the num of words" do
-  parameter :text, "string", "The text content to process"
-end
-```
-
-#### Controlling Auto-Completion
-
-```bash
-# Disable (default) - Tools work at runtime but MDSL files aren't modified
-export MDSL_AUTO_COMPLETE=false
-
-# Enable - Automatically updates MDSL files with missing tool definitions
-export MDSL_AUTO_COMPLETE=true
-
-# Debug mode - Same as enabled but with detailed logging
-export MDSL_AUTO_COMPLETE=debug
-```
-
-#### Important Notes
-
-- **Experimental Feature**: This feature is still under development and may have unexpected behavior
-- **Default is OFF**: You must explicitly enable it to modify MDSL files
-- **Runtime vs Build Time**: Even when disabled, tools are still available at runtime
-- **Backup Files**: Creates backups before modifying MDSL files
-- **Standard Tools**: Automatically excludes tools inherited from MonadicApp
-- **Smart Detection**: Only processes public methods with tool-like signatures
-
-#### Known Limitations
-
-- May not correctly infer complex parameter types
-- Could potentially overwrite manual customizations
-- Performance impact on app loading when enabled
-- Not recommended for production use
-
-#### Environment Variables
-
-The tool respects the unified debug system:
-- `MONADIC_DEBUG=mdsl`: Enable MDSL debug output
-- `MONADIC_DEBUG_LEVEL=debug`: Set debug verbosity level
-
-Legacy variables (still supported but deprecated):
-- `MDSL_AUTO_COMPLETE=debug`: Enable MDSL debug output
-- `APP_DEBUG=1`: Enable general debug output
-
 ## Debug System
 
-Monadic Chat uses a unified debug system controlled via environment variables:
+Monadic Chat uses a unified debug system controlled via configuration variables in `~/monadic/config/env`:
 
 ### Debug Categories
 - `all`: All debug messages
 - `app`: General application debugging
 - `embeddings`: Text embeddings operations
-- `mdsl`: MDSL tool completion
 - `tts`: Text-to-Speech operations
 - `drawio`: DrawIO grapher operations
 - `ai_user`: AI user agent
@@ -157,20 +72,23 @@ Monadic Chat uses a unified debug system controlled via environment variables:
 - `verbose`: Everything including raw data
 
 ### Usage Examples
-```bash
+
+Add these settings to your `~/monadic/config/env` file:
+
+```
 # Enable web search debug output
-export MONADIC_DEBUG=web_search
-export MONADIC_DEBUG_LEVEL=debug
+MONADIC_DEBUG=web_search
+MONADIC_DEBUG_LEVEL=debug
 
 # Enable multiple categories
-export MONADIC_DEBUG=api,web_search,mdsl
+MONADIC_DEBUG=api,web_search,mdsl
 
 # Enable all debug output
-export MONADIC_DEBUG=all
-export MONADIC_DEBUG_LEVEL=verbose
+MONADIC_DEBUG=all
+MONADIC_DEBUG_LEVEL=verbose
 
 # API debugging (equivalent to Electron's "Extra Logging")
-export MONADIC_DEBUG=api
+MONADIC_DEBUG=api
 ```
 
 ### Error Handling Improvements
@@ -180,20 +98,23 @@ export MONADIC_DEBUG=api
 - **Graceful Degradation**: Missing API keys result in clear error messages, not crashes
 
 ### Usage Examples
-```bash
+
+Add these settings to your `~/monadic/config/env` file:
+
+```
 # Enable web search debug output
-export MONADIC_DEBUG=web_search
-export MONADIC_DEBUG_LEVEL=debug
+MONADIC_DEBUG=web_search
+MONADIC_DEBUG_LEVEL=debug
 
 # Enable multiple categories
-export MONADIC_DEBUG=api,web_search,mdsl
+MONADIC_DEBUG=api,web_search,mdsl
 
 # Enable all debug output
-export MONADIC_DEBUG=all
-export MONADIC_DEBUG_LEVEL=verbose
+MONADIC_DEBUG=all
+MONADIC_DEBUG_LEVEL=verbose
 
 # API debugging (equivalent to Electron's "Extra Logging")
-export MONADIC_DEBUG=api
+MONADIC_DEBUG=api
 ```
 
 ### MDSL Development Best Practices
@@ -258,16 +179,6 @@ end
 - Symptom: Error when running app with empty `tools do` block
 - Solution: Add explicit tool definitions or create `*_tools.rb` file
 
-**Auto-completion Debugging:**
-```bash
-# Enable auto-completion with debug output
-export MDSL_AUTO_COMPLETE=debug
-
-# Then start the server and load your app
-rake server:start
-
-# Check the console output for auto-completion messages
-```
 
 **Manual Tool Verification:**
 ```bash
@@ -280,26 +191,9 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 
 #### Provider-Specific Considerations
 
-- **Function Limits**: OpenAI/Gemini support up to 20 function calls, Claude supports up to 16
-- **Code Execution**: All providers now use `run_code` (previously Anthropic used `run_script`)
+- **Function Limits**: All providers support up to 20 function calls
+- **Code Execution**: All providers use `run_code` for code execution
 - **Array Parameters**: OpenAI requires `items` property for array parameters
-## MDSL Auto-Completion Control
-
-The MDSL auto-completion system can be controlled using environment variables:
-
-```bash
-# Disable auto-completion (useful when debugging MDSL files)
-export MDSL_AUTO_COMPLETE=false
-
-# Enable with detailed debug logging
-export MDSL_AUTO_COMPLETE=debug
-
-# Enable normally
-export MDSL_AUTO_COMPLETE=true
-
-# Default behavior (auto-completion disabled)
-# MDSL_AUTO_COMPLETE is unset or false by default
-```
 
 ## Important: Managing Setup Scripts
 
@@ -395,7 +289,7 @@ When developing locally while using container features:
 - **Ruby container**: Can be stopped to use local Ruby environment
 - **Other containers**: Must remain running for apps that depend on them
 - **Python container**: Required for apps like Concept Visualizer and Syntax Tree that use LaTeX
-- **Paths**: Automatically adjusted via `IN_CONTAINER` environment variable
+- **Paths**: Automatically adjusted via `IN_CONTAINER` constant (automatically set based on container detection)
 
 ### Testing Apps with Container Dependencies
 For apps that require specific containers (e.g., Concept Visualizer needs Python container for LaTeX):

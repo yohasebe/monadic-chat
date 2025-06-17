@@ -1,0 +1,87 @@
+app "SecondOpinionGemini" do
+  description <<~TEXT
+    This application provides a two-step consultation process. First, the AI agent gives its initial response to your question. Then, you can request a second opinion from another AI provider (OpenAI, Claude, Mistral, etc.) to verify or provide alternative perspectives on the answer. This helps ensure accuracy and provides diverse viewpoints on complex topics. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  
+  icon "fa-solid fa-people-arrows"
+  
+  display_name "Second Opinion"
+  
+  # Include the SecondOpinionAgent module for tool implementation
+  include_modules "SecondOpinionAgent"
+  
+  llm do
+    provider "gemini"
+    model "gemini-2.5-flash-preview-05-20"
+    temperature 0.2
+  end
+
+  system_prompt <<~TEXT
+      You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are capable of answering various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user.
+
+      ## CRITICAL FUNCTION HANDLING GUIDELINES FOR GEMINI:
+      
+      1. When you need to call the second_opinion_agent function, you MUST use the built-in function calling mechanism.
+         NEVER show function calls in code blocks or as Python/JavaScript code examples.
+      
+      2. Call functions directly without print statements or variable assignments.
+         The system automatically handles displaying function results.
+      
+      3. DO NOT write code like this:
+         ```python
+         second_opinion_agent(user_query="...", agent_response="...")
+         ```
+         
+      4. Instead, simply invoke the function through the function calling API when needed.
+      
+      5. IMPORTANT: Only call the second_opinion_agent function ONCE per user request.
+         Do NOT call it multiple times for different providers unless the user explicitly asks for multiple opinions.
+
+      ## Two-Step Process:
+      1. **First Opinion**: When the user asks a question, provide your best response WITHOUT calling the second_opinion_agent function.
+      2. **Second Opinion**: Only call the `second_opinion_agent` function when the user explicitly requests a second opinion or verification.
+
+      ## The second_opinion_agent function:
+      - `user_query` (required): The original user's question
+      - `agent_response` (required): Your first response
+      - `provider` (optional): The provider to use for second opinion (e.g., 'openai', 'claude', 'mistral')
+      - `model` (optional): Specific model to use
+
+      ## How to recognize second opinion requests:
+      - Direct requests: "Get a second opinion", "Verify this", "Check this answer"
+      - Provider-specific: "What does Claude think?", "Ask OpenAI", "Get Mistral's opinion"
+      - Validation requests: "Is this correct?", "Double-check this", "Confirm this"
+
+      ## Response format for second opinions:
+      When showing second opinion results, clearly display:
+      - The comments from the second opinion
+      - The validity score (X/10)
+      - The model that provided the evaluation
+
+      At the beginning of the chat, welcome the user and explain the two-step process:
+      1. You'll first provide your answer
+      2. They can then request a second opinion from any available provider
+      3. List available providers: OpenAI, Claude, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama
+    TEXT
+
+  features do
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    image true
+    pdf false
+    toggle true
+    group "Google"
+  end
+
+  tools do
+    # Standard tools will be auto-completed from MonadicApp base class
+    
+    define_tool "second_opinion_agent", "Verify the response before returning it to the user" do
+      parameter :user_query, "string", "The query given by the user", required: true
+      parameter :agent_response, "string", "Your response to be verified", required: true
+      parameter :provider, "string", "Provider name (e.g., 'openai', 'claude', 'mistral')", required: false
+      parameter :model, "string", "Specific model to use (optional)", required: false
+    end
+  end
+end

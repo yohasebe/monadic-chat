@@ -58,8 +58,8 @@ module SecondOpinionAgent
       }
     ]
     
-    # Use AI_USER_MAX_TOKENS from environment or default to 2000 for second opinions
-    max_tokens = ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
+    # Use AI_USER_MAX_TOKENS from configuration or default to 2000 for second opinions
+    max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
     
     parameters = {
       "messages" => messages,
@@ -168,7 +168,7 @@ module SecondOpinionAgent
     end
     
     # If neither is specified, use AI_USER_MODEL or default
-    ai_user_model = ENV["AI_USER_MODEL"] || "gpt-4.1"
+    ai_user_model = CONFIG["AI_USER_MODEL"] || ENV["AI_USER_MODEL"] || "gpt-4.1"
     
     # Check if AI_USER_MODEL contains provider:model format
     if ai_user_model.include?(":")
@@ -214,7 +214,7 @@ module SecondOpinionAgent
     end
     
     # Fallback to environment variable or default
-    ENV["OLLAMA_DEFAULT_MODEL"] || "llama3.2"
+    CONFIG["OLLAMA_DEFAULT_MODEL"] || ENV["OLLAMA_DEFAULT_MODEL"] || "llama3.2"
   end
   
   def is_model_reasoning_based?(provider, model)
@@ -226,6 +226,8 @@ module SecondOpinionAgent
       "gemini" => /2\.5.*preview/i,
       # OpenAI o1/o3 models use reasoning
       "openai" => /^o[13](-|$)/i,
+      # Mistral magistral models use reasoning_effort
+      "mistral" => /^magistral(-|$)/i,
       # Add more patterns here as new reasoning models are released
       # "claude" => /reasoning-model-pattern/i,
     }

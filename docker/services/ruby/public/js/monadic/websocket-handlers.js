@@ -6,6 +6,56 @@
  */
 
 /**
+ * Renders a thinking block with unified design across all providers
+ * @param {string} thinkingContent - The thinking/reasoning content to display
+ * @param {string} title - Optional custom title (defaults to "Thinking Process")
+ * @returns {string} - HTML string for the thinking block
+ */
+function renderThinkingBlock(thinkingContent, title = "Thinking Process") {
+  const blockId = 'thinking-' + Math.random().toString(36).substr(2, 9);
+  
+  return `
+    <div class="thinking-block" id="${blockId}">
+      <div class="thinking-block-header" onclick="toggleThinkingBlock('${blockId}')">
+        <div class="thinking-block-title">
+          <i class="fas fa-chevron-right thinking-block-icon"></i>
+          <i class="fas fa-brain"></i>
+          <span>${title}</span>
+        </div>
+      </div>
+      <div class="thinking-block-content">
+        <pre>${escapeHtml(thinkingContent)}</pre>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Toggles the visibility of a thinking block
+ * @param {string} blockId - The ID of the thinking block to toggle
+ */
+function toggleThinkingBlock(blockId) {
+  const block = document.getElementById(blockId);
+  if (block) {
+    block.classList.toggle('expanded');
+  }
+}
+
+// Make toggleThinkingBlock globally accessible
+window.toggleThinkingBlock = toggleThinkingBlock;
+
+/**
+ * Escapes HTML special characters to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} - Escaped text
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
  * Handles combined fragment with audio messages (optimized for auto_speech)
  * @param {Object} data - Parsed message data containing fragment and audio
  * @param {Function} processAudio - Function to process audio data
@@ -297,11 +347,11 @@ function handleHtmlMessage(data, messages, createCardFunc) {
     const html = data.content.html || '';
     let finalHtml = html;
     
-    // Handle thinking content if present
+    // Handle thinking content if present with unified design
     if (data.content.thinking) {
-      finalHtml = `<div data-title='Thinking Block' class='toggle'><span class="toggle-text">Show thinking details</span><div class='toggle-open'>${data.content.thinking}</div></div>${html}`;
+      finalHtml = renderThinkingBlock(data.content.thinking, "Thinking Process") + html;
     } else if (data.content.reasoning_content) {
-      finalHtml = `<div data-title='Thinking Block' class='toggle'><span class="toggle-text">Show reasoning process</span><div class='toggle-open'>${data.content.reasoning_content}</div></div>${html}`;
+      finalHtml = renderThinkingBlock(data.content.reasoning_content, "Reasoning Process") + html;
     }
     
     if (data.content.role === 'assistant') {

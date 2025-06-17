@@ -17,7 +17,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
-| Second Opinion | ✅ | | | | | | | | |
+| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
@@ -115,6 +115,8 @@ This application responds using mathematical notation with [MathJax](https://www
 
 This app provides a two-step consultation process. First, it generates an answer to your question. Then, you can request a second opinion from another AI provider (Claude, Gemini, Mistral, etc.) to verify or provide alternative perspectives on the answer. This helps ensure accuracy and provides diverse viewpoints on complex topics. The second opinion feature supports multiple providers, allowing you to choose which AI model should review the initial response.
 
+Second Opinion apps are available for all supported models: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI Grok, DeepSeek, and Ollama.
+
 ### Research Assistant
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
@@ -187,13 +189,11 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 This application generates images based on descriptions. 
 
-The OpenAI version exclusively uses the gpt-image-1 model and supports three main operations:
+The OpenAI version uses the gpt-image-1 model and supports three main operations:
 
 1. **Image Generation**: Create new images from text descriptions
 2. **Image Editing**: Modify existing images using text prompts and optional masks
 3. **Image Variation**: Generate alternative versions of an existing image
-
-Note that the image editing feature is only available with the gpt-image-1 model.
 
 With the image editing feature, you can:
 - Select an existing image as a base
@@ -445,7 +445,7 @@ This application reads PDF files and allows the assistant to answer user questio
 - `get_text_snippet`: Retrieve a specific text segment by position
 - `get_text_snippets`: Get all text segments from a specific document
 
-?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database. The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation.
+?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database (database name: `monadic_user_docs`). The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
@@ -523,6 +523,8 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 > You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
+
+!> **Security Note**: In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
 Jupyter Notebook apps are also available for the following models:
 

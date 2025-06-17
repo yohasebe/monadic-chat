@@ -14,13 +14,16 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 以下のモデルでは画像のアップロードがサポートされています。
 
-- OpenAI
+- OpenAI GPT
 - Anthropic Claude
 - xAI Grok
 - Google Gemini
-- Mistral AI (Pixtral)
+- Mistral AI (Pixtral、Mistral Medium 2505)
+- Perplexity AI
 
-`Image` をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。対応している画像形式は JPG、JPEG、PNG、GIF、WebP です。
+注: PDFアップロードはOpenAI（gpt-4.1、gpt-4o、o1シリーズ）、Claude、Geminiモデルのみでサポートされています。
+
+`Image`（PDFもサポートするモデルでは`Image/PDF`）をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。対応している画像形式は JPG、JPEG、PNG、GIF、WebP です。
 
 ![](../assets/images/attach-image.png ':size=400')
 
@@ -66,7 +69,7 @@ Anthropic の Sonnet モデル、OpenAI の gpt-4.1、gpt-4.1-mini、gpt-4.1-nan
 
 ## 音声認識モデルの選択 :id=speech-to-text-model-selection
 
-設定画面でSpeech-to-Text (STT)モデルを選択できます。Monadic Chatは以下のOpenAI STTモデルをサポートしています:
+コンソール設定画面でSpeech-to-Text (STT)モデルを選択できます。Monadic Chatは以下のOpenAI STTモデルをサポートしています:
 - whisper-1
 - gpt-4o-mini-transcribe
 - gpt-4o-transcribe

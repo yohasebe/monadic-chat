@@ -32,17 +32,17 @@
 
 **Q**: Gemini TTSとは何ですか？他のプロバイダーとの違いは？
 
-**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、2つのモデルを提供しています：Gemini Flash TTS（より高速、gemini-2.5-flash-preview-ttsを使用）とGemini Pro TTS（より高品質、gemini-2.5-pro-preview-ttsを使用）。両モデルとも8つのユニークな音声（Aoede、Charon、Fenrir、Kore、Orus、Puck、Schedar、Zephyr）を提供し、自然な音声合成を実現します。Gemini TTSはGemini APIキーが必要で、対話型会話用のリアルタイムストリーミングとSpeech Draft Helperアプリを通じたMP3ファイル生成の両方をサポートしています。
+**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、gemini-2.5-flash-preview-ttsモデルを使用します。8つのユニークな音声（Aoede、Charon、Fenrir、Kore、Orus、Puck、Schedar、Zephyr）を提供し、自然な音声合成を実現します。Gemini TTSはGemini APIキーが必要で、対話型会話用のリアルタイムストリーミングとSpeech Draft Helperアプリを通じたオーディオファイル生成（WAVフォーマット）の両方をサポートしています。
 
 ---
 
 **Q**: 音声合成の際に実際の言語とは異なる言語で再生されることがあります。どうすればいいですか？
 
-**A**: Webインターフェイスの`Speech-to-Text (STT) Language`セレクタはデフォルトでは`Automatic`になっています。これを特定の言語に設定することで、音声合成の際に指定した言語で再生されるようになります。
+**A**: TTS（テキスト読み上げ）システムはテキストの言語を自動的に検出して、それに応じた音声合成を行います。言語検出が正しくない場合は、通常、テキストに複数の言語が混在していたり、内容が曖昧だったりすることが原因です。正しい発音を確保するには、テキストを単一の言語で記述するようにしてください。なお、`Speech-to-Text (STT) Language`設定は音声認識の入力にのみ影響し、TTS出力には影響しません。
 
 ---
 
-**Q**: 入力テキストを音声合成してMP3ファイルとして保存することはできますか？
+**Q**: 入力テキストを音声合成してオーディオファイルとして保存することはできますか？
 
-**A**: はい、`Speech Draft Helper`アプリを選択して、テキストを入力した上で、MP3ファイルに変換するようにAIエージェントに指示することで、音声合成した結果をファイルとして保存することができます。Speech Draft HelperはOpenAI、ElevenLabs、Gemini（gemini-2.5-flash-preview-ttsモデルを使用）を含む複数のTTSプロバイダーをサポートしており、MP3生成時に異なる音声とプロバイダーを選択できます。
+**A**: はい、`Speech Draft Helper`アプリを選択して、テキストを入力した上で、オーディオファイルに変換するようにAIエージェントに指示することで、音声合成した結果をファイルとして保存することができます。Speech Draft Helperは複数のTTSプロバイダーをサポートしています：OpenAIとElevenLabsはMP3ファイルを出力し、GeminiはWAVファイルを出力します。オーディオ生成時に異なる音声とプロバイダーを選択できます。
 

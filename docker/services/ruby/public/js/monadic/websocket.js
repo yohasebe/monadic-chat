@@ -2644,7 +2644,13 @@ function connect_websocket(callback) {
             case "assistant": {
               let html = msg["html"];
               if (msg["thinking"]) {
-                html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + msg["thinking"] + "</div></div>" + html
+                // Use the unified thinking block renderer if available
+                if (typeof renderThinkingBlock === 'function') {
+                  html = renderThinkingBlock(msg["thinking"], "Thinking Process") + html;
+                } else {
+                  // Fallback to old style if function not available
+                  html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + msg["thinking"] + "</div></div>" + html;
+                }
               } 
 
               const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, msg["lang"], msg["mid"], msg["active"]);
@@ -2856,9 +2862,21 @@ function connect_websocket(callback) {
           let html = data["content"]["html"];
 
           if (data["content"]["thinking"]) {
-            html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html
+            // Use the unified thinking block renderer if available
+            if (typeof renderThinkingBlock === 'function') {
+              html = renderThinkingBlock(data["content"]["thinking"], "Thinking Process") + html;
+            } else {
+              // Fallback to old style if function not available
+              html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html;
+            }
           } else if(data["content"]["reasoning_content"]) {
-            html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html
+            // Use the unified thinking block renderer if available
+            if (typeof renderThinkingBlock === 'function') {
+              html = renderThinkingBlock(data["content"]["reasoning_content"], "Reasoning Process") + html;
+            } else {
+              // Fallback to old style if function not available
+              html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html;
+            }
           }
           
           if (data["content"]["role"] === "assistant") {

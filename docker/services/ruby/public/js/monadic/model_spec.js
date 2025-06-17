@@ -632,13 +632,26 @@ const modelSpec = {
     "tool_capability": true
   },
   // mistral models
+  "magistral-medium": {
+    "max_output_tokens" : [1, 131000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "reasoning_model": true
+  },
+  "magistral-small": {
+    "max_output_tokens" : [1, 131000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "reasoning_model": true
+  },
   "mistral-medium-2505": {
     "max_output_tokens" : [1, 128000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
+    "tool_capability": true,
+    "vision_capability": true
   },
   "mistral-large-latest": {
     "max_output_tokens" : [1, 131000],
@@ -846,17 +859,16 @@ const modelSpec = {
   // Perplexity models
   "r1-1776": {
     "context_window" : [1, 128000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0]
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_model": true
   },
   "sonar-deep-research": {
     "context_window" : [1, 60000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0]
+    "frequency_penalty": [[0.0, 2.0], 1.0],
+    "vision_capability": true
   },
   "sonar-reasoning-pro": {
     "context_window" : [1, 128000],
@@ -864,14 +876,16 @@ const modelSpec = {
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0]
+    "frequency_penalty": [[0.0, 2.0], 1.0],
+    "vision_capability": true
   },
   "sonar-reasoning": {
     "context_window" : [1, 128000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0]
+    "frequency_penalty": [[0.0, 2.0], 1.0],
+    "vision_capability": true
   },
   "sonar-pro": {
     "context_window" : [1, 200000],
@@ -879,14 +893,16 @@ const modelSpec = {
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0]
+    "frequency_penalty": [[0.0, 2.0], 1.0],
+    "vision_capability": true
   },
   "sonar": {
     "context_window" : [1, 128000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0]
+    "frequency_penalty": [[0.0, 2.0], 1.0],
+    "vision_capability": true
   },
   // DeepSeek models
   "deepseek-chat": {

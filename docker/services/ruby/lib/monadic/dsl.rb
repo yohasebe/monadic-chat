@@ -1,13 +1,6 @@
 # Add required utilities
 require_relative 'utils/fa_icons'
 
-# Load auto-completer if available
-begin
-  require_relative 'dsl/tool_auto_completer'
-rescue LoadError
-  # Auto-completer not available, continue without it
-end
-
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
   MonadicDSL.app(name, &block)
@@ -614,7 +607,9 @@ module MonadicDSL
       mistral: ToolFormatters::MistralFormatter,
       deepseek: ToolFormatters::DeepSeekFormatter,
       perplexity: ToolFormatters::PerplexityFormatter,
-      xai: ToolFormatters::GrokFormatter
+      xai: ToolFormatters::GrokFormatter,
+      grok: ToolFormatters::GrokFormatter,
+      ollama: ToolFormatters::OpenAIFormatter
     }
     
     PROVIDER_WRAPPERS = {
@@ -638,70 +633,6 @@ module MonadicDSL
       @tools << tool
       tool
     end
-
-    # Auto-complete tools from Ruby implementation files
-    def auto_complete_from_ruby_files
-      # Load the auto-completer if available
-      return unless defined?(MonadicDSL::ToolAutoCompleter)
-      
-      # Debug: print that auto-completion is running
-      puts "[DEBUG] Auto-completion triggered" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      # Get the current MDSL file path from the call stack
-      mdsl_file = find_current_mdsl_file
-      puts "[DEBUG] Found MDSL file: #{mdsl_file || 'nil'}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      # If not found in call stack, try to infer from app name
-      if mdsl_file.nil? && @state.name
-        puts "[DEBUG] App name: #{@state.name}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        mdsl_file = infer_mdsl_file_from_app_name(@state.name)
-        puts "[DEBUG] Inferred MDSL file: #{mdsl_file || 'nil'}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      else
-        puts "[DEBUG] No app name available: #{@state.name || 'nil'}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      end
-      
-      return unless mdsl_file
-      
-      completer = MonadicDSL::ToolAutoCompleter.new
-      analysis = completer.analyze_single_file(mdsl_file)
-      
-      # Auto-complete missing tool definitions
-      auto_completed_tools = []
-      analysis[:missing_definitions].each do |tool_name|
-        # Find Ruby implementation file
-        ruby_file = analysis[:ruby_files].find { |f| File.read(f).include?("def #{tool_name}") }
-        next unless ruby_file
-        
-        # Generate tool definition
-        tool_def = completer.send(:generate_single_tool_definition, tool_name, ruby_file)
-        next unless tool_def
-        
-        # Create and add the tool
-        tool = ToolDefinition.new(tool_def[:name], tool_def[:description])
-        tool_def[:parameters].each do |param|
-          tool.parameter(param[:name].to_sym, param[:type], param[:description], required: param[:required])
-        end
-        
-        @tools << tool
-        auto_completed_tools << tool_def
-      end
-      
-      # Write auto-completed definitions to MDSL file if any were found
-      if auto_completed_tools.any?
-        auto_complete_mode = ENV['MDSL_AUTO_COMPLETE'] || 'false'
-        
-        case auto_complete_mode.downcase
-        when 'false'
-          # Do nothing - auto-completion disabled
-        when 'debug'
-          # Write with detailed logging
-          write_auto_completed_tools_to_mdsl(mdsl_file, auto_completed_tools, debug: true)
-        else
-          # Default: write without detailed logging (true or any other value)
-          write_auto_completed_tools_to_mdsl(mdsl_file, auto_completed_tools, debug: false)
-        end
-      end
-    end
     
     # Convert tools to provider-specific format
 
@@ -709,234 +640,6 @@ module MonadicDSL
       formatted_tools = @tools.map { |t| @formatter.format(t) }
       wrapper = PROVIDER_WRAPPERS[@provider] || PROVIDER_WRAPPERS[:default]
       wrapper.call(formatted_tools)
-    end
-    
-    private
-    
-    # Find the current MDSL file being processed from call stack
-    def find_current_mdsl_file
-      puts "[DEBUG] Searching call stack for MDSL file..." if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      caller_locations.each_with_index do |location, index|
-        path = location.absolute_path
-        puts "[DEBUG] Call #{index}: #{path}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        
-        if path&.end_with?('.mdsl')
-          puts "[DEBUG] Found MDSL file: #{path}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-          return path
-        end
-      end
-      
-      puts "[DEBUG] No MDSL file found in call stack" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      nil
-    end
-    
-    # Infer MDSL file path from app name
-    def infer_mdsl_file_from_app_name(app_name)
-      puts "[DEBUG] Starting inference for app: #{app_name}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      # Extract provider suffix from app name to match the correct MDSL file
-      provider_suffix = nil
-      provider_patterns = {
-        /OpenAI$/ => 'openai',
-        /Claude$/ => 'claude',
-        /Anthropic$/ => 'claude',  # Anthropic maps to claude
-        /Gemini$/ => 'gemini',
-        /Google$/ => 'gemini',     # Google maps to gemini
-        /Mistral$/ => 'mistral',
-        /Cohere$/ => 'cohere',
-        /Perplexity$/ => 'perplexity',
-        /Grok$/ => 'grok',
-        /XAI$/ => 'grok',          # XAI maps to grok
-        /DeepSeek$/ => 'deepseek'
-      }
-      
-      app_base = app_name.dup
-      provider_patterns.each do |pattern, suffix|
-        if app_name.match?(pattern)
-          provider_suffix = suffix
-          app_base = app_name.gsub(pattern, '')
-          break
-        end
-      end
-      
-      puts "[DEBUG] App base after provider removal: #{app_base}, provider suffix: #{provider_suffix}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      # Convert to snake_case
-      base_name = app_base.gsub(/([A-Z])/, '_\1').downcase.gsub(/^_/, '')
-      puts "[DEBUG] Base name after snake_case conversion: #{base_name}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      # Try to find the apps directory (including user-defined plugins)
-      # Use the same pattern as lib/monadic.rb for environment detection
-      user_plugins_dir = if defined?(IN_CONTAINER) && IN_CONTAINER
-                           "/monadic/data/plugins"
-                         else
-                           Dir.home + "/monadic/data/plugins"
-                         end
-      
-      apps_dirs = [
-        File.join(Dir.pwd, "apps"),
-        File.join(Dir.pwd, "docker", "services", "ruby", "apps"),
-        File.join(__dir__, "..", "..", "apps"),
-        user_plugins_dir
-      ]
-      
-      puts "[DEBUG] Searching in directories: #{apps_dirs}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      
-      apps_dirs.each do |apps_dir|
-        puts "[DEBUG] Checking apps directory: #{apps_dir} (exists: #{File.directory?(apps_dir)})" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        next unless File.directory?(apps_dir)
-        
-        app_dir = File.join(apps_dir, base_name)
-        puts "[DEBUG] Checking app directory: #{app_dir} (exists: #{File.directory?(app_dir)})" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        next unless File.directory?(app_dir)
-        
-        # If we have a provider suffix, look for the specific MDSL file first
-        if provider_suffix
-          specific_mdsl = File.join(app_dir, "#{base_name}_#{provider_suffix}.mdsl")
-          puts "[DEBUG] Looking for specific MDSL: #{specific_mdsl}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-          if File.exist?(specific_mdsl)
-            puts "[DEBUG] Found specific MDSL file: #{specific_mdsl}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-            return specific_mdsl
-          end
-        end
-        
-        # Fallback: Look for any MDSL files matching the app name pattern
-        mdsl_pattern = "#{base_name}_*.mdsl"
-        mdsl_files = Dir.glob(File.join(app_dir, mdsl_pattern))
-        puts "[DEBUG] MDSL pattern: #{mdsl_pattern}, found files: #{mdsl_files}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        
-        # Return the first matching MDSL file
-        if mdsl_files.any?
-          puts "[DEBUG] Returning MDSL file: #{mdsl_files.first}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-          return mdsl_files.first
-        end
-      end
-      
-      puts "[DEBUG] No MDSL file found for app: #{app_name}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      nil
-    end
-    
-    # Write auto-completed tool definitions to MDSL file
-    def write_auto_completed_tools_to_mdsl(mdsl_file, auto_completed_tools, debug: false)
-      return unless File.exist?(mdsl_file)
-      
-      content = File.read(mdsl_file)
-      
-      # Find the tools do...end block with proper nesting support
-      # This regex uses a more specific pattern to match the tools block
-      # It looks for 'tools do' and captures content until it finds an 'end' at the same indentation level
-      # The fourth capture group now captures everything AFTER the tools block end
-      tools_regex = /(.*?^(\s*)tools\s+do\s*\n)(.*?)(^\2end)(.*)/m
-      tools_block_match = content.match(tools_regex)
-      
-      if !tools_block_match
-        # Fallback to simpler pattern if the indentation-based one fails
-        # This one counts nested blocks to find the matching end
-        tools_start_index = content.index(/^\s*tools\s+do\s*$/m)
-        return unless tools_start_index
-        
-        # Find the matching 'end' by counting nesting levels
-        indent_match = content[tools_start_index..].match(/^(\s*)tools/)
-        indent = indent_match[1]
-        
-        # Extract the part after 'tools do'
-        after_tools_do = content[(tools_start_index + content[tools_start_index..].index("\n") + 1)..]
-        
-        # Find the matching end at the same indentation level
-        lines = after_tools_do.lines
-        nesting_level = 1
-        tools_content_lines = []
-        remaining_lines = []
-        found_end = false
-        
-        lines.each_with_index do |line, idx|
-          if !found_end
-            # Check for nested do/end blocks
-            if line.match(/\bdo\s*$/)
-              nesting_level += 1
-            elsif line.match(/^#{Regexp.escape(indent)}end\b/) && nesting_level == 1
-              # Found the matching end for tools block
-              found_end = true
-              remaining_lines = lines[idx..]
-            elsif line.match(/\bend\b/)
-              nesting_level -= 1
-            end
-            
-            tools_content_lines << line unless found_end
-          end
-        end
-        
-        return unless found_end
-        
-        before_tools = content[0...tools_start_index] + indent + "tools do\n"
-        current_tools = tools_content_lines.join
-        after_tools = remaining_lines.join
-      else
-        before_tools = tools_block_match[1]
-        current_tools = tools_block_match[3]
-        tools_end = tools_block_match[4]
-        after_tools = tools_block_match[5]
-      end
-      
-      # Generate auto-completed tool definitions
-      auto_generated_definitions = generate_tool_definitions_text(auto_completed_tools)
-      
-      # Check if current tools section is empty or only contains comments
-      tools_section_empty = current_tools.strip.empty? || current_tools.strip.start_with?('#')
-      
-      if tools_section_empty
-        # Replace empty tools section with auto-generated definitions
-        new_tools_section = "    # Auto-generated tool definitions from Ruby implementation\n" + auto_generated_definitions
-      else
-        # Append to existing tools
-        new_tools_section = current_tools.rstrip + "\n\n    # Auto-generated tool definitions\n" + auto_generated_definitions
-      end
-      
-      # Reconstruct the file content
-      if tools_block_match
-        # We have the tools_end captured separately
-        new_content = before_tools + new_tools_section + "\n" + tools_end + after_tools
-      else
-        # Fallback case - add end with proper indentation
-        new_content = before_tools + new_tools_section + "\n#{indent}end" + after_tools
-      end
-      
-      # Write back to file with backup
-      backup_file = "#{mdsl_file}.backup.#{Time.now.strftime('%Y%m%d_%H%M%S')}"
-      File.write(backup_file, content)
-      File.write(mdsl_file, new_content)
-      
-      # Always show basic info message
-      puts "[INFO] Auto-completed #{auto_completed_tools.size} tool(s) in #{File.basename(mdsl_file)}"
-      
-      if debug
-        puts "[DEBUG] Tools added: #{auto_completed_tools.map { |t| t[:name] }.join(', ')}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        puts "[DEBUG] MDSL file: #{mdsl_file}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-        puts "[DEBUG] Backup created: #{File.basename(backup_file)}" if ENV['MDSL_AUTO_COMPLETE'] == 'debug'
-      end
-    rescue => e
-      puts "[ERROR] Failed to write auto-completed tools to #{mdsl_file}: #{e.message}"
-      puts "[DEBUG] Error details: #{e.backtrace.first(3).join('\n')}" if debug
-    end
-    
-    # Generate MDSL tool definition text from tool definitions
-    def generate_tool_definitions_text(tool_definitions)
-      definitions = []
-      
-      tool_definitions.each do |tool_def|
-        definition_lines = ["    define_tool \"#{tool_def[:name]}\", \"#{tool_def[:description]}\" do"]
-        
-        tool_def[:parameters].each do |param|
-          required_text = param[:required] ? ", required: true" : ""
-          definition_lines << "      parameter :#{param[:name]}, \"#{param[:type]}\", \"#{param[:description]}\"#{required_text}"
-        end
-        
-        definition_lines << "    end"
-        definitions << definition_lines.join("\n")
-      end
-      
-      definitions.join("\n\n")
     end
     
     # Provider-specific settings
@@ -1057,9 +760,6 @@ module MonadicDSL
       
       tool_config = ToolConfiguration.new(@state, provider)
       tool_config.instance_eval(&block) if block_given?
-      
-      # Auto-complete tools from Ruby implementation files
-      tool_config.auto_complete_from_ruby_files
       
       @state.settings[:tools] = tool_config.to_h
     end

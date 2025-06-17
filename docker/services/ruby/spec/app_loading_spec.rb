@@ -246,7 +246,7 @@ RSpec.describe "App Loading and Initialization" do
                              when "mistral" then ["Mistral", "MistralAI"]
                              when "cohere" then ["Cohere"]
                              when "perplexity" then ["Perplexity"]
-                             when "x", "xai" then ["Grok"]
+                             when "x", "xai", "grok" then ["Grok"]
                              when "deepseek" then ["DeepSeek"]
                              else [provider.capitalize]
                              end
@@ -276,7 +276,7 @@ RSpec.describe "App Loading and Initialization" do
                            when "mistral" then ["Mistral"]
                            when "cohere" then ["Cohere"]
                            when "perplexity" then ["Perplexity"]
-                           when "x", "xai" then ["xAI"]
+                           when "x", "xai", "grok" then ["xAI"]
                            when "deepseek" then ["DeepSeek"]
                            else [provider.capitalize]
                            end
@@ -338,6 +338,32 @@ RSpec.describe "App Loading and Initialization" do
       end
       
       expect(issues).to be_empty, "App coexistence issues found:\n#{issues.join("\n")}"
+    end
+
+    it "validates consistent property naming in MDSL files" do
+      issues = []
+      deprecated_properties = ['jupyter_access']  # Properties that should not be used
+      
+      mdsl_files = Dir.glob(File.join(app_base_dir, "**/*.mdsl"))
+      mdsl_files.each do |file|
+        content = File.read(file)
+        
+        # Check for deprecated properties
+        deprecated_properties.each do |prop|
+          if content.match(/#{prop}\s*(true|false|:)/)
+            issues << "#{file}: Uses deprecated property '#{prop}' (use 'jupyter' instead)"
+          end
+        end
+        
+        # Check that jupyter property is used correctly when needed
+        if content.include?("run_jupyter") || content.include?("create_jupyter_notebook")
+          unless content.match(/jupyter\s+(true|false)/)
+            issues << "#{file}: Has Jupyter tools but missing 'jupyter' property in features block"
+          end
+        end
+      end
+      
+      expect(issues).to be_empty, "MDSL property consistency issues:\n#{issues.join("\n")}"
     end
   end
 

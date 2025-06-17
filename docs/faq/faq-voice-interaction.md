@@ -2,7 +2,7 @@
 
 **Q**: Sometimes the text is played back in a different language than the actual language during speech synthesis. What should I do?
 
-**A**: The `Speech-to-Text (STT) Language` selector on the web interface is set to `Automatic` by default. By setting it to a specific language, the text will be played back in the specified language during speech synthesis.
+**A**: The TTS (Text-to-Speech) system automatically detects the language of the text and synthesizes speech accordingly. If the language detection is incorrect, this is usually because the text contains mixed languages or ambiguous content. To ensure correct pronunciation, try to keep your text in a single language. Note that the `Speech-to-Text (STT) Language` setting only affects speech recognition input, not TTS output.
 
 ---
 
@@ -26,13 +26,13 @@
 
 **Q**: What is Gemini TTS and how does it differ from other providers?
 
-**A**: Gemini TTS is Google's text-to-speech service that offers two models: Gemini Flash TTS (faster, uses gemini-2.5-flash-preview-tts) and Gemini Pro TTS (higher quality, uses gemini-2.5-pro-preview-tts). Both models provide 8 unique voices (Aoede, Charon, Fenrir, Kore, Orus, Puck, Schedar, Zephyr) with natural-sounding speech synthesis. Gemini TTS requires a Gemini API key and supports both real-time streaming for interactive conversations and MP3 file generation through the Speech Draft Helper app.
+**A**: Gemini TTS is Google's text-to-speech service that uses the gemini-2.5-flash-preview-tts model. It provides 8 unique voices (Aoede, Charon, Fenrir, Kore, Orus, Puck, Schedar, Zephyr) with natural-sounding speech synthesis. Gemini TTS requires a Gemini API key and supports both real-time streaming for interactive conversations and audio file generation through the Speech Draft Helper app (outputs WAV format).
 
 ---
 
-**Q**: Can I save the input text as an MP3 file by synthesizing speech?
+**Q**: Can I save the input text as an audio file by synthesizing speech?
 
-**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an MP3 file. The Speech Draft Helper supports multiple TTS providers including OpenAI, ElevenLabs, and Gemini (using gemini-2.5-flash-preview-tts model), allowing you to choose different voices and providers for MP3 generation.
+**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an audio file. The Speech Draft Helper supports multiple TTS providers: OpenAI and ElevenLabs output MP3 files, while Gemini outputs WAV files. You can choose different voices and providers for audio generation.
 
 ---
 

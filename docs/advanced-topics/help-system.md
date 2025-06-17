@@ -53,7 +53,7 @@ rake help:export
 
 ## Configuration
 
-### Environment Variables
+### Configuration Variables
 
 - **`HELP_CHUNK_SIZE`**: Character count per chunk (default: 3000)
   - Controls how documentation is split during processing
@@ -73,11 +73,13 @@ rake help:export
 
 ### Example Configuration
 
-```bash
-export HELP_CHUNK_SIZE=4000
-export HELP_OVERLAP_SIZE=800
-export HELP_EMBEDDINGS_BATCH_SIZE=100
-export HELP_CHUNKS_PER_RESULT=5
+Add these settings to your `~/monadic/config/env` file:
+
+```
+HELP_CHUNK_SIZE=4000
+HELP_OVERLAP_SIZE=800
+HELP_EMBEDDINGS_BATCH_SIZE=100
+HELP_CHUNKS_PER_RESULT=5
 ```
 
 ## Architecture

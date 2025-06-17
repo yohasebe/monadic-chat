@@ -222,7 +222,7 @@ module MonadicHelper
       else
         # For backward compatibility, handle old format responses
         jupyter_host = get_jupyter_host
-        jupyter_port = ENV["JUPYTER_PORT"] || "8889"
+        jupyter_port = CONFIG["JUPYTER_PORT"] || ENV["JUPYTER_PORT"] || "8889"
         
         # Replace any 127.0.0.1:8889 or localhost:8889 with the proper host:port
         result = result.gsub(/127\.0\.0\.1:8889/, "#{jupyter_host}:#{jupyter_port}")
@@ -282,7 +282,7 @@ module MonadicHelper
   # Get complete Jupyter base URL
   def get_jupyter_base_url
     jupyter_host = get_jupyter_host
-    jupyter_port = ENV["JUPYTER_PORT"] || "8889"
+    jupyter_port = CONFIG["JUPYTER_PORT"] || ENV["JUPYTER_PORT"] || "8889"
     "http://#{jupyter_host}:#{jupyter_port}"
   end
 end

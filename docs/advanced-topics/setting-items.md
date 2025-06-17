@@ -1,123 +1,173 @@
 # Application Setting Items
 
-The setting items for applications are defined in MDSL (Monadic Domain Specific Language) files with the `.mdsl` extension. These settings configure the behavior and appearance of each application. There are required and optional settings. If required settings are not specified, an error message will be displayed when the application is launched.
+Applications in Monadic Chat are defined using MDSL (Monadic Domain Specific Language) files with the `.mdsl` extension. These settings configure the behavior, appearance, and capabilities of each application.
+
+## Basic MDSL Structure
+
+```ruby
+app "AppNameProvider" do
+  description "Brief description of the app"
+  icon "fa-icon-name"
+  display_name "Display Name"
+  
+  llm do
+    provider "provider_name"
+    model "model_name"
+    temperature 0.7
+  end
+  
+  features do
+    # Feature settings here
+  end
+  
+  tools do
+    # Tool definitions here
+  end
+  
+  system_prompt <<~TEXT
+    System prompt text goes here
+  TEXT
+end
+```
 
 ## Required Settings
 
-`display_name` (string, required)
-Specify the display name of the application that appears in the UI (required).
+### App Definition
+- **`app "AppName"`** - The app identifier. Must match the Ruby class name exactly (e.g., `app "ChatOpenAI"` requires `class ChatOpenAI`)
+- **`description`** - Brief description of the application's purpose
+- **`icon`** - Icon identifier (Font Awesome class or built-in icon name)
+- **`system_prompt`** - The system instructions for the AI model
 
-`icon` (string, required)
-Specify the icon for the application (emoji or HTML).
-
-`description` (string, required)
-Describe the application.
-
-`initial_prompt` (string, required)
-Specify the text of the system prompt.
+### LLM Configuration
+The `llm` block is required and contains:
+- **`provider`** - The AI provider (openai, claude, gemini, etc.)
+- **`model`** - The specific model to use
 
 ## Optional Settings
 
-`group` (string)
+### LLM Block Options
+- **`temperature`** - Controls randomness in responses. Range and availability depend on provider and model. Some models (e.g., OpenAI o1/o3, Gemini 2.5 thinking models) don't support temperature adjustment
+- **`max_tokens`** - Maximum tokens in response (availability and limits vary by model)
+- **`presence_penalty`** - Penalize repeated topics. Supported by some OpenAI and Mistral models
+- **`frequency_penalty`** - Penalize repeated words. Supported by some OpenAI and Mistral models
 
-Specify the group name for grouping the app on the Base App selector on the web settings screen. When adding custom apps, it is recommended to specify some group name to distinguish them from the base apps.
+### Features Block
+All settings in the features block are optional:
 
-![](../assets/images/groups.png ':size=300')
+#### Display and Interaction
+- **`display_name`** - Name shown in the UI (defaults to app name)
+- **`group`** - Menu group name for organizing apps in the UI. By default, apps are automatically grouped by their provider (e.g., "OpenAI", "Anthropic"). You can override this to create custom groups, but it's recommended to keep the default provider-based grouping
+- **`disabled`** - Hide app from menu when true
+- **`easy_submit`** - Send messages with Enter key alone
+- **`auto_speech`** - Auto-play AI responses as speech
+- **`initiate_from_assistant`** - Start conversation with AI message
 
-`model` (string)
-Specify the default model. If not specified, the default model provided by the included helper module (e.g., `gpt-4o` for `OpenAIHelper`) is used.
+#### Content Features
+- **`pdf_vector_storage`** - Enable PDF database functionality for RAG (Retrieval-Augmented Generation). Shows PDF import button and database panel in the UI
+- **`file`** - Enable text file uploads
+- **`websearch`** - Enable web search capability
+- **`image_generation`** - Enable AI image generation capabilities. Accepts:
+  - `true` - Full image generation (create, edit, variations)
+  - `"upload_only"` - Image upload only (no generation/editing)
+  - `false` - Disabled (default)
+- **`mermaid`** - Enable Mermaid diagram rendering
+- **`abc`** - Enable ABC music notation
+- **`sourcecode`** - Enable syntax highlighting
+- **`mathjax`** - Enable LaTeX math rendering
 
-`temperature` (float)
-Specify the default temperature. Note: For Gemini 2.5 thinking models (e.g., `gemini-2.5-flash-thinking`), temperature is replaced by `reasoning_effort` in the UI.
+#### Context Management
+- **`context_size`** - Number of previous messages to include
+- **`monadic`** - Enable JSON-based state management (OpenAI/Ollama only)
+- **`toggle`** - Enable collapsible sections (Claude/Gemini/Mistral/Cohere)
+- **`prompt_suffix`** - Text appended to every user message
 
-`presence_penalty` (float)
-Specify the default `presence_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
+?> **Important**: Never enable both `monadic` and `toggle` - they are mutually exclusive and provider-specific.
 
-`frequency_penalty` (float)
-Specify the default `frequency_penalty`. This is available for OpenAI and Mistral AI models. It is ignored if the model does not support it.
+### Tools Block
+Define functions the AI can use:
 
-`max_tokens` (int)
-Specify the default `max_tokens`. Also available as `max_output_tokens`.
+```ruby
+tools do
+  define_tool "tool_name", "Tool description" do
+    parameter :param_name, "type", "description", required: true
+  end
+end
+```
 
-`context_size` (int)
-Specify the default `context_size`.
+### Advanced Settings
+- **`response_format`** - Specify structured output format (OpenAI)
+- **`reasoning_effort`** - For thinking models (replaces temperature)
+- **`models`** - Override available model list
+- **`jupyter`** - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`). Note: This only enables the capability; actual Jupyter functionality requires corresponding tool definitions like `run_jupyter`, `create_jupyter_notebook`, etc.
 
-`easy_submit` (bool)
-Specify whether to send messages entered in the text box with just the ENTER key.
+## Provider-Specific Behaviors
 
-`auto_speech` (bool)
-Specify whether to read aloud the AI assistant's responses.
+### OpenAI
+- Supports `monadic` mode for structured outputs
+- Most models support `temperature`, `presence_penalty`, `frequency_penalty`
+- Reasoning models (o1, o3) don't support these parameters and use fixed settings
 
-`image` (bool)
-Specify whether to display an image attachment button in the message box sent to the AI assistant.
+### Claude
+- Uses `toggle` mode for context display
+- Requires `initiate_from_assistant: true`
+- Supports thinking models with `reasoning_effort`
 
-`pdf` (bool)
-Specify whether to enable the PDF database feature.
+### Gemini
+- Uses `toggle` mode
+- Requires `initiate_from_assistant: true`
+- Thinking models (e.g., 2.5 Flash Thinking) use `reasoning_effort` instead of temperature
+- Standard models support temperature adjustment
 
-`initiate_from_assistant` (bool)
-Specify whether to start with the first message from the AI assistant before the user.
-
-`sourcecode` (bool)
-Specify whether to enable syntax highlighting for program code. Also available as `code_highlight`.
-
-`mathjax` (bool)
-Specify whether to enable rendering of mathematical expressions using [MathJax](https://www.mathjax.org/).
-
-`jupyter` (bool)
-Specify `true` to enable access to Jupyter notebooks in the conversation. Also available as `jupyter_access`.
-
-`monadic` (bool)
-Specify the app to run in Monadic mode. For Monadic mode, refer to [Monadic Mode](./monadic-mode.md). This feature is supported by OpenAI, Ollama, DeepSeek, Perplexity, and Grok providers. Note that this setting is mutually exclusive with `toggle` - never enable both.
-
-`prompt_suffix` (string)
-Specify a text string to be added to every message from the user before sending it to the AI agent. This is useful for adding a reminder to the AI agent about highly important information (often specified in the system prompt) to ensure it is considered when preparing the response.
-
-`file` (bool)
-Specify whether to enable the text file upload feature on the app's web settings screen. The contents of the uploaded file are added to the end of the system prompt.
-
-`websearch` (bool)
-Specify whether to enable web search functionality for retrieving external information. This allows the AI assistant to search the web for current information. Also available as `web_search`.
-
-`image_generation` (bool)
-Specify whether to enable AI image generation capabilities within the conversation. When enabled, the AI can generate images based on text descriptions.
-
-`mermaid` (bool)
-Specify whether to enable Mermaid diagram rendering and interaction. This allows creating and displaying flowcharts, sequence diagrams, and other visual representations directly in the conversation.
-
-`reasoning_effort` (string)
-Specify the depth of reasoning for thinking models (e.g., "high", "medium", "low"). This parameter replaces `temperature` for certain models like Gemini 2.5 Flash Thinking and Claude's thinking models. It controls how thoroughly the model reasons through complex problems. For Gemini models, this maps to thinking budget tokens.
-
-`abc` (bool)
-Specify whether to enable the display and playback of musical scores entered in [ABC notation](https://abcnotation.com/) in the AI agent's response. ABC notation is a text-based format for describing musical scores.
-
-`disabled` (bool)
-Specify whether to disable the app. Disabled apps are not displayed in the Monadic Chat menu.
-
-`toggle` (bool)
-Specify whether to enable collapsible sections for displaying meta information and tool usage in the AI agent's response. This feature allows users to show/hide detailed information about the AI's reasoning process and tool calls. Currently, this is used by Claude, Gemini, Mistral, and Cohere providers to provide a cleaner interface while still allowing access to detailed information when needed. When enabled, meta information appears in collapsible sections marked with disclosure triangles. Note that this setting is mutually exclusive with `monadic` - never enable both.
-
-`models` (array)
-Specify a list of available models. If not specified, the list of models provided by the included helper module (e.g., `OpenAIHelper`) is used.
-
-`tools` (array)
-Specify a list of available functions. The actual definition of the functions specified here should be written in the recipe file or in another file as instance methods of the `MonadicApp` class.
-
-`response_format` (hash)
-Specify the output format when outputting in JSON format. For details, refer to [OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs).
+### Mistral
+- Uses `toggle` mode
+- Requires `initiate_from_assistant: false`
+- Supports `presence_penalty` and `frequency_penalty`
 
 ## System-Level Settings
 
-The following settings are managed at the system level and are not directly configurable in recipe files. They are set through the Monadic Chat settings UI.
+These are configured in the Monadic Chat UI, not in MDSL files:
 
-`STT_MODEL` (string)
-Specifies the Speech-to-Text model to use for voice transcription across the application. Available options include 'whisper-1', 'gpt-4o-mini-transcribe', and 'gpt-4o-transcribe'. The audio format is automatically optimized based on the selected model.
+- **`AI_USER_MODEL`** - Model for AI-generated user messages
+- **`AI_USER_MAX_TOKENS`** - Max tokens for user message generation (default: 2000)
+- **`WEBSEARCH_MODEL`** - Model for web search (gpt-4.1-mini or gpt-4.1)
+- **`STT_MODEL`** - Speech-to-text model
+- **`ROUGE_THEME`** - Syntax highlighting theme
 
-`AI_USER_MODEL` (string)
-Specifies the model used for AI-generated user messages. Available options include 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4.1-nano', 'o3-mini', 'o1-mini', and 'o1'.
+## Complete Example
 
-`WEBSEARCH_MODEL` (string)
-Specifies the model used for web search functionality. Available options include 'gpt-4.1-mini' and 'gpt-4.1'. This model is also used as a fallback when web search is enabled with OpenAI reasoning models (o1, o3, etc.) that don't have native web search capabilities. Default is 'gpt-4.1-mini'.
+```ruby
+app "ChatOpenAI" do
+  description "General-purpose chat application with OpenAI"
+  icon "fa-comments"
+  
+  llm do
+    provider "openai"
+    model "gpt-4.1-mini"
+    temperature 0.7
+    max_tokens 4000
+  end
+  
+  features do
+    easy_submit true
+    auto_speech false
+    context_size 20
+    monadic false
+    # Note: Image upload is automatically enabled for models with vision capability
+    websearch true
+  end
+  
+  tools do
+    # Empty block required even if using only standard tools
+  end
+  
+  system_prompt <<~TEXT
+    You are a helpful AI assistant.
+  TEXT
+end
+```
 
-`ROUGE_THEME` (string)
-Specifies the syntax highlighting theme used across the application.
+## See Also
 
+- [Monadic DSL](./monadic_dsl.md) - Complete MDSL syntax reference
+- [Developing Apps](./develop_apps.md) - Guide to creating apps
+- [Recipe Examples](./recipe-examples.md) - Example implementations

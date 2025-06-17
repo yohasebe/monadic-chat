@@ -106,6 +106,7 @@ Postgresql上にテキスト埋め込みのベクトルデータを保存する�
 - 図の生成（Syntax Tree、Concept Visualizer）
 - ビデオ分析（Video Describer）
 - LaTeXレンダリングを使用するアプリ
+- ポート5070でトークン化サービスのFlask APIサーバーを提供
 
 **Seleniumコンテナ**: 以下に必要：
 - Webコンテンツの取得（Content Reader、Research Assistant）
@@ -121,9 +122,9 @@ Postgresql上にテキスト埋め込みのベクトルデータを保存する�
   
 ## オプションのDockerコンテナ
 
-Monadic Chatは、追加のプラグインにより以下のようなオプションのDockerコンテナをサポートしています：
+Monadic Chatは、以下のようなオプションのDockerコンテナをサポートしています：
 
-- **Ollamaコンテナ**（`monadic-chat-ollama-container`）：[Ollama](https://ollama.com) を使用してローカルLLM（Llama、Phi、Mistral、Gemma、DeepSeekなど）を提供します。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
+- **Ollamaコンテナ**（`monadic-chat-ollama-container`）：[Ollama](https://ollama.com) を使用してローカルLLMを提供します。このコンテナはアクション → Ollamaコンテナのビルドを使用してオンデマンドでビルドされます（「すべてビルド」には含まれません）。モデルは`~/monadic/ollama/`に保存され、コンテナの再ビルド後も保持されます。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
 
 ## コンテナネットワークアーキテクチャ
 

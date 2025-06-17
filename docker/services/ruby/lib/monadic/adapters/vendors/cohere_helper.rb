@@ -3,7 +3,7 @@ require_relative "../../utils/interaction_utils"
 
 module CohereHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 16
+  MAX_FUNC_CALLS = 20
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
   OPEN_TIMEOUT = 5

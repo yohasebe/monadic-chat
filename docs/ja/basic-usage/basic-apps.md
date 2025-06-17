@@ -17,7 +17,7 @@
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
-| Second Opinion | ✅ | | | | | | | | |
+| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
@@ -115,6 +115,8 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 このアプリは2段階の相談プロセスを提供します。まず、質問に対する回答を生成します。その後、別のAIプロバイダー（Claude、Gemini、Mistralなど）にセカンドオピニオンを求めることができ、回答の検証や別の視点からの意見を得ることができます。これにより、回答の正確性を確保し、複雑なトピックについて多様な視点を得ることができます。セカンドオピニオン機能は複数のプロバイダーに対応しており、どのAIモデルに初回の回答をレビューしてもらうかを選択できます。
 
+Second Opinionアプリは、サポートされているすべてのモデルで利用可能です：OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、xAI Grok、DeepSeek、Ollama。
+
 ### Research Assistant
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
@@ -191,8 +193,6 @@ OpenAIバージョンはgpt-image-1モデルを使用し、3つの主な操作�
 1. **画像生成**：テキストの説明から新しい画像を作成
 2. **画像編集**：テキストプロンプトとオプションのマスク画像を使用して既存の画像を修正
 3. **画像バリエーション**：既存の画像の代替バージョンを生成
-
-画像編集機能はgpt-image-1モデルでのみ利用可能です。
 
 画像編集機能では、以下のことが可能です：
 - 既存の画像をベースとして選択
@@ -425,7 +425,7 @@ Visual Web Explorerアプリは以下のモデルで利用可能です:
 
 PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキスト埋め込みが計算されます。ユーザーからの入力を受け取ると、入力文のテキスト埋め込み値に最も近いテキストセグメントがユーザーの入力値とともにGPTに渡され、その内容に基づいて回答が生成されます。
 
-?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストと埋め込みデータは [PGVector](https://github.com/pgvector/pgvector) データベースに確実に保存され、アプリケーションは適切にベクトルデータベースに接続してPDFコンテンツの検索と取得を行います。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
+?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストと埋め込みデータは [PGVector](https://github.com/pgvector/pgvector) データベース（データベース名：`monadic_user_docs`）に確実に保存され、アプリケーションは適切にベクトルデータベースに接続してPDFコンテンツの検索と取得を行います。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
 
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
@@ -502,6 +502,8 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
+
+!> **セキュリティに関する注意**: サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
 
 下記の言語モデルでJupyter Notebookアプリが利用可能です。
 

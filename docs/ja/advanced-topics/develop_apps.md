@@ -2,13 +2,13 @@
 
 Monadic Chatでは、オリジナルのシステムプロンプトを用いたAIチャットボット・アプリケーションを開発することができます。このセクションでは、新しいアプリケーションを開発するための手順を説明します。
 
+?> **重要**: MDSLのアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`は対応する`class ChatOpenAI < MonadicApp`が必要です。これにより適切なメニューグループ化と機能が保証されます。
+
 ## MDSL形式によるアプリ開発
 
 Monadic Chatでは、**MDSL（Monadic Domain Specific Language）形式**でアプリを開発します。この宣言的な形式により、シンプルで保守しやすいアプリが作成できます。
 
-**重要**: 従来のRubyクラス形式はサポートされなくなりました。すべてのアプリはMDSL形式で作成する必要があります。
-
-**MDSL自動補完機能**: Monadic ChatにはRubyの実装ファイルからツール定義を動的に生成する自動補完システムが含まれています。これにより手動作業を削減し、ツール定義と実装の一貫性を確保できます。
+**重要**: すべてのアプリはMDSL形式で作成する必要があります。
 
 **一般的なアプリパターン**:
 - **ファサードパターン**: すべてのカスタム機能にファサードメソッドを使用する`*_tools.rb`ファイルを持つアプリ（推奨）
@@ -266,43 +266,25 @@ class AppNameProvider < MonadicApp
 end
 ```
 
-## レガシーRubyクラスアプローチ :id=writing-the-recipe-file
+## ヘルパーモジュール :id=helper-modules
 
-!> **注意**: 以下に説明するRubyクラスベースのアプローチはサポートされなくなりました。すべてのアプリは[Monadic DSL形式](/ja/advanced-topics/monadic_dsl.md)を使用する必要があります。このセクションは参考のために残されています。
+アプリで使用できるヘルパーモジュール：
 
-### 歴史的背景
-
-現在のMDSL専用アーキテクチャ以前は、アプリは`MonadicApp`を継承したRubyクラスとして定義され、設定は`@settings`インスタンス変数に記述されていました。
-
-```ruby
-class RobotApp < MonadicApp
-  include OpenAIHelper
-  @settings = {
-    display_name: "Robot App",
-    icon: "🤖",
-    description: "This is a sample robot app.",
-    initial_prompt: "You are a friendly robot that can help with anything the user needs. You talk like a robot, always ending your sentences with '...beep boop'.",
-  }
-end
-```
-
-言語モデルと連携するためのモジュールとして、下記が利用可能です。
-
-- `OpenAIHelper`
-- `ClaudeHelper`
-- `CohereHelper`
-- `MistralHelper`
-- `GeminiHelper`
-- `GrokHelper`
-- `PerplexityHelper`
-- `DeepSeekHelper`
-- `OllamaHelper`
+- `OpenAIHelper` - OpenAI API統合
+- `ClaudeHelper` - Anthropic Claude API統合
+- `CohereHelper` - Cohere API統合
+- `MistralHelper` - Mistral AI API統合
+- `GeminiHelper` - Google Gemini API統合
+- `DeepSeekHelper` - DeepSeek API統合
+- `PerplexityHelper` - Perplexity API統合
+- `GrokHelper` - xAI Grok API統合
+- `OllamaHelper` - Ollamaローカルモデル統合
 
 どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
 
 ?> `OpenAIHelper`、`ClaudeHelper`、`CohereHelper`、`MistralHelper`、`GeminiHelper`、`GrokHelper`、`DeepSeekHelper`では "function calling" や "tool use" の機能を使うことができます（[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照）。関数呼び出しのサポートはプロバイダーによって異なります - 制限については各プロバイダーのドキュメントを確認してください。
 
-!> レシピファイルがRubyスクリプトとして有効ではなく、エラーが発生する場合、Monadic Chatが起動せず、エラーメッセージが表示されます。具体的なエラーの詳細は共有フォルダ内に保存されるログファイルに記録されます（`~/monadic/data/error.log`）。
+!> レシピファイルがRubyスクリプトとして有効ではなく、エラーが発生する場合、Monadic Chatが起動せず、エラーメッセージがコンソールに表示されます。アプリの読み込みエラーは、サーバー起動時にどのアプリがなぜ読み込みに失敗したかの詳細とともに表示されます。
 
 ## 設定項目
 
@@ -349,8 +331,7 @@ MDSLでは、AIエージェントが使用できるRubyメソッドを定義す�
 3. メソッドシグネチャがツール定義と一致することを確認
 
 ツール定義の形式はプロバイダーによってわずかに異なります：
-- OpenAI/Gemini: 最大20回の関数呼び出しをサポート
-- Claude: 最大16回の関数呼び出しをサポート
+- すべてのプロバイダー: 最大20回の関数呼び出しをサポート
 - コード実行: すべてのプロバイダがコード実行に`run_code`を使用
 - 配列パラメータ: OpenAIは`items`プロパティが必要
 
@@ -403,9 +384,7 @@ The code has been executed successfully; File(s) generated: NEW_FILE; Output: OU
 
 ## 関数・ツール内でのLLMの使用
 
-!> `0.9.37`以前のバージョンで用いていた`ask_openai`メソッドは、`MonadicApp`クラスの`send_query`メソッドに置き換えられました。
-
-上記の方法で作成した、AIエージェントから呼び出される関数・ツールの中で、さらにAIエージェントへのリクエストを行いたい場合があります。そのような場合、`MonadicApp`クラスで利用可能な`send_query`メソッドを使うことができます。
+AIエージェントから呼び出される関数・ツールの中で、さらにAIエージェントへのリクエストを行いたい場合があります。そのような場合、`MonadicApp`クラスで利用可能な`send_query`メソッドを使うことができます。
 
 `send_query`は、現在のアプリで使用している言語モデル（または同じベンダーによる言語モデル）のAPIを介してAIエージェントにリクエストを送信し、その結果を返します。APIのパラメターを設定したハッシュを引数として渡すことで、AIエージェントにリクエストを送信することができます。
 

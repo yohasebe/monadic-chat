@@ -13,9 +13,7 @@ Stop Monadic Chat.
 Restart Monadic Chat.
 
 **Open Browser** <br />
-Open Monadic Chat using the selected browser mode (see Settings):
-- **Internal Browser**: Opens the application’s embedded web view.
-- **External Browser**: Opens your system’s default web browser.
+Open Monadic Chat in a web browser.
 Access URL: `http://localhost:4567`.
 
 **Shared Folder** <br />
@@ -60,10 +58,10 @@ Launch JupyterLab. It can be accessed at `http://localhost:8889`.
 Stop JupyterLab.
 
 **Export Document DB** <br />
-Export PDF document data stored in Monadic Chat's PGVector database. The exported file will be saved as `monadic.gz` in the shared folder.
+Export PDF document data stored in Monadic Chat's vector database. The exported file will be saved as `monadic.gz` in the shared folder.
 
 **Import Document DB** <br />
-Import PDF document data exported by Monadic Chat's export feature into the PGVector database. When importing, place a file named `monadic.gz` in the shared folder.
+Import PDF document data previously exported by Monadic Chat. When importing, place a file named `monadic.gz` in the shared folder.
 
 ### Open Menu
 
@@ -77,16 +75,17 @@ Open the folder shared between the host and Docker containers. It can be used fo
 
 - `apps`: Folder for storing additional applications.
 - `helpers`: Folder for storing helper files containing functions used by apps.
-- `scripts`: Folder for storing executable scripts that can be run within the Python container (`monadic-chat-python-container`).
+- `scripts`: Folder for storing executable scripts that can be run within containers.
 - `plugins`: Folder for organizing Monadic Chat plugins.
 
 **Open Config Folder** <br />
 Open the `~/monadic/config` folder. This folder contains configuration files for Monadic Chat. The following files are included:
 
-- `env`: Environment variables for Monadic Chat.
-- `pysetup.sh`: Script for setting up the Python environment.
-- `rbsetup.sh`: Script for setting up the Ruby environment.
-- `compose.yml`: Docker Compose configuration file.
+- `env`: Configuration variables for Monadic Chat.
+- `pysetup.sh`: Script for setting up the Python environment (optional, user-created).
+- `rbsetup.sh`: Script for setting up the Ruby environment (optional, user-created).
+- `olsetup.sh`: Script for setting up Ollama models (optional, user-created).
+- `compose.yml`: Docker Compose configuration file (auto-generated when user containers are present).
 
 **Open Log Folder** <br />
 Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat. The following files are included:
@@ -101,7 +100,7 @@ When `Extra Logging` is enabled in the settings panel, additional logs are saved
 
 - `extra.log`: Log file for chat logs recorded as streaming JSON objects from the start to the end of Monadic Chat.
 
-?> **Debug Logging**: The "Extra Logging" option in the GUI is equivalent to setting `MONADIC_DEBUG=api`. For more detailed debug control, you can use environment variables:
+?> **Debug Logging**: The "Extra Logging" option in the GUI is equivalent to setting `MONADIC_DEBUG=api` in the configuration. For more detailed debug control, you can use configuration variables in `~/monadic/config/env`:
 > - `MONADIC_DEBUG`: Enable specific debug categories (e.g., `api`, `embeddings`, `mdsl`, `tts`, `drawio`, `ai_user`, `web_search`, or `all`)
 > - `MONADIC_DEBUG_LEVEL`: Set log level (`debug`, `info`, `warning`, `error`)
 
@@ -132,7 +131,7 @@ All settings here are saved in the `~/monadic/config/env` file.
 ![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
 
 **OPENAI_API_KEY** <br />
-(Required) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Speech-to-Text API, and Text-to-Speech API. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
+(Recommended) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Speech-to-Text API, and Text-to-Speech API. While not strictly required, many core features depend on this key. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
 **ANTHROPIC_API_KEY** <br />
 Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com].
@@ -164,7 +163,7 @@ Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 
 **WEBSEARCH_MODEL** <br />
-Select the model used for web search in apps that use OpenAI models. This setting applies when using OpenAI's native web search feature with your OPENAI_API_KEY. Currently, `gpt-4.1` and `gpt-4.1-mini` are available. The default is `gpt-4o-mini-search-preview`.
+Select the model used for web search when using OpenAI reasoning models (o1, o3, etc.) that don't have native web search capabilities. Available options are `gpt-4.1` and `gpt-4.1-mini`. The default is `gpt-4.1-mini`.
 
 **AI_USER_MAX_TOKENS** <br />
 Select the maximum number of tokens for the AI user. This setting is used to limit the number of tokens that can be used in a single request. The default is `2000`.
@@ -187,11 +186,12 @@ Enter the path to the text-to-speech dictionary file. The dictionary file is in 
 **Application Mode** <br />
 Select the application mode. "Standalone" mode runs the application for a single device while "Server" mode allows multiple devices in the local network to connect to the Monadic Chat server. The default is "Standalone".
 
-The default is "Standalone".
+**Browser Mode** <br />
+Select the browser to use when opening Monadic Chat from the console. "Internal Browser" opens the built-in Electron browser window, while "External Browser" opens your system's default web browser. The default is "Internal Browser".
 
 **Extra Logging** <br />
-Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/logs/extra.log`. This setting is equivalent to setting the environment variable `MONADIC_DEBUG=api`.
+Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`. This setting is equivalent to setting the configuration variable `MONADIC_DEBUG=api` in `~/monadic/config/env`.
 
-Note: For more granular debug control, you can use the unified debug system with environment variables:
+Note: For more granular debug control, you can use the unified debug system with configuration variables in `~/monadic/config/env`:
 - `MONADIC_DEBUG=api,embeddings` (comma-separated categories)
 - `MONADIC_DEBUG_LEVEL=debug` (none, error, warning, info, debug, verbose)

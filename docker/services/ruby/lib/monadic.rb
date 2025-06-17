@@ -62,7 +62,7 @@ envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)
 
 # Connect to the database
-EMBEDDINGS_DB = TextEmbeddings.new("monadic", recreate_db: false)
+EMBEDDINGS_DB = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
 
 DEFAULT_PROMPT_SUFFIX = <<~PROMPT
 When creating a numbered list in Markdown that contains code blocks or other content within list items, please follow these formatting rules:
@@ -456,9 +456,11 @@ def init_apps
   # Load TTS dictionary from provided data, not from a path
   load_tts_dict
 
-  # Filter out Jupyter apps if we're in server mode
+  # Filter out Jupyter apps if we're in server mode unless explicitly allowed
   distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : (ENV["DISTRIBUTED_MODE"] || "off")
-  if distributed_mode == "server"
+  allow_jupyter_in_server = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] == true || CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] == "true"
+  
+  if distributed_mode == "server" && !allow_jupyter_in_server
     # Create a new hash without the Jupyter apps
     filtered_apps = {}
     apps.each do |app_name, app|
@@ -475,7 +477,9 @@ def init_apps
       end
     end
     apps = filtered_apps
-    puts "SERVER MODE: Filtered out Jupyter apps for security reasons"
+    puts "SERVER MODE: Filtered out Jupyter apps for security reasons (set ALLOW_JUPYTER_IN_SERVER_MODE=true in config to enable)"
+  elsif distributed_mode == "server" && allow_jupyter_in_server
+    puts "SERVER MODE: Jupyter apps enabled via ALLOW_JUPYTER_IN_SERVER_MODE configuration"
   end
 
   # Group apps by provider and sort alphabetically within each group

@@ -2,11 +2,94 @@
 
 Monadic Chat allows you to run Python code using Python containers. The standard Python container is provided under the name `monadic-chat-python-container`. By using the Python container, AI agents can execute Python code and return the results.
 
-The standard Python container is built with the following Dockerfile.
+The standard Python container is built with the following Dockerfile:
 
-?> The Dockerfile shown on this page directly reference the code in the [monadic-chat](https://github.com/yohasebe/monadic-chat) repository (`main` branch).
+```dockerfile
+FROM python:3.10-slim-bookworm
+ARG PROJECT_TAG
+LABEL project=$PROJECT_TAG
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/python/Dockerfile ':include :type=code dockerfile')
+# Install necessary packages
+# LaTeX packages for Concept Visualizer:
+# - texlive-latex-base: Basic LaTeX
+# - texlive-latex-extra: Additional LaTeX packages
+# - texlive-pictures: TikZ and PGF
+# - texlive-science: Scientific diagrams (including tikz-3dplot)
+# - texlive-pstricks: PSTricks for advanced graphics
+# - texlive-latex-recommended: Recommended packages
+# - texlive-fonts-extra: Additional fonts
+# - texlive-plain-generic: Generic packages
+# - texlive-lang-cjk: CJK language support
+# - latex-cjk-all: Complete CJK support
+# - dvisvgm: DVI to SVG converter
+# - pdf2svg: PDF to SVG converter (backup option)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential wget curl git gnupg \
+    python3-dev graphviz libgraphviz-dev pkg-config \
+    libxml2-dev libxslt-dev \
+    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
+    imagemagick libmagickwand-dev \
+    texlive-xetex texlive-latex-base texlive-fonts-recommended \
+    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
+    texlive-science texlive-pstricks texlive-latex-recommended \
+    texlive-fonts-extra texlive-plain-generic \
+    pdf2svg dvisvgm \
+    && fc-cache -fv \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install -U pip && \
+    pip install --no-cache-dir --default-timeout=1000 \
+    setuptools \
+    wheel \
+    jupyterlab ipywidgets plotly \
+    numpy  pandas statsmodels \
+    matplotlib seaborn \
+    gunicorn tiktoken flask \
+    pymupdf pymupdf4llm \
+    selenium html2text \
+    openpyxl python-docx python-pptx \
+    requests beautifulsoup4 \
+    lxml pygraphviz graphviz pydotplus networkx pyvis \
+    svgwrite cairosvg tinycss cssselect pygal \
+    pyecharts pyecharts-snapshot \
+    opencv-python moviepy==2.0.0.dev2
+
+# Set up JupyterLab user settings
+RUN mkdir -p /root/.jupyter/lab/user-settings
+COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
+
+# Set up Matplotlib configuration
+ENV MPLCONFIGDIR=/root/.config/matplotlib
+RUN mkdir -p /root/.config/matplotlib
+COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+
+# Copy scripts and set permissions
+COPY scripts /monadic/scripts
+RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+RUN mkdir -p /monadic/data/scripts
+
+# Set environment variables (visible to LLM)
+ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
+ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+ENV PIP_ROOT_USER_ACTION=ignore
+
+# Copy Flask application
+COPY flask /monadic/flask
+
+# Create symbolic link for data directory
+RUN ln -s /monadic/data /data
+
+COPY Dockerfile /monadic/Dockerfile
+
+# copy `pysetup.sh` to `/monadic` and run it
+COPY pysetup.sh /monadic/pysetup.sh
+RUN chmod +x /monadic/pysetup.sh
+RUN /monadic/pysetup.sh
+```
 
 ## Pre-installed LaTeX Packages
 
@@ -16,7 +99,7 @@ The Python container includes comprehensive LaTeX support for diagram generation
 - `texlive-latex-base` - Basic LaTeX functionality
 - `texlive-latex-extra` - Additional LaTeX packages and tools
 - `texlive-fonts-recommended` - Standard LaTeX fonts
-- `texlive-lang-chinese`, `texlive-lang-japanese`, `texlive-lang-korean` - CJK language support
+- `texlive-lang-cjk` - CJK language support
 - `latex-cjk-all` - Complete CJK support for LaTeX
 
 ### Specialized Packages
@@ -33,7 +116,7 @@ These packages enable generation of complex diagrams, flowcharts, 3D visualizati
 The Python container includes Japanese font support for matplotlib and other visualization libraries. The Noto Sans CJK JP font is installed and configured through `matplotlibrc` settings:
 
 - Font family: Noto Sans CJK JP
-- Configuration file: `/monadic/matplotlibrc`
+- Configuration file: `/root/.config/matplotlib/matplotlibrc`
 - This enables proper rendering of Japanese text in matplotlib plots and figures
 
 When generating charts or plots with Japanese text, the font will be automatically used without additional configuration.
@@ -42,14 +125,24 @@ When generating charts or plots with Japanese text, the font will be automatical
 
 If you want to install additional programs and libraries, you can do one of the following:
 
-- Add an installation script to `pysetup.sh` in the shared folder to install the library during Monadic Chat environment setup (see the example below).
+- Add an installation script to `pysetup.sh` in the config folder (`~/monadic/config/pysetup.sh`) to install the library during Monadic Chat environment setup (see the example below).
 - Refer to [Docker Container Access](./docker-access) to log in to the Python container and install the library after setting up the Monadic Chat environment.
-- Refer to [Adding Containers](./adding-containers) to add a customized Python container.
+- Refer to [Adding Containers](../advanced-topics/adding-containers) to add a customized Python container.
 - Submit a request via [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues).
 
 ## Usage of `pysetup.sh`
 
-To install additional libraries in the Python container, add an installation script to `pysetup.sh`. `pysetup.sh` is automatically created in the shared folder during the Monadic Chat build process. By adding an installation script, the script is executed at the end of the `Dockerfile` during the Monadic Chat build process, and the library is installed. The following are examples of scripts.
+To install additional libraries in the Python container, create a `pysetup.sh` file in the config folder (`~/monadic/config/`) and add installation commands. When this file exists, the script is executed at the end of the `Dockerfile` during the container build process, and the libraries are installed. After creating or modifying the file, you need to rebuild the container for the changes to take effect.
+
+### Setup Scripts Overview
+
+Monadic Chat supports three optional setup scripts in the config folder:
+
+- **`rbsetup.sh`** - For installing additional Ruby gems in the Ruby container
+- **`pysetup.sh`** - For installing additional Python packages in the Python container  
+- **`olsetup.sh`** - For downloading Ollama models when building the Ollama container
+
+These scripts are not created automatically. You need to create them manually if you want to customize the container environments. The following are examples of `pysetup.sh` scripts.
 
 ### Installing Natural Language Processing Libraries
 
@@ -97,16 +190,6 @@ pip install sudachipy==0.6.8
 python -m spacy download ja_core_news_md
 ```
 
-### Customizing Matplotlib Settings
-
-If you need to customize matplotlib settings further, you can create or modify the `matplotlibrc` file in the shared folder. This file will be copied to the appropriate location during container setup:
-
-```ini
-# Example matplotlibrc settings
-font.family: Noto Sans CJK JP
-font.size: 12
-axes.unicode_minus: False
-```
 
 ## Flask API Server
 

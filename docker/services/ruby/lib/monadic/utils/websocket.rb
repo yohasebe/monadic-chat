@@ -668,7 +668,8 @@ module WebSocketHelper
               content = last_one["choices"][0]
 
               text = content["text"] || content["message"]["content"]
-              thinking = content["thinking"] || content["message"]["thinking"] || content["message"]["reasoning_content"]
+              # Extract thinking content uniformly from message
+              thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
 
               type_continue = "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results\n"
               code_truncated = "[CODE BLOCK TRUNCATED]"

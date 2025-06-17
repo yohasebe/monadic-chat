@@ -4,7 +4,7 @@
 
 ## Browser Modes
 
-Monadic Chat supports three different modes for accessing its web interface:
+Monadic Chat supports two different browser modes for accessing its web interface:
 
 ### Internal Browser Mode
 
@@ -27,16 +27,24 @@ When running in internal browser mode, four additional buttons appear at the bot
 
 In external browser mode, Monadic Chat launches your default web browser and connects to the local server (at http://localhost:4567).
 
+## Application Modes
+
+Monadic Chat supports two application modes that determine how the server operates:
+
+### Standalone Mode (Default)
+
+In standalone mode, Monadic Chat runs locally on a single device and binds only to localhost (127.0.0.1). This is the default mode for personal use.
+
 ### Server Mode
 
-In addition to the standard local operation, Monadic Chat offers a server mode that allows multiple clients to connect to a single server instance. When running in server mode:
+Server mode allows multiple clients to connect to a single Monadic Chat instance. When running in server mode:
 - The web interface binds to all network interfaces (0.0.0.0) rather than just localhost
-- Multiple users can access the same Monadic Chat instance from different devices
+- Multiple users can access the same Monadic Chat instance from different devices on the local network
 - The interface is responsive and adapts to different screen sizes (including tablets and smartphones)
-- Some features like Jupyter notebook functionality are disabled for security reasons
+- Some features like Jupyter notebook functionality are disabled for security reasons unless explicitly enabled
 - A mobile-optimized layout automatically activates for screen widths of 767px or less
 
-You can configure server mode in the System Settings panel on startup or through environment variables. This mode allows you to access your Monadic Chat instance from multiple devices.
+You can configure the application mode in the Console Settings panel on startup or through configuration variables in `~/monadic/config/env`.
 
 ## System Settings Screen
 
@@ -52,9 +60,7 @@ Models available for the selected app are displayed. If a default model is set f
 For models capable of advanced reasoning (such as `o1` and `o3-mini` from OpenAI), you can adjust the number of tokens used for inference. Selecting `low` minimizes the number of tokens used in the inference process, while selecting `high` maximizes the number of tokens used. The default is `medium`, which is in between.
 
 **Max Output Tokens** <br />
-When the checkmark is on, the text sent from the API (past interactions and new messages) is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
-
-Specify the maximum number of tokens to be sent to the API. This includes the number of tokens in the text sent as a prompt and the number of tokens in the text returned as a response. For information on how tokens are counted in OpenAI's API, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
+Specify the maximum number of tokens to be returned in the API response. When the checkmark is on, the response is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 
 **Max Context Size** <br />
 The maximum number of utterances to keep active in the ongoing chat. Only active utterances are sent to the API as context information. Inactive utterances can still be referenced on the screen and are also saved when exported.
@@ -165,7 +171,7 @@ You can specify the voice used for speech synthesis. Available voices depend on 
 You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, but quality may vary by browser and operating system.
 
 **Speech-to-Text (STT) Language**<br />
-Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. Monadic Chat uses the STT model configured in the system settings (gpt-4o-transcribe by default).
+Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. Monadic Chat uses the STT model configured in the console settings (gpt-4o-transcribe by default).
 Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 

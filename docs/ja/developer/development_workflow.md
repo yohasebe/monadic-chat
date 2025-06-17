@@ -96,15 +96,16 @@ end
 
 #### 自動補完の制御
 
-```bash
+`~/monadic/config/env`ファイルで設定：
+```
 # 無効化（デフォルト） - ツールは実行時に動作するがMDSLファイルは変更されない
-export MDSL_AUTO_COMPLETE=false
+MDSL_AUTO_COMPLETE=false
 
 # 有効化 - 欠落しているツール定義でMDSLファイルを自動更新
-export MDSL_AUTO_COMPLETE=true
+MDSL_AUTO_COMPLETE=true
 
 # デバッグモード - 有効化と同じだが詳細ログを出力
-export MDSL_AUTO_COMPLETE=debug
+MDSL_AUTO_COMPLETE=debug
 ```
 
 #### 重要な注意事項
@@ -153,20 +154,21 @@ Monadic Chatは環境変数で制御される統一デバッグシステムを�
 - **正常な劣化**: APIキーがない場合はクラッシュではなく明確なエラーメッセージを表示
 
 ### 使用例
-```bash
+`~/monadic/config/env`ファイルに以下を追加：
+```
 # Web検索のデバッグ出力を有効化
-export MONADIC_DEBUG=web_search
-export MONADIC_DEBUG_LEVEL=debug
+MONADIC_DEBUG=web_search
+MONADIC_DEBUG_LEVEL=debug
 
 # 複数のカテゴリを有効化
-export MONADIC_DEBUG=api,web_search,mdsl
+MONADIC_DEBUG=api,web_search,mdsl
 
 # すべてのデバッグ出力を有効化
-export MONADIC_DEBUG=all
-export MONADIC_DEBUG_LEVEL=verbose
+MONADIC_DEBUG=all
+MONADIC_DEBUG_LEVEL=verbose
 
 # APIデバッグ（Electronの「Extra Logging」に相当）
-export MONADIC_DEBUG=api
+MONADIC_DEBUG=api
 ```
 
 ## MDSL開発のベストプラクティス
@@ -224,15 +226,18 @@ end
 ### 一般的な開発上の問題
 
 **自動補完のデバッグ：**
-```bash
-# デバッグ出力付きで自動補完を有効化
-export MDSL_AUTO_COMPLETE=debug
-
-# サーバーを起動してアプリをロード
-rake server:start
-
-# コンソール出力で自動補完メッセージを確認
+1. `~/monadic/config/env`ファイルに以下を追加：
 ```
+# デバッグ出力付きで自動補完を有効化
+MDSL_AUTO_COMPLETE=debug
+```
+
+2. サーバーを起動してアプリをロード：
+```bash
+rake server:start
+```
+
+3. コンソール出力で自動補完メッセージを確認
 
 **手動ツール検証：**
 ```bash
@@ -246,22 +251,22 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 ### プロバイダー固有の考慮事項
 
 - **関数の制限**: OpenAI/Geminiは最大20個の関数呼び出しをサポート、Claudeは最大16個まで
-- **コード実行**: すべてのプロバイダが`run_code`を使用（以前はAnthropicが`run_script`を使用）
+- **コード実行**: すべてのプロバイダが`run_code`を使用
 - **配列パラメータ**: OpenAIは配列パラメータに`items`プロパティが必要
 
 ## MDSL自動補完の制御
 
-MDSL自動補完システムは環境変数で制御できます：
+MDSL自動補完システムは設定変数で制御できます。`~/monadic/config/env`ファイルで設定：
 
-```bash
+```
 # 自動補完を無効化（MDSLファイルのデバッグ時に便利）
-export MDSL_AUTO_COMPLETE=false
+MDSL_AUTO_COMPLETE=false
 
 # 詳細なデバッグログ付きで有効化
-export MDSL_AUTO_COMPLETE=debug
+MDSL_AUTO_COMPLETE=debug
 
 # 通常通り有効化
-export MDSL_AUTO_COMPLETE=true
+MDSL_AUTO_COMPLETE=true
 
 # デフォルトの動作（自動補完は無効）
 # MDSL_AUTO_COMPLETEは未設定またはデフォルトでfalse
@@ -344,7 +349,7 @@ rake server:debug
 ```
 
 このコマンドは：
-- `EXTRA_LOGGING=true`でデバッグモードでサーバーを起動
+- `EXTRA_LOGGING=true`でデバッグモードでサーバーを起動（rake server:debugコマンドにより自動設定）
 - Rubyコンテナは起動せず、ホストのRubyランタイムを使用
 - 他のすべてのコンテナを起動（Python、PostgreSQL、pgvector、利用可能な場合はOllama）
 - ホスト上の`/docker/services/ruby/`のファイルを直接使用

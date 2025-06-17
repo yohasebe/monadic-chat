@@ -5,7 +5,7 @@ require_relative "../../utils/interaction_utils"
 
 module MistralHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 16
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT   = 5
   READ_TIMEOUT   = 60
@@ -16,10 +16,10 @@ module MistralHelper
   EXCLUDED_MODELS = [
     "embed",
     "moderation",
-    "open",
-    "medium",
-    "small",
-    "tiny",
+    "open-mistral-7b",
+    "mistral-medium",
+    "mistral-small",
+    "mistral-tiny",
     "pixtral-12b"
   ]
 
@@ -201,14 +201,28 @@ module MistralHelper
       # Detailed logs are maintained in dedicated log files
     end
     
+    # Check if this is a reasoning model (magistral models)
+    is_reasoning_model = model && model.match?(/^magistral(-|$)/i)
+    
     # Prepare request body
     body = {
       "model" => model,
       "max_tokens" => options["max_tokens"] || 1000,
-      "temperature" => options["temperature"] || 0.7,
       "messages" => messages,
       "safe_prompt" => false
     }
+    
+    # For reasoning models, use reasoning_effort instead of temperature
+    if is_reasoning_model && options["reasoning_effort"]
+      body["reasoning_effort"] = options["reasoning_effort"]
+      # Log if extra logging is enabled
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "MistralHelper: Using reasoning_effort '#{options["reasoning_effort"]}' for model #{model}"
+      end
+    else
+      # For non-reasoning models, use temperature
+      body["temperature"] = options["temperature"] || 0.7
+    end
     
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -338,12 +352,24 @@ module MistralHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
+    # Check if this is a reasoning model (magistral models)
+    is_reasoning_model = obj["model"] && obj["model"].match?(/^magistral(-|$)/i)
+    
     # Set body for the API request
     body = {
       "model" => obj["model"],
-      "temperature" => temperature || 0.7,
       "messages" => []
     }
+    
+    # For reasoning models, use reasoning_effort instead of temperature
+    if is_reasoning_model && obj["reasoning_effort"]
+      body["reasoning_effort"] = obj["reasoning_effort"]
+      # Log if extra logging is enabled
+      DebugHelper.debug("Mistral: Using reasoning_effort '#{obj["reasoning_effort"]}' for model #{obj["model"]}", category: :api, level: :info)
+    else
+      # For non-reasoning models, use temperature
+      body["temperature"] = temperature || 0.7
+    end
 
     body["stream"] = true
 
@@ -382,8 +408,29 @@ module MistralHelper
     body["messages"] = context.reject do |msg|
                          msg["role"] == "tool"
                        end.map do |msg|
-      { "role" => msg["role"],
-        "content" => msg["text"] }
+      # Check if message contains images
+      if msg["images"] && msg["role"] == "user"
+        content = []
+        
+        # Add text content
+        content << {
+          "type" => "text",
+          "text" => msg["text"]
+        }
+        
+        # Add images
+        msg["images"].each do |img|
+          content << {
+            "type" => "image_url", 
+            "image_url" => img["data"]  # Mistral expects the URL/base64 string directly
+          }
+        end
+        
+        { "role" => msg["role"], "content" => content }
+      else
+        # Simple text-only format
+        { "role" => msg["role"], "content" => msg["text"] }
+      end
     end
 
     if role == "tool"
@@ -492,18 +539,78 @@ module MistralHelper
             # Check if this delta contains content
             if delta["content"]
               content = delta["content"]
-              content_buffer += content
+              
+              # Check if this is a Magistral model and process thinking blocks
+              if obj["model"] && obj["model"].match?(/^magistral(-|$)/i)
+                # Process thinking blocks for Magistral models
+                if content.include?("<thinking>") || thinking_buffer.length > 0
+                  # We're in or starting a thinking block
+                  thinking_buffer += content
+                  
+                  # Check if we've completed a thinking block
+                  if thinking_buffer.include?("</thinking>")
+                    # Extract the complete thinking content
+                    thinking_match = thinking_buffer.match(/<thinking>(.*?)<\/thinking>/m)
+                    if thinking_match
+                      # Store the thinking content (without tags)
+                      thinking << thinking_match[1].strip
+                      # Remove the thinking block from content buffer
+                      remaining_content = thinking_buffer.sub(/<thinking>.*?<\/thinking>/m, "")
+                      thinking_buffer = ""
+                      
+                      # Process any remaining content after thinking block
+                      if remaining_content && remaining_content.length > 0
+                        # Remove \boxed{} formatting if present
+                        remaining_content = remaining_content.gsub(/\\boxed\{([^}]+)\}/, '\1')
+                        
+                        content_buffer += remaining_content
+                        # Send the non-thinking content to client
+                        if remaining_content.strip.length > 0
+                          res = {
+                            "type" => "fragment",
+                            "content" => remaining_content,
+                            "index" => content_buffer.length - remaining_content.length,
+                            "timestamp" => Time.now.to_f,
+                            "is_first" => content_buffer.length == remaining_content.length
+                          }
+                          block&.call res
+                        end
+                      end
+                    end
+                  end
+                  # Don't send thinking content to client
+                else
+                  # Not in a thinking block, process normally but remove \boxed{} formatting
+                  clean_content = content.gsub(/\\boxed\{([^}]+)\}/, '\1')
+                  content_buffer += clean_content
+                  
+                  # Send content to the client
+                  if clean_content.length > 0
+                    res = {
+                      "type" => "fragment",
+                      "content" => clean_content,
+                      "index" => content_buffer.length - clean_content.length,
+                      "timestamp" => Time.now.to_f,
+                      "is_first" => content_buffer.length == clean_content.length
+                    }
+                    block&.call res
+                  end
+                end
+              else
+                # Non-Magistral models, process normally
+                content_buffer += content
 
-              # Send content to the client
-              if content.length > 0
-                res = {
-                  "type" => "fragment",
-                  "content" => content,
-                  "index" => content_buffer.length - content.length,
-                  "timestamp" => Time.now.to_f,
-                  "is_first" => content_buffer.length == content.length
-                }
-                block&.call res
+                # Send content to the client
+                if content.length > 0
+                  res = {
+                    "type" => "fragment",
+                    "content" => content,
+                    "index" => content_buffer.length - content.length,
+                    "timestamp" => Time.now.to_f,
+                    "is_first" => content_buffer.length == content.length
+                  }
+                  block&.call res
+                end
               end
             end
 
@@ -649,13 +756,22 @@ module MistralHelper
     res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
     block&.call res
 
+    # Clean content for Magistral models
+    final_content = content_buffer
+    if obj["model"] && obj["model"].match?(/^magistral(-|$)/i)
+      # Remove any remaining \boxed{} formatting
+      final_content = final_content.gsub(/\\boxed\{([^}]+)\}/, '\1')
+      # Remove any remaining thinking blocks that might have been missed
+      final_content = final_content.gsub(/<thinking>.*?<\/thinking>/m, '')
+    end
+    
     # Prepare the result to return
     response = {
       "id" => SecureRandom.hex(12),
       "choices" => [
         {
           "message" => {
-            "content" => content_buffer,
+            "content" => final_content,
             "role" => "assistant"
           },
           "finish_reason" => finish_reason || "stop"
@@ -664,8 +780,8 @@ module MistralHelper
     }
 
     # Add thinking if collected
-    if thinking_buffer && !thinking_buffer.empty?
-      response["choices"][0]["message"]["thinking"] = thinking_buffer
+    if thinking && !thinking.empty?
+      response["choices"][0]["message"]["thinking"] = thinking.join("\n\n")
     end
 
     [response]

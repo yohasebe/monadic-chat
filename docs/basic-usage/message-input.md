@@ -18,9 +18,12 @@ Uploading images is supported for the following models:
 - Anthropic Claude
 - xAI Grok
 - Google Gemini
-- Mistral AI (Pixtral)
+- Mistral AI (Pixtral, Mistral Medium 2505)
+- Perplexity AI
 
-Click `Image` to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
+Note: PDF uploads are only supported by OpenAI (gpt-4.1, gpt-4o, o1 series), Claude, and Gemini models.
+
+Click `Image` (or `Image/PDF` for models that support PDF) to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
 
 ![](../assets/images/attach-image.png ':size=400')
 
@@ -32,7 +35,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 In Anthropic's Sonnet models, OpenAI's gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
 
-![](../assets/images/monadi-chat-pdf-attachment.png ':size=400')
+![](../assets/images/monadic-chat-pdf-attachment.png ':size=400')
 
 As with images, when you upload a PDF file, the contents of the PDF are recognized, and the AI agent provides information about the PDF according to the text prompt.
 
@@ -66,7 +69,7 @@ After voice input, a `p-value` indicating the confidence of the voice input is d
 
 ## Speech-to-Text Model Selection
 
-You can select the Speech-to-Text (STT) model in the settings. Monadic Chat supports the following OpenAI STT models:
+You can select the Speech-to-Text (STT) model in the console settings. Monadic Chat supports the following OpenAI STT models:
 - whisper-1
 - gpt-4o-mini-transcribe
 - gpt-4o-transcribe

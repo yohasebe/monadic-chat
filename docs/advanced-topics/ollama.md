@@ -22,18 +22,17 @@ You can automate model installation by creating an `olsetup.sh` file in your con
 
 ```bash
 #!/bin/bash
-# Example olsetup.sh - Install default models
+# Example olsetup.sh - Install models
 
 echo "Installing Ollama models..."
 
-# Install recommended models
+# Install your desired models
 ollama pull llama3.2:3b
 ollama pull gemma2:2b
 ollama pull mistral:7b
 
-# Add any other models you want
-# ollama pull phi3:3.8b
-# ollama pull qwen2.5:3b
+# Add more models as needed
+# ollama pull model-name:size
 
 echo "Model installation complete!"
 ```
@@ -47,11 +46,11 @@ chmod +x ~/monadic/config/olsetup.sh
 
 The models will be automatically installed during the container build process and stored in `~/monadic/ollama/` for persistence.
 
-!> **Important**: When using `olsetup.sh`, only the models specified in the script will be installed. The default model (defined by `OLLAMA_DEFAULT_MODEL` environment variable or `llama3.2` if not set) will NOT be automatically installed. If you want the default model, you must explicitly include it in your script.
+!> **Important**: When using `olsetup.sh`, only the models specified in the script will be installed. The default model (defined by `OLLAMA_DEFAULT_MODEL` configuration variable or `llama3.2` if not set) will NOT be automatically installed. If you want the default model, you must explicitly include it in your script.
 
 ### Manual Installation
 
-If no `olsetup.sh` is found, the system will automatically pull `llama3.2` as a default. You can change the default model by setting the `OLLAMA_DEFAULT_MODEL` environment variable in your `~/monadic/config/env` file.
+If no `olsetup.sh` is found, the system will automatically pull `llama3.2` as a default. You can change the default model by setting the `OLLAMA_DEFAULT_MODEL` configuration variable in your `~/monadic/config/env` file.
 
 To manually add more models, connect to the Ollama container from your terminal:
 
@@ -74,32 +73,12 @@ After the model finishes downloading, you'll see an interactive Ollama shell pro
 
 The models you've added will be available for selection in the "Chat" app (Ollama version).
 
-## Popular Models
-
-Here are some popular models you can use with Ollama, sorted by popularity and suitability for general chat:
-
-| Model | Sizes | Description |
-|-------|-------|-------------|
-| **llama3.2** | 1B, 3B | Latest Llama model, good balance of performance and size |
-| **llama3.1** | 8B, 70B | State-of-the-art model from Meta |
-| **gemma2** | 2B, 9B, 27B | Google's lightweight models, excellent for single GPU |
-| **qwen2.5** | 0.5B-72B | Alibaba's models with various size options |
-| **mistral** | 7B | Fast and capable 7B model |
-| **phi3** | 3.8B, 14B | Microsoft's efficient models |
-
-For general chat purposes, we recommend starting with:
-- **llama3.2:3b** (default) - Best balance of quality and speed
-- **gemma2:2b** - Faster responses, good for quick interactions
-- **mistral:7b** - Higher quality but requires more resources
-
-To add any of these models, use the same process described above with `ollama run [model-name]`.
-
 !> Loading locally downloaded models into the Docker container can take some time. Reload the web interface if the model doesn't appear immediately, especially after adding a new model or restarting Monadic Chat.
 
 ## Technical Details
 
 - **Model Storage**: All models are stored in `~/monadic/ollama/` on your host machine for persistence
-- **Default Model**: `OLLAMA_DEFAULT_MODEL` environment variable specifies which model to download during build when no `olsetup.sh` exists (default: `llama3.2`)
+- **Default Model**: `OLLAMA_DEFAULT_MODEL` configuration variable specifies which model to download during build when no `olsetup.sh` exists (default: `llama3.2`)
 - **Model Selection**: The web UI automatically selects the first available model from the Ollama service
 - **Model List**: The app dynamically checks for available models when the Ollama service is running
 - **Container Management**: Uses Docker profiles for conditional building (profile: `ollama`)

@@ -29,7 +29,7 @@ app "AppNameProvider" do  # Follow the naming convention: AppName + Provider (e.
   
   llm do
     provider "anthropic"
-    model "claude-3-opus-20240229"
+    model "claude-3-5-sonnet-20241022"
     temperature 0.7
   end
   
@@ -71,7 +71,7 @@ end
 ```ruby
 llm do
   provider "anthropic"  # AI provider (anthropic, openai, cohere, etc.)
-  model "claude-3-opus-20240229"  # Model name
+  model "claude-3-5-sonnet-20241022"  # Model name
   temperature 0.7  # Response randomness (0.0-1.0)
   max_tokens 4000  # Maximum response length
 end
@@ -118,7 +118,7 @@ end
 features do
   # The following features are tied to specific system components:
   
-  pdf true                # Enable PDF file upload and processing UI elements
+  pdf_vector_storage true # Enable PDF file upload and vector storage for RAG (Retrieval-Augmented Generation)
   toggle true             # Enable collapsible sections for meta information and tool usage (primarily for Claude apps)
   jupyter_access true     # Enable access to Jupyter notebook interface (alias: jupyter)
   image_generation true   # Enable AI image generation tools in conversation
@@ -186,31 +186,18 @@ app "Math Tutor" do
   
   llm do
     provider "anthropic"
-    model "claude-3-opus-20240229"
+    model "claude-3-5-sonnet-20241022"
     temperature 0.7
   end
   
   features do
-    sourcecode true     # Enable code highlighting (formerly code_interpreter)
+    sourcecode true     # Enable code highlighting
     image true          # Enable clickable images in responses
   end
   
   tools do
-    tool "run_python" do
-      description "Run Python code to solve math problems"
-      parameters do
-        parameter "code", type: "string", description: "Python code to execute"
-      end
-    end
-    
-    tool "plot_graph" do
-      description "Create a graph for visualization"
-      parameters do
-        parameter "x_values", type: "array", items: { type: "number" }, description: "X-axis values"
-        parameter "y_values", type: "array", items: { type: "number" }, description: "Y-axis values"
-        parameter "title", type: "string", description: "Graph title"
-      end
-    end
+    # run_code is a standard tool - no need to define it
+    # It's automatically available for code execution
   end
 end
 ```
@@ -219,39 +206,13 @@ end
 
 > For developers interested in understanding the internal implementation of MDSL and how it works behind the scenes, see [MDSL Internals](mdsl-internals.md).
 
-### MDSL Tool Auto-Completion System
+### Tool/Function Calling
 
-Monadic Chat includes an automatic tool completion system that dynamically generates MDSL tool definitions from Ruby implementation files. This reduces manual work and ensures consistency between tool definitions and implementations.
+Tools in Monadic Chat must be explicitly defined in MDSL files. Each tool definition should match a corresponding method implementation in the companion `*_tools.rb` file.
 
-#### How Auto-Completion Works
+#### File Structure
 
-1. **Runtime Detection**: When MDSL files are loaded, the system automatically scans corresponding `*_tools.rb` files
-2. **Method Analysis**: Public methods in Ruby implementation files are analyzed for tool candidacy
-3. **Type Inference**: Parameter types are inferred from default values and naming patterns
-4. **Dynamic Completion**: Missing tool definitions are automatically added to the LLM's available tools
-5. **File Writing**: Auto-generated definitions are optionally written back to MDSL files
-
-#### Configuration
-
-Control auto-completion behavior with the `MDSL_AUTO_COMPLETE` environment variable:
-
-```bash
-# Default behavior (auto-completion disabled)
-# MDSL_AUTO_COMPLETE is unset or false by default
-
-# Enable auto-completion with basic logging
-export MDSL_AUTO_COMPLETE=true
-
-# Enable auto-completion with detailed debug information
-export MDSL_AUTO_COMPLETE=debug
-
-# Disable auto-completion entirely
-export MDSL_AUTO_COMPLETE=false
-```
-
-#### File Structure Requirements
-
-The auto-completion system works with standard Monadic Chat file naming conventions:
+Standard Monadic Chat file naming conventions:
 
 ```text
 apps/app_name/
@@ -261,105 +222,22 @@ apps/app_name/
 └── app_name_provider.mdsl   # Additional provider versions
 ```
 
-#### Method Detection Rules
-
-**Included Methods:**
-- Public methods in `*_tools.rb` files
-- Methods not matching exclusion patterns
-- Methods not in the standard tools list
-
-**Excluded Methods:**
-- Private methods (after `private` keyword)
-- Methods matching patterns: `initialize`, `validate`, `format`, `parse`, `setup`, `teardown`, `before`, `after`, `test_`, `spec_`
-- Standard MonadicApp methods (automatically detected)
-
-#### Type Inference
-
-The system automatically infers parameter types from default values:
-
-```ruby
-def example_tool(text: "", count: 0, enabled: false, items: [], config: {})
-  # text: "string", count: "integer", enabled: "boolean"
-  # items: "array", config: "object"
-end
-```
-
-#### Generated Tool Definitions
-
-Example of auto-generated MDSL tool definition:
-
-```ruby
-tools do
-  # Auto-generated tool definitions from Ruby implementation
-  define_tool "count_num_of_words", "Count the num of words" do
-    parameter :text, "string", "The text content to process"
-  end
-end
-```
-
-#### User-Defined Plugins Support
-
-The auto-completion system supports both built-in apps and user-defined plugins:
-
-**Built-in Apps:** `docker/services/ruby/apps/`
-**User Plugins:** `~/monadic/data/plugins/` (or `/monadic/data/plugins/` in container)
-
-#### Development Tools
-
-**CLI Tool for Testing:**
-```bash
-# Preview auto-completion for an app
-ruby bin/mdsl_tool_completer novel_writer
-
-# Validate tool consistency
-ruby bin/mdsl_tool_completer --action validate app_name
-
-# Detailed analysis with debug info
-ruby bin/mdsl_tool_completer --action analyze --verbose app_name
-```
-
-**RSpec Tests:**
-The system includes comprehensive tests in `spec/app_loading_spec.rb`:
-- Tool implementation validation
-- Auto-completion consistency checks  
-- System prompt reference validation
-- Multi-provider tool consistency
-
 #### Best Practices
 
-1. **Keep Ruby methods simple**: Use clear parameter names and appropriate default values
-2. **Add meaningful defaults**: Default values help with type inference
-3. **Use descriptive method names**: Method names are used to generate descriptions
-4. **Separate public and private**: Use `private` keyword to exclude helper methods
-5. **Test auto-completion**: Use the CLI tools to verify generated definitions
-
-#### Troubleshooting
-
-**Common Issues:**
-- **No auto-completion**: Check `MDSL_AUTO_COMPLETE` environment variable
-- **Wrong type inference**: Verify default values in Ruby method definitions
-- **Missing methods**: Ensure methods are public (before `private` keyword)
-- **File not found**: Verify file naming conventions match patterns
-
-**Debug Mode:**
-```bash
-export MDSL_AUTO_COMPLETE=debug
-# Restart Monadic Chat to see detailed auto-completion logs
-```
-
-### Tool/Function Calling
+1. **Keep tool definitions explicit**: Define all tools in MDSL files for clarity
+2. **Match implementation methods**: Ensure each tool has a corresponding method in `*_tools.rb`
+3. **Use descriptive names**: Tool and parameter names should be self-documenting
+4. **Add meaningful descriptions**: Help the AI understand when and how to use each tool
+5. **Test tool implementations**: Verify tools work correctly before deployment
 
 The DSL supports defining tools (functions) that the AI can call. These automatically get translated to the appropriate format for each provider.
 
 ```ruby
 tools do
-  tool "generate_image" do
-    description "Generate an image based on a text description"
-    parameters do
-      parameter "prompt", type: "string", description: "Text description of the image to generate"
-      parameter "style", type: "string", enum: ["realistic", "cartoon", "sketch"], description: "Style of the image"
-      parameter "size", type: "string", enum: ["small", "medium", "large"], description: "Size of the image", required: false
-    end
+  define_tool "generate_image", "Generate an image based on a text description" do
+    parameter :prompt, "string", "Text description of the image to generate", required: true
+    parameter :style, "string", "Style of the image", required: false, enum: ["realistic", "cartoon", "sketch"]
+    parameter :size, "string", "Size of the image", required: false, enum: ["small", "medium", "large"]
   end
 end
 ```
@@ -368,12 +246,12 @@ end
 
 Tool implementation in MDSL follows a structured approach using the facade pattern:
 
-1. **Tool Definition**: Tools can be defined explicitly in the MDSL file or auto-completed from Ruby implementations
+1. **Tool Definition**: Tools must be defined explicitly in the MDSL file
 2. **Tool Implementation**: Implement methods in a companion `*_tools.rb` file using the facade pattern
 
-#### Recommended: Facade Pattern with Auto-Completion
+#### Recommended: Facade Pattern
 
-Create your MDSL file with minimal or no tool definitions:
+Create your MDSL file with explicit tool definitions:
 
 ```ruby
 # mermaid_grapher_openai.mdsl
@@ -399,7 +277,9 @@ app "MermaidGrapherOpenAI" do
   end
   
   tools do
-    # Tools will be auto-completed from mermaid_grapher_tools.rb
+    define_tool "mermaid_documentation", "Get mermaid.js syntax documentation" do
+      parameter :diagram_type, "string", "Type of diagram (graph, sequence, flowchart, etc.)", required: true
+    end
   end
 end
 ```
@@ -515,14 +395,14 @@ Error logs are stored in `~/monadic/data/error.log` when apps fail to load.
 5. Test thoroughly with different inputs
 6. Organize related apps into logical groups
 
-## Migration Notice
+## Important Note
 
-**Important**: The traditional Ruby class format is no longer supported. All apps must use the MDSL format.
+**Important**: All apps must use the MDSL format.
 
-If you have custom apps in the old Ruby class format, you must convert them to MDSL:
+To create custom apps:
 
 1. Create a new `.mdsl` file for each provider
-2. Move tool implementations to a `*_tools.rb` file using the facade pattern
+2. Implement tools in a `*_tools.rb` file using the facade pattern
 3. Use `include_modules` for any helper modules
 4. Delete the old `.rb` app files
 
@@ -550,7 +430,7 @@ end
 
 ### Provider-Specific Considerations
 
-- **Function Limits**: OpenAI/Gemini support up to 20 function calls, Claude supports up to 16
-- **Code Execution**: All providers now consistently use `run_code` (previously Claude used `run_script`)
+- **Function Limits**: All providers support up to 20 function calls per conversation turn
+- **Code Execution**: All providers use `run_code` for code execution
 - **Array Parameters**: OpenAI requires `items` property for arrays
 - **Error Prevention**: Built-in error pattern detection prevents infinite retry loops

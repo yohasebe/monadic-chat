@@ -4,7 +4,7 @@ module OllamaHelper
   WRITE_TIMEOUT = 60
   MAX_RETRIES = 5
   RETRY_DELAY = 2
-  MAX_FUNC_CALLS = 5
+  MAX_FUNC_CALLS = 20
   
   # Default model can be overridden by OLLAMA_DEFAULT_MODEL environment variable
   DEFAULT_MODEL = ENV['OLLAMA_DEFAULT_MODEL'] || 'llama3.2:latest'

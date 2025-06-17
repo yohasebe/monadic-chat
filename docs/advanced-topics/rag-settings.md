@@ -1,6 +1,6 @@
 # RAG (Retrieval-Augmented Generation) Settings
 
-Monadic Chat provides several environment variables to configure chunk sizes and search behavior for both PDF Navigator and Help System.
+Monadic Chat provides several configuration variables to configure chunk sizes and search behavior for both PDF Navigator and Help System. These settings should be defined in the `~/monadic/config/env` file.
 
 ## PDF Navigator Settings
 
@@ -16,10 +16,10 @@ Monadic Chat provides several environment variables to configure chunk sizes and
   - Helps prevent context loss at chunk boundaries
   - Recommended range: 2-10 lines
 
-Example configuration:
-```bash
-export PDF_RAG_TOKENS=5000
-export PDF_RAG_OVERLAP_LINES=6
+Example configuration in `~/monadic/config/env`:
+```
+PDF_RAG_TOKENS=5000
+PDF_RAG_OVERLAP_LINES=6
 ```
 
 ## Help System Settings
@@ -46,12 +46,12 @@ export PDF_RAG_OVERLAP_LINES=6
   - Affects response quality and completeness
   - Recommended range: 3-5 chunks
 
-Example configuration:
-```bash
-export HELP_CHUNK_SIZE=4000
-export HELP_OVERLAP_SIZE=800
-export HELP_EMBEDDINGS_BATCH_SIZE=100
-export HELP_CHUNKS_PER_RESULT=5
+Example configuration in `~/monadic/config/env`:
+```
+HELP_CHUNK_SIZE=4000
+HELP_OVERLAP_SIZE=800
+HELP_EMBEDDINGS_BATCH_SIZE=100
+HELP_CHUNKS_PER_RESULT=5
 ```
 
 ## Optimization Tips

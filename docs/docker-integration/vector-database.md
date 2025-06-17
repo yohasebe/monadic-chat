@@ -8,7 +8,7 @@ The vector database functionality in Monadic Chat:
 - Converts text into numerical vector representations (embeddings)
 - Stores these vectors in a PostgreSQL database using pgvector
 - Enables semantic similarity search rather than just keyword matching
-- Currently only used in the PDF Navigator app
+- Used in the PDF Navigator app and the Monadic Help app
 
 ## Technical Implementation :id=technical-implementation
 
@@ -27,12 +27,14 @@ Here's the processing flow in the PDF Navigator app:
 
 1. **Text Extraction**: 
    - PDFs are processed using PyMuPDF to extract raw text
-   - The text is divided into segments with a fixed token size limit of 2000 tokens per segment
-   - An overlap of 2 lines is set between consecutive segments to maintain context
+   - The text is divided into segments with a configurable token size limit (default: 4000 tokens per segment)
+   - An overlap of configurable lines (default: 4 lines) is set between consecutive segments to maintain context
+   - These values can be configured in the `~/monadic/config/env` file as configuration variables: `PDF_RAG_TOKENS` and `PDF_RAG_OVERLAP_LINES`
 
 2. **Embedding Generation**:
-   - Each text segment is converted to an embedding vector using OpenAI's embedding models
+   - Each text segment is converted to an embedding vector using OpenAI's `text-embedding-3-large` model
    - These embeddings preserve the semantic meaning of the text
+   - The embedding vectors have 3072 dimensions
 
 3. **Vector Storage**:
    - Both the text segments and their vector representations are stored in the PostgreSQL database
@@ -51,17 +53,19 @@ The database uses the following schema for vector storage:
 - **docs**: Stores metadata about uploaded documents
   - `id`: Unique identifier for the document
   - `title`: Document title
-  - `created_at`: Timestamp when the document was added
+  - `items`: Number of text segments in the document
+  - `metadata`: Additional information about the document in JSON format
+  - `embedding`: Combined embedding vector for the entire document
 
-- **texts**: Stores text segments and their embeddings
+- **items**: Stores text segments and their embeddings
   - `id`: Unique identifier for the text segment
   - `doc_id`: Reference to parent document
   - `text`: The text content of the segment
   - `position`: Order position within the document
   - `embedding`: Vector representation of the text (stored using pgvector)
-  - `metadata`: Supplementary information in JSON format.
+  - `metadata`: Supplementary information in JSON format
 
-`metadata` primarily uses the `tokens` key to store token count information. This metadata is returned to the LLM to provide context about the size of text segments.
+The `metadata` field primarily stores the token count for each segment, helping the LLM understand the size of retrieved text segments.
 
 ## Use in PDF Navigator :id=use-in-pdf-navigator
 
@@ -74,3 +78,18 @@ The PDF Navigator app leverages this system to provide intelligent document Q&A 
 5. These segments are provided to the LLM to generate informative answers
 
 The app displays which document and text segment was used for each answer, clearly communicating the source of information to users.
+
+## Use in Monadic Help :id=use-in-monadic-help
+
+Monadic Chat uses two separate databases for vector storage:
+- **`monadic_user_docs`** - For user-uploaded PDF documents in the PDF Navigator app
+- **`monadic_help`** - For the built-in documentation search in the Monadic Help app
+
+The Monadic Help app uses its vector database system as follows:
+
+1. Documentation files are pre-processed and embedded during the build process
+2. The help database is automatically built when you start Monadic Chat for the first time
+3. When users ask questions about Monadic Chat, the system searches through embedded documentation
+4. Relevant documentation sections are retrieved and provided to the LLM for generating helpful answers
+
+The help system uses the same `text-embedding-3-large` model but maintains its embeddings in a separate database to keep documentation search isolated from user data. Note that while the database is built automatically, you need an OpenAI API key to use the Monadic Help app since it requires the embedding model for search functionality.

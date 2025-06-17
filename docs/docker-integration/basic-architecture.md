@@ -106,6 +106,7 @@ The following containers enable additional features:
 - Diagram generation (Syntax Tree, Concept Visualizer)
 - Video analysis (Video Describer)
 - Any app using LaTeX rendering
+- Provides Flask API server on port 5070 for tokenization services
 
 **Selenium Container**: Required for:
 - Web content fetching (Content Reader, Research Assistant)
@@ -117,14 +118,13 @@ The following containers enable additional features:
 - Help system (Monadic Chat Help)
 - Custom RAG applications
 
-You can install new software on a Docker container or edit files to extend the functionality of Monadic Chat.
-For more information on adding Docker containers, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
+?> For more information on adding Docker containers to extend the functionality of Monadic Chat, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
 
 ## Optional Docker Containers
 
-In addition to the standard containers, Monadic Chat supports optional containers provided via plugins:
+In addition to the standard containers, Monadic Chat supports optional containers:
 
-- **Ollama Container** (`monadic-chat-ollama-container`): Provides local LLMs via [Ollama](https://ollama.com) through the Monadic Chat Extra plugin. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
+- **Ollama Container** (`monadic-chat-ollama-container`): Provides local LLMs via [Ollama](https://ollama.com). This container is built on demand using Actions → Build Ollama Container (not included in "Build All"). Models are stored in `~/monadic/ollama/` and persist across container rebuilds. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
 
 ## Container Network Architecture
 

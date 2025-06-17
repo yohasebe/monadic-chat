@@ -10,11 +10,12 @@ API_KEY = ENV["OPENAI_API_KEY"]
 
 RSpec.describe "get_embeddings" do
   before(:all) do
+    skip "PostgreSQL with pgvector is not available" unless pgvector_available?
     @text_db = TextEmbeddings.new("test_db", recreate_db: true)
   end
 
   after(:all) do
-    @text_db.close_connection
+    @text_db.close_connection if @text_db
   end
 
   describe "get_embeddings" do

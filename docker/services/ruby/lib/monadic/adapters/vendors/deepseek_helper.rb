@@ -4,7 +4,7 @@ require_relative "../../utils/interaction_utils"
 
 module DeepSeekHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 16
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60

@@ -53,7 +53,7 @@ rake help:export
 
 ## 設定
 
-### 環境変数
+### 設定変数
 
 - **`HELP_CHUNK_SIZE`**：チャンクあたりの文字数（デフォルト：3000）
   - 処理中にドキュメントがどのように分割されるかを制御
@@ -73,11 +73,13 @@ rake help:export
 
 ### 設定例
 
-```bash
-export HELP_CHUNK_SIZE=4000
-export HELP_OVERLAP_SIZE=800
-export HELP_EMBEDDINGS_BATCH_SIZE=100
-export HELP_CHUNKS_PER_RESULT=5
+`~/monadic/config/env`ファイルにこれらの設定を追加します：
+
+```
+HELP_CHUNK_SIZE=4000
+HELP_OVERLAP_SIZE=800
+HELP_EMBEDDINGS_BATCH_SIZE=100
+HELP_CHUNKS_PER_RESULT=5
 ```
 
 ## アーキテクチャ
@@ -159,9 +161,14 @@ rake help:stats
 
 デバッグ出力を有効にする：
 
+1. `~/monadic/config/env`ファイルに以下を追加：
+```
+EMBEDDINGS_DEBUG=true
+HELP_EMBEDDINGS_DEBUG=1
+```
+
+2. ヘルプデータベースをビルド：
 ```bash
-export EMBEDDINGS_DEBUG=true
-export HELP_EMBEDDINGS_DEBUG=1
 rake help:build
 ```
 
@@ -216,7 +223,7 @@ rake help:build
    - コンテナにPythonとpsycopg2がインストールされていることを確認
 
 5. **パッケージアプリのパス関連の問題**
-   - ヘルプシステムスクリプトは、ハードコーディングされた絶対パスの代わりに相対パスを使用するようになりました
+   - ヘルプシステムスクリプトは相対パスを使用します
    - スクリプトは正しいベースディレクトリを自動的に検出します
    - インポートが失敗した場合は、`docker/services/pgvector/help_data/`にエクスポートファイルが存在することを確認してください
 

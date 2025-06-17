@@ -2,6 +2,8 @@
 
 In Monadic Chat, you can develop AI chatbot applications using original system prompts. This section explains the steps to develop a new application.
 
+?> **Important**: The app name in MDSL must match the Ruby class name exactly. For example, `app "ChatOpenAI"` requires a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
+
 ## How to Add a Simple App
 
 ### MDSL Format (Primary Method)
@@ -9,8 +11,6 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 1. Create an MDSL (Monadic Domain Specific Language) file for the app.
 2. Save the MDSL file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
 3. Restart Monadic Chat.
-
-**MDSL Auto-Completion Feature**: Monadic Chat includes an automatic tool completion system that dynamically generates tool definitions from Ruby implementation files. This reduces manual work and ensures consistency between tool definitions and implementations.
 
 **Common App Patterns**:
 - **Facade Pattern**: Apps with `*_tools.rb` files using facade methods for all custom functionality (Recommended)
@@ -190,43 +190,25 @@ class AppNameProvider < MonadicApp
 end
 ```
 
-## Legacy Ruby Class Approach :id=writing-the-recipe-file
+## Helper Modules :id=helper-modules
 
-!> **Note**: The Ruby class-based approach described below is no longer supported. All apps must now use the [Monadic DSL format](/advanced-topics/monadic_dsl.md). This section is retained for historical reference only.
+The following helper modules are available for use in your apps:
 
-### Historical Context
-
-Prior to the current MDSL-only architecture, apps were defined as Ruby classes that inherited from `MonadicApp` with settings in the `@settings` instance variable.
-
-```ruby
-class RobotApp < MonadicApp
-  include OpenAIHelper
-  @settings = {
-    display_name: "Robot App",
-    icon: "🤖",
-    description: "This is a sample robot app.",
-    initial_prompt: "You are a friendly robot that can help with anything the user needs. You talk like a robot, always ending your sentences with '...beep boop'.",
-  }
-end
-```
-
-The following modules are available for use in the recipe file:
-
-- `OpenAIHelper` to use the OpenAI API
-- `ClaudeHelper` to use the Anthropic Claude API
-- `CohereHelper` to use the Cohere API
-- `MistralHelper` to use the Mistral AI API
-- `GeminiHelper` to use the Google Gemini API
-- `GrokHelper` to use the xAI Grok API
-- `PerplexityHelper` to use the Perplexity API
-- `DeepSeekHelper` to use the DeepSeek API
-- `OllamaHelper` to use local Ollama models
+- `OpenAIHelper` - OpenAI API integration
+- `ClaudeHelper` - Anthropic Claude API integration
+- `CohereHelper` - Cohere API integration
+- `MistralHelper` - Mistral AI API integration
+- `GeminiHelper` - Google Gemini API integration
+- `DeepSeekHelper` - DeepSeek API integration
+- `PerplexityHelper` - Perplexity API integration
+- `GrokHelper` - xAI Grok API integration
+- `OllamaHelper` - Ollama local model integration
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
 
 ?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, `MistralHelper`, `GeminiHelper`, `GrokHelper`, and `DeepSeekHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Function calling support varies by provider - check the specific provider's documentation for limitations.
 
-!> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed. Details of the specific error are recorded in a log file saved in the shared folder (`~/monadic/data/error.log`).
+!> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed in the console. App loading errors are shown when starting the server with details about which apps failed to load and why.
 
 ### Settings
 
@@ -269,9 +251,8 @@ With MDSL, there are two approaches to define Ruby methods that the AI agent can
 3. Ensure the method signatures match the tool definitions
 
 The tool definition format varies slightly among providers:
-- OpenAI/Gemini: Support up to 20 function calls
-- Claude: Supports up to 16 function calls
-- Code execution: All providers now consistently use `run_code` for code execution (previously Claude used `run_script`)
+- All providers: Support up to 20 function calls
+- Code execution: All providers use `run_code` for code execution
 - Array parameters: OpenAI requires `items` property
 
 ### Execute Commands or Shell Scripts
@@ -320,8 +301,6 @@ With the correct information about the generated files, the AI agent can continu
 ?> If you set up the recipe file so that the AI agent can call `send_code` directly, an error will occur in the container if any of the required arguments are not specified. Therefore, it is recommended to create a wrapper method and handle errors appropriately.
 
 ## Using LLM in Functions and Tools
-
-!> The `ask_openai` method used in versions prior to `0.9.37` has been replaced by the `send_query` method in the `MonadicApp` class.
 
 In functions and tools called by the AI agent, you may want to make requests to the AI agent. In such cases, you can use the `send_query` method available in the `MonadicApp` class.
 

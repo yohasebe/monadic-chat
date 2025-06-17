@@ -4,7 +4,7 @@ require_relative "../../utils/interaction_utils"
 
 module PerplexityHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 16
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.perplexity.ai"
 
   OPEN_TIMEOUT = 5
@@ -412,7 +412,7 @@ module PerplexityHelper
       body["tool_choice"] = "auto"
     end
 
-    if obj["model"].include?("reasoning")
+    if obj["model"].include?("reasoning") || obj["model"] == "r1-1776"
       body.delete("temperature")
       body.delete("tool_choice")
       body.delete("tools")
@@ -471,8 +471,8 @@ module PerplexityHelper
       end
     end
 
+    # Perplexity models support images natively, no need to switch models
     if messages_containing_img
-      body["model"] = "grok-2-vision-1212"
       body.delete("stop")
     end
 
@@ -551,6 +551,9 @@ module PerplexityHelper
   end
 
   def check_citations(text, citations)
+    # Return early if citations is nil or empty
+    return [text, []] if citations.nil? || citations.empty?
+    
     used_citations = text.scan(/\[(\d+)\]/).flatten.map(&:to_i).uniq.sort
 
     citation_map = used_citations.each_with_index.to_h { |old_num, index| [old_num, index + 1] }
@@ -559,8 +562,8 @@ module PerplexityHelper
       "[#{citation_map[$1.to_i]}]"
     end
 
-    new_citations = if used_citations
-                      used_citations.compact.map { |i| citations[i - 1] }
+    new_citations = if used_citations && used_citations.any?
+                      used_citations.compact.map { |i| citations[i - 1] }.compact
                     else
                       []
                     end
@@ -686,7 +689,7 @@ module PerplexityHelper
       citations = json["citations"] if json["citations"]
       new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
       # add citations to the last message
-      if citations.any?
+      if citations && citations.any?
         citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
           "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
         end.join("\n") + "</ol></div>"
@@ -737,7 +740,7 @@ module PerplexityHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason
-      text_result["choices"][0]["thinking"] = thinking_result.strip if thinking_result
+      text_result["choices"][0]["message"]["thinking"] = thinking_result.strip if thinking_result
       [text_result]
     else
       res = { "type" => "message", "content" => "DONE" }

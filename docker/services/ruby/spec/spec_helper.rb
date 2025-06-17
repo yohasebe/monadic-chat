@@ -17,6 +17,30 @@ IN_CONTAINER = false unless defined?(IN_CONTAINER)
 # Global variable for model caching in API helpers
 $MODELS ||= {}
 
+# Define CONFIG constant for tests if not already defined
+CONFIG ||= {}
+
+# Helper to check if pgvector is available
+def pgvector_available?
+  return @pgvector_available if defined?(@pgvector_available)
+  
+  require 'pg'
+  begin
+    conn = PG.connect(
+      host: ENV['POSTGRES_HOST'] || 'localhost',
+      port: ENV['POSTGRES_PORT'] || 5433,
+      user: ENV['POSTGRES_USER'] || 'postgres',
+      password: ENV['POSTGRES_PASSWORD'] || 'postgres',
+      dbname: 'postgres',
+      connect_timeout: 5
+    )
+    conn.close
+    @pgvector_available = true
+  rescue PG::Error
+    @pgvector_available = false
+  end
+end
+
 # Define MonadicApp module with shared constants for tests
 module MonadicApp
   # Define constants only if they aren't already defined

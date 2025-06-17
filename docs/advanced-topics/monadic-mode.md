@@ -1,91 +1,141 @@
 # Monadic Mode
 
-?> This document has not yet been updated to the new MDSL format. For more information on the MDSL format, please refer to [Monadic DSL](./monadic_dsl.md). An update is planned soon.
+Monadic Mode is a distinctive feature of Monadic Chat that allows you to maintain and update structured context throughout your conversation with AI agents. This enables more coherent and purposeful interactions.
 
-Monadic Mode is a distinctive feature of Monadic Chat. In Monadic Mode, you can maintain and update the context of the conversation, referencing it as you chat.  This allows for more meaningful and coherent interactions with the AI agent.
+## Overview
 
-## Basic Structure
+In Monadic Mode, each response from the AI includes both a message and a structured context object. This context is preserved and updated throughout the conversation, allowing the AI to maintain state and reference previous information.
 
-In Monadic Mode, each query to the language model generates an object with the following structure. This structure allows the conversation's context to be preserved and updated throughout the interaction. The `message` field contains the AI agent's response, similar to a regular chat. The `context` field stores information accumulated from previous exchanges or information shared behind the scenes.
+### Basic Structure
 
 ```json
 {
-  "message": "Hello, world!",
+  "message": "The AI's response to the user",
   "context": {
     "key1": "value1",
-    "key2": "value2"
+    "key2": "value2",
+    // Additional context fields as needed
   }
 }
 ```
 
-During a conversation, both computers and humans do more than just exchange vocalized or written messages.  There's an underlying context and purpose, constantly referenced and updated as the dialogue progresses.  While humans manage this context naturally, Monadic Mode provides a structured way to achieve this with AI agents. By predefining the format and structure of this "meta-information," conversations become more focused and purposeful.
+## When Monadic Mode is Used
 
-## Specific Examples
+Monadic Mode is currently used primarily with OpenAI models because it requires reliable structured outputs (JSON format). While there is some experimental implementation for other providers, stable support is currently limited to:
 
-### Example of Jupyter Notebook app
+- **OpenAI** - Full support with reliable structured outputs
 
-One of the unique features of Monadic Chat is the ability to access a Linux environment on Docker, enabling file sharing with the host computer. This capability is leveraged in the Jupyter Notebook app, where the AI agent can suggest Python code to the user. Users can provide data through a shared folder and receive result files from executing the code.
+For providers that don't yet support reliable structured outputs (such as Claude, Gemini, Mistral, and Cohere), Monadic Chat uses an alternative implementation called "toggle mode" to provide similar context management functionality.
 
-In the Jupyter Notebook app, code is executed cell by cell, and variables or functions defined in one cell can be referenced in subsequent cells. Therefore, when requesting code suggestions from the AI agent, it's essential to reference previously defined variables and functions while proposing new code. It's also crucial to know which libraries or modules are currently imported. Additionally, the notebook's filename (URL) must be stored.
+?> **Note**: The `monadic` and `toggle` features are mutually exclusive. The appropriate mode is automatically selected based on your chosen provider. Future versions may extend Monadic Mode support to additional providers as their structured output capabilities improve.
 
-The Jupyter Notebook app maintains the following information as an object, updating the components to use as the context for the next response:
+## Architecture
 
-* `message` (string)
-* `context` (hash)
-    * `link` (the url of the notebook, string)
-    * `modules` (the imported libraries, array)
-    * `functions` (the functions defined with the function name and arguments, array)
-    * `variables` (the variables defined, array)
+The monadic functionality is implemented through several modules:
 
-If more detailed information about defined variables or functions is needed, the source code of the notebook is read. The AI agent can also verify which programs or libraries are available in the current execution environment.
+- **`monadic_unit`**: Wraps messages with context in JSON format
+- **`monadic_unwrap`**: Safely extracts data from JSON responses
+- **`monadic_map`**: Transforms context with optional processing
+- **`monadic_html`**: Renders JSON context as collapsible HTML in the UI
 
-<details>
-<summary>Recipe File (jupyter_notebook_openai.rb)</summary>
+## Practical Examples
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/jupyter_notebook/jupyter_notebook_openai.rb ':include :type=code')
+### 1. Jupyter Notebook App
 
-</details>
+The Jupyter Notebook app uses Monadic Mode to track the state of a Python notebook session:
 
-### Example of Novel Writer app
+```yaml
+# Context structure maintained by the app
+context:
+  link: "http://localhost:8888/notebooks/analysis.ipynb"
+  modules: ["numpy", "pandas", "matplotlib"]
+  functions: [{"name": "process_data", "args": ["df", "threshold"]}]
+  variables: ["df", "results", "config"]
+```
 
-The Novel Writer app uses Monadic Mode to facilitate collaborative novel writing.  Maintaining consistency in characters, plot, setting, and other details is crucial throughout the writing process.  The Novel Writer app uses the following structure within the `context` object:
+This allows the AI to:
+- Reference previously defined variables and functions
+- Know which libraries are imported
+- Suggest code that builds on previous cells
 
-* `message` (string): The generated text for the current step in the story.
-* `context` (hash):  Contains the following key-value pairs:
-    * `plot` (string): The overall plot of the story.
-    * `target_length` (int): The target word count for the novel.
-    * `current_length` (int): The current word count.
-    * `language` (string): The language being used.
-    * `summary` (string): A summary of the story so far.
-    * `characters` (array): An array of characters in the story.
-    * `question` (string): A question or prompt to guide the next step in the story.
+### 2. Novel Writer App
 
-The conversation progresses through user prompts and AI responses. The user provides instructions about the story's development, and the AI agent generates text based on those instructions, updating the `message` and `context` fields accordingly. The user then uses the generated text and the `question` prompt to guide their next input.
+The Novel Writer app maintains story consistency through structured context:
 
-<details>
-<summary>Recipe File (novel_writer_app.rb)</summary>
+```yaml
+# Context for creative writing
+context:
+  plot: "A detective story set in Victorian London"
+  target_length: 50000
+  current_length: 12500
+  language: "English"
+  summary: "Detective Holmes has discovered the first clue..."
+  characters: ["Sherlock Holmes", "Dr. Watson", "Professor Moriarty"]
+  question: "How should Holmes proceed with the investigation?"
+```
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/novel_writer/novel_writer_app.rb ':include :type=code')
+### 3. Language Practice Plus App
 
-</details>
+For language learning, the context tracks learning progress:
 
-### Example of Language Practice Plus app
+```yaml
+# Context for language practice
+context:
+  target_language: "Japanese"
+  advice: 
+    - "Consider using 'です/ます' form for politeness"
+    - "The particle 'を' is needed after the direct object"
+```
 
-Language learning benefits significantly from conversational practice.  Ideally, these conversations should flow naturally and adapt to the context. However, using a foreign language fluently can be challenging, and learners often make mistakes or struggle to find the right expressions.  The Language Practice Plus app uses Monadic Mode to provide linguistic feedback and suggestions during the conversation, making practice more effective.
+## Creating a Monadic App
 
-The app maintains the following structure within its `context`:
+To create an app that uses Monadic Mode, define it in your MDSL file:
 
-* `message` (string): The AI's response in the target language.
-* `context` (hash): Contains the following:
-    * `target_language` (string): The language being practiced.
-    * `advice` (array): An array of linguistic advice and suggestions related to the user's input.
+```ruby
+app "MyAppOpenAI" do
+  description "An app that maintains context"
+  icon "fa-brain"
+  
+  features do
+    monadic true  # This is set automatically for OpenAI
+    context_size 20
+  end
+  
+  initial_prompt <<~PROMPT
+    You are an AI assistant that maintains context.
+    
+    Return your response in this JSON format:
+    {
+      "message": "Your response here",
+      "context": {
+        "state": "current state",
+        "data": "accumulated data"
+      }
+    }
+  PROMPT
+end
+```
 
-While the `context` here might deviate slightly from the typical definition, it provides valuable information beyond simple exchanges, enhancing the learning process.  The AI agent can offer corrections, alternative expressions, and other helpful tips, directly within the context of the conversation.  This makes the interaction more purposeful and helps learners improve their language skills more efficiently.
+## UI Representation
 
+In the web interface, monadic context appears as:
+- Collapsible sections showing the context structure
+- Empty objects display as ": empty" for clarity
+- Field labels are shown with increased font weight
+- Missing values shown as "no value" in italic gray text
 
-<details>
-<summary>Recipe File (language_practice_plus_app.rb)</summary>
+## Best Practices
 
-![](https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docker/services/ruby/apps/language_practice_plus/language_practice_plus_app.rb ':include :type=code')
+1. **Keep context focused**: Only store information that will be referenced later
+2. **Use consistent keys**: Maintain the same context structure throughout the conversation
+3. **Update incrementally**: Modify only the parts of context that change
+4. **Handle errors gracefully**: Always validate context before using it
 
-</details>
+## Troubleshooting
+
+If context is not updating properly, ensure your initial prompt specifies the expected JSON format and that the AI response includes valid JSON. Keep context objects reasonably sized to avoid issues.
+
+## See Also
+
+- [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference
+- [Basic Apps](../basic-apps/) - Examples of apps using Monadic Mode

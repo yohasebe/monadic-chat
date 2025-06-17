@@ -216,7 +216,7 @@ class HelpEmbeddings < TextEmbeddings
   # texts is an array of text strings
   def get_embeddings(texts)
     # Use batch processing method if available
-    batch_size = (ENV['HELP_EMBEDDINGS_BATCH_SIZE'] || '50').to_i
+    batch_size = (CONFIG['HELP_EMBEDDINGS_BATCH_SIZE'] || ENV['HELP_EMBEDDINGS_BATCH_SIZE'] || '50').to_i
     get_embeddings_batch(texts, batch_size: batch_size)
   end
   

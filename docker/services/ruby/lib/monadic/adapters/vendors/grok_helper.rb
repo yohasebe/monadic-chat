@@ -4,7 +4,7 @@ require_relative "../../utils/interaction_utils"
 
 module GrokHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 16
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.x.ai/v1"
 
   OPEN_TIMEOUT = 5

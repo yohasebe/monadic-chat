@@ -241,7 +241,7 @@ module OpenAIHelper
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
-    api_key = ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"]
+    api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
     
     # Set the headers for the API request
     headers = {
@@ -436,7 +436,7 @@ module OpenAIHelper
     # switch to the WEBSEARCH_MODEL (defaults to gpt-4.1-mini if not set)
     if websearch && reasoning_model && !search_model
       original_model = model
-      model = ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
+      model = CONFIG["WEBSEARCH_MODEL"] || ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
       body["model"] = model
       
       # Update model flags after switching

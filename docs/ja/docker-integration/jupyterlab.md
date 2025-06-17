@@ -6,7 +6,8 @@ Monadic Chatには、JupyterLabを起動する機能があります。JupyterLab
 
 Monadic Chatコンソールの`Actions/Start JupyterLab`メニューをクリックすると、JupyterLabが起動します。
 
-- Standalone モードの場合: JupyterLabは`http://localhost:8889`または`http://127.0.0.1:8889`でアクセスできます
+- JupyterLabは`http://localhost:8889`または`http://127.0.0.1:8889`でアクセスできます
+- パスワードやトークンは不要です（ローカル使用専用に設定）
 
 ![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
@@ -38,16 +39,32 @@ Standalone モードでは、すべてのJupyter機能が完全に利用可能�
 
 ### Server モードでの制限
 
-Monadic ChatをServer モードで実行する場合、セキュリティ上の理由からJupyter機能は制限されます：
+Monadic ChatをServer モードで実行する場合、セキュリティ上の理由からJupyter機能はデフォルトで無効化されています：
 
-- アプリケーションメニューから`Jupyter Notebook`アプリが自動的に非表示になる
-- Jupyter機能に依存する関連アプリも非表示になる
-- Actionsメニューを通じたJupyterLabへの直接アクセスは技術的には可能
-- Server モードは信頼された環境でのみ使用することを推奨
+- **Jupyterアプリはアプリケーションメニューから非表示**になります
+- Server モードでJupyterを有効にするには、設定変数を設定: `~/monadic/config/env`に`ALLOW_JUPYTER_IN_SERVER_MODE=true`
+- Server モードでは複数のデバイスからのネットワークアクセスが可能
+- JupyterLabは共有フォルダと結びついており、信頼できないユーザーがアクセスするとセキュリティリスクとなる
+- Server モードは信頼された環境でのみ使用することを強く推奨
+- **警告**: Server モードでJupyterを有効にすると、共有フォルダへの完全なアクセス権限で任意のコード実行が許可されます
 
-これらの制限は、Jupyterが任意のコード実行を許可するため、ネットワークに公開するとセキュリティリスクとなる可能性があるため実装されています。
+Server モードでJupyterアプリを有効にする方法、`~/monadic/config/env`ファイルに以下を追加：
+```
+ALLOW_JUPYTER_IN_SERVER_MODE=true
+```
 
-マルチユーザー環境でJupyter機能が必要な場合は、以下を推奨します：
-1. 個々のマシンでStandalone モードでMonadic Chatを実行する
-2. Jupyterを必要としない協調機能のみにServer モードを使用する
+これらの制限は、Jupyterが任意のコード実行を許可するため、マルチユーザー環境では危険となる可能性があるためです。
+
+## JupyterLab使用のヒント
+
+- **作業ディレクトリ**: JupyterLabは`/monadic/data`を作業ディレクトリとして起動します
+- **永続的ストレージ**: `/monadic/data`に保存されたすべてのファイルはコンテナの再起動後も保持されます
+- **Pythonパッケージ**: ノートブックのセルで`pip install`を使用して追加パッケージをインストールできます
+- **ターミナルアクセス**: JupyterLabのTerminalを使用してPythonコンテナに直接アクセスできます
+
+## 関連アプリ
+
+- **Code Interpreter**: JupyterLabを開かずにチャット内でPythonコードを直接実行
+- **Jupyter Notebook**: チャットを通じてJupyterノートブックを作成・管理するAIエージェント
+- 両アプリはJupyterLabと同じPython環境を使用します
 

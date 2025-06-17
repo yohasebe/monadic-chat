@@ -2,9 +2,30 @@
 
 Monadic Chat supports multiple AI model providers. Each provider offers different capabilities and model types. For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](./basic-apps.md#app-availability) section in the Basic Apps documentation.
 
+## Provider Capabilities Overview
+
+| Provider | Vision Support | Tool/Function Calling | Web Search |
+|----------|----------------|----------------------|------------|
+| OpenAI | ✅ All models¹ | ✅ | ✅² |
+| Claude | ✅ Opus/Sonnet³ | ✅ | ✅² |
+| Gemini | ✅ All models | ✅ | ✅² |
+| Mistral | ✅ Select models⁴ | ✅ | ✅² |
+| Cohere | ❌ | ✅ | ✅² |
+| xAI Grok | ✅ Vision models⁵ | ✅ | ✅ Native |
+| Perplexity | ✅ All models | ❌ | ✅ Native |
+| DeepSeek | ❌ | ✅ | ✅² |
+| Ollama | ❓ Model dependent⁶ | ❓ Model dependent⁶ | ✅² |
+
+¹ Except o1, o1-mini, o3-mini  
+² Web search via WebSearchAgent (requires `WEBSEARCH_MODEL` configuration or Tavily API)  
+³ Haiku models don't support vision  
+⁴ Pixtral and Medium 2505 models only  
+⁵ grok-2-vision models only  
+⁶ Depends on specific model capabilities
+
 ## Default Models Configuration
 
-You can configure default models for each provider by setting environment variables in the `~/monadic/config/env` file. These default models will be used when no specific model is defined in an app recipe file.
+You can configure default models for each provider by setting configuration variables in the `~/monadic/config/env` file. These default models will be used when no specific model is defined in an app recipe file.
 
 ```
 # Default models for each provider
@@ -19,15 +40,65 @@ DEEPSEEK_DEFAULT_MODEL=deepseek-chat
 OLLAMA_DEFAULT_MODEL=llama3.2:3b
 ```
 
-These environment variables are used for:
+These configuration variables are used for:
 1. AI User functionality
 2. Chat apps where no model is explicitly specified in the recipe
 
-When a model is explicitly specified in an app recipe file, that specified model takes precedence over the environment variable settings.
+When a model is explicitly specified in an app recipe file, that specified model takes precedence over the configuration variable settings.
+
+## Web Search Configuration
+
+Many providers support web search functionality through the WebSearchAgent. For reasoning models that don't have native tool support, the system automatically switches to a compatible model:
+
+```
+# Model used for web search when using reasoning models
+WEBSEARCH_MODEL=gpt-4.1-mini
+```
+
+Providers with native web search (Perplexity, xAI Grok) don't require this configuration. For other providers, you'll need either:
+- `WEBSEARCH_MODEL` configured (uses OpenAI API)
+- Tavily API key for web search functionality
+
+## Reasoning Models
+
+The latest generation of AI models includes advanced reasoning capabilities:
+
+**OpenAI Reasoning Models:**
+- o1, o1-mini, o1-pro (fixed temperature)
+- o3, o3-mini, o3-pro (configurable reasoning effort)
+- o4-mini (configurable reasoning effort)
+
+**Claude 4.0 Series:**
+- claude-opus-4, claude-sonnet-4 (latest reasoning models)
+- Superior reasoning and performance
+
+**Gemini Thinking Models:**
+- gemini-2.5-pro with Deep Think mode
+- gemini-2.5-flash with adjustable reasoning dial
+- gemini-2.0-flash-thinking-exp
+- Can adjust computing budget for reasoning tasks
+
+**Mistral Magistral:**
+- magistral-medium, magistral-small
+- Multilingual reasoning (European languages)
+- Step-by-step logic with traceable thought process
+
+**Other Reasoning Models:**
+- grok-3, grok-3-pro (xAI)
+- r1-1776 (Perplexity, based on DeepSeek-R1)
+- deepseek-reasoner (DeepSeek)
+
+These models use `reasoning_effort` parameter (low/medium/high) or similar controls instead of traditional temperature settings.
 
 ## OpenAI Models
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.
+
+### Available Models
+- **GPT-4.5 Series**: gpt-4.5-preview, gpt-4.5-preview-2025-02-27
+- **GPT-4.1 Series**: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano (1M+ context window)
+- **GPT-4o Series**: gpt-4o, gpt-4o-mini, gpt-4o-audio-preview
+- **Reasoning Models**: o1, o1-mini, o1-pro, o3, o3-mini, o3-pro, o4-mini
 
 Once the OpenAI API key is set, it is saved in the `~/monadic/config/env` file in the following format:
 
@@ -43,7 +114,14 @@ For apps using OpenAI's language models, refer to the [Basic Apps](./basic-apps.
 
 ![Anthropic apps icon](../assets/icons/a.png ':size=40')
 
-By setting the Anthropic API key, you can use apps that utilize Claude. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the Anthropic API key, you can use apps that utilize Claude.
+
+### Available Models
+- **Claude 4.0 Series**: claude-opus-4, claude-sonnet-4 (latest generation with reasoning)
+- **Claude 3.5 Series**: claude-3-5-sonnet-20241022, claude-3-5-haiku-20250122
+- **Claude 3 Series**: claude-3-opus, claude-3-sonnet, claude-3-haiku
+
+Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 ANTHROPIC_API_KEY=api_key
@@ -55,7 +133,19 @@ ANTHROPIC_API_KEY=api_key
 
 ![Google apps icon](../assets/icons/google.png ':size=40')
 
-By setting the Google Gemini API key, you can use apps that utilize Gemini. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the Google Gemini API key, you can use apps that utilize Gemini.
+
+### Available Models
+- **Gemini 2.5 Series**: 
+  - gemini-2.5-flash, gemini-2.5-pro (with adjustable reasoning dial)
+  - gemini-2.5-flash-preview-05-20, gemini-2.5-pro-exp-03-25 (experimental)
+  - Deep Think mode available for enhanced reasoning
+- **Gemini 2.0 Series**: 
+  - gemini-2.0-flash, gemini-2.0-flash-thinking-exp (thinking/reasoning models)
+  - 1M token context window
+- **Imagen 3**: imagen-3.0-generate-002 (for image generation)
+
+Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 GEMINI_API_KEY=api_key
@@ -65,7 +155,14 @@ GEMINI_API_KEY=api_key
 
 ![Cohere apps icon](../assets/icons/c.png ':size=40')
 
-By setting the Cohere API key, you can use apps that utilize Cohere's models. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the Cohere API key, you can use apps that utilize Cohere's models.
+
+### Available Models
+- **Command A Series**: command-a-03-2025 (latest)
+- **Command R Series**: command-r-plus-08-2024, command-r-08-2024
+- **Command Series**: command, command-light
+
+Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 COHERE_API_KEY=api_key
@@ -75,7 +172,18 @@ COHERE_API_KEY=api_key
 
 ![Mistral apps icon](../assets/icons/m.png ':size=40')
 
-By setting the Mistral AI API key, you can use apps that utilize Mistral. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the Mistral AI API key, you can use apps that utilize Mistral.
+
+### Available Models
+- **Magistral Series**: magistral-medium, magistral-small (reasoning models)
+  - Multilingual reasoning in European languages
+  - 1,000 tokens/second performance
+- **Large Models**: mistral-large-latest, mistral-medium-2505 (vision)
+- **Pixtral Series**: pixtral-large-latest, pixtral-large-2411 (vision models)
+- **Small Models**: mistral-saba-latest, ministral-3b-latest, ministral-8b-latest
+- **Open Models**: open-mistral-nemo, codestral (code generation)
+
+Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 MISTRAL_API_KEY=api_key
@@ -85,7 +193,14 @@ MISTRAL_API_KEY=api_key
 
 ![xAI apps icon](../assets/icons/x.png ':size=40')
 
-By setting the xAI API key, you can use apps that utilize xAI. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the xAI API key, you can use apps that utilize Grok.
+
+### Available Models
+- **Grok 3 Series**: grok-3, grok-3-mini, grok-3-pro (reasoning)
+- **Grok 2 Series**: grok-2, grok-2-mini, grok-2-vision-1212 (vision)
+- **Grok Beta**: grok-beta
+
+Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 XAI_API_KEY=api_key
@@ -95,7 +210,18 @@ XAI_API_KEY=api_key
 
 ![Perplexity apps icon](../assets/icons/p.png ':size=40')
 
-By setting the Perplexity API key, you can use apps that utilize Perplexity. Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
+By setting the Perplexity API key, you can use apps that utilize Perplexity.
+
+### Available Models
+- **R1 Series**: r1-1776 (reasoning model, based on DeepSeek-R1)
+  - 671B parameters, 160K context window
+  - Post-trained for unbiased responses
+  - Recommended temperature: 0.5-0.7
+- **Sonar Series**: sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro, sonar-deep-research
+  - All include built-in web search capabilities
+  - Optimized for different use cases from quick searches to deep research
+
+Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
 ```
 PERPLEXITY_API_KEY=api_key
@@ -137,6 +263,8 @@ Ollama is now built into Monadic Chat! [Ollama](https://ollama.com/) is a platfo
 2. Start Monadic Chat: Actions → Start
 3. The Chat app with Ollama support will appear in the Ollama group
 
+!> **Important**: Ollama models are downloaded during the container build process, not at runtime. The build process will download the model specified in `OLLAMA_DEFAULT_MODEL` or use a custom setup script.
+
 ### Default Model Configuration
 
 You can set a default Ollama model in `~/monadic/config/env`:
@@ -144,5 +272,17 @@ You can set a default Ollama model in `~/monadic/config/env`:
 ```
 OLLAMA_DEFAULT_MODEL=llama3.2:3b
 ```
+
+### Custom Model Setup
+
+For custom model installation, create `~/monadic/config/olsetup.sh`:
+```bash
+#!/bin/bash
+ollama pull llama3.2:3b
+ollama pull mistral:7b
+ollama pull gemma2:9b
+```
+
+When `olsetup.sh` exists, only the models in the script will be downloaded (the default model won't be pulled).
 
 For detailed setup instructions and model management, refer to [Using Ollama](../advanced-topics/ollama.md).

@@ -14,9 +14,7 @@ Monadic Chatを停止します。
 Monadic Chatを再起動します。
 
 **Open Browser** <br />
-設定に応じたブラウザモードで Monadic Chat を開きます（設定参照）。
-- **Internal Browser**: アプリ内の組み込み Web ビューで表示します。
-- **External Browser**: システムのデフォルト Web ブラウザで表示します。
+Monadic ChatをWebブラウザで開きます。
 アクセス URL: `http://localhost:4567`。
 
 **Shared Folder** <br />
@@ -61,36 +59,34 @@ JupyterLabを起動します。JupyterLabは`http://localhost:8889`でアクセ�
 JupyterLabを停止します。
 
 **Export Document DB** <br />
-Monadic ChatのPGVectorデータベースに保存されているPDFドキュメントデータをエクスポートします。エクスポートされたファイルは`monadic.json`という名前で共有フォルダに保存されます。
+Monadic Chatのベクトルデータベースに保存されているPDFドキュメントデータをエクスポートします。エクスポートされたファイルは`monadic.gz`という名前で共有フォルダに保存されます。
 
 **Import Document DB** <br />
-Monadic ChatのPGVectorデータベースに、Monadic Chatのエクスポート機能で書き出されたPDFドキュメントデータをインポートします。インポートの際には、共有フォルダに`monadic.json`という名前のファイルを配置してください。
+Monadic Chatで以前にエクスポートされたPDFドキュメントデータをインポートします。インポートの際には、共有フォルダに`monadic.gz`という名前のファイルを配置してください。
 
 ### Open メニュー
 
-![Open Menu](../assets/images/open-menu.png ':size=190')
+![Open Menu](../assets/images/open-menu.png ':size=150')
 
 **Open Browser** <br />
-設定に応じたブラウザモードで Monadic Chat を開きます（設定参照）。
-- **Internal Browser**: アプリ内の組み込み Web ビューで表示します。
-- **External Browser**: システムのデフォルト Web ブラウザで表示します。
-アクセス URL: `http://localhost:4567`。
+Monadic Chatをデフォルトブラウザで開きます。アクセスURL: `http://localhost:4567`。
 
 **Open Shared Folder** <br />
 ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
 
 - `apps`: 追加アプリケーションを格納するフォルダ
-- `scripts`: カスタムスクリプトを格納するフォルダ
-- `helpers`: カスタムヘルパースクリプトを格納するフォルダ
-- `plugins`: カスタムプラグインを格納するフォルダ
+- `helpers`: アプリで使用される関数を含むヘルパーファイルを格納するフォルダ
+- `scripts`: コンテナ内で実行可能なスクリプトを格納するフォルダ
+- `plugins`: Monadic Chatプラグインを整理するフォルダ
 
 **Open Config Folder** <br />
 Monadic Chatの設定ファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
-- `env`: 環境変数を設定するファイル（GUIを通じて設定可能）
-- `pysetup.sh`: Python環境をセットアップするスクリプト
-- `rubysetup.sh`: Ruby環境をセットアップするスクリプト
-- `compose.yml`: Docker Compose設定ファイル（自動生成・通常は編集不要）
+- `env`: 設定変数を設定するファイル（GUIを通じて設定可能）
+- `pysetup.sh`: Python環境をセットアップするスクリプト（オプション、ユーザー作成）
+- `rbsetup.sh`: Ruby環境をセットアップするスクリプト（オプション、ユーザー作成）
+- `olsetup.sh`: Ollamaモデルをセットアップするスクリプト（オプション、ユーザー作成）
+- `compose.yml`: Docker Compose設定ファイル（ユーザーコンテナが存在する場合に自動生成）
 
 **Open Log Folder** <br />
 Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
@@ -105,7 +101,7 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 
 - `extra.log`: Monadic Chatの起動から終了時までに行なったチャットの記録がレスポンス時にストリーミングされるJSONオブジェクト単位で記録されるログファイル
 
-?> **デバッグログ**: GUIの「Extra Logging」オプションは`MONADIC_DEBUG=api`の設定と同等です。より詳細なデバッグ制御には、環境変数を使用できます：
+?> **デバッグログ**: GUIの「Extra Logging」オプションは`~/monadic/config/env`ファイルで`MONADIC_DEBUG=api`を設定することと同等です。より詳細なデバッグ制御には、`~/monadic/config/env`ファイルで設定変数を使用できます：
 > - `MONADIC_DEBUG`: 特定のデバッグカテゴリを有効化（例：`api`、`embeddings`、`mdsl`、`tts`、`drawio`、`ai_user`、`web_search`、または`all`）
 > - `MONADIC_DEBUG_LEVEL`: ログレベルを設定（`debug`、`info`、`warning`、`error`）
 
@@ -129,14 +125,14 @@ Monadic ChatのすべてのDockerイメージとコンテナを削除します�
 **Quit Monadic Chat** <br />
 アプリケーションを終了します。
 
-## Settings Panel
+## 設定パネル
 
 下記の設定はすべて`~/monadic/config/env`ファイルに保存されます。
 
 ![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
 
 **OPENAI_API_KEY** <br />
-OpenAI APIキーを入力します。このキーは、Chat API、DALL-E画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
+（推奨）OpenAI APIキーを入力します。このキーは、Chat API、DALL-E画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。必須ではありませんが、多くの基本機能がこのキーに依存しています。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
 
 **ANTHROPIC_API_KEY** <br />
 Anthropic APIキーを入力します。APIキーは[https://console.anthropic.com]から取得できます。
@@ -144,7 +140,7 @@ Anthropic APIキーを入力します。APIキーは[https://console.anthropic.c
 **COHERE_API_KEY** <br />
 Cohere APIキーを入力します。APIキーは[https://dashboard.cohere.com]から取得できます。
 
-GEMINI_API_KEY** <br />
+**GEMINI_API_KEY** <br />
 Google Gemini APIキーを入力します。APIキーは[https://ai.google.dev/]から取得できます。
 
 **MISTRAL_API_KEY** <br />
@@ -152,6 +148,9 @@ Mistral APIキーを入力します。APIキーは[https://console.mistral.ai/]�
 
 **XAI_API_KEY** <br />
 xAI APIキーを入力します。APIキーは[https://x.ai/api]から取得できます。
+
+**PERPLEXITY_API_KEY** <br />
+Perplexity APIキーを入力します。このキーはPerplexityモデルを使用するために必要です。APIキーは[https://www.perplexity.ai/settings/api]から取得できます。
 
 **DEEPSEEK_API_KEY** <br />
 DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.com/]から取得できます。
@@ -165,7 +164,7 @@ Tavily APIキーを入力します。このキーは、2つの目的で使用さ
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 
 **WEBSEARCH_MODEL** <br />
-OpenAIモデルを使用するアプリでのWeb検索に使用する検索モデルを選択します。この設定は、OPENAI_API_KEYを使用してOpenAIのネイティブWeb検索機能を使用する場合に適用されます。現在、`gpt-4o-mini-search-preview`と`gpt-4o-search-preview`が利用可能です。デフォルトは`gpt-4o-mini-search-preview`です。
+Web検索機能を持たないOpenAIの推論モデル（o1、o3など）を使用する際に、Web検索に使用するモデルを選択します。利用可能なオプションは`gpt-4.1`と`gpt-4.1-mini`です。デフォルトは`gpt-4.1-mini`です。
 
 **AI_USER_MAX_TOKENS** <br />
 AIユーザーの最大トークン数を選択します。この設定は、単一リクエストで使用できるトークンの数を制限するために使用されます。デフォルトは`2000`です。
@@ -189,9 +188,12 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 **Application Mode** <br />
 Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
 
-**Extra Logging** <br />
-詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは`~/monadic/logs/extra.log`に保存されます。この設定は環境変数`MONADIC_DEBUG=api`を設定することと同等です。
+**Browser Mode** <br />
+コンソールからMonadic Chatを開く際に使用するブラウザを選択します。"Internal Browser"は組み込みのElectronブラウザウィンドウを開き、"External Browser"はシステムのデフォルトWebブラウザを開きます。デフォルトは"Internal Browser"です。
 
-注：より詳細なデバッグ制御には、統一デバッグシステムの環境変数を使用できます：
+**Extra Logging** <br />
+詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは`~/monadic/log/extra.log`に保存されます。この設定は`~/monadic/config/env`ファイルで設定変数`MONADIC_DEBUG=api`を設定することと同等です。
+
+注：より詳細なデバッグ制御には、`~/monadic/config/env`ファイルで統一デバッグシステムの設定変数を使用できます：
 - `MONADIC_DEBUG=api,embeddings`（カンマ区切りのカテゴリ）
 - `MONADIC_DEBUG_LEVEL=debug`（none, error, warning, info, debug, verbose）

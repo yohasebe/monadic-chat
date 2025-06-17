@@ -15,14 +15,14 @@ docker/services/ruby/
 │   ├── json_handler.rb   # JSON serialization for monadic mode
 │   ├── html_renderer.rb  # HTML rendering for monadic context
 │   ├── dsl.rb            # Monadic DSL loader and definitions
-│   ├── agents/           # Business-logic agents (formerly helpers/agents)
+│   ├── agents/           # Business-logic agents
 │   │   ├── ai_user_agent.rb
 │   │   └── ...
-│   ├── adapters/         # External integrations and helper modules (formerly helpers)
+│   ├── adapters/         # External integrations and helper modules
 │   │   ├── bash_command_helper.rb
 │   │   ├── file_analysis_helper.rb
 │   │   └── ...
-│   │   └── vendors/      # Third-party API clients (formerly helpers/vendors)
+│   │   └── vendors/      # Third-party API clients
 │   │       ├── openai_helper.rb
 │   │       └── ...
 │   └── utils/            # Utility functions and common code

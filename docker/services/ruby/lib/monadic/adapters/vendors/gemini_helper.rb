@@ -1091,7 +1091,7 @@ module GeminiHelper
       
       # Add thinking content if present (similar to Claude)
       if thinking_parts.any?
-        response_data["thinking"] = thinking_parts.join("\n")
+        response_data["choices"][0]["message"]["thinking"] = thinking_parts.join("\n")
       end
       
       [response_data]

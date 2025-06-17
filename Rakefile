@@ -609,8 +609,42 @@ end
 
 # Test ruby code with rspec ./docker/services/ruby/spec
 task :spec do
+  # Set environment variables for test database connection
+  ENV['POSTGRES_HOST'] ||= 'localhost'
+  ENV['POSTGRES_PORT'] ||= '5433'
+  ENV['POSTGRES_USER'] ||= 'postgres'
+  ENV['POSTGRES_PASSWORD'] ||= 'postgres'
+  
+  # Start pgvector container for tests that require it
+  pgvector_running = system("docker ps | grep -q monadic-chat-pgvector-container")
+  
+  unless pgvector_running
+    puts "Starting pgvector container for tests..."
+    system("docker compose -p 'monadic-chat' up -d pgvector_service")
+    
+    # Wait for pgvector to be ready
+    puts "Waiting for pgvector to be ready..."
+    sleep 5
+    
+    # Wait up to 30 seconds for pgvector to accept connections
+    30.times do
+      if system("docker exec monadic-chat-pgvector-container pg_isready -U postgres", out: File::NULL, err: File::NULL)
+        puts "pgvector is ready!"
+        break
+      end
+      sleep 1
+    end
+  end
+  
+  # Run tests
   Dir.chdir("docker/services/ruby") do
     sh "bundle exec rspec spec --format documentation --no-fail-fast --no-profile"
+  end
+ensure
+  # Only stop pgvector if we started it
+  if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
+    puts "Stopping pgvector container..."
+    system("docker compose -p 'monadic-chat' stop pgvector_service")
   end
 end
 

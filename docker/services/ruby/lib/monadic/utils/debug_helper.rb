@@ -26,18 +26,32 @@ module DebugHelper
   }.freeze
 
   class << self
-    # Get the current debug level from environment
+    # Get the current debug level from environment or config
     def debug_level
-      level = ENV['MONADIC_DEBUG_LEVEL'] || ENV['DEBUG_LEVEL'] || 'none'
+      # Check CONFIG first (from ~/monadic/config/env), then ENV (system environment)
+      level = nil
+      level ||= CONFIG['MONADIC_DEBUG_LEVEL'] if defined?(CONFIG) && CONFIG
+      level ||= ENV['MONADIC_DEBUG_LEVEL']
+      level ||= CONFIG['DEBUG_LEVEL'] if defined?(CONFIG) && CONFIG
+      level ||= ENV['DEBUG_LEVEL']
+      level ||= 'none'
+      
       DEBUG_LEVELS[level.to_sym] || DEBUG_LEVELS[:none]
     end
 
     # Get enabled debug categories
     def debug_categories
-      categories = ENV['MONADIC_DEBUG'] || ENV['DEBUG_CATEGORIES'] || ''
-      return [:all] if categories.downcase == 'all' || categories == '1' || categories == 'true'
+      # Check CONFIG first (from ~/monadic/config/env), then ENV (system environment)
+      categories = nil
+      categories ||= CONFIG['MONADIC_DEBUG'] if defined?(CONFIG) && CONFIG
+      categories ||= ENV['MONADIC_DEBUG']
+      categories ||= CONFIG['DEBUG_CATEGORIES'] if defined?(CONFIG) && CONFIG
+      categories ||= ENV['DEBUG_CATEGORIES']
+      categories ||= ''
       
-      categories.split(',').map(&:strip).map(&:to_sym).select { |cat| DEBUG_CATEGORIES.key?(cat) }
+      return [:all] if categories.to_s.downcase == 'all' || categories.to_s == '1' || categories.to_s == 'true'
+      
+      categories.to_s.split(',').map(&:strip).map(&:to_sym).select { |cat| DEBUG_CATEGORIES.key?(cat) }
     end
 
     # Check if debugging is enabled for a specific category and level

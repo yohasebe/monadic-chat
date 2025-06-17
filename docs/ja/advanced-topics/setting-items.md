@@ -1,158 +1,173 @@
-# アプリの設定項目
-
-アプリケーションの設定項目は、`.mdsl`拡張子を持つMDSL（Monadic Domain Specific Language）ファイルで定義されます。これらの設定により、各アプリケーションの動作と外観が構成されます。設定項目には必須のものと任意のものがあります。必須の設定項目が指定されていない場合は、アプリケーションの起動時にエラーメッセージが表示されます。
-
-## 必須の設定項目
-
-`display_name` (string, 必須)
-
-ユーザーインターフェースに表示されるアプリケーションの名前（必須）を指定します。
-
-`icon` (string, 必須)
-
-アプリケーションのアイコン（絵文字またはHTML）を指定します。
-
-`description` (string, 必須)
-
-アプリケーションの説明を記述します。
-
-`initial_prompt` (string, 必須)
-
-システムプロンプトのテキストを指定します。
-
-## 任意の設定項目
-
-`group` (string)
-
-Web 設定画面の Base App セレクタ上でアプリをグループ化するためのグループ名を指定します。独自のアプリを追加する場合には、基本アプリと区別するために何らかのグループ名を指定することが推奨されます。
-
-![](../assets/images/groups.png ':size=300')
-
-`model` (string)
-
-デフォルトのモデルを指定します。指定されていない場合は（`OpenAIHelper`モジュールをインクルードしているアプリの場合）`gpt-4o`が使用されます。
-
-`temperature` (float)
-
-デフォルトの温度を指定します。注：Gemini 2.5の思考モデル（例：`gemini-2.5-flash-thinking`）では、UIで温度の代わりに`reasoning_effort`が使用されます。
-
-`presence_penalty` (float)
-
-デフォルトの`presence_penalty`を指定します。OpenAI と Mistral AI のモデルで利用可能です。モデルが対応していない場合は無視されます。
-
-`frequency_penalty` (float)
-
-デフォルトの`frequency_penalty`を指定します。OpenAI と Mistral AI のモデルで利用可能です。モデルが対応していない場合は無視されます。
-
-`max_tokens` (int)
-
-デフォルトの`max_tokens`を指定します。`max_output_tokens`としても利用可能です。
-
-`context_size` (int)
-
-デフォルトの`context_size`を指定します。
-
-`easy_submit` (bool)
-
-テキストボックスに入力したメッセージをENTERキーだけで送信するかどうかを指定します。
-
-`auto_speech` (bool)
-
-AIアシスタントの応答を音声で読み上げるかどうかを指定します。
-
-`image` (bool)
-
-AIアシスタントに送信するメッセージボックスに画像添付のボタンを表示するかどうかを指定します。
-
-`pdf` (bool)
-
-PDFデータベース機能を有効にするかどうかを指定します。
-
-`initiate_from_assistant` (bool)
-
-ユーザーより先にAIアシスタントからの最初のメッセージで始めるかどうかを指定します。
-
-`sourcecode` (bool)
-
-プログラム・コードのシンタックスハイライトを有効にするかどうかを指定します。`code_highlight`としても利用可能です。
-
-`mathjax` (bool)
-
-[MathJax](https://www.mathjax.org/)を用いた数式のレンダリングを有効にするかどうかを指定します。
-
-`jupyter` (bool)
-
-会話内でJupyter notebooksへのアクセスを有効にする場合に`true`を指定します。`jupyter_access`としても利用可能です。
-
-`monadic` (bool)
-
-アプリをMonadicモードに指定します。Monadicモードについては[Monadicモード](./monadic-mode.md)を参照してください。この機能はOpenAI、Ollama、DeepSeek、Perplexity、Grokプロバイダーでサポートされています。注意：この設定は`toggle`と相互排他的です - 両方を有効にしないでください。
-
-`prompt_suffix` (string)
-
-ユーザーからのメッセージの末尾に毎回追加する文字列を指定します。システムプロンプトで指示した内容のうち、AIエージェントに必ず守ってほしい重要な内容を明示的に伝えて、無視されないようリマインドするために使用します。
-
-`file` (bool)
-
-アプリのウェブ設定画面でテキストファイルのアップロード機能を有効にするかどうかを指定します。アップロードされたファイルの内容はシステム・プロンプトの末尾に追加されます。
-
-`websearch` (bool)
-
-外部情報の取得のためにウェブ検索機能を有効にするかどうかを指定します。これにより、AIアシスタントは最新の情報をウェブから検索することができます。`web_search`としても利用可能です。
-
-`image_generation` (bool)
-
-会話内でAI画像生成機能を有効にするかどうかを指定します。有効にすると、AIはテキスト説明に基づいて画像を生成できるようになります。
-
-`mermaid` (bool)
-
-Mermaidダイアグラムのレンダリングと対話機能を有効にするかどうかを指定します。これにより、フローチャート、シーケンス図、その他の視覚的な表現を会話内で直接作成および表示することができます。
-
-`reasoning_effort` (string)
-
-思考型モデルの推論の深さを指定します（例：「high」、「medium」、「low」）。このパラメータは、Gemini 2.5 Flash ThinkingやClaudeの思考型モデルなど、特定のモデルで`temperature`の代わりに使用されます。モデルが複雑な問題をどの程度徹底的に推論するかを制御します。Geminiモデルでは、これは思考予算トークンにマッピングされます。
-
-`abc` (bool)
-
-AIエージェントのレスポンスに[ABC記譜法](https://abcnotation.com/)で入力された楽譜の表示・再生機能を有効にするかどうかを指定します。ABC記譜法は音楽の楽譜を記述するための形式です。
-
-`disabled` (bool)
-
-アプリを無効にするかどうかを指定します。無効にしたアプリはMonadic Chatのメニューに表示されません。
-
-`toggle` (bool)
-
-AIエージェントの応答におけるメタ情報とツール使用状況を表示するための折りたたみ可能なセクションを有効にするかどうかを指定します。この機能により、ユーザーはAIの推論プロセスとツール呼び出しに関する詳細情報を表示/非表示できます。現在、Claude、Gemini、Mistral、Cohereプロバイダーで使用され、必要に応じて詳細情報にアクセスできるようにしながら、よりクリーンなインターフェースを提供します。有効にすると、メタ情報は開示三角形でマークされた折りたたみ可能なセクションに表示されます。注意：この設定は`monadic`と相互排他的です - 両方を有効にしないでください。
-
-`models` (array)
-
-使用可能なモデルのリストを指定します。指定がない場合はインクルードしているモジュール（`OpenAIHelper`など）で用意しているモデルのリストが使用されます。
-
-`tools` (array)
-
-使用可能な関数のリストを指定します。ここで指定した関数の実際の定義はレシピ・ファイル内に記述するか、もしくは別のファイルの中で、`MonadicApp`クラスのインスタンスメソッドとして記述します。
-
-`response_format` (hash)
-
-JSON形式で出力する場合の出力形式を指定します。詳細については[OpenAI: Structured outputs](https://platform.openai.com/docs/guides/structured-outputs)を参照してください。
-
-## システムレベルの設定
-
-以下の設定項目はシステムレベルで管理され、レシピファイルで直接設定することはできません。これらはMonadic Chatの設定UI画面で設定されます。
-
-`STT_MODEL` (string)
-
-アプリケーション全体で使用される音声認識（Speech-to-Text）モデルを指定します。利用可能なオプションにはwhisper-1、gpt-4o-mini-transcribe、gpt-4o-transcribeがあります。選択したモデルに基づいて音声フォーマットが自動的に最適化されます。
-
-`AI_USER_MODEL` (string)
-
-AI生成によるユーザーメッセージに使用されるモデルを指定します。利用可能なオプションにはgpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o-mini、gpt-4o、o3-mini、o1-mini、o1があります。
-
-`WEBSEARCH_MODEL` (string)
-
-ウェブ検索機能に使用されるモデルを指定します。利用可能なオプションには 'gpt-4.1-mini' と 'gpt-4.1' があります。このモデルは、ネイティブな Web 検索機能を持たない OpenAI の推論モデル（o1、o3 など）で Web 検索が有効になっている場合のフォールバックとしても使用されます。デフォルトは 'gpt-4.1-mini' です。
-
-`ROUGE_THEME` (string)
-
-アプリケーション全体で使用されるシンタックスハイライトのテーマを指定します。
-
+# アプリケーション設定項目
+
+Monadic Chatのアプリケーションは、`.mdsl`拡張子を持つMDSL（Monadic Domain Specific Language）ファイルで定義されます。これらの設定により、各アプリケーションの動作、外観、機能が構成されます。
+
+## 基本的なMDSL構造
+
+```ruby
+app "AppNameProvider" do
+  description "アプリの簡潔な説明"
+  icon "fa-icon-name"
+  display_name "表示名"
+  
+  llm do
+    provider "provider_name"
+    model "model_name"
+    temperature 0.7
+  end
+  
+  features do
+    # 機能設定をここに記述
+  end
+  
+  tools do
+    # ツール定義をここに記述
+  end
+  
+  system_prompt <<~TEXT
+    システムプロンプトのテキストをここに記述
+  TEXT
+end
+```
+
+## 必須設定
+
+### アプリ定義
+- **`app "AppName"`** - アプリ識別子。Rubyクラス名と正確に一致する必要があります（例：`app "ChatOpenAI"`には`class ChatOpenAI`が必要）
+- **`description`** - アプリケーションの目的の簡潔な説明
+- **`icon`** - アイコン識別子（Font Awesomeクラスまたは組み込みアイコン名）
+- **`system_prompt`** - AIモデルへのシステム指示
+
+### LLM設定
+`llm`ブロックは必須で、以下を含みます：
+- **`provider`** - AIプロバイダー（openai、claude、geminiなど）
+- **`model`** - 使用する特定のモデル
+
+## オプション設定
+
+### LLMブロックのオプション
+- **`temperature`** - 応答のランダム性を制御。範囲と利用可否はプロバイダーとモデルに依存。一部のモデル（OpenAI o1/o3、Gemini 2.5思考型モデルなど）は温度調整をサポートしません
+- **`max_tokens`** - レスポンスの最大トークン数（利用可否と上限はモデルにより異なる）
+- **`presence_penalty`** - 繰り返しトピックのペナルティ。一部のOpenAIおよびMistralモデルでサポート
+- **`frequency_penalty`** - 繰り返し単語のペナルティ。一部のOpenAIおよびMistralモデルでサポート
+
+### Featuresブロック
+featuresブロック内のすべての設定はオプションです：
+
+#### 表示とインタラクション
+- **`display_name`** - UIに表示される名前（デフォルトはアプリ名）
+- **`group`** - UIでアプリを整理するためのメニューグループ名。デフォルトでは、アプリはプロバイダーごとに自動的にグループ化されます（例：「OpenAI」、「Anthropic」）。カスタムグループを作成するために上書きできますが、デフォルトのプロバイダーベースのグループ化を維持することを推奨します
+- **`disabled`** - trueの場合、メニューからアプリを非表示
+- **`easy_submit`** - Enterキーのみでメッセージ送信
+- **`auto_speech`** - AI応答を音声として自動再生
+- **`initiate_from_assistant`** - AIメッセージで会話を開始
+
+#### コンテンツ機能
+- **`pdf_vector_storage`** - RAG（検索拡張生成）のためのPDFデータベース機能を有効化。UIにPDFインポートボタンとデータベースパネルを表示
+- **`file`** - テキストファイルアップロードを有効化
+- **`websearch`** - ウェブ検索機能を有効化
+- **`image_generation`** - AI画像生成機能を有効化。以下の値を受け付けます：
+  - `true` - 完全な画像生成機能（作成、編集、バリエーション）
+  - `"upload_only"` - 画像アップロードのみ（生成・編集なし）
+  - `false` - 無効（デフォルト）
+- **`mermaid`** - Mermaidダイアグラムレンダリングを有効化
+- **`abc`** - ABC音楽記譜法を有効化
+- **`sourcecode`** - シンタックスハイライトを有効化
+- **`mathjax`** - LaTeX数式レンダリングを有効化
+
+#### コンテキスト管理
+- **`context_size`** - 含める過去のメッセージ数
+- **`monadic`** - JSONベースの状態管理を有効化（OpenAI/Ollamaのみ）
+- **`toggle`** - 折りたたみ可能セクションを有効化（Claude/Gemini/Mistral/Cohere）
+- **`prompt_suffix`** - すべてのユーザーメッセージに追加されるテキスト
+
+?> **重要**: `monadic`と`toggle`を両方有効にしないでください - これらは相互排他的でプロバイダー固有です。
+
+### Toolsブロック
+AIが使用できる関数を定義：
+
+```ruby
+tools do
+  define_tool "tool_name", "ツールの説明" do
+    parameter :param_name, "type", "説明", required: true
+  end
+end
+```
+
+### 高度な設定
+- **`response_format`** - 構造化出力形式を指定（OpenAI）
+- **`reasoning_effort`** - 思考型モデル用（temperatureを置き換え）
+- **`models`** - 利用可能なモデルリストを上書き
+- **`jupyter`** - Jupyterノートブックアクセスを有効化（Serverモードでは`ALLOW_JUPYTER_IN_SERVER_MODE=true`を設定しない限り無効）。注意：これは機能を有効にするだけで、実際のJupyter機能を使用するには`run_jupyter`、`create_jupyter_notebook`などの対応するツール定義が必要です
+
+## プロバイダー固有の動作
+
+### OpenAI
+- 構造化出力のための`monadic`モードをサポート
+- ほとんどのモデルが`temperature`、`presence_penalty`、`frequency_penalty`をサポート
+- 推論モデル（o1、o3）はこれらのパラメータをサポートせず、固定設定を使用
+
+### Claude
+- コンテキスト表示に`toggle`モードを使用
+- `initiate_from_assistant: true`が必要
+- `reasoning_effort`を使用する思考型モデルをサポート
+
+### Gemini
+- `toggle`モードを使用
+- `initiate_from_assistant: true`が必要
+- 思考型モデル（例：2.5 Flash Thinking）は`temperature`の代わりに`reasoning_effort`を使用
+- 標準モデルは温度調整をサポート
+
+### Mistral
+- `toggle`モードを使用
+- `initiate_from_assistant: false`が必要
+- `presence_penalty`と`frequency_penalty`をサポート
+
+## システムレベル設定
+
+これらはMDSLファイルではなく、Monadic Chat UIで設定されます：
+
+- **`AI_USER_MODEL`** - AI生成ユーザーメッセージ用のモデル
+- **`AI_USER_MAX_TOKENS`** - ユーザーメッセージ生成の最大トークン数（デフォルト：2000）
+- **`WEBSEARCH_MODEL`** - ウェブ検索用のモデル（gpt-4.1-miniまたはgpt-4.1）
+- **`STT_MODEL`** - 音声認識モデル
+- **`ROUGE_THEME`** - シンタックスハイライトテーマ
+
+## 完全な例
+
+```ruby
+app "ChatOpenAI" do
+  description "OpenAIを使用した汎用チャットアプリケーション"
+  icon "fa-comments"
+  
+  llm do
+    provider "openai"
+    model "gpt-4.1-mini"
+    temperature 0.7
+    max_tokens 4000
+  end
+  
+  features do
+    easy_submit true
+    auto_speech false
+    context_size 20
+    monadic false
+    # 注: 画像アップロードはビジョン機能を持つモデルで自動的に有効になります
+    websearch true
+  end
+  
+  tools do
+    # 標準ツールのみを使用する場合でも空のブロックが必要
+  end
+  
+  system_prompt <<~TEXT
+    あなたは親切なAIアシスタントです。
+  TEXT
+end
+```
+
+## 関連項目
+
+- [Monadic DSL](./monadic_dsl.md) - 完全なMDSL構文リファレンス
+- [アプリの開発](./develop_apps.md) - アプリ作成ガイド
+- [レシピファイルの例](./recipe-examples.md) - 実装例

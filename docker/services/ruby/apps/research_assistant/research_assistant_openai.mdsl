@@ -13,7 +13,7 @@ app "ResearchAssistantOpenAI" do
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     websearch true
-    temperature 0.2
+    temperature 0.0
     easy_submit false
     auto_speech false
     mathjax true

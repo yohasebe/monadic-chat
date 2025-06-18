@@ -13,7 +13,7 @@ app "SecondOpinionDeepSeek" do
   llm do
     provider "deepseek"
     model "deepseek-chat"
-    temperature 0.2
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

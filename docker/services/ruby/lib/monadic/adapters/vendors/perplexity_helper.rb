@@ -656,7 +656,7 @@ module PerplexityHelper
           # This comment-out is due to the lack of finish_reason in the JSON response from "sonar-pro"
           if json["choices"][0]["finish_reason"] == "stop"
             # Debug logging to trace the entire process
-            if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+            if CONFIG["EXTRA_LOGGING"]
               DebugHelper.debug("Perplexity: Processing finish_reason=stop for model #{obj["model"]}", category: :api, level: :info)
               if texts.first && texts.first[1]
                 content_preview = texts.first[1]["choices"][0]["message"]["content"][0..100] rescue ""
@@ -666,7 +666,7 @@ module PerplexityHelper
             
             # Only process <think> tags for reasoning models
             if obj["model"].include?("reasoning") || obj["model"].match?(/^r\d+/)
-              if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+              if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: Extracting thinking blocks for reasoning model", category: :api, level: :info)
               end
               
@@ -674,7 +674,7 @@ module PerplexityHelper
               
               # Check if there are citations in the original content before processing
               citation_refs_before = original_content.scan(/\[(\d+)\]/).flatten
-              if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"] && citation_refs_before.any?
+              if CONFIG["EXTRA_LOGGING"] && citation_refs_before.any?
                 DebugHelper.debug("Perplexity: Citation references found before thinking removal: #{citation_refs_before}", category: :api, level: :info)
               end
               
@@ -688,7 +688,7 @@ module PerplexityHelper
                 think_citations = think_content.scan(/\[(\d+)\]/)
                 if think_citations.any?
                   preserved_citations.concat(think_citations.flatten)
-                  if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                  if CONFIG["EXTRA_LOGGING"]
                     DebugHelper.debug("Perplexity: Found citations in thinking block: #{think_citations.flatten}", category: :api, level: :debug)
                   end
                 end
@@ -698,7 +698,7 @@ module PerplexityHelper
               
               # Check if citations were lost during thinking removal
               citation_refs_after = processed_content.scan(/\[(\d+)\]/).flatten
-              if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+              if CONFIG["EXTRA_LOGGING"]
                 if citation_refs_before.any? || citation_refs_after.any? || preserved_citations.any?
                   DebugHelper.debug("Perplexity: Citations - before: #{citation_refs_before}, after: #{citation_refs_after}, in thinking: #{preserved_citations}", category: :api, level: :info)
                 end
@@ -706,7 +706,7 @@ module PerplexityHelper
               
               texts.first[1]["choices"][0]["message"]["content"] = processed_content
               
-              if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+              if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: Thinking blocks extracted: #{thinking.size}", category: :api, level: :info)
                 DebugHelper.debug("Perplexity: Content after thinking removal: #{processed_content[0..100] rescue ""}...", category: :api, level: :debug)
               end
@@ -715,7 +715,7 @@ module PerplexityHelper
             citations = json["citations"] if json["citations"]
             
             # Debug: Check citations for all models
-            if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+            if CONFIG["EXTRA_LOGGING"]
               DebugHelper.debug("Perplexity: Model #{obj["model"]} - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
               if citations && citations.any?
                 DebugHelper.debug("Perplexity: Citations content: #{citations.inspect}", category: :api, level: :debug)
@@ -731,7 +731,7 @@ module PerplexityHelper
             new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
             
             # Debug: Log citation processing results
-            if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+            if CONFIG["EXTRA_LOGGING"]
               DebugHelper.debug("Perplexity: After check_citations - new_citations count: #{new_citations&.size || 0}", category: :api, level: :info)
               if new_text != texts.first[1]["choices"][0]["message"]["content"]
                 DebugHelper.debug("Perplexity: Citation references were renumbered", category: :api, level: :debug)
@@ -744,14 +744,14 @@ module PerplexityHelper
                 "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
               end.join("\n") + "</ol></div>"
               
-              if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+              if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: Adding citation HTML to content", category: :api, level: :info)
                 DebugHelper.debug("Perplexity: Citation HTML preview: #{citation_text[0..100]}...", category: :api, level: :debug)
               end
               
               texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
             else
-              if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+              if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: No citations to add (citations nil or empty)", category: :api, level: :info)
               end
             end
@@ -776,7 +776,7 @@ module PerplexityHelper
       citations = json["citations"] if json["citations"]
       
       # Debug: Log second citation processing
-      if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+      if CONFIG["EXTRA_LOGGING"]
         DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
       end
       
@@ -788,7 +788,7 @@ module PerplexityHelper
         end.join("\n") + "</ol></div>"
         texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
         
-        if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+        if CONFIG["EXTRA_LOGGING"]
           DebugHelper.debug("Perplexity: Second citation processing - added citations to content", category: :api, level: :info)
         end
       end

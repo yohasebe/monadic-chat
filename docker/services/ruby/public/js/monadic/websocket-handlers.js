@@ -253,9 +253,32 @@ function handleErrorMessage(data) {
       $('#ai_user').prop('disabled', false);
     }
     
-    // Show error message
+    // Create error card with System header (same as system_info)
+    // Use jQuery's text() method to properly escape the content
+    const $errorDiv = $('<div class="error-message"><i class="fas fa-exclamation-circle"></i> </div>');
+    $errorDiv.append($('<span>').text(data.content));
+    
+    const errorElement = createCard("system", 
+      "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
+      $errorDiv[0].outerHTML, 
+      "en", 
+      null, 
+      true, 
+      []
+    );
+    $("#discourse").append(errorElement);
+    
+    // Show alert for error message
     if (typeof setAlert === 'function') {
-      setAlert(data.content, 'error');
+      setAlert(data.content || '', 'error');
+    }
+    
+    // Auto-scroll if enabled
+    if (autoScroll) {
+      const chatBottom = document.getElementById('chat-bottom');
+      if (!isElementInViewport(chatBottom)) {
+        chatBottom.scrollIntoView(false);
+      }
     }
     
     return true;

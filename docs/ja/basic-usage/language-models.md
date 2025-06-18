@@ -66,17 +66,17 @@ WEBSEARCH_MODEL=gpt-4.1-mini
 ### OpenAI推論モデル
 - **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
 - **O3シリーズ**: o3、o3-pro
-- **O4シリーズ**: 将来のモデル
+- **O4シリーズ**: o4-mini
 
-これらのモデルは温度設定の代わりに`reasoning_effort`パラメータ（"low"、"medium"、"high"）を使用します。
+これらのモデルはtemperature設定の代わりに`reasoning_effort`パラメータ（"low"、"medium"、"high"）を使用します。
 
 ### Gemini思考モデル
 - **2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
-- 調整可能なコンピューティング予算での高度な推論
+- 調整可能なthinking budgetでの高度な推論
 
 ### Mistral推論モデル
 - **Magistralシリーズ**: magistral-medium、magistral-small
-- 多言語推論機能（ヨーロッパ言語）
+- 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
 
 ### 標準モデルとの主な違い
 - temperatureの代わりに`reasoning_effort`を使用
@@ -131,7 +131,7 @@ Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用
 
 ### 利用可能なモデル
 - **Gemini 2.5シリーズ**: 
-  - gemini-2.5-flash、gemini-2.5-pro（調整可能な推論ダイヤル付き）
+  - gemini-2.5-flash、gemini-2.5-pro（推論レベルを調整可能）
   - gemini-2.5-flash-preview-05-20、gemini-2.5-pro-exp-03-25（実験版）
   - Deep Thinkモードで推論機能を強化可能
 - **Gemini 2.0シリーズ**: 
@@ -170,7 +170,7 @@ Mistral APIキーを設定すると、Mistralを用いたアプリを使用す�
 
 ### 利用可能なモデル
 - **Magistralシリーズ**: magistral-medium、magistral-small（推論モデル）
-  - ヨーロッパ言語での多言語推論
+  - 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
   - 秒間1,000トークンのパフォーマンス
 - **大規模モデル**: mistral-large-latest、mistral-medium-2505（ビジョン）
 - **Pixtralシリーズ**: pixtral-large-latest、pixtral-large-2411（ビジョンモデル）
@@ -209,8 +209,8 @@ Perplexity APIキーを設定すると、Perplexityを用いたアプリを使�
 ### 利用可能なモデル
 - **R1シリーズ**: r1-1776（推論モデル、DeepSeek-R1ベース）
   - 671Bパラメータ、160Kコンテキストウィンドウ
-  - バイアスのない応答のために後学習
-  - 推奨温度: 0.5-0.7
+  - 公平な応答を実現するためにpost-trainingを実施
+  - 推奨temperature: 0.5-0.7
 - **Sonarシリーズ**: sonar、sonar-pro、sonar-reasoning、sonar-reasoning-pro、sonar-deep-research
   - 全てWeb検索機能を内蔵
   - 簡単な検索から深いリサーチまで異なる用途に最適化

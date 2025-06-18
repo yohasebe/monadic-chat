@@ -546,7 +546,7 @@ module MistralHelper
               # Updated pattern to match magistral-medium-latest
               if obj["model"] && obj["model"].match?(/magistral/i)
                 # Debug logging for Magistral model detection
-                if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                if CONFIG["EXTRA_LOGGING"]
                   DebugHelper.debug("Mistral: Processing content for Magistral model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
                 end
                 # For Magistral models, collect all content and process thinking blocks later
@@ -756,7 +756,7 @@ module MistralHelper
     if thinking && !thinking.empty?
       response["choices"][0]["message"]["thinking"] = thinking.join("\n\n")
       # Debug logging for thinking content
-      if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+      if CONFIG["EXTRA_LOGGING"]
         DebugHelper.debug("Mistral: Collected #{thinking.length} thinking block(s) for #{obj["model"]}", category: :api, level: :info)
       end
     end

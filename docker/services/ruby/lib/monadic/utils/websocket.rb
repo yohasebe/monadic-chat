@@ -679,12 +679,12 @@ module WebSocketHelper
                   # Remove citation HTML from text so it doesn't get processed by markdown
                   text = text.sub(match[1], '')
                   
-                  if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                  if CONFIG["EXTRA_LOGGING"]
                     DebugHelper.debug("WebSocket: Extracted citation HTML from text", category: :api, level: :info)
                     DebugHelper.debug("WebSocket: Citation HTML: #{citation_html[0..100]}...", category: :api, level: :debug)
                   end
                 end
-              elsif CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+              elsif CONFIG["EXTRA_LOGGING"]
                 if text && text.match(/\[\d+\]/)
                   DebugHelper.debug("WebSocket: Found citation references but no HTML: #{text.scan(/\[\d+\]/).join(', ')}", category: :api, level: :info)
                 end
@@ -719,7 +719,7 @@ module WebSocketHelper
               # Add citation HTML back after markdown processing
               if citation_html
                 html += citation_html
-                if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                if CONFIG["EXTRA_LOGGING"]
                   DebugHelper.debug("WebSocket: Added citation HTML to final output", category: :api, level: :info)
                 end
               end
@@ -1282,13 +1282,60 @@ module WebSocketHelper
                                end
                 @channel.push({ "type" => "error", "content" => error_content }.to_json)
               else
-                unless response.dig("choices", 0, "message", "content")
+                # Debug logging for response structure (only with EXTRA_LOGGING)
+                if CONFIG["EXTRA_LOGGING"]
+                  puts "WebSocket response structure:"
+                  puts "Response class: #{response.class}"
+                  puts "Response keys: #{response.keys.inspect}" if response.is_a?(Hash)
+                  puts "Has choices?: #{response.key?("choices") if response.is_a?(Hash)}"
+                  puts "Response: #{response.inspect[0..500]}..." # First 500 chars
+                end
+                
+                # Check for content in standard format or responses API format
+                raw_content = nil
+                
+                # Try standard format first
+                raw_content = response.dig("choices", 0, "message", "content")
+                
+                # If not found, try responses API format
+                if raw_content.nil? && response["output"]
+                  if CONFIG["EXTRA_LOGGING"]
+                    puts "Trying responses API format. Output items: #{response["output"].length}"
+                  end
+                  
+                  # Look for message type in output array
+                  response["output"].each do |item|
+                    if CONFIG["EXTRA_LOGGING"]
+                      puts "Output item type: #{item["type"]}, has content?: #{item.key?("content")}"
+                    end
+                    
+                    if item["type"] == "message" && item["content"]
+                      # Extract text from content array
+                      if item["content"].is_a?(Array)
+                        item["content"].each do |content_item|
+                          # Handle both "text" and "output_text" types
+                          if (content_item["type"] == "text" || content_item["type"] == "output_text") && content_item["text"]
+                            raw_content ||= ""
+                            raw_content += content_item["text"]
+                          end
+                        end
+                      elsif item["content"].is_a?(String)
+                        raw_content = item["content"]
+                      end
+                    end
+                  end
+                  
+                  if CONFIG["EXTRA_LOGGING"]
+                    puts "Extracted content length: #{raw_content&.length || 0}"
+                  end
+                end
+                
+                # If still no content found
+                if raw_content.nil?
+                  puts "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." if CONFIG["EXTRA_LOGGING"]
                   @channel.push({ "type" => "error", "content" => "Content not found in response" }.to_json)
                   break
                 end
-
-                # Get raw content
-                raw_content = response.dig("choices", 0, "message", "content")
                 if raw_content
                   # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
                   content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')

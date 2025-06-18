@@ -13,7 +13,7 @@ app "SecondOpinionGrok" do
   llm do
     provider "grok"
     model "grok-3-mini-fast"
-    temperature 0.2
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

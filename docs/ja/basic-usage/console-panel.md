@@ -178,7 +178,7 @@ AIユーザーの最大トークン数を選択します。この設定は、単
 ![Settings Panel](../assets/images/settings-voice.png ':size=600')
 
 **STT_MODEL** <br />
-Speech-to-Textに使用するモデルを選択します。現在、`gpt-4o-transcribe`、`gpt-4o-mini-transcribe`、および`whisper-1`が利用可能です。デフォルトは`gpt-4o-transcribe`です。
+Speech-to-Textに使用するモデルを選択します。`gpt-4o-transcribe`、`gpt-4o-mini-transcribe`、および`whisper-1`が利用可能です。デフォルトは`gpt-4o-transcribe`です。
 
 **TTS Dictionary File Path** <br />
 Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。

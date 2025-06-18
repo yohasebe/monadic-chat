@@ -2,11 +2,11 @@
 
 ![](../assets/images/monadic-chat-web.png ':size=700')
 
-## ブラウザモード
+## ブラウザモード :id=browser-modes
 
 Monadic Chatは2つの異なるブラウザモードでWebインターフェースにアクセスすることができます：
 
-### 内部ブラウザモード
+### 内部ブラウザモード :id=internal-browser-mode
 
 内部ブラウザモードは、Electronデスクトップアプリケーション内でwebview機能を使用して直接実行されます。このモードでは、アプリケーション間の切り替えなしでチャットインターフェースを操作できる統合された体験を提供します。
 
@@ -23,19 +23,19 @@ Monadic Chatは2つの異なるブラウザモードでWebインターフェー�
 - **Reset App**：セッションデータをクリアしUIをリロードし、初期アプリ選択状態に戻す
 - **Monadic Chat Console**：メインのコンソールウィンドウを表示する
 
-### 外部ブラウザモード
+### 外部ブラウザモード :id=external-browser-mode
 
 外部ブラウザモードでは、Monadic ChatはデフォルトのWebブラウザを起動し、ローカルサーバー（http://localhost:4567）に接続します。
 
-## アプリケーションモード
+## アプリケーションモード :id=application-modes
 
 Monadic Chatはサーバーの動作を決定する2つのアプリケーションモードをサポートしています：
 
-### スタンドアロンモード（デフォルト）
+### スタンドアロンモード（デフォルト） :id=standalone-mode
 
 スタンドアロンモードでは、Monadic Chatは単一のデバイスでローカルに実行され、localhost（127.0.0.1）にのみバインドされます。これは個人使用のためのデフォルトモードです。
 
-### サーバーモード
+### サーバーモード :id=server-mode
 
 サーバーモードでは、複数のクライアントが単一のMonadic Chatインスタンスに接続できます。サーバーモードで実行する場合：
 - Webインターフェースはlocalhostだけでなくすべてのネットワークインターフェース（0.0.0.0）にバインドされます
@@ -46,7 +46,7 @@ Monadic Chatはサーバーの動作を決定する2つのアプリケーショ�
 
 アプリケーションモードは起動時のコンソール設定パネルまたは`~/monadic/config/env`の設定変数を通じて設定できます。
 
-## システム設定画面
+## システム設定画面 :id=system-settings-screen
 
 ![](../assets/images/chat-settings.png ':size=700')
 
@@ -59,7 +59,7 @@ Monadic Chatであらかじめ用意された基本アプリの中から1つを�
 !> 多くの基本アプリではモデルのリストをAPI経由で取得しており、複数のモデルが選択可能です。デフォルトのモデル以外を使用する場合はエラーとなる場合もあります。
 
 **Reasoning Effort** <br />
-OpenAIの高度な推論が可能なモデル（`o1`や`o3-mini`）では、推論に用いるトークン数を調整することができます。`low`を選択すると、推論過程のトークン数が最小限に抑えられ、`high`を選択すると、推論過程のトークン数が最大限になります。デフォルトは`medium`はその中間です。
+高度な推論が可能なモデル（OpenAIのo1、o3、o4シリーズ、Claude 4.0、Gemini 2.5プレビューモデル、Mistral Magistral、Grok 3、Perplexity r1-1776など）では、推論の強度レベルを調整することができます。`low`を選択すると推論過程で使用される計算リソースが最小限に抑えられ、`high`を選択すると最大限になります。ほとんどのモデルのデフォルトは`low`です。
 
 **Max Output Tokens** <br />
 APIレスポンスで返される最大トークン数を指定します。チェックマークをオンにすると、レスポンスが指定されたトークン数に制限されます。トークンのカウント方法についてはモデルによって異なります。OpenAIのモデルに関しては、[What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)を参照してください。
@@ -71,7 +71,7 @@ APIレスポンスで返される最大トークン数を指定します。チ�
 
 下記の要素はパラメターとしてAPIに送られます。各パラメターの詳細はChat APIの[Reference](https://platform.openai.com/docs/api-reference/chat)を参照してください。なお、選択中のモデルで使用できないパラメターは無視されます。
 
-- Temperature（注：Gemini 2.5 Flash ThinkingやClaude 3.5 Sonnet Newなどの思考モデルでは「Reasoning Effort」に置き換わります）
+- Temperature（注：推論モデルでは「Reasoning Effort」パラメータに置き換わります）
 - Top P
 - Presence Penalty
 - Frequency Penalty
@@ -108,7 +108,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 **Start Session / Continue Session** <br />
 このボタンをクリックすると、System Settingsで指定したオプションやパラメターのもとにチャットが開始されます。すでにセッションを開始していて、`Settings`ボタンをクリックしてSystem Settingsパネルに戻った場合、このボタンは`Continue Session`と表示されます。クリックすると、会話をリセットせずに進行中の会話に戻ります。
 
-## 基本情報パネル
+## 基本情報パネル :id=info-panel
 
 ![](../assets/images/monadic-chat-info.png ':size=400')
 
@@ -118,7 +118,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 **Current Base App**<br />
 現在選択している基本アプリの名前と説明が表示されます。Monadic Chatの起動時にはデフォルトのアプリである`Chat`に関する情報が表示されます。
 
-## ステータスパネル
+## ステータスパネル :id=status-panel
 
 ![](../assets/images/monadic-chat-status.png ':size=400')
 
@@ -134,7 +134,7 @@ Monadic Chatの現在の状況を示します。
 
 現在のセッションにおいて交わされたメッセージの数やトークンの数などの詳細が示されます。
 
-## セッション表示パネル
+## セッション表示パネル :id=session-panel
 
 ![](../assets/images/monadic-chat-session.png ':size=400')
 
@@ -152,7 +152,7 @@ Monadic Chatの現在の状況を示します。
 **Export**<br />
 `Export`ボタンをクリックすると、現在の設定項目の値と会話データを外部ファイル（JSON）に保存します。
 
-## 音声設定パネル
+## 音声設定パネル :id=speech-settings-panel
 
 ![](../assets/images/monadic-chat-tts.png ':size=400')
 
@@ -180,7 +180,7 @@ Monadic Chatの現在の状況を示します。
 音声認識にはSpeech-to-Text APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。Monadic Chatはコンソール設定で設定されたSTTモデルを使用します（デフォルトはgpt-4o-transcribe）。
 参考：[Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
-## PDFデータベース表示パネル
+## PDFデータベース表示パネル :id=pdf-database-display-panel
 
 ![](../assets/images/monadic-chat-pdf-db.png ':size=400')
 

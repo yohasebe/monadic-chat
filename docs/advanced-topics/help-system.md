@@ -2,11 +2,11 @@
 
 Monadic Chat includes an AI-powered help system that provides contextual assistance based on the project's documentation.
 
-## Overview
+## Overview :id=overview
 
 The help system uses OpenAI's embeddings to create a searchable knowledge base from the Monadic Chat documentation. This allows for intelligent, context-aware responses to user questions.
 
-## Features
+## Features :id=features
 
 - **Automatic Language Detection**: The system responds in the user's language while storing only English documentation
 - **Multi-chunk Retrieval**: Returns multiple relevant sections for comprehensive answers
@@ -14,26 +14,26 @@ The help system uses OpenAI's embeddings to create a searchable knowledge base f
 - **Batch Processing**: Efficiently processes embeddings in batches for better performance
 - **Automatic Container Rebuilding**: PGVector container automatically rebuilds when help data is updated
 
-## Requirements
+## Requirements :id=requirements
 
 - OpenAI API key (for embeddings and chat functionality)
 - Running pgvector container
 
-## Usage
+## Usage :id=usage
 
-### Accessing Help
+### Accessing Help :id=accessing-help
 
 1. Start Monadic Chat and ensure all containers are running
 2. Select "Monadic Help" from the app menu
 3. Ask questions about Monadic Chat in any language
 
-### Common Questions
+### Common Questions :id=common-questions
 
 - "How do I generate graphs?" → Will suggest Math Tutor or Mermaid Grapher apps
 - "How can I work with PDFs?" → Will explain PDF Navigator app
 - "What voice features are available?" → Will describe Voice Chat and speech synthesis options
 
-## Building the Help Database
+## Building the Help Database :id=building-help-database
 
 The help database is built from the documentation during development:
 
@@ -51,9 +51,9 @@ rake help:stats
 rake help:export
 ```
 
-## Configuration
+## Configuration :id=configuration
 
-### Configuration Variables
+### Configuration Variables :id=configuration-variables
 
 - **`HELP_CHUNK_SIZE`**: Character count per chunk (default: 3000)
   - Controls how documentation is split during processing
@@ -71,7 +71,7 @@ rake help:export
   - More chunks provide better context
   - Affects response quality and completeness
 
-### Example Configuration
+### Example Configuration :id=example-configuration
 
 Add these settings to your `~/monadic/config/env` file:
 
@@ -82,9 +82,9 @@ HELP_EMBEDDINGS_BATCH_SIZE=100
 HELP_CHUNKS_PER_RESULT=5
 ```
 
-## Architecture
+## Architecture :id=architecture
 
-### Database Structure
+### Database Structure :id=database-structure
 
 The help system uses a separate PostgreSQL database (`monadic_help`) with pgvector extension:
 
@@ -98,7 +98,7 @@ The help system uses a separate PostgreSQL database (`monadic_help`) with pgvect
   - Chunk-level embeddings for detailed search
   - Links to parent document via foreign key
 
-### Export/Import Process
+### Export/Import Process :id=export-import-process
 
 1. **Development Phase**:
    - Documentation is processed using `rake help:build`
@@ -115,7 +115,7 @@ The help system uses a separate PostgreSQL database (`monadic_help`) with pgvect
    - Import script handles JSON to PostgreSQL conversion
    - Embeddings are restored from export files
 
-### Automatic Container Rebuilding
+### Automatic Container Rebuilding :id=automatic-container-rebuilding
 
 The system tracks help database updates using an export ID:
 
@@ -125,22 +125,22 @@ The system tracks help database updates using an export ID:
 4. If different, PGVector container is automatically rebuilt
 5. New help data is imported during container initialization
 
-## Development
+## Development :id=development
 
-### Adding Documentation
+### Adding Documentation :id=adding-documentation
 
 1. Add or modify markdown files in the `docs/` directory
 2. Run `rake help:build` to update the database
 3. The system will only process changed files
 
-### Processing Details
+### Processing Details :id=processing-details
 
 - **Incremental Updates**: MD5 hashing detects changed documents
 - **Batch Processing**: Embeddings processed in configurable batches
 - **Multi-language**: Excludes `/ja/` and other language directories
 - **Hierarchical Context**: Preserves heading structure in metadata
 
-### Testing
+### Testing :id=testing
 
 To test the help system:
 
@@ -157,7 +157,7 @@ rake help:stats
 # 3. Test queries in different languages
 ```
 
-### Debugging
+### Debugging :id=debugging
 
 Enable debug output:
 
@@ -167,36 +167,36 @@ export HELP_EMBEDDINGS_DEBUG=1
 rake help:build
 ```
 
-## Performance Optimization
+## Performance Optimization :id=performance-optimization
 
-### Chunk Size Guidelines
+### Chunk Size Guidelines :id=chunk-size-guidelines
 
 - **Technical Documentation**: Use larger chunks (4000-5000) to preserve code examples
 - **FAQ/Short Content**: Use smaller chunks (2000-3000) for precise matching
 - **General Content**: Default (3000) works well for most cases
 
-### API Performance
+### API Performance :id=api-performance
 
 - Reduce `HELP_EMBEDDINGS_BATCH_SIZE` if experiencing timeouts
 - Monitor OpenAI API rate limits
 - Consider processing during off-peak hours
 
-### Search Quality
+### Search Quality :id=search-quality
 
 - Increase `HELP_CHUNKS_PER_RESULT` if answers seem incomplete
 - Adjust `top_n` parameter in search calls for more results
 - Use specific search terms for better matching
 
-## Limitations
+## Limitations :id=limitations
 
 - Requires OpenAI API key (no support for other embedding providers)
 - English documentation only (responses are machine-translated)
 - Maximum context limited by model constraints
 - Embedding dimensions fixed at 3072 (OpenAI text-embedding-3-large)
 
-## Troubleshooting
+## Troubleshooting :id=troubleshooting
 
-### Common Issues
+### Common Issues :id=common-issues
 
 1. **"Help database does not exist"**
    - Run `rake help:build` to create the database

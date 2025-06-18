@@ -104,3 +104,145 @@ By separating code into **agents**, **adapters**, and **utils**, the project mai
 - Users can add custom scripts to `~/monadic/data/scripts` (host) / `/monadic/data/scripts` (container)
 - These scripts are automatically made executable and added to PATH during command execution
 - See [Shared Folder Documentation](../docker-integration/shared-folder.md#scripts) for details
+
+## Reasoning Models Implementation
+
+### Model Detection and Parameter Mapping
+
+Monadic Chat automatically detects reasoning models and adjusts their parameters accordingly. This is implemented through pattern matching and provider-specific configurations.
+
+#### Detection Logic
+
+##### OpenAI Models
+```ruby
+# In openai_helper.rb
+REASONING_MODELS = ["o3", "o4", "o1"]  # Partial string match
+NON_STREAM_MODELS = ["o1-pro", "o1-pro-2025-03-19", "o3-pro"]  # Complete string match
+```
+
+##### Pattern-Based Detection
+```ruby
+# In second_opinion_agent.rb
+reasoning_patterns = {
+  "gemini" => /2\.5.*preview/i,
+  "openai" => /^o[13](-|$)/i,
+  "mistral" => /^magistral(-|$)/i,
+}
+```
+
+#### Parameter Mapping
+
+##### Reasoning Effort Mapping
+Different providers implement `reasoning_effort` differently:
+
+| Provider | Parameter | Implementation |
+|----------|-----------|----------------|
+| **OpenAI** | `reasoning_effort` | Direct API parameter |
+| **Claude 4.0** | `budget_tokens` | Low: 50%, Medium: 70%, High: 80% of max_tokens |
+| **Gemini 2.5** | `thinkingBudget` | Percentage-based with provider-specific minimums |
+| **Mistral Magistral** | `reasoning_effort` | Direct API parameter |
+| **Perplexity r1-1776** | N/A | No specific parameter |
+
+##### Implementation Example (Claude)
+```ruby
+# In claude_helper.rb
+if model_identifier.start_with?("claude-opus-4", "claude-sonnet-4")
+  case reasoning_effort
+  when "low"
+    parameters["budget_tokens"] = (parameters["max_tokens"] * 0.5).to_i
+  when "medium"
+    parameters["budget_tokens"] = (parameters["max_tokens"] * 0.7).to_i
+  when "high"
+    parameters["budget_tokens"] = (parameters["max_tokens"] * 0.8).to_i
+  end
+  parameters.delete("temperature")
+  parameters.delete("top_p")
+end
+```
+
+##### Implementation Example (Gemini)
+```ruby
+# In gemini_helper.rb
+if model.match?(/2\.5.*preview/i)
+  thinking_budget = case reasoning_effort
+  when "low" then flash_model ? 0.3 : 0.3
+  when "medium" then flash_model ? 0.6 : 0.6
+  when "high" then flash_model ? 0.8 : 0.8
+  else 0.5
+  end
+  
+  # Apply minimums based on model type
+  if flash_model
+    thinking_budget = [thinking_budget, 0.05].max  # 5% minimum
+  else
+    thinking_budget = [thinking_budget, 0.2].max   # 20% minimum
+  end
+end
+```
+
+### Response Processing
+
+#### Thinking Block Removal
+Some models include thinking blocks in their responses that need to be removed:
+
+```ruby
+# Mistral Magistral
+response_content.gsub!(/<thinking>.*?<\/thinking>/m, "")
+response_content.gsub!(/\\boxed{([^}]+)}/, '\1')
+
+# Gemini 2.5 (handled natively by API)
+# Returns thinking content separately in response["candidates"][0]["thought"]
+```
+
+### Web Search Model Switching
+
+Reasoning models often lack native tool support, requiring automatic model switching for web search:
+
+```ruby
+# When web search is enabled with a reasoning model
+if is_reasoning_model && web_search_enabled
+  fallback_model = CONFIG["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
+  # Switch to fallback model for search, then back to reasoning model
+end
+```
+
+### Streaming Support
+
+Some reasoning models don't support streaming responses:
+
+```ruby
+NON_STREAM_MODELS = ["o1-pro", "o1-pro-2025-03-19", "o3-pro"]
+
+# Disable streaming for these models
+if NON_STREAM_MODELS.include?(model)
+  parameters["stream"] = false
+end
+```
+
+### Function Calling Limitations
+
+Many reasoning models have limited or no function calling support:
+
+```ruby
+NON_TOOL_MODELS = [
+  "o1", "o1-2024-12-17", "o1-mini", "o1-mini-2024-09-12",
+  "o1-preview", "o1-preview-2024-09-12"
+]
+
+# Disable tools for these models
+if NON_TOOL_MODELS.include?(model)
+  parameters.delete("tools")
+  parameters.delete("tool_choice")
+end
+```
+
+### Provider-Specific Endpoints
+
+Some providers use special endpoints for reasoning models:
+
+```ruby
+# Gemini 2.5 uses v1beta endpoint
+if model.match?(/2\.5.*preview/i)
+  endpoint = "v1beta/models/#{model}:generateContent"
+end
+```

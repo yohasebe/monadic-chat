@@ -56,6 +56,57 @@ namespace :server do
     ENV['OLLAMA_AVAILABLE'] = ollama_exists ? 'true' : 'false'
     puts "Ollama container: #{ollama_exists ? 'detected' : 'not found'}"
     
+    # Check for API keys in environment or config file
+    require 'dotenv'
+    config_path = File.expand_path("~/monadic/config/env")
+    if File.exist?(config_path)
+      Dotenv.load(config_path)
+    end
+    
+    # List of common API keys to check
+    api_keys = {
+      'OPENAI_API_KEY' => 'OpenAI',
+      'ANTHROPIC_API_KEY' => 'Anthropic (Claude)',
+      'GEMINI_API_KEY' => 'Google Gemini',
+      'MISTRAL_API_KEY' => 'Mistral AI',
+      'COHERE_API_KEY' => 'Cohere',
+      'PERPLEXITY_API_KEY' => 'Perplexity',
+      'DEEPSEEK_API_KEY' => 'DeepSeek',
+      'XAI_API_KEY' => 'xAI (Grok)',
+      'ELEVENLABS_API_KEY' => 'ElevenLabs (TTS)'
+    }
+    
+    # Check which API keys are defined
+    defined_keys = []
+    missing_keys = []
+    
+    api_keys.each do |key, provider|
+      if ENV[key] && !ENV[key].empty?
+        defined_keys << provider
+      else
+        missing_keys << provider
+      end
+    end
+    
+    # Display warning if no API keys are defined
+    if defined_keys.empty?
+      puts "\n" + "="*80
+      puts "⚠️  WARNING: No API keys found!"
+      puts "="*80
+      puts "\nMonadic Chat requires at least one API key to function properly."
+      puts "\nPlease add API keys to: ~/monadic/config/env"
+      puts "\nExample format:"
+      puts "  OPENAI_API_KEY=your-api-key-here"
+      puts "  ANTHROPIC_API_KEY=your-api-key-here"
+      puts "\nMissing API keys for: #{missing_keys.join(', ')}"
+      puts "="*80 + "\n"
+    else
+      puts "\nAPI keys found for: #{defined_keys.join(', ')}"
+      if !missing_keys.empty?
+        puts "Missing API keys for: #{missing_keys.join(', ')}"
+      end
+    end
+    
     sh "./bin/monadic_server.sh debug"
   end
   

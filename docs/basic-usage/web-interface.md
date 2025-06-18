@@ -2,11 +2,11 @@
 
 ![](../assets/images/monadic-chat-web.png ':size=700')
 
-## Browser Modes
+## Browser Modes :id=browser-modes
 
 Monadic Chat supports two different browser modes for accessing its web interface:
 
-### Internal Browser Mode
+### Internal Browser Mode :id=internal-browser-mode
 
 The internal browser mode runs directly within the Electron desktop application using webview functionality. This mode provides an all-in-one experience where you can interact with the chat interface without switching between applications.
 
@@ -23,19 +23,19 @@ When running in internal browser mode, four additional buttons appear at the bot
 - **Reset App**: Clears session data, reloads the UI, and resets to the initial app selection
 - **Monadic Chat Console**: Shows the main console window
 
-### External Browser Mode
+### External Browser Mode :id=external-browser-mode
 
 In external browser mode, Monadic Chat launches your default web browser and connects to the local server (at http://localhost:4567).
 
-## Application Modes
+## Application Modes :id=application-modes
 
 Monadic Chat supports two application modes that determine how the server operates:
 
-### Standalone Mode (Default)
+### Standalone Mode (Default) :id=standalone-mode
 
 In standalone mode, Monadic Chat runs locally on a single device and binds only to localhost (127.0.0.1). This is the default mode for personal use.
 
-### Server Mode
+### Server Mode :id=server-mode
 
 Server mode allows multiple clients to connect to a single Monadic Chat instance. When running in server mode:
 - The web interface binds to all network interfaces (0.0.0.0) rather than just localhost
@@ -46,7 +46,7 @@ Server mode allows multiple clients to connect to a single Monadic Chat instance
 
 You can configure the application mode in the Console Settings panel on startup or through configuration variables in `~/monadic/config/env`.
 
-## System Settings Screen
+## System Settings Screen :id=system-settings-screen
 
 ![](../assets/images/chat-settings.png ':size=700')
 
@@ -57,7 +57,7 @@ Select one of the basic apps provided by Monadic Chat. Each app has different de
 Models available for the selected app are displayed. If a default model is set for the app, the default model is pre-selected. You can change the model by selecting a different one from the dropdown list.  With many basic apps, the model list is automatically retrieved from the API, and multiple models are selectable. Please note that using a model other than the default one might result in errors if the model isn't suitable for the app.
 
 **Reasoning Effort** <br />
-For models capable of advanced reasoning (such as `o1` and `o3-mini` from OpenAI), you can adjust the number of tokens used for inference. Selecting `low` minimizes the number of tokens used in the inference process, while selecting `high` maximizes the number of tokens used. The default is `medium`, which is in between.
+For models capable of advanced reasoning (such as OpenAI's o1, o3, o4 series, Claude 4.0, Gemini 2.5 preview models, Mistral Magistral, Grok 3, and Perplexity r1-1776), you can adjust the reasoning effort level. Selecting `low` minimizes computational resources used in the reasoning process, while selecting `high` maximizes them. The default is `low` for most models.
 
 **Max Output Tokens** <br />
 Specify the maximum number of tokens to be returned in the API response. When the checkmark is on, the response is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
@@ -69,7 +69,7 @@ The maximum number of utterances to keep active in the ongoing chat. Only active
 
 These elements are sent as parameters to the API. For details on each parameter, see the Chat API [Reference](https://platform.openai.com/docs/api-reference/chat). Note that parameters not supported by the selected model are ignored.
 
-- Temperature (Note: For thinking models like Gemini 2.5 Flash Thinking or Claude 3.5 Sonnet New, this is replaced by "Reasoning Effort")
+- Temperature (Note: For reasoning models, this parameter is replaced by "Reasoning Effort")
 - Top P
 - Presence Penalty
 - Frequency Penalty
@@ -104,7 +104,7 @@ When on, pressing the Enter key on the keyboard automatically sends the message 
 **Start Session / Continue Session** <br />
 Click this button to start a chat based on the options and parameters specified in the System Settings. If you have already started a session and click the `Settings` button to return to the System Settings panel, this button will be labeled `Continue Session`. Clicking it will return you to your ongoing conversation without resetting it.
 
-## Info Panel
+## Info Panel :id=info-panel
 
 ![](../assets/images/monadic-chat-info.png ':size=400')
 
@@ -114,7 +114,7 @@ Links to related websites and the version of Monadic Chat are shown. Clicking `A
 **Current Base App**<br />
 The name and description of the currently selected base app are displayed. When Monadic Chat is launched, information about the default app, `Chat`, is displayed.
 
-## Status Panel
+## Status Panel :id=status-panel
 
 ![](../assets/images/monadic-chat-status.png ':size=400')
 
@@ -128,7 +128,7 @@ Displays the model currently selected for the conversation.
 Shows details such as the number of messages and tokens exchanged in the current session.
 
 
-## Session Panel
+## Session Panel :id=session-panel
 
 ![](../assets/images/monadic-chat-session.png ':size=400')
 
@@ -146,7 +146,7 @@ Clicking the `Import` button discards the current conversation and loads convers
 **Export**<br />
 Clicking the `Export` button saves the current settings and conversation data to an external file (JSON).
 
-## Speech Settings Panel
+## Speech Settings Panel :id=speech-settings-panel
 
 ![](../assets/images/monadic-chat-tts.png ':size=400')
 
@@ -175,7 +175,7 @@ Speech-to-Text API is used for speech recognition, and if `Automatic` is selecte
 Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 
-## PDF Database Display Panel
+## PDF Database Display Panel :id=pdf-database-display-panel
 
 ![](../assets/images/monadic-chat-pdf-db.png ':size=400')
 

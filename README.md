@@ -21,7 +21,7 @@ Monadic Chat is an AI framework grounded in the real world. The term **grounding
 
 Typically, discourse involves context and purpose, which are referenced and updated as the conversation progresses. Just as in human-to-human conversations, **maintaining and referencing context** is useful, or even essential, in conversations with AI agents. By defining the format and structure of meta-information in advance, it is expected that conversations with AI agents will become more purposeful. The process of users and AI agents advancing discourse while sharing a foundational background is the first meaning of "grounding."
 
-Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. The system includes error pattern detection that prevents infinite retry loops, ensuring stable operation. Since it is an environment on Docker containers, it does not affect the host system. This is the second meaning of "grounding."
+Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. The system includes error pattern detection that prevents infinite retry loops, ensuring stable operation. Since it is an environment on Docker containers, it does not affect the host system. Providing an environment for AI agents to not only provide language responses but also to lead to actual actions - this is the second meaning of "grounding."
 
 ## Features
 
@@ -34,9 +34,9 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💬 Support for both **Human/AI chat** and **AI/AI chat**
 - ✨ Chat functionality utilizing **multiple AI models**
 - 🔄 **Automatic updates** with in-app notifications and download management
-- ❓ **Help function**: Built-in assistance and documentation
 - 🌐 **Server mode** for multiple clients to connect to a single server
 - 🔍 **Built-in browser** for viewing the web interface within the application
+- ❓ **Help function**: Built-in assistance and documentation with AI agent explanations
 
 ### AI + Linux Environment
 

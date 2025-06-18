@@ -1,6 +1,6 @@
 # FAQ: Setup and Settings
 
-**Q**: Do I need an OpenAI API token to use Monadic Chat?
+**Q**: Do I need an OpenAI API token to use Monadic Chat? :id=openai-api-token-requirement
 
 **A**: An OpenAI API token is not necessarily required if you do not use functions such as speech recognition, speech synthesis, and text embedding. You can also use APIs such as Anthropic Claude, Google Gemini, Cohere, Mistral AI, Perplexity, DeepSeek, and xAI Grok.
 
@@ -13,7 +13,7 @@ For detailed information on using Ollama with Monadic Chat, see [Using Ollama](/
 
 ---
 
-**Q**: Rebuilding Monadic Chat (rebuilding the containers) fails. What should I do?
+**Q**: Rebuilding Monadic Chat (rebuilding the containers) fails. What should I do? :id=container-rebuild-failures
 
 **A**: Check the contents of the log files in the shared folder.
 

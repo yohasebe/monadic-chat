@@ -96,30 +96,39 @@ end
 
 ### 高度な設定
 - **`response_format`** - 構造化出力形式を指定（OpenAI）
-- **`reasoning_effort`** - 思考型モデル用（temperatureを置き換え）
+- **`reasoning_effort`** - 推論モデル用："low"（デフォルト）、"medium"、"high"
 - **`models`** - 利用可能なモデルリストを上書き
-- **`jupyter`** - Jupyterノートブックアクセスを有効化（Serverモードでは`ALLOW_JUPYTER_IN_SERVER_MODE=true`を設定しない限り無効）。注意：これは機能を有効にするだけで、実際のJupyter機能を使用するには`run_jupyter`、`create_jupyter_notebook`などの対応するツール定義が必要です
+- **`jupyter`** - Jupyterノートブックアクセスを有効化（Serverモードでは`ALLOW_JUPYTER_IN_SERVER_MODE=true`を設定しない限り無効）
+
+!> **重要**: `jupyter`機能はUIの機能を有効にするだけです。実際のJupyter機能を使用するには、アプリで対応するツール定義（`run_jupyter`、`create_jupyter_notebook`など）を実装する必要があります。例については、Jupyter Notebookアプリの実装を参照してください。
 
 ## プロバイダー固有の動作
 
 ### OpenAI
 - 構造化出力のための`monadic`モードをサポート
-- ほとんどのモデルが`temperature`、`presence_penalty`、`frequency_penalty`をサポート
-- 推論モデル（o1、o3）はこれらのパラメータをサポートせず、固定設定を使用
+- **標準モデル**は`temperature`、`presence_penalty`、`frequency_penalty`をサポート
+- **推論モデル**（パターン：/^o[13](-|$)/i）は自動的に`reasoning_effort`を使用
+  - モデル：o1、o1-mini、o1-preview、o1-pro、o3、o3-pro、o4シリーズ
+  - temperature、ペナルティ、ファンクションコーリングなし（ほとんどのモデル）
+  - 一部はストリーミングをサポートしない（o1-pro、o3-pro）
 
 ### Claude
 - コンテキスト表示に`toggle`モードを使用
 - `initiate_from_assistant: true`が必要
-- `reasoning_effort`を使用する思考型モデルをサポート
+- **Claude 4.0**モデルは`reasoning_effort`を`budget_tokens`に変換してサポート
 
 ### Gemini
 - `toggle`モードを使用
 - `initiate_from_assistant: true`が必要
-- 思考型モデル（例：2.5 Flash Thinking）は`temperature`の代わりに`reasoning_effort`を使用
-- 標準モデルは温度調整をサポート
+- **推論モデル**（パターン：/2\.5.*preview/i）は`budgetTokens`を使用した`thinkingConfig`を使用
+  - reasoning_effortマッピング：low=30%、medium=60%、high=80%（max_tokensの）
+- **標準モデル**は温度調整をサポート
 
 ### Mistral
 - `toggle`モードを使用
+- **Magistralモデル**（パターン：/^magistral(-|$)/i）は`reasoning_effort`を直接使用
+  - モデル：magistral-medium、magistral-small、magistralバリアント
+  - 思考ブロックを出力から除去、LaTeX形式を変換
 - `initiate_from_assistant: false`が必要
 - `presence_penalty`と`frequency_penalty`をサポート
 
@@ -132,6 +141,53 @@ end
 - **`WEBSEARCH_MODEL`** - ウェブ検索用のモデル（gpt-4.1-miniまたはgpt-4.1）
 - **`STT_MODEL`** - 音声認識モデル
 - **`ROUGE_THEME`** - シンタックスハイライトテーマ
+
+## CONFIGとENVの使用パターン :id=config-env-pattern
+
+Monadic Chatは設定値にアクセスするための一貫したパターンを使用しています：
+
+### 設定の優先順位
+
+1. **CONFIG ハッシュ** - Dotenvを介して`~/monadic/config/env`ファイルから読み込まれます
+2. **ENV 変数** - システム環境変数（フォールバック）
+3. **デフォルト値** - どちらも設定されていない場合のハードコードされたデフォルト
+
+### 標準アクセスパターン
+
+```ruby
+# コードベース全体で使用される標準パターン
+value = CONFIG["KEY"] || ENV["KEY"] || "default_value"
+```
+
+### 使用例
+
+```ruby
+# APIキー
+api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
+
+# モデル設定
+default_model = CONFIG["OPENAI_DEFAULT_MODEL"] || ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+
+# 機能フラグ
+allow_jupyter = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] || ENV["ALLOW_JUPYTER_IN_SERVER_MODE"]
+
+# 数値
+max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
+```
+
+### ベストプラクティス
+
+- **ユーザー設定**: `~/monadic/config/env`ファイルに保存（CONFIGからアクセス）
+- **デプロイメント時の上書き**: システム環境変数（ENV）を使用
+- **開発時**: `rake server:debug`はCONFIGを上書きするENV値を設定
+- **Docker**: コンテナ内の環境変数が優先されます
+
+### 重要な注意点
+
+- CONFIG値は起動時に`~/monadic/config/env`から読み込まれます
+- ENVはCONFIG値を上書きできます（DockerとCI/CDに便利）
+- 一部のレガシーコードはENVを最初にチェックする場合があります - これらは更新中です
+- デバッグモード（`EXTRA_LOGGING`、`MONADIC_DEBUG`）は標準パターンに従います
 
 ## 完全な例
 

@@ -1,6 +1,6 @@
 # Installation
 
-## Basic Steps
+## Basic Steps :id=basic-steps
 
 <!-- tabs:start -->
 
@@ -48,15 +48,31 @@ $ sudo apt install ./monadic-chat-*.deb
 
 <!-- tabs:end -->
 
-## Preparation
+## Initial Setup :id=initial-setup
+
+After installation, when you first launch Monadic Chat:
+
+1. The application will start building Docker containers automatically
+2. **Initial setup time**: This process can take significant time (varies greatly based on internet connection and system performance). The initial build downloads and builds multiple containers totaling approximately 12GB.
+3. **Subsequent startups**: After the initial build, starting Monadic Chat is much faster as existing containers are reused. Container rebuilds are only needed when updating to newer versions of Monadic Chat.
+4. You'll need to configure API keys in the Settings panel for the AI services you want to use
+5. Once the containers are ready, the status indicator will turn green
+
+For detailed setup instructions, see the [Web Interface](../basic-usage/web-interface.md) section.
+
+## Preparation :id=preparation
+
+### System Requirements :id=system-requirements
+
+- **Docker Desktop**: Version 4.20 or later (tested with 4.20+; older versions may work but are not guaranteed)
+- **Memory**: At least 8GB RAM (16GB recommended for optimal performance)
+- **Storage**: Minimum 15GB free disk space (approximately 12GB for Docker images plus additional space for user data and logs)
 
 <!-- tabs:start -->
 
 ### **macOS**
 
-For macOS, follow these steps to install Docker Desktop.
-
-Next, install Docker Desktop. Docker Desktop is software for creating containerized virtual environments.
+For macOS, follow these steps to install Docker Desktop. Docker Desktop is software for creating containerized virtual environments.
 
 Use different packages depending on your Mac's CPU. You can check the type of CPU with the following command in the terminal.
 
@@ -64,7 +80,7 @@ Use different packages depending on your Mac's CPU. You can check the type of CP
 $ sysctl -n machdep.cpu.brand_string
 ```
 
-Download and install Docker Desktop from [Install Docker Desktop on Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac). For Intel, download `Docker Desktop Installer.dmg`, and for Apple Silicon, download `Docker Desktop Installer Apple Silicon.dmg`.
+Download and install Docker Desktop from [Docker Desktop](https://docs.docker.com/desktop/). For Intel, download `Docker Desktop Installer.dmg`, and for Apple Silicon, download `Docker Desktop Installer Apple Silicon.dmg`.
 
 ![](../assets/images/mac-docker-download.png ':size=800')
 
@@ -78,7 +94,7 @@ To use Monadic Chat on Windows 11, you need to install Windows Subsystem for Lin
 
 #### Installing WSL2
 
-First, install [WSL2](https://brew.sh), which is a mechanism to realize a Linux environment on Windows.
+First, install [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install), which is a mechanism to realize a Linux environment on Windows.
 
 Open PowerShell in administrator mode. Search for PowerShell in the Windows search box and select "Run as administrator" to launch powershell.exe.
 
@@ -102,7 +118,7 @@ This completes the installation of WSL2. Ubuntu is now available on Windows. Sea
 
 Next, install Docker Desktop, software for creating virtual environments using containers.
 
-Download Docker Desktop from [Install Docker Desktop on Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows).
+Download Docker Desktop from [Docker Desktop](https://docs.docker.com/desktop/).
 
 ![](../assets/images/win-docker-download.png ':size=800')
 
@@ -119,12 +135,12 @@ For Linux (Ubuntu/Debian), refer to the following pages to install Docker Deskto
 
 <!-- tabs:end -->
 
-## Server Mode Configuration
+## Server Mode Configuration :id=server-mode-configuration
 
 By default, Monadic Chat runs in standalone mode with all components on a single machine. To enable server mode:
 
 1. Open the Settings panel by clicking the gear icon in the application
-2. In the "Operating Mode" section, select "Server Mode" from the dropdown menu
+2. In the "Application Mode" dropdown, select "Server Mode"
 3. Click "Save" to apply the changes
 4. Restart the application
 
@@ -136,7 +152,7 @@ In server mode:
 
 See the [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) documentation for more details.
 
-## Update
+## Update :id=update
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 
@@ -158,3 +174,10 @@ The update process follows these steps:
 The system automatically detects your platform (macOS, Windows, or Linux) and architecture (ARM64 or x64) to provide the correct download link.
 
 You can also manually download the latest version from the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest).
+
+## Troubleshooting :id=troubleshooting
+
+If you encounter any issues during installation, please refer to the FAQ sections for common problems and solutions:
+- [Setup and Settings FAQ](../faq/faq-settings.md)
+- [Basic Applications FAQ](../faq/faq-basic-apps.md)
+- [User Interface FAQ](../faq/faq-user-interface.md)

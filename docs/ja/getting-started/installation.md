@@ -1,6 +1,6 @@
 # インストール
 
-## 基本的な手順
+## 基本的な手順 :id=basic-steps
 
 <!-- tabs:start -->
 
@@ -48,15 +48,31 @@ $ sudo apt install ./monadic-chat-*.deb
 
 <!-- tabs:end -->
 
-## 準備
+## 初期設定 :id=initial-setup
+
+インストール後、Monadic Chatを初めて起動すると：
+
+1. アプリケーションが自動的にDockerコンテナのビルドを開始します
+2. **初回セットアップ時間**: このプロセスはかなりの時間がかかる場合があります（インターネット接続とシステム性能に大きく依存）。初回ビルドでは約12GBの複数のコンテナをダウンロード・構築します。
+3. **以降の起動**: 初回ビルド後は、既存のコンテナが再利用されるため、Monadic Chatの起動は格段に速くなります。コンテナの再ビルドは、Monadic Chatの新しいバージョンに更新する時のみ必要です。
+4. 使用したいAIサービスのAPIキーを設定パネルで設定する必要があります
+5. コンテナの準備が完了すると、ステータスインジケータが緑色になります
+
+詳細な設定手順については、[Webインターフェース](../basic-usage/web-interface.md)セクションを参照してください。
+
+## 準備 :id=preparation
+
+### システム要件 :id=system-requirements
+
+- **Docker Desktop**: バージョン4.20以降（4.20+でテスト済み；それより古いバージョンでも動作する可能性はありますが保証されません）
+- **メモリ**: 最低8GB RAM（最適なパフォーマンスには16GB推奨）
+- **ストレージ**: 最低15GBの空き容量（Dockerイメージに約12GB、ユーザーデータとログに追加容量）
 
 <!-- tabs:start -->
 
 ### **macOS**
 
-macOSの場合、Docker Desktopをインストールするために以下の手順に従ってください。
-
-まず、Docker Desktopをインストールします。Docker Desktopはコンテナを使用して仮想環境を作成するソフトウェアです。
+macOSの場合、Docker Desktopをインストールするために以下の手順に従ってください。Docker Desktopはコンテナを使用して仮想環境を作成するソフトウェアです。
 
 MacのCPUによって異なるパッケージを使用します。CPUの種類は、ターミナルで以下のコマンドで確認できます。
 
@@ -64,7 +80,7 @@ MacのCPUによって異なるパッケージを使用します。CPUの種類�
 $ sysctl -n machdep.cpu.brand_string
 ```
 
-[Install Docker Desktop on Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac)からDocker Desktopをダウンロードしてインストールします。Intelの場合は`Docker Desktop Installer.dmg`を、Apple Siliconの場合は`Docker Desktop Installer Apple Silicon.dmg`をダウンロードします。
+[Docker Desktop](https://docs.docker.com/desktop/)からDocker Desktopをダウンロードしてインストールします。Intelの場合は`Docker Desktop Installer.dmg`を、Apple Siliconの場合は`Docker Desktop Installer Apple Silicon.dmg`をダウンロードします。
 
 ![](../assets/images/mac-docker-download.png ':size=800')
 
@@ -78,7 +94,7 @@ Windows 11でMonadic Chatを使用するには、Windows Subsystem for Linux 2�
 
 #### WSL2のインストール
 
-まず、[WSL2](https://brew.sh)をインストールします。これはWindows上でLinux環境を実現するメカニズムです。
+まず、[WSL2](https://docs.microsoft.com/ja-jp/windows/wsl/install)をインストールします。これはWindows上でLinux環境を実現するメカニズムです。
 
 管理者モードでPowerShellを開きます。Windowsの検索ボックスでPowerShellを検索し、「管理者として実行する」を選択してpowershell.exeを起動します。
 
@@ -102,7 +118,7 @@ Windows 11でMonadic Chatを使用するには、Windows Subsystem for Linux 2�
 
 次に、コンテナを使用して仮想環境を作成するソフトウェアであるDocker Desktopをインストールします。
 
-[Install Docker Desktop on Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows)からDocker Desktopをダウンロードします。
+[Docker Desktop](https://docs.docker.com/desktop/)からDocker Desktopをダウンロードします。
 
 ![](../assets/images/win-docker-download.png ':size=800')
 
@@ -119,12 +135,12 @@ Linux（Ubuntu/Debian）の場合、Docker Desktopをインストールするに
 
 <!-- tabs:end -->
 
-## サーバーモードの設定
+## サーバーモードの設定 :id=server-mode-configuration
 
 デフォルトでは、Monadic Chatは単一のマシン上ですべてのコンポーネントを実行するスタンドアロンモードで動作します。サーバーモードを有効にするには：
 
 1. アプリケーションの歯車アイコンをクリックして設定パネルを開きます
-2. 「サーバーモード」を選択します
+2. 「Application Mode」ドロップダウンで「Server Mode」を選択します
 3. 「保存」をクリックして変更を適用します
 4. アプリケーションを再起動します
 
@@ -136,7 +152,7 @@ Linux（Ubuntu/Debian）の場合、Docker Desktopをインストールするに
 
 詳細については[サーバーモードとスタンドアロンモード](../docker-integration/basic-architecture.md#サーバーモードとスタンドアロンモード)のドキュメントを参照してください。
 
-## 更新
+## 更新 :id=update
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 
@@ -158,3 +174,10 @@ Monadic Chatは起動時に自動的に更新をチェックします。新し�
 システムは自動的にプラットフォーム（macOS、Windows、Linux）とアーキテクチャ（ARM64またはx64）を検出し、適切なダウンロードリンクを提供します。
 
 [GitHub Releasesページ](https://github.com/yohasebe/monadic-chat/releases/latest)から手動で最新バージョンをダウンロードすることもできます。
+
+## トラブルシューティング :id=troubleshooting
+
+インストール中に問題が発生した場合は、一般的な問題と解決策についてFAQセクションを参照してください：
+- [初期設定FAQ](../faq/faq-settings.md)
+- [基本アプリFAQ](../faq/faq-basic-apps.md)
+- [ユーザーインターフェースFAQ](../faq/faq-user-interface.md)

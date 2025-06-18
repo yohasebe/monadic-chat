@@ -77,7 +77,7 @@ Seleniumを使用して仮想的なWebブラウザを操作して、Webページ
   - `fetch_html_content`または`selenium_agent`ツールを使用するアプリ
 
 ### pgvectorコンテナ（`monadic-chat-pgvector-container`） :id=pgvector-container
-Postgresql上にテキスト埋め込みのベクトルデータを保存するため、pgvectorを使用するためのコンテナです。
+Postgresql上にテキストエンベディングのベクトルデータを保存するため、pgvectorを使用するためのコンテナです。
 - **ポート**: 公開ポートなし（内部使用のみ）
 - **主な機能**: ベクトル類似性検索、PDFコンテンツストレージ、ヘルプデータベース
 - **このコンテナを使用するアプリ**: 

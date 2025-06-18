@@ -441,17 +441,17 @@ class MonadicApp
 
       # Copy the file to the container
       docker_command = <<~DOCKER
-        docker cp #{file_path} #{container}:#{SHARED_VOL}
+        docker cp #{file_path} #{container}:#{SHARED_VOL}/#{filename}
       DOCKER
 
       stdout, stderr, status = self.capture_command(docker_command)
       unless status.success?
-        raise "Error occurred: #{stderr}"
+        raise "Error occurred during file copy: #{stderr}"
       end
 
       # Execute the code in the container
       docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} #{command} /monadic/data/#{File.basename(file_path)}
+        docker exec -w #{SHARED_VOL} #{container} #{command} #{filename}
       DOCKER
 
     stdout, stderr, status = self.capture_command(docker_command)

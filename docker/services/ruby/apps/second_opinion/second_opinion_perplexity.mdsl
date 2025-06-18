@@ -13,7 +13,7 @@ app "SecondOpinionPerplexity" do
   llm do
     provider "perplexity"
     model "sonar"
-    temperature 0.2
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

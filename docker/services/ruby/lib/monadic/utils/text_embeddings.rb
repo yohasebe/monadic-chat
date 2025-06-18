@@ -294,8 +294,10 @@ class TextEmbeddings
 
     api_key ||= if Object.const_defined?("API_KEY")
                   API_KEY
+                elsif defined?(CONFIG) && CONFIG["OPENAI_API_KEY"]
+                  CONFIG["OPENAI_API_KEY"]
                 else
-                  CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
+                  ENV["OPENAI_API_KEY"]
                 end
 
     request["Authorization"] = "Bearer #{api_key}"
@@ -357,13 +359,19 @@ class TextEmbeddings
     return [] if texts.empty?
     
     # Get batch size from environment or use default
-    batch_size ||= (CONFIG['EMBEDDINGS_BATCH_SIZE'] || ENV['EMBEDDINGS_BATCH_SIZE'] || '50').to_i
+    batch_size ||= if defined?(CONFIG) && CONFIG['EMBEDDINGS_BATCH_SIZE']
+                     CONFIG['EMBEDDINGS_BATCH_SIZE'].to_i
+                   else
+                     (ENV['EMBEDDINGS_BATCH_SIZE'] || '50').to_i
+                   end
     batch_size = [batch_size, 2048].min # OpenAI max is 2048 inputs per request
     
     api_key ||= if Object.const_defined?("API_KEY")
                   API_KEY
+                elsif defined?(CONFIG) && CONFIG["OPENAI_API_KEY"]
+                  CONFIG["OPENAI_API_KEY"]
                 else
-                  CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
+                  ENV["OPENAI_API_KEY"]
                 end
     
     all_embeddings = []

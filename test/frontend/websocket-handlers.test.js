@@ -2,8 +2,32 @@
  * @jest-environment jsdom
  */
 
+// Helper function to create a jQuery mock element
+function createMockJQueryElement() {
+  const mockElement = {
+    text: jest.fn().mockReturnThis(),
+    attr: jest.fn().mockReturnThis(),
+    addClass: jest.fn().mockReturnThis(),
+    hide: jest.fn().mockReturnThis(),
+    show: jest.fn().mockReturnThis(),
+    append: jest.fn().mockReturnThis(),
+    html: jest.fn().mockReturnThis(),
+    val: jest.fn().mockReturnThis(),
+    prop: jest.fn().mockReturnThis(),
+    css: jest.fn().mockReturnThis(),
+    outerHTML: '<div class="error-message"></div>'
+  };
+  mockElement[0] = { outerHTML: '<div class="error-message"></div>' };
+  return mockElement;
+}
+
 // Create custom jQuery mock that handles specific functions needed by handlers
 global.$ = jest.fn().mockImplementation(selector => {
+  // Handle jQuery creation of new elements
+  if (typeof selector === 'string' && selector.startsWith('<')) {
+    return createMockJQueryElement();
+  }
+  
   // For common selectors, return objects with the necessary methods
   if (selector === '#message') {
     return {
@@ -35,6 +59,15 @@ global.$ = jest.fn().mockImplementation(selector => {
     };
   }
   
+  if (selector === '#discourse') {
+    return {
+      append: jest.fn().mockReturnThis(),
+      html: jest.fn(),
+      show: jest.fn(),
+      hide: jest.fn()
+    };
+  }
+  
   if (selector === '#send, #clear, #voice, #doc, #url' || 
       selector === '#send, #clear, #image-file, #voice, #doc, #url' ||
       selector === '#select-role' ||
@@ -54,16 +87,41 @@ global.$ = jest.fn().mockImplementation(selector => {
     };
   }
   
+  if (selector === '#amplitude') {
+    return {
+      hide: jest.fn()
+    };
+  }
+  
+  if (selector === '#temp-card') {
+    return {
+      hide: jest.fn(),
+      length: 0  // Important for the HTML handler
+    };
+  }
+  
   // Default mock for other selectors
-  return {
+  const mockElement = {
     val: jest.fn(),
-    text: jest.fn(),
+    text: jest.fn().mockReturnThis(),
     show: jest.fn(),
     hide: jest.fn(),
     prop: jest.fn(),
     attr: jest.fn(),
-    css: jest.fn()
+    css: jest.fn(),
+    append: jest.fn().mockReturnThis(),
+    html: jest.fn().mockReturnThis(),
+    outerHTML: '<div></div>'
   };
+  
+  // Make text() return the mockElement for chaining
+  mockElement.text.mockReturnValue(mockElement);
+  mockElement.append.mockReturnValue(mockElement);
+  
+  // Add array access for jQuery collections
+  mockElement[0] = { outerHTML: '<div></div>' };
+  
+  return mockElement;
 });
 
 // Mock window object
@@ -73,6 +131,38 @@ global.window = {
   firefoxAudioQueue: []
 };
 
+// Mock document methods
+global.document = {
+  ...global.document,
+  getElementById: jest.fn((id) => {
+    if (id === 'chat-bottom') {
+      return {
+        scrollIntoView: jest.fn()
+      };
+    }
+    return {
+      scrollIntoView: jest.fn(),
+      innerHTML: '',
+      appendChild: jest.fn(),
+      classList: {
+        toggle: jest.fn()
+      }
+    };
+  }),
+  createElement: jest.fn((tagName) => {
+    const elem = {
+      textContent: '',
+      innerHTML: ''
+    };
+    Object.defineProperty(elem, 'textContent', {
+      set: function(value) {
+        this.innerHTML = value ? value.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+      }
+    });
+    return elem;
+  })
+};
+
 // Mock global utilities
 global.setAlert = jest.fn();
 global.setInputFocus = jest.fn();
@@ -80,10 +170,17 @@ global.atob = jest.fn().mockReturnValue('test-audio-data');
 global.Uint8Array = {
   from: jest.fn().mockReturnValue(new Uint8Array([116, 101, 115, 116]))
 };
+global.autoScroll = false;
+global.isElementInViewport = jest.fn().mockReturnValue(true);
+global.messages = [];
 global.URL = {
   createObjectURL: jest.fn().mockReturnValue('blob:test-url'),
   revokeObjectURL: jest.fn()
 };
+global.createCard = jest.fn().mockImplementation((role, header, content, lang, mid, isAssistant, images) => {
+  return '<div class="card">Test Card</div>';
+});
+global.autoScrollToBottom = jest.fn();
 global.setTimeout = jest.fn().mockImplementation((cb) => {
   // Immediately execute the callback instead of waiting
   if (typeof cb === 'function') cb();
@@ -104,9 +201,23 @@ global.Audio = jest.fn().mockImplementation(() => ({
 // Import the module under test - using CommonJS require since this file isn't using ES modules
 const handlers = require('../../docker/services/ruby/public/js/monadic/websocket-handlers');
 
+// Store original jQuery mock
+const originalJQueryMock = global.$;
+
 // Reset all mocks before each test
 beforeEach(() => {
   jest.clearAllMocks();
+  
+  // Restore original jQuery mock
+  global.$ = originalJQueryMock;
+  
+  // Ensure global functions are defined
+  if (!global.setAlert) {
+    global.setAlert = jest.fn();
+  }
+  if (!global.setInputFocus) {
+    global.setInputFocus = jest.fn();
+  }
 });
 
 describe('WebSocket Handlers', () => {
@@ -170,15 +281,25 @@ describe('WebSocket Handlers', () => {
       expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
       expect($).toHaveBeenCalledWith('#message');
       expect($).toHaveBeenCalledWith('#monadic-spinner');
-      expect(setAlert).toHaveBeenCalledWith('Test error message', 'error');
+      expect(global.setAlert).toHaveBeenCalledWith('Test error message', 'error');
     });
     
     it('should specifically handle AI User error from Perplexity', () => {
       // Setup mocks for AI User button
       const mockAiUserButton = { prop: jest.fn() };
       $.mockImplementation(selector => {
+        // Handle jQuery creation of new elements
+        if (typeof selector === 'string' && selector.startsWith('<')) {
+          return createMockJQueryElement();
+        }
+        
         if (selector === '#ai_user') {
           return mockAiUserButton;
+        }
+        if (selector === '#discourse') {
+          return {
+            append: jest.fn()
+          };
         }
         return {
           prop: jest.fn(),
@@ -199,7 +320,7 @@ describe('WebSocket Handlers', () => {
       // Verify error is handled and AI User button is re-enabled
       expect(result).toBe(true);
       expect(mockAiUserButton.prop).toHaveBeenCalledWith('disabled', false);
-      expect(setAlert).toHaveBeenCalledWith(
+      expect(global.setAlert).toHaveBeenCalledWith(
         'AI User error with provider perplexity: Last message must have role `user`', 
         'error'
       );
@@ -229,6 +350,7 @@ describe('WebSocket Handlers', () => {
       expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
       expect($).toHaveBeenCalledWith('#message');
       expect($).toHaveBeenCalledWith('#monadic-spinner');
+      expect($).toHaveBeenCalledWith('#discourse');
       
       // Restore setAlert
       global.setAlert = originalSetAlert;
@@ -246,7 +368,7 @@ describe('WebSocket Handlers', () => {
       
       // Verify the result processes HTML content correctly
       expect(result).toBe(true);
-      expect(setAlert).toHaveBeenCalledWith('<strong>Error:</strong> Connection failed', 'error');
+      expect(global.setAlert).toHaveBeenCalledWith('<strong>Error:</strong> Connection failed', 'error');
     });
     
     it('should handle null or empty error content', () => {
@@ -261,7 +383,7 @@ describe('WebSocket Handlers', () => {
       
       // Should still process the error
       expect(result).toBe(true);
-      expect(setAlert).toHaveBeenCalledWith('', 'error');
+      expect(global.setAlert).toHaveBeenCalledWith('', 'error');
       
       // Test with null content
       const nullData = {
@@ -434,6 +556,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -500,6 +623,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -592,6 +716,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -648,6 +773,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -710,6 +836,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -811,8 +938,8 @@ describe('WebSocket Handlers', () => {
       expect(mockPValue.text).toHaveBeenCalled();
       expect(mockSpinner.hide).toHaveBeenCalled();
       expect(mockMessageElement.val).toHaveBeenCalled();
-      expect(setAlert).toHaveBeenCalled();
-      expect(setInputFocus).toHaveBeenCalled();
+      expect(global.setAlert).toHaveBeenCalled();
+      expect(global.setInputFocus).toHaveBeenCalled();
     });
     
     it('should return false for non-STT messages', () => {
@@ -1310,12 +1437,18 @@ describe('WebSocket Handlers', () => {
       // Create a special jQuery mock for this test
       const originalJQueryFn = $;
       $ = jest.fn().mockImplementation(selector => {
+        // Handle jQuery creation of new elements
+        if (typeof selector === 'string' && selector.startsWith('<')) {
+          return createMockJQueryElement();
+        }
         if (selector === '#message') return mockMessageElement;
         if (selector === '#monadic-spinner') return mockSpinner;
         if (selector.includes('#send')) return mockControls;
         if (selector === '#cancel_query') return { hide: jest.fn().mockReturnThis() };
         if (selector === '#select-role') return { prop: jest.fn().mockReturnThis() };
         if (selector === '#api-token') return { val: jest.fn().mockReturnThis() };
+        if (selector === '#ai-user-initial-prompt') return { val: jest.fn().mockReturnThis() };
+        if (selector === '#discourse') return { append: jest.fn().mockReturnThis() };
         return { 
           val: jest.fn().mockReturnThis(),
           text: jest.fn().mockReturnThis(),

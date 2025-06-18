@@ -1975,13 +1975,48 @@ function connect_websocket(callback) {
         break;
       }
 
-      case "system_info": {
-        // Display system information in the conversation
-        const systemInfoHtml = `<div class="system-info-message"><i class="fas fa-info-circle"></i> ${data.content}</div>`;
+      case "processing_status": {
+        // Show processing status as alert, not in connection-status
+        setAlert(`<i class='fas fa-hourglass-half'></i> ${data.content}`, "info");
+        
+        // Ensure spinner remains visible
+        if (!$("#monadic-spinner").is(":visible")) {
+          $("#monadic-spinner").show();
+        }
+        
+        // Also show as system message
+        const $systemDiv = $('<div class="system-info-message"><i class="fas fa-hourglass-half"></i> </div>');
+        $systemDiv.append($('<span>').text(data.content));
         
         const systemElement = createCard("system", 
           "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
-          systemInfoHtml, 
+          $systemDiv[0].outerHTML, 
+          "en", 
+          null, 
+          true, 
+          []
+        );
+        $("#discourse").append(systemElement);
+        
+        // Auto-scroll if enabled
+        if (autoScroll) {
+          const chatBottom = document.getElementById('chat-bottom');
+          if (!isElementInViewport(chatBottom)) {
+            chatBottom.scrollIntoView(false);
+          }
+        }
+        break;
+      }
+
+      case "system_info": {
+        // Display system information in the conversation
+        // Use jQuery's text() method to properly escape the content
+        const $systemDiv = $('<div class="system-info-message"><i class="fas fa-info-circle"></i> </div>');
+        $systemDiv.append($('<span>').text(data.content));
+        
+        const systemElement = createCard("system", 
+          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
+          $systemDiv[0].outerHTML, 
           "en", 
           null, 
           true, 

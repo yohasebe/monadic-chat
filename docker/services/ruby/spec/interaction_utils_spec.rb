@@ -468,4 +468,51 @@ RSpec.describe InteractionUtils do
       end
     end
   end
+
+  describe "#check_model_switch" do
+    let(:session) { { model_switch_notified: false } }
+    let(:notifications) { [] }
+
+    it "notifies when model is switched" do
+      wrapper.check_model_switch("gpt-4.1", "o1-preview", session) do |msg|
+        notifications << msg
+      end
+      
+      expect(notifications).not_to be_empty
+      expect(notifications.first["type"]).to eq("system_info")
+      expect(notifications.first["content"]).to include("Model automatically switched")
+    end
+
+    it "prevents duplicate model switch notifications in same session" do
+      # First call should notify
+      wrapper.check_model_switch("gpt-4.1", "o1-preview", session) do |msg|
+        notifications << msg
+      end
+      
+      expect(notifications.size).to eq(1)
+      
+      # Second call should not notify
+      wrapper.check_model_switch("gpt-4.1-mini", "o1-mini", session) do |msg|
+        notifications << msg
+      end
+      
+      expect(notifications.size).to eq(1)  # Still only one notification
+    end
+
+    it "does not notify when models are the same" do
+      wrapper.check_model_switch("gpt-4.1", "gpt-4.1", session) do |msg|
+        notifications << msg
+      end
+      
+      expect(notifications).to be_empty
+    end
+
+    it "ignores version switches for the same base model" do
+      wrapper.check_model_switch("gpt-4.1-2025-04-14", "gpt-4.1", session) do |msg|
+        notifications << msg
+      end
+      
+      expect(notifications).to be_empty
+    end
+  end
 end

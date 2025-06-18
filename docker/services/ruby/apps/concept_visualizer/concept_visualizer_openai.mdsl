@@ -114,6 +114,10 @@ app "ConceptVisualizerOpenAI" do
     toggle true
     context_size 20
   end
+  
+  settings do
+    temperature 0.0
+  end
 
   tools do
     define_tool "generate_concept_diagram", "Generate a conceptual diagram using LaTeX/TikZ" do

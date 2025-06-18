@@ -21,7 +21,13 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   // Fix jupyter notebook URL issue
   let replaced_html;
   if (role === "system") {
-    replaced_html = escapeHtml(html).replace(/\n/g, "<br>");
+    // Don't escape HTML for system messages as they may contain formatted content
+    // Only escape if the content looks like plain text (no HTML tags)
+    if (html.indexOf('<') === -1 && html.indexOf('>') === -1) {
+      replaced_html = escapeHtml(html).replace(/\n/g, "<br>");
+    } else {
+      replaced_html = html;
+    }
   } else {
     replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
   }

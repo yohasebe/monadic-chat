@@ -100,6 +100,10 @@ app "DrawIOGrapherClaude" do
     group "Anthropic"
   end
   
+  settings do
+    temperature 0.0
+  end
+  
   tools do
     define_tool "write_drawio_file", "Save Draw.io diagram to file" do
       parameter :content, "string", "Draw.io XML content", required: true

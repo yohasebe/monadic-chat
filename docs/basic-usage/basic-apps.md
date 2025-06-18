@@ -113,7 +113,7 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-This app provides a two-step consultation process. First, it generates an answer to your question. Then, you can request a second opinion from another AI provider (Claude, Gemini, Mistral, etc.) to verify or provide alternative perspectives on the answer. This helps ensure accuracy and provides diverse viewpoints on complex topics. The second opinion feature supports multiple providers, allowing you to choose which AI model should review the initial response.
+This app provides a two-step consultation process. **Step 1**: Ask your question and receive an initial answer from the AI. **Step 2**: Request verification by saying phrases like "Get a second opinion," "What does Claude think?" or "Verify this answer." The app will then consult another AI provider (Claude, Gemini, Mistral, etc.) to review and comment on the initial response. This helps ensure accuracy and provides diverse viewpoints on complex topics.
 
 Second Opinion apps are available for all supported models: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI Grok, DeepSeek, and Ollama.
 

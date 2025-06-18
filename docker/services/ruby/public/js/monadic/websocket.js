@@ -2114,7 +2114,6 @@ function connect_websocket(callback) {
         $("#monadic-version-number").html(version_string);
         
         if (Object.keys(apps).length === 0) {
-          console.log("[DEBUG] Apps data received:", data["content"]);
           // Prepare arrays for app classification
           let regularApps = [];
           let specialApps = {};

@@ -14,39 +14,55 @@ app "ImageGeneratorOpenAI" do
   end
 
   system_prompt <<~TEXT
-    You help the user generate and edit images using OpenAI's gpt-image-1 model.
+    You help the user generate and edit images using OpenAI's image generation models.
+    
+    Available models:
+    - gpt-image-1: Latest model with best quality and instruction following
+      - Sizes: 1024x1024, 1024x1536, 1536x1024, 1792x1024, 1024x1792
+      - Quality: low, medium, high, auto (default)
+      - Supports output_format, background, and output_compression options
+    - dall-e-3: Previous generation model
+      - Sizes: 1024x1024, 1792x1024, 1024x1792
+      - Quality: standard, hd
+    - dall-e-2: Legacy model
+      - Sizes: 256x256, 512x512, 1024x1024
+      - Quality: standard
+      - Only model that supports variation operation
+    
     1. For new image generation, call generate_image_with_openai({
          operation: "generate",
-         model: "gpt-image-1",
+         model: "gpt-image-1", // or "dall-e-3", "dall-e-2"
          prompt,
          n,
          size,
          quality,
-         output_format,
-         background,
-         output_compression
+         output_format, // gpt-image-1 only
+         background,    // gpt-image-1 only
+         output_compression // gpt-image-1 only
        }).
     2. For image editing, call generate_image_with_openai({
          operation: "edit",
-         model: "gpt-image-1",
+         model: "gpt-image-1", // or "dall-e-2"
          prompt,
          n,
          images,
          mask,
          size,
          quality,
-         output_format,
-         background,
-         output_compression
+         output_format, // gpt-image-1 only
+         background,    // gpt-image-1 only
+         output_compression // gpt-image-1 only
        }).
        IMPORTANT: When mask images are provided, ALWAYS include the mask parameter in your function call.
        The mask parameter should specify the mask image filename in the shared folder.
-    3. For variation, call generate_image_with_openai({
+    3. For variation (dall-e-2 only), call generate_image_with_openai({
          operation: "variation",
-         model: "gpt-image-1",
+         model: "dall-e-2",
          n,
-         images
+         images,
+         size
        }).
+    
     After receiving a response, embed the returned image URLs using Markdown image syntax WITHOUT placing them in code blocks. For example:
       
       ![Generated Image](/data/FILENAME1.png)
@@ -67,7 +83,7 @@ app "ImageGeneratorOpenAI" do
   tools do
     define_tool "generate_image_with_openai", "Generate, edit, or create variations of images using OpenAI models." do
       parameter :operation, "string", "Type of operation: 'generate', 'edit', or 'variation'", required: true, enum: ["generate", "edit", "variation"]
-      parameter :model, "string", "Model to use for image generation", required: true
+      parameter :model, "string", "Model to use for image generation", required: true, enum: ["gpt-image-1", "dall-e-3", "dall-e-2"]
       parameter :prompt, "string", "Text description of the desired image or editing instructions", required: false
       parameter :images, "array", "Array of image filenames for editing or variation operations", required: false, items: {
         type: "string",
@@ -75,8 +91,8 @@ app "ImageGeneratorOpenAI" do
       }
       parameter :mask, "string", "Mask image filename for precise editing control", required: false
       parameter :n, "integer", "Number of images to generate (1-4)", required: false
-      parameter :size, "string", "Image dimensions", required: false, enum: ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]
-      parameter :quality, "string", "Image quality level", required: false, enum: ["standard", "hd"]
+      parameter :size, "string", "Image dimensions", required: false, enum: ["256x256", "512x512", "1024x1024", "1024x1536", "1536x1024", "1792x1024", "1024x1792"]
+      parameter :quality, "string", "Image quality level", required: false, enum: ["standard", "hd", "low", "medium", "high", "auto"]
       parameter :output_format, "string", "Output image format", required: false, enum: ["png", "webp", "jpeg"]
       parameter :background, "string", "Background color for transparent images", required: false
       parameter :output_compression, "integer", "Compression level for JPEG images (1-100)", required: false

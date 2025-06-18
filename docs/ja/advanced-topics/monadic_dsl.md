@@ -113,10 +113,10 @@ end
 # プロバイダー固有の機能:
 features do  
   pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
-  toggle true             # 折りたたみ可能セクションを有効にする（Claude/Gemini/Mistral/Cohere）
+  toggle true             # 折りたたみ可能セクションを有効にする（Claude/Gemini/Mistral/Cohere/Ollama）
   jupyter_access true     # Jupyterノートブックインターフェースへのアクセスを有効にする
   image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
-  monadic true            # 構造化JSONレスポンス（OpenAI/Ollama/DeepSeek/Perplexity/Grok）
+  monadic true            # 構造化JSONレスポンス（OpenAI/DeepSeek/Perplexity/Grok）
   initiate_from_assistant true # AIメッセージで会話を開始（Claude/Gemini）
 end
 

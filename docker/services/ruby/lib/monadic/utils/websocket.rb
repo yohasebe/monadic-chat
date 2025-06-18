@@ -202,7 +202,6 @@ module WebSocketHelper
         end
       end
       v.api_key = settings.api_key if v.respond_to?(:api_key=) && settings.respond_to?(:api_key)
-      
     end
     apps
   end
@@ -670,6 +669,27 @@ module WebSocketHelper
               text = content["text"] || content["message"]["content"]
               # Extract thinking content uniformly from message
               thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
+              
+              # Check if text contains citation HTML that needs to be extracted
+              citation_html = nil
+              if text && text.include?("<div data-title='Citations'")
+                # Extract citation HTML from the text
+                if match = text.match(/(\n\n<div data-title='Citations'[^>]*>.*?<\/div>)/m)
+                  citation_html = match[1]
+                  # Remove citation HTML from text so it doesn't get processed by markdown
+                  text = text.sub(match[1], '')
+                  
+                  if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                    DebugHelper.debug("WebSocket: Extracted citation HTML from text", category: :api, level: :info)
+                    DebugHelper.debug("WebSocket: Citation HTML: #{citation_html[0..100]}...", category: :api, level: :debug)
+                  end
+                end
+              elsif CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                if text && text.match(/\[\d+\]/)
+                  DebugHelper.debug("WebSocket: Found citation references but no HTML: #{text.scan(/\[\d+\]/).join(', ')}", category: :api, level: :info)
+                end
+              end
+              
 
               type_continue = "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results\n"
               code_truncated = "[CODE BLOCK TRUNCATED]"
@@ -694,6 +714,14 @@ module WebSocketHelper
 
               if session["parameters"]["response_suffix"]
                 html += "\n\n" + session["parameters"]["response_suffix"]
+              end
+              
+              # Add citation HTML back after markdown processing
+              if citation_html
+                html += citation_html
+                if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                  DebugHelper.debug("WebSocket: Added citation HTML to final output", category: :api, level: :info)
+                end
               end
 
               new_data = { "mid" => SecureRandom.hex(4),

@@ -10,7 +10,7 @@ Enter a message in the text area and click the `Send` button to send the message
 
 ?> The `Role` selector is used to select the role of the message. Normally, select `User`, but by selecting `Assistant` or `System`, you can add or modify the context of the chat. For more information, see the [FAQ](../faq/faq-user-interface.md).
 
-## Uploading Images
+## Uploading Images :id=uploading-images
 
 Uploading images is supported for the following models:
 
@@ -31,7 +31,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ![](../assets/images/monadic-chat-message-with-pics.png ':size=700')
 
-## Uploading PDFs
+## Uploading PDFs :id=uploading-pdfs
 
 In Anthropic's Sonnet models, OpenAI's gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
 
@@ -43,19 +43,19 @@ As with images, when you upload a PDF file, the contents of the PDF are recogniz
 
 To continue the conversation about the contents of the PDF in the chat, you need to upload the same PDF file with each message input. Once you upload a PDF during a session, Monadic Chat will send that PDF to the AI agent with each message until the session ends. If you have enabled `Prompt Caching` in the System Settings, prompts for the same PDF will be cached, saving on API usage. To end the conversation about the PDF, click the delete `×` button to clear the PDF.
 
-## Reading Text from Document Files
+## Reading Text from Document Files :id=reading-text-from-document-files
 
 Click the `From file` button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
 
 ![](../assets/images/monadic-chat-extract-from-file.png ':size=400')
 
-## Reading Text from URLs
+## Reading Text from URLs :id=reading-text-from-urls
 
 Click the `From URL` button to enter a URL. The content at that URL is loaded into the text area in Markdown format.
 
 ![](../assets/images/monadic-chat-extract-from-url.png ':size=400')
 
-## Speech Input
+## Speech Input :id=speech-input
 
 ?> Currently, voice input is supported in Chrome, Edge, and Safari browsers.
 
@@ -67,7 +67,7 @@ After voice input, a `p-value` indicating the confidence of the voice input is d
 
 ![](../assets/images/voice-p-value.png ':size=400')
 
-## Speech-to-Text Model Selection
+## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 
 You can select the Speech-to-Text (STT) model in the console settings. Monadic Chat supports the following OpenAI STT models:
 - whisper-1

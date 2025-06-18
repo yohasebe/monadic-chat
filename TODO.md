@@ -6,6 +6,7 @@
 - [ ] Review remaining basic-usage documentation files for implementation mismatches
 - [ ] Review advanced-topics documentation for accuracy
 - [ ] Ensure all Japanese translations are synchronized with English versions
+- [x] Add disk space requirements to installation documentation (Docker images, containers, etc.)
 
 ### Completed Documentation Fixes
 - [x] Fix incorrect Second Opinion app availability (showed only OpenAI, now shows all 9 providers)
@@ -57,6 +58,55 @@
 - [ ] Add validation for configuration variable types and values
 - [ ] Improve compose.yml auto-generation documentation
 - [ ] Add configuration variable validation on startup
+- [ ] Make Monadic Chat Help work with non-OpenAI embedding models
+  - Currently fixed to text-embedding-3-large (OpenAI)
+  - Consider supporting other providers' embedding models
+  - Would require changes to help system architecture
+
+## Documentation Structure Improvements
+- [ ] **Section ID Standardization**: Add comprehensive section IDs to all documentation files
+  - ✅ Completed: web-interface.md, installation.md, message-input.md, uninstallation.md, basic-architecture.md, development_workflow.md, help-system.md, all FAQ files (English/Japanese)
+  - [ ] Ensure consistent kebab-case naming pattern for all section IDs
+  - [ ] Verify internal links use correct section IDs
+
+## Regular Documentation Maintenance (Recurring Tasks)
+- [ ] **Disk Space Requirements**: Regularly check Docker image sizes and update installation documentation
+  - Check `docker images` output for yohasebe/* images
+  - Update system requirements in installation.md (both English/Japanese)
+  - Current baseline: ~12GB for Docker images (as of 2025-01-18)
+- [ ] **Provider Model Information**: Keep model lists and capabilities up to date
+  - Review model_spec.js for new models and parameter changes
+  - Update language-models.md documentation
+  - Check provider documentation for new models and deprecations
+  - Update basic-apps.md provider compatibility matrices
+- [ ] **App Information Updates**: Maintain current app descriptions and availability
+  - Review app descriptions in basic-apps.md for accuracy
+  - Update provider support matrices when new apps are added
+  - Ensure app icons and screenshots are current
+  - Check for deprecated or renamed apps
+- [ ] **API Changes Monitoring**: Track provider API updates that affect documentation
+  - Monitor reasoning_effort parameter changes across providers
+  - Track new features like vision capabilities, tool calling support
+  - Update provider-specific limitations and requirements
+
+## Research Platform Vision
+- [ ] Create comprehensive documentation on "Computational Foundations of Conversation"
+  - Explain the monadic approach to conversation state management
+  - Document how JSON objects track discourse structure
+  - Provide examples of linguistic/cognitive research applications
+- [ ] Develop research-oriented documentation section
+  - Discourse analysis capabilities (turn-taking, repair organization)
+  - Pragmatics research tools (context-dependent meaning)
+  - Cognitive science applications (theory of mind, joint attention)
+  - Computational linguistics features (formal semantics, knowledge representation)
+- [ ] Create API documentation for researchers
+  - How to extract conversation data for analysis
+  - Methods for tracking state changes and context updates
+  - Tools for visualizing dialogue structure
+- [ ] Add examples of interdisciplinary research use cases
+  - Language acquisition studies
+  - Human-AI interaction patterns
+  - Cross-linguistic dialogue comparison
 
 ## Technical Debt
 - [x] Remove deprecated MDSL auto-completion code completely
@@ -78,4 +128,4 @@
 - [ ] Inconsistent file path handling between container and local development
 
 ---
-*Last updated: 2025-01-17*
+*Last updated: 2025-01-18*

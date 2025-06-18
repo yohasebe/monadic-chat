@@ -911,7 +911,7 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true
   },
   "deepseek-reasoner": {
@@ -920,7 +920,7 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 0.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
     // "tool_capability": true
   },
 }

@@ -96,30 +96,39 @@ end
 
 ### Advanced Settings
 - **`response_format`** - Specify structured output format (OpenAI)
-- **`reasoning_effort`** - For thinking models (replaces temperature)
+- **`reasoning_effort`** - For reasoning models: "low" (default), "medium", "high"
 - **`models`** - Override available model list
-- **`jupyter`** - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`). Note: This only enables the capability; actual Jupyter functionality requires corresponding tool definitions like `run_jupyter`, `create_jupyter_notebook`, etc.
+- **`jupyter`** - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
+
+!> **Important**: The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `run_jupyter`, `create_jupyter_notebook`, etc.) in your app. See the Jupyter Notebook app implementation for examples.
 
 ## Provider-Specific Behaviors
 
 ### OpenAI
 - Supports `monadic` mode for structured outputs
-- Most models support `temperature`, `presence_penalty`, `frequency_penalty`
-- Reasoning models (o1, o3) don't support these parameters and use fixed settings
+- **Standard models** support `temperature`, `presence_penalty`, `frequency_penalty`
+- **Reasoning models** (pattern: /^o[13](-|$)/i) automatically use `reasoning_effort` instead
+  - Models: o1, o1-mini, o1-preview, o1-pro, o3, o3-pro, o4 series
+  - No temperature, penalties, or function calling (most models)
+  - Some don't support streaming (o1-pro, o3-pro)
 
 ### Claude
 - Uses `toggle` mode for context display
 - Requires `initiate_from_assistant: true`
-- Supports thinking models with `reasoning_effort`
+- **Claude 4.0** models support `reasoning_effort` converted to `budget_tokens`
 
 ### Gemini
 - Uses `toggle` mode
 - Requires `initiate_from_assistant: true`
-- Thinking models (e.g., 2.5 Flash Thinking) use `reasoning_effort` instead of temperature
-- Standard models support temperature adjustment
+- **Reasoning models** (pattern: /2\.5.*preview/i) use `thinkingConfig` with `budgetTokens`
+  - reasoning_effort mapped: low=30%, medium=60%, high=80% of max_tokens
+- **Standard models** support temperature adjustment
 
 ### Mistral
 - Uses `toggle` mode
+- **Magistral models** (pattern: /^magistral(-|$)/i) use `reasoning_effort` directly
+  - Models: magistral-medium, magistral-small, magistral variants
+  - Thinking blocks removed from output, LaTeX formatting converted
 - Requires `initiate_from_assistant: false`
 - Supports `presence_penalty` and `frequency_penalty`
 
@@ -132,6 +141,53 @@ These are configured in the Monadic Chat UI, not in MDSL files:
 - **`WEBSEARCH_MODEL`** - Model for web search (gpt-4.1-mini or gpt-4.1)
 - **`STT_MODEL`** - Speech-to-text model
 - **`ROUGE_THEME`** - Syntax highlighting theme
+
+## CONFIG vs ENV Usage Pattern :id=config-env-pattern
+
+Monadic Chat uses a consistent pattern for accessing configuration values:
+
+### Configuration Priority
+
+1. **CONFIG Hash** - Loaded from `~/monadic/config/env` file via Dotenv
+2. **ENV Variables** - System environment variables (fallback)
+3. **Default Values** - Hardcoded defaults if neither is set
+
+### Standard Access Pattern
+
+```ruby
+# Standard pattern used throughout the codebase
+value = CONFIG["KEY"] || ENV["KEY"] || "default_value"
+```
+
+### Example Usage
+
+```ruby
+# API Keys
+api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
+
+# Model Settings
+default_model = CONFIG["OPENAI_DEFAULT_MODEL"] || ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+
+# Feature Flags
+allow_jupyter = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] || ENV["ALLOW_JUPYTER_IN_SERVER_MODE"]
+
+# Numeric Values
+max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
+```
+
+### Best Practices
+
+- **User Settings**: Store in `~/monadic/config/env` file (accessed via CONFIG)
+- **Deployment Overrides**: Use system environment variables (ENV)
+- **Development**: `rake server:debug` sets ENV values that override CONFIG
+- **Docker**: Environment variables in containers take precedence
+
+### Important Notes
+
+- CONFIG values are loaded at startup from `~/monadic/config/env`
+- ENV can override CONFIG values (useful for Docker and CI/CD)
+- Some legacy code may check ENV first - these are being updated
+- Debug mode (`EXTRA_LOGGING`, `MONADIC_DEBUG`) follows the standard pattern
 
 ## Complete Example
 

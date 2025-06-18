@@ -8,11 +8,11 @@ It also provides a mechanism for sharing data between the host computer and indi
 
 ![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
 
-## Server and Standalone Modes
+## Server and Standalone Modes :id=server-standalone-modes
 
 Monadic Chat can operate in two primary modes:
 
-### Standalone Mode
+### Standalone Mode :id=standalone-mode
 - Default operating mode
 - All components run on a single machine
 - Docker containers, web server, and UI are on the same device
@@ -20,7 +20,7 @@ Monadic Chat can operate in two primary modes:
 - Only accessible from the device it runs on
 - All features including Jupyter Notebook are available
 
-### Server Mode
+### Server Mode :id=server-mode
 - Enables multiple clients to connect to a central server
 - Server hosts Docker containers and web services
 - Clients connect through their web browsers
@@ -39,18 +39,18 @@ To switch between modes in the desktop application:
 
 To enable Server Mode when running from source code, set the environment variable `DISTRIBUTED_MODE=server` when starting Monadic Chat.
 
-## Standard Docker Containers
+## Standard Docker Containers :id=standard-containers
 
 This section explains the standard Docker containers available in Monadic Chat. By default, the following containers are built:
 
-### Ruby Container (`monadic-chat-ruby-container`)
+### Ruby Container (`monadic-chat-ruby-container`) :id=ruby-container
 This container is necessary to run Monadic Chat applications. It is also used to provide the web interface.
 - **Port**: 4567 (Web interface)
 - **Main features**: Sinatra web server, WebSocket support, Docker management
 - **Shared volumes**: `/monadic/data`, `/monadic/config`, `/monadic/log`
 - **Apps that require this container**: All apps (this is the core container that runs the web interface and manages all Monadic Chat functionality)
 
-### Python Container (`monadic-chat-python-container`)
+### Python Container (`monadic-chat-python-container`) :id=python-container
 This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab also runs on this container.
 - **Ports**: 
   - 8889 (JupyterLab)
@@ -64,7 +64,7 @@ This container is used to run Python scripts that extend the functionality of Mo
   - `Concept Visualizer` - Creates conceptual diagrams using LaTeX/TikZ
   - Any app using `run_code` or `run_script` tools for Python execution
 
-### Selenium Container (`monadic-chat-selenium-container`)
+### Selenium Container (`monadic-chat-selenium-container`) :id=selenium-container
 This container is used to operate a virtual web browser using Selenium for web scraping.
 - **Ports**: 4444, 5900, 7900 (Selenium Grid)
 - **Main features**: Chrome browser automation, web scraping
@@ -76,7 +76,7 @@ This container is used to operate a virtual web browser using Selenium for web s
   - `Visual Web Explorer` - Captures web page screenshots and extracts text content
   - Any app using `fetch_html_content` or `selenium_agent` tools
 
-### pgvector Container (`monadic-chat-pgvector-container`)
+### pgvector Container (`monadic-chat-pgvector-container`) :id=pgvector-container
 This container is used to store text embedding vector data on PostgreSQL for using pgvector.
 - **Port**: No exposed ports (internal use only)
 - **Main features**: Vector similarity search, PDF content storage, help database
@@ -86,9 +86,9 @@ This container is used to store text embedding vector data on PostgreSQL for usi
   - Any custom RAG (Retrieval-Augmented Generation) apps using the TextEmbeddings class
 
 
-## Container Requirements by App Type
+## Container Requirements by App Type :id=container-requirements
 
-### Minimal Setup
+### Minimal Setup :id=minimal-setup
 For basic chat functionality, only the Ruby container is strictly required. Apps that work with just the Ruby container include:
 - Chat (all providers)
 - Voice Chat
@@ -98,7 +98,7 @@ For basic chat functionality, only the Ruby container is strictly required. Apps
 - Novel Writer
 - Translate
 
-### Extended Functionality
+### Extended Functionality :id=extended-functionality
 The following containers enable additional features:
 
 **Python Container**: Required for:
@@ -120,22 +120,22 @@ The following containers enable additional features:
 
 ?> For more information on adding Docker containers to extend the functionality of Monadic Chat, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
 
-## Optional Docker Containers
+## Optional Docker Containers :id=optional-containers
 
 In addition to the standard containers, Monadic Chat supports optional containers:
 
 - **Ollama Container** (`monadic-chat-ollama-container`): Provides local LLMs via [Ollama](https://ollama.com). This container is built on demand using Actions → Build Ollama Container (not included in "Build All"). Models are stored in `~/monadic/ollama/` and persist across container rebuilds. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
 
-## Container Network Architecture
+## Container Network Architecture :id=network-architecture
 
 All containers communicate through a shared Docker network:
 
-### Network Configuration
+### Network Configuration :id=network-configuration
 - **Network name**: `monadic-chat-network`
 - **Network driver**: Bridge
 - **Inter-container communication**: Enabled using container names as hostnames
 
-### Container Dependencies and Startup Order
+### Container Dependencies and Startup Order :id=container-dependencies
 1. **pgvector** starts first (provides database services)
 2. **Selenium** starts next (provides browser automation)
 3. **Python** starts after Selenium (may use Selenium for certain operations)
@@ -143,13 +143,13 @@ All containers communicate through a shared Docker network:
 
 This startup order ensures all required services are available when dependent containers start.
 
-### Shared Data Volumes
+### Shared Data Volumes :id=shared-volumes
 All containers share access to:
 - **User data**: `~/monadic/data` (mounted as `/monadic/data` in containers)
 - **Configuration**: Ruby container has exclusive access to `/monadic/config`
 - **Logs**: Ruby container has exclusive access to `/monadic/log`
 
-## Container Rebuilding Process
+## Container Rebuilding Process :id=rebuilding-process
 
 When the application is updated, Monadic Chat intelligently determines which containers need to be rebuilt:
 

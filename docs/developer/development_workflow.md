@@ -24,11 +24,11 @@ For applications that require specific testing or diagnosis:
 - Avoid placing app-specific test scripts in the project root directory
 - Example: Concept Visualizer test scripts are in `docker/services/ruby/scripts/diagnostics/apps/concept_visualizer/`
 
-?> **Important**: Test scripts should NOT be placed in `apps/{app_name}/test/` directories, as files in `test/` subdirectories within apps are ignored during app loading to prevent test scripts from being loaded as applications.
+!> **Important:** Test scripts should NOT be placed in `apps/{app_name}/test/` directories, as files in `test/` subdirectories within apps are ignored during app loading to prevent test scripts from being loaded as applications.
 
 ### Running Tests :id=running-tests
 
-**Note**: When using `rake server:debug` for development, Ruby tests run directly on the host using your local Ruby environment.
+?> **Note:** When using `rake server:debug` for development, Ruby tests run directly on the host using your local Ruby environment.
 
 #### Ruby Tests
 ```bash
@@ -121,7 +121,7 @@ MONADIC_DEBUG=api
 
 ### MDSL Auto-Completion System (Experimental) :id=mdsl-auto-completion-system
 
-**⚠️ Warning: This is an experimental feature and may be changed or removed in future versions.**
+!> **Warning:** This is an experimental feature and may be changed or removed in future versions.
 
 The MDSL auto-completion system aims to solve the development challenge of synchronizing tool definitions between Ruby implementations and MDSL declarations.
 

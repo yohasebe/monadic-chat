@@ -100,7 +100,7 @@ When `Extra Logging` is enabled in the settings panel, additional logs are saved
 
 - `extra.log`: Log file for chat logs recorded as streaming JSON objects from the start to the end of Monadic Chat.
 
-?> **Debug Logging**: The "Extra Logging" option in the GUI is equivalent to setting `MONADIC_DEBUG=api` in the configuration. For more detailed debug control, you can use configuration variables in `~/monadic/config/env`:
+?> **Debug Logging:** The "Extra Logging" option in the GUI is equivalent to setting `MONADIC_DEBUG=api` in the configuration. For more detailed debug control, you can use configuration variables in `~/monadic/config/env`:
 > - `MONADIC_DEBUG`: Enable specific debug categories (e.g., `api`, `embeddings`, `mdsl`, `tts`, `drawio`, `ai_user`, `web_search`, or `all`)
 > - `MONADIC_DEBUG_LEVEL`: Set log level (`debug`, `info`, `warning`, `error`)
 
@@ -192,6 +192,6 @@ Select the browser to use when opening Monadic Chat from the console. "Internal 
 **Extra Logging** <br />
 Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`. This setting is equivalent to setting the configuration variable `MONADIC_DEBUG=api` in `~/monadic/config/env`.
 
-Note: For more granular debug control, you can use the unified debug system with configuration variables in `~/monadic/config/env`:
-- `MONADIC_DEBUG=api,embeddings` (comma-separated categories)
-- `MONADIC_DEBUG_LEVEL=debug` (none, error, warning, info, debug, verbose)
+?> **Note:** For more granular debug control, you can use the unified debug system with configuration variables in `~/monadic/config/env`:
+> - `MONADIC_DEBUG=api,embeddings` (comma-separated categories)
+> - `MONADIC_DEBUG_LEVEL=debug` (none, error, warning, info, debug, verbose)

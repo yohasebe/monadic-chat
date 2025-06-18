@@ -230,7 +230,7 @@ By setting the DeepSeek API key, you can use apps that utilize DeepSeek. DeepSee
 - deepseek-chat (default)
 - deepseek-reasoner
 
-Note: DeepSeek's Code Interpreter app works best with simpler, direct prompts due to the model's sensitivity to prompt complexity.
+?> **Note:** DeepSeek's Code Interpreter app works best with simpler, direct prompts due to the model's sensitivity to prompt complexity.
 
 ```
 DEEPSEEK_API_KEY=api_key
@@ -257,7 +257,7 @@ Ollama is now built into Monadic Chat! [Ollama](https://ollama.com/) is a platfo
 2. Start Monadic Chat: Actions → Start
 3. The Chat app with Ollama support will appear in the Ollama group
 
-!> **Important**: Ollama models are downloaded during the container build process, not at runtime. The build process will download the model specified in `OLLAMA_DEFAULT_MODEL` or use a custom setup script.
+!> **Important:** Ollama models are downloaded during the container build process, not at runtime. The build process will download the model specified in `OLLAMA_DEFAULT_MODEL` or use a custom setup script.
 
 ### Default Model Configuration
 
@@ -280,3 +280,26 @@ ollama pull gemma2:9b
 When `olsetup.sh` exists, only the models in the script will be downloaded (the default model won't be pulled).
 
 For detailed setup instructions and model management, refer to [Using Ollama](../advanced-topics/ollama.md).
+
+## Model Auto-Switching :id=model-auto-switching
+
+Monadic Chat automatically switches models in certain situations to ensure optimal functionality. When this happens, you'll see an "Information" notification in the conversation.
+
+### When Models Are Switched
+
+#### OpenAI
+- **Web Search**: Reasoning models (o1, o3) don't support web search, so they switch to the model specified in `WEBSEARCH_MODEL` (default: gpt-4.1-mini)
+- **Image Processing**: Models without vision capabilities automatically switch to gpt-4.1
+- **API Limitations**: Some models (like o3-pro) may be automatically switched by OpenAI to compatible versions
+
+#### xAI Grok
+- **Image Processing**: All models automatically switch to grok-2-vision-1212 when images are included
+
+### Notifications
+
+When a model switch occurs, you'll see a blue information card in the conversation showing:
+- The originally requested model
+- The actual model being used
+- The reason for the switch
+
+This ensures transparency about which model is processing your requests.

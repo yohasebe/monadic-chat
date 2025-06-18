@@ -81,7 +81,7 @@ All settings in the features block are optional:
 - **`toggle`** - Enable collapsible sections (Claude/Gemini/Mistral/Cohere)
 - **`prompt_suffix`** - Text appended to every user message
 
-?> **Important**: Never enable both `monadic` and `toggle` - they are mutually exclusive and provider-specific.
+!> **Important:** Never enable both `monadic` and `toggle` - they are mutually exclusive and provider-specific.
 
 ### Tools Block
 Define functions the AI can use:
@@ -100,7 +100,7 @@ end
 - **`models`** - Override available model list
 - **`jupyter`** - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
 
-!> **Important**: The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `run_jupyter`, `create_jupyter_notebook`, etc.) in your app. See the Jupyter Notebook app implementation for examples.
+!> **Important:** The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `run_jupyter`, `create_jupyter_notebook`, etc.) in your app. See the Jupyter Notebook app implementation for examples.
 
 ## Provider-Specific Behaviors
 

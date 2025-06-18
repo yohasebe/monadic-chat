@@ -1,5 +1,5 @@
-- [June, 2025] 1.0.0
-  - **Major Release**: First stable release of Monadic Chat
+- [June, 2025] 1.0.0-beta.1
+  - **Beta Release**: First beta release for version 1.0.0
   
   ### Breaking Changes
   - **Embedding model changed**: Now uses `text-embedding-3-large` (3072 dimensions) exclusively
@@ -17,6 +17,9 @@
   - **Ollama integration**: Local LLM support with automatic model management
   - **Debug system**: Unified debug control with `MONADIC_DEBUG` environment variable
   - **MDSL auto-completion**: Disabled by default, configurable via `MDSL_AUTO_COMPLETE`
+  - **Semantic versioning support**: Proper handling of beta/rc versions (e.g., 1.0.0-beta.1)
+  - **Provider colors in UI**: Visual distinction for different AI providers in dropdown menus
+  - **API key warning**: Clear notification when no API keys are configured
   
   ### Improvements
   - **Performance optimizations**:
@@ -32,18 +35,34 @@
   - **Dependencies**:
     - Major gem versions locked for stability
     - Security updates included
+  - **Documentation**:
+    - Comprehensive section IDs added to all documentation files
+    - Fixed all broken links in documentation
+    - Synchronized English and Japanese documentation
+    - Updated reasoning model information for all providers
+    - Added CONFIG vs ENV usage patterns documentation
+  - **Second Opinion app**:
+    - Improved two-step consultation process explanation
+    - Now available for all 9 AI providers (not just OpenAI)
+  - **Reasoning models**:
+    - OpenAI O3 series (o3, o3-pro) support added
+    - Comprehensive documentation of reasoning_effort parameter
+    - Proper handling of all reasoning model variants
   
   ### Developer Experience
   - Comprehensive documentation in `CLAUDE.md` for development guidelines
   - Improved test coverage with RSpec and Jest
   - Debug output streamlined with `DebugHelper` module
   - OStruct deprecation warning resolved for Ruby 3.5.0 compatibility
+  - Semantic version comparison utilities for both Ruby and JavaScript
   
   ### Bug Fixes
   - App menu display and grouping issues resolved
   - Voice interpreter app functionality restored
   - Streaming text duplication with Ollama fixed
   - LaTeX rendering improvements for mathematical content
+  - Fixed DeepSeek model specification syntax errors
+  - Resolved app loading issues when API keys are missing
 
 - [May, 2025] 0.9.982
   - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models

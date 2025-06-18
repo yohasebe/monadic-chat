@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "rspec/core/rake_task"
+require "rubygems"
 require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
 
@@ -173,6 +174,40 @@ def version_files
   static_files
 end
 
+# Escape version string for use in file names
+# Converts semantic version (1.0.0-beta.1) to file-safe version (1.0.0-beta-1)
+def escape_version_for_files(version)
+  version.gsub('.', '-').gsub(/^(\d+)-(\d+)-(\d+)/, '\1.\2.\3')
+end
+
+# Compare semantic versions
+# Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+# Examples:
+#   compare_versions("1.0.0-beta.1", "1.0.0") => -1 (beta is older)
+#   compare_versions("1.0.0", "1.0.0-beta.1") => 1 (stable is newer)
+#   compare_versions("1.0.0-beta.2", "1.0.0-beta.1") => 1 (beta.2 is newer)
+def compare_versions(v1, v2)
+  # Use Ruby's built-in Gem::Version for proper semantic version comparison
+  Gem::Version.new(v1) <=> Gem::Version.new(v2)
+rescue ArgumentError => e
+  # If parsing fails, fall back to string comparison
+  puts "Warning: Failed to parse versions '#{v1}' or '#{v2}': #{e.message}"
+  v1 <=> v2
+end
+
+# Check if a version is newer than another
+def version_newer?(new_version, old_version)
+  compare_versions(new_version, old_version) > 0
+end
+
+# Check if a version is a prerelease
+def version_prerelease?(version)
+  Gem::Version.new(version).prerelease?
+rescue ArgumentError
+  # If it can't be parsed, check for common prerelease indicators
+  version.include?('-') && (version.include?('beta') || version.include?('alpha') || version.include?('rc'))
+end
+
 # Get the current version from version.rb (considered the source of truth)
 def get_current_version
   version_file = "./docker/services/ruby/lib/monadic/version.rb"
@@ -201,24 +236,28 @@ def update_version_in_file(file, from_version, to_version)
   when "installation.md"
     # For installation.md, update version numbers in download URLs
     
+    # Escape version strings to handle semantic versioning (e.g., 1.0.0-beta.1)
+    escaped_from = escape_version_for_files(from_version)
+    escaped_to = escape_version_for_files(to_version)
+    
     # Replace version in the GitHub release path
     updated_content = content.gsub(/\/v#{Regexp.escape(from_version)}\//, "/v#{to_version}/")
     
     # Replace version in file names for all platforms
     # Mac files
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-arm64\.dmg/, "Monadic.Chat-#{to_version}-arm64.dmg")
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-x64\.dmg/, "Monadic.Chat-#{to_version}-x64.dmg")
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-arm64\.dmg/, "Monadic.Chat-#{escaped_to}-arm64.dmg")
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-x64\.dmg/, "Monadic.Chat-#{escaped_to}-x64.dmg")
     # Windows files
-    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(from_version)}\.exe/, "Monadic.Chat.Setup.#{to_version}.exe")
+    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(escaped_from)}\.exe/, "Monadic.Chat.Setup.#{escaped_to}.exe")
     # Linux files
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_amd64\.deb/, "monadic-chat_#{to_version}_amd64.deb")
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_arm64\.deb/, "monadic-chat_#{to_version}_arm64.deb")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_amd64\.deb/, "monadic-chat_#{escaped_to}_amd64.deb")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_arm64\.deb/, "monadic-chat_#{escaped_to}_arm64.deb")
     # ZIP files for updates (all platforms)
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-arm64\.zip/, "Monadic.Chat-#{to_version}-arm64.zip")
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(from_version)}-x64\.zip/, "Monadic.Chat-#{to_version}-x64.zip")
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_arm64\.zip/, "monadic-chat_#{to_version}_arm64.zip")
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(from_version)}_x64\.zip/, "monadic-chat_#{to_version}_x64.zip")
-    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(from_version)}\.zip/, "Monadic.Chat.Setup.#{to_version}.zip")
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-arm64\.zip/, "Monadic.Chat-#{escaped_to}-arm64.zip")
+    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-x64\.zip/, "Monadic.Chat-#{escaped_to}-x64.zip")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_arm64\.zip/, "monadic-chat_#{escaped_to}_arm64.zip")
+    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_x64\.zip/, "monadic-chat_#{escaped_to}_x64.zip")
+    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(escaped_from)}\.zip/, "Monadic.Chat.Setup.#{escaped_to}.zip")
   
   when "_coverpage.md"
     # For _coverpage.md, update the version in the header only
@@ -277,11 +316,12 @@ task :check_version do
         version_found = content =~ /^\s*VERSION\s*=\s*"#{Regexp.escape(official_version)}"/
       when "installation.md"
         # Check if the file contains the current version in download URLs
+        escaped_version = escape_version_for_files(official_version)
         version_found = content.include?("/v#{official_version}/") &&
-                        content.include?("Monadic.Chat-#{official_version}-arm64.dmg") &&
-                        content.include?("Monadic.Chat-#{official_version}-x64.dmg") &&
-                        content.include?("Monadic.Chat.Setup.#{official_version}.exe") &&
-                        content.include?("monadic-chat_#{official_version}_amd64.deb")
+                        content.include?("Monadic.Chat-#{escaped_version}-arm64.dmg") &&
+                        content.include?("Monadic.Chat-#{escaped_version}-x64.dmg") &&
+                        content.include?("Monadic.Chat.Setup.#{escaped_version}.exe") &&
+                        content.include?("monadic-chat_#{escaped_version}_amd64.deb")
       when "_coverpage.md"
         version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
       when "package.json"
@@ -392,11 +432,12 @@ task :update_version, [:from_version, :to_version] do |_t, args|
           version_found = content.include?("VERSION = \"#{from_version}\"")
         when "installation.md"
           # Check if the file contains the current version in download URLs
+          escaped_from = escape_version_for_files(from_version)
           version_found = content.include?("/v#{from_version}/") &&
-                          content.include?("Monadic.Chat-#{from_version}-arm64.dmg") &&
-                          content.include?("Monadic.Chat-#{from_version}-x64.dmg") &&
-                          content.include?("Monadic.Chat.Setup.#{from_version}.exe") &&
-                          content.include?("monadic-chat_#{from_version}_amd64.deb")
+                          content.include?("Monadic.Chat-#{escaped_from}-arm64.dmg") &&
+                          content.include?("Monadic.Chat-#{escaped_from}-x64.dmg") &&
+                          content.include?("Monadic.Chat.Setup.#{escaped_from}.exe") &&
+                          content.include?("monadic-chat_#{escaped_from}_amd64.deb")
         when "_coverpage.md"
           version_found = content.include?("<small><b>#{from_version}</b></small>")
         when "package.json"
@@ -581,8 +622,11 @@ task :build do
     puts "  #{File.basename(f)}"
   end
   
+  # Escape version for file names
+  escaped_version = escape_version_for_files(version)
+  
   # Match the actual generated macOS file patterns but don't add them separately
-  mac_files = Dir.glob("dist/Monadic.Chat-#{version}*")
+  mac_files = Dir.glob("dist/Monadic.Chat-#{escaped_version}*")
   
   # Debug output to show what macOS files were found
   puts "Found macOS files:"
@@ -592,20 +636,20 @@ task :build do
   necessary_files = [
     # Use the same required patterns as release_assets for consistency
     # Windows files
-    "Monadic.Chat.Setup.#{version}.exe",     # Windows installer
-    "Monadic.Chat.Setup.#{version}.zip",     # Windows ZIP (for updates)
+    "Monadic.Chat.Setup.#{escaped_version}.exe",     # Windows installer
+    "Monadic.Chat.Setup.#{escaped_version}.zip",     # Windows ZIP (for updates)
     
     # macOS files
-    "Monadic.Chat-#{version}-arm64.dmg",     # macOS arm64 DMG
-    "Monadic.Chat-#{version}-x64.dmg",       # macOS x64 DMG
-    "Monadic.Chat-#{version}-arm64.zip",     # macOS arm64 ZIP (for updates)
-    "Monadic.Chat-#{version}-x64.zip",       # macOS x64 ZIP (for updates)
+    "Monadic.Chat-#{escaped_version}-arm64.dmg",     # macOS arm64 DMG
+    "Monadic.Chat-#{escaped_version}-x64.dmg",       # macOS x64 DMG
+    "Monadic.Chat-#{escaped_version}-arm64.zip",     # macOS arm64 ZIP (for updates)
+    "Monadic.Chat-#{escaped_version}-x64.zip",       # macOS x64 ZIP (for updates)
     
     # Linux files
-    "monadic-chat_#{version}_amd64.deb",     # Linux x64 DEB (uses Debian naming)
-    "monadic-chat_#{version}_arm64.deb",     # Linux ARM64 DEB
-    "monadic-chat_#{version}_x64.zip",       # Linux x64 ZIP (uses Node.js naming)
-    "monadic-chat_#{version}_arm64.zip",     # Linux ARM64 ZIP (for updates)
+    "monadic-chat_#{escaped_version}_amd64.deb",     # Linux x64 DEB (uses Debian naming)
+    "monadic-chat_#{escaped_version}_arm64.deb",     # Linux ARM64 DEB
+    "monadic-chat_#{escaped_version}_x64.zip",       # Linux x64 ZIP (uses Node.js naming)
+    "monadic-chat_#{escaped_version}_arm64.zip",     # Linux ARM64 ZIP (for updates)
     
     # Update YML files
     "latest.yml",                            # Windows update file
@@ -741,17 +785,18 @@ namespace :release do
     end
     
     # Step 2: Build all packages if needed - check for ALL required file types
+    escaped_version = escape_version_for_files(version)
     required_patterns = [
-      "dist/Monadic.Chat-#{version}-arm64.dmg",
-      "dist/Monadic.Chat-#{version}-x64.dmg",
-      "dist/Monadic.Chat-#{version}-arm64.zip",
-      "dist/Monadic.Chat-#{version}-x64.zip",
-      "dist/Monadic.Chat.Setup.#{version}.exe",
-      "dist/Monadic.Chat.Setup.#{version}.zip",
-      "dist/monadic-chat_#{version}_amd64.deb",
-      "dist/monadic-chat_#{version}_arm64.deb",
-      "dist/monadic-chat_#{version}_x64.zip",
-      "dist/monadic-chat_#{version}_arm64.zip"
+      "dist/Monadic.Chat-#{escaped_version}-arm64.dmg",
+      "dist/Monadic.Chat-#{escaped_version}-x64.dmg",
+      "dist/Monadic.Chat-#{escaped_version}-arm64.zip",
+      "dist/Monadic.Chat-#{escaped_version}-x64.zip",
+      "dist/Monadic.Chat.Setup.#{escaped_version}.exe",
+      "dist/Monadic.Chat.Setup.#{escaped_version}.zip",
+      "dist/monadic-chat_#{escaped_version}_amd64.deb",
+      "dist/monadic-chat_#{escaped_version}_arm64.deb",
+      "dist/monadic-chat_#{escaped_version}_x64.zip",
+      "dist/monadic-chat_#{escaped_version}_arm64.zip"
     ]
     
     missing_files = required_patterns.select { |pattern| Dir.glob(pattern).empty? }
@@ -797,16 +842,16 @@ namespace :release do
     
     # Use the same required patterns as build check for consistency
     required_patterns = [
-      "Monadic.Chat-#{version}-arm64.dmg",      # macOS arm64
-      "Monadic.Chat-#{version}-x64.dmg",        # macOS x64
-      "Monadic.Chat-#{version}-arm64.zip",      # macOS arm64 ZIP (for updates)
-      "Monadic.Chat-#{version}-x64.zip",        # macOS x64 ZIP (for updates)
-      "Monadic.Chat.Setup.#{version}.exe",      # Windows
-      "Monadic.Chat.Setup.#{version}.zip",      # Windows ZIP (for updates)
-      "monadic-chat_#{version}_amd64.deb",      # Linux x64 (uses Debian naming)
-      "monadic-chat_#{version}_arm64.deb",      # Linux ARM64
-      "monadic-chat_#{version}_x64.zip",        # Linux x64 ZIP (uses Node.js naming)
-      "monadic-chat_#{version}_arm64.zip"       # Linux ARM64 ZIP (for updates)
+      "Monadic.Chat-#{escaped_version}-arm64.dmg",      # macOS arm64
+      "Monadic.Chat-#{escaped_version}-x64.dmg",        # macOS x64
+      "Monadic.Chat-#{escaped_version}-arm64.zip",      # macOS arm64 ZIP (for updates)
+      "Monadic.Chat-#{escaped_version}-x64.zip",        # macOS x64 ZIP (for updates)
+      "Monadic.Chat.Setup.#{escaped_version}.exe",      # Windows
+      "Monadic.Chat.Setup.#{escaped_version}.zip",      # Windows ZIP (for updates)
+      "monadic-chat_#{escaped_version}_amd64.deb",      # Linux x64 (uses Debian naming)
+      "monadic-chat_#{escaped_version}_arm64.deb",      # Linux ARM64
+      "monadic-chat_#{escaped_version}_x64.zip",        # Linux x64 ZIP (uses Node.js naming)
+      "monadic-chat_#{escaped_version}_arm64.zip"       # Linux ARM64 ZIP (for updates)
     ].each do |file|
       path = File.join("dist", file)
       if File.exist?(path)
@@ -950,19 +995,20 @@ namespace :release do
     end
     
     # Get files to update
+    escaped_version = escape_version_for_files(version)
     if file_patterns.nil?
       # Default patterns if none provided
       patterns = [
-        "dist/Monadic.Chat-#{version}-arm64.dmg",
-        "dist/Monadic.Chat-#{version}-x64.dmg",
-        "dist/Monadic.Chat-#{version}-arm64.zip",
-        "dist/Monadic.Chat-#{version}-x64.zip",
-        "dist/Monadic.Chat.Setup.#{version}.exe",
-        "dist/Monadic.Chat.Setup.#{version}.zip",
-        "dist/monadic-chat_#{version}_amd64.deb",
-        "dist/monadic-chat_#{version}_arm64.deb",
-        "dist/monadic-chat_#{version}_x64.zip",
-        "dist/monadic-chat_#{version}_arm64.zip",
+        "dist/Monadic.Chat-#{escaped_version}-arm64.dmg",
+        "dist/Monadic.Chat-#{escaped_version}-x64.dmg",
+        "dist/Monadic.Chat-#{escaped_version}-arm64.zip",
+        "dist/Monadic.Chat-#{escaped_version}-x64.zip",
+        "dist/Monadic.Chat.Setup.#{escaped_version}.exe",
+        "dist/Monadic.Chat.Setup.#{escaped_version}.zip",
+        "dist/monadic-chat_#{escaped_version}_amd64.deb",
+        "dist/monadic-chat_#{escaped_version}_arm64.deb",
+        "dist/monadic-chat_#{escaped_version}_x64.zip",
+        "dist/monadic-chat_#{escaped_version}_arm64.zip",
         "dist/*.yml"  # Include all YML files for auto-updates
       ]
     else

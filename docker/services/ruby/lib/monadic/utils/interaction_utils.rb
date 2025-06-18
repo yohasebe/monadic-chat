@@ -785,4 +785,22 @@ module InteractionUtils
       "Unexpected error in tavily_fetch: #{e.message}"
     end
   end
+  
+  # Check and notify if model was automatically switched
+  # @param response_model [String] The model returned in the response
+  # @param requested_model [String] The model that was requested
+  # @param session [Hash] The session object
+  # @param block [Proc] The block to call for notifications
+  def check_model_switch(response_model, requested_model, session, &block)
+    return unless response_model && requested_model && block
+    return if response_model == requested_model
+    return if session[:model_switch_notified]
+    
+    session[:model_switch_notified] = true
+    system_msg = {
+      "type" => "system_info",
+      "content" => "Model automatically switched from #{requested_model} to #{response_model}."
+    }
+    block.call system_msg
+  end
 end

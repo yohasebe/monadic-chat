@@ -20,6 +20,7 @@
   - **Semantic versioning support**: Proper handling of beta/rc versions (e.g., 1.0.0-beta.1)
   - **Provider colors in UI**: Visual distinction for different AI providers in dropdown menus
   - **API key warning**: Clear notification when no API keys are configured
+  - **Model switch notifications**: Automatic notifications when models are switched for web search or image processing
   
   ### Improvements
   - **Performance optimizations**:

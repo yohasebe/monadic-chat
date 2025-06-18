@@ -1,6 +1,6 @@
 # FAQ: 基本アプリ
 
-**Q**: プログラミングなしで、簡単に基本アプリを拡張する方法はありますか？ :id=extending-basic-apps
+##### Q: プログラミングなしで、簡単に基本アプリを拡張する方法はありますか？ :id=extending-basic-apps
 
 **A**: はい、適当な基本アプリを選択した後、Web UI上でシステムプロンプトなどの設定を自由に変更することができます。また、変更した状態でセッションをエクスポートすることで、必要な時に同じ状態を呼び出すことができます。
 
@@ -8,7 +8,7 @@
 
 ---
 
-**Q**: `Code Interpreter`アプリと`Coding Assistant`と`Jupyter Notebook`アプリの違いは何ですか？ :id=code-interpreter-vs-coding-assistant
+##### Q: `Code Interpreter`アプリと`Coding Assistant`と`Jupyter Notebook`アプリの違いは何ですか？ :id=code-interpreter-vs-coding-assistant
 
 **A**: `Code Interpreter`アプリは、Pythonコンテナ上のPython処理系を利用してPythonスクリプトを実行するアプリです。AIエージェントにPythonコードを書いてもらうだけでなく、実際に実行して結果を得ることができます。また、Pythonスクリプト以外にも、CSVファイル、Microsoft Officeファイル、オーディオファイル（MP3, WAV）を読み込んで処理することができます。
 
@@ -20,7 +20,7 @@
 
 ---
 
-**Q**: サーバーモードでMonadic Chatを使用するにはどうすればよいですか？ :id=server-mode-usage
+##### Q: サーバーモードでMonadic Chatを使用するにはどうすればよいですか？ :id=server-mode-usage
 
 **A**: Monadic Chatをサーバーモードで実行するには：
 
@@ -36,13 +36,13 @@
 
 ---
 
-**Q**: 新しいバージョンをインストールするとどうなりますか？ :id=version-updates
+##### Q: 新しいバージョンをインストールするとどうなりますか？ :id=version-updates
 
 **A**: 新しいバージョンをインストールすると、APIトークンなどのユーザー設定は保持されます。ただし、アプリケーションの変更に応じてDockerコンテナが再構築される場合があります。Dockerfileや関連ファイルに変更がある場合は、すべてのコンテナが完全に再構築されます。それ以外の場合は、Rubyコンテナのみが再構築され、更新時間を節約できます。
 
 ---
 
-**Q**: Dockerが実行中なのにアプリが起動しない理由は？ :id=app-startup-issues
+##### Q: Dockerが実行中なのにアプリが起動しない理由は？ :id=app-startup-issues
 
 **A**: 以下を確認してください：
 
@@ -53,7 +53,7 @@
 
 ---
 
-**Q**: Monadic Chatをオフラインで使用できますか？ :id=offline-usage
+##### Q: Monadic Chatをオフラインで使用できますか？ :id=offline-usage
 
 **A**: ほとんどの機能は言語モデルAPIと通信するためにインターネットアクセスが必要ですが、Ollamaを使用すればオフラインでMonadic Chatを使用できます：
 
@@ -65,7 +65,7 @@
 
 ---
 
-**Q**: アプリを初期状態にリセットするにはどうすればよいですか？ :id=app-reset
+##### Q: アプリを初期状態にリセットするにはどうすればよいですか？ :id=app-reset
 
 **A**: アプリを初期状態にリセットするには：
 
@@ -76,13 +76,13 @@
 
 ---
 
-**Q**: 複数の会話を並行して行うことはできますか？ :id=multiple-conversations
+##### Q: 複数の会話を並行して行うことはできますか？ :id=multiple-conversations
 
 **A**: 現在、Monadic Chatは一度に1つの会話のみをサポートしています。ただし、会話を保存およびエクスポートし、異なるアプリケーション間で切り替えて異なるトピックで作業することができます。
 
 ---
 
-**Q**: Code Interpreterでコード実行が繰り返し失敗する可能性がある場合はどうなりますか？ :id=code-execution-errors
+##### Q: Code Interpreterでコード実行が繰り返し失敗する可能性がある場合はどうなりますか？ :id=code-execution-errors
 
 **A**: Code Interpreterアプリには、無限の再試行ループを防ぐための自動エラーハンドリングが含まれています。コード実行で繰り返しエラーが発生した場合：
 

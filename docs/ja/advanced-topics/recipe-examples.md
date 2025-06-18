@@ -4,7 +4,7 @@
 
 ## 重要な命名規則
 
-?> **重要**: MDSLアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`には対応する`class ChatOpenAI < MonadicApp`が必要です。これによりメニューのグループ化と機能が正しく動作します。
+!> **重要:** MDSLアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`には対応する`class ChatOpenAI < MonadicApp`が必要です。これによりメニューのグループ化と機能が正しく動作します。
 
 ## シンプルなアプリ
 

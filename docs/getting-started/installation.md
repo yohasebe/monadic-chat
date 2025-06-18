@@ -137,6 +137,8 @@ For Linux (Ubuntu/Debian), refer to the following pages to install Docker Deskto
 
 ## Server Mode Configuration :id=server-mode-configuration
 
+?> **Note: Monadic Chat is designed primarily for standalone mode, where all components run on a single machine. Server mode should only be used when you need to share the service with multiple users on a local network.**
+
 By default, Monadic Chat runs in standalone mode with all components on a single machine. To enable server mode:
 
 1. Open the Settings panel by clicking the gear icon in the application
@@ -152,7 +154,7 @@ In server mode:
 
 See the [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) documentation for more details.
 
-## Update :id=update
+## Updating Monadic Chat :id=update
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 

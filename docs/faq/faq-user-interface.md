@@ -1,6 +1,6 @@
 # FAQ: User Interface
 
-**Q**: Please explain the roles of the buttons and icons at the top right of each message on the web interface. :id=message-buttons-explanation
+##### Q: Please explain the roles of the buttons and icons at the top right of each message on the web interface. :id=message-buttons-explanation
 
 **A**: The roles of each button and icon are as follows:
 
@@ -19,13 +19,13 @@
 
 ---
 
-**Q**: How is the number of tokens displayed in Monadic Chat Stats calculated? :id=token-count-calculation
+##### Q: How is the number of tokens displayed in Monadic Chat Stats calculated? :id=token-count-calculation
 
 **A**: It is calculated using [tiktoken](https://github.com/openai/tiktoken) installed on the Python container. Regardless of the selected model, the `o200k_base` encoding is used, so the value may not always be accurate if a model other than the GPT-4 series is selected. Consider the token count as an approximate value.
 
 ---
 
-**Q**: What is the role of the `Role` selector above the message input box? :id=role-selector-function
+##### Q: What is the role of the `Role` selector above the message input box? :id=role-selector-function
 
 **A**: Each role has the following function:
 
@@ -38,6 +38,6 @@
 
 ---
 
-**Q**: When I access localhost:4567 in the browser, it shows "Not Secure". Is this a security concern? :id=localhost-security-warning
+##### Q: When I access localhost:4567 in the browser, it shows "Not Secure". Is this a security concern? :id=localhost-security-warning
 
 **A**: This application is secure because the server only accepts connections from `localhost` (`127.0.0.1`). The "Not Secure" warning shown in your browser is not a concern for this local connection.

@@ -1,6 +1,6 @@
 # FAQ: Basic Applications
 
-**Q**: Is there an easy way to extend the basic apps without programming? :id=extending-basic-apps
+##### Q: Is there an easy way to extend the basic apps without programming? :id=extending-basic-apps
 
 **A**: Yes, after selecting an appropriate basic app, you can freely change settings such as system prompts on the Web UI. You can also export the session in the modified state and call the same state when needed.
 
@@ -8,7 +8,7 @@
 
 ---
 
-**Q**: What is the difference between the `Code Interpreter` app and the `Coding Assistant` and `Jupyter Notebook` apps? :id=code-interpreter-vs-coding-assistant
+##### Q: What is the difference between the `Code Interpreter` app and the `Coding Assistant` and `Jupyter Notebook` apps? :id=code-interpreter-vs-coding-assistant
 
 **A**: The `Code Interpreter` app is an application that runs Python scripts using the Python interpreter on the Python container. You can not only ask the AI agent to write Python code but also actually run it and get the results. In addition to Python scripts, you can also read and process CSV files, Microsoft Office files, and audio files (MP3, WAV).
 
@@ -20,7 +20,7 @@ The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook
 
 ---
 
-**Q**: How do I use Monadic Chat in server mode? :id=server-mode-usage
+##### Q: How do I use Monadic Chat in server mode? :id=server-mode-usage
 
 **A**: To run Monadic Chat in server mode:
 
@@ -36,13 +36,13 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 
 ---
 
-**Q**: What happens if I install a new version? :id=version-updates
+##### Q: What happens if I install a new version? :id=version-updates
 
 **A**: When installing a new version, user settings such as API tokens and other configurations are preserved. However, Docker containers might be rebuilt depending on the changes made to the application. If there are changes to Dockerfiles or related files, a full rebuild of all containers will be performed. Otherwise, only the Ruby container gets rebuilt, saving time during updates.
 
 ---
 
-**Q**: Why doesn't the app start even though Docker is running? :id=app-startup-issues
+##### Q: Why doesn't the app start even though Docker is running? :id=app-startup-issues
 
 **A**: Check the following:
 
@@ -53,7 +53,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 
 ---
 
-**Q**: Can I use Monadic Chat offline? :id=offline-usage
+##### Q: Can I use Monadic Chat offline? :id=offline-usage
 
 **A**: While most features require internet access to communicate with language model APIs, you can use Monadic Chat offline with Ollama:
 
@@ -65,7 +65,7 @@ Note that other features like web search, image generation, and cloud-based lang
 
 ---
 
-**Q**: How can I reset the app to the initial state? :id=app-reset
+##### Q: How can I reset the app to the initial state? :id=app-reset
 
 **A**: To reset the app to its initial state, you can:
 
@@ -76,13 +76,13 @@ Note that this doesn't delete any saved files in the shared folder or reset conf
 
 ---
 
-**Q**: Can I have multiple conversations in parallel? :id=multiple-conversations
+##### Q: Can I have multiple conversations in parallel? :id=multiple-conversations
 
 **A**: Currently, Monadic Chat supports one conversation at a time. However, you can save and export conversations, and switch between different applications to work on different topics.
 
 ---
 
-**Q**: What happens if code execution fails repeatedly in Code Interpreter? :id=code-execution-errors
+##### Q: What happens if code execution fails repeatedly in Code Interpreter? :id=code-execution-errors
 
 **A**: The Code Interpreter app includes automatic error handling to prevent infinite retry loops. If code execution encounters repeated errors:
 

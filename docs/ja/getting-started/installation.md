@@ -137,6 +137,8 @@ Linux（Ubuntu/Debian）の場合、Docker Desktopをインストールするに
 
 ## サーバーモードの設定 :id=server-mode-configuration
 
+**注意：Monadic Chatは主にスタンドアロンモード（すべてのコンポーネントが単一のマシン上で動作）での使用を想定して設計されています。サーバーモードは、ローカルネットワーク上で複数のユーザーとサービスを共有する必要がある場合にのみ使用してください。**
+
 デフォルトでは、Monadic Chatは単一のマシン上ですべてのコンポーネントを実行するスタンドアロンモードで動作します。サーバーモードを有効にするには：
 
 1. アプリケーションの歯車アイコンをクリックして設定パネルを開きます
@@ -152,7 +154,7 @@ Linux（Ubuntu/Debian）の場合、Docker Desktopをインストールするに
 
 詳細については[サーバーモードとスタンドアロンモード](../docker-integration/basic-architecture.md#サーバーモードとスタンドアロンモード)のドキュメントを参照してください。
 
-## 更新 :id=update
+## Monadic Chatの更新 :id=update
 
 ![](../assets/images/monadic-chat-menu.png ':size=240')
 

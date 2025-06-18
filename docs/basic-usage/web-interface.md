@@ -135,7 +135,7 @@ Shows details such as the number of messages and tokens exchanged in the current
 **Reset**<br />
 Clicking the `Reset` button discards the current conversation and returns to the initial state while preserving the current app selection. All app parameters will be reset to their default values. When changing apps by selecting a different app in the dropdown, a confirmation dialog will appear asking if you want to reset the current conversation, as changing apps will reset all parameters.
 
-?> This Reset button in the Session panel maintains your current app selection, unlike the Reset App button in the internal browser which also resets to the initial app selection.
+?> **Note:** This Reset button in the Session panel maintains your current app selection, unlike the Reset App button in the internal browser which also resets to the initial app selection.
 
 **Settings**<br />
 Clicking the `Settings` button returns to the System Settings panel without discarding the current conversation. To return to the current conversation, click `Continue Session`.
@@ -150,7 +150,7 @@ Clicking the `Export` button saves the current settings and conversation data to
 
 ![](../assets/images/monadic-chat-tts.png ':size=400')
 
-!> To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
+!> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
 **Text-to-Speech Provider**<br />
 Select the provider used for speech synthesis. You can choose between:
@@ -179,10 +179,10 @@ Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper
 
 ![](../assets/images/monadic-chat-pdf-db.png ':size=400')
 
-> This panel is displayed only when an app with PDF reading functionality is selected.
+?> This panel is displayed only when an app with PDF reading functionality is selected.
 
 **Uploaded PDF**<br />
 This displays a list of PDFs uploaded by clicking the `Import PDF` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
 
-!> The text from PDF files is converted to text embeddings and stored in the PGVector database. The database will be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Export the database using the `Export Document DB` feature to save and restore the data.
+!> **Warning:** The text from PDF files is converted to text embeddings and stored in the PGVector database. The database will be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Export the database using the `Export Document DB` feature to save and restore the data.
 

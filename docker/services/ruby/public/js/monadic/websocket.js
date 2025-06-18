@@ -1979,8 +1979,8 @@ function connect_websocket(callback) {
         // Display system information in the conversation
         const systemInfoHtml = `<div class="system-info-message"><i class="fas fa-info-circle"></i> ${data.content}</div>`;
         
-        const systemElement = createCard("info", 
-          "<span class='text-info'><i class='fas fa-info-circle'></i></span> <span class='fw-bold fs-6 text-info'>Information</span>", 
+        const systemElement = createCard("system", 
+          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
           systemInfoHtml, 
           "en", 
           null, 

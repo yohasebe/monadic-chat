@@ -273,6 +273,11 @@ module GrokHelper
 
     if role != "tool"
       message = obj["message"].to_s
+      
+      # Reset model switch notification flag for new user messages
+      if role == "user"
+        session.delete(:model_switch_notified)
+      end
 
       # If the app is monadic, the message is passed through the monadic_map function
       if obj["monadic"].to_s == "true" && message != ""
@@ -319,6 +324,9 @@ module GrokHelper
     body = {
       "model" => model,
     }
+    
+    # Store the original model for comparison later
+    original_user_model = model
 
     body["stream"] = true
     body["n"] = 1
@@ -524,6 +532,8 @@ module GrokHelper
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
       [obj]
     else
+      # Include original model in the query for comparison
+      body["original_user_model"] = original_user_model
       process_json_data(app: app,
                         session: session,
                         query: body,
@@ -596,6 +606,11 @@ module GrokHelper
             if CONFIG["EXTRA_LOGGING"]
               DebugHelper.debug("Response: #{JSON.pretty_generate(json)}", category: :api, level: :debug)
             end
+            
+            # Check if response model differs from requested model
+            response_model = json["model"]
+            requested_model = query["original_user_model"] || query["model"]
+            check_model_switch(response_model, requested_model, session, &block)
 
             finish_reason = json.dig("choices", 0, "finish_reason")
             case finish_reason

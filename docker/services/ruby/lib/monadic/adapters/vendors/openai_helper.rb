@@ -431,6 +431,9 @@ module OpenAIHelper
     body = {
       "model" => model,
     }
+    
+    # Store the original model for comparison later
+    original_user_model = model
 
     reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
     non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
@@ -766,6 +769,8 @@ module OpenAIHelper
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
       [obj]
     else
+      # Include original model in the query for comparison
+      body["original_user_model"] = original_user_model
       process_json_data(app: app,
                         session: session,
                         query: body,
@@ -840,7 +845,7 @@ module OpenAIHelper
             
             # Check if response model differs from requested model
             response_model = json["model"]
-            requested_model = query["model"]
+            requested_model = query["original_user_model"] || query["model"]
             check_model_switch(response_model, requested_model, session, &block)
 
             finish_reason = json.dig("choices", 0, "finish_reason")

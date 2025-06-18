@@ -13,7 +13,7 @@ app "SecondOpinionCohere" do
   llm do
     provider "cohere"
     model "command-a-03-2025"
-    temperature 0.2
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

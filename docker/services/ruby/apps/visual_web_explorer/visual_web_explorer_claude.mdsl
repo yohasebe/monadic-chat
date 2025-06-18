@@ -38,6 +38,10 @@ app "VisualWebExplorerClaude" do
     provider "claude"
     model "claude-sonnet-4-20250514"
   end
+  
+  settings do
+    temperature 0.0
+  end
 
   features do
     monadic false

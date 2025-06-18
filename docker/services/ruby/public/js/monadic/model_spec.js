@@ -459,7 +459,7 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
   // Gemini models
-  "gemini-2.5-pro-preview-06-05": {
+  "gemini-2.5-flash-lite-preview-06-17": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "reasoning_effort": [["low", "medium", "high"], "low"],
@@ -468,6 +468,22 @@ const modelSpec = {
     "vision_capability": true
   },
   "gemini-2.5-flash-preview-05-20": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "gemini-2.5-pro": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "gemini-2.5-pro-preview-06-05": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "reasoning_effort": [["low", "medium", "high"], "low"],

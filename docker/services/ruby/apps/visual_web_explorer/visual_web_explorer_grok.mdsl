@@ -38,6 +38,10 @@ app "VisualWebExplorerGrok" do
     provider "xai"
     model "grok-3-mini"
   end
+  
+  settings do
+    temperature 0.0
+  end
 
   features do
     monadic false

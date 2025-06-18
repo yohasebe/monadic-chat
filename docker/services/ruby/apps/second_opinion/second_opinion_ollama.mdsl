@@ -13,7 +13,7 @@ app "SecondOpinionOllama" do
   llm do
     provider "ollama"
     # Model will be auto-selected from available Ollama models
-    temperature 0.2
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

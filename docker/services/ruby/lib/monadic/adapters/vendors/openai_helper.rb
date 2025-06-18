@@ -76,6 +76,11 @@ module OpenAIHelper
     "o1-pro-2025-03-19",
     "o3-pro"
   ]
+  
+  # Models that require the new responses API endpoint
+  RESPONSES_API_MODELS = [
+    "o3-pro"
+  ]
 
   # Native OpenAI websearch tools
   NATIVE_WEBSEARCH_TOOLS = [
@@ -434,6 +439,9 @@ module OpenAIHelper
     
     # Store the original model for comparison later
     original_user_model = model
+    
+    # Check if original model requires responses API
+    use_responses_api = RESPONSES_API_MODELS.include?(original_user_model)
 
     reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
     non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
@@ -442,7 +450,7 @@ module OpenAIHelper
     
     # If websearch is enabled and the current model is a reasoning model without native search,
     # switch to the WEBSEARCH_MODEL (defaults to gpt-4.1-mini if not set)
-    if websearch && reasoning_model && !search_model
+    if websearch && reasoning_model && !search_model && !use_responses_api
       original_model = model
       model = CONFIG["WEBSEARCH_MODEL"] || ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
       body["model"] = model
@@ -619,12 +627,12 @@ module OpenAIHelper
 
     # "system" role must be replaced with "developer" for reasoning models
     if reasoning_model
-      num_sysetm_messages = 0
+      num_system_messages = 0
       body["messages"].each do |msg|
         if msg["role"] == "system"
           msg["role"] = "developer" 
           msg["content"].each do |content_item|
-            if content_item["type"] == "text" && num_sysetm_messages == 0
+            if content_item["type"] == "text" && num_system_messages == 0
               if websearch
                 text = "Web search enabled\n---\n" + content_item["text"] + "\n---\n" + websearch_prompt
               else
@@ -633,7 +641,7 @@ module OpenAIHelper
               content_item["text"] = text
             end
           end
-          num_sysetm_messages += 1
+          num_system_messages += 1
         end
       end
     end
@@ -676,8 +684,8 @@ module OpenAIHelper
     end
     # END ADDED CODE
 
-    if last_text != "" && prompt_suffix.to_s != ""
-      new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""
+    if last_text.to_s != "" && prompt_suffix.to_s != ""
+      new_text = last_text.to_s + "\n\n" + prompt_suffix.strip
       if body.dig("messages", -1, "content")
         body["messages"].last["content"].each do |content_item|
           if content_item["type"] == "text"
@@ -690,7 +698,7 @@ module OpenAIHelper
     if data
       body["messages"] << {
         "role" => "user",
-        "content" => data.strip
+        "content" => [{ "type" => "text", "text" => data.strip }]
       }
       body["prediction"] = {
         "type" => "content",
@@ -699,8 +707,8 @@ module OpenAIHelper
     end
 
     # initial prompt in the body is appended with the settings["system_prompt_suffix"
-    if initial_prompt != "" && obj["system_prompt_suffix"].to_s != ""
-      new_text = initial_prompt + "\n\n" + obj["system_prompt_suffix"].strip
+    if initial_prompt.to_s != "" && obj["system_prompt_suffix"].to_s != ""
+      new_text = initial_prompt.to_s + "\n\n" + obj["system_prompt_suffix"].strip
       body["messages"].first["content"].each do |content_item|
         if content_item["type"] == "text"
           content_item["text"] = new_text
@@ -726,27 +734,182 @@ module OpenAIHelper
       body.delete("stop")
     end
 
-    # Call the API
-    target_uri = "#{API_ENDPOINT}/chat/completions"
+    # Determine which API endpoint to use
+    if use_responses_api
+      # Use responses API for o3-pro
+      target_uri = "#{API_ENDPOINT}/responses"
+      
+      # Send processing status for long-running models
+      if block
+        processing_msg = {
+          "type" => "processing_status",
+          "content" => "This may take a few minutes."
+        }
+        block.call processing_msg
+      end
+      
+      # Convert messages format to responses API input format
+      # Responses API uses different content types than chat API
+      input_messages = body["messages"].map do |msg|
+        role = msg["role"]
+        content = msg["content"]
+        
+        if CONFIG["EXTRA_LOGGING"]
+          if role == "developer" && msg == body["messages"].first
+            puts "First developer message content preview: #{content[0]["text"][0..200] if content.is_a?(Array) && content[0]}"
+          end
+        end
+        
+        # Handle messages with complex content (text + images)
+        if content.is_a?(Array)
+          # Convert content types for responses API
+          converted_content = content.map do |item|
+            case item["type"]
+            when "text"
+              {
+                "type" => "input_text",
+                "text" => item["text"]
+              }
+            when "image_url"
+              # Extract media type and base64 data from data URL
+              url = item["image_url"]["url"]
+              if url.start_with?("data:")
+                match = url.match(/^data:(image\/\w+);base64,(.+)$/)
+                if match
+                  media_type = match[1]
+                  base64_data = match[2]
+                else
+                  # Default to jpeg if pattern doesn't match
+                  media_type = "image/jpeg"
+                  base64_data = url.sub(/^data:image\/\w+;base64,/, '')
+                end
+              else
+                # If not a data URL, assume it's already base64
+                media_type = "image/jpeg"
+                base64_data = url
+              end
+              
+              {
+                "type" => "input_image",
+                "source" => {
+                  "type" => "base64",
+                  "media_type" => media_type,
+                  "data" => base64_data
+                }
+              }
+            else
+              item  # Keep as is for unknown types
+            end
+          end
+          
+          {
+            "role" => role,
+            "content" => converted_content
+          }
+        else
+          # Simple text content
+          {
+            "role" => role,
+            "content" => [
+              {
+                "type" => "input_text",
+                "text" => content.to_s
+              }
+            ]
+          }
+        end
+      end
+      
+      # Create responses API body
+      responses_body = {
+        "model" => body["model"],
+        "input" => input_messages,
+        "stream" => body["stream"] || false  # Default to false for responses API (o3-pro doesn't support streaming yet)
+      }
+      
+      # Add reasoning_effort in the correct format for responses API
+      if body["reasoning_effort"]
+        responses_body["reasoning"] = {
+          "effort" => body["reasoning_effort"]
+        }
+      end
+      
+      # Check if web search was requested but can't be used
+      if websearch && block
+        system_msg = {
+          "type" => "system_info",
+          "content" => "Web search is not yet supported for o3-pro model. Proceeding without web search functionality."
+        }
+        block.call system_msg
+      end
+      
+      # Tool support for responses API is currently disabled
+      # The API format for tools differs from chat/completions
+      # TODO: Implement proper tool format for responses API
+      if body["tools"] && !body["tools"].empty? && false  # Disabled for now
+        # Convert tools to ensure string keys for responses API
+        # The responses API requires type field but with flattened structure
+        responses_body["tools"] = body["tools"].map do |tool|
+          tool_json = JSON.parse(tool.to_json)
+          
+          # If this is a function tool, flatten but keep type
+          if tool_json["type"] == "function" && tool_json["function"]
+            {
+              "type" => "function",
+              "name" => tool_json["function"]["name"],
+              "description" => tool_json["function"]["description"],
+              "parameters" => tool_json["function"]["parameters"]
+            }
+          else
+            tool_json
+          end
+        end
+        
+        if CONFIG["EXTRA_LOGGING"]
+          puts "Responses API tools:"
+          puts JSON.pretty_generate(responses_body["tools"])
+        end
+      end
+      
+      # Use responses body instead
+      body = responses_body
+    else
+      # Use standard chat/completions API
+      target_uri = "#{API_ENDPOINT}/chat/completions"
+      
+      body["messages"].each do |msg|
+        next unless msg["tool_calls"] || msg[:tool_call]
+
+        if !msg["role"] && !msg[:role]
+          msg["role"] = "assistant"
+        end
+        tool_calls = msg["tool_calls"] || msg[:tool_call]
+        tool_calls.each do |tool_call|
+          tool_call.delete("index")
+        end
+      end
+    end
+    
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    body["messages"].each do |msg|
-      next unless msg["tool_calls"] || msg[:tool_call]
-
-      if !msg["role"] && !msg[:role]
-        msg["role"] = "assistant"
-      end
-      tool_calls = msg["tool_calls"] || msg[:tool_call]
-      tool_calls.each do |tool_call|
-        tool_call.delete("index")
-      end
-    end
+    # Use longer timeout for responses API as o3-pro can take minutes
+    timeout_settings = if use_responses_api
+                        {
+                          connect: OPEN_TIMEOUT,
+                          write: WRITE_TIMEOUT,
+                          read: 600  # 10 minutes for o3-pro
+                        }
+                      else
+                        {
+                          connect: OPEN_TIMEOUT,
+                          write: WRITE_TIMEOUT,
+                          read: READ_TIMEOUT
+                        }
+                      end
 
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(**timeout_settings).post(target_uri, json: body)
       break if res.status.success?
 
       sleep RETRY_DELAY
@@ -764,19 +927,116 @@ module OpenAIHelper
     # return Array
     if !body["stream"]
       obj = JSON.parse(res.body)
-      frag = obj.dig("choices", 0, "message", "content")
+      
+      if use_responses_api
+        # Handle non-streaming responses API response
+        # Support multiple possible response structures
+        frag = ""
+        
+        if CONFIG["EXTRA_LOGGING"]
+          puts "Non-streaming responses API response:"
+          puts "Response keys: #{obj.keys.inspect}"
+          puts "Full response: #{obj.inspect}"
+        end
+        
+        # Try different paths for output
+        if obj.dig("response", "output")
+          output_array = obj.dig("response", "output")
+        elsif obj["output"]
+          output_array = obj["output"]
+        else
+          output_array = []
+        end
+        
+        if CONFIG["EXTRA_LOGGING"]
+          puts "Output array length: #{output_array.length}"
+        end
+        
+        # Extract text from output array
+        output_array.each_with_index do |item, index|
+          if CONFIG["EXTRA_LOGGING"]
+            puts "Output item #{index}: type=#{item["type"] if item.is_a?(Hash)}"
+            if item.is_a?(Hash) && item["type"] == "message"
+              puts "  Message content class: #{item["content"].class}"
+              puts "  Message content: #{item["content"].inspect[0..200]}..."
+            end
+          end
+          
+          if item.is_a?(Hash)
+            # Direct text type
+            if item["type"] == "text" && item["text"]
+              frag += item["text"]
+            # Message type with content array
+            elsif item["type"] == "message" && item["content"]
+              if item["content"].is_a?(Array)
+                item["content"].each do |content_item|
+                  # Handle both "text" and "output_text" types
+                  if (content_item["type"] == "text" || content_item["type"] == "output_text") && content_item["text"]
+                    frag += content_item["text"]
+                    if CONFIG["EXTRA_LOGGING"]
+                      puts "  Found text content: #{content_item["text"].length} chars"
+                    end
+                  end
+                end
+              elsif item["content"].is_a?(String)
+                frag += item["content"]
+              end
+            end
+          end
+        end
+        
+        # Fallback to standard format if available
+        if frag.empty? && obj.dig("choices", 0, "message", "content")
+          frag = obj.dig("choices", 0, "message", "content")
+        end
+      else
+        # Handle standard chat API response
+        frag = obj.dig("choices", 0, "message", "content")
+      end
+      
+      if CONFIG["EXTRA_LOGGING"]
+        puts "Non-streaming response - content length: #{frag.length}"
+        puts "Returning obj class: #{obj.class}"
+      end
+      
       block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      [obj]
+      
+      # For responses API, we need to format the response to match standard structure
+      if use_responses_api
+        formatted_response = {
+          "choices" => [{
+            "message" => {
+              "role" => "assistant",
+              "content" => frag
+            },
+            "finish_reason" => "stop"
+          }],
+          "model" => obj["model"] || body["model"]
+        }
+        [formatted_response]
+      else
+        [obj]
+      end
     else
       # Include original model in the query for comparison
       body["original_user_model"] = original_user_model
-      process_json_data(app: app,
-                        session: session,
-                        query: body,
-                        res: res.body,
-                        call_depth: call_depth, &block)
-
+      
+      if use_responses_api
+        # Process responses API streaming response
+        process_responses_api_data(app: app,
+                                  session: session,
+                                  query: body,
+                                  res: res.body,
+                                  call_depth: call_depth, &block)
+      else
+        # Process standard chat API streaming response
+        process_json_data(app: app,
+                          session: session,
+                          query: body,
+                          res: res.body,
+                          call_depth: call_depth, &block)
+      end
     end
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
@@ -1066,5 +1326,265 @@ module OpenAIHelper
 
     # return Array
     api_request("tool", session, call_depth: call_depth, &block)
+  end
+
+  def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Processing responses API query at #{Time.now} (Call depth: #{call_depth})")
+      extra_log.puts(JSON.pretty_generate(query))
+    end
+
+    obj = session[:parameters]
+    buffer = String.new
+    texts = {}
+    finish_reason = nil
+
+    chunk_count = 0
+    res.each do |chunk|
+      chunk = chunk.force_encoding("UTF-8")
+      buffer << chunk
+      chunk_count += 1
+      
+      if CONFIG["EXTRA_LOGGING"]
+        if chunk_count % 10 == 0  # Log every 10 chunks
+          puts "Received #{chunk_count} chunks, buffer size: #{buffer.length}"
+        end
+      end
+
+      if buffer.valid_encoding? == false
+        next
+      end
+
+      begin
+        # Check for completion patterns
+        if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
+          if CONFIG["EXTRA_LOGGING"]
+            puts "Stream completed - found DONE marker"
+          end
+          break
+        end
+      rescue
+        next
+      end
+
+      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      buffer.encode!("UTF-8", "UTF-16")
+
+      scanner = StringScanner.new(buffer)
+      # Responses API uses different event format
+      pattern = /data: (\{.*?\})(?=\n|\z)/
+      
+      until scanner.eos?
+        matched = scanner.scan_until(pattern)
+        if matched
+          json_data = matched.match(pattern)[1]
+          begin
+            json = JSON.parse(json_data)
+
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log.puts(JSON.pretty_generate(json))
+            end
+            
+            # Check if response model differs from requested model
+            response_model = json["model"]
+            requested_model = query["original_user_model"] || query["model"]
+            check_model_switch(response_model, requested_model, session, &block)
+
+            # Handle different event types for responses API
+            event_type = json["type"]
+            
+            if CONFIG["EXTRA_LOGGING"]
+              puts "Responses API event: #{event_type}"
+              puts "Event data: #{json.inspect}" if event_type != "response.output_text.delta"
+            end
+            
+            case event_type
+            when "response.created"
+              # Response created - just log for now
+              if CONFIG["EXTRA_LOGGING"]
+                puts "Response created with ID: #{json.dig("response", "id")}"
+              end
+              
+            when "response.in_progress"
+              # Response in progress - check for any output
+              response_data = json["response"]
+              if response_data
+                if CONFIG["EXTRA_LOGGING"]
+                  puts "In progress - Status: #{response_data["status"]}"
+                  puts "Output array length: #{response_data["output"]&.length || 0}"
+                end
+                
+                if response_data["output"] && !response_data["output"].empty?
+                  output = response_data["output"]
+                  output.each do |item|
+                    if item["type"] == "text" && item["text"]
+                      id = response_data["id"] || "default"
+                      texts[id] ||= ""
+                      new_text = item["text"]
+                      # Only add if it's new content
+                      if !texts[id].include?(new_text)
+                        texts[id] += new_text
+                        res = { "type" => "fragment", "content" => new_text }
+                        block&.call res
+                      end
+                    end
+                  end
+                end
+              end
+              
+            when "response.output_text.delta"
+              # Text fragment
+              fragment = json["delta"]
+              if fragment && !fragment.empty?
+                id = json["response_id"] || "default"
+                texts[id] ||= ""
+                texts[id] += fragment
+                
+                res = { "type" => "fragment", "content" => fragment }
+                block&.call res
+              end
+              
+            when "response.function_call.arguments.delta"
+              # Tool call fragment
+              fragment = json["delta"]
+              if fragment && !fragment.empty?
+                res = { "type" => "tool_fragment", "content" => fragment }
+                block&.call res
+              end
+              
+            when "response.completed", "response.done"
+              # Response completed - extract final output
+              response_data = json["response"] || json  # Handle both nested and flat structures
+              
+              if CONFIG["EXTRA_LOGGING"]
+                puts "Response completed. Checking for output..."
+                puts "Response data keys: #{response_data.keys.inspect}"
+              end
+              
+              if response_data && response_data["output"] && !response_data["output"].empty?
+                output = response_data["output"]
+                output.each do |item|
+                  if item["type"] == "text" && item["text"]
+                    id = response_data["id"] || "default"
+                    texts[id] ||= ""
+                    texts[id] = item["text"]  # Replace with final text
+                    
+                    if CONFIG["EXTRA_LOGGING"]
+                      puts "Found text in completed response: #{item["text"].length} chars"
+                    end
+                  end
+                end
+              else
+                if CONFIG["EXTRA_LOGGING"]
+                  puts "No output found in completed response"
+                end
+              end
+              finish_reason = response_data["stop_reason"] || json["stop_reason"] || "stop"
+              
+            when "response.output.done"
+              # Alternative completion event
+              # Extract final output if available
+              if json["output"]
+                output_text = json.dig("output", 0, "content", 0, "text")
+                if output_text && !output_text.empty?
+                  id = json["response_id"] || "default"
+                  texts[id] ||= ""
+                  texts[id] = output_text  # Replace with final text
+                end
+              end
+              finish_reason = "stop"
+              
+            when "response.error"
+              # Error occurred
+              error_msg = json.dig("error", "message") || "Unknown error"
+              res = { "type" => "error", "content" => "API ERROR: #{error_msg}" }
+              block&.call res
+              
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log.close
+              end
+              return [res]
+              
+            else
+              # Unknown event type - check if it contains output
+              if CONFIG["EXTRA_LOGGING"]
+                puts "Unknown responses API event type: #{event_type}"
+                
+                # Check various possible locations for output
+                if json["output"]
+                  puts "Found output at top level: #{json["output"].inspect}"
+                elsif json.dig("response", "output")
+                  puts "Found output in response: #{json.dig("response", "output").inspect}"
+                end
+              end
+            end
+            
+          rescue JSON::ParserError => e
+            # JSON parsing error, continue to next iteration
+          rescue StandardError => e
+            pp e.message
+            pp e.backtrace
+            pp e.inspect
+          end
+        else
+          scanner.terminate
+        end
+      end
+      
+      buffer = scanner.rest
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log.close
+    end
+
+    if texts.any?
+      complete_text = texts.values.join("")
+      response = {
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => complete_text
+          },
+          "finish_reason" => finish_reason || "stop"
+        }],
+        "model" => query["model"]
+      }
+      
+      if CONFIG["EXTRA_LOGGING"]
+        puts "Responses API returning response with content length: #{complete_text.length}"
+        puts "Response structure: #{response.inspect[0..300]}..."
+      end
+      
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" })
+      [response]
+    else
+      # Return a properly formatted empty response instead of empty hash
+      response = {
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => ""
+          },
+          "finish_reason" => "stop"
+        }],
+        "model" => query["model"]
+      }
+      
+      if CONFIG["EXTRA_LOGGING"]
+        puts "Responses API returning empty response"
+        puts "Response structure: #{response.inspect}"
+      end
+      
+      [response]
+    end
+  rescue StandardError => e
+    pp e.message
+    pp e.backtrace
+    pp e.inspect
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
+    block&.call res
+    [res]
   end
 end

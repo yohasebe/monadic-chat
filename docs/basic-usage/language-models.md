@@ -66,7 +66,7 @@ Reasoning models use advanced computational processes to think through problems 
 ### OpenAI Reasoning Models
 - **O1 Series**: o1, o1-mini, o1-preview, o1-pro
 - **O3 Series**: o3, o3-pro
-- **O4 Series**: Future models
+- **O4 Series**: o4-mini
 
 These models use `reasoning_effort` parameter ("low", "medium", "high") instead of temperature settings.
 
@@ -76,7 +76,7 @@ These models use `reasoning_effort` parameter ("low", "medium", "high") instead 
 
 ### Mistral Reasoning Models
 - **Magistral Series**: magistral-medium, magistral-small
-- Multilingual reasoning capabilities (European languages)
+- Multilingual reasoning capabilities (French, German, Spanish, Italian, etc.)
 
 ### Key Differences from Standard Models
 - Use `reasoning_effort` instead of temperature

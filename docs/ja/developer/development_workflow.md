@@ -4,20 +4,20 @@
 
 ?> このドキュメントは、Monadic Chat のレシピファイルの開発者ではなく、Monadic Chat自体の開発者向けです。
 
-## テスト
+## テスト :id=testing
 
-### テストフレームワーク
+### テストフレームワーク :id=test-frameworks
 - **JavaScript**: フロントエンドコードのテストにJestを使用
 - **Ruby**: バックエンドコードのテストにRSpecを使用
 
-### テスト構造
+### テスト構造 :id=test-structure
 - JavaScriptテストは `test/frontend/` に配置
 - Rubyテストは `docker/services/ruby/spec/` に配置
 - アプリ固有の診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/{app_name}/` に配置
 - Jestの設定は `jest.config.js` に定義
 - JavaScriptのグローバルテスト設定は `test/setup.js` に定義
 
-### アプリ固有の診断スクリプト
+### アプリ固有の診断スクリプト :id=app-specific-test-scripts
 特定のテストや診断が必要なアプリケーションの場合：
 - 診断スクリプトは診断ディレクトリに配置: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 - 説明的な名前を使用: `test_feature_name.sh` または `diagnose_issue.rb`
@@ -26,7 +26,7 @@
 
 ?> **重要**: 診断スクリプトは `apps/{app_name}/test/` ディレクトリに配置してはいけません。アプリ内の `test/` サブディレクトリ内のファイルは、テストスクリプトがアプリケーションとしてロードされるのを防ぐため、アプリロード時に無視されます。
 
-### テスト実行方法
+### テスト実行方法 :id=running-tests
 
 **注意**: `rake server:debug`を使用して開発する場合、RubyテストはローカルのRuby環境を使用してホスト上で直接実行されます。
 
@@ -49,7 +49,7 @@ npm run test:coverage # カバレッジレポート付きでテストを実行
 rake test  # RubyとJavaScriptの両方のテストを実行
 ```
 
-## MDSL開発ツール
+## MDSL開発ツール :id=mdsl-development-tools
 
 ### MDSL自動補完システム（実験的機能）
 
@@ -124,11 +124,11 @@ MDSL_AUTO_COMPLETE=debug
 - 有効時にアプリのロードパフォーマンスに影響を与える
 - 本番環境での使用は推奨されない
 
-## デバッグシステム
+## デバッグシステム :id=debug-system
 
 Monadic Chatは環境変数で制御される統一デバッグシステムを使用します：
 
-### デバッグカテゴリ
+### デバッグカテゴリ :id=debug-categories
 - `all`: すべてのデバッグメッセージ
 - `app`: 一般的なアプリケーションデバッグ
 - `embeddings`: テキスト埋め込み操作
@@ -139,7 +139,7 @@ Monadic Chatは環境変数で制御される統一デバッグシステムを�
 - `web_search`: Web検索操作（Tavilyを含む）
 - `api`: APIリクエストとレスポンス
 
-### デバッグレベル
+### デバッグレベル :id=debug-levels
 - `none`: デバッグ出力なし（デフォルト）
 - `error`: エラーのみ
 - `warning`: エラーと警告
@@ -147,13 +147,13 @@ Monadic Chatは環境変数で制御される統一デバッグシステムを�
 - `debug`: 詳細なデバッグ情報
 - `verbose`: 生データを含むすべて
 
-### エラー処理の改善
+### エラー処理の改善 :id=error-handling-improvements
 - **エラーパターン検出**: システムは繰り返されるエラーを自動検出し、3回目以降停止
 - **UTF-8エンコーディング**: すべてのレスポンスがフォールバックエンコーディング置換で適切に処理
 - **無限ループ防止**: 「Maximum function call depth exceeded」エラーを防ぐためツール呼び出しを制限
 - **正常な劣化**: APIキーがない場合はクラッシュではなく明確なエラーメッセージを表示
 
-### 使用例
+### 使用例 :id=setup-usage-examples
 `~/monadic/config/env`ファイルに以下を追加：
 ```
 # Web検索のデバッグ出力を有効化
@@ -171,7 +171,7 @@ MONADIC_DEBUG_LEVEL=verbose
 MONADIC_DEBUG=api
 ```
 
-## MDSL開発のベストプラクティス
+## MDSL開発のベストプラクティス :id=mdsl-best-practices-section
 
 ### ファイル構造
 Monadic ChatアプリケーションはMDSL（Monadic Domain Specific Language）形式を使用します：
@@ -254,7 +254,7 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 - **コード実行**: すべてのプロバイダが`run_code`を使用
 - **配列パラメータ**: OpenAIは配列パラメータに`items`プロパティが必要
 
-## MDSL自動補完の制御
+## MDSL自動補完の制御 :id=mdsl-auto-completion-control
 
 MDSL自動補完システムは設定変数で制御できます。`~/monadic/config/env`ファイルで設定：
 
@@ -272,7 +272,7 @@ MDSL_AUTO_COMPLETE=true
 # MDSL_AUTO_COMPLETEは未設定またはデフォルトでfalse
 ```
 
-## 重要：セットアップスクリプトの管理
+## 重要：セットアップスクリプトの管理 :id=managing-setup-scripts
 
 リポジトリ内の`pysetup.sh`と`rbsetup.sh`ファイルはプレースホルダースクリプトで、コンテナビルド中に`~/monadic/config/`からユーザー提供のバージョンに置き換えられます。常にオリジナルのプレースホルダーバージョンをGitにコミットしてください。変更をコミットする前に、以下のいずれかの方法でこれらのファイルをリセットします：
 
@@ -296,7 +296,7 @@ MDSL_AUTO_COMPLETE=true
 git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh
 ```
 
-### Gitプリコミットフック（オプション）
+### Gitプリコミットフック（オプション） :id=git-precommit-hook
 
 各コミット前に自動的にこれらのファイルをリセットするgitプリコミットフックを設定できます：
 
@@ -338,9 +338,9 @@ exit 0
 
 このプリコミットフックは、コミット前にセットアップスクリプトへの変更を自動的に検出してリセットします。
 
-## 開発環境のセットアップ
+## 開発環境のセットアップ :id=development-environment-setup
 
-### 開発用にMonadic Chatを実行する
+### 開発用にMonadic Chatを実行する :id=running-for-development
 
 開発目的では、ElectronアプリなしでMonadic Chatを実行できます：
 
@@ -361,28 +361,28 @@ rake server:debug
 - ブラウザインターフェースで変更を素早くテスト
 - 必要な他のサービスはコンテナで実行を維持
 
-### コンテナを使用したローカル開発
+### コンテナを使用したローカル開発 :id=local-development-containers
 コンテナ機能を使用しながらローカルで開発する場合：
 - **Rubyコンテナ**: ローカルRuby環境を使用するために停止可能
 - **その他のコンテナ**: 依存するアプリのために実行を継続する必要がある
 - **Pythonコンテナ**: LaTeXを使用するConcept VisualizerやSyntax Treeなどのアプリに必要
 - **パス**: `IN_CONTAINER`環境変数により自動調整
 
-### コンテナ依存アプリのテスト
+### コンテナ依存アプリのテスト :id=testing-container-dependencies
 特定のコンテナを必要とするアプリ（例：LaTeX用のPythonコンテナが必要なConcept Visualizer）の場合：
 1. 必要なコンテナが実行中であることを確認: `./docker/monadic.sh check`
 2. ローカル開発の場合、Rubyコンテナのみを停止
 3. ローカルRubyコードを実行 - 他の実行中のコンテナと通信します
 4. コンテナパス（`/monadic/data`）は自動的にホストパス（`~/monadic/data`）にマッピングされます
 
-### Docker Composeプロジェクトの一貫性
+### Docker Composeプロジェクトの一貫性 :id=docker-compose-consistency
 Docker Composeコマンドを使用する際は、常にプロジェクト名フラグを使用して一貫性を確保してください：
 ```bash
 docker compose -p "monadic-chat" [command]
 ```
 これは特にパッケージ化されたElectronアプリで適切なコンテナ管理を維持するために重要です。
 
-## ユーザー向け
+## ユーザー向け :id=for-users
 
 コンテナをカスタマイズしたいユーザーは、以下の場所にカスタムスクリプトを配置する必要があります：
 - Pythonのカスタマイズには`~/monadic/config/pysetup.sh`

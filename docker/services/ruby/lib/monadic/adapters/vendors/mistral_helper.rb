@@ -202,7 +202,7 @@ module MistralHelper
     end
     
     # Check if this is a reasoning model (magistral models)
-    is_reasoning_model = model && model.match?(/^magistral(-|$)/i)
+    is_reasoning_model = model && model.match?(/magistral/i)
     
     # Prepare request body
     body = {
@@ -353,7 +353,7 @@ module MistralHelper
     }
 
     # Check if this is a reasoning model (magistral models)
-    is_reasoning_model = obj["model"] && obj["model"].match?(/^magistral(-|$)/i)
+    is_reasoning_model = obj["model"] && obj["model"].match?(/magistral/i)
     
     # Set body for the API request
     body = {
@@ -486,6 +486,7 @@ module MistralHelper
     buffer = ""
     content_buffer = ""
     thinking_buffer = ""
+    thinking = []
     tool_calls = []
     tool_use_content = nil
     last_tool_use_start_idx = nil
@@ -540,62 +541,19 @@ module MistralHelper
             if delta["content"]
               content = delta["content"]
               
+              
               # Check if this is a Magistral model and process thinking blocks
-              if obj["model"] && obj["model"].match?(/^magistral(-|$)/i)
-                # Process thinking blocks for Magistral models
-                if content.include?("<thinking>") || thinking_buffer.length > 0
-                  # We're in or starting a thinking block
-                  thinking_buffer += content
-                  
-                  # Check if we've completed a thinking block
-                  if thinking_buffer.include?("</thinking>")
-                    # Extract the complete thinking content
-                    thinking_match = thinking_buffer.match(/<thinking>(.*?)<\/thinking>/m)
-                    if thinking_match
-                      # Store the thinking content (without tags)
-                      thinking << thinking_match[1].strip
-                      # Remove the thinking block from content buffer
-                      remaining_content = thinking_buffer.sub(/<thinking>.*?<\/thinking>/m, "")
-                      thinking_buffer = ""
-                      
-                      # Process any remaining content after thinking block
-                      if remaining_content && remaining_content.length > 0
-                        # Remove \boxed{} formatting if present
-                        remaining_content = remaining_content.gsub(/\\boxed\{([^}]+)\}/, '\1')
-                        
-                        content_buffer += remaining_content
-                        # Send the non-thinking content to client
-                        if remaining_content.strip.length > 0
-                          res = {
-                            "type" => "fragment",
-                            "content" => remaining_content,
-                            "index" => content_buffer.length - remaining_content.length,
-                            "timestamp" => Time.now.to_f,
-                            "is_first" => content_buffer.length == remaining_content.length
-                          }
-                          block&.call res
-                        end
-                      end
-                    end
-                  end
-                  # Don't send thinking content to client
-                else
-                  # Not in a thinking block, process normally but remove \boxed{} formatting
-                  clean_content = content.gsub(/\\boxed\{([^}]+)\}/, '\1')
-                  content_buffer += clean_content
-                  
-                  # Send content to the client
-                  if clean_content.length > 0
-                    res = {
-                      "type" => "fragment",
-                      "content" => clean_content,
-                      "index" => content_buffer.length - clean_content.length,
-                      "timestamp" => Time.now.to_f,
-                      "is_first" => content_buffer.length == clean_content.length
-                    }
-                    block&.call res
-                  end
+              # Updated pattern to match magistral-medium-latest
+              if obj["model"] && obj["model"].match?(/magistral/i)
+                # Debug logging for Magistral model detection
+                if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+                  DebugHelper.debug("Mistral: Processing content for Magistral model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
                 end
+                # For Magistral models, collect all content and process thinking blocks later
+                content_buffer += content
+                
+                # Don't send content to client yet - we'll process it after streaming is complete
+                # This is necessary because <think> tags may be split across multiple chunks
               else
                 # Non-Magistral models, process normally
                 content_buffer += content
@@ -758,11 +716,26 @@ module MistralHelper
 
     # Clean content for Magistral models
     final_content = content_buffer
-    if obj["model"] && obj["model"].match?(/^magistral(-|$)/i)
-      # Remove any remaining \boxed{} formatting
+    if obj["model"] && obj["model"].match?(/magistral/i)
+      # Extract thinking blocks from the complete content buffer
+      if content_buffer.include?("<think>") || content_buffer.include?("<thinking>")
+        # Extract all thinking blocks
+        thinking_matches = content_buffer.scan(/<think>(.*?)<\/think>/m)
+        thinking_matches += content_buffer.scan(/<thinking>(.*?)<\/thinking>/m)
+        
+        thinking_matches.each do |match|
+          thinking_content = match[0].strip
+          thinking << thinking_content
+        end
+        
+        # Remove thinking blocks from final content
+        final_content = content_buffer.gsub(/<think>.*?<\/think>/m, '')
+        final_content = final_content.gsub(/<thinking>.*?<\/thinking>/m, '')
+      end
+      
+      # Remove any remaining \boxed{} and \text{} formatting
       final_content = final_content.gsub(/\\boxed\{([^}]+)\}/, '\1')
-      # Remove any remaining thinking blocks that might have been missed
-      final_content = final_content.gsub(/<thinking>.*?<\/thinking>/m, '')
+      final_content = final_content.gsub(/\\text\{([^}]+)\}/, '\1')
     end
     
     # Prepare the result to return
@@ -782,6 +755,10 @@ module MistralHelper
     # Add thinking if collected
     if thinking && !thinking.empty?
       response["choices"][0]["message"]["thinking"] = thinking.join("\n\n")
+      # Debug logging for thinking content
+      if CONFIG["EXTRA_LOGGING"] || CONFIG["MONADIC_DEBUG"]
+        DebugHelper.debug("Mistral: Collected #{thinking.length} thinking block(s) for #{obj["model"]}", category: :api, level: :info)
+      end
     end
 
     [response]

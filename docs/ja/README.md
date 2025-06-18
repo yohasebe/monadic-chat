@@ -8,6 +8,8 @@
 
 **Mac**、**Windows**、**Linux**（Debian/Ubuntu）向けのインストーラが提供されています。
 
+[Changelog](https://yohasebe.github.io/monadic-chat/#/ja/changelog)
+
 ## はじめよう
 
 - [**ドキュメント**](https://yohasebe.github.io/monadic-chat) (英語/日本語)
@@ -31,6 +33,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 📦 ユーザーによる**アプリ**と**コンテナ**の追加機能
 - 💬 **Human/AI chat** と **AI/AI** chat 
 - ✨ **複数のAIモデル**を活用したチャット機能
+- 🔄 アプリ内通知とダウンロード管理を備えた**自動アップデート**機能
 - 🌐 複数のクライアントが単一のサーバーに接続できる**サーバーモード**
 - 🔍 アプリケーション内でWebインターフェースを表示する**内蔵ブラウザ**
 - ❓ 多数の機能をAIエージェントが説明する**ヘルプ機能**
@@ -60,6 +63,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 📜 メッセージの**ロール**設定（ユーザー、アシスタント、システム）
 - 🔢 **PDF**からの**テキスト埋め込み**生成とインポート／エクスポート
 - 📼 コードの実行とツール/関数の使用の詳細な**ログ**（デバッグを容易に）
+- 📋 URLや各種ファイル形式（PDF、DOCX、PPTX、XLSXなど）から**コンテンツを抽出**
 
 ### 音声インタラクション
 
@@ -86,11 +90,16 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🎨 **Concept Visualizer** - LaTeX/TikZを使用した3D可視化を含む各種図表の作成（OpenAI、Claude）
 - 🎥 **Video Generator** - GoogleのVeoモデルを使用したテキストまたは画像からの動画作成（Gemini）
 - 🌐 **Visual Web Explorer** - Webページのスクリーンショット撮影やテキスト抽出（OpenAI、Claude、Gemini、Grok）
-- 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話
+- 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
 - 📊 **DrawIO Grapher** - DrawIO形式でプロフェッショナルな図表を作成（OpenAI、Claude）
-- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導
-- 💬 **Second Opinion** - 異なるAIプロバイダーから検証意見を取得
-- 📄 **PDF Navigator** - ベクトルデータベース（RAG）を使用したPDF文書のナビゲートと分析
+- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
+- 💬 **Second Opinion** - 異なるAIプロバイダーから検証意見を取得（すべてのプロバイダー対応）
+- 📄 **PDF Navigator** - ベクトルデータベース（RAG）を使用したPDF文書のナビゲートと分析（OpenAI）
+- 📚 **Research Assistant** - 学術論文の分析と文献レビュー（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
+- 💻 **Code Interpreter** - 実行機能付き高度なプログラミングサポート（すべてのプロバイダー対応）
+- 🗣️ **Language Practice** - ネイティブスピーカーとの対話型言語学習（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
+- ✍️ **Novel Writer** - キャラクター開発を含む創作執筆支援（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
+- ❓ **Monadic Chat Help** - インテリジェントな支援機能付き内蔵ヘルプシステム（OpenAI）
 
 ### 設定と拡張
 

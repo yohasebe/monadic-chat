@@ -54,7 +54,7 @@ parser = OptionParser.new do |opts|
     options[:original_image_name] = name
   end
 
-  opts.on("-s", "--size SIZE", "Image size (1024x1024, 1024x1536, 1536x1024, auto)") do |size|
+  opts.on("-s", "--size SIZE", "Image size (256x256, 512x512, 1024x1024, 1024x1536, 1536x1024, 1792x1024, 1024x1792, auto)") do |size|
     options[:size] = size
   end
 

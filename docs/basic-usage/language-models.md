@@ -61,34 +61,28 @@ Providers with native web search (Perplexity, xAI Grok) don't require this confi
 
 ## Reasoning Models
 
-The latest generation of AI models includes advanced reasoning capabilities:
+Reasoning models use advanced computational processes to think through problems step-by-step before responding. Monadic Chat automatically detects these models and adjusts parameters accordingly.
 
-**OpenAI Reasoning Models:**
-- o1, o1-mini, o1-pro (fixed temperature)
-- o3, o3-mini, o3-pro (configurable reasoning effort)
-- o4-mini (configurable reasoning effort)
+### OpenAI Reasoning Models
+- **O1 Series**: o1, o1-mini, o1-preview, o1-pro
+- **O3 Series**: o3, o3-pro
+- **O4 Series**: Future models
 
-**Claude 4.0 Series:**
-- claude-opus-4, claude-sonnet-4 (latest reasoning models)
-- Superior reasoning and performance
+These models use `reasoning_effort` parameter ("low", "medium", "high") instead of temperature settings.
 
-**Gemini Thinking Models:**
-- gemini-2.5-pro with Deep Think mode
-- gemini-2.5-flash with adjustable reasoning dial
-- gemini-2.0-flash-thinking-exp
-- Can adjust computing budget for reasoning tasks
+### Gemini Thinking Models
+- **2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
+- Advanced reasoning with adjustable computing budget
 
-**Mistral Magistral:**
-- magistral-medium, magistral-small
-- Multilingual reasoning (European languages)
-- Step-by-step logic with traceable thought process
+### Mistral Reasoning Models
+- **Magistral Series**: magistral-medium, magistral-small
+- Multilingual reasoning capabilities (European languages)
 
-**Other Reasoning Models:**
-- grok-3, grok-3-pro (xAI)
-- r1-1776 (Perplexity, based on DeepSeek-R1)
-- deepseek-reasoner (DeepSeek)
-
-These models use `reasoning_effort` parameter (low/medium/high) or similar controls instead of traditional temperature settings.
+### Key Differences from Standard Models
+- Use `reasoning_effort` instead of temperature
+- Limited function calling support
+- Web search requires automatic model switching
+- Some models don't support streaming (o1-pro, o3-pro)
 
 ## OpenAI Models
 

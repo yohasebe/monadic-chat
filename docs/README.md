@@ -33,7 +33,10 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📦 User-added **apps** and **containers** functionality
 - 💬 Support for both **Human/AI chat** and **AI/AI** chat
 - ✨ Chat functionality utilizing **multiple AI models**
-- ❓ **Help function**: Built-in assistance and documentation
+- 🔄 **Automatic updates** with in-app notifications and download management
+- 🌐 **Server mode** for multiple clients to connect to a single server
+- 🔍 **Built-in browser** for viewing the web interface within the application
+- ❓ **Help function**: Built-in assistance and documentation with AI agent explanations
 
 ### AI + Linux Environment
 
@@ -44,6 +47,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Python (+ pip, Flask API server)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
+  - Ollama (optional, for local LLM models)
 - ⚡️ Use of LLMs via **online and local** APIs
 - 📦 Each container can be managed via **SSH**
 - 📓 Integration with **Jupyter Notebook**
@@ -58,49 +62,65 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💬 Specify the number of messages to send to the API as **context size**
 - 📜 Set **roles** for messages (user, assistant, system)
 - 🔢 Generate and import/export **text embeddings** from PDFs
-- 📼 **Logging** of code execution and tool/function use for debugging and export
+- 📼 **Logging** of code execution and tool/function use for debugging
+- 📋 **Extract content** from URLs and various file formats (PDF, DOCX, PPTX, XLSX, etc.)
 
 ### Voice Interaction
 
-- 🔈 **Text-to-speech** for AI assistant responses (OpenAI or Elevenlabs)
-- 🎙️ **Speech recognition** using the Speech-to-Text API (+ display of p-values)
+- 🔈 **Text-to-speech** for AI assistant responses (OpenAI, Elevenlabs, Google Gemini, or Web Speech API)
+- 🎙️ **Speech recognition** using the Speech-to-Text API (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
-- 🎧 Save AI assistant's spoken responses as **MP3 audio** files
+- 🎧 Save AI assistant's spoken responses as **MP3/WAV audio** files
 
 ### Image/Video Recognition and Generation
 
-- 🖼️ **Image generation** using DALL·E 3 API and Google Imagen
+- 🖼️ **Image generation and editing** using OpenAI's gpt-image-1, Google Imagen 3 & Gemini 2.0 Flash, and xAI Grok
+- ✏️ **Image editing** with OpenAI's gpt-image-1 model for modifying existing images
+- 🎭 **Mask editor** for precise control over which areas of an image to edit
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**
 - 🎥 Recognition and description of **uploaded video content and audio**
+- 🎬 **Video generation** using Google's Veo model for text-to-video and image-to-video creation
 
 ### Specialized Applications
 
-- **Research Assistant**: Academic paper analysis and literature review
-- **Code Interpreter**: Advanced programming support with execution
-- **Language Practice**: Interactive language learning with native speakers
-- **Math Tutor**: Step-by-step mathematical problem solving
-- **Novel Writer**: Creative writing assistance with character development
-- **Visual Web Explorer**: Capture web pages as screenshots or extract text content
-- **Second Opinion**: Get verification from different AI providers for accuracy
-- **Monadic Chat Help**: Built-in help system with intelligent assistance
+- 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
+- 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
+- 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
+- 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)
+- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
+- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- 💬 **Second Opinion** - Get verification from different AI providers for accuracy (all providers)
+- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (RAG) (OpenAI)
+- 📚 **Research Assistant** - Academic paper analysis and literature review (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- 💻 **Code Interpreter** - Advanced programming support with execution (all providers)
+- 🗣️ **Language Practice** - Interactive language learning with native speakers (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- ✍️ **Novel Writer** - Creative writing assistance with character development (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- ❓ **Monadic Chat Help** - Built-in help system with intelligent assistance (OpenAI)
 
 ### Configuration and Extension
 
 - 💡 Specify and edit **API parameters** and **system prompts**
 - 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
-- 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps
+- 🤖 **MDSL Auto-completion** system that automatically generates tool definitions from Ruby implementations
+- 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps with real-time validation
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
-- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, and xAI Grok
+- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, xAI Grok, and Perplexity
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
+- 📝 **Declarative DSL** for simplified app development with error pattern detection
+- 🔧 Optional setup scripts for custom environment configuration
+  - Ruby container (`rbsetup.sh`)
+  - Python container (`pysetup.sh`)
+  - Ollama container (`olsetup.sh`)
 
 ### Support for Multiple LLM APIs
 
-- 👥 **Web APIs**:
+- 👥 Web API
   - [OpenAI GPT](https://platform.openai.com/docs/overview)
   - [Google Gemini](https://ai.google.dev/gemini-api)
   - [Anthropic Claude](https://www.anthropic.com/api)

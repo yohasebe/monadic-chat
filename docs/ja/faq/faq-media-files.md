@@ -19,7 +19,7 @@
 
 ##### Q: PDFの内容について AI エージェントに質問することはできますか？ :id=pdf-content-questions
 
-**A**: はい、いくつかのやり方があります。[`PDF Navigator`](../basic-usage/basic-apps.md#pdf-navigator) アプリでは、提供された PDF の単語埋め込みを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) や [`Content Reader`](../basic-usage/basic-apps.md#content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
+**A**: はい、いくつかのやり方があります。[`PDF Navigator`](../basic-usage/basic-apps.md#pdf-navigator) アプリでは、提供された PDF の単語エンベディングを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) や [`Content Reader`](../basic-usage/basic-apps.md#content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 
 上記はいずれもデフォルトで OpenAI モデルを使用しています。その他のプロバイダーを使用する場合は、`Code` 機能対応のアプリで `Code Interpreter` と同様の仕組みで PDF ファイルを読み込ませることができます。
 

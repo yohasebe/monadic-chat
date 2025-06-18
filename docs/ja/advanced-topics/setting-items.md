@@ -46,7 +46,7 @@ end
 ## オプション設定
 
 ### LLMブロックのオプション
-- **`temperature`** - 応答のランダム性を制御。範囲と利用可否はプロバイダーとモデルに依存。一部のモデル（OpenAI o1/o3、Gemini 2.5思考型モデルなど）は温度調整をサポートしません
+- **`temperature`** - 応答のランダム性を制御。範囲と利用可否はプロバイダーとモデルに依存。一部のモデル（OpenAI o1/o3、Gemini 2.5思考型モデルなど）はtemperature調整をサポートしません
 - **`max_tokens`** - レスポンスの最大トークン数（利用可否と上限はモデルにより異なる）
 - **`presence_penalty`** - 繰り返しトピックのペナルティ。一部のOpenAIおよびMistralモデルでサポート
 - **`frequency_penalty`** - 繰り返し単語のペナルティ。一部のOpenAIおよびMistralモデルでサポート

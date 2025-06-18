@@ -98,6 +98,10 @@ app "SyntaxTreeOpenAI" do
     pdf false
     toggle true
   end
+  
+  settings do
+    temperature 0.0
+  end
 
   tools do
     define_tool "render_syntax_tree", "Render the syntax tree as an SVG image using LaTeX" do

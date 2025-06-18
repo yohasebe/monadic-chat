@@ -38,6 +38,10 @@ app "VisualWebExplorerGemini" do
     provider "gemini"
     model "gemini-2.5-flash-preview-05-20"
   end
+  
+  settings do
+    temperature 0.0
+  end
 
   features do
     monadic false

@@ -2139,3 +2139,54 @@ h1 {
   line-height: 1.5;
   color: #444;
 }
+
+/* Provider colors for custom dropdown */
+.custom-dropdown-group[data-group="OpenAI"] span:first-child {
+  color: #10a37f;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Anthropic"] span:first-child {
+  color: #d97706;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Google"] span:first-child {
+  color: #4285f4;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="xAI"] span:first-child {
+  color: #1d9bf0;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Mistral"] span:first-child {
+  color: #f97316;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Cohere"] span:first-child {
+  color: #8b5cf6;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Perplexity"] span:first-child {
+  color: #20b8cd;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="DeepSeek"] span:first-child {
+  color: #0066cc;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Ollama"] span:first-child {
+  color: #000000;
+  font-weight: 700;
+}
+
+.custom-dropdown-group[data-group="Extra"] span:first-child {
+  color: #6b7280;
+  font-weight: 700;
+}

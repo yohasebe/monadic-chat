@@ -2,11 +2,11 @@
 
 Monadic Chatには、プロジェクトのドキュメントに基づいて文脈に応じた支援を提供するAI駆動のヘルプシステムが含まれています。
 
-## 概要
+## 概要 :id=overview
 
 ヘルプシステムは、OpenAIのエンベディングを使用してMonadic Chatのドキュメントから検索可能なナレッジベースを作成します。これにより、インテリジェントで文脈に応じた応答が可能になります。
 
-## 機能
+## 機能 :id=features
 
 - **自動言語検出**：英語のドキュメントのみを保存しながら、ユーザーの言語で応答
 - **マルチチャンク検索**：包括的な回答のために複数の関連セクションを返す
@@ -14,26 +14,26 @@ Monadic Chatには、プロジェクトのドキュメントに基づいて文�
 - **バッチ処理**：より良いパフォーマンスのために効率的にエンベディングをバッチで処理
 - **自動コンテナ再構築**：ヘルプデータが更新されるとPGVectorコンテナが自動的に再構築
 
-## 必要条件
+## 必要条件 :id=requirements
 
 - OpenAI APIキー（エンベディングとチャット機能用）
 - 実行中のpgvectorコンテナ
 
-## 使用方法
+## 使用方法 :id=usage
 
-### ヘルプへのアクセス
+### ヘルプへのアクセス :id=accessing-help
 
 1. Monadic Chatを起動し、すべてのコンテナが実行中であることを確認
 2. アプリメニューから「Monadic Chat Help」を選択
 3. 任意の言語でMonadic Chatについて質問
 
-### よくある質問
+### よくある質問 :id=common-questions
 
 - 「グラフを生成するには？」→ Math TutorまたはMermaid Grapherアプリを提案
 - 「PDFで作業するには？」→ PDF Navigatorアプリを説明
 - 「どのような音声機能がありますか？」→ Voice Chatと音声合成オプションを説明
 
-## ヘルプデータベースの構築
+## ヘルプデータベースの構築 :id=building-help-database
 
 ヘルプデータベースは開発中にドキュメントから構築されます：
 
@@ -51,9 +51,9 @@ rake help:stats
 rake help:export
 ```
 
-## 設定
+## 設定 :id=configuration
 
-### 設定変数
+### 設定変数 :id=configuration-variables
 
 - **`HELP_CHUNK_SIZE`**：チャンクあたりの文字数（デフォルト：3000）
   - 処理中にドキュメントがどのように分割されるかを制御
@@ -71,7 +71,7 @@ rake help:export
   - より多くのチャンクはより良いコンテキストを提供
   - 応答の品質と完全性に影響
 
-### 設定例
+### 設定例 :id=example-configuration
 
 `~/monadic/config/env`ファイルにこれらの設定を追加します：
 
@@ -82,9 +82,9 @@ HELP_EMBEDDINGS_BATCH_SIZE=100
 HELP_CHUNKS_PER_RESULT=5
 ```
 
-## アーキテクチャ
+## アーキテクチャ :id=architecture
 
-### データベース構造
+### データベース構造 :id=database-structure
 
 ヘルプシステムは、pgvector拡張機能を持つ別個のPostgreSQLデータベース（`monadic_help`）を使用します：
 
@@ -98,7 +98,7 @@ HELP_CHUNKS_PER_RESULT=5
   - 詳細検索用のチャンクレベルのエンベディング
   - 外部キーを介して親ドキュメントにリンク
 
-### エクスポート/インポートプロセス
+### エクスポート/インポートプロセス :id=export-import-process
 
 1. **開発フェーズ**：
    - `rake help:build`を使用してドキュメントが処理される
@@ -115,7 +115,7 @@ HELP_CHUNKS_PER_RESULT=5
    - インポートスクリプトがJSONからPostgreSQLへの変換を処理
    - エンベディングがエクスポートファイルから復元される
 
-### 自動コンテナ再構築
+### 自動コンテナ再構築 :id=automatic-container-rebuilding
 
 システムはエクスポートIDを使用してヘルプデータベースの更新を追跡します：
 
@@ -125,22 +125,22 @@ HELP_CHUNKS_PER_RESULT=5
 4. 異なる場合、PGVectorコンテナが自動的に再構築される
 5. コンテナの初期化中に新しいヘルプデータがインポートされる
 
-## 開発
+## 開発 :id=development
 
-### ドキュメントの追加
+### ドキュメントの追加 :id=adding-documentation
 
 1. `docs/`ディレクトリにマークダウンファイルを追加または変更
 2. `rake help:build`を実行してデータベースを更新
 3. システムは変更されたファイルのみを処理
 
-### 処理の詳細
+### 処理の詳細 :id=processing-details
 
 - **増分更新**：MD5ハッシングが変更されたドキュメントを検出
 - **バッチ処理**：設定可能なバッチでエンベディングを処理
 - **多言語**：`/ja/`および他の言語ディレクトリを除外
 - **階層的コンテキスト**：メタデータに見出し構造を保持
 
-### テスト
+### テスト :id=testing
 
 ヘルプシステムをテストするには：
 
@@ -157,7 +157,7 @@ rake help:stats
 # 3. 異なる言語でクエリをテスト
 ```
 
-### デバッグ
+### デバッグ :id=debugging
 
 デバッグ出力を有効にする：
 
@@ -172,36 +172,36 @@ HELP_EMBEDDINGS_DEBUG=1
 rake help:build
 ```
 
-## パフォーマンスの最適化
+## パフォーマンスの最適化 :id=performance-optimization
 
-### チャンクサイズのガイドライン
+### チャンクサイズのガイドライン :id=chunk-size-guidelines
 
 - **技術文書**：コード例を保持するために大きいチャンク（4000-5000）を使用
 - **FAQ/短いコンテンツ**：正確なマッチングのために小さいチャンク（2000-3000）を使用
 - **一般的なコンテンツ**：デフォルト（3000）がほとんどの場合によく機能
 
-### APIパフォーマンス
+### APIパフォーマンス :id=api-performance
 
 - タイムアウトが発生する場合は`HELP_EMBEDDINGS_BATCH_SIZE`を減らす
 - OpenAI APIのレート制限を監視
 - オフピーク時間での処理を検討
 
-### 検索品質
+### 検索品質 :id=search-quality
 
 - 回答が不完全な場合は`HELP_CHUNKS_PER_RESULT`を増やす
 - より多くの結果を得るために検索呼び出しの`top_n`パラメータを調整
 - より良いマッチングのために特定の検索用語を使用
 
-## 制限事項
+## 制限事項 :id=limitations
 
 - OpenAI APIキーが必要（他のエンベディングプロバイダーのサポートなし）
 - 英語のドキュメントのみ（応答は機械翻訳）
 - モデルの制約により最大コンテキストが制限
 - エンベディング次元は3072に固定（OpenAI text-embedding-3-large）
 
-## トラブルシューティング
+## トラブルシューティング :id=troubleshooting
 
-### よくある問題
+### よくある問題 :id=common-issues
 
 1. **「ヘルプデータベースが存在しません」**
    - `rake help:build`を実行してデータベースを作成

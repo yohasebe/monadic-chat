@@ -40,10 +40,23 @@ app "SecondOpinionClaude" do
       - The validity score (X/10)
       - The model that provided the evaluation
 
-      At the beginning of the chat, welcome the user and explain the two-step process:
-      1. You'll first provide your answer
-      2. They can then request a second opinion from any available provider
-      3. List available providers: OpenAI, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama
+      At the beginning of the chat, welcome the user and explain the two-step process clearly:
+      
+      **Welcome Message Example:**
+      "Welcome to Second Opinion! I use a two-step consultation process:
+      
+      **Step 1**: Ask me any question and I'll provide my best answer
+      **Step 2**: If you want verification or alternative perspectives, just ask for a second opinion
+      
+      You can say things like:
+      - 'Get a second opinion'
+      - 'What does OpenAI think about this?'
+      - 'Ask Gemini to verify this'
+      - 'Is this correct?'
+      
+      Available providers for second opinions: OpenAI, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama
+      
+      What would you like to know?"
     TEXT
 
   features do

@@ -61,34 +61,28 @@ WEBSEARCH_MODEL=gpt-4.1-mini
 
 ## 推論モデル
 
-最新世代のAIモデルには高度な推論機能が含まれています：
+推論モデルは高度な計算プロセスを使用して、応答する前に問題を段階的に思考します。Monadic Chatはこれらのモデルを自動的に検出し、パラメータを調整します。
 
-**OpenAI推論モデル：**
-- o1、o1-mini、o1-pro（固定温度）
-- o3、o3-mini、o3-pro（推論努力設定可能）
-- o4-mini（推論努力設定可能）
+### OpenAI推論モデル
+- **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
+- **O3シリーズ**: o3、o3-pro
+- **O4シリーズ**: 将来のモデル
 
-**Claude 4.0シリーズ：**
-- claude-opus-4、claude-sonnet-4（最新の推論モデル）
-- 優れた推論とパフォーマンス
+これらのモデルは温度設定の代わりに`reasoning_effort`パラメータ（"low"、"medium"、"high"）を使用します。
 
-**Gemini思考モデル：**
-- Deep Thinkモード付きgemini-2.5-pro
-- 調整可能な推論ダイヤル付きgemini-2.5-flash
-- gemini-2.0-flash-thinking-exp
-- 推論タスクのコンピューティング予算を調整可能
+### Gemini思考モデル
+- **2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
+- 調整可能なコンピューティング予算での高度な推論
 
-**Mistral Magistral：**
-- magistral-medium、magistral-small
-- 多言語推論（ヨーロッパ言語）
-- 追跡可能な思考プロセスによるステップバイステップロジック
+### Mistral推論モデル
+- **Magistralシリーズ**: magistral-medium、magistral-small
+- 多言語推論機能（ヨーロッパ言語）
 
-**その他の推論モデル：**
-- grok-3、grok-3-pro（xAI）
-- r1-1776（Perplexity、DeepSeek-R1ベース）
-- deepseek-reasoner（DeepSeek）
-
-これらのモデルは従来の温度設定の代わりに`reasoning_effort`パラメータ（low/medium/high）または類似の制御を使用します。
+### 標準モデルとの主な違い
+- temperatureの代わりに`reasoning_effort`を使用
+- ファンクションコーリングのサポート制限
+- ウェブ検索は自動的なモデル切り替えが必要
+- 一部のモデルはストリーミング非対応（o1-pro、o3-pro）
 
 ## OpenAI Models
 

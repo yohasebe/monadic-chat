@@ -107,7 +107,7 @@ This is basically the same as Chat, but for questions about events that occurred
 
 This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
 
-?> Caution: LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
+!> **Caution:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
 
 ### Second Opinion
 
@@ -135,7 +135,7 @@ Research Assistant apps are also available for the following models:
 ?> **Web Search Functionality**: 
 > - **Native search** (no Tavily API required): OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)
 > - **Tavily API required**: Google Gemini, Mistral AI, and Cohere. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
-> - Note: Perplexity doesn't have a separate Research Assistant app because all its models include web search capabilities
+> - **Note:** Perplexity doesn't have a separate Research Assistant app because all its models include web search capabilities
 
 ## Language Related :id=language-related
 
@@ -269,7 +269,7 @@ This application generates videos using Google's Veo model through the Gemini AP
 3. Specify the desired aspect ratio and person generation preferences
 4. The AI will process your request using Google's Veo model
 
-**Note:** Video generation typically takes 2-6 minutes to complete. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
+?> **Note:** Video generation typically takes 2-6 minutes to complete. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
 
 **Example requests:**
 - "Create a video of a sunset over mountains" (text-to-video)
@@ -481,10 +481,10 @@ Supported file formats:
 
 This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.  If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
 
-**Important Notes:**
-- The app implements automatic error handling to prevent infinite loops when code execution fails
-- If code execution encounters repeated errors, the app will automatically stop retrying and provide an error message
-- For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc
+?> **Important Notes:**
+> - The app implements automatic error handling to prevent infinite loops when code execution fails
+> - If code execution encounters repeated errors, the app will automatically stop retrying and provide an error message
+> - For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc
 
 Code Interpreter apps are also available for the following models:
 
@@ -502,7 +502,7 @@ Code Interpreter apps are also available for the following models:
 
 This application is designed for writing computer program code. You can interact with an AI configured as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
 
-> While Code Interpreter executes the code, Coding Assistant specializes in providing code snippets and advice. A long code snippet will be divided into multiple parts, and the user will be asked if they want to proceed with the next part.
+?> While Code Interpreter executes the code, Coding Assistant specializes in providing code snippets and advice. A long code snippet will be divided into multiple parts, and the user will be asked if they want to proceed with the next part.
 
 Coding Assistant apps are also available for the following models:
 
@@ -524,7 +524,7 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 > You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-!> **Security Note**: In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
+!> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
 Jupyter Notebook apps are also available for the following models:
 

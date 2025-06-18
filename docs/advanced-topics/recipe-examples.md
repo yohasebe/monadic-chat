@@ -4,7 +4,7 @@ This page provides examples of different types of Monadic Chat apps using the MD
 
 ## Important Naming Convention
 
-?> **Critical**: The MDSL app name must match the Ruby class name exactly. For example, `app "ChatOpenAI"` must have a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
+!> **Critical:** The MDSL app name must match the Ruby class name exactly. For example, `app "ChatOpenAI"` must have a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
 
 ## Simple Apps
 

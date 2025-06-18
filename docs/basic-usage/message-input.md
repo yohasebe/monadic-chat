@@ -21,7 +21,7 @@ Uploading images is supported for the following models:
 - Mistral AI (Pixtral, Mistral Medium 2505)
 - Perplexity AI
 
-Note: PDF uploads are only supported by OpenAI (gpt-4.1, gpt-4o, o1 series), Claude, and Gemini models.
+?> **Note:** PDF uploads are only supported by OpenAI (gpt-4.1, gpt-4o, o1 series), Claude, and Gemini models.
 
 Click `Image` (or `Image/PDF` for models that support PDF) to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
 
@@ -57,7 +57,7 @@ Click the `From URL` button to enter a URL. The content at that URL is loaded in
 
 ## Speech Input :id=speech-input
 
-?> Currently, voice input is supported in Chrome, Edge, and Safari browsers.
+?> **Note:** Currently, voice input is supported in Chrome, Edge, and Safari browsers.
 
 To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Speech-to-Text API and displayed in the text area.
 

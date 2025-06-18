@@ -38,6 +38,10 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
     className = "role-assistant";
     roleIcon = "fa-robot";
     roleIconColor = "#DC4C64"; // Assistant color
+  } else if (role === "info") {
+    className = "role-info";
+    roleIcon = "fa-info-circle";
+    roleIconColor = "#2196f3"; // Info color
   } else {
     className = "role-system";
     roleIcon = "fa-bars";

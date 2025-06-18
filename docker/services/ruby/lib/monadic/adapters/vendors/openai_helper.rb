@@ -379,6 +379,11 @@ module OpenAIHelper
 
     if role != "tool"
       message = obj["message"].to_s
+      
+      # Reset model switch notification flag for new user messages
+      if role == "user"
+        session.delete(:model_switch_notified)
+      end
 
       # If the app is monadic, the message is passed through the monadic_map function
       if obj["monadic"].to_s == "true" && message != ""
@@ -445,9 +450,13 @@ module OpenAIHelper
       non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
       search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
       
-      # Add a note about the model switch in the initial prompt
-      if context && context.first && context.first["text"]
-        context.first["text"] = "[Note: Automatically switched from #{original_model} to #{model} for web search functionality]\n\n" + context.first["text"]
+      # Send system notification about model switch
+      if block && original_model != model
+        system_msg = {
+          "type" => "system_info",
+          "content" => "Model automatically switched from #{original_model} to #{model} for web search functionality."
+        }
+        block.call system_msg
       end
     end
     
@@ -698,8 +707,18 @@ module OpenAIHelper
 
     if messages_containing_img
       unless obj["vision_capability"]
+        original_model = body["model"]
         body["model"] = "gpt-4.1"
         body.delete("reasoning_effort")
+        
+        # Send system notification about model switch
+        if block && original_model != body["model"]
+          system_msg = {
+            "type" => "system_info",
+            "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
+          }
+          block.call system_msg
+        end
       end
       body.delete("stop")
     end
@@ -818,6 +837,11 @@ module OpenAIHelper
             if CONFIG["EXTRA_LOGGING"]
               extra_log.puts(JSON.pretty_generate(json))
             end
+            
+            # Check if response model differs from requested model
+            response_model = json["model"]
+            requested_model = query["model"]
+            check_model_switch(response_model, requested_model, session, &block)
 
             finish_reason = json.dig("choices", 0, "finish_reason")
             case finish_reason

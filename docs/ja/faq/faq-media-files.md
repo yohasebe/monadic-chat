@@ -1,6 +1,6 @@
 # FAQ：メディアファイルの送信
 
-**Q**: テキスト以外のデータをAIエージェントに送信することはできますか？ :id=sending-non-text-data
+##### Q: テキスト以外のデータをAIエージェントに送信することはできますか？ :id=sending-non-text-data
 
 **A**: はい、選択したモデルが対応している場合、`Image`ボタンをクリックして画像（JPG、JPEG、PNG、GIF、WebP）をアップロードすることができます。繰り返し行うことで複数の画像をアップロードすることもできます。Anthropic Claude、OpenAI、またはGoogle Geminiのビジョン機能対応モデルを使用している場合は、同じボタンでPDFファイルもアップロードできます。
 
@@ -17,7 +17,7 @@
 
 ---
 
-**Q**: PDFの内容について AI エージェントに質問することはできますか？ :id=pdf-content-questions
+##### Q: PDFの内容について AI エージェントに質問することはできますか？ :id=pdf-content-questions
 
 **A**: はい、いくつかのやり方があります。[`PDF Navigator`](../basic-usage/basic-apps.md#pdf-navigator) アプリでは、提供された PDF の単語埋め込みを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) や [`Content Reader`](../basic-usage/basic-apps.md#content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 

@@ -434,8 +434,18 @@ module GrokHelper
     end
 
     if messages_containing_img
+      original_model = body["model"]
       body["model"] = "grok-2-vision-1212"
       body.delete("stop")
+      
+      # Send system notification about model switch
+      if block && original_model != body["model"]
+        system_msg = {
+          "type" => "system_info",
+          "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
+        }
+        block.call system_msg
+      end
     end
 
     # Call the API

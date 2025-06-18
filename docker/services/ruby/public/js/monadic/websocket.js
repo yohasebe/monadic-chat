@@ -1975,6 +1975,30 @@ function connect_websocket(callback) {
         break;
       }
 
+      case "system_info": {
+        // Display system information in the conversation
+        const systemInfoHtml = `<div class="system-info-message"><i class="fas fa-info-circle"></i> ${data.content}</div>`;
+        
+        const systemElement = createCard("info", 
+          "<span class='text-info'><i class='fas fa-info-circle'></i></span> <span class='fw-bold fs-6 text-info'>Information</span>", 
+          systemInfoHtml, 
+          "en", 
+          null, 
+          true, 
+          []
+        );
+        $("#discourse").append(systemElement);
+        
+        // Auto-scroll if enabled
+        if (autoScroll) {
+          const chatBottom = document.getElementById('chat-bottom');
+          if (!isElementInViewport(chatBottom)) {
+            chatBottom.scrollIntoView(false);
+          }
+        }
+        break;
+      }
+
       case "error": {
         // Check if error during AI User generation (message starts with AI User error)
         const isAIUserError = data.content && data.content.toString().includes("AI User error");

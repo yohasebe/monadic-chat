@@ -33,6 +33,7 @@ app "MailComposerPerplexity" do
   end
   
   features do
+    disabled !CONFIG["PERPLEXITY_API_KEY"]
     initiate_from_assistant true
     easy_submit false
     auto_speech false

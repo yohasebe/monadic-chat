@@ -26,6 +26,7 @@ app "VoiceChatPerplexity" do
   display_name "Voice Chat"
   
   features do
+    disabled !CONFIG["PERPLEXITY_API_KEY"]
     easy_submit true
     auto_speech true
     toggle true

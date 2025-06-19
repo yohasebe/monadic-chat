@@ -75,6 +75,7 @@ app "JupyterNotebookOpenAI" do
   TEXT
 
   features do
+    disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
     image true

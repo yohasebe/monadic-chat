@@ -24,6 +24,7 @@ app "CodingAssistantMistral" do
   display_name "Coding Assistant"
  
   features do
+    disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false
     image true

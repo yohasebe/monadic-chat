@@ -70,6 +70,7 @@ app "LanguagePracticePlusOpenAI" do
   display_name "Language Practice Plus"
   
   features do
+    disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit true
     auto_speech true
     initiate_from_assistant true

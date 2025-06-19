@@ -33,6 +33,7 @@ app "MailComposerGemini" do
   end
   
   features do
+    disabled !CONFIG["GEMINI_API_KEY"]
     initiate_from_assistant true
     image true
     easy_submit false

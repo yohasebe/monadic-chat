@@ -25,6 +25,7 @@ app "VoiceChatMistral" do
   display_name "Voice Chat"
   
   features do
+    disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit true
     auto_speech true
     group "Mistral"

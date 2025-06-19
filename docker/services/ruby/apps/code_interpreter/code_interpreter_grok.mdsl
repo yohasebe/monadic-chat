@@ -10,6 +10,7 @@ app "CodeInterpreterGrok" do
   llm do
     provider "xai"
     model "grok-3"
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

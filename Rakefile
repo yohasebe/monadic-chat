@@ -195,6 +195,44 @@ rescue ArgumentError => e
   v1 <=> v2
 end
 
+# Helper function to find build files with flexible version matching
+# Handles beta, alpha, rc, pre, and other prerelease version formats
+def find_build_files(pattern, version, escaped_version, base_dir = "dist")
+  files = []
+  # Try with escaped version first
+  files += Dir.glob("#{base_dir}/#{pattern.gsub('VERSION', escaped_version)}")
+  # If nothing found, try with original version
+  if files.empty?
+    files += Dir.glob("#{base_dir}/#{pattern.gsub('VERSION', version)}")
+  end
+  # If still nothing, try more flexible patterns for prerelease versions
+  if files.empty? && version.include?('-')
+    # Extract base version and prerelease parts
+    base_version = version.split('-').first
+    prerelease_part = version.split('-', 2).last
+    
+    # Try patterns with different prerelease separators and formats
+    # Handle cases like: beta.1 -> beta-1, beta.1 -> beta1, etc.
+    ['.', '-', ''].each do |separator|
+      # Replace dots in prerelease part with separator
+      test_prerelease = prerelease_part.gsub('.', separator)
+      test_version = "#{base_version}-#{test_prerelease}"
+      files += Dir.glob("#{base_dir}/#{pattern.gsub('VERSION', test_version)}")
+      
+      # Also try without any separator in prerelease
+      if separator == ''
+        test_version_no_sep = "#{base_version}-#{prerelease_part.gsub('.', '')}"
+        files += Dir.glob("#{base_dir}/#{pattern.gsub('VERSION', test_version_no_sep)}")
+      end
+    end
+    
+    # Try with underscore separator too (some build tools use this)
+    test_version = version.gsub('-', '_')
+    files += Dir.glob("#{base_dir}/#{pattern.gsub('VERSION', test_version)}")
+  end
+  files.uniq
+end
+
 # Check if a version is newer than another
 def version_newer?(new_version, old_version)
   compare_versions(new_version, old_version) > 0
@@ -625,39 +663,52 @@ task :build do
   # Escape version for file names
   escaped_version = escape_version_for_files(version)
   
-  # Match the actual generated macOS file patterns but don't add them separately
-  mac_files = Dir.glob("dist/Monadic.Chat-#{escaped_version}*")
+  # Debug: Show what versions we're working with
+  puts "Original version: #{version}"
+  puts "Escaped version: #{escaped_version}"
   
-  # Debug output to show what macOS files were found
-  puts "Found macOS files:"
-  mac_files.each { |f| puts "  #{File.basename(f)}" }
-  
-  # All needed files will be added to this list
-  necessary_files = [
-    # Use the same required patterns as release_assets for consistency
+  # Define file patterns to look for
+  file_patterns = {
     # Windows files
-    "Monadic.Chat.Setup.#{escaped_version}.exe",     # Windows installer
-    "Monadic.Chat.Setup.#{escaped_version}.zip",     # Windows ZIP (for updates)
+    "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
+    "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
     
     # macOS files
-    "Monadic.Chat-#{escaped_version}-arm64.dmg",     # macOS arm64 DMG
-    "Monadic.Chat-#{escaped_version}-x64.dmg",       # macOS x64 DMG
-    "Monadic.Chat-#{escaped_version}-arm64.zip",     # macOS arm64 ZIP (for updates)
-    "Monadic.Chat-#{escaped_version}-x64.zip",       # macOS x64 ZIP (for updates)
+    "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
+    "mac_x64_dmg" => "Monadic.Chat-VERSION-x64.dmg",
+    "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
+    "mac_x64_zip" => "Monadic.Chat-VERSION-x64.zip",
     
     # Linux files
-    "monadic-chat_#{escaped_version}_amd64.deb",     # Linux x64 DEB (uses Debian naming)
-    "monadic-chat_#{escaped_version}_arm64.deb",     # Linux ARM64 DEB
-    "monadic-chat_#{escaped_version}_x64.zip",       # Linux x64 ZIP (uses Node.js naming)
-    "monadic-chat_#{escaped_version}_arm64.zip",     # Linux ARM64 ZIP (for updates)
-    
-    # Update YML files
-    "latest.yml",                            # Windows update file
-    "latest-mac.yml",                        # macOS x64 update file
-    "latest-mac-arm64.yml",                  # macOS arm64 update file
-    "latest-linux.yml",                      # Linux x64 update file
-    "latest-linux-arm64.yml"                 # Linux arm64 update file
-  ].map { |file| File.expand_path("dist/#{file}") }
+    "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
+    "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
+    "linux_x64_zip" => "monadic-chat_VERSION_x64.zip",
+    "linux_arm64_zip" => "monadic-chat_VERSION_arm64.zip"
+  }
+  
+  # Find all necessary files using flexible matching
+  necessary_files = []
+  
+  file_patterns.each do |key, pattern|
+    found_files = find_build_files(pattern, version, escaped_version)
+    if found_files.empty?
+      puts "Warning: No files found for #{key} (pattern: #{pattern})"
+    else
+      found_files.each do |file|
+        puts "Found #{key}: #{File.basename(file)}"
+        necessary_files << File.expand_path(file)
+      end
+    end
+  end
+  
+  # Always include YML files
+  yml_files = ["latest.yml", "latest-mac.yml", "latest-mac-arm64.yml", "latest-linux.yml", "latest-linux-arm64.yml"]
+  yml_files.each do |yml|
+    yml_path = File.expand_path("dist/#{yml}")
+    if File.exist?(yml_path)
+      necessary_files << yml_path
+    end
+  end
   
   # Mac files are already included in necessary_files
   # No need to add them separately
@@ -786,24 +837,33 @@ namespace :release do
     
     # Step 2: Build all packages if needed - check for ALL required file types
     escaped_version = escape_version_for_files(version)
-    required_patterns = [
-      "dist/Monadic.Chat-#{escaped_version}-arm64.dmg",
-      "dist/Monadic.Chat-#{escaped_version}-x64.dmg",
-      "dist/Monadic.Chat-#{escaped_version}-arm64.zip",
-      "dist/Monadic.Chat-#{escaped_version}-x64.zip",
-      "dist/Monadic.Chat.Setup.#{escaped_version}.exe",
-      "dist/Monadic.Chat.Setup.#{escaped_version}.zip",
-      "dist/monadic-chat_#{escaped_version}_amd64.deb",
-      "dist/monadic-chat_#{escaped_version}_arm64.deb",
-      "dist/monadic-chat_#{escaped_version}_x64.zip",
-      "dist/monadic-chat_#{escaped_version}_arm64.zip"
-    ]
     
-    missing_files = required_patterns.select { |pattern| Dir.glob(pattern).empty? }
+    # Define file patterns to check
+    file_patterns = {
+      "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
+      "mac_x64_dmg" => "Monadic.Chat-VERSION-x64.dmg",
+      "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
+      "mac_x64_zip" => "Monadic.Chat-VERSION-x64.zip",
+      "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
+      "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
+      "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
+      "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
+      "linux_x64_zip" => "monadic-chat_VERSION_x64.zip",
+      "linux_arm64_zip" => "monadic-chat_VERSION_arm64.zip"
+    }
     
-    if !missing_files.empty?
+    # Check which files are missing
+    missing_types = []
+    file_patterns.each do |key, pattern|
+      found_files = find_build_files(pattern, version, escaped_version)
+      if found_files.empty?
+        missing_types << key
+      end
+    end
+    
+    if !missing_types.empty?
       puts "Missing required files for version #{version}:"
-      missing_files.each { |f| puts "  - #{f}" }
+      missing_types.each { |type| puts "  - #{type}: #{file_patterns[type]}" }
       puts "Building all packages..."
       Rake::Task["build"].invoke
     else
@@ -840,24 +900,16 @@ namespace :release do
     # Step 6: Get release assets
     release_assets = []
     
-    # Use the same required patterns as build check for consistency
-    required_patterns = [
-      "Monadic.Chat-#{escaped_version}-arm64.dmg",      # macOS arm64
-      "Monadic.Chat-#{escaped_version}-x64.dmg",        # macOS x64
-      "Monadic.Chat-#{escaped_version}-arm64.zip",      # macOS arm64 ZIP (for updates)
-      "Monadic.Chat-#{escaped_version}-x64.zip",        # macOS x64 ZIP (for updates)
-      "Monadic.Chat.Setup.#{escaped_version}.exe",      # Windows
-      "Monadic.Chat.Setup.#{escaped_version}.zip",      # Windows ZIP (for updates)
-      "monadic-chat_#{escaped_version}_amd64.deb",      # Linux x64 (uses Debian naming)
-      "monadic-chat_#{escaped_version}_arm64.deb",      # Linux ARM64
-      "monadic-chat_#{escaped_version}_x64.zip",        # Linux x64 ZIP (uses Node.js naming)
-      "monadic-chat_#{escaped_version}_arm64.zip"       # Linux ARM64 ZIP (for updates)
-    ].each do |file|
-      path = File.join("dist", file)
-      if File.exist?(path)
-        release_assets << path
+    # Use the same file patterns as build check
+    file_patterns.each do |key, pattern|
+      found_files = find_build_files(pattern, version, escaped_version)
+      if found_files.empty?
+        puts "Warning: No release asset found for #{key}"
       else
-        puts "Warning: Release asset not found: #{path}"
+        found_files.each do |file|
+          puts "Found release asset: #{File.basename(file)}"
+          release_assets << file
+        end
       end
     end
     
@@ -996,33 +1048,45 @@ namespace :release do
     
     # Get files to update
     escaped_version = escape_version_for_files(version)
-    if file_patterns.nil?
-      # Default patterns if none provided
-      patterns = [
-        "dist/Monadic.Chat-#{escaped_version}-arm64.dmg",
-        "dist/Monadic.Chat-#{escaped_version}-x64.dmg",
-        "dist/Monadic.Chat-#{escaped_version}-arm64.zip",
-        "dist/Monadic.Chat-#{escaped_version}-x64.zip",
-        "dist/Monadic.Chat.Setup.#{escaped_version}.exe",
-        "dist/Monadic.Chat.Setup.#{escaped_version}.zip",
-        "dist/monadic-chat_#{escaped_version}_amd64.deb",
-        "dist/monadic-chat_#{escaped_version}_arm64.deb",
-        "dist/monadic-chat_#{escaped_version}_x64.zip",
-        "dist/monadic-chat_#{escaped_version}_arm64.zip",
-        "dist/*.yml"  # Include all YML files for auto-updates
-      ]
-    else
-      patterns = file_patterns.split(/\s+/)
-    end
-    
-    # Expand file patterns
     files_to_update = []
-    patterns.each do |pattern|
-      expanded_files = Dir.glob(pattern)
-      if expanded_files.empty?
-        puts "Warning: No files found matching pattern '#{pattern}'"
-      else
-        files_to_update.concat(expanded_files)
+    
+    if file_patterns.nil?
+      # Default file patterns to look for
+      update_patterns = {
+        "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
+        "mac_x64_dmg" => "Monadic.Chat-VERSION-x64.dmg",
+        "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
+        "mac_x64_zip" => "Monadic.Chat-VERSION-x64.zip",
+        "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
+        "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
+        "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
+        "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
+        "linux_x64_zip" => "monadic-chat_VERSION_x64.zip",
+        "linux_arm64_zip" => "monadic-chat_VERSION_arm64.zip"
+      }
+      
+      # Find files using flexible pattern matching
+      update_patterns.each do |key, pattern|
+        found_files = find_build_files(pattern, version, escaped_version)
+        if found_files.empty?
+          puts "Warning: No files found for #{key}"
+        else
+          files_to_update.concat(found_files)
+        end
+      end
+      
+      # Also include all YML files
+      files_to_update.concat(Dir.glob("dist/*.yml"))
+    else
+      # Custom patterns provided by user
+      patterns = file_patterns.split(/\s+/)
+      patterns.each do |pattern|
+        expanded_files = Dir.glob(pattern)
+        if expanded_files.empty?
+          puts "Warning: No files found matching pattern '#{pattern}'"
+        else
+          files_to_update.concat(expanded_files)
+        end
       end
     end
     

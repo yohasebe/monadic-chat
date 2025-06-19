@@ -37,9 +37,6 @@ app "VisualWebExplorerOpenAI" do
   llm do
     provider "openai"
     model "gpt-4.1-mini"
-  end
-  
-  settings do
     temperature 0.0
   end
 

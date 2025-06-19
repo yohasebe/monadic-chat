@@ -10,6 +10,7 @@ app "CodeInterpreterDeepSeek" do
   llm do
     provider "deepseek"
     model "deepseek-chat"
+    temperature 0.0
   end
 
   system_prompt <<~TEXT

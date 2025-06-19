@@ -13,6 +13,7 @@ app "ConceptVisualizerClaude" do
     provider "claude"
     model "claude-3-5-sonnet-20241022"
     max_tokens 4000
+    temperature 0.0
   end
 
   system_prompt <<~TEXT
@@ -115,9 +116,6 @@ app "ConceptVisualizerClaude" do
     context_size 20
   end
   
-  settings do
-    temperature 0.0
-  end
 
   tools do
     define_tool "generate_concept_diagram", "Generate a conceptual diagram using LaTeX/TikZ" do

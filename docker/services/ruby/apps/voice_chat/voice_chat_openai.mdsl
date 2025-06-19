@@ -25,6 +25,7 @@ app "VoiceChatOpenAI" do
   display_name "Voice Chat"
   
   features do
+    disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit true
     auto_speech true
     initiate_from_assistant true

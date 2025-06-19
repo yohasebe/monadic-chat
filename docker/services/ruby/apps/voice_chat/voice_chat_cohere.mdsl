@@ -25,6 +25,7 @@ app "VoiceChatCohere" do
   display_name "Voice Chat"
   
   features do
+    disabled !CONFIG["COHERE_API_KEY"]
     easy_submit true
     auto_speech true
     group "Cohere"

@@ -193,6 +193,7 @@ app "CodeInterpreterOpenAI" do
   TEXT
 
   features do
+    disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true

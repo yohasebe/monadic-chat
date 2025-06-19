@@ -41,6 +41,7 @@ app "VisualWebExplorerGemini" do
   end
 
   features do
+    disabled !CONFIG["GEMINI_API_KEY"]
     monadic false
     toggle false
     websearch true

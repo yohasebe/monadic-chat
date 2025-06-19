@@ -2217,37 +2217,39 @@ function connect_websocket(callback) {
 
           // Add apps to selector
           // First add the OpenAI Apps label and regular apps
-          if (verified === "full") {
-            // Add OpenAI separator to standard select
-            $("#apps").append('<option disabled>──OpenAI──</option>');
-            // Add OpenAI separator to custom dropdown
-            $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="OpenAI">
-              <span>──OpenAI──</span>
-              <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-            </div>`);
-            // Create a container for the OpenAI apps
-            $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
+          // Always show OpenAI apps, regardless of verification status
+          // Add OpenAI separator to standard select
+          $("#apps").append('<option disabled>──OpenAI──</option>');
+          // Add OpenAI separator to custom dropdown
+          $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="OpenAI">
+            <span>──OpenAI──</span>
+            <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+          </div>`);
+          // Create a container for the OpenAI apps
+          $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
+          
+          for (const [key, value] of regularApps) {
+            apps[key] = value;
+            // Use display_name if available, otherwise fall back to app_name
+            const displayText = value["display_name"] || value["app_name"];
+            const appIcon = value["icon"] || "";
+            const isDisabled = value.disabled === "true";
             
-            for (const [key, value] of regularApps) {
-              // Skip apps disabled due to missing API token
-              if (value.disabled === "true") {
-                continue;
+            // Add option to standard select
+            if (isDisabled) {
+                $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
+              } else {
+                $("#apps").append(`<option value="${key}">${displayText}</option>`);
               }
-              apps[key] = value;
-              // Use display_name if available, otherwise fall back to app_name
-              const displayText = value["display_name"] || value["app_name"];
-              const appIcon = value["icon"] || "";
-              // For browsers that support customizable select, include icon directly in option
-              // Add option to standard select
-              $("#apps").append(`<option value="${key}">${displayText}</option>`);
               
               // Add the same option to custom dropdown with icon
-              const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
+              const disabledClass = isDisabled ? ' disabled' : '';
+              const disabledTitle = isDisabled ? ' title="API key required"' : '';
+              const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                 <span style="margin-right: 8px;">${appIcon}</span>
                 <span>${displayText}</span></div>`);
               $("#group-OpenAI").append($option);
             }
-          }
 
           // sort specialApps by group name in the order:
           // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"
@@ -2263,11 +2265,9 @@ function connect_websocket(callback) {
           // Add special groups with their labels
           for (const group of Object.keys(specialApps)) {
             if (specialApps[group].length > 0) {
-              // Check if there are any non-disabled apps in this group
-              const hasEnabledApps = specialApps[group].some(([key, value]) => value.disabled !== "true");
-              
-              // Only show the separator if there are enabled apps
-              if (hasEnabledApps) {
+              // Always show groups even if all apps are disabled
+              // This allows users to see what apps exist but are unavailable
+              if (true) {
                 // Add group header to standard select
                 $("#apps").append(`<option disabled>──${group}──</option>`);
                 
@@ -2282,20 +2282,23 @@ function connect_websocket(callback) {
                 $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
                 
                 for (const [key, value] of specialApps[group]) {
-                  // Skip apps disabled due to missing API token
-                  if (value.disabled === "true") {
-                    continue;
-                  }
                   apps[key] = value;
                   // Use display_name if available, otherwise fall back to app_name
                   const displayText = value["display_name"] || value["app_name"];
                   const appIcon = value["icon"] || "";
+                  const isDisabled = value.disabled === "true";
                   
                   // Add option to standard select
-                  $("#apps").append(`<option value="${key}">${displayText}</option>`);
+                  if (isDisabled) {
+                    $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
+                  } else {
+                    $("#apps").append(`<option value="${key}">${displayText}</option>`);
+                  }
                   
                   // Add the same option to custom dropdown with icon
-                  const $option = $(`<div class="custom-dropdown-option" data-value="${key}">
+                  const disabledClass = isDisabled ? ' disabled' : '';
+                  const disabledTitle = isDisabled ? ' title="API key required"' : '';
+                  const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                     <span style="margin-right: 8px;">${appIcon}</span>
                     <span>${displayText}</span></div>`);
                   const normalizedGroupId = normalizeGroupId(group);

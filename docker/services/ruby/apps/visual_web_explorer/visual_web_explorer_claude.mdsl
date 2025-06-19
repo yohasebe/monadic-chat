@@ -41,6 +41,7 @@ app "VisualWebExplorerClaude" do
   end
 
   features do
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
     monadic false
     toggle false
     websearch true

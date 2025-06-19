@@ -92,6 +92,7 @@ app "DrawIOGrapherClaude" do
   end
   
   features do
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant false

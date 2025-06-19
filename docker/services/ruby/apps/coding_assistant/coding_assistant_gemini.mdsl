@@ -24,6 +24,7 @@ app "CodingAssistantGemini" do
   display_name "Coding Assistant"
  
   features do
+    disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false
     image true

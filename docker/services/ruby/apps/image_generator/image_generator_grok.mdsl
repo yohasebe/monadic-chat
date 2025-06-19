@@ -39,6 +39,7 @@ app "ImageGeneratorGrok" do
   TEXT
 
   features do
+    disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant false

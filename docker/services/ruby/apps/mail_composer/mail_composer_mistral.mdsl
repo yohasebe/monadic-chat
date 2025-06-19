@@ -33,6 +33,7 @@ app "MailComposerMistral" do
   end
   
   features do
+    disabled !CONFIG["MISTRAL_API_KEY"]
     initiate_from_assistant true
     image true
     easy_submit false

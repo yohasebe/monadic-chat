@@ -25,6 +25,7 @@ app "ChatClaude" do
   display_name "Chat"
   
   features do
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
     toggle true

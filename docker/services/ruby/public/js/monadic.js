@@ -2267,7 +2267,7 @@ $(function () {
       // Add keyboard navigation to the custom dropdown
       $(document).on("keydown", function(e) {
         if ($customDropdown.is(":visible")) {
-          const $options = $(".custom-dropdown-option");
+          const $options = $(".custom-dropdown-option:not(.disabled)");
           const $highlighted = $(".custom-dropdown-option.highlighted");
           let index = $options.index($highlighted);
           
@@ -2275,7 +2275,7 @@ $(function () {
             case "ArrowDown":
               e.preventDefault();
               e.stopPropagation(); // Prevent event from bubbling up
-              // Move to next option
+              // Move to next non-disabled option
               if (index < $options.length - 1) {
                 if ($highlighted.length) {
                   $highlighted.removeClass("highlighted");
@@ -2286,12 +2286,12 @@ $(function () {
                 // Ensure the element is visible in the dropdown
                 ensureVisibleInDropdown($next, $customDropdown);
               } else if (index === -1) {
-                // No selection yet, select first
+                // No selection yet, select first non-disabled
                 const $first = $options.first();
                 $first.addClass("highlighted");
                 ensureVisibleInDropdown($first, $customDropdown);
               } else {
-                // Already at the bottom, circle back to the first item
+                // Already at the bottom, circle back to the first non-disabled item
                 $highlighted.removeClass("highlighted");
                 const $first = $options.first();
                 $first.addClass("highlighted");
@@ -2303,7 +2303,7 @@ $(function () {
             case "ArrowUp":
               e.preventDefault();
               e.stopPropagation(); // Prevent event from bubbling up
-              // Move to previous option
+              // Move to previous non-disabled option
               if (index > 0) {
                 $highlighted.removeClass("highlighted");
                 const $prev = $options.eq(index - 1);
@@ -2312,7 +2312,7 @@ $(function () {
                 // Ensure the element is visible in the dropdown
                 ensureVisibleInDropdown($prev, $customDropdown);
               } else if (index === 0) {
-                // At first item, circle to the last one
+                // At first item, circle to the last non-disabled one
                 $highlighted.removeClass("highlighted");
                 const $last = $options.last();
                 $last.addClass("highlighted");
@@ -2363,6 +2363,11 @@ $(function () {
       
       // Handle option selection
       $(document).on("click", ".custom-dropdown-option", function() {
+        // Check if this option is disabled
+        if ($(this).hasClass("disabled")) {
+          return; // Don't do anything for disabled options
+        }
+        
         const value = $(this).data("value");
         
         // Update the real select value
@@ -2374,6 +2379,10 @@ $(function () {
       
       // Add mouse hover functionality to highlight options
       $(document).on("mouseenter", ".custom-dropdown-option", function() {
+        // Don't highlight disabled options
+        if ($(this).hasClass("disabled")) {
+          return;
+        }
         $(".custom-dropdown-option.highlighted").removeClass("highlighted");
         $(this).addClass("highlighted");
       });

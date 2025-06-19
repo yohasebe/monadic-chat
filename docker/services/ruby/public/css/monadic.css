@@ -1952,6 +1952,16 @@ h1 {
   background-color: #3377ff;
 }
 
+.custom-dropdown-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f8f8f8;
+}
+
+.custom-dropdown-option.disabled:hover {
+  background-color: #f8f8f8;
+}
+
 /* Mobile-specific media queries for toggle menu */
 @media (max-width: 767px) {
   #toggle-menu {
@@ -2182,7 +2192,7 @@ h1 {
 }
 
 .custom-dropdown-group[data-group="Ollama"] span:first-child {
-  color: #000000;
+  color: #6b7280;
   font-weight: 700;
 }
 

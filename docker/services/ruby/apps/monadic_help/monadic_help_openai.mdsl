@@ -14,6 +14,7 @@ app "MonadicHelpOpenAI" do
   end
   
   features do
+    disabled !CONFIG["OPENAI_API_KEY"]
     monadic false
     auto_speech false
     quick_response false

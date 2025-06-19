@@ -23,6 +23,7 @@ app "ChatMistralAI" do
   display_name "Chat"
   
   features do
+    disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant false

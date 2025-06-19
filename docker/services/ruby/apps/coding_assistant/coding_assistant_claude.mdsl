@@ -26,6 +26,7 @@ app "CodingAssistantClaude" do
   display_name "Coding Assistant"
   
   features do
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
     image true

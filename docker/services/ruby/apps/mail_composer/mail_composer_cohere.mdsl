@@ -33,6 +33,7 @@ app "MailComposerCohere" do
   end
   
   features do
+    disabled !CONFIG["COHERE_API_KEY"]
     initiate_from_assistant true
     image false
     easy_submit false

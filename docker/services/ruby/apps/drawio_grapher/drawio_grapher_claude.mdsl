@@ -87,7 +87,8 @@ app "DrawIOGrapherClaude" do
   
   llm do
     provider "Anthropic"
-    model "claude-sonnet-4-20250514	"
+    model "claude-sonnet-4-20250514"
+    temperature 0.0
   end
   
   features do
@@ -98,10 +99,6 @@ app "DrawIOGrapherClaude" do
     image true
     sourcecode true
     group "Anthropic"
-  end
-  
-  settings do
-    temperature 0.0
   end
   
   tools do

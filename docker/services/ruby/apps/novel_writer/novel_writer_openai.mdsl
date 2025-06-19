@@ -34,7 +34,7 @@ app "NovelWriterOpenAI" do
   llm do
     provider "openai"
     model "gpt-4.1"
-    temperature 0.5
+    temperature 0.0
     response_format({
       type: "json_schema",
       json_schema: {

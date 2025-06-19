@@ -12,6 +12,7 @@ app "SyntaxTreeClaude" do
   llm do
     provider "claude"
     model "claude-sonnet-4-20250514"
+    temperature 0.0
   end
 
   system_prompt <<~TEXT
@@ -98,9 +99,6 @@ app "SyntaxTreeClaude" do
     toggle true
   end
   
-  settings do
-    temperature 0.0
-  end
 
   tools do
     define_tool "render_syntax_tree", "Render the syntax tree as an SVG image using LaTeX" do

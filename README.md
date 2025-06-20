@@ -15,6 +15,9 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 - [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)
 - [**Installation**](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)
 
+> [!IMPORTANT]
+> **Breaking Changes**: Version 1.0.0 includes significant changes to configuration management and APIs. See the [Breaking Changes Guide](https://yohasebe.github.io/monadic-chat/#/developer/breaking-changes) for migration instructions.
+
 ## What is Grounding?
 
 Monadic Chat is an AI framework grounded in the real world. The term **grounding** here has two meanings.

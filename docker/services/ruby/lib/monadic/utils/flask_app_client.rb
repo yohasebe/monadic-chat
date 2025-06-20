@@ -4,7 +4,7 @@ require "json"
 
 class FlaskAppClient
   # Default port for Python service
-  PYTHON_PORT = (defined?(CONFIG) && CONFIG["PYTHON_PORT"]) || ENV["PYTHON_PORT"] || "5070"
+  PYTHON_PORT = (defined?(CONFIG) && CONFIG["PYTHON_PORT"]) || "5070"
   
   # Determine base URL based on environment
   BASE_URL = if File.file?("/.dockerenv")

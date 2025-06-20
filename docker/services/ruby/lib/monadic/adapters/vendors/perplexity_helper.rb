@@ -36,7 +36,7 @@ module PerplexityHelper
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
     # Get API key
-    api_key = CONFIG["PERPLEXITY_API_KEY"] || ENV["PERPLEXITY_API_KEY"]
+    api_key = CONFIG["PERPLEXITY_API_KEY"]
     return "Error: PERPLEXITY_API_KEY not found" if api_key.nil?
     
     # Set headers

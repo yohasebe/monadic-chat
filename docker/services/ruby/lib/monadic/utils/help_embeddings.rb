@@ -264,6 +264,83 @@ class HelpEmbeddings < TextEmbeddings
     final_results
   end
 
+  # Get unique categories from metadata
+  def get_unique_categories
+    result = []
+    
+    self.class.with_retry("Getting unique categories") do
+      res = @conn.exec(<<~SQL)
+        SELECT DISTINCT metadata->>'category' as category
+        FROM help_docs
+        WHERE metadata->>'category' IS NOT NULL
+        ORDER BY category
+      SQL
+      
+      res.each do |row|
+        result << row["category"]
+      end
+    end
+    
+    result
+  end
+
+  # Get help items by category
+  def get_by_category(category)
+    result = []
+    
+    self.class.with_retry("Getting items by category") do
+      res = @conn.exec_params(<<~SQL, [category])
+        SELECT 
+          hd.id,
+          hd.title,
+          hd.file_path,
+          hd.section,
+          hd.language,
+          hd.metadata,
+          array_agg(
+            json_build_object(
+              'text', hi.text,
+              'position', hi.position,
+              'heading', hi.heading
+            ) ORDER BY hi.position
+          ) as items
+        FROM help_docs hd
+        LEFT JOIN help_items hi ON hd.id = hi.doc_id
+        WHERE hd.metadata->>'category' = $1
+        GROUP BY hd.id, hd.title, hd.file_path, hd.section, hd.language, hd.metadata
+        ORDER BY hd.title
+      SQL
+      
+      res.each do |row|
+        result << {
+          doc_id: row["id"].to_i,
+          title: row["title"],
+          file_path: row["file_path"],
+          section: row["section"],
+          language: row["language"],
+          metadata: row["metadata"].is_a?(String) ? JSON.parse(row["metadata"]) : row["metadata"],
+          content: row["items"] ? JSON.parse(row["items"]).map { |item| item["text"] }.join("\n\n") : ""
+        }
+      end
+    end
+    
+    result
+  end
+
+  # Alias for MCP adapter compatibility
+  def search(query:, num_results: 3)
+    results = find_closest_text_multi(query, chunks_per_result: 1, top_n: num_results)
+    
+    results.map do |r|
+      {
+        title: r[:title],
+        content: r[:text],
+        metadata: r[:metadata],
+        distance: 1 - r[:similarity]  # Convert similarity to distance
+      }
+    end
+  end
+
   private
 
   def create_help_tables

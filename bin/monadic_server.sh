@@ -10,8 +10,8 @@ if [ "$1" == "start" ]; then
   echo "Monadic script executed with 'start' argument 🚀"
   echo "Run 'monadic_server.sh stop' to stop the server"
 elif [ "$1" == "debug" ]; then
+  echo "Starting Monadic server in debug mode 🛑"
   ./bin/monadic_dev start
-  echo "Monadic script executed with 'debug' argument 🛑"
 elif [ "$1" == "stop" ]; then
   ./bin/monadic_dev stop
   echo "Monadic script executed with 'stop' argument 🛑"

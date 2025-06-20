@@ -1166,6 +1166,14 @@ $(function () {
     } else {
       return;
     }
+    
+    // Send MCP server configuration
+    ws.send(JSON.stringify({
+      message: "UPDATE_MCP_CONFIG",
+      enabled: $("#mcp-server-enabled").is(":checked"),
+      port: parseInt($("#mcp-server-port").val()),
+      apps: $("#mcp-enabled-apps").val()
+    }));
 
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state

@@ -3380,6 +3380,11 @@ function connect_websocket(callback) {
         break;
       }
 
+      case "mcp_status": {
+        // Handle MCP server status
+        handleMCPStatus(data["content"]);
+        break;
+      }
       
       default: {
         // Check if this is a fragment message
@@ -3712,6 +3717,53 @@ window.reconnect_websocket = reconnect_websocket;
 window.handleVisibilityChange = handleVisibilityChange;
 window.startPing = startPing;
 window.stopPing = stopPing;
+
+// Function to handle MCP server status updates
+function handleMCPStatus(status) {
+  if (!status) return;
+  
+  // Create or update MCP status display
+  let mcpStatusEl = $("#mcp-status");
+  if (!mcpStatusEl.length) {
+    // Create MCP status element in messages panel
+    $("#messages").append(`
+      <div id="mcp-status" class="alert alert-info mt-2" style="display: none;">
+        <h6><i class="fas fa-server"></i> MCP Server Status</h6>
+        <div id="mcp-status-content"></div>
+      </div>
+    `);
+    mcpStatusEl = $("#mcp-status");
+  }
+  
+  if (status.enabled) {
+    const apps = status.apps || [];
+    const port = status.port || 3100;
+    const statusText = status.status || (status.running ? "running" : "stopped");
+    
+    let content = `
+      <div><strong>Status:</strong> ${statusText}</div>
+      <div><strong>Port:</strong> ${port}</div>
+      <div><strong>Enabled Apps:</strong> ${apps.length > 0 ? apps.join(", ") : "none"}</div>
+    `;
+    
+    // Add Claude Desktop configuration example
+    if (apps.includes("help")) {
+      content += `
+        <div class="mt-2">
+          <small class="text-muted">
+            Configure in Claude Desktop settings:<br>
+            <code>http://localhost:${port}/mcp</code>
+          </small>
+        </div>
+      `;
+    }
+    
+    $("#mcp-status-content").html(content);
+    mcpStatusEl.show();
+  } else {
+    mcpStatusEl.hide();
+  }
+}
 
 // Function to update AI User button enabled state based on conversation status
 function updateAIUserButtonState(messages) {

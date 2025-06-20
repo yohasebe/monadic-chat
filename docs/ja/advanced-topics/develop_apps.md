@@ -415,3 +415,63 @@ class MyAppOpenAI < MonadicApp
   end
 end
 ```
+
+## MCPアダプターの開発
+
+?> **実験的機能**: MCP（Model Context Protocol）サポートは実験的な機能であり、将来のリリースで変更される可能性があります。
+
+Monadic Chatには実験的なMCPサーバーが含まれており、Claude DesktopやClaude Codeなどの外部AIアシスタントが標準化されたプロトコルを通じてMonadic Chatの機能にアクセスできます。
+
+### MCPアダプターの構造
+
+MCPアダプターは`docker/services/ruby/lib/monadic/mcp/adapters/`に配置され、3つのコアメソッドを実装する必要があります：
+
+```ruby
+# example_adapter.rb
+module Monadic
+  module MCP
+    module Adapters
+      class ExampleAdapter
+        def list_tools
+          # ツール定義の配列を返す
+        end
+
+        def handles_tool?(tool_name)
+          # このアダプターがツールを処理する場合はtrueを返す
+        end
+
+        def execute_tool(tool_name, arguments)
+          # ツールを実行して結果を返す
+        end
+      end
+    end
+  end
+end
+```
+
+### 利用可能なアダプター
+
+| アダプター | 目的 | ツール数 | 出力 |
+|------------|------|----------|------|
+| **Help** | ドキュメント検索 | 3ツール | テキスト応答 |
+| **Mermaid** | 図の検証・生成 | 4ツール | PNG画像 |
+| **Syntax Tree** | 樹形図記法・可視化 | 5ツール | SVG画像 |
+
+### 設定
+
+`~/monadic/config/env`でMCPアダプターを有効化：
+
+```bash
+MCP_SERVER_ENABLED=true
+MCP_SERVER_PORT=3100
+MCP_ENABLED_APPS=help,mermaid,syntax_tree
+```
+
+### セキュリティ考慮事項
+
+- **ローカルホストバインディング**: MCPサーバーはローカル接続のみ受付
+- **入力検証**: 全アダプターで長さと文字の検証を実装
+- **エラーサニタイゼーション**: 本番環境でスタックトレースを非表示
+- **コンテナ分離**: 画像生成は分離されたDockerコンテナを使用
+
+完全なセットアップ手順については、[MCPサーバー設定](/ja/MCP_SETUP.md)をご覧ください。

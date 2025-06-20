@@ -12,7 +12,7 @@ Monadic ChatにはMCPサーバーが含まれており、Claude Desktopなどの
 ```
 MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
-MCP_ENABLED_APPS=help
+MCP_ENABLED_APPS=help,mermaid,syntax_tree
 MCP_BIND_ADDRESS=127.0.0.1  # セキュリティのためlocalhostのみ
 MCP_ALLOWED_ORIGINS=http://localhost:4567,http://localhost:3000  # 許可するオリジン
 ```
@@ -94,7 +94,23 @@ claude mcp add monadic-chat-help \
 - **monadic_help_get_categories**: ヘルプカテゴリー一覧
 - **monadic_help_get_by_category**: カテゴリー別アイテム取得（最大100文字）
 
-注：Claude Desktop互換性のため、ツール名にはドット（.）ではなくアンダースコア（_）を使用
+### Mermaid Grapherアダプター
+- **mermaid_validate_syntax**: Mermaidダイアグラムの構文検証（最大5000文字）
+- **mermaid_preview**: ダイアグラムプレビュー生成の手順を取得
+- **mermaid_generate**: Python/Seleniumコンテナを使用してPNG画像を生成
+- **mermaid_analyze_error**: 構文エラーの分析と修正提案
+
+画像は`/data/`ディレクトリに保存され、`http://localhost:4567/data/filename.png`で表示可能
+
+### Syntax Tree Generatorアダプター
+- **syntax_tree_validate**: 構文木のブラケット記法を検証
+- **syntax_tree_convert**: ブラケット記法をLaTeX tikz-qtree形式に変換
+- **syntax_tree_generate**: Pythonコンテナを使用してSVG画像を生成
+- **syntax_tree_analyze**: 木構造の分析と改善提案
+- **syntax_tree_examples**: 各言語の構文木の例を取得
+
+画像は`/data/`ディレクトリに保存され、`http://localhost:4567/data/filename.svg`で表示可能
+
 
 ## セキュリティ機能
 

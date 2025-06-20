@@ -496,6 +496,45 @@ end
 load_app_files
 APPS = init_apps
 
+# Start MCP server if enabled
+if CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true"
+  puts "MCP Server configuration detected, attempting to start..."
+  
+  # Ensure EventMachine is available before starting MCP server
+  begin
+    require 'eventmachine'
+    require 'thin'
+  rescue LoadError => e
+    puts "Failed to load required dependencies for MCP server: #{e.message}"
+    puts "Make sure EventMachine and Thin are installed"
+  else
+    begin
+      require_relative "monadic/mcp/server"
+      
+      # Start MCP server in a separate thread after a short delay
+      Thread.new do
+        sleep 2  # Give main app time to initialize
+        begin
+          Monadic::MCP::Server.start!
+          puts "MCP Server start command issued"
+        rescue => e
+          puts "Failed to start MCP server: #{e.message}"
+          puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
+        end
+      end
+    rescue LoadError => e
+      puts "Failed to load MCP server: #{e.message}"
+      puts "Current directory: #{Dir.pwd}"
+      puts "Looking for: #{File.expand_path("monadic/mcp/server", __dir__)}"
+    rescue => e
+      puts "Unexpected error with MCP server: #{e.message}"
+      puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
+    end
+  end
+else
+  puts "MCP Server disabled (MCP_SERVER_ENABLED = #{CONFIG["MCP_SERVER_ENABLED"].inspect})"
+end
+
 # Configure the Sinatra application
 configure do
   use Rack::Session::Pool

@@ -690,6 +690,28 @@
               </div>
             </div>
 
+            <div class="row my-3">
+              <div class="col-12">
+                <fieldset>
+                  <legend>MCP Server Settings</legend>
+                  <div class="form-check form-switch float-start me-3">
+                    <input class="form-check-input" type="checkbox" id="mcp-server-enabled" <%= CONFIG["MCP_SERVER_ENABLED"] == "true" ? "checked" : "" %>>
+                    <label class="form-check-label" for="mcp-server-enabled">Enable MCP Server</label>
+                  </div>
+                  <div class="form-group float-start me-3">
+                    <label for="mcp-server-port" class="form-label">Port:</label>
+                    <input type="number" id="mcp-server-port" class="form-control form-control-sm" style="width: 80px; display: inline-block;" min="1024" max="65535" value="<%= CONFIG["MCP_SERVER_PORT"] || 3100 %>">
+                  </div>
+                  <div class="form-group float-start">
+                    <label for="mcp-enabled-apps" class="form-label">Enabled Apps:</label>
+                    <input type="text" id="mcp-enabled-apps" class="form-control form-control-sm" style="width: 200px; display: inline-block;" placeholder="help,image_generator" value="<%= CONFIG["MCP_ENABLED_APPS"] || "help" %>">
+                  </div>
+                  <div class="clearfix"></div>
+                  <small class="text-muted">Configure Model Context Protocol server for external AI assistants</small>
+                </fieldset>
+              </div>
+            </div>
+
             <div class="row mt-3">
               <div class="col-2">
                 <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>

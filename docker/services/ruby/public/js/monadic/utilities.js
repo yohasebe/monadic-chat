@@ -740,7 +740,7 @@ function setParams() {
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
 
-  const spec = modelSpec[model];
+  const spec = modelSpec[params["model"]];
   if (spec && spec["context_window"]) {
     params["max_input_tokens"] = spec["context_window"][1];
   } else {

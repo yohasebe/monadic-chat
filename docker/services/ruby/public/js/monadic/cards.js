@@ -651,11 +651,22 @@ function attachEventListeners($card) {
       'overflow-y': 'auto'
     });
     
-    // Store original content and hide it
+    // Store original content
     const originalContent = $cardText.html();
     // Store the original content for retrieval
     $cardText.data('originalContent', originalContent);
-    $cardText.html($editArea);
+    
+    // Extract text content only (without images)
+    const $textContent = $cardText.find('p').first();
+    const $images = $cardText.find('.pdf-preview, .base64-image, .image-container, .mask-overlay-container');
+    
+    // Replace only the text part with the textarea
+    if ($textContent.length > 0) {
+      $textContent.replaceWith($editArea);
+    } else {
+      // If no paragraph found, insert textarea at the beginning
+      $cardText.prepend($editArea);
+    }
     
     // Update the global edit session tracker
     activeEditSession = {
@@ -719,18 +730,49 @@ function attachEventListeners($card) {
       if (currentMessage.role === "user") {
         // Format user text with simple line breaks
         const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+        
+        // Preserve existing images/PDFs by extracting them first
+        const $existingImages = $cardText.find('.pdf-preview, .base64-image, .image-container, .mask-overlay-container').detach();
+        
+        // Update the text content
         $cardText.html("<p>" + displayText + "</p>");
+        
+        // Re-append the images/PDFs
+        if ($existingImages.length > 0) {
+          $cardText.append($existingImages);
+        }
         
         // Change the icon back to the edit icon immediately for user messages
         $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
       } else if (currentMessage.role === "assistant") {
-        // For assistant messages, we'll show a loading indicator
-        // while we wait for the server to process the markdown and send back the HTML
-        $cardText.html("<div class='text-center'><i class='fas fa-brain fa-pulse'></i> Processing...</div>");
+        // For assistant messages, temporarily show the raw text like user messages
+        // The server will send back properly formatted HTML
+        const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+        
+        // Preserve existing images/PDFs by extracting them first
+        const $existingImages = $cardText.find('.pdf-preview, .base64-image, .image-container, .mask-overlay-container').detach();
+        
+        // Update the text content
+        $cardText.html("<p>" + displayText + "</p>");
+        
+        // Re-append the images/PDFs
+        if ($existingImages.length > 0) {
+          $cardText.append($existingImages);
+        }
       } else if (currentMessage.role === "system") {
         // System messages are escaped HTML with line breaks preserved
         const displayText = newText.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+        
+        // Preserve existing images/PDFs by extracting them first
+        const $existingImages = $cardText.find('.pdf-preview, .base64-image, .image-container, .mask-overlay-container').detach();
+        
+        // Update the text content
         $cardText.html(displayText);
+        
+        // Re-append the images/PDFs
+        if ($existingImages.length > 0) {
+          $cardText.append($existingImages);
+        }
         
         // Change the icon back to the edit icon immediately for system messages
         $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");

@@ -3,6 +3,7 @@
 //////////////////////////////
 
 let ws = connect_websocket();
+window.ws = ws;  // Make ws globally accessible
 let model_options;
 let initialLoadComplete = false; // Flag to track initial load
 
@@ -610,7 +611,7 @@ const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.
 const isFirefox = /Firefox/.test(navigator.userAgent);
 
 // Log platform detection for debugging
-console.log(`[Browser] Detection - MediaSource: ${hasMediaSourceSupport}, AudioContext: ${hasAudioContextSupport}, iOS: ${isIOS}, iPad: ${isIPad}, Mobile iOS: ${isMobileIOS}, Chrome: ${isChrome}, Safari: ${isSafari}, Firefox: ${isFirefox}`);
+// Browser capabilities detected: MediaSource, AudioContext, device type, and browser
 
 // Create an AudioContext for iOS fallback if MediaSource isn't available but AudioContext is
 let audioContext = null;
@@ -618,7 +619,7 @@ if (!hasMediaSourceSupport && hasAudioContextSupport && isIOS) {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     audioContext = new AudioContextClass();
-    console.log("[Audio] Created AudioContext for iOS fallback");
+    
   } catch (e) {
     console.error("[Audio] Failed to create AudioContext:", e);
   }
@@ -654,17 +655,17 @@ function initializeMediaSourceForAudio() {
       mediaSource = new MediaSource();
       
       mediaSource.addEventListener('sourceopen', function() {
-        console.log("[Audio] MediaSource opened");
+        
         
         if (!sourceBuffer && mediaSource.readyState === 'open') {
           try {
             // Check browser and set appropriate codec
             if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-              console.log("[Audio] Firefox detected, using special audio mode");
+              
               window.firefoxAudioMode = true;
               window.firefoxAudioQueue = [];
             } else {
-              console.log("[Audio] Setting up standard MediaSource audio mode");
+              
               sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
               sourceBuffer.addEventListener('updateend', processAudioDataQueue);
             }
@@ -680,7 +681,7 @@ function initializeMediaSourceForAudio() {
         audio = new Audio();
         audio.src = URL.createObjectURL(mediaSource);
         window.audio = audio; // Export to window for global access
-        console.log("[Audio] Audio element created with MediaSource");
+        
         
         // Set up event listener for automatic playback
         audio.addEventListener('canplay', function() {
@@ -689,14 +690,14 @@ function initializeMediaSourceForAudio() {
             const playPromise = audio.play();
             if (playPromise !== undefined) {
               playPromise.then(() => {
-                console.log("[Audio] Automatic playback started successfully");
+                
               }).catch(err => {
-                console.log("[Audio] Error in automatic playback:", err);
+                // Debug log removed
                 if (err.name === 'NotAllowedError') {
                   // Create a one-time click handler to enable audio
                   const enableAudio = function() {
                     audio.play().then(() => {
-                      console.log("[Audio] Playback enabled after user interaction");
+                      
                       document.removeEventListener('click', enableAudio);
                     }).catch(e => {
                       console.error("[Audio] Failed to start playback:", e);
@@ -716,14 +717,14 @@ function initializeMediaSourceForAudio() {
       window.basicAudioMode = true;
     }
   } else {
-    console.log("[Audio] MediaSource not supported, using basic audio mode");
+    
     window.basicAudioMode = true;
   }
 }
 
 // Reset audio elements when switching TTS modes
 function resetAudioElements() {
-  console.log("[Audio] Resetting audio elements");
+  
   
   // Stop and clean up current audio completely
   if (audio) {
@@ -748,7 +749,7 @@ function resetAudioElements() {
         sourceBuffer.abort();
         mediaSource.removeSourceBuffer(sourceBuffer);
       } catch (e) {
-        console.log("Error cleaning up source buffer:", e);
+        // Debug log removed
       }
     }
     
@@ -757,7 +758,7 @@ function resetAudioElements() {
       try {
         mediaSource.endOfStream();
       } catch (e) {
-        console.log("Error ending media source:", e);
+        // Debug log removed
       }
     }
   }
@@ -781,7 +782,7 @@ function resetAudioElements() {
     iosAudioElement = null;
   }
   
-  console.log("[Audio] Audio elements reset complete");
+  
 }
 
 // Direct audio playback for iOS devices or browsers without MediaSource support
@@ -970,7 +971,7 @@ function processAudio(audioData) {
     
     // Ensure MediaSource is initialized if not already
     if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-      console.log("[Audio] MediaSource not initialized, creating new one");
+      
       initializeMediaSourceForAudio();
     }
     
@@ -994,7 +995,7 @@ function processAudio(audioData) {
       // Ensure audio playback starts automatically
       if (audio && audio.paused) {
         audio.play().catch(err => {
-          console.log("Error playing audio:", err);
+          // Debug log removed
           // User interaction might be required
           if (err.name === 'NotAllowedError') {
             setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
@@ -1277,10 +1278,10 @@ function processIOSAudioBuffer() {
     iosAudioElement.play()
       .then(() => {
         // Playback started successfully
-        console.log("iOS audio playback started successfully");
+        
       })
       .catch((err) => {
-        console.log("iOS audio playback error:", err);
+        // Debug log removed
         isIOSAudioPlaying = false;
         URL.revokeObjectURL(blobUrl);
         
@@ -1436,7 +1437,7 @@ function processAudioDataQueue() {
       // For segmented playback, ensure continuous playback
       if (audio && audio.paused && audio.readyState >= 2) {
         audio.play().catch(err => {
-          console.log("Error resuming audio playback:", err);
+          // Debug log removed
         });
       }
     } catch (e) {
@@ -1487,14 +1488,14 @@ function connect_websocket(callback) {
     if (hasMediaSourceSupport && !isMobileIOS) {
       // Full MediaSource support available (desktop browsers, iPad)
       if (!mediaSource) {
-        console.log("[MediaSource] Initializing MediaSource for streaming audio");
+        
         try {
           mediaSource = new MediaSource();
           mediaSource.addEventListener('sourceopen', () => {
             try {
               if (runningOnFirefox) {
                 // Firefox needs special handling
-                console.log("[Audio] Setting up Firefox-specific audio mode");
+                
                 window.firefoxAudioMode = true;
                 window.firefoxAudioQueue = [];
                 
@@ -1521,21 +1522,21 @@ function connect_websocket(callback) {
                 };
               } else {
                 // Chrome and others work well with mpeg
-                console.log("[Audio] Setting up standard MediaSource audio mode");
+                
                 sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
                 sourceBuffer.addEventListener('updateend', processAudioDataQueue);
               }
             } catch (e) {
               console.error("Error setting up MediaSource: ", e);
               // Fallback to basic audio mode if MediaSource setup fails
-              console.log("[Audio] MediaSource setup failed, switching to basic audio mode");
+              
               window.basicAudioMode = true;
             }
           });
         } catch (e) {
           console.error("Error creating MediaSource: ", e);
           // Fallback to basic audio mode if MediaSource creation fails
-          console.log("[Audio] MediaSource creation failed, switching to basic audio mode");
+          
           window.basicAudioMode = true;
         }
       }
@@ -1562,13 +1563,13 @@ function connect_websocket(callback) {
         } catch (e) {
           console.error("Error creating audio element: ", e);
           // Fallback to basic audio mode
-          console.log("[Audio] Audio element creation failed, switching to basic audio mode");
+          
           window.basicAudioMode = true;
         }
       }
     } else {
       // No MediaSource support (iOS Safari) - use basic audio mode
-      console.log("[Audio] Using basic audio mode for this device (iOS or no MediaSource support)");
+      
       window.basicAudioMode = true;
       
       // Add a CSS class to body for iOS-specific styling if needed
@@ -1657,7 +1658,7 @@ function connect_websocket(callback) {
     // This will be cleared for normal responses but will run if something goes wrong
     const messageTimeout = setTimeout(function() {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
-        console.log("Safety: Re-enabling controls after WebSocket message timeout");
+        
         $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
         $("#message").prop("disabled", false);
         $("#select-role").prop("disabled", false);
@@ -1694,7 +1695,7 @@ function connect_websocket(callback) {
             try {
               // Ensure MediaSource is initialized if not already
               if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-                console.log("[Audio] MediaSource not initialized, creating new one");
+                
                 initializeMediaSourceForAudio();
               }
               
@@ -1722,7 +1723,7 @@ function connect_websocket(callback) {
               if (audio) {
                 // Always attempt to play, even if not paused (may be needed for some browsers)
                 audio.play().catch(err => {
-                  console.log("Error playing audio:", err);
+                  // Debug log removed
                   
                   // User interaction might be required, show indicator
                   if (err.name === 'NotAllowedError') {
@@ -1808,7 +1809,7 @@ function connect_websocket(callback) {
           const processAudio = (audioData) => {
             // Ensure MediaSource is initialized if not already
             if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-              console.log("[Audio] MediaSource not initialized for audio message, creating new one");
+              
               initializeMediaSourceForAudio();
             }
             
@@ -1837,7 +1838,7 @@ function connect_websocket(callback) {
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                   playPromise.catch(err => {
-                    console.log("Error playing audio:", err);
+                    // Debug log removed
                     if (err.name === 'NotAllowedError') {
                       setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
                     }
@@ -1912,7 +1913,7 @@ function connect_websocket(callback) {
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                   playPromise.catch(err => {
-                    console.log("Error playing audio:", err);
+                    // Debug log removed
                     if (err.name === 'NotAllowedError') {
                       setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
                     }
@@ -2120,14 +2121,15 @@ function connect_websocket(callback) {
             $("#tts-provider").val("openai-tts-4o").trigger("change");
           }
           $("#start").prop("disabled", false);
-          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+          // TTS speed is already enabled by default and should remain enabled
           
           // Update the available AI User providers when token is verified
           // Check if the function exists before calling it
           if (typeof window.updateAvailableProviders === 'function') {
             window.updateAvailableProviders();
           } else {
-            console.log("[Providers] updateAvailableProviders function not available yet");
+            
           }
         }
 
@@ -2218,11 +2220,17 @@ function connect_websocket(callback) {
           // Add apps to selector
           // First add the OpenAI Apps label and regular apps
           // Always show OpenAI apps, regardless of verification status
+          
+          // Check if all OpenAI apps are disabled
+          const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
+          
           // Add OpenAI separator to standard select
           $("#apps").append('<option disabled>──OpenAI──</option>');
-          // Add OpenAI separator to custom dropdown
-          $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="OpenAI">
-            <span>──OpenAI──</span>
+          // Add OpenAI separator to custom dropdown with conditional styling
+          const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
+          const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
+          $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
+            <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
             <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
           </div>`);
           // Create a container for the OpenAI apps
@@ -2265,15 +2273,20 @@ function connect_websocket(callback) {
           // Add special groups with their labels
           for (const group of Object.keys(specialApps)) {
             if (specialApps[group].length > 0) {
+              // Check if all apps in this group are disabled
+              const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
+              
               // Always show groups even if all apps are disabled
               // This allows users to see what apps exist but are unavailable
               if (true) {
                 // Add group header to standard select
                 $("#apps").append(`<option disabled>──${group}──</option>`);
                 
-                // Add group header to custom dropdown
-                $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group" data-group="${group}">
-                  <span>──${group}──</span>
+                // Add group header to custom dropdown with conditional styling
+                const groupClass = allAppsDisabled ? ' all-disabled' : '';
+                const groupTitle = allAppsDisabled ? ' title="API key required for this provider"' : '';
+                $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
+                  <span>──${group}──${allAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
                   <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
                 </div>`);
                 
@@ -2390,7 +2403,7 @@ function connect_websocket(callback) {
           if (typeof window.updateAvailableProviders === 'function') {
             window.updateAvailableProviders();
           } else {
-            console.log("[Providers] updateAvailableProviders function not available yet");
+            
           }
         }
         originalParams = apps["Chat"];
@@ -2602,7 +2615,7 @@ function connect_websocket(callback) {
         }
 
         if ($("#apps option").length === 0) {
-          setAlert("<i class='fa-solid fa-bolt'></i> Valid API token not set", "warning");
+          setAlert("<i class='fa-solid fa-bolt'></i> No apps available - check API keys in settings", "warning");
         } else {
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         }
@@ -2811,7 +2824,7 @@ function connect_websocket(callback) {
         break;
       }
       case "ai_user_finished": {
-        console.log("AI User finished");
+        
         
         // Trim extra whitespace from the final message
         const trimmedContent = data["content"].trim();
@@ -2860,14 +2873,96 @@ function connect_websocket(callback) {
         
         // Get the message card by mid
         const $card = $(`#${data.mid}`);
-        if (!$card.length) return;
+        if (!$card.length) {
+          return;
+        }
         
         const $cardText = $card.find(".card-text");
         
-        // Update the HTML content for assistant messages
-        if (data.role === "assistant" && data.html) {
+        // Update the HTML content
+        if (data.html) {
           // Update the card with the HTML from server
           $cardText.html(data.html);
+          
+          // Check if we have preserved images from before editing
+          const $preservedImages = $cardText.data('preservedImages');
+          
+          // Add images if they exist
+          if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+            // Group mask images with their original images
+            const imageMap = new Map();
+            const maskImages = [];
+            
+            // First pass - identify all mask images and base images
+            data.images.forEach(image => {
+              if (image.is_mask || (image.title && image.title.startsWith("mask__"))) {
+                // Store mask images separately with reference to their base image
+                maskImages.push(image);
+              } else {
+                // Store base images in a map with their title as key
+                imageMap.set(image.title, image);
+              }
+            });
+            
+            // Second pass - create HTML for each base image, with its mask if available
+            let image_data = "";
+            
+            // Process regular images first
+            imageMap.forEach((image, title) => {
+              // Check if this image has a mask
+              const maskImage = maskImages.find(mask => 
+                mask.mask_for === title || 
+                (mask.title && mask.title.includes(title.replace(/\.[^.]+$/, "")))
+              );
+              
+              if (maskImage) {
+                // This image has a mask - render as overlay
+                image_data += `
+                  <div class="mask-overlay-container mb-3">
+                    <img class='base-image' alt='${image.title}' src='${image.data}' />
+                    <img class='mask-overlay' alt='${maskImage.title}' src='${maskImage.display_data || maskImage.data}' style="opacity: 0.6;" />
+                    <div class="mask-overlay-label">MASK</div>
+                  </div>
+                `;
+              } else if (image.type === 'application/pdf') {
+                // PDF file
+                image_data += `
+                  <div class="pdf-preview mb-3">
+                    <i class="fas fa-file-pdf text-danger"></i>
+                    <span class="ms-2">${image.title}</span>
+                  </div>
+                `;
+              } else {
+                // Regular image without mask
+                image_data += `
+                  <img class='base64-image mb-3' src='${image.data}' alt='${image.title}' style='max-width: 100%; height: auto;' />
+                `;
+              }
+            });
+            
+            // Finally, add any mask images that don't have a matching base image
+            maskImages.forEach(mask => {
+              if (!imageMap.has(mask.mask_for)) {
+                image_data += `
+                  <img class='base64-image mb-3' src='${mask.display_data || mask.data}' alt='${mask.title}' style='max-width: 100%; height: auto;' />
+                `;
+              }
+            });
+            
+            $cardText.append(image_data);
+          } else if ($preservedImages && $preservedImages.length > 0) {
+            // If no images from server but we have preserved images, restore them
+            $cardText.append($preservedImages);
+          }
+          
+          // Clean up the preserved images data
+          $cardText.removeData('preservedImages');
+          
+          // Update the messages array with the new images
+          const messageIndex = messages.findIndex((m) => m.mid === data.mid);
+          if (messageIndex !== -1 && data.images) {
+            messages[messageIndex].images = data.images;
+          }
           
           // Apply all the required processing for assistant messages
           const htmlContent = $card;
@@ -3423,6 +3518,7 @@ function reconnect_websocket(ws, callback) {
         
         // Create new connection
         ws = connect_websocket(callback);
+        window.ws = ws;  // Update global reference
         break;
         
       case WebSocket.CLOSING:

@@ -44,6 +44,7 @@
 
 - **Developer Guide**
 
+    - [Breaking Changes (1.0.0)](/developer/breaking-changes.md)
     - [Development Workflow](/developer/development_workflow.md)
     - [Rake Tasks](/developer/rake_tasks.md)
     - [Assets Management](/developer/assets.md)

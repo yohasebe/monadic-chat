@@ -169,7 +169,7 @@ module ClaudeHelper
   # Simple non-streaming chat completion
   def send_query(options, model: "claude-3-5-sonnet-20241022")
     # First try CONFIG, then fall back to ENV for the API key
-    api_key = CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]
+    api_key = CONFIG["ANTHROPIC_API_KEY"]
     
     # Set the headers for the API request
     headers = {
@@ -324,7 +324,7 @@ module ClaudeHelper
 
     begin
       # First check CONFIG, then ENV for API key
-      api_key = CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]
+      api_key = CONFIG["ANTHROPIC_API_KEY"]
       
       raise if api_key.nil?
     rescue StandardError => e

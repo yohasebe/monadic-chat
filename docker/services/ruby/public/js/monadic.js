@@ -135,6 +135,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // Fallback implementations are now in shims.js
 
 $(function () {
+  
   // Make alert draggable immediately when needed instead of storing reference
   $("#alert").draggable({ cursor: "move" });
 
@@ -144,7 +145,9 @@ $(function () {
   // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
 
-  $("#send, #clear, #voice, #tts-voice, #tts-speed, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+  $("#send, #clear, #voice, #tts-voice, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+  // Keep TTS speed control always enabled as it's used by multiple TTS providers
+  $("#tts-speed").prop("disabled", false);
 
   //////////////////////////////
   // UI event handlers
@@ -1343,8 +1346,8 @@ $(function () {
         ws.send(JSON.stringify(params));
         $("#message").css("height", "96px").val("");
 
-        // Preserve only PDF files for the next message
-        images = images.filter(img => img.type === 'application/pdf');
+        // Clear all images including PDFs after sending
+        images = [];
         updateFileDisplay(images);
       });
     }

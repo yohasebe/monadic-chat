@@ -194,14 +194,14 @@ module AIUserAgent
     
     # Check if the required API key exists for the provider
     has_api_key = case provider.to_s.downcase
-      when "openai" then !(CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]).nil? && !(CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]).empty?
-      when "anthropic" then !(CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]).nil? && !(CONFIG["ANTHROPIC_API_KEY"] || ENV["ANTHROPIC_API_KEY"]).empty?
-      when "cohere" then !(CONFIG["COHERE_API_KEY"] || ENV["COHERE_API_KEY"]).nil? && !(CONFIG["COHERE_API_KEY"] || ENV["COHERE_API_KEY"]).empty?
-      when "gemini" then !(CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]).nil? && !(CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]).empty?
-      when "mistral" then !(CONFIG["MISTRAL_API_KEY"] || ENV["MISTRAL_API_KEY"]).nil? && !(CONFIG["MISTRAL_API_KEY"] || ENV["MISTRAL_API_KEY"]).empty?
-      when "grok" then !(CONFIG["XAI_API_KEY"] || ENV["XAI_API_KEY"]).nil? && !(CONFIG["XAI_API_KEY"] || ENV["XAI_API_KEY"]).empty?
-      when "perplexity" then !(CONFIG["PERPLEXITY_API_KEY"] || ENV["PERPLEXITY_API_KEY"]).nil? && !(CONFIG["PERPLEXITY_API_KEY"] || ENV["PERPLEXITY_API_KEY"]).empty?
-      when "deepseek" then !(CONFIG["DEEPSEEK_API_KEY"] || ENV["DEEPSEEK_API_KEY"]).nil? && !(CONFIG["DEEPSEEK_API_KEY"] || ENV["DEEPSEEK_API_KEY"]).empty?
+      when "openai" then !(CONFIG["OPENAI_API_KEY"]).nil? && !(CONFIG["OPENAI_API_KEY"]).empty?
+      when "anthropic" then !(CONFIG["ANTHROPIC_API_KEY"]).nil? && !(CONFIG["ANTHROPIC_API_KEY"]).empty?
+      when "cohere" then !(CONFIG["COHERE_API_KEY"]).nil? && !(CONFIG["COHERE_API_KEY"]).empty?
+      when "gemini" then !(CONFIG["GEMINI_API_KEY"]).nil? && !(CONFIG["GEMINI_API_KEY"]).empty?
+      when "mistral" then !(CONFIG["MISTRAL_API_KEY"]).nil? && !(CONFIG["MISTRAL_API_KEY"]).empty?
+      when "grok" then !(CONFIG["XAI_API_KEY"]).nil? && !(CONFIG["XAI_API_KEY"]).empty?
+      when "perplexity" then !(CONFIG["PERPLEXITY_API_KEY"]).nil? && !(CONFIG["PERPLEXITY_API_KEY"]).empty?
+      when "deepseek" then !(CONFIG["DEEPSEEK_API_KEY"]).nil? && !(CONFIG["DEEPSEEK_API_KEY"]).empty?
       else false
     end
     
@@ -234,24 +234,24 @@ module AIUserAgent
     
     # Get model from configuration variables with fallbacks
     if provider_downcase.include?("anthropic") || provider_downcase.include?("claude")
-      CONFIG["ANTHROPIC_DEFAULT_MODEL"] || ENV["ANTHROPIC_DEFAULT_MODEL"] || "claude-3-5-sonnet-20241022"
+      CONFIG["ANTHROPIC_DEFAULT_MODEL"] || "claude-3-5-sonnet-20241022"
     elsif provider_downcase.include?("openai") || provider_downcase.include?("gpt")
-      CONFIG["OPENAI_DEFAULT_MODEL"] || ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+      CONFIG["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
-      CONFIG["COHERE_DEFAULT_MODEL"] || ENV["COHERE_DEFAULT_MODEL"] || "command-r-plus"
+      CONFIG["COHERE_DEFAULT_MODEL"] || "command-r-plus"
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
-      CONFIG["GEMINI_DEFAULT_MODEL"] || ENV["GEMINI_DEFAULT_MODEL"] || "gemini-2.0-flash"
+      CONFIG["GEMINI_DEFAULT_MODEL"] || "gemini-2.0-flash"
     elsif provider_downcase.include?("mistral")
-      CONFIG["MISTRAL_DEFAULT_MODEL"] || ENV["MISTRAL_DEFAULT_MODEL"] || "mistral-large-latest"
+      CONFIG["MISTRAL_DEFAULT_MODEL"] || "mistral-large-latest"
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")
-      CONFIG["GROK_DEFAULT_MODEL"] || ENV["GROK_DEFAULT_MODEL"] || "grok-2"
+      CONFIG["GROK_DEFAULT_MODEL"] || "grok-2"
     elsif provider_downcase.include?("perplexity")
-      CONFIG["PERPLEXITY_DEFAULT_MODEL"] || ENV["PERPLEXITY_DEFAULT_MODEL"] || "sonar"
+      CONFIG["PERPLEXITY_DEFAULT_MODEL"] || "sonar"
     elsif provider_downcase.include?("deepseek")
-      CONFIG["DEEPSEEK_DEFAULT_MODEL"] || ENV["DEEPSEEK_DEFAULT_MODEL"] || "deepseek-chat"
+      CONFIG["DEEPSEEK_DEFAULT_MODEL"] || "deepseek-chat"
     else
       # Fallback to default model - details logged to dedicated log files
-      CONFIG["OPENAI_DEFAULT_MODEL"] || ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+      CONFIG["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
     end
   end
 end

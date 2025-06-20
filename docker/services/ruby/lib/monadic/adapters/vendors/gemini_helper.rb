@@ -139,7 +139,7 @@ module GeminiHelper
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
     # Get API key
-    api_key = CONFIG["GEMINI_API_KEY"] || ENV["GEMINI_API_KEY"]
+    api_key = CONFIG["GEMINI_API_KEY"]
     return "Error: GEMINI_API_KEY not found" if api_key.nil?
 
     # Check if this is a thinking model (Gemini 2.5) - moved before body creation

@@ -15,6 +15,8 @@
 - [**ドキュメント**](https://yohasebe.github.io/monadic-chat) (英語/日本語)
 - [**インストール**](https://yohasebe.github.io/monadic-chat/#/ja/getting-started/installation)
 
+!> **重要な変更**: バージョン1.0.0には設定管理とAPIに関する重要な変更が含まれています。移行手順については[重要な変更ガイド](/ja/developer/breaking-changes)を参照してください。
+
 ## 接地とは？
 
 Monadic Chatは現実世界に接地するAIフレームワークです。ここで**接地**（grounding）という表現は2つの意味を持ちます。

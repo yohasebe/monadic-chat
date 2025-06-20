@@ -185,7 +185,7 @@ img, .generated_image img {
 img.base64-image {
   max-width: 400px;
   max-height: 200px;
-  margin: 0 0 20px 0;
+  margin: 1.5rem 0 20px 0;
   cursor: pointer;
 }
 
@@ -1077,12 +1077,14 @@ legend {
   padding: 10px;
   background-color: #f8f9fa;
   border-radius: 4px;
+  margin-top: 1.5rem;
   border: 1px solid #dee2e6;
 }
 
 .base64-image {
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 1.5rem;
 }
 
 .remove-file:hover {
@@ -1924,6 +1926,19 @@ h1 {
 }
 
 /* Custom dropdown styling */
+.custom-dropdown-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-dropdown-group .group-toggle-icon {
+  margin-left: auto;
+}
+
 .custom-dropdown-option {
   cursor: pointer;
   padding: 6px 12px;
@@ -2201,6 +2216,18 @@ h1 {
   font-weight: 700;
 }
 
+/* Style for provider groups when all apps are disabled (no API key) */
+.custom-dropdown-group.all-disabled span:first-child {
+  opacity: 0.6;
+}
+
+.custom-dropdown-group.all-disabled .api-key-required {
+  font-size: 0.85em;
+  color: #999;
+  font-weight: normal;
+  margin-left: 8px;
+}
+
 /* System info message styling */
 .system-info-message {
   background-color: #e3f2fd;
@@ -2230,5 +2257,15 @@ h1 {
 .error-message i {
   color: #d32f2f;
   margin-right: 8px;
+}
+
+/* Spacing between message text and PDFs/images */
+.pdf-preview {
+  margin-top: 1.5rem;
+}
+
+img.base64-image,
+.base64-image {
+  margin-top: 1.5rem;
 }
 }

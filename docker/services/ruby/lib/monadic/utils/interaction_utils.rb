@@ -317,7 +317,7 @@ module InteractionUtils
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
     when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
-      api_key = CONFIG["ELEVENLABS_API_KEY"] || ENV["ELEVENLABS_API_KEY"]
+      api_key = CONFIG["ELEVENLABS_API_KEY"]
       headers = {
         "Content-Type" => "application/json",
         "xi-api-key" => api_key

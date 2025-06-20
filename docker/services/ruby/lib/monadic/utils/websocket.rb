@@ -325,6 +325,11 @@ module WebSocketHelper
       # Update the message text
       message_to_edit["text"] = obj["content"]
       
+      # Update images if provided in the edit request
+      if obj["images"] && obj["images"].is_a?(Array)
+        message_to_edit["images"] = obj["images"]
+      end
+      
       # Generate HTML content if needed
       html_content = generate_html_for_message(message_to_edit, obj["content"])
       
@@ -336,6 +341,11 @@ module WebSocketHelper
         "role" => message_to_edit["role"],
         "html" => html_content
       }
+      
+      # Include images if they exist
+      if message_to_edit["images"] && message_to_edit["images"].is_a?(Array) && !message_to_edit["images"].empty?
+        response["images"] = message_to_edit["images"]
+      end
       
       # Push the response
       @channel.push(response.to_json)

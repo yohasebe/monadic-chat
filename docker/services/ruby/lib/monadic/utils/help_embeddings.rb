@@ -220,7 +220,7 @@ class HelpEmbeddings < TextEmbeddings
     batch_size = if defined?(CONFIG) && CONFIG['HELP_EMBEDDINGS_BATCH_SIZE']
                    CONFIG['HELP_EMBEDDINGS_BATCH_SIZE'].to_i
                  else
-                   (ENV['HELP_EMBEDDINGS_BATCH_SIZE'] || '50').to_i
+                   50
                  end
     get_embeddings_batch(texts, batch_size: batch_size)
   end

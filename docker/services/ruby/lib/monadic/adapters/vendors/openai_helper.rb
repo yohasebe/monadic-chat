@@ -246,7 +246,7 @@ module OpenAIHelper
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
-    api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
+    api_key = CONFIG["OPENAI_API_KEY"]
     
     # Set the headers for the API request
     headers = {
@@ -452,7 +452,7 @@ module OpenAIHelper
     # switch to the WEBSEARCH_MODEL (defaults to gpt-4.1-mini if not set)
     if websearch && reasoning_model && !search_model && !use_responses_api
       original_model = model
-      model = CONFIG["WEBSEARCH_MODEL"] || ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
+      model = CONFIG["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
       body["model"] = model
       
       # Update model flags after switching
@@ -717,7 +717,14 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      unless obj["vision_capability"]
+      # Check if the current model has vision capability
+      # gpt-4.1-mini and gpt-4.1 both have vision capability
+      vision_capable_models = ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-preview", "gpt-4.1-mini-2025-04-14", "gpt-4.1-2025-04-14", 
+                               "gpt-4.5", "gpt-4.5-preview", "gpt-4o", "gpt-4o-mini", "o3-pro"]
+      current_model = body["model"]
+      has_vision = vision_capable_models.any? { |m| current_model.include?(m) }
+      
+      unless has_vision || obj["vision_capability"]
         original_model = body["model"]
         body["model"] = "gpt-4.1"
         body.delete("reasoning_effort")

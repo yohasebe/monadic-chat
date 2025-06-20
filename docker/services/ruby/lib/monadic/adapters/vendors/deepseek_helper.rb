@@ -122,7 +122,7 @@ module DeepSeekHelper
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
     # Get API key
-    api_key = CONFIG["DEEPSEEK_API_KEY"] || ENV["DEEPSEEK_API_KEY"]
+    api_key = CONFIG["DEEPSEEK_API_KEY"]
     return "Error: DEEPSEEK_API_KEY not found" if api_key.nil?
     
     # Set headers

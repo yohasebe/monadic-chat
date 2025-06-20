@@ -1,0 +1,10 @@
+{
+  "monadic-chat-help": {
+    "transport": "stdio",
+    "command": "/Users/yohasebe/code/monadic-chat/docker/services/ruby/bin/mcp_stdio_server.rb",
+    "env": {
+      "MCP_DEBUG": "true"
+    },
+    "description": "Monadic Chat Help documentation via MCP (stdio)"
+  }
+}

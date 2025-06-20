@@ -1,69 +1,11 @@
 - [June, 2025] 1.0.0-beta.1
   - **Beta Release**: First beta release for version 1.0.0
-  
-  ### Breaking Changes
-  - **Embedding model changed**: Now uses `text-embedding-3-large` (3072 dimensions) exclusively
-    - Help database must be rebuilt with `rake help:rebuild`
-    - `text-embedding-3-small` option removed from settings
-  - `run_script` method removed - use `run_code` instead (all providers now use `run_code`)
-  - Python scripts reorganized into categorized directories (`utilities/`, `cli_tools/`, `converters/`, `services/`)
-  - `sysinfo` renamed to `sysinfo.sh` with proper extension
-  - `app.py` renamed to `flask_server.py` for clarity
-  - Minimum Ruby version requirement (>= 2.6.10)
-  
-  ### New Features
-  - **Concept Visualizer app**: Generate scientific and mathematical diagrams with LaTeX/TikZ
-  - **Syntax Tree app**: Visualize syntactic structures for linguistic analysis
-  - **Ollama integration**: Local LLM support with automatic model management
-  - **Debug system**: Unified debug control with `MONADIC_DEBUG` environment variable
-  - **MDSL auto-completion**: Disabled by default, configurable via `MDSL_AUTO_COMPLETE`
-  - **Semantic versioning support**: Proper handling of beta/rc versions (e.g., 1.0.0-beta.1)
-  - **Provider colors in UI**: Visual distinction for different AI providers in dropdown menus
-  - **API key warning**: Clear notification when no API keys are configured
-  - **Model switch notifications**: Automatic notifications when models are switched for web search or image processing
-  
-  ### Improvements
-  - **Performance optimizations**:
-    - Command execution delay reduced from 1.5s to 1.0s
-    - Audio queue processing improved (100ms → 20ms delay)
-    - JavaScript debug logging disabled by default in production
-  - **Code organization**:
-    - Ruby and Python scripts restructured into logical directories
-    - Test scripts moved to `scripts/diagnostics/` to prevent app loading conflicts
-  - **Error handling**:
-    - Error pattern detection prevents infinite retry loops
-    - Improved error messages and logging
-  - **Dependencies**:
-    - Major gem versions locked for stability
-    - Security updates included
-  - **Documentation**:
-    - Comprehensive section IDs added to all documentation files
-    - Fixed all broken links in documentation
-    - Synchronized English and Japanese documentation
-    - Updated reasoning model information for all providers
-    - Added CONFIG vs ENV usage patterns documentation
-  - **Second Opinion app**:
-    - Improved two-step consultation process explanation
-    - Now available for all 9 AI providers (not just OpenAI)
-  - **Reasoning models**:
-    - OpenAI O3 series (o3, o3-pro) support added
-    - Comprehensive documentation of reasoning_effort parameter
-    - Proper handling of all reasoning model variants
-  
-  ### Developer Experience
-  - Comprehensive documentation in `CLAUDE.md` for development guidelines
-  - Improved test coverage with RSpec and Jest
-  - Debug output streamlined with `DebugHelper` module
-  - OStruct deprecation warning resolved for Ruby 3.5.0 compatibility
-  - Semantic version comparison utilities for both Ruby and JavaScript
-  
-  ### Bug Fixes
-  - App menu display and grouping issues resolved
-  - Voice interpreter app functionality restored
-  - Streaming text duplication with Ollama fixed
-  - LaTeX rendering improvements for mathematical content
-  - Fixed DeepSeek model specification syntax errors
-  - Resolved app loading issues when API keys are missing
+  - **Important Changes**: See [documentation](https://yohasebe.github.io/monadic-chat/#/developer/breaking-changes) for migration guide
+  - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)
+  - **Ollama Support**: Local LLM integration with automatic model management
+  - **O3 Series Support**: OpenAI o3 and o3-pro models (o3-pro uses responses API)
+  - **Performance**: Faster command execution, improved audio processing
+  - **UI Improvements**: Provider colors, API key warnings, model switch notifications
 
 - [May, 2025] 0.9.982
   - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models

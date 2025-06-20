@@ -297,7 +297,7 @@ class TextEmbeddings
                 elsif defined?(CONFIG) && CONFIG["OPENAI_API_KEY"]
                   CONFIG["OPENAI_API_KEY"]
                 else
-                  ENV["OPENAI_API_KEY"]
+                  nil
                 end
 
     request["Authorization"] = "Bearer #{api_key}"
@@ -371,7 +371,7 @@ class TextEmbeddings
                 elsif defined?(CONFIG) && CONFIG["OPENAI_API_KEY"]
                   CONFIG["OPENAI_API_KEY"]
                 else
-                  ENV["OPENAI_API_KEY"]
+                  nil
                 end
     
     all_embeddings = []

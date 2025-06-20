@@ -14,7 +14,7 @@ module WebSearchAgent
                          CONFIG["OPENAI_NATIVE_WEBSEARCH_FALLBACK"] != "false"
     
     # Use the configured WEBSEARCH_MODEL (defaults to gpt-4.1-mini)
-    model = CONFIG["WEBSEARCH_MODEL"] || ENV["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
+    model = CONFIG["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
     
     begin
       messages = [

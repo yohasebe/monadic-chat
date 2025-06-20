@@ -128,7 +128,7 @@ module GrokHelper
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
     # Get API key
-    api_key = CONFIG["XAI_API_KEY"] || ENV["XAI_API_KEY"]
+    api_key = CONFIG["XAI_API_KEY"]
     return "Error: XAI_API_KEY not found" if api_key.nil?
     
     # Set the headers for the API request

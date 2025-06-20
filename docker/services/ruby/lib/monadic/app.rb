@@ -77,7 +77,7 @@ class MonadicApp
     TOKENIZER = FlaskAppClient.new
     
     # Log connectivity status in client mode
-    distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : (ENV["DISTRIBUTED_MODE"] || "off")
+    distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] || "off"
     if distributed_mode == "client"
       if TOKENIZER.service_available?
         puts "[MonadicApp] Successfully connected to Python service in client mode"

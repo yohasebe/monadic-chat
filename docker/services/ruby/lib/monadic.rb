@@ -271,8 +271,8 @@ def load_tts_dict(tts_dict_data = nil)
       puts "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     end
   # 3. Legacy support: Try using TTS_DICT_DATA if it exists
-  elsif tts_dict_data || CONFIG["TTS_DICT_DATA"] || ENV["TTS_DICT_DATA"]
-    data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"] || ENV["TTS_DICT_DATA"]
+  elsif tts_dict_data || CONFIG["TTS_DICT_DATA"]
+    data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"]
     tts_dict = StringUtils.process_tts_dictionary(data_to_process)
     puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" if CONFIG["EXTRA_LOGGING"]
   else
@@ -457,7 +457,7 @@ def init_apps
   load_tts_dict
 
   # Filter out Jupyter apps if we're in server mode unless explicitly allowed
-  distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : (ENV["DISTRIBUTED_MODE"] || "off")
+  distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] || "off"
   allow_jupyter_in_server = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] == true || CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] == "true"
   
   if distributed_mode == "server" && !allow_jupyter_in_server
@@ -502,8 +502,8 @@ configure do
   set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
   set :public_folder, "public"
   set :views, "views"
-  set :api_key, CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
-  set :elevenlabs_api_key, CONFIG["ELEVENLABS_API_KEY"] || ENV["ELEVENLABS_API_KEY"]
+  set :api_key, CONFIG["OPENAI_API_KEY"]
+  set :elevenlabs_api_key, CONFIG["ELEVENLABS_API_KEY"]
   enable :cross_origin
   
   # Add MIME type for WebAssembly files

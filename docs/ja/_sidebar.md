@@ -32,6 +32,7 @@
     - [Dockerコンテナの追加](/ja/advanced-topics/adding-containers.md)
     - [Ollamaの利用](/ja/advanced-topics/ollama.md)
     - [ヘルプシステムの設定](/ja/advanced-topics/help-system.md)
+    - [MCPサーバー設定](/ja/MCP_SETUP.md)
     
 - **よくある質問**
     - [初期設定](/ja/faq/faq-settings.md)

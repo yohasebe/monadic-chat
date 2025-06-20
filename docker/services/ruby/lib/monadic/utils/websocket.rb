@@ -7,6 +7,36 @@ module WebSocketHelper
   include AIUserAgent
   # Handle websocket connection
   
+  # Class variable to store WebSocket connections
+  @@ws_connections = []
+  
+  # Add a connection to the list
+  def self.add_connection(ws)
+    @@ws_connections << ws unless @@ws_connections.include?(ws)
+  end
+  
+  # Remove a connection from the list
+  def self.remove_connection(ws)
+    @@ws_connections.delete(ws)
+  end
+  
+  # Broadcast MCP status to all connected clients
+  def self.broadcast_mcp_status(status)
+    message = {
+      event: "mcp_status",
+      data: status
+    }.to_json
+    
+    @@ws_connections.each do |ws|
+      begin
+        ws.send(message) if ws && !ws.closed?
+      rescue => e
+        # Remove dead connections
+        remove_connection(ws)
+      end
+    end
+  end
+  
   # Initialize token counting in a background thread
   def initialize_token_counting(text, encoding_name="o200k_base")
     # Return immediately if no text
@@ -180,6 +210,12 @@ module WebSocketHelper
     
     # Handle voice data
     push_voice_data(ws)
+    
+    # Send MCP server status if available
+    if defined?(Monadic::MCP::Server)
+      mcp_status = Monadic::MCP::Server.status
+      ws.send({ "type" => "mcp_status", "content" => mcp_status }.to_json)
+    end
     
     # Update message status
     update_message_status(ws, filtered_messages)
@@ -500,6 +536,8 @@ module WebSocketHelper
       ws = Faye::WebSocket.new(env, nil, { ping: 15 })
       ws.on :open do
         sid = @channel.subscribe { |obj| ws.send(obj) }
+        # Add connection to the list for MCP broadcasting
+        WebSocketHelper.add_connection(ws)
       end
 
       ws.on :message do |event|
@@ -633,6 +671,8 @@ module WebSocketHelper
           handle_delete_message(ws, obj)
         when "EDIT"
           handle_edit_message(ws, obj)
+        when "UPDATE_MCP_CONFIG"
+          handle_mcp_config_update(ws, obj)
         when "AI_USER_QUERY"
           # Check if there are enough messages for AI User to work with
           if session[:messages].nil? || session[:messages].size < 2
@@ -1388,6 +1428,8 @@ module WebSocketHelper
         end
 
       ws.on :close do |event|
+        # Remove connection from the list
+        WebSocketHelper.remove_connection(ws)
         ws = nil
         @channel.unsubscribe(sid)
       end
@@ -1396,5 +1438,26 @@ module WebSocketHelper
     end
   rescue StandardError => e
     # Error logging handled by main application
+  end
+  
+  # Handle MCP configuration update
+  def handle_mcp_config_update(ws, obj)
+    # Update configuration
+    CONFIG["MCP_SERVER_ENABLED"] = obj["enabled"] # Keep as boolean
+    CONFIG["MCP_SERVER_PORT"] = obj["port"] if obj["port"]
+    CONFIG["MCP_ENABLED_APPS"] = obj["apps"] if obj["apps"]
+    
+    # Write updated config to file (optional - depends on persistence requirements)
+    # This would require implementing a save_config method
+    
+    # Restart MCP server if needed
+    if defined?(Monadic::MCP::Server)
+      # TODO: Implement server restart logic
+      # For now, just send updated status
+      mcp_status = Monadic::MCP::Server.status
+      ws.send({ "type" => "mcp_status", "content" => mcp_status }.to_json)
+    end
+    
+    ws.send({ "type" => "info", "content" => "MCP configuration updated" }.to_json)
   end
 end

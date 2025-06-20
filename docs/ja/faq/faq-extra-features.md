@@ -27,3 +27,15 @@
 ##### Q: Monadic Chatを最新バージョンに更新するにはどうすればよいですか？ :id=updating-monadic-chat
 
 **A**: Monadic Chatは起動時に自動的に更新をチェックします。更新が利用可能な場合は、メインウィンドウに通知が表示されます。アプリケーションメニューから「Check for Updates」（File → Check for Updates）を選択して、手動で更新を確認することもできます。更新が利用可能な場合は、アプリケーションがダウンロードリンクを提供します。なお、更新プロセスは完全に自動化されていません - 提供されたリンクから新しいバージョンを手動でダウンロードし、自分でインストールする必要があります。
+
+---
+
+##### Q: MCPとは何ですか？外部AIアシスタントとどのように使用しますか？ :id=mcp-integration
+
+**A**: MCP（Model Context Protocol）は、Claude DesktopやClaude Codeなどの外部AIアシスタントがMonadic Chatの機能にアクセスできるようにする実験的機能です。有効にするには、`~/monadic/config/env`ファイルに`MCP_SERVER_ENABLED=true`を追加してMonadic Chatを再起動します。その後、Claude DesktopまたはClaude CodeをMCPサーバーに接続するよう設定できます。現在サポートされているアダプターには、Help（ドキュメント検索）、Mermaid（図生成）、Syntax Tree（言語学の樹形図）があります。詳細な設定手順については、[MCPサーバー設定](/ja/MCP_SETUP.md)をご覧ください。
+
+---
+
+##### Q: MCPは図や構文木などの画像を生成できますか？ :id=mcp-image-generation
+
+**A**: はい、MCPサーバーにはMermaidおよびSyntax Treeアダプターを通じた画像生成機能が含まれています。MermaidアダプターはPython/Seleniumコンテナを使用して図のPNG画像を生成でき、Syntax TreeアダプターはLaTeXを使用して言語学の樹形図のSVG画像を作成できます。生成された画像は`/data/`ディレクトリに保存され、Webインターフェイスを通じて表示できます。これにはPythonおよびSeleniumコンテナが実行されている必要がありますが、Monadic Chatを使用する際は自動的に実行されます。

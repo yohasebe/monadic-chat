@@ -12,7 +12,7 @@ Add the following to `~/monadic/config/env`:
 ```
 MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
-MCP_ENABLED_APPS=help
+MCP_ENABLED_APPS=help,mermaid,syntax_tree
 MCP_BIND_ADDRESS=127.0.0.1  # Restrict to localhost for security
 MCP_ALLOWED_ORIGINS=http://localhost:4567,http://localhost:3000  # CORS allowed origins
 ```
@@ -78,7 +78,23 @@ In a new conversation, you should see the MCP tools available. Try:
 - **monadic_help_get_categories**: List all help categories  
 - **monadic_help_get_by_category**: Get items from a specific category (max 100 characters)
 
-Note: Tool names use underscores (_) instead of dots (.) for Claude Desktop compatibility.
+### Mermaid Grapher Adapter
+- **mermaid_validate_syntax**: Validate Mermaid diagram syntax (max 5000 characters)
+- **mermaid_preview**: Get instructions for generating diagram previews
+- **mermaid_generate**: Generate PNG image using Python/Selenium containers
+- **mermaid_analyze_error**: Analyze syntax errors and get suggestions for fixes
+
+Images are saved to `/data/` directory and can be viewed at `http://localhost:4567/data/filename.png`
+
+### Syntax Tree Generator Adapter
+- **syntax_tree_validate**: Validate bracket notation for syntax trees
+- **syntax_tree_convert**: Convert bracket notation to LaTeX tikz-qtree format
+- **syntax_tree_generate**: Generate SVG image using Python container
+- **syntax_tree_analyze**: Analyze tree structure and suggest improvements
+- **syntax_tree_examples**: Get example syntax trees for different languages
+
+Images are saved to `/data/` directory and can be viewed at `http://localhost:4567/data/filename.svg`
+
 
 ## Troubleshooting
 

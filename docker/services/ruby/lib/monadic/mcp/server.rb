@@ -270,24 +270,38 @@ module Monadic
       def load_enabled_adapters
         enabled_apps = (CONFIG["MCP_ENABLED_APPS"] || "help").split(",").map(&:strip)
         
+        puts "MCP: Loading adapters for: #{enabled_apps.join(', ')}" if CONFIG["EXTRA_LOGGING"] == "true"
+        
         adapters = []
         enabled_apps.each do |app|
           begin
-            require_relative "adapters/#{app}_adapter"
-            adapter_class = Object.const_get("Monadic::MCP::Adapters::#{app.capitalize}Adapter")
-            adapters << adapter_class.new
+            adapter_file = "adapters/#{app}_adapter"
+            puts "MCP: Loading #{adapter_file}..." if CONFIG["EXTRA_LOGGING"] == "true"
+            require_relative adapter_file
+            
+            # Convert app name to proper class name (e.g., "mermaid" -> "Mermaid", "syntax_tree" -> "SyntaxTree")
+            class_name = app.split('_').map(&:capitalize).join
+            full_class_name = "Monadic::MCP::Adapters::#{class_name}Adapter"
+            puts "MCP: Looking for class #{full_class_name}" if CONFIG["EXTRA_LOGGING"] == "true"
+            
+            adapter_class = Object.const_get(full_class_name)
+            adapter_instance = adapter_class.new
+            adapters << adapter_instance
+            puts "MCP: Successfully loaded #{app} adapter" if CONFIG["EXTRA_LOGGING"] == "true"
           rescue LoadError => e
             puts "Failed to load MCP adapter for #{app}: #{e.message}"
             puts "Current directory: #{Dir.pwd}"
             puts "File exists?: #{File.exist?(File.join(__dir__, "adapters", "#{app}_adapter.rb"))}"
           rescue NameError => e
             puts "Failed to instantiate MCP adapter for #{app}: #{e.message}"
+            puts "Expected class: #{full_class_name}" if defined?(full_class_name)
           rescue => e
             puts "Unexpected error loading MCP adapter for #{app}: #{e.class} - #{e.message}"
             puts e.backtrace.first(5).join("\n")
           end
         end
         
+        puts "MCP: Loaded #{adapters.length} adapters" if CONFIG["EXTRA_LOGGING"] == "true"
         adapters
       end
 

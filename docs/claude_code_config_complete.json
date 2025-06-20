@@ -1,0 +1,17 @@
+{
+  "monadic-chat-help": {
+    "transport": "http",
+    "url": "http://localhost:3100/mcp",
+    "description": "Monadic Chat Help documentation search"
+  },
+  "monadic-chat-mermaid": {
+    "transport": "http", 
+    "url": "http://localhost:3100/mcp",
+    "description": "Mermaid diagram validation and PNG generation"
+  },
+  "monadic-chat-syntax-tree": {
+    "transport": "http",
+    "url": "http://localhost:3100/mcp", 
+    "description": "Syntax tree validation and SVG generation"
+  }
+}

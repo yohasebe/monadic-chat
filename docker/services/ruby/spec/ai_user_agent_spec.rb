@@ -32,15 +32,16 @@ rescue LoadError
     end
 
     def default_model_for_provider(provider)
-      case provider.downcase
-      when /anthropic|claude/
-        "claude-3-5-sonnet-20241022"
-      when /openai|gpt/
-        "gpt-4.1"
-      when /gemini|google/
-        "gemini-2.0-flash"
+      provider_downcase = provider.to_s.downcase
+      
+      if provider_downcase.include?("anthropic") || provider_downcase.include?("claude")
+        CONFIG["ANTHROPIC_DEFAULT_MODEL"] || "claude-3-5-sonnet-20241022"
+      elsif provider_downcase.include?("openai") || provider_downcase.include?("gpt")
+        CONFIG["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+      elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
+        CONFIG["GEMINI_DEFAULT_MODEL"] || "gemini-2.0-flash"
       else
-        "gpt-4.1"
+        CONFIG["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
       end
     end
   end
@@ -375,8 +376,8 @@ RSpec.describe AIUserAgent do
   
   describe "#default_model_for_provider" do
     before do
-      # Mock ENV
-      stub_const("ENV", {
+      # Mock CONFIG
+      stub_const("CONFIG", {
         "OPENAI_DEFAULT_MODEL" => "gpt-4o-custom",
         "ANTHROPIC_DEFAULT_MODEL" => "claude-3-5-custom"
       })

@@ -1445,7 +1445,6 @@ module WebSocketHelper
     # Update configuration
     CONFIG["MCP_SERVER_ENABLED"] = obj["enabled"] # Keep as boolean
     CONFIG["MCP_SERVER_PORT"] = obj["port"] if obj["port"]
-    CONFIG["MCP_ENABLED_APPS"] = obj["apps"] if obj["apps"]
     
     # Write updated config to file (optional - depends on persistence requirements)
     # This would require implementing a save_config method

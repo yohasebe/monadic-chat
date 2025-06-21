@@ -32,7 +32,7 @@
     - [Adding Docker Containers](/advanced-topics/adding-containers.md)
     - [Using Ollama](/advanced-topics/ollama.md)
     - [Help System Configuration](/advanced-topics/help-system.md)
-    - [MCP Server Setup](/MCP_SETUP.md)
+    - [MCP Integration](/advanced-topics/mcp-integration.md)
     
 - **Frequently Asked Questions**
 

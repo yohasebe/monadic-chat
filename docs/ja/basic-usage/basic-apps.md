@@ -427,6 +427,26 @@ PDFファイルを読み込み、その内容に基づいてユーザーの質�
 
 ?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストとエンベディングデータは [PGVector](https://github.com/pgvector/pgvector) データベース（データベース名：`monadic_user_docs`）に確実に保存され、アプリケーションは適切にベクトルデータベースに接続してPDFコンテンツの検索と取得を行います。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
 
+**設定オプション：**
+
+PDF Navigatorの動作は`~/monadic/config/env`の環境変数でカスタマイズできます：
+
+- **`PDF_RAG_TOKENS`**: チャンクあたりのトークン数（デフォルト：4000）
+  - PDFテキストをエンベディング用のチャンクに分割する方法を制御
+  - 大きい値はより多くのコンテキストを提供しますが、検索精度が低下する可能性があります
+  - 推奨範囲：2000-6000トークン
+
+- **`PDF_RAG_OVERLAP_LINES`**: チャンク間でオーバーラップする行数（デフォルト：4）
+  - 隣接するチャンク間の連続性を提供
+  - チャンク境界でのコンテキスト損失を防ぎます
+  - 推奨範囲：2-10行
+
+設定例：
+```
+PDF_RAG_TOKENS=5000
+PDF_RAG_OVERLAP_LINES=6
+```
+
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
 ![Import PDF](../assets/images/import-pdf.png ':size=400')

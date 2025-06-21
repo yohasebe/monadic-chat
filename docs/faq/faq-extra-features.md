@@ -32,10 +32,10 @@
 
 ##### Q: What is MCP and how do I use it with external AI assistants? :id=mcp-integration
 
-**A**: MCP (Model Context Protocol) is an experimental feature that allows external AI assistants like Claude Desktop and Claude Code to access Monadic Chat functionality. To enable it, add `MCP_SERVER_ENABLED=true` to your `~/monadic/config/env` file and restart Monadic Chat. You can then configure Claude Desktop or Claude Code to connect to the MCP server. Currently supported adapters include Help (documentation search), Mermaid (diagram generation), and Syntax Tree (linguistic visualization). See [MCP Server Setup](/MCP_SETUP.md) for detailed configuration instructions.
+**A**: MCP (Model Context Protocol) is a standard protocol that allows external AI assistants and other clients to access Monadic Chat functionality via JSON-RPC 2.0. To enable it, add `MCP_SERVER_ENABLED=true` to your `~/monadic/config/env` file and restart Monadic Chat. The server automatically discovers and exposes all available tools from your apps. See [MCP Integration](/advanced-topics/mcp-integration.md) for detailed documentation.
 
 ---
 
-##### Q: Can MCP generate images like diagrams and syntax trees? :id=mcp-image-generation
+##### Q: Can I access all Monadic Chat tools through MCP? :id=mcp-tools
 
-**A**: Yes, the MCP server includes image generation capabilities through the Mermaid and Syntax Tree adapters. The Mermaid adapter can generate PNG images of diagrams using Python/Selenium containers, while the Syntax Tree adapter can create SVG images of linguistic trees using LaTeX. Generated images are saved to the `/data/` directory and can be viewed through the web interface. This requires the Python and Selenium containers to be running, which is automatic when using Monadic Chat.
+**A**: Yes, the MCP server automatically exposes all tools from all enabled apps. This includes image generation (DALL-E, Gemini), diagram creation (Mermaid, Syntax Tree), code execution, PDF search, and more. Tools are named using the convention `AppName__tool_name`. For example, `ImageGeneratorOpenAI__generate_image_with_dalle` or `SyntaxTreeOpenAI__render_syntax_tree`. No additional configuration is needed - new apps and tools are automatically discovered.

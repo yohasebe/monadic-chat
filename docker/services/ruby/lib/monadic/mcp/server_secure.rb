@@ -27,14 +27,9 @@ module Monadic
         api_key = request.env['HTTP_X_MCP_API_KEY']
         return false unless api_key
         
-        # Validate API key against configured keys
-        valid_keys = CONFIG["MCP_API_KEYS"]&.split(",")&.map(&:strip) || []
-        return false if valid_keys.empty?
-        
-        # Use BCrypt for secure comparison
-        valid_keys.any? do |valid_key|
-          BCrypt::Password.new(valid_key) == api_key rescue false
-        end
+        # For now, no API key validation implemented
+        # This would need to be configured differently
+        return true
       end
 
       # Override to allow configurable bind address
@@ -42,17 +37,9 @@ module Monadic
         return unless CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true"
         
         port = (CONFIG["MCP_SERVER_PORT"] || 3100).to_i
-        bind_address = CONFIG["MCP_BIND_ADDRESS"] || '127.0.0.1'
+        bind_address = '127.0.0.1'  # Always bind to localhost for security
         
-        # Warn if binding to non-localhost without auth
-        if bind_address != '127.0.0.1' && bind_address != 'localhost'
-          unless CONFIG["MCP_API_KEYS"]
-            puts "WARNING: MCP server binding to #{bind_address} without authentication!"
-            puts "Please set MCP_API_KEYS in your configuration for security."
-          end
-        end
-        
-        # Start server with configurable bind address
+        # Start server with localhost binding
         set :bind, bind_address
         super
       end

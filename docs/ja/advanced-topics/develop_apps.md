@@ -459,12 +459,11 @@ end
 
 ### 設定
 
-`~/monadic/config/env`でMCPアダプターを有効化：
+`~/monadic/config/env`でMCPサーバーを有効化：
 
 ```bash
 MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
-MCP_ENABLED_APPS=help,mermaid,syntax_tree
 ```
 
 ### セキュリティ考慮事項

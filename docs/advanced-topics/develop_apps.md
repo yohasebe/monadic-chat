@@ -377,12 +377,11 @@ end
 
 ### Configuration
 
-Enable MCP adapters in `~/monadic/config/env`:
+Enable MCP server in `~/monadic/config/env`:
 
 ```bash
 MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
-MCP_ENABLED_APPS=help,mermaid,syntax_tree
 ```
 
 ### Security Considerations

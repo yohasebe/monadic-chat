@@ -702,10 +702,6 @@
                     <label for="mcp-server-port" class="form-label">Port:</label>
                     <input type="number" id="mcp-server-port" class="form-control form-control-sm" style="width: 80px; display: inline-block;" min="1024" max="65535" value="<%= CONFIG["MCP_SERVER_PORT"] || 3100 %>">
                   </div>
-                  <div class="form-group float-start">
-                    <label for="mcp-enabled-apps" class="form-label">Enabled Apps:</label>
-                    <input type="text" id="mcp-enabled-apps" class="form-control form-control-sm" style="width: 200px; display: inline-block;" placeholder="help,image_generator" value="<%= CONFIG["MCP_ENABLED_APPS"] || "help" %>">
-                  </div>
                   <div class="clearfix"></div>
                   <small class="text-muted">Configure Model Context Protocol server for external AI assistants</small>
                 </fieldset>

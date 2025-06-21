@@ -1171,8 +1171,7 @@ $(function () {
     ws.send(JSON.stringify({
       message: "UPDATE_MCP_CONFIG",
       enabled: $("#mcp-server-enabled").is(":checked"),
-      port: parseInt($("#mcp-server-port").val()),
-      apps: $("#mcp-enabled-apps").val()
+      port: parseInt($("#mcp-server-port").val())
     }));
 
     // Ensure UI controls are properly enabled by default

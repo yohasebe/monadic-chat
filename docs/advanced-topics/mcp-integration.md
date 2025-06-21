@@ -161,6 +161,5 @@ Error responses include helpful details:
 
 ## Known Limitations
 
-- HTTP transport only (no STDIO support)
 - Resources and prompts methods not implemented
-- Some MCP clients may have compatibility issues
+- Some MCP clients may have compatibility issues with the standard implementation

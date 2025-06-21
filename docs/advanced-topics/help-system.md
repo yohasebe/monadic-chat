@@ -125,6 +125,36 @@ The system tracks help database updates using an export ID:
 4. If different, PGVector container is automatically rebuilt
 5. New help data is imported during container initialization
 
+## Configuration Variables :id=configuration-variables
+
+The Help System can be configured via environment variables in `~/monadic/config/env`:
+
+### Help System Settings
+
+- **`HELP_CHUNK_SIZE`**: Character count per chunk (default: 3000)
+  - Controls how documentation is split during processing
+  - Larger chunks provide more context but may reduce search precision
+  
+- **`HELP_OVERLAP_SIZE`**: Characters to overlap between chunks (default: 500)
+  - Provides continuity between adjacent chunks
+  - Helps prevent context loss at chunk boundaries
+
+- **`HELP_EMBEDDINGS_BATCH_SIZE`**: Batch size for API calls (default: 50)
+  - Number of chunks processed in a single OpenAI API call
+  - Adjust based on API rate limits
+
+- **`HELP_CHUNKS_PER_RESULT`**: Chunks returned per search result (default: 3)
+  - Number of relevant chunks included in each search result
+  - Higher values provide more context
+
+Example configuration:
+```
+HELP_CHUNK_SIZE=4000
+HELP_OVERLAP_SIZE=600
+HELP_EMBEDDINGS_BATCH_SIZE=25
+HELP_CHUNKS_PER_RESULT=5
+```
+
 ## Development :id=development
 
 ### Adding Documentation :id=adding-documentation

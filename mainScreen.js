@@ -3,6 +3,8 @@ const htmlOutputElement = document.getElementById('messages');
 const logOutputElement = document.getElementById('output');
 const logMaxLines = 256;
 let logLines = 0;
+const htmlMaxMessages = 100; // Maximum number of messages to keep in HTML area
+let htmlMessageCount = 0;
 
 // Global variables
 let currentStatus = 'Stopped';
@@ -383,6 +385,18 @@ function writeToScreen(text) {
         ? 'Server stopped' 
         : 'System stopped';
       htmlOutputElement.innerHTML += `<p style="color: #999;"><i class="fa-solid fa-circle-stop"></i> ${stopMessage} at ${timestamp}</p>\n`;
+      htmlMessageCount++;
+      
+      // Limit HTML messages to prevent memory issues
+      if (htmlMessageCount > htmlMaxMessages) {
+        const messages = htmlOutputElement.children;
+        const messagesToRemove = htmlMessageCount - htmlMaxMessages;
+        for (let j = 0; j < messagesToRemove && messages.length > 0; j++) {
+          messages[0].remove();
+        }
+        htmlMessageCount = htmlMaxMessages;
+      }
+      
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
       // Don't display [SERVER STOPPED] in console output
       return;
@@ -426,6 +440,19 @@ function writeToScreen(text) {
       for (let i = 1; i < parts.length; i++) {
         if (parts[i].trim() !== '') {
           htmlOutputElement.innerHTML += parts[i].trim() + '\n';
+          htmlMessageCount++;
+          
+          // Limit HTML messages to prevent memory issues
+          if (htmlMessageCount > htmlMaxMessages) {
+            const messages = htmlOutputElement.children;
+            // Remove oldest messages, keeping the last htmlMaxMessages
+            const messagesToRemove = htmlMessageCount - htmlMaxMessages;
+            for (let j = 0; j < messagesToRemove && messages.length > 0; j++) {
+              messages[0].remove();
+            }
+            htmlMessageCount = htmlMaxMessages;
+          }
+          
           htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
         }
       }
@@ -441,6 +468,18 @@ function writeToScreen(text) {
       // Error content
       const message = text.replace("[ERROR]:", "").trim();
       htmlOutputElement.innerHTML += '<p style="color: red;">' + message + '</p>\n';
+      htmlMessageCount++;
+      
+      // Limit HTML messages to prevent memory issues
+      if (htmlMessageCount > htmlMaxMessages) {
+        const messages = htmlOutputElement.children;
+        const messagesToRemove = htmlMessageCount - htmlMaxMessages;
+        for (let j = 0; j < messagesToRemove && messages.length > 0; j++) {
+          messages[0].remove();
+        }
+        htmlMessageCount = htmlMaxMessages;
+      }
+      
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
       return; // Don't process this as regular text
     } else {
@@ -456,8 +495,21 @@ function writeToScreen(text) {
     }
   } catch (error) {
     console.error('Error processing command output:', error);
-    // Notify user if an error occurs
-    htmlOutputElement.innerHTML += '<p style="color: red;">An error occurred. Please check the console for details.</p>\n';
+    // Notify user if an error occurs with more specific message
+    const errorMessage = error.message || 'Unknown error';
+    htmlOutputElement.innerHTML += `<p style="color: red;">Error: ${errorMessage}</p>\n`;
+    htmlMessageCount++;
+    
+    // Limit HTML messages to prevent memory issues
+    if (htmlMessageCount > htmlMaxMessages) {
+      const messages = htmlOutputElement.children;
+      const messagesToRemove = htmlMessageCount - htmlMaxMessages;
+      for (let j = 0; j < messagesToRemove && messages.length > 0; j++) {
+        messages[0].remove();
+      }
+      htmlMessageCount = htmlMaxMessages;
+    }
+    
     htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
   }
 }
@@ -525,6 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (lastMode !== null && lastMode !== mode) {
         // Clear messages area
         htmlOutputElement.innerHTML = '';
+        htmlMessageCount = 0; // Reset message count
         
         // Add new mode information message
         const modeInfo = mode === 'server' ? 
@@ -532,6 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `<p><i class="fa-solid fa-info-circle" style="color:#66ccff;"></i> <b>Standalone Mode</b>: System is now in Standalone Mode for local use.</p>`;
         
         htmlOutputElement.innerHTML = modeInfo;
+        htmlMessageCount = 1; // Count the mode info message
       }
       
       // Update last mode
@@ -579,6 +633,18 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Write directly to HTML output instead of going through writeToScreen
       htmlOutputElement.innerHTML += urlMessage + '\n';
+      htmlMessageCount++;
+      
+      // Limit HTML messages to prevent memory issues
+      if (htmlMessageCount > htmlMaxMessages) {
+        const messages = htmlOutputElement.children;
+        const messagesToRemove = htmlMessageCount - htmlMaxMessages;
+        for (let j = 0; j < messagesToRemove && messages.length > 0; j++) {
+          messages[0].remove();
+        }
+        htmlMessageCount = htmlMaxMessages;
+      }
+      
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
       networkUrlDisplayed = true;
       
@@ -616,6 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
     htmlOutputElement.innerHTML = '';
     logOutputElement.textContent = '';
     logLines = 0;
+    htmlMessageCount = 0; // Reset HTML message count
     
     // Reset flags
     networkUrlDisplayed = false;
@@ -643,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     htmlOutputElement.innerHTML = initialMessage;
+    htmlMessageCount = 5; // Count initial messages (title, mode description, notice, start instruction, hr)
     
     // Show the last update check result if available
     if (lastUpdateResult) {
@@ -652,6 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMessage = updateMessage.substring(8);
       }
       htmlOutputElement.innerHTML += updateMessage;
+      htmlMessageCount++; // Count the update message
     }
   });
 

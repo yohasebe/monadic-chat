@@ -1,5 +1,14 @@
 # frozen_string_literal: false
 
+# Optimize load path by removing duplicates
+$LOAD_PATH.uniq!
+
+# Optional startup profiling
+if ENV['PROFILE_STARTUP'] == 'true'
+  require_relative "monadic/utils/startup_profiler"
+  at_exit { StartupProfiler.report }
+end
+
 require "active_support"
 require "active_support/core_ext/hash/indifferent_access"
 require "base64"

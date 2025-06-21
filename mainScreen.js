@@ -105,6 +105,18 @@ function addCommandListeners() {
   });
 }
 
+// Function to update system label based on mode
+function updateSystemLabelForMode(mode) {
+  const systemLabelElement = document.getElementById('systemLabel');
+  if (systemLabelElement) {
+    if (mode === 'server') {
+      systemLabelElement.innerHTML = ' <i class="fa-solid fa-server"></i> Server ';
+    } else {
+      systemLabelElement.innerHTML = ' <i class="fa-solid fa-cube"></i> System ';
+    }
+  }
+}
+
 // Function to update UI based on Docker Desktop status and operational mode
 function updateDockerStatusUI(isRunning) {
   const dockerStatusElement = document.getElementById('dockerStatus');
@@ -157,6 +169,7 @@ function updateMonadicChatStatusUI(status) {
   // Save original status for debugging
   const originalStatus = status;
   
+  
   // Special case: if we receive "Ready" status, handle differently based on mode
   if (status === 'Ready') {
     // Both Standalone and Server mode now wait for server to be fully ready
@@ -176,6 +189,12 @@ function updateMonadicChatStatusUI(status) {
   
   // If status is changing to Stopped, reset the tracking flags
   if (status === 'Stopped') {
+    networkUrlDisplayed = false;
+    serverStarted = false;
+  }
+  
+  // If status is changing to Starting, also reset the flags to ensure URL is shown
+  if (status === 'Starting' || status === 'Restarting') {
     networkUrlDisplayed = false;
     serverStarted = false;
   }
@@ -261,9 +280,41 @@ function updateMonadicChatStatusUI(status) {
   }
 }
 
+// Track if we're in startup phase
+let inStartupPhase = false;
+
 // Function to write to the screen
 function writeToScreen(text) {
   try {
+    // Mark startup phase when we see the preparing message
+    if (text.includes("Monadic Chat preparing")) {
+      inStartupPhase = true;
+      return; // Don't show the preparing message
+    }
+    
+    // End startup phase when we see success
+    if (text.includes("Connecting to server: success")) {
+      inStartupPhase = false;
+      return; // Don't show the success message
+    }
+    
+    // Don't show connection attempts during startup
+    if (inStartupPhase && text.includes("Connecting to server: attempt")) {
+      return;
+    }
+    
+    // Don't show retry messages during startup
+    if (inStartupPhase && text.includes("Retrying in")) {
+      return;
+    }
+    
+    // Don't show the emoji status messages
+    if (text.includes("🚀 Starting Docker containers") || 
+        text.includes("📦 Loading application modules") || 
+        text.includes("⏳ Almost ready")) {
+      return;
+    }
+    
     // Handle connection-related status updates for Server mode
     if (window.electronAPI.getDistributedMode() === 'server') {
       // Server is still in connecting stage - failed attempts
@@ -300,29 +351,64 @@ function writeToScreen(text) {
       }
     }
     
-    // Remove carriage return characters
+    // Handle update check messages - replace the checking message
+    if (text.includes("You are using the latest version") || 
+        text.includes("A new version") || 
+        text.includes("Failed to retrieve the latest version")) {
+      // Find and remove the "Checking for updates..." message
+      const paragraphs = htmlOutputElement.querySelectorAll('p');
+      paragraphs.forEach(p => {
+        if (p.querySelector('i.fa-sync')) {
+          p.remove();
+        }
+      });
+    }
+    
+    
+    // Remove carriage return characters and trim
     text = text.replace(/\r\n|\r|\n/g, '\n').trim();
 
-    // Handle server start/stop events in messages area
+    // Handle server start/stop events
     if (text === "[SERVER STOPPED]") {
       // Reset URL display flag on stop so restart shows it again
       networkUrlDisplayed = false;
       serverStarted = false;
-      htmlOutputElement.innerHTML += `<p>${text}</p>\n`;
+      inStartupPhase = false;
+      // Clear console output
+      logOutputElement.textContent = '';
+      logLines = 0;
+      // Add stop message to messages area with timestamp
+      const timestamp = new Date().toLocaleTimeString();
+      const stopMessage = window.electronAPI.getDistributedMode() === 'server' 
+        ? 'Server stopped' 
+        : 'System stopped';
+      htmlOutputElement.innerHTML += `<p style="color: #999;"><i class="fa-solid fa-circle-stop"></i> ${stopMessage} at ${timestamp}</p>\n`;
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      // Don't display [SERVER STOPPED] in console output
       return;
     }
     if (text === "[SERVER STARTED]") {
-      htmlOutputElement.innerHTML += `<p>${text}</p>\n`;
-      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      // Clear console output when server starts fresh
+      logOutputElement.textContent = '';
+      logLines = 0;
+      // Don't add any message - just clear and return
       return;
     }
+    
 
     // HTML tagged content - can appear on multiple lines
     if (text.includes("[HTML]:")) {
+      // Check if [SERVER STARTED] is included in the HTML content
+      let serverStartedFound = false;
+      if (text.includes("[SERVER STARTED]")) {
+        serverStartedFound = true;
+        // Remove [SERVER STARTED] from the HTML text for processing
+        text = text.replace(/\[SERVER STARTED\]/g, '').trim();
+      }
+      
       // Extract all HTML content by replacing the tag and preserving the rest
       // This regex handles both inline and multiline [HTML]: tags
-      const parts = text.split(/\[HTML\]:/g);
+      const parts = text.split(/\[HTML\]:\s*/g);
       
       // The first part (before any [HTML]: tag) goes to the log output if it exists
       if (parts[0].trim() !== '') {
@@ -343,11 +429,20 @@ function writeToScreen(text) {
           htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
         }
       }
+      
+      // If [SERVER STARTED] was found, just clear the console
+      if (serverStartedFound) {
+        logOutputElement.textContent = '';
+        logLines = 0;
+      }
+      
+      return; // Don't process this as regular text
     } else if (text.includes("[ERROR]:")) {
       // Error content
       const message = text.replace("[ERROR]:", "").trim();
       htmlOutputElement.innerHTML += '<p style="color: red;">' + message + '</p>\n';
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      return; // Don't process this as regular text
     } else {
       // Regular output to the console log area
       logOutputElement.textContent += text + '\n';
@@ -375,6 +470,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const dockerStatusElement = document.getElementById('dockerStatus');
   dockerStatusElement.classList.add('inactive');
   dockerStatusElement.textContent = 'Checking';
+  
+  // Set initial system label based on current mode
+  const initialMode = window.electronAPI.getDistributedMode();
+  updateSystemLabelForMode(initialMode);
 
   // Update version
   window.electronAPI.onUpdateVersion((_event, ver) => {
@@ -399,6 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Support both old format (string) and new format (object)
     const mode = typeof data === 'string' ? data : data.mode;
     const localIP = typeof data === 'object' && data.localIP ? data.localIP : null;
+    
+    // Update system label icon based on mode
+    updateSystemLabelForMode(mode === 'server' ? 'server' : 'off');
     
     const modeStatusElement = document.getElementById('modeStatus');
     if (modeStatusElement) {
@@ -467,8 +569,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen for network URL display command
   window.electronAPI.onDisplayNetworkUrl((_event, data) => {
     if (!networkUrlDisplayed && data && data.localIP) {
+      // Don't hide startup animation here - let it complete naturally
+      
       const networkUrl = `http://${data.localIP}:4567`;
-      writeToScreen(`[HTML]: <p><i class="fa-solid fa-network-wired" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`);
+      const mode = window.electronAPI.getDistributedMode();
+      const urlMessage = mode === 'server' 
+        ? `<p><i class="fa-solid fa-network-wired" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`
+        : `<p><i class="fa-solid fa-laptop" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`;
+      
+      // Write directly to HTML output instead of going through writeToScreen
+      htmlOutputElement.innerHTML += urlMessage + '\n';
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
       networkUrlDisplayed = true;
       
       // Mark server as fully started when network URL is displayed
@@ -476,12 +587,11 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Update status indicator if status is Ready or Finalizing (for both modes)
       const statusElement = document.getElementById('status');
-      if (statusElement && (statusElement.textContent === "Finalizing" || currentStatus === 'Ready' || statusElement.textContent === "Starting")) {
+      if (statusElement && (statusElement.textContent === "Finalizing" || currentStatus === 'Ready' || statusElement.textContent === "Starting" || statusElement.textContent === "Started")) {
         console.log("Network URL displayed - updating status to Started");
         statusElement.textContent = "Started";
         statusElement.classList.remove('inactive');
         statusElement.classList.add('active');
-        
       }
     }
   });
@@ -498,6 +608,51 @@ document.addEventListener('DOMContentLoaded', () => {
   // Handle command output
   window.electronAPI.onCommandOutput((_event, output) => {
     writeToScreen(output);
+  });
+  
+  // Handle reset display command
+  window.electronAPI.onResetDisplay((_event, lastUpdateResult) => {
+    // Clear both message areas
+    htmlOutputElement.innerHTML = '';
+    logOutputElement.textContent = '';
+    logLines = 0;
+    
+    // Reset flags
+    networkUrlDisplayed = false;
+    serverStarted = false;
+    inStartupPhase = false;
+    
+    // Get the current mode and show initial message
+    const mode = window.electronAPI.getDistributedMode();
+    let initialMessage = '';
+    
+    if (mode === 'server') {
+      initialMessage = `
+        <p><b>Monadic Chat: <span style="color: #DC4C64; font-weight: bold;">Server Mode</span></b></p>
+        <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> Running in server mode. Services will be accessible from external devices.</p>
+        <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>Security notice:</strong> Jupyter features are disabled in Server Mode for security.</p>
+        <p>Press <b>start</b> button to initialize the server.</p>
+        <hr />`;
+    } else {
+      initialMessage = `
+        <p><b>Monadic Chat: <span style="color: #4CACDC; font-weight: bold;">Standalone Mode</span></b></p>
+        <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> Running in standalone mode. Services are accessible locally only.</p>
+        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Please make sure Docker Desktop is running while using Monadic Chat.</p>
+        <p>Press <b>start</b> button to initialize the server.</p>
+        <hr />`;
+    }
+    
+    htmlOutputElement.innerHTML = initialMessage;
+    
+    // Show the last update check result if available
+    if (lastUpdateResult) {
+      // Remove [HTML]: prefix if present
+      let updateMessage = lastUpdateResult;
+      if (updateMessage.startsWith('[HTML]: ')) {
+        updateMessage = updateMessage.substring(8);
+      }
+      htmlOutputElement.innerHTML += updateMessage;
+    }
   });
 
 });

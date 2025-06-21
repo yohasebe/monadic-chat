@@ -95,7 +95,7 @@ const https = require('https');
 const net = require('net');
 
 // Add debug mode for troubleshooting statusIndicator issues
-const debugStatusIndicator = true;
+const debugStatusIndicator = false;
 
 let tray = null;
 let justLaunched = true;
@@ -103,6 +103,7 @@ let currentStatus = 'Stopped';
 let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
+let lastUpdateCheckResult = null; // Store the last update check result
 // Preference for browser launch: 'external' or 'internal'
 // Default browser mode: 'internal' for internal Electron view
 let browserMode = 'internal';
@@ -710,7 +711,10 @@ class DockerManager {
                       updateStatusIndicator("Ready");
                       
                       // Signal successful server start with an event
-                      writeToScreen('[HTML]: <p><i class="fa-solid fa-check-circle" style="color:#22ad50;"></i> <span style="color:#22ad50;">Server verification complete</span></p>');
+                      const verificationMessage = dockerManager.isServerMode() 
+                        ? 'Server verification complete'
+                        : 'System initialization complete';
+                      writeToScreen(`[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> ${verificationMessage}</p>`);
                       
                       // Force a small delay to ensure status update is processed first
                       setTimeout(() => {
@@ -909,8 +913,8 @@ function checkForUpdatesManual(showDialog = false) {
           } else {
             // Display update notification in main window only on startup
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('command-output', 
-                `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${latestVersion}) is available. Current version: ${currentVersion}. Click "Check for Updates" from the menu to download it.</p>`);
+              lastUpdateCheckResult = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${latestVersion}) is available. Current version: ${currentVersion}. Click "Check for Updates" from the menu to download it.</p>`;
+              mainWindow.webContents.send('command-output', lastUpdateCheckResult);
             }
           }
         } else {
@@ -926,8 +930,8 @@ function checkForUpdatesManual(showDialog = false) {
           } else {
             // Display up-to-date message in main window only on startup
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('command-output', 
-                `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> You are using the latest version (${currentVersion}).</p>`);
+              lastUpdateCheckResult = `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> You are using the latest version (${currentVersion}).</p>`;
+              mainWindow.webContents.send('command-output', lastUpdateCheckResult);
             }
           }
         }
@@ -938,8 +942,8 @@ function checkForUpdatesManual(showDialog = false) {
         } else {
           // Display error in main window only on startup
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('command-output', 
-              '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Failed to retrieve the latest version number.</p>');
+            lastUpdateCheckResult = '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Failed to retrieve the latest version number.</p>';
+            mainWindow.webContents.send('command-output', lastUpdateCheckResult);
           }
         }
       }
@@ -1379,7 +1383,14 @@ function initializeApp() {
               });
             break;
           case 'stop':
-            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped')
+              .then(() => {
+                // Send reset display command after stop is complete
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  // Send the last update check result along with reset command
+                  mainWindow.webContents.send('reset-display-to-initial', lastUpdateCheckResult);
+                }
+              });
             break;
           case 'restart':
             dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
@@ -1482,9 +1493,35 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout =
       console.log(`Connecting to server: success`);
       return true;
     } catch (error) {
-      console.log(`Connecting to server: attempt ${attempt} failed`);
+      const attemptMessage = `Connecting to server: attempt ${attempt} failed`;
+      console.log(attemptMessage);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('command-output', attemptMessage);
+      }
+      
       if (attempt <= retries) {
-        console.log(`Retrying in ${delay}ms . . .`);
+        // Add more informative messages based on attempt number
+        let statusMessage = '';
+        if (attempt === 2) {
+          statusMessage = `🚀 Starting Docker containers and Ruby server...`;
+        } else if (attempt === 5) {
+          statusMessage = `📦 Loading application modules...`;
+        } else if (attempt === 10) {
+          statusMessage = `⏳ Almost ready, please wait...`;
+        }
+        
+        if (statusMessage) {
+          console.log(statusMessage);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('command-output', statusMessage);
+          }
+        }
+        
+        const retryMessage = `Retrying in ${delay}ms . . .`;
+        console.log(retryMessage);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('command-output', retryMessage);
+        }
         await new Promise(resolve => setTimeout(resolve, delay));
         return attemptFetch(attempt + 1);
       } else {
@@ -2047,6 +2084,9 @@ function createMainWindow() {
     });
     
     writeToScreen(openingText);
+    
+    // Show update checking message
+    writeToScreen('[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> Checking for updates...</p>');
     
     // Check for updates after main window is loaded (no dialog)
     setTimeout(() => {

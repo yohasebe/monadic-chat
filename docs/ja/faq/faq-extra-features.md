@@ -30,12 +30,12 @@
 
 ---
 
-##### Q: MCPとは何ですか？外部AIアシスタントとどのように使用しますか？ :id=mcp-integration
+##### Q: MCPとは何ですか？外部のAIアシスタントとどのように使用しますか？ :id=mcp-integration
 
-**A**: MCP（Model Context Protocol）は、Claude DesktopやClaude Codeなどの外部AIアシスタントがMonadic Chatの機能にアクセスできるようにする実験的機能です。有効にするには、`~/monadic/config/env`ファイルに`MCP_SERVER_ENABLED=true`を追加してMonadic Chatを再起動します。その後、Claude DesktopまたはClaude CodeをMCPサーバーに接続するよう設定できます。現在サポートされているアダプターには、Help（ドキュメント検索）、Mermaid（図生成）、Syntax Tree（言語学の樹形図）があります。詳細な設定手順については、[MCPサーバー設定](/ja/MCP_SETUP.md)をご覧ください。
+**A**: MCP（Model Context Protocol）は、外部のAIアシスタントやその他のクライアントがJSON-RPC 2.0経由でMonadic Chatの機能にアクセスできる標準プロトコルです。有効にするには、`~/monadic/config/env`ファイルに`MCP_SERVER_ENABLED=true`を追加してMonadic Chatを再起動します。サーバーはアプリから利用可能なすべてのツールを自動的に検出して公開します。詳細なドキュメントは[MCP統合](/ja/advanced-topics/mcp-integration.md)を参照してください。
 
 ---
 
-##### Q: MCPは図や構文木などの画像を生成できますか？ :id=mcp-image-generation
+##### Q: MCPを通じてMonadic Chatのすべてのツールにアクセスできますか？ :id=mcp-tools
 
-**A**: はい、MCPサーバーにはMermaidおよびSyntax Treeアダプターを通じた画像生成機能が含まれています。MermaidアダプターはPython/Seleniumコンテナを使用して図のPNG画像を生成でき、Syntax TreeアダプターはLaTeXを使用して言語学の樹形図のSVG画像を作成できます。生成された画像は`/data/`ディレクトリに保存され、Webインターフェイスを通じて表示できます。これにはPythonおよびSeleniumコンテナが実行されている必要がありますが、Monadic Chatを使用する際は自動的に実行されます。
+**A**: はい、MCPサーバーは有効なすべてのアプリからすべてのツールを自動的に公開します。これには画像生成（DALL-E、Gemini）、ダイアグラム作成（Mermaid、構文木）、コード実行、PDF検索などが含まれます。ツールは`AppName__tool_name`という規則で名前が付けられます。例えば、`ImageGeneratorOpenAI__generate_image_with_dalle`や`SyntaxTreeOpenAI__render_syntax_tree`などです。追加の設定は不要で、新しいアプリとツールは自動的に検出されます。

@@ -323,6 +323,12 @@
 
           <label class="form-check-label" for="extra-logging">Extra Logging</label>
           <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
+
+          <label class="form-check-label" for="mcp-server-enabled">Enable MCP Server</label>
+          <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="mcp-server-enabled">
+          
+          <label for="mcp-server-port">MCP Server Port</label>
+          <input type="number" id="mcp-server-port" name="mcp-server-port" min="1024" max="65535" value="3100">
         </div>
 
       </form>
@@ -368,7 +374,9 @@
           TTS_DICT_PATH: ttsDictPath,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
-          DISTRIBUTED_MODE: distributedMode
+          DISTRIBUTED_MODE: distributedMode,
+          MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
+          MCP_SERVER_PORT: document.getElementById('mcp-server-port').value
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -451,6 +459,8 @@
         document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4.1-mini';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
+        document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
+        document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
         
         // Handle distributed mode settings - ensure default value is set
         const distributedMode = data.DISTRIBUTED_MODE || 'off';

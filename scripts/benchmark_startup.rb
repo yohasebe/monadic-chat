@@ -5,6 +5,7 @@
 
 require 'benchmark'
 require 'fileutils'
+require 'json'
 
 # Ensure script directory exists
 script_dir = File.dirname(__FILE__)

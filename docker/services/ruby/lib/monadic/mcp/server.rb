@@ -5,6 +5,7 @@ require 'json'
 require 'securerandom'
 require 'time'
 require_relative '../utils/debug_helper'
+require_relative 'cache_invalidator'
 
 module Monadic
   module MCP
@@ -34,6 +35,11 @@ module Monadic
 
       # Server status
       @@server_running = false
+      
+      # Tool cache
+      @@tools_cache = nil
+      @@tools_cache_time = nil
+      CACHE_TTL = 300 # 5 minutes
 
       # CORS headers for HTTP transport
       before do
@@ -140,18 +146,29 @@ module Monadic
       end
 
       def handle_tools_list(id, params)
-        tools = []
+        # Use cached tools if available and not expired
+        tools = get_cached_tools
         
-        discover_apps.each do |app_name, app_info|
-          next unless app_info[:tools]
+        unless tools
+          # Build tools list
+          tools = []
           
-          app_info[:tools].each do |tool|
-            formatted_tool = format_tool_for_mcp(app_name, tool, app_info[:display_name])
-            tools << formatted_tool if formatted_tool
+          discover_apps.each do |app_name, app_info|
+            next unless app_info[:tools]
+            
+            app_info[:tools].each do |tool|
+              formatted_tool = format_tool_for_mcp(app_name, tool, app_info[:display_name])
+              tools << formatted_tool if formatted_tool
+            end
           end
+          
+          # Cache the tools
+          cache_tools(tools)
+          
+          debug_log "MCP: Built and cached #{tools.length} tools"
+        else
+          debug_log "MCP: Using cached tools (#{tools.length} tools)"
         end
-        
-        debug_log "MCP: Found #{tools.length} tools across #{discover_apps.keys.length} apps"
         
         json_rpc_response(id, { tools: tools })
       end
@@ -173,16 +190,15 @@ module Monadic
         app_name = parts[0]
         actual_tool_name = parts[1]
         
-        # Find app
-        apps = discover_apps
-        app_info = apps[app_name]
-        unless app_info
-          return json_rpc_error(id, "App not found: #{app_name}", INVALID_PARAMS)
+        # Direct lookup from APPS instead of calling discover_apps
+        app_instance = ::APPS[app_name] if defined?(::APPS)
+        unless app_instance && app_instance.respond_to?(:settings) && !app_instance.settings['disabled']
+          return json_rpc_error(id, "App not found or disabled: #{app_name}", INVALID_PARAMS)
         end
         
         # Execute tool
         begin
-          result = execute_app_tool(app_info[:instance], actual_tool_name, arguments)
+          result = execute_app_tool(app_instance, actual_tool_name, arguments)
           json_rpc_response(id, result)
         rescue => e
           debug_log "Error executing tool #{tool_name}: #{e.message}"
@@ -398,6 +414,32 @@ module Monadic
         }
         error[:error][:data] = data if data
         error.to_json
+      end
+
+      # Cache management methods
+      def get_cached_tools
+        return nil unless @@tools_cache && @@tools_cache_time
+        
+        # Check if cache is still valid
+        if Time.now - @@tools_cache_time < CACHE_TTL
+          @@tools_cache
+        else
+          # Cache expired
+          @@tools_cache = nil
+          @@tools_cache_time = nil
+          nil
+        end
+      end
+
+      def cache_tools(tools)
+        @@tools_cache = tools
+        @@tools_cache_time = Time.now
+      end
+
+      # Clear cache when apps might have changed
+      def self.clear_cache
+        @@tools_cache = nil
+        @@tools_cache_time = nil
       end
 
       # Get server status

@@ -447,6 +447,26 @@ This application reads PDF files and allows the assistant to answer user questio
 
 ?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database (database name: `monadic_user_docs`). The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
+**Configuration Options:**
+
+PDF Navigator behavior can be customized via environment variables in `~/monadic/config/env`:
+
+- **`PDF_RAG_TOKENS`**: Number of tokens per chunk (default: 4000)
+  - Controls how PDF text is split into chunks for embedding
+  - Larger values provide more context but may reduce search precision
+  - Recommended range: 2000-6000 tokens
+
+- **`PDF_RAG_OVERLAP_LINES`**: Number of lines to overlap between chunks (default: 4)
+  - Provides continuity between adjacent chunks
+  - Helps prevent context loss at chunk boundaries
+  - Recommended range: 2-10 lines
+
+Example configuration:
+```
+PDF_RAG_TOKENS=5000
+PDF_RAG_OVERLAP_LINES=6
+```
+
 ![PDF button](../assets/images/app-pdf.png ':size=700')
 
 ![Import PDF](../assets/images/import-pdf.png ':size=400')

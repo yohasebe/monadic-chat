@@ -125,6 +125,36 @@ HELP_CHUNKS_PER_RESULT=5
 4. 異なる場合、PGVectorコンテナが自動的に再構築される
 5. コンテナの初期化中に新しいヘルプデータがインポートされる
 
+## 設定変数 :id=configuration-variables
+
+ヘルプシステムは`~/monadic/config/env`の環境変数で設定できます：
+
+### ヘルプシステム設定
+
+- **`HELP_CHUNK_SIZE`**: チャンクあたりの文字数（デフォルト：3000）
+  - ドキュメントの処理時の分割方法を制御
+  - 大きいチャンクはより多くのコンテキストを提供しますが、検索精度が低下する可能性があります
+  
+- **`HELP_OVERLAP_SIZE`**: チャンク間でオーバーラップする文字数（デフォルト：500）
+  - 隣接するチャンク間の連続性を提供
+  - チャンク境界でのコンテキスト損失を防ぎます
+
+- **`HELP_EMBEDDINGS_BATCH_SIZE`**: API呼び出しのバッチサイズ（デフォルト：50）
+  - 単一のOpenAI API呼び出しで処理されるチャンク数
+  - APIレート制限に基づいて調整
+
+- **`HELP_CHUNKS_PER_RESULT`**: 検索結果ごとに返されるチャンク数（デフォルト：3）
+  - 各検索結果に含まれる関連チャンクの数
+  - 高い値はより多くのコンテキストを提供
+
+設定例：
+```
+HELP_CHUNK_SIZE=4000
+HELP_OVERLAP_SIZE=600
+HELP_EMBEDDINGS_BATCH_SIZE=25
+HELP_CHUNKS_PER_RESULT=5
+```
+
 ## 開発 :id=development
 
 ### ドキュメントの追加 :id=adding-documentation

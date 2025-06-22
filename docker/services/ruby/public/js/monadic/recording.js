@@ -143,7 +143,7 @@ let silenceDetected = true;
 
 let workerOptions = {};
 
-// Worker内でWASMファイルを正しく読み込むために完全なURLを構築
+// Build complete URL to properly load WASM file inside Worker
 const protocol = window.location.protocol;
 const host = window.location.host;
 const baseUrl = `${protocol}//${host}`;

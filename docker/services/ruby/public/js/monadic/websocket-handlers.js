@@ -268,10 +268,8 @@ function handleErrorMessage(data) {
     );
     $("#discourse").append(errorElement);
     
-    // Show alert for error message
-    if (typeof setAlert === 'function') {
-      setAlert(data.content || '', 'error');
-    }
+    // Don't call setAlert here as we've already created the error card
+    // This prevents duplicate error messages
     
     // Auto-scroll if enabled
     if (autoScroll) {

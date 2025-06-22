@@ -101,6 +101,12 @@ When on, the assistant's response is automatically read aloud using synthesized 
 **Easy submit**<br />
 When on, pressing the Enter key on the keyboard automatically sends the message in the text area without clicking the `Send` button. If you are using voice input, pressing the Enter key or clicking the `Stop` button will automatically send the message.
 
+**Web Search**<br />
+When enabled, allows the AI to search the web for current information. This option is only available for models that support tool/function calling. The search behavior depends on the provider:
+- OpenAI (gpt-4.1/gpt-4.1-mini): Uses native web search via Responses API
+- Other providers: Uses Tavily API when configured
+- The AI decides when to search based on the query context
+
 **Start Session / Continue Session** <br />
 Click this button to start a chat based on the options and parameters specified in the System Settings. If you have already started a session and click the `Settings` button to return to the System Settings panel, this button will be labeled `Continue Session`. Clicking it will return you to your ongoing conversation without resetting it.
 

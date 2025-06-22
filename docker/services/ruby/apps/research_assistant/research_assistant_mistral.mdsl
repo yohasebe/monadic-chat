@@ -21,13 +21,13 @@ app "ResearchAssistantMistral" do
     toggle true
   end
 
-  include_modules "WebSearchAgent"
-  
   tools do
-    # Auto-generated tool definitions from Ruby implementation
-    define_tool "tavily_search", "Tavily Search" do
-      parameter :query, "string", "The query", required: true
-      parameter :n, "integer", "The n"
+    # Standard tools will be auto-completed from MonadicApp base class
+    # websearch_agent is automatically available when websearch is true
+    
+    define_tool "tavily_search", "Search the web using Tavily API" do
+      parameter :query, "string", "The search query", required: true
+      parameter :n, "integer", "Number of results to return (default: 5)"
     end
   end
 end

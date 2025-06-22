@@ -152,10 +152,12 @@ function updateDockerStatusUI(isRunning) {
     if (isRunning) {
       dockerStatusElement.textContent = 'Running';
       dockerStatusElement.classList.remove('inactive');
+      dockerStatusElement.classList.remove('blinking'); // Stop blinking when status is determined
       dockerStatusElement.classList.add('active');
     } else {
       dockerStatusElement.textContent = 'Stopped';
       dockerStatusElement.classList.remove('active');
+      dockerStatusElement.classList.remove('blinking'); // Stop blinking when status is determined
       dockerStatusElement.classList.add('inactive');
     }
   }
@@ -227,6 +229,14 @@ function updateMonadicChatStatusUI(status) {
     Object.values(buttons).forEach(button => button.disabled = true);
     statusElement.classList.remove('active');
     statusElement.classList.add('inactive');
+    
+    // Add blinking animation for Starting and Restarting
+    if (status === 'Starting' || status === 'Restarting') {
+      statusElement.classList.add('blinking');
+    } else {
+      statusElement.classList.remove('blinking');
+    }
+    
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
     statusElement.textContent = status;
@@ -236,12 +246,14 @@ function updateMonadicChatStatusUI(status) {
       // Only if serverStarted is true (should not happen normally with Running status)
       statusElement.textContent = "Started";
       statusElement.classList.remove('inactive');
+      statusElement.classList.remove('blinking');
       statusElement.classList.add('active');
     } else {
       // In both modes, show "Starting" until server is verified
       statusElement.textContent = "Starting";
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
+      statusElement.classList.add('blinking'); // Keep blinking while starting
     }
     
     
@@ -266,6 +278,7 @@ function updateMonadicChatStatusUI(status) {
   } else if (status === 'Stopped') {
     statusElement.textContent = status;
     statusElement.classList.remove('active');
+    statusElement.classList.remove('blinking');
     statusElement.classList.add('inactive');
     
     buttons.start.disabled = false;
@@ -276,6 +289,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.settings.disabled = false;
   } else {
     statusElement.textContent = status;
+    statusElement.classList.remove('blinking');
     Object.values(buttons).forEach(button => button.disabled = true);
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
@@ -521,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const dockerStatusElement = document.getElementById('dockerStatus');
   dockerStatusElement.classList.add('inactive');
+  dockerStatusElement.classList.add('blinking'); // Add blinking for initial checking
   dockerStatusElement.textContent = 'Checking';
   
   // Set initial system label based on current mode
@@ -657,6 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Network URL displayed - updating status to Started");
         statusElement.textContent = "Started";
         statusElement.classList.remove('inactive');
+        statusElement.classList.remove('blinking'); // Stop blinking when started
         statusElement.classList.add('active');
       }
     }

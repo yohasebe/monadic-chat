@@ -73,6 +73,24 @@
       100% { transform: rotate(360deg); }
     }
     
+    @keyframes blink-text-active {
+      0%, 100% { color: #5cd65c; }
+      50% { color: transparent; }
+    }
+    
+    @keyframes blink-text-inactive {
+      0%, 100% { color: #ffa64d; }
+      50% { color: transparent; }
+    }
+    
+    .status.blinking.active {
+      animation: blink-text-active 1.5s ease-in-out infinite;
+    }
+    
+    .status.blinking.inactive {
+      animation: blink-text-inactive 1.5s ease-in-out infinite;
+    }
+    
     .startup-progress {
       width: 100%;
       height: 6px;

@@ -6,22 +6,23 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 
 | Provider | Vision Support | Tool/Function Calling | Web Search |
 |----------|----------------|----------------------|------------|
-| OpenAI | ✅ All models¹ | ✅ | ✅² |
-| Claude | ✅ Opus/Sonnet³ | ✅ | ✅² |
-| Gemini | ✅ All models | ✅ | ✅² |
-| Mistral | ✅ Select models⁴ | ✅ | ✅² |
-| Cohere | ❌ | ✅ | ✅² |
-| xAI Grok | ✅ Vision models⁵ | ✅ | ✅ Native |
+| OpenAI | ✅ All models¹ | ✅ | ✅ Native² |
+| Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
+| Gemini | ✅ All models | ✅ | ✅⁴ |
+| Mistral | ✅ Select models⁵ | ✅ | ✅⁴ |
+| Cohere | ❌ | ✅ | ✅⁴ |
+| xAI Grok | ✅ Vision models⁶ | ✅ | ✅ Native |
 | Perplexity | ✅ All models | ❌ | ✅ Native |
-| DeepSeek | ❌ | ✅ | ✅² |
-| Ollama | ❓ Model dependent⁶ | ❓ Model dependent⁶ | ✅² |
+| DeepSeek | ❌ | ✅ | ✅⁴ |
+| Ollama | ❓ Model dependent⁷ | ❓ Model dependent⁷ | ✅⁴ |
 
 ¹ Except o1, o1-mini, o3-mini  
-² Web search via WebSearchAgent (requires `WEBSEARCH_MODEL` configuration or Tavily API)  
+² Native web search for gpt-4.1/gpt-4.1-mini via Responses API, others use Tavily when available  
 ³ Haiku models don't support vision  
-⁴ Pixtral and Medium 2505 models only  
-⁵ grok-2-vision models only  
-⁶ Depends on specific model capabilities
+⁴ Web search via Tavily API (requires `TAVILY_API_KEY`)  
+⁵ Pixtral and Medium 2505 models only  
+⁶ grok-2-vision models only  
+⁷ Depends on specific model capabilities
 
 ## Default Models Configuration
 
@@ -48,16 +49,33 @@ When a model is explicitly specified in an app recipe file, that specified model
 
 ## Web Search Configuration
 
-Many providers support web search functionality through the WebSearchAgent. For reasoning models that don't have native tool support, the system automatically switches to a compatible model:
+Web search is available in two ways:
 
+### 1. Native Web Search
+- **OpenAI**: gpt-4.1 and gpt-4.1-mini use native web search via Responses API (default)
+- **Perplexity**: All models have built-in web search
+- **xAI Grok**: Native Live Search API support
+
+### 2. Tavily Web Search
+- Available for all providers when `TAVILY_API_KEY` is configured
+- Required for providers without native web search
+- Can be forced for OpenAI with `USE_TAVILY_FOR_OPENAI=true`
+
+### Configuration Options
 ```
-# Model used for web search when using reasoning models
-WEBSEARCH_MODEL=gpt-4.1-mini
+# Tavily API key for web search
+TAVILY_API_KEY=your_tavily_api_key
+
+# Force OpenAI to use Tavily instead of native search
+USE_TAVILY_FOR_OPENAI=true
+
+# Model for web search when using reasoning models (o1, o3)
+WEBSEARCH_MODEL=gpt-4o-mini
 ```
 
-Providers with native web search (Perplexity, xAI Grok) don't require this configuration. For other providers, you'll need either:
-- `WEBSEARCH_MODEL` configured (uses OpenAI API)
-- Tavily API key for web search functionality
+### App Defaults
+- **Chat apps**: Web search disabled by default (can be enabled in settings)
+- **Research Assistant**: Web search enabled by default
 
 ## Reasoning Models
 

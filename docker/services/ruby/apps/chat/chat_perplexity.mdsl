@@ -29,7 +29,7 @@ app "ChatPerplexity" do
     auto_speech false
     initiate_from_assistant false
     toggle true
-    websearch true
+    websearch false
     group "Perplexity"
   end
 end

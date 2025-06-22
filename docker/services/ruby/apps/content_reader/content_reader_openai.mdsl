@@ -5,8 +5,7 @@ app "ContentReaderOpenAI" do
   TEXT
   icon "leanpub"
   
-  # Include required modules for web search functionality
-  include_modules "WebSearchAgent"
+  # WebSearchAgent is automatically available when websearch feature is enabled
   
   system_prompt <<~TEXT
     You are a professional who explains various concepts easily to even beginners in the field. You can use whatever language the user is comfortable with.

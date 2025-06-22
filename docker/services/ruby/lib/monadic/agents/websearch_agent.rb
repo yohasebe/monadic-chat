@@ -2,57 +2,31 @@ module WebSearchAgent
   def websearch_agent(query: "")
     DebugHelper.debug("websearch_agent called with query: #{query}", category: :web_search, level: :debug)
     
-    # For providers with built-in websearch (Mistral), use tavily_search directly
     provider = self.class.name.downcase
-    if provider.include?("mistral")
-      DebugHelper.debug("WebSearchAgent: Using Tavily for Mistral provider", category: :web_search, level: :info)
-      return tavily_search(query: query, n: 3)
+    
+    # For OpenAI with native websearch support (gpt-4.1, gpt-4.1-mini),
+    # this method should never be called because OpenAI handles the search internally.
+    # If it is called, it means the native search feature might not be working properly.
+    # In this case, fall back to Tavily if available.
+    if provider.include?("openai")
+      DebugHelper.debug("WebSearchAgent: OpenAI native websearch should handle this internally", category: :web_search, level: :warning)
+      
+      # Check if Tavily is available as fallback
+      if CONFIG["TAVILY_API_KEY"]
+        DebugHelper.debug("WebSearchAgent: Falling back to Tavily for OpenAI", category: :web_search, level: :info)
+        return tavily_search(query: query, n: 5)
+      else
+        # Return a message indicating that native search should have handled this
+        return "Web search results are being processed by the AI model's native capabilities. Please continue with your response based on the search query: #{query}"
+      end
     end
     
-    # Check if Tavily is available as fallback
-    use_tavily_fallback = CONFIG["TAVILY_API_KEY"] && 
-                         CONFIG["OPENAI_NATIVE_WEBSEARCH_FALLBACK"] != "false"
-    
-    # Use the configured WEBSEARCH_MODEL (defaults to gpt-4.1-mini)
-    model = CONFIG["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
-    
-    begin
-      messages = [
-        {
-          "role" => "user",
-          "content" => query 
-        }
-      ]
-      
-      # Explicitly set model parameter to ensure it's used
-      parameters = {
-        "messages" => messages,
-        "model" => model
-      }
-      
-      # Debug logging
-      DebugHelper.debug("WebSearchAgent: Using model #{model} for websearch query", category: :web_search, level: :info)
-      
-      # Use the standard send_query method with the correct model
-      result = send_query(parameters)
-      
-      # If result indicates failure and we have Tavily as fallback
-      if result.to_s.include?("ERROR") && use_tavily_fallback
-        raise "Native search failed, trying Tavily fallback"
-      end
-      
-      return result
-    rescue => e
-      # If native search fails and Tavily is available, use Tavily
-      if use_tavily_fallback
-        DebugHelper.debug("WebSearchAgent: Falling back to Tavily API due to error: #{e.message}", category: :web_search, level: :warning)
-        
-        # Use Tavily search as fallback
-        return tavily_search(query: query, n: 3)
-      else
-        # Re-raise the error if no fallback is available
-        raise e
-      end
+    # For providers that explicitly use Tavily (Mistral, Gemini, Cohere, etc.)
+    if CONFIG["TAVILY_API_KEY"]
+      DebugHelper.debug("WebSearchAgent: Using Tavily for #{provider} provider", category: :web_search, level: :info)
+      return tavily_search(query: query, n: 5)
+    else
+      return "Web search is not available. Please ensure TAVILY_API_KEY is configured."
     end
   end
 end

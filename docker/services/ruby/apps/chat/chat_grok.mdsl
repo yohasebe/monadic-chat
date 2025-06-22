@@ -27,7 +27,7 @@ app "ChatGrok" do
     initiate_from_assistant false
     image true
     pdf false
-    websearch true
+    websearch false
     group "xAI"
   end
 end

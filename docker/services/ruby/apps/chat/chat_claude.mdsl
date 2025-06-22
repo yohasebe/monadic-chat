@@ -32,7 +32,7 @@ app "ChatClaude" do
     image true
     sourcecode true
     initiate_from_assistant false
-    websearch true
+    websearch false
     group "Anthropic"
   end
 end

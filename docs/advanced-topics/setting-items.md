@@ -138,7 +138,9 @@ These are configured in the Monadic Chat UI, not in MDSL files:
 
 - **`AI_USER_MODEL`** - Model for AI-generated user messages
 - **`AI_USER_MAX_TOKENS`** - Max tokens for user message generation (default: 2000)
-- **`WEBSEARCH_MODEL`** - Model for web search (gpt-4.1-mini or gpt-4.1)
+- **`WEBSEARCH_MODEL`** - Model for web search (default: gpt-4.1-mini)
+- **`USE_TAVILY_FOR_OPENAI`** - Force OpenAI models to use Tavily web search instead of native (true/false)
+- **`TAVILY_API_KEY`** - API key for Tavily web search service
 - **`STT_MODEL`** - Speech-to-text model
 - **`ROUGE_THEME`** - Syntax highlighting theme
 

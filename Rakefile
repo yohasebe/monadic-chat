@@ -573,12 +573,85 @@ end
 # Platform-specific build tasks
 namespace :build do
   # Common setup for all platform builds
-  def setup_build_environment
+  def setup_build_environment(skip_help_db: false)
     # remove /docker/services/python/pysetup.py
     FileUtils.rm_f("docker/services/python/pysetup.py")
     home_directory_path = File.join(File.dirname(__FILE__), "docker")
     Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
     Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
+
+    # Build and export help database unless skipped
+    unless skip_help_db
+      puts "\n=== Building Help Database ==="
+      puts "This ensures the packaged app includes up-to-date help content."
+      
+      # Check if OPENAI_API_KEY is available
+      require 'dotenv'
+      config_path = File.expand_path("~/monadic/config/env")
+      if File.exist?(config_path)
+        Dotenv.load(config_path)
+      end
+      
+      if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
+        puts "Warning: OPENAI_API_KEY not found. Skipping help database build."
+        puts "To build the help database, add OPENAI_API_KEY to ~/monadic/config/env"
+      else
+        begin
+          # Check if pgvector container is running
+          pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
+          
+          if pgvector_running
+            puts "pgvector container is already running."
+          else
+            puts "Starting pgvector container for help database build..."
+            # Start only the pgvector service
+            if system("docker compose -p 'monadic-chat' up -d pgvector_service")
+              puts "pgvector container started successfully."
+              
+              # Wait for PostgreSQL to be ready
+              puts "Waiting for PostgreSQL to be ready..."
+              max_attempts = 30
+              attempt = 0
+              while attempt < max_attempts
+                if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
+                  puts "PostgreSQL is ready!"
+                  break
+                end
+                attempt += 1
+                print "."
+                sleep 1
+              end
+              
+              if attempt >= max_attempts
+                puts "\nWarning: PostgreSQL did not become ready in time. Skipping help database build."
+              else
+                # Run help database rebuild
+                Rake::Task["help:rebuild"].invoke
+              end
+            else
+              puts "Warning: Failed to start pgvector container. Skipping help database build."
+            end
+          end
+          
+          # If pgvector was already running, just rebuild the help database
+          if pgvector_running
+            Rake::Task["help:rebuild"].invoke
+          end
+          
+        rescue => e
+          puts "Warning: Error building help database: #{e.message}"
+          puts "Continuing with package build..."
+        ensure
+          # Stop pgvector if we started it (and user didn't have it running)
+          if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
+            puts "Stopping pgvector container..."
+            system("docker compose -p 'monadic-chat' stop pgvector_service")
+          end
+        end
+      end
+      
+      puts "\n=== Building Electron Packages ==="
+    end
 
     # Download vendor assets for offline use
     puts "Downloading vendor assets for offline use..."
@@ -590,35 +663,40 @@ namespace :build do
 
   desc "Build Windows x64 package only"
   task :win do
-    setup_build_environment
+    skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
+    setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Windows x64 package..."
     sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
 
   desc "Build macOS arm64 (Apple Silicon) package only"
   task :mac_arm64 do
-    setup_build_environment
+    skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
+    setup_build_environment(skip_help_db: skip_help_db)
     puts "Building macOS arm64 package..."
     sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
 
   desc "Build macOS x64 (Intel) package only"
   task :mac_x64 do
-    setup_build_environment
+    skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
+    setup_build_environment(skip_help_db: skip_help_db)
     puts "Building macOS x64 package..."
     sh "npm run build:mac-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
 
   desc "Build Linux x64 package only"
   task :linux_x64 do
-    setup_build_environment
+    skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
+    setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Linux x64 package..."
     sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
 
   desc "Build Linux arm64 package only"
   task :linux_arm64 do
-    setup_build_environment
+    skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
+    setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Linux arm64 package..."
     sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
@@ -633,19 +711,13 @@ end
 # Main build task to build all packages (backward compatibility)
 desc "Build installation packages for all supported platforms"
 task :build do
-  # remove /docker/services/python/pysetup.py
-  FileUtils.rm_f("docker/services/python/pysetup.py")
-  home_directory_path = File.join(File.dirname(__FILE__), "docker")
-  Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
-  Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
-
-  # Download vendor assets for offline use
-  puts "Downloading vendor assets for offline use..."
-  Rake::Task["download_vendor_assets"].invoke
-
-  sh "npm update"
-
-  sh "npm cache clean --force"
+  # Use the common setup which includes help database building
+  # Set SKIP_HELP_DB=true to skip help database building
+  skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
+  if skip_help_db
+    puts "Skipping help database build (SKIP_HELP_DB=true)"
+  end
+  setup_build_environment(skip_help_db: skip_help_db)
 
   # Use generate-only flag to create YML files without publishing
   sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
@@ -1219,6 +1291,19 @@ namespace :help do
   task :build do
     puts "Building help database from documentation..."
     
+    # Load API key from config
+    require 'dotenv'
+    config_path = File.expand_path("~/monadic/config/env")
+    if File.exist?(config_path)
+      Dotenv.load(config_path)
+    end
+    
+    if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
+      puts "Error: OPENAI_API_KEY not found in ~/monadic/config/env"
+      puts "The help database requires OpenAI API for generating embeddings."
+      exit 1
+    end
+    
     # Check if pgvector container is running
     pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
     unless pgvector_running
@@ -1307,6 +1392,19 @@ namespace :help do
   desc "Rebuild help database (drop existing data first)"
   task :rebuild do
     puts "Rebuilding help database from scratch..."
+    
+    # Load API key from config
+    require 'dotenv'
+    config_path = File.expand_path("~/monadic/config/env")
+    if File.exist?(config_path)
+      Dotenv.load(config_path)
+    end
+    
+    if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
+      puts "Error: OPENAI_API_KEY not found in ~/monadic/config/env"
+      puts "The help database requires OpenAI API for generating embeddings."
+      exit 1
+    end
     
     # Check if pgvector container is running
     pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")

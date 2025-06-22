@@ -4,9 +4,19 @@
 require "fileutils"
 require "json"
 require "digest"
+require "dotenv"
 
 # Define IN_CONTAINER constant before requiring help_embeddings
 IN_CONTAINER = File.file?("/.dockerenv")
+
+# Load configuration from ~/monadic/config/env
+config_path = File.expand_path("~/monadic/config/env")
+if File.exist?(config_path)
+  Dotenv.load(config_path)
+end
+
+# Create CONFIG constant that TextEmbeddings expects
+CONFIG = ENV.to_h
 
 require_relative "../../lib/monadic/utils/help_embeddings"
 

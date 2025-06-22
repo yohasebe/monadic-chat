@@ -331,8 +331,29 @@ function writeToScreen(text) {
       return;
     }
     
+    // Get current mode - try multiple sources
+    let currentMode = null;
+    try {
+      // First try the API
+      currentMode = window.electronAPI.getDistributedMode();
+    } catch (e) {
+      // Fallback to cookie
+      const match = document.cookie.match(/distributed-mode=([^;]+)/);
+      if (match) {
+        currentMode = match[1];
+      }
+    }
+    
+    // Also check the mode status element as another fallback
+    if (!currentMode) {
+      const modeStatusElement = document.getElementById('modeStatus');
+      if (modeStatusElement && modeStatusElement.textContent === 'Server') {
+        currentMode = 'server';
+      }
+    }
+    
     // Handle connection-related status updates for Server mode
-    if (window.electronAPI.getDistributedMode() === 'server') {
+    if (currentMode === 'server') {
       // Server is still in connecting stage - failed attempts
       if (text.includes("Connecting to server: attempt") && text.includes("failed")) {
         const statusElement = document.getElementById('status');
@@ -342,6 +363,12 @@ function writeToScreen(text) {
           statusElement.classList.remove('active');
           statusElement.classList.add('inactive');
         }
+        return; // Don't show attempt failed messages in server mode
+      }
+      
+      // Don't show retry messages in server mode
+      else if (text.includes("Retrying in")) {
+        return;
       }
       
       // Connection succeeded but still need to display network URL
@@ -353,6 +380,7 @@ function writeToScreen(text) {
           statusElement.classList.remove('active');
           statusElement.classList.add('inactive');
         }
+        return; // Don't show success message in server mode
       }
       
       // Server verification complete but still waiting for network URL
@@ -364,6 +392,7 @@ function writeToScreen(text) {
           statusElement.classList.remove('active');
           statusElement.classList.add('inactive');
         }
+        return; // Don't show verification message in server mode
       }
     }
     

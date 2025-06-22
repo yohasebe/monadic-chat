@@ -891,7 +891,7 @@ build_ruby_container)
   # rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
@@ -906,7 +906,7 @@ build_python_container)
   build_python_container
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
@@ -926,7 +926,7 @@ build_user_containers)
     # No user containers found (special return code)
     echo "[HTML]: <p><i class='fa-solid fa-info-circle'></i>No user containers to build.</p><hr />"
   elif ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
@@ -941,7 +941,7 @@ build_ollama_container)
   build_ollama_container
 
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Ollama container has finished: Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ollama container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Ollama container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
   fi
@@ -963,7 +963,7 @@ build)
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: green;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: 22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi

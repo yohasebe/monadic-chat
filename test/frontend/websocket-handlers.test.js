@@ -4,20 +4,44 @@
 
 // Helper function to create a jQuery mock element
 function createMockJQueryElement() {
+  let appendedContent = '';
+  
   const mockElement = {
-    text: jest.fn().mockReturnThis(),
+    text: jest.fn(function(content) {
+      if (content !== undefined) {
+        appendedContent = content;
+      }
+      return this;
+    }),
     attr: jest.fn().mockReturnThis(),
     addClass: jest.fn().mockReturnThis(),
     hide: jest.fn().mockReturnThis(),
     show: jest.fn().mockReturnThis(),
-    append: jest.fn().mockReturnThis(),
+    append: jest.fn(function(content) {
+      // If content is a jQuery element with text(), extract the text
+      if (content && content.text && content.text.mock && content.text.mock.calls.length > 0) {
+        appendedContent = content.text.mock.calls[0][0];
+      } else {
+        appendedContent = content;
+      }
+      return this;
+    }),
     html: jest.fn().mockReturnThis(),
     val: jest.fn().mockReturnThis(),
     prop: jest.fn().mockReturnThis(),
     css: jest.fn().mockReturnThis(),
     outerHTML: '<div class="error-message"></div>'
   };
-  mockElement[0] = { outerHTML: '<div class="error-message"></div>' };
+  
+  // Mock the [0] accessor to return an object with outerHTML
+  Object.defineProperty(mockElement, '0', {
+    get: function() {
+      return { 
+        outerHTML: `<div class="error-message"><i class="fas fa-exclamation-circle"></i> <span>${appendedContent}</span></div>` 
+      };
+    }
+  });
+  
   return mockElement;
 }
 
@@ -218,6 +242,14 @@ beforeEach(() => {
   if (!global.setInputFocus) {
     global.setInputFocus = jest.fn();
   }
+  if (!global.createCard) {
+    global.createCard = jest.fn().mockReturnValue('<div class="card">Mock Card</div>');
+  }
+});
+
+// Restore jQuery mock after each test to prevent interference
+afterEach(() => {
+  global.$ = originalJQueryMock;
 });
 
 describe('WebSocket Handlers', () => {
@@ -267,6 +299,25 @@ describe('WebSocket Handlers', () => {
   // Test the error message handler
   describe('handleErrorMessage', () => {
     it('should handle error messages', () => {
+      // Setup discourse mock to verify append is called
+      const mockDiscourse = {
+        append: jest.fn()
+      };
+      $.mockImplementation(selector => {
+        if (selector === '#discourse') {
+          return mockDiscourse;
+        }
+        if (typeof selector === 'string' && selector.startsWith('<')) {
+          return createMockJQueryElement();
+        }
+        // Return default mock for other selectors
+        return {
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test data
       const data = {
         type: 'error',
@@ -281,7 +332,20 @@ describe('WebSocket Handlers', () => {
       expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
       expect($).toHaveBeenCalledWith('#message');
       expect($).toHaveBeenCalledWith('#monadic-spinner');
-      expect(global.setAlert).toHaveBeenCalledWith('Test error message', 'error');
+      
+      // Verify createCard was called instead of setAlert
+      expect(global.createCard).toHaveBeenCalledWith(
+        "system",
+        expect.stringContaining('System'),
+        expect.stringContaining('error-message'),
+        "en",
+        null,
+        true,
+        []
+      );
+      
+      // Verify the error card was appended to discourse
+      expect(mockDiscourse.append).toHaveBeenCalled();
     });
     
     it('should specifically handle AI User error from Perplexity', () => {
@@ -320,9 +384,16 @@ describe('WebSocket Handlers', () => {
       // Verify error is handled and AI User button is re-enabled
       expect(result).toBe(true);
       expect(mockAiUserButton.prop).toHaveBeenCalledWith('disabled', false);
-      expect(global.setAlert).toHaveBeenCalledWith(
-        'AI User error with provider perplexity: Last message must have role `user`', 
-        'error'
+      
+      // Verify createCard was called instead of setAlert
+      expect(global.createCard).toHaveBeenCalledWith(
+        "system",
+        expect.stringContaining('System'),
+        expect.stringContaining('AI User error with provider perplexity'),
+        "en",
+        null,
+        true,
+        []
       );
     });
     
@@ -357,6 +428,22 @@ describe('WebSocket Handlers', () => {
     });
     
     it('should handle error messages with HTML content', () => {
+      // Setup discourse mock
+      const mockDiscourse = { append: jest.fn() };
+      $.mockImplementation(selector => {
+        if (selector === '#discourse') {
+          return mockDiscourse;
+        }
+        if (typeof selector === 'string' && selector.startsWith('<')) {
+          return createMockJQueryElement();
+        }
+        return {
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test data with HTML
       const data = {
         type: 'error',
@@ -368,10 +455,39 @@ describe('WebSocket Handlers', () => {
       
       // Verify the result processes HTML content correctly
       expect(result).toBe(true);
-      expect(global.setAlert).toHaveBeenCalledWith('<strong>Error:</strong> Connection failed', 'error');
+      
+      // Verify createCard was called with the HTML content
+      expect(global.createCard).toHaveBeenCalledWith(
+        "system",
+        expect.stringContaining('System'),
+        expect.stringContaining('<strong>Error:</strong> Connection failed'),
+        "en",
+        null,
+        true,
+        []
+      );
+      
+      // Verify the error card was appended
+      expect(mockDiscourse.append).toHaveBeenCalled();
     });
     
     it('should handle null or empty error content', () => {
+      // Setup discourse mock
+      const mockDiscourse = { append: jest.fn() };
+      $.mockImplementation(selector => {
+        if (selector === '#discourse') {
+          return mockDiscourse;
+        }
+        if (typeof selector === 'string' && selector.startsWith('<')) {
+          return createMockJQueryElement();
+        }
+        return {
+          prop: jest.fn(),
+          show: jest.fn(),
+          hide: jest.fn()
+        };
+      });
+      
       // Test data with empty content
       const data = {
         type: 'error',
@@ -383,7 +499,15 @@ describe('WebSocket Handlers', () => {
       
       // Should still process the error
       expect(result).toBe(true);
-      expect(global.setAlert).toHaveBeenCalledWith('', 'error');
+      expect(global.createCard).toHaveBeenCalledWith(
+        "system",
+        expect.stringContaining('System'),
+        expect.stringContaining(''),
+        "en",
+        null,
+        true,
+        []
+      );
       
       // Test with null content
       const nullData = {
@@ -391,8 +515,18 @@ describe('WebSocket Handlers', () => {
         content: null
       };
       
+      global.createCard.mockClear();
       const nullResult = handlers.handleErrorMessage(nullData);
       expect(nullResult).toBe(true);
+      expect(global.createCard).toHaveBeenCalledWith(
+        "system",
+        expect.stringContaining('System'),
+        expect.any(String),  // The error div will contain some string
+        "en",
+        null,
+        true,
+        []
+      );
     });
   });
   

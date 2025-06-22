@@ -6,22 +6,23 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 
 | プロバイダ | ビジョンサポート | ツール/関数呼び出し | Web検索 |
 |----------|----------------|----------------------|---------|
-| OpenAI | ✅ 全モデル¹ | ✅ | ✅² |
-| Claude | ✅ Opus/Sonnet³ | ✅ | ✅² |
-| Gemini | ✅ 全モデル | ✅ | ✅² |
-| Mistral | ✅ 一部モデル⁴ | ✅ | ✅² |
-| Cohere | ❌ | ✅ | ✅² |
-| xAI Grok | ✅ Visionモデル⁵ | ✅ | ✅ ネイティブ |
+| OpenAI | ✅ 全モデル¹ | ✅ | ✅ ネイティブ² |
+| Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
+| Gemini | ✅ 全モデル | ✅ | ✅⁴ |
+| Mistral | ✅ 一部モデル⁵ | ✅ | ✅⁴ |
+| Cohere | ❌ | ✅ | ✅⁴ |
+| xAI Grok | ✅ Visionモデル⁶ | ✅ | ✅ ネイティブ |
 | Perplexity | ✅ 全モデル | ❌ | ✅ ネイティブ |
-| DeepSeek | ❌ | ✅ | ✅² |
-| Ollama | ❓ モデル依存⁶ | ❓ モデル依存⁶ | ✅² |
+| DeepSeek | ❌ | ✅ | ✅⁴ |
+| Ollama | ❓ モデル依存⁷ | ❓ モデル依存⁷ | ✅⁴ |
 
 ¹ o1、o1-mini、o3-miniを除く  
-² WebSearchAgent経由でのWeb検索（`WEBSEARCH_MODEL`設定またはTavily APIが必要）  
+² gpt-4.1/gpt-4.1-miniはResponses API経由でネイティブWeb検索、その他は利用可能な場合Tavilyを使用  
 ³ Haikuモデルはビジョン非対応  
-⁴ PixtralおよびMedium 2505モデルのみ  
-⁵ grok-2-visionモデルのみ  
-⁶ 使用する特定のモデルの機能に依存
+⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）  
+⁵ PixtralおよびMedium 2505モデルのみ  
+⁶ grok-2-visionモデルのみ  
+⁷ 使用する特定のモデルの機能に依存
 
 ## デフォルトモデルの設定
 
@@ -48,16 +49,33 @@ OLLAMA_DEFAULT_MODEL=llama3.2:3b
 
 ## Web検索の設定
 
-多くのプロバイダはWebSearchAgentを通じてWeb検索機能をサポートしています。ネイティブのツールサポートを持たない推論モデルの場合、システムは自動的に互換性のあるモデルに切り替えます：
+Web検索は2つの方法で利用可能です：
 
+### 1. ネイティブWeb検索
+- **OpenAI**: gpt-4.1とgpt-4.1-miniはResponses API経由でネイティブWeb検索を使用（デフォルト）
+- **Perplexity**: 全モデルに組み込みのWeb検索機能
+- **xAI Grok**: ネイティブLive Search APIサポート
+
+### 2. Tavily Web検索
+- `TAVILY_API_KEY`が設定されている場合、全プロバイダで利用可能
+- ネイティブWeb検索を持たないプロバイダでは必須
+- OpenAIで`USE_TAVILY_FOR_OPENAI=true`を設定することで強制可能
+
+### 設定オプション
 ```
-# 推論モデル使用時のWeb検索用モデル
-WEBSEARCH_MODEL=gpt-4.1-mini
+# Web検索用のTavily APIキー
+TAVILY_API_KEY=your_tavily_api_key
+
+# OpenAIでネイティブ検索の代わりにTavilyを強制使用
+USE_TAVILY_FOR_OPENAI=true
+
+# 推論モデル（o1、o3）使用時のWeb検索用モデル
+WEBSEARCH_MODEL=gpt-4o-mini
 ```
 
-ネイティブWeb検索を持つプロバイダ（Perplexity、xAI Grok）はこの設定を必要としません。他のプロバイダでは以下のいずれかが必要です：
-- `WEBSEARCH_MODEL`の設定（OpenAI APIを使用）
-- Web検索機能用のTavily APIキー
+### アプリのデフォルト設定
+- **Chatアプリ**: Web検索はデフォルトで無効（設定で有効化可能）
+- **Research Assistant**: Web検索はデフォルトで有効
 
 ## 推論モデル
 

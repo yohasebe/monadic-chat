@@ -4,6 +4,13 @@
   - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)
   - **Ollama Support**: Local LLM integration with automatic model management
   - **O3 Series Support**: OpenAI o3 and o3-pro models (o3-pro uses responses API)
+  - **AI-Driven Web Search**: Replaced heuristic detection with AI-driven approach
+    - AI models now decide when to use web search based on context
+    - Chat apps: Web search disabled by default
+    - Research Assistant apps: Web search enabled by default
+    - OpenAI: Uses responses API with native web_search_preview tool for gpt-4.1/gpt-4.1-mini
+    - Configuration option to force Tavily: `USE_TAVILY_FOR_OPENAI=true`
+    - Fixed Responses API content type issue (tool messages excluded from input)
   - **Performance**: Faster command execution, improved audio processing
   - **UI Improvements**: Provider colors, API key warnings, model switch notifications
 

@@ -5,9 +5,19 @@ require "pg"
 require "json"
 require "fileutils"
 require "digest"
+require "dotenv"
 
 # Define IN_CONTAINER constant
 IN_CONTAINER = File.file?("/.dockerenv")
+
+# Load configuration from ~/monadic/config/env
+config_path = File.expand_path("~/monadic/config/env")
+if File.exist?(config_path)
+  Dotenv.load(config_path)
+end
+
+# Create CONFIG constant for consistency
+CONFIG = ENV.to_h
 
 # Configuration
 DB_HOST = IN_CONTAINER ? "pgvector_service" : "localhost"

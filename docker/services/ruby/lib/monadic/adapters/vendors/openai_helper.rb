@@ -7,7 +7,6 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
-
 module OpenAIHelper
   include InteractionUtils
   include ErrorPatternDetector
@@ -81,30 +80,45 @@ module OpenAIHelper
   RESPONSES_API_MODELS = [
     "o3-pro"
   ]
-
-  # Native OpenAI websearch tools
-  NATIVE_WEBSEARCH_TOOLS = [
-    {
-      type: "function",
-      function:
-      {
-        name: "websearch_agent",
-        description: "Search the web for the given query and return the result. The result contains the answer to the query including the source url links",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "query to search for."
-            }
-          },
-          required: ["query"],
-          additionalproperties: false
-        }
-      },
-      strict: true
-    }
+  
+  # Models that use responses API for web search
+  RESPONSES_API_WEBSEARCH_MODELS = [
+    "gpt-4.1",
+    "gpt-4.1-mini"
   ]
+
+  # Native OpenAI web search tool configuration for responses API
+  NATIVE_WEBSEARCH_TOOL = {
+    type: "web_search_preview"
+  }
+  
+  # Built-in tools available in Responses API
+  RESPONSES_API_BUILTIN_TOOLS = {
+    "web_search" => { type: "web_search_preview" },
+    "file_search" => ->(vector_store_ids: [], max_num_results: 20) {
+      {
+        type: "file_search",
+        vector_store_ids: vector_store_ids,
+        max_num_results: max_num_results
+      }
+    },
+    "code_interpreter" => { type: "code_interpreter" },
+    "computer_use" => ->(display_width: 1280, display_height: 720) {
+      {
+        type: "computer_use",
+        display_width: display_width,
+        display_height: display_height
+      }
+    },
+    "image_generation" => { type: "image_generation" },
+    "mcp" => ->(method:, server:) {
+      {
+        type: "mcp",
+        method: method,
+        server: server
+      }
+    }
+  }
 
   # Tavily-based websearch tools
   TAVILY_WEBSEARCH_TOOLS = [
@@ -156,32 +170,40 @@ module OpenAIHelper
 
   WEBSEARCH_PROMPT = <<~TEXT
 
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses.
+    Web search is enabled for this conversation. You should proactively use web search whenever:
+    - The user asks about current events, news, or recent information
+    - The user asks about specific people, companies, organizations, or entities
+    - The user asks questions that would benefit from up-to-date or factual information
+    - You need to verify facts or get the latest information about something
+    - The user asks "who is" or similar questions about people or entities
+    
+    You don't need to ask permission to search - just search when it would be helpful. The web search happens automatically when you need it.
 
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+    Always ensure that your answers are comprehensive, accurate, and support the user's needs with relevant citations. When you find information through web search, provide detailed and informative responses.
 
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs. Example: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
   TEXT
   
-  NATIVE_WEBSEARCH_PROMPT = <<~TEXT
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. To fulfill your tasks, you can use the following function(s):
-
-     **websearch_agent**: Use this function to perform a web search. It takes a query (`query`) as input and returns results containing answers including source URL links.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-  TEXT
 
   TAVILY_WEBSEARCH_PROMPT = <<~TEXT
 
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
+    Web search is enabled for this conversation via Tavily API. You have access to the following functions:
 
     - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
     - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
 
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+    You should proactively use these functions whenever:
+    - The user asks about current events, news, or recent information
+    - The user asks about specific people, companies, organizations, or entities (e.g., "who is...")
+    - The user asks questions that would benefit from up-to-date or factual information
+    - You need to verify facts or get the latest information about something
+    - Any question where your training data might be outdated or incomplete
+    
+    Don't wait for the user to explicitly ask you to search - use your judgment to search whenever it would improve your answer.
 
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources.
+
+    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs. Example: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
   TEXT
 
   class << self
@@ -358,26 +380,44 @@ module OpenAIHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
-    # Check if web search is enabled
-    websearch = obj["websearch"] == "true"
+    # Store the original model for comparison later
+    original_user_model = model
     
-    # Determine which web search implementation to use
-    # Search-specific models use native OpenAI search
-    native_websearch_models = SEARCH_MODELS
+    # Check if original model requires responses API
+    use_responses_api = RESPONSES_API_MODELS.include?(original_user_model)
     
-    # Check if model supports native web search and native is enabled
-    use_native_websearch = websearch && 
-                          native_websearch_models.include?(model) &&
-                          CONFIG["OPENAI_NATIVE_WEBSEARCH"] != "false"
+    # Check if web search is enabled in settings
+    websearch_enabled = obj["websearch"] == "true"
     
-    # Use Tavily if API key is available and native is not being used
-    use_tavily_websearch = websearch && 
+    # Check if Tavily is explicitly requested
+    use_tavily_explicitly = CONFIG["USE_TAVILY_FOR_OPENAI"] == "true"
+    
+    # Check if we should use responses API with native websearch
+    # This happens when:
+    # 1. Web search is enabled in settings
+    # 2. Model supports it (gpt-4.1 or gpt-4.1-mini)
+    # 3. Tavily is not explicitly requested
+    use_responses_api_for_websearch = websearch_enabled && 
+                                     RESPONSES_API_WEBSEARCH_MODELS.include?(model) &&
+                                     !use_tavily_explicitly
+    
+    # Use Tavily if:
+    # 1. Web search is enabled
+    # 2. Tavily API key is available
+    # 3. Either Tavily is explicitly requested OR native websearch is not available
+    use_tavily_websearch = websearch_enabled && 
                           CONFIG["TAVILY_API_KEY"] && 
-                          !use_native_websearch
+                          (use_tavily_explicitly || !use_responses_api_for_websearch)
     
     # Store these variables in obj for later use in the method
-    obj["use_native_websearch"] = use_native_websearch
+    obj["websearch_enabled"] = websearch_enabled
+    obj["use_responses_api_for_websearch"] = use_responses_api_for_websearch
     obj["use_tavily_websearch"] = use_tavily_websearch
+    
+    # Update use_responses_api flag if we need it for websearch
+    if use_responses_api_for_websearch && !use_responses_api
+      use_responses_api = true
+    end
 
     message = nil
     data = nil
@@ -436,12 +476,6 @@ module OpenAIHelper
     body = {
       "model" => model,
     }
-    
-    # Store the original model for comparison later
-    original_user_model = model
-    
-    # Check if original model requires responses API
-    use_responses_api = RESPONSES_API_MODELS.include?(original_user_model)
 
     reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
     non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
@@ -450,7 +484,7 @@ module OpenAIHelper
     
     # If websearch is enabled and the current model is a reasoning model without native search,
     # switch to the WEBSEARCH_MODEL (defaults to gpt-4.1-mini if not set)
-    if websearch && reasoning_model && !search_model && !use_responses_api
+    if websearch_enabled && reasoning_model && !search_model && !use_responses_api
       original_model = model
       model = CONFIG["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
       body["model"] = model
@@ -474,10 +508,10 @@ module OpenAIHelper
     # Determine which prompt to use based on web search type
     websearch_prompt = if obj["use_tavily_websearch"]
                        TAVILY_WEBSEARCH_PROMPT
-                     elsif obj["use_native_websearch"]
-                       NATIVE_WEBSEARCH_PROMPT
-                     else
+                     elsif websearch_enabled
                        WEBSEARCH_PROMPT
+                     else
+                       nil
                      end
 
     if reasoning_model
@@ -521,17 +555,14 @@ module OpenAIHelper
         body["tools"] = APPS[app].settings["tools"]
         body["tools"] = [] if body["tools"].nil?
         
-        # Add appropriate web search tools
-        if obj["use_native_websearch"]
-          body["tools"].push(*NATIVE_WEBSEARCH_TOOLS)
-        elsif obj["use_tavily_websearch"]
+        # Add appropriate web search tools for chat/completions API
+        # (Responses API websearch is handled separately)
+        if obj["use_tavily_websearch"] && !use_responses_api
           body["tools"].push(*TAVILY_WEBSEARCH_TOOLS)
         end
         
         body["tools"].uniq!
-      elsif obj["use_native_websearch"]
-        body["tools"] = NATIVE_WEBSEARCH_TOOLS
-      elsif obj["use_tavily_websearch"]
+      elsif obj["use_tavily_websearch"] && !use_responses_api
         body["tools"] = TAVILY_WEBSEARCH_TOOLS
       else
         body.delete("tools")
@@ -543,7 +574,6 @@ module OpenAIHelper
     messages_containing_img = false
     image_file_references = []
     
-    # START ADDED CODE
     # Process images if this is an image generation request
     if image_generation && role == "user"
       context.compact.each do |msg|
@@ -596,7 +626,6 @@ module OpenAIHelper
         end
       end
     end
-    # END ADDED CODE
     
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
@@ -633,7 +662,7 @@ module OpenAIHelper
           msg["role"] = "developer" 
           msg["content"].each do |content_item|
             if content_item["type"] == "text" && num_system_messages == 0
-              if websearch
+              if websearch_enabled && websearch_prompt
                 text = "Web search enabled\n---\n" + content_item["text"] + "\n---\n" + websearch_prompt
               else
                 text = "Formatting re-enabled\n---\n" + content_item["text"]
@@ -663,7 +692,6 @@ module OpenAIHelper
     # and the prompt suffix
     last_text = message_with_snippet if message_with_snippet.to_s != ""
 
-    # START ADDED CODE
     # If this is an image generation request, add the image filenames to the last message
     if image_generation && !image_file_references.empty? && role == "user"
       img_references_text = "\n\nAttached images:\n"
@@ -682,7 +710,6 @@ module OpenAIHelper
         end
       end
     end
-    # END ADDED CODE
 
     if last_text.to_s != "" && prompt_suffix.to_s != ""
       new_text = last_text.to_s + "\n\n" + prompt_suffix.strip
@@ -758,14 +785,16 @@ module OpenAIHelper
       # Convert messages format to responses API input format
       # Responses API uses different content types than chat API
       input_messages = body["messages"].map do |msg|
-        role = msg["role"]
-        content = msg["content"]
+        role = msg["role"] || msg[:role]
+        content = msg["content"] || msg[:content]
         
-        if CONFIG["EXTRA_LOGGING"]
-          if role == "developer" && msg == body["messages"].first
-            puts "First developer message content preview: #{content[0]["text"][0..200] if content.is_a?(Array) && content[0]}"
-          end
+        # Skip tool messages for Responses API (they should not be in the input)
+        if role == "tool"
+          next
         end
+        
+        # Responses API uses input_text for all text content in the input array
+        text_type = "input_text"
         
         # Handle messages with complex content (text + images)
         if content.is_a?(Array)
@@ -774,7 +803,7 @@ module OpenAIHelper
             case item["type"]
             when "text"
               {
-                "type" => "input_text",
+                "type" => text_type,
                 "text" => item["text"]
               }
             when "image_url"
@@ -819,30 +848,90 @@ module OpenAIHelper
             "role" => role,
             "content" => [
               {
-                "type" => "input_text",
+                "type" => text_type,
                 "text" => content.to_s
               }
             ]
           }
         end
-      end
+      end.compact  # Remove nil entries from skipped tool messages
       
       # Create responses API body
       responses_body = {
         "model" => body["model"],
         "input" => input_messages,
-        "stream" => body["stream"] || false  # Default to false for responses API (o3-pro doesn't support streaming yet)
+        "stream" => body["stream"] || false,  # Default to false for responses API (o3-pro doesn't support streaming yet)
+        "store" => true  # Store responses for later retrieval by default
       }
       
-      # Add reasoning_effort in the correct format for responses API
+      # Add reasoning configuration for reasoning models
       if body["reasoning_effort"]
         responses_body["reasoning"] = {
           "effort" => body["reasoning_effort"]
         }
       end
       
-      # Check if web search was requested but can't be used
-      if websearch && block
+      # Add temperature and sampling parameters if not a reasoning model
+      unless reasoning_model
+        responses_body["temperature"] = body["temperature"] if body["temperature"]
+        responses_body["top_p"] = body["top_p"] if body["top_p"]
+      end
+      
+      # Add max_output_tokens if specified
+      if body["max_completion_tokens"] || max_completion_tokens
+        responses_body["max_output_tokens"] = body["max_completion_tokens"] || max_completion_tokens
+      end
+      
+      # Add instructions (system prompt) if available
+      if body["messages"].first && body["messages"].first["role"] == "developer"
+        # Extract the first developer message as instructions
+        developer_msg = body["messages"].first
+        if developer_msg["content"].is_a?(Array)
+          instructions_text = developer_msg["content"].find { |c| c["type"] == "text" }&.dig("text")
+        else
+          instructions_text = developer_msg["content"]
+        end
+        
+        if instructions_text
+          responses_body["instructions"] = instructions_text
+          # Remove the developer message from input as it's now in instructions
+          input_messages.shift
+        end
+      end
+      
+      # Support for stateful conversations (future use)
+      if obj["previous_response_id"]
+        responses_body["previous_response_id"] = obj["previous_response_id"]
+      end
+      
+      # Support for background processing (future use)
+      if obj["background"]
+        responses_body["background"] = true
+      end
+      
+      # Support for structured outputs
+      if body["response_format"] && body["response_format"]["type"] == "json_object"
+        responses_body["text"] = {
+          "format" => {
+            "type" => "json",
+            "json_schema" => body["response_format"]["json_schema"] || {
+              "name" => "response",
+              "schema" => {
+                "type" => "object",
+                "additionalProperties" => true
+              }
+            }
+          }
+        }
+      end
+      
+      # Add web search tool for responses API if needed
+      if obj["use_responses_api_for_websearch"]
+        # Add native web search tool for responses API
+        responses_body["tools"] = [NATIVE_WEBSEARCH_TOOL]
+        
+      elsif websearch_enabled && obj["model"] == "o3-pro" && block
+        # Web search requested but not supported for o3-pro
         system_msg = {
           "type" => "system_info",
           "content" => "Web search is not yet supported for o3-pro model. Proceeding without web search functionality."
@@ -850,36 +939,61 @@ module OpenAIHelper
         block.call system_msg
       end
       
-      # Tool support for responses API is currently disabled
-      # The API format for tools differs from chat/completions
-      # TODO: Implement proper tool format for responses API
-      if body["tools"] && !body["tools"].empty? && false  # Disabled for now
-        # Convert tools to ensure string keys for responses API
-        # The responses API requires type field but with flattened structure
-        responses_body["tools"] = body["tools"].map do |tool|
-          tool_json = JSON.parse(tool.to_json)
-          
-          # If this is a function tool, flatten but keep type
-          if tool_json["type"] == "function" && tool_json["function"]
-            {
-              "type" => "function",
-              "name" => tool_json["function"]["name"],
-              "description" => tool_json["function"]["description"],
-              "parameters" => tool_json["function"]["parameters"]
-            }
-          else
-            tool_json
+      # Enhanced tool support for responses API
+      # Check if we have tools to add (either built-in or custom functions)
+      if (body["tools"] && !body["tools"].empty?) || obj["responses_api_tools"]
+        responses_body["tools"] ||= []
+        
+        # Add built-in tools if specified
+        if obj["responses_api_tools"]
+          obj["responses_api_tools"].each do |tool_name, config|
+            if RESPONSES_API_BUILTIN_TOOLS[tool_name]
+              tool_def = RESPONSES_API_BUILTIN_TOOLS[tool_name]
+              # Handle tools that are lambdas (need configuration)
+              if tool_def.is_a?(Proc)
+                responses_body["tools"] << tool_def.call(**config)
+              else
+                responses_body["tools"] << tool_def
+              end
+            end
           end
         end
         
-        if CONFIG["EXTRA_LOGGING"]
-          puts "Responses API tools:"
-          puts JSON.pretty_generate(responses_body["tools"])
+        # Add custom function tools if available and not using websearch-only mode
+        if body["tools"] && !body["tools"].empty? && !obj["use_responses_api_for_websearch"]
+          # Convert function tools to Responses API format
+          # Responses API expects a flat structure for functions
+          function_tools = body["tools"].map do |tool|
+            tool_json = JSON.parse(tool.to_json)
+            
+            if tool_json["type"] == "function" && tool_json["function"]
+              {
+                "type" => "function",
+                "name" => tool_json["function"]["name"],
+                "description" => tool_json["function"]["description"],
+                "parameters" => tool_json["function"]["parameters"]
+              }
+            else
+              tool_json
+            end
+          end
+          
+          responses_body["tools"].concat(function_tools)
         end
+        
+        # Set tool_choice if specified
+        if body["tool_choice"]
+          responses_body["tool_choice"] = body["tool_choice"]
+        end
+        
+        # Enable parallel tool calls by default
+        responses_body["parallel_tool_calls"] = true
+        
       end
       
       # Use responses body instead
       body = responses_body
+      
     else
       # Use standard chat/completions API
       target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -915,6 +1029,7 @@ module OpenAIHelper
                         }
                       end
 
+
     MAX_RETRIES.times do
       res = http.timeout(**timeout_settings).post(target_uri, json: body)
       break if res.status.success?
@@ -923,6 +1038,7 @@ module OpenAIHelper
     end
 
     unless res.status.success?
+      
       error_report = JSON.parse(res.body)["error"]
       pp error_report
       formatted_error = format_api_error(error_report, "openai")
@@ -940,11 +1056,6 @@ module OpenAIHelper
         # Support multiple possible response structures
         frag = ""
         
-        if CONFIG["EXTRA_LOGGING"]
-          puts "Non-streaming responses API response:"
-          puts "Response keys: #{obj.keys.inspect}"
-          puts "Full response: #{obj.inspect}"
-        end
         
         # Try different paths for output
         if obj.dig("response", "output")
@@ -955,19 +1066,9 @@ module OpenAIHelper
           output_array = []
         end
         
-        if CONFIG["EXTRA_LOGGING"]
-          puts "Output array length: #{output_array.length}"
-        end
         
         # Extract text from output array
-        output_array.each_with_index do |item, index|
-          if CONFIG["EXTRA_LOGGING"]
-            puts "Output item #{index}: type=#{item["type"] if item.is_a?(Hash)}"
-            if item.is_a?(Hash) && item["type"] == "message"
-              puts "  Message content class: #{item["content"].class}"
-              puts "  Message content: #{item["content"].inspect[0..200]}..."
-            end
-          end
+        output_array.each do |item|
           
           if item.is_a?(Hash)
             # Direct text type
@@ -980,9 +1081,6 @@ module OpenAIHelper
                   # Handle both "text" and "output_text" types
                   if (content_item["type"] == "text" || content_item["type"] == "output_text") && content_item["text"]
                     frag += content_item["text"]
-                    if CONFIG["EXTRA_LOGGING"]
-                      puts "  Found text content: #{content_item["text"].length} chars"
-                    end
                   end
                 end
               elsif item["content"].is_a?(String)
@@ -1001,10 +1099,6 @@ module OpenAIHelper
         frag = obj.dig("choices", 0, "message", "content")
       end
       
-      if CONFIG["EXTRA_LOGGING"]
-        puts "Non-streaming response - content length: #{frag.length}"
-        puts "Returning obj class: #{obj.class}"
-      end
       
       block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
@@ -1345,7 +1439,13 @@ module OpenAIHelper
     obj = session[:parameters]
     buffer = String.new
     texts = {}
+    tools = {}
     finish_reason = nil
+    current_tool_calls = []
+    reasoning_content = ""
+    web_search_results = []
+    file_search_results = []
+    image_generation_status = {}
 
     chunk_count = 0
     res.each do |chunk|
@@ -1353,11 +1453,6 @@ module OpenAIHelper
       buffer << chunk
       chunk_count += 1
       
-      if CONFIG["EXTRA_LOGGING"]
-        if chunk_count % 10 == 0  # Log every 10 chunks
-          puts "Received #{chunk_count} chunks, buffer size: #{buffer.length}"
-        end
-      end
 
       if buffer.valid_encoding? == false
         next
@@ -1366,9 +1461,6 @@ module OpenAIHelper
       begin
         # Check for completion patterns
         if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
-          if CONFIG["EXTRA_LOGGING"]
-            puts "Stream completed - found DONE marker"
-          end
           break
         end
       rescue
@@ -1401,26 +1493,16 @@ module OpenAIHelper
             # Handle different event types for responses API
             event_type = json["type"]
             
-            if CONFIG["EXTRA_LOGGING"]
-              puts "Responses API event: #{event_type}"
-              puts "Event data: #{json.inspect}" if event_type != "response.output_text.delta"
-            end
             
             case event_type
             when "response.created"
               # Response created - just log for now
-              if CONFIG["EXTRA_LOGGING"]
-                puts "Response created with ID: #{json.dig("response", "id")}"
-              end
+              # Response created
               
             when "response.in_progress"
               # Response in progress - check for any output
               response_data = json["response"]
               if response_data
-                if CONFIG["EXTRA_LOGGING"]
-                  puts "In progress - Status: #{response_data["status"]}"
-                  puts "Output array length: #{response_data["output"]&.length || 0}"
-                end
                 
                 if response_data["output"] && !response_data["output"].empty?
                   output = response_data["output"]
@@ -1444,7 +1526,7 @@ module OpenAIHelper
               # Text fragment
               fragment = json["delta"]
               if fragment && !fragment.empty?
-                id = json["response_id"] || "default"
+                id = json["response_id"] || json["item_id"] || "default"
                 texts[id] ||= ""
                 texts[id] += fragment
                 
@@ -1452,22 +1534,153 @@ module OpenAIHelper
                 block&.call res
               end
               
-            when "response.function_call.arguments.delta"
-              # Tool call fragment
-              fragment = json["delta"]
-              if fragment && !fragment.empty?
-                res = { "type" => "tool_fragment", "content" => fragment }
+            when "response.output_text.done"
+              # Text output completed
+              text = json["text"]
+              if text
+                id = json["item_id"] || "default"
+                texts[id] = text  # Final text
+              end
+              
+            when "response.output_item.added"
+              # New output item added
+              item = json["item"]
+              if item && item["type"] == "function_call"
+                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
               end
+              
+            when "response.function_call_arguments.delta", "response.function_call.arguments.delta"
+              # Tool call arguments fragment
+              item_id = json["item_id"]
+              delta = json["delta"]
+              if item_id && delta
+                tools[item_id] ||= { "arguments" => "" }
+                tools[item_id]["arguments"] += delta
+              end
+              
+            when "response.function_call_arguments.done", "response.function_call.arguments.done"
+              # Tool call arguments completed
+              item_id = json["item_id"]
+              arguments = json["arguments"]
+              if item_id && arguments
+                tools[item_id] ||= {}
+                tools[item_id]["arguments"] = arguments
+                tools[item_id]["completed"] = true
+              end
+              
+            when "response.reasoning.delta"
+              # Reasoning content delta
+              delta = json.dig("delta", "text") || json["delta"]
+              if delta
+                reasoning_content += delta
+              end
+              
+            when "response.reasoning.done"
+              # Reasoning completed
+              text = json["text"]
+              if text
+                reasoning_content = text
+              end
+              
+            when "response.web_search_call.in_progress"
+              # Web search started
+              res = { "type" => "wait", "content" => "<i class='fas fa-search'></i> SEARCHING WEB" }
+              block&.call res
+              
+            when "response.web_search_call.searching"
+              # Web search in progress
+              # Could show progress if needed
+              
+            when "response.web_search_call.completed"
+              # Web search completed
+              item_id = json["item_id"]
+              if item_id
+                web_search_results << item_id
+              end
+              
+            when "response.file_search_call.in_progress"
+              # File search started
+              res = { "type" => "wait", "content" => "<i class='fas fa-file-search'></i> SEARCHING FILES" }
+              block&.call res
+              
+            when "response.file_search_call.searching"
+              # File search in progress
+              
+            when "response.file_search_call.completed"
+              # File search completed
+              item_id = json["item_id"]
+              if item_id
+                file_search_results << item_id
+              end
+              
+            when "response.image_generation_call.in_progress"
+              # Image generation started
+              item_id = json["item_id"]
+              if item_id
+                image_generation_status[item_id] = "in_progress"
+                res = { "type" => "wait", "content" => "<i class='fas fa-image'></i> GENERATING IMAGE" }
+                block&.call res
+              end
+              
+            when "response.image_generation_call.generating"
+              # Image generation in progress
+              item_id = json["item_id"]
+              if item_id
+                image_generation_status[item_id] = "generating"
+              end
+              
+            when "response.image_generation_call.partial_image"
+              # Partial image available
+              item_id = json["item_id"]
+              partial_image = json["partial_image_b64"]
+              if item_id && partial_image
+                # Could display partial image if desired
+              end
+              
+            when "response.image_generation_call.completed"
+              # Image generation completed
+              item_id = json["item_id"]
+              if item_id
+                image_generation_status[item_id] = "completed"
+              end
+              
+            when "response.mcp_call.in_progress"
+              # MCP tool call started
+              res = { "type" => "wait", "content" => "<i class='fas fa-plug'></i> CALLING MCP TOOL" }
+              block&.call res
+              
+            when "response.mcp_call.arguments.delta"
+              # MCP arguments delta
+              item_id = json["item_id"]
+              delta = json["delta"]
+              if item_id && delta
+                tools[item_id] ||= { "mcp_arguments" => {} }
+                tools[item_id]["mcp_arguments"].merge!(delta)
+              end
+              
+            when "response.mcp_call.arguments.done"
+              # MCP arguments completed
+              item_id = json["item_id"]
+              arguments = json["arguments"]
+              if item_id && arguments
+                tools[item_id] ||= {}
+                tools[item_id]["mcp_arguments"] = arguments
+                tools[item_id]["mcp_completed"] = true
+              end
+              
+            when "response.mcp_call.completed"
+              # MCP call completed successfully
+              
+            when "response.mcp_call.failed"
+              # MCP call failed
+              res = { "type" => "error", "content" => "MCP tool call failed" }
+              block&.call res
               
             when "response.completed", "response.done"
               # Response completed - extract final output
               response_data = json["response"] || json  # Handle both nested and flat structures
               
-              if CONFIG["EXTRA_LOGGING"]
-                puts "Response completed. Checking for output..."
-                puts "Response data keys: #{response_data.keys.inspect}"
-              end
               
               if response_data && response_data["output"] && !response_data["output"].empty?
                 output = response_data["output"]
@@ -1477,15 +1690,9 @@ module OpenAIHelper
                     texts[id] ||= ""
                     texts[id] = item["text"]  # Replace with final text
                     
-                    if CONFIG["EXTRA_LOGGING"]
-                      puts "Found text in completed response: #{item["text"].length} chars"
-                    end
                   end
                 end
               else
-                if CONFIG["EXTRA_LOGGING"]
-                  puts "No output found in completed response"
-                end
               end
               finish_reason = response_data["stop_reason"] || json["stop_reason"] || "stop"
               
@@ -1514,17 +1721,7 @@ module OpenAIHelper
               return [res]
               
             else
-              # Unknown event type - check if it contains output
-              if CONFIG["EXTRA_LOGGING"]
-                puts "Unknown responses API event type: #{event_type}"
-                
-                # Check various possible locations for output
-                if json["output"]
-                  puts "Found output at top level: #{json["output"].inspect}"
-                elsif json.dig("response", "output")
-                  puts "Found output in response: #{json.dig("response", "output").inspect}"
-                end
-              end
+              # Unknown event type
             end
             
           rescue JSON::ParserError => e
@@ -1546,6 +1743,93 @@ module OpenAIHelper
       extra_log.close
     end
 
+    # Handle tool calls if any were collected
+    if tools.any? && tools.any? { |_, tool| tool["completed"] || tool["mcp_completed"] }
+      call_depth += 1
+      
+      if call_depth > MAX_FUNC_CALLS
+        res = {
+          "type" => "fragment",
+          "content" => "NOTICE: Maximum function call depth exceeded"
+        }
+        block&.call res
+        
+        html_res = {
+          "type" => "html",
+          "content" => {
+            "role" => "assistant",
+            "text" => "NOTICE: Maximum function call depth exceeded",
+            "html" => "<p>NOTICE: Maximum function call depth exceeded</p>",
+            "lang" => "en",
+            "mid" => SecureRandom.hex(4)
+          }
+        }
+        block&.call html_res
+      else
+        # Process function tools
+        function_results = []
+        tools.each do |item_id, tool_data|
+          if tool_data["completed"] && tool_data["arguments"]
+            # This is a regular function call
+            function_results << {
+              "id" => item_id,
+              "function" => {
+                "name" => tool_data["name"] || "unknown",
+                "arguments" => tool_data["arguments"]
+              }
+            }
+          elsif tool_data["mcp_completed"] && tool_data["mcp_arguments"]
+            # This is an MCP call - handle differently if needed
+            function_results << {
+              "id" => item_id,
+              "type" => "mcp",
+              "function" => {
+                "name" => tool_data["name"] || "mcp_tool",
+                "arguments" => JSON.generate(tool_data["mcp_arguments"])
+              }
+            }
+          end
+        end
+        
+        if function_results.any?
+          # Convert to standard format for process_functions
+          tool_calls = function_results.map do |result|
+            {
+              "id" => result["id"],
+              "function" => result["function"]
+            }
+          end
+          
+          # Build context with any text content so far
+          context = []
+          if texts.any?
+            complete_text = texts.values.join("")
+            context << {
+              "role" => "assistant",
+              "content" => complete_text,
+              "tool_calls" => tool_calls
+            }
+          else
+            context << {
+              "role" => "assistant",
+              "tool_calls" => tool_calls
+            }
+          end
+          
+          new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
+          
+          if should_stop_for_errors?(session)
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+            return new_results || []
+          end
+          
+          return new_results || []
+        end
+      end
+    end
+    
+    # Return text response if no tools were called
     if texts.any?
       complete_text = texts.values.join("")
       response = {
@@ -1559,10 +1843,11 @@ module OpenAIHelper
         "model" => query["model"]
       }
       
-      if CONFIG["EXTRA_LOGGING"]
-        puts "Responses API returning response with content length: #{complete_text.length}"
-        puts "Response structure: #{response.inspect[0..300]}..."
+      # Add reasoning content if available
+      if reasoning_content && !reasoning_content.empty?
+        response["choices"][0]["message"]["reasoning_content"] = reasoning_content
       end
+      
       
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" })
       [response]
@@ -1579,10 +1864,6 @@ module OpenAIHelper
         "model" => query["model"]
       }
       
-      if CONFIG["EXTRA_LOGGING"]
-        puts "Responses API returning empty response"
-        puts "Response structure: #{response.inspect}"
-      end
       
       [response]
     end
@@ -1593,5 +1874,109 @@ module OpenAIHelper
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
     block&.call res
     [res]
+  end
+  
+  # Helper methods for Responses API
+  
+  # Check if a model should use the Responses API
+  def use_responses_api?(model)
+    RESPONSES_API_MODELS.include?(model)
+  end
+  
+  # Get a response by ID (for stateful conversations)
+  def get_response(response_id)
+    api_key = CONFIG["OPENAI_API_KEY"]
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+    
+    target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
+    http = HTTP.headers(headers)
+    
+    begin
+      res = http.get(target_uri)
+      if res.status.success?
+        JSON.parse(res.body)
+      else
+        nil
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      nil
+    end
+  end
+  
+  # Delete a response by ID
+  def delete_response(response_id)
+    api_key = CONFIG["OPENAI_API_KEY"]
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+    
+    target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
+    http = HTTP.headers(headers)
+    
+    begin
+      res = http.delete(target_uri)
+      res.status.success?
+    rescue HTTP::Error, HTTP::TimeoutError
+      false
+    end
+  end
+  
+  # Cancel a background response
+  def cancel_response(response_id)
+    api_key = CONFIG["OPENAI_API_KEY"]
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+    
+    target_uri = "#{API_ENDPOINT}/responses/#{response_id}/cancel"
+    http = HTTP.headers(headers)
+    
+    begin
+      res = http.post(target_uri)
+      if res.status.success?
+        JSON.parse(res.body)
+      else
+        nil
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      nil
+    end
+  end
+  
+  # Get input items for a response
+  def get_response_input_items(response_id, options = {})
+    api_key = CONFIG["OPENAI_API_KEY"]
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+    
+    params = {}
+    params[:limit] = options[:limit] if options[:limit]
+    params[:after] = options[:after] if options[:after]
+    params[:before] = options[:before] if options[:before]
+    params[:include] = options[:include] if options[:include]
+    
+    query_string = params.map { |k, v| "#{k}=#{v}" }.join("&")
+    target_uri = "#{API_ENDPOINT}/responses/#{response_id}/input_items"
+    target_uri += "?#{query_string}" unless query_string.empty?
+    
+    http = HTTP.headers(headers)
+    
+    begin
+      res = http.get(target_uri)
+      if res.status.success?
+        JSON.parse(res.body)
+      else
+        nil
+      end
+    rescue HTTP::Error, HTTP::TimeoutError
+      nil
+    end
   end
 end

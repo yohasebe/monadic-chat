@@ -125,27 +125,28 @@ end
 def get_api_key
   api_key = nil
   
-  begin
-    api_key = File.read("/monadic/config/env").split("\n").find do |line|
-      line.start_with?("OPENAI_API_KEY")
-    end&.split("=")&.last
-  rescue Errno::ENOENT
-    # Try alternative path
-
+  # Try both possible config file locations
+  config_paths = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"]
+  
+  config_paths.each do |config_path|
+    next unless File.exist?(config_path)
+    
     begin
-      api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find do |line|
-        line.start_with?("OPENAI_API_KEY")
-      end&.split("=")&.last
-    rescue Errno::ENOENT
-      # Try environment variable
-
-      api_key = ENV["OPENAI_API_KEY"]
+      api_key = File.read(config_path).split("\n").find do |line|
+        line.start_with?("OPENAI_API_KEY=")
+      end&.split("=", 2)&.last&.strip
+      
+      break if api_key
+    rescue => e
+      puts "WARNING: Error reading #{config_path}: #{e.message}"
     end
   end
   
   unless api_key
-    puts "ERROR: Unable to find OpenAI API key. Set the OPENAI_API_KEY environment variable."
-    exit
+    puts "ERROR: Unable to find OpenAI API key in config files:"
+    config_paths.each { |path| puts "  - #{path}" }
+    puts "Please add OPENAI_API_KEY=your-key to ~/monadic/config/env"
+    exit 1
   end
   
   api_key
@@ -209,7 +210,7 @@ def generate_image(options, num_retrials = 3)
         body[:size] = options[:size] if options[:size]
         body[:quality] = options[:quality] if options[:quality]
       else
-        # GPT Image 1固有のパラメータ
+        # GPT Image 1 specific parameters
 
         body[:size] = options[:size] if options[:size]
         body[:quality] = options[:quality] if options[:quality]

@@ -20,7 +20,11 @@ Monadic Chatでは、**MDSL（Monadic Domain Specific Language）形式**でア�
 - 類似のエラーが3回発生すると停止
 - コンテキストに応じた提案を提供
 
-**重要**: 空の`tools do`ブロックは「Maximum function call depth exceeded」エラーを引き起こす可能性があります。必ずツールを明示的に定義するか、コンパニオン`*_tools.rb`ファイルを作成してください。
+
+**ツール要件**:
+- システムプロンプトで言及されるすべてのツールには対応する`define_tool`ブロックが必要
+- 一貫したパラメータ名を使用: `fetch_text_from_file`は`:file`、`fetch_text_from_pdf`は`:pdf`を使用
+- 空の`tools do`ブロックは「Maximum function call depth exceeded」エラーの原因となることがあります
 
 ### MDSL形式のメリット
 
@@ -87,9 +91,11 @@ app "AppNameProvider" do      # プロバイダー付きのID（例: ChatOpenAI�
     group "OpenAI"      # UIでのグループ分け
   end
 
-  # ツールが必要な場合（自動補完される場合は空でも可）
+  # ツールが必要な場合
   tools do
-    # ツールはtools.rbファイルから自動補完されます
+    define_tool "tool_name", "ツールの説明" do
+      parameter :param, "string", "パラメータの説明", required: true
+    end
   end
 end
 ```
@@ -109,7 +115,7 @@ MDSLファイルは`apps`ディレクトリ以下の任意のディレクトリ�
 - MonadicAppを拡張するファサードメソッドを含む`app_name_tools.rb`を作成
 - ファサードメソッドに入力検証とエラーハンドリングを含める
 - 共有機能には`include_modules`とファサードラッパーを使用
-- ファサードメソッドからの自動補完に依存
+- MDSLファイルの`tools do`ブロックですべてのツールを明示的に定義
 
 `helpers`フォルダ内のファイルはアプリファイルよりも先に読み込まれるため、アプリケーションの機能を拡張するためにヘルパーファイルを使用できます。これにより、共通の機能をモジュールとしてまとめ、複数のアプリで再利用できます。
 
@@ -193,7 +199,10 @@ app "MyAppOpenAI" do
   system_prompt "あなたは役立つアシスタントです。"
   
   tools do
-    # ツールはmy_app_tools.rbから自動補完されます
+    define_tool "method_name", "このツールが行うことの説明" do
+      parameter :required_param, "string", "パラメータの説明", required: true
+      parameter :optional_param, "string", "オプションパラメータの説明", required: false
+    end
   end
 end
 ```
@@ -314,19 +323,12 @@ Web 設定画面の Base App セレクタ上でアプリをグループ化する
 
 ## 関数・ツールの呼び出し :id=calling-functions-in-the-app
 
-AIエージェントが使用するための関数・ツールを定義することが可能です。MDSL形式では、ツールは`tools do`ブロック内で定義するか、`*_tools.rb`ファイルから自動補完されます。基礎となる機能を実装するには：1）ツールファイルでRubyメソッドを定義、2）コマンドやシェルスクリプトの実行、3）Ruby以外の言語でプログラムコードの実行、の3つの方法があります。
+AIエージェントが使用するための関数・ツールを定義することが可能です。MDSL形式では、ツールは`tools do`ブロック内で**明示的に定義する必要があります**。基礎となる機能を実装するには：1）ツールファイルでRubyメソッドを定義、2）コマンドやシェルスクリプトの実行、3）Ruby以外の言語でプログラムコードの実行、の3つの方法があります。
 
 ### Rubyによるメソッドの実行
 
-MDSLでは、AIエージェントが使用できるRubyメソッドを定義するには2つのアプローチがあります：
-
-**オプション1: 自動補完（推奨）**
-1. ファサードメソッドを含む`*_tools.rb`ファイルを作成
-2. MDSLファイルの`tools do`ブロックを空または最小限にする
-3. システムがRubyメソッドからツール定義を自動補完
-
-**オプション2: 明示的定義**
-1. MDSLファイルの`tools do`ブロックでツールを明示的に定義
+AIエージェントが使用できるRubyメソッドを定義するには：
+1. MDSLファイルの`tools do`ブロックですべてのツールを明示的に定義
 2. `*_tools.rb`ファイルに対応するメソッドを実装
 3. メソッドシグネチャがツール定義と一致することを確認
 

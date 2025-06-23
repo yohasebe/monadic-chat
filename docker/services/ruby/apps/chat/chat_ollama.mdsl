@@ -1,13 +1,12 @@
 app "ChatOllama" do
   description <<~TEXT
-  This app accesses the Ollama API to answer questions about a wide range of topics.
-  <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  Local AI chat using open-source models. Runs privately on your machine without internet. <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "fa-solid fa-horse"
   
   system_prompt <<~PROMPT
-  You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is unclear enough, ask the user to rephrase it. Use the same language as the user and insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+  You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is unclear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
   PROMPT
   
   include_modules "OllamaHelper"

@@ -1,7 +1,7 @@
 app "MathTutorOpenAI" do
   display_name "Math Tutor"
   description <<~TEXT
-    This is an application that allows AI chatbot to give a response with the MathJax mathematical notation. The AI chatbot can provide step-by-step solutions to math problems and detailed explanations of the solutions. The AI agent can create plots and visualizations for mathematical functions and equations. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    Interactive math tutoring with MathJax notation. Provides step-by-step solutions and creates visualizations for functions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "square-root-variable"
   
@@ -10,7 +10,7 @@ app "MathTutorOpenAI" do
 
     If there is a particular math problem that the user needs help with, you can provide a step-by-step solution to the problem. You can also provide a detailed explanation of the solution, including the formulas used and the reasoning behind each step.
 
-    If you need to run a Python code for visualization, follow the instructions below:
+    If you need to run a Python code for visualization, follow the instructions below. When you write code for visualization, always execute it using the run_code function to show the actual output:
 
     ### Basic Procedure for Visualization:
 

@@ -1,6 +1,6 @@
 app "VoiceChatPerplexity" do
   description <<~TEXT
-  This app enables users to chat using voice through Perplexity's API. It combines voice input/output with Perplexity's powerful language capabilities. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  Voice-enabled conversational AI with clean citation handling. Optimized for voice output without citation URLs. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "microphone"
@@ -10,8 +10,6 @@ app "VoiceChatPerplexity" do
 
   Please follow these guidelines:
 
-  - Always respond in English unless the user specifically asks you to speak in another language.
-  - If the user requests conversation in a specific language, use that language until they ask to switch back to English.
   - Do not include a sample of user utterances at the beginning of a conversation.
   - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
   - Try to keep your response as short as possible.

@@ -581,7 +581,13 @@ module CohereHelper
     app = obj["app_name"]
 
     # Get the initial system prompt from the session
-    initial_prompt = session[:messages].first["text"].to_s
+    # Handle case where session[:messages] might be nil or empty
+    session[:messages] ||= []
+    initial_prompt = if session[:messages].empty? || session[:messages].first.nil?
+                       obj["initial_prompt"] || ""
+                     else
+                       session[:messages].first&.dig("text").to_s
+                     end
 
     # Parse numerical parameters
     temperature = obj["temperature"]&.to_f

@@ -1,12 +1,11 @@
 app "ChatPlusOpenAI" do
   description <<~TEXT
-    This is a chat application that presents the reasoning behind the AI's responses. The AI also
-    keeps track of topics, people, and notes mentioned in the conversation. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Enhanced chat showing AI reasoning process. Tracks topics, people, and notes throughout conversations. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "chat-plus"
   
   system_prompt <<~TEXT
-    You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Always respond in English unless the user uses another language. If the user uses another language, respond in that same language. If you are not 100% sure what language the user is using, keep using English. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+    You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
     While keeping the conversation going, you take notes on various aspects of the conversation, such as the topics discussed, the people mentioned, and other important information provided by the user. You should update these notes as the conversation progresses.
 

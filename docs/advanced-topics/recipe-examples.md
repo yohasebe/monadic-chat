@@ -508,8 +508,6 @@ app "SecondOpinionOpenAI" do
   end
 
   tools do
-    # Standard tools will be auto-completed from MonadicApp base class
-    
     define_tool "second_opinion_agent", "Verify the response before returning it to the user" do
       parameter :user_query, "string", "The query given by the user", required: true
       parameter :agent_response, "string", "Your response to be verified", required: true

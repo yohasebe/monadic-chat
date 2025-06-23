@@ -22,18 +22,22 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 - Stopping after 3 similar errors
 - Providing context-aware suggestions
 
-**Important**: Empty `tools do` blocks can cause "Maximum function call depth exceeded" errors. Always define tools explicitly or create a companion `*_tools.rb` file.
 
-For detailed information on MDSL format and auto-completion, see [Monadic DSL Documentation](monadic_dsl.md).
+**Tool Requirements**:
+- All tools mentioned in system prompts must have corresponding `define_tool` blocks
+- Use consistent parameter names: `fetch_text_from_file` uses `:file`, `fetch_text_from_pdf` uses `:pdf`
+- Empty `tools do` blocks can cause "Maximum function call depth exceeded" errors
+
+For detailed information on MDSL format, see [Monadic DSL Documentation](monadic_dsl.md).
 
 ### How to Add an Advanced App
 
 For robust app development, use MDSL with the facade pattern:
 - Create `app_name_provider.mdsl` for each provider (e.g., `chat_openai.mdsl`)
 - Create `app_name_tools.rb` with facade methods extending MonadicApp
+- **Explicitly define all tools** in the MDSL `tools do` block
 - Include input validation and error handling in facade methods
 - Use `include_modules` for shared functionality with facade wrappers
-- Rely on auto-completion from facade methods
 
 Files in the `helpers` folder are loaded before the app files, so you can use helper files to extend the functionality of the application. This way, you can consolidate common functions into a module and reuse them in multiple apps.
 
@@ -93,7 +97,7 @@ The above file structure is an example of a plugin that includes an app, a helpe
 For maintainable and robust MDSL applications:
 
 **Benefits of Facade Pattern:**
-- **Clear API**: Explicit method signatures for auto-completion
+- **Clear API**: Explicit method signatures
 - **Input Validation**: Prevent invalid function calls
 - **Error Handling**: Consistent error response format
 - **Debugging**: Easy to trace and log method calls
@@ -117,7 +121,10 @@ app "MyAppOpenAI" do
   system_prompt "You are a helpful assistant."
   
   tools do
-    # Tools will be auto-completed from my_app_tools.rb
+    define_tool "method_name", "Description of what this tool does" do
+      parameter :required_param, "string", "Description of the parameter", required: true
+      parameter :optional_param, "string", "Optional parameter description", required: false
+    end
   end
 end
 ```
@@ -234,18 +241,12 @@ There are many optional settings. See [Setting Items](./setting-items.md) for de
 
 ## Calling Functions in the App :id=calling-functions-in-the-app
 
-You can define functions and tools that the AI agent can use in the app. With the MDSL format, tools are defined in the `tools do` block or auto-completed from `*_tools.rb` files. There are three ways to implement the underlying functionality: 1) Define Ruby methods in the tools file; 2) Execute commands or shell scripts; and 3) Execute program code in languages other than Ruby.
+You can define functions and tools that the AI agent can use in the app. With the MDSL format, tools must be defined in the `tools do` block. There are three ways to implement the underlying functionality: 1) Define Ruby methods in the tools file; 2) Execute commands or shell scripts; and 3) Execute program code in languages other than Ruby.
 
 ### Define Ruby Methods
 
-With MDSL, there are two approaches to define Ruby methods that the AI agent can use:
+To define Ruby methods that the AI agent can use:
 
-**Option 1: Auto-completion (Recommended)**
-1. Create a `*_tools.rb` file with facade methods
-2. Leave the `tools do` block empty or minimal in the MDSL file
-3. The system will auto-complete tool definitions from the Ruby methods
-
-**Option 2: Explicit Definition**
 1. Define tools explicitly in the MDSL file's `tools do` block
 2. Implement corresponding methods in the `*_tools.rb` file
 3. Ensure the method signatures match the tool definitions

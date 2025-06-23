@@ -422,9 +422,9 @@ tools do
   end
 end
 
-# Option 2: Create app_name_tools.rb
+# Option 2: Create app_name_tools.rb 
 class AppNameProvider < MonadicApp
-  # Tool methods will be auto-completed
+  # Implementation methods - all tools must be defined in MDSL
 end
 ```
 

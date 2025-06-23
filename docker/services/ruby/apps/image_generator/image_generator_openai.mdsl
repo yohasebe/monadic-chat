@@ -1,6 +1,6 @@
 app "ImageGeneratorOpenAI" do
   description <<~TEXT
-    This application generates and edits images based on text prompts. It supports creating new images from prompts, editing existing images with optional masks, and generating variations of images. You can customize output options such as number of images, image size, format, quality, background and compression. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    AI image generation with DALL-E. Create, edit with masks, and generate variations. Supports multiple formats and quality settings. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   icon "fa-regular fa-image"

@@ -182,21 +182,7 @@ end
 - Solution: Add explicit tool definitions or create `*_tools.rb` file
 
 
-**Debugging Auto-completion:**
-1. Add the following to your `~/monadic/config/env` file:
-```
-# Enable auto-completion with debug output
-MDSL_AUTO_COMPLETE=debug
-```
-
-2. Start the server and load apps:
-```bash
-rake server:start
-```
-
-3. Check console output for auto-completion messages
-
-**Manual Tool Verification:**
+**Tool Verification:**
 ```bash
 # Check if tools are properly implemented in Ruby
 grep -n "def " apps/your_app/your_app_tools.rb
@@ -321,23 +307,6 @@ docker compose -p "monadic-chat" [command]
 ```
 This is especially important for packaged Electron apps to maintain proper container management.
 
-### MDSL Auto-Completion Control :id=mdsl-auto-completion-control-section
-
-MDSL auto-completion system can be controlled via configuration variables. Configure in `~/monadic/config/env` file:
-
-```
-# Disable auto-completion (useful when debugging MDSL files)
-MDSL_AUTO_COMPLETE=false
-
-# Enable with verbose debug logging
-MDSL_AUTO_COMPLETE=debug
-
-# Enable normally
-MDSL_AUTO_COMPLETE=true
-
-# Default behavior (auto-completion is disabled)
-# MDSL_AUTO_COMPLETE is unset or defaults to false
-```
 
 ## For Users :id=for-users
 

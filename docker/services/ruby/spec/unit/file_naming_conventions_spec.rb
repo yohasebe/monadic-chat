@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'spec_helper'
+require_relative '../spec_helper'
 
 RSpec.describe "File Naming Conventions" do
   let(:app_base_dir) { 

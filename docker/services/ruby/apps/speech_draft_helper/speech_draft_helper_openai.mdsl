@@ -1,6 +1,6 @@
 app "SpeechDraftHelperOpenAI" do
   description <<~TEXT
-    This app allows the user to submit a speech draft in the form of just a text string, a Word file, or a PDF file. The app will then analyze it and return a revised version. The app will also provide suggestions for improvement and tips on how to make the speech more engaging and effective if the user needs them. It can also provide an mp3 file of the speech. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=speech-draft-helper' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    Analyzes and improves speech drafts from text, Word, or PDF files. Provides revision suggestions and MP3 audio generation. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=speech-draft-helper' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "fas fa-user-tie"
@@ -11,7 +11,7 @@ app "SpeechDraftHelperOpenAI" do
   llm do
     provider "openai"
     model "gpt-4.1"
-    temperature 0.0
+    temperature 0.3
   end
 
   system_prompt <<~TEXT
@@ -58,7 +58,26 @@ app "SpeechDraftHelperOpenAI" do
   end
 
   tools do
-    # Standard tools will be auto-completed from MonadicApp base class
+    define_tool "fetch_text_from_file", "Fetch text content from a file" do
+      parameter :file, "string", "The filename to read", required: true
+    end
+
+    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
+      parameter :pdf, "string", "The filename of the PDF to read", required: true
+    end
+
+    define_tool "fetch_text_from_office", "Extract text content from Office files" do
+      parameter :file, "string", "The filename of the Office file to read", required: true
+    end
+
+    define_tool "analyze_image", "Analyze an image and return description" do
+      parameter :message, "string", "Question or instruction about the image", required: true
+      parameter :image_path, "string", "Path to the image file or URL", required: true
+    end
+
+    define_tool "analyze_audio", "Analyze audio and return transcription" do
+      parameter :audio_path, "string", "Path to the audio file", required: true
+    end
     
     define_tool "list_providers_and_voices", "List the available providers and voices for text-to-speech. A voice data consists of voice_id and name."
 

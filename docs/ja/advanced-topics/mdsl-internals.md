@@ -160,7 +160,6 @@ Result.new(value)
 `~/monadic/config/env`ファイルで設定：
 - `MONADIC_DEBUG=true` - 一般的なデバッグ出力
 - `EXTRA_LOGGING=true` - 詳細なログ
-- `MDSL_AUTO_COMPLETE=true` - 実験的なツール同期機能
 
 ### 6.2 一般的な問題
 1. **メニューグループの問題** - アプリ名がクラス名と一致しているか確認

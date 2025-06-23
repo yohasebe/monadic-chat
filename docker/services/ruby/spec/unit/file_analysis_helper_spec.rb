@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "./spec_helper"
-require_relative "../lib/monadic/adapters/file_analysis_helper"
+require_relative '../spec_helper'
+require_relative "../../lib/monadic/adapters/file_analysis_helper"
 
 RSpec.describe MonadicHelper do
   # Create a test class that includes the MonadicHelper module

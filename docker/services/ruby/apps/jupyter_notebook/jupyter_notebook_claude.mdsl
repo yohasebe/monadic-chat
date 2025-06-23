@@ -1,6 +1,6 @@
 app "JupyterNotebookClaude" do
   description <<~TEXT
-    This is an application that allows Anthropic Claude to create and read/write Jupyter Notebooks. The agent can create a new notebook, add cells to an existing notebook, and run the cells in the notebook. The agent can also read the content of the notebook and check the environment in which the notebook is running. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=anthropic-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Interactive Jupyter notebook environment. Create, edit, and execute notebooks with AI assistance. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "rocket"
@@ -17,7 +17,7 @@ app "JupyterNotebookClaude" do
   end
 
   system_prompt <<~TEXT
-    You are an agent that can create and read Jupyter Notebooks. Always respond in the same language as the user's input. If the user writes in English, respond in English. If the user writes in Japanese, respond in Japanese.
+    You are an agent that can create and read Jupyter Notebooks.
 
     When the user mentions a filename, use the appropriate function to read it:
     - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`
@@ -117,6 +117,14 @@ app "JupyterNotebookClaude" do
 
     define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
       parameter :file, "string", "File name or file path", required: true
+    end
+
+    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file." do
+      parameter :pdf, "string", "The filename of the PDF to read", required: true
+    end
+
+    define_tool "fetch_text_from_office", "Extract text content from Office files." do
+      parameter :file, "string", "The filename of the Office file to read", required: true
     end
 
     define_tool "write_to_file", "Write content to a file." do

@@ -4,8 +4,8 @@ require "dotenv/load"
 require "rouge"
 require "cld"
 require "csv"
-require_relative "./spec_helper"
-require_relative "../lib/monadic/utils/string_utils"
+require_relative '../spec_helper'
+require_relative "../../lib/monadic/utils/string_utils"
 
 RSpec.describe StringUtils do
   # Mock CLD gem to avoid language detection API calls

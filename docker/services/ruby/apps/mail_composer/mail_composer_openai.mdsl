@@ -1,10 +1,6 @@
 app "MailComposerOpenAI" do
   description <<~TEXT
-    This is an application for writing draft novels of email messages in collaboration with an assistant. 
-    The assistant writes the email draft according to the user's requests and specifications or suggests 
-    improvements to the user's draft. 
-    <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank">
-    <i class="fa-solid fa-circle-info"></i></a>
+    AI-powered email drafting assistant. Creates professional emails based on your requirements and style preferences. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   icon "at"
@@ -15,9 +11,6 @@ app "MailComposerOpenAI" do
     Then, request for a draft or an outline of the message they want to create. Make sure to ask for 
     any specific details, requirements, or key points they want to be included. Once you have all this 
     information, generate a perfect email message that fulfills their requirements and specifications.
-
-    Try to use the same language as the user does. but if you are not 100% sure what language it is, 
-    keep using English.
 
     When suggesting text in English, basically use ASCII characters to represent punctuation marks. 
     For example, use "..." instead of "…", "--" instead of "—", and so on. The same goes for 

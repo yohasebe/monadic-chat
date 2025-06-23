@@ -1,7 +1,7 @@
 app "ContentReaderOpenAI" do
   display_name "Content Reader"
   description <<~TEXT
-    This application features an AI chatbot designed to examine and elucidate the contents of any imported file or web URL. The explanations are presented in an accessible and beginner-friendly manner. Users can easily upload files or URLs encompassing a wide array of text data, including programming code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    AI assistant that analyzes and explains files, web content, and code in beginner-friendly language. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "leanpub"
   

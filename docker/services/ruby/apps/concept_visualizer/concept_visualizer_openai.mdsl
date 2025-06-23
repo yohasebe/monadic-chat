@@ -3,7 +3,7 @@ app "ConceptVisualizerOpenAI" do
   
   display_name "Concept Visualizer"
   description <<~TEXT
-    This application visualizes various concepts and relationships through diagrams using LaTeX/TikZ. It can create mind maps, flowcharts, organizational charts, network diagrams, and many other types of visual representations based on natural language descriptions.
+    Create visual diagrams from text descriptions. Generates mind maps, flowcharts, and network diagrams using LaTeX/TikZ.
     <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   

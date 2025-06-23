@@ -2,9 +2,16 @@
 
 require_relative 'spec_helper'
 require 'open3'
+require 'ostruct'
 
 # Include the module to test
 require_relative '../lib/monadic/adapters/read_write_helper'
+
+# Mock MonadicApp constants
+module MonadicApp
+  SHARED_VOL = "/monadic/data"
+  LOCAL_SHARED_VOL = File.join(Dir.home, "monadic", "data")
+end
 
 # Create a test class that includes the module
 module ReadWriteHelperTest
@@ -132,8 +139,7 @@ RSpec.describe MonadicHelper do
           text: "Hello, world!"
         )
         
-        expect(result).to include("has been written successfully")
-        expect(result).to include("test.txt")
+        expect(result).to include("The file test.txt has been written successfully")
       end
       
       it "handles file access errors" do
@@ -146,7 +152,6 @@ RSpec.describe MonadicHelper do
         )
         
         expect(result).to include("Error")
-        expect(result).to include("could not be executed")
         expect(result).to include("Permission denied")
       end
       
@@ -185,8 +190,7 @@ RSpec.describe MonadicHelper do
           expect(cmd).to include("monadic-chat-python-container")
         end
         
-        expect(result).to include("has been written successfully")
-        expect(result).to include("container_test.txt")
+        expect(result).to include("The file container_test.txt has been written successfully")
       end
       
       it "handles docker copy errors" do

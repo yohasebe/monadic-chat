@@ -1,6 +1,6 @@
 app "ImageGeneratorGemini" do
   description <<~TEXT
-    This app generates and edits images using Google's AI models. For image generation, it automatically selects between Imagen 3 (high-quality, photorealistic) and Gemini 2.0 Flash (versatile, fast) based on your requirements. For image editing, it uses Gemini 2.0 Flash which supports natural language-based editing of uploaded images. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    AI image generation with auto model selection. Uses Imagen 3 for quality or Gemini for speed. Natural language editing support. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   icon "fa-regular fa-image"

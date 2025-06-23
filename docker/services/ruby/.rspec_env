@@ -1,0 +1,5 @@
+# PostgreSQL connection settings for E2E tests
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5433
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=postgres

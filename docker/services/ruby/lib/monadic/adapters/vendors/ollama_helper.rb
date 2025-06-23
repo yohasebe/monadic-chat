@@ -1,3 +1,5 @@
+require 'http'
+
 module OllamaHelper
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60

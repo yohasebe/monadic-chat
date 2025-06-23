@@ -1,6 +1,4 @@
 class PDFNavigatorOpenAI < MonadicApp
-  include OpenAIHelper
-  
   def find_closest_text(text:, top_n:)
     @embeddings_db.find_closest_text(text, top_n: top_n)
   end

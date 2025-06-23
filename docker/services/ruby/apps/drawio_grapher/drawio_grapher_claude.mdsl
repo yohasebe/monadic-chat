@@ -1,7 +1,7 @@
 app "DrawIOGrapherClaude" do
   display_name "DrawIO Grapher"
   description <<~TEXT
-    This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=drawio-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    Generate Draw.io diagrams from descriptions. Creates XML files ready for import and further editing in Draw.io. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=drawio-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "diagram"
   
@@ -20,7 +20,6 @@ app "DrawIOGrapherClaude" do
     4. Consider appropriate styling or layout
     5. Only after completing these steps, separately generate the XML (do not show your XML generation work in the thinking section)
 
-    Respond to the user's request in the language in which the user speaks or writes.
 
     Limit the diagram creation to one per request. If no specific data is provided, generate a simple flowchart example.
 

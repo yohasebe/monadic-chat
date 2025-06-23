@@ -151,21 +151,7 @@ end
 
 ### 一般的な開発上の問題
 
-**自動補完のデバッグ：**
-1. `~/monadic/config/env`ファイルに以下を追加：
-```
-# デバッグ出力付きで自動補完を有効化
-MDSL_AUTO_COMPLETE=debug
-```
-
-2. サーバーを起動してアプリをロード：
-```bash
-rake server:start
-```
-
-3. コンソール出力で自動補完メッセージを確認
-
-**手動ツール検証：**
+**ツール検証：**
 ```bash
 # Rubyでツールが正しく実装されているか確認
 grep -n "def " apps/your_app/your_app_tools.rb
@@ -180,23 +166,6 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 - **コード実行**: すべてのプロバイダが`run_code`を使用
 - **配列パラメータ**: OpenAIは配列パラメータに`items`プロパティが必要
 
-## MDSL自動補完の制御 :id=mdsl-auto-completion-control
-
-MDSL自動補完システムは設定変数で制御できます。`~/monadic/config/env`ファイルで設定：
-
-```
-# 自動補完を無効化（MDSLファイルのデバッグ時に便利）
-MDSL_AUTO_COMPLETE=false
-
-# 詳細なデバッグログ付きで有効化
-MDSL_AUTO_COMPLETE=debug
-
-# 通常通り有効化
-MDSL_AUTO_COMPLETE=true
-
-# デフォルトの動作（自動補完は無効）
-# MDSL_AUTO_COMPLETEは未設定またはデフォルトでfalse
-```
 
 ## 重要：セットアップスクリプトの管理 :id=managing-setup-scripts
 

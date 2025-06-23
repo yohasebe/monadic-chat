@@ -1,6 +1,6 @@
 app "CodingAssistantCohere" do
   description <<~TEXT
-  This is an application for writing computer programming code. It assists users in writing code by providing suggestions and advice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  Business-focused coding assistant. Specializes in enterprise patterns and production-ready code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "laptop-code"

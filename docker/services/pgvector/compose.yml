@@ -24,7 +24,13 @@ services:
       start_period: 5s
     networks:
       - monadic-chat-network
-    restart: always
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
 
 volumes:
   monadic-chat-pgvector-data:

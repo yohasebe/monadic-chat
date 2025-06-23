@@ -1,6 +1,6 @@
 app "VoiceChatMistral" do
   description <<~TEXT
-  This app enables users to chat using voice through OpenAI's Speech-to-Text API and text-to-speech API, with Mistral handling the conversation responses. The initial prompt is the same as the one for the Chat app. <a href="https://yohasebe.github.io/monadic-chat/#/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  Voice-enabled conversational AI. Uses speech recognition and text-to-speech for natural voice interactions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "microphone"
@@ -10,8 +10,6 @@ app "VoiceChatMistral" do
 
   Please follow these guidelines:
 
-  - Always respond in English unless the user specifically asks you to speak in another language.
-  - If the user requests conversation in a specific language, use that language until they ask to switch back to English.
   - Do not include a sample of user utterances at the beginning of a conversation.
   - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
   - Try to keep your response as short as possible.

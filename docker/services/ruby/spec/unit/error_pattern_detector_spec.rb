@@ -1,5 +1,5 @@
-require 'spec_helper'
-require_relative '../lib/monadic/utils/error_pattern_detector'
+require_relative '../spec_helper'
+require_relative '../../lib/monadic/utils/error_pattern_detector'
 
 RSpec.describe ErrorPatternDetector do
   let(:session) { {} }

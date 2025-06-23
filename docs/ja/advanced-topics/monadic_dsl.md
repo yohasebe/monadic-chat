@@ -208,133 +208,7 @@ end
 
 > MDSLの内部実装とその仕組みについて詳しく知りたい開発者の方は、[MDSLの内部実装](mdsl-internals.md)をご覧ください。
 
-### MDSLツール自動補完システム（実験的）
 
-?> **警告**: これはデフォルトで無効になっている実験的機能です。本番環境では注意して使用してください。
-
-Monadic Chatには、Rubyの実装ファイルからMDSLツール定義を動的に生成する自動補完システムが含まれています。これにより手動作業を削減し、ツール定義と実装の一貫性を確保できます。
-
-#### 自動補完の仕組み
-
-1. **実行時検出**: MDSLファイルが読み込まれる際、システムは対応する`*_tools.rb`ファイルを自動的にスキャンします
-2. **メソッド分析**: Rubyの実装ファイル内のパブリックメソッドがツール候補として分析されます
-3. **型推論**: パラメータの型がデフォルト値や命名パターンから推論されます
-4. **動的補完**: 不足しているツール定義がLLMの利用可能ツールに自動的に追加されます
-5. **ファイル書き込み**: 自動生成された定義は、オプションでMDSLファイルに書き戻されます
-
-#### 設定
-
-自動補完はデフォルトで無効です。この実験的機能を有効にするには`~/monadic/config/env`ファイルで設定します：
-
-```
-# 自動補完を有効にする（本番環境では推奨しません）
-MDSL_AUTO_COMPLETE=true
-
-# デバッグ情報付きで有効にする
-MDSL_AUTO_COMPLETE=debug
-
-# 明示的に無効にする（デフォルト）
-MDSL_AUTO_COMPLETE=false
-```
-
-#### ファイル構造の要件
-
-自動補完システムは標準的なMonadic Chatのファイル命名規則で動作します：
-
-```text
-apps/app_name/
-├── app_name_constants.rb    # オプション: 共有定数（ICON、DESCRIPTION等）
-├── app_name_tools.rb        # ツールメソッドの実装
-├── app_name_provider.mdsl   # MDSLインターフェース（例：app_name_openai.mdsl）
-└── app_name_provider.mdsl   # 追加のプロバイダーバージョン
-```
-
-#### メソッド検出のルール
-
-**含まれるメソッド:**
-- `*_tools.rb`ファイル内のパブリックメソッド
-- 除外パターンに一致しないメソッド
-- 標準ツールリストにないメソッド
-
-**除外されるメソッド:**
-- プライベートメソッド（`private`キーワード以降）
-- パターンに一致するメソッド: `initialize`, `validate`, `format`, `parse`, `setup`, `teardown`, `before`, `after`, `test_`, `spec_`
-- 標準MonadicAppメソッド（自動検出）
-
-#### 型推論
-
-システムはデフォルト値から自動的にパラメータの型を推論します：
-
-```ruby
-def example_tool(text: "", count: 0, enabled: false, items: [], config: {})
-  # text: "string", count: "integer", enabled: "boolean"
-  # items: "array", config: "object"
-end
-```
-
-#### 生成されるツール定義
-
-自動生成されるMDSLツール定義の例：
-
-```ruby
-tools do
-  # Rubyの実装から自動生成されたツール定義
-  define_tool "count_num_of_words", "Count the num of words" do
-    parameter :text, "string", "The text content to process"
-  end
-end
-```
-
-#### ユーザー定義プラグインのサポート
-
-自動補完システムは組み込みアプリとユーザー定義プラグインの両方をサポートします：
-
-**組み込みアプリ:** `docker/services/ruby/apps/`
-**ユーザープラグイン:** `~/monadic/data/plugins/`（またはコンテナ内では`/monadic/data/plugins/`）
-
-#### 開発ツール
-
-**テスト用CLIツール:**
-```bash
-# アプリの自動補完をプレビュー
-ruby bin/mdsl_tool_completer novel_writer
-
-# ツールの一貫性を検証
-ruby bin/mdsl_tool_completer --action validate app_name
-
-# デバッグ情報付きで詳細分析
-ruby bin/mdsl_tool_completer --action analyze --verbose app_name
-```
-
-**RSpecテスト:**
-システムには`spec/app_loading_spec.rb`に包括的なテストが含まれています：
-- ツール実装の検証
-- 自動補完の一貫性チェック  
-- システムプロンプト参照の検証
-- マルチプロバイダーツールの一貫性
-
-#### ベストプラクティス
-
-1. **Rubyメソッドをシンプルに保つ**: 明確なパラメータ名と適切なデフォルト値を使用
-2. **意味のあるデフォルト値を追加**: デフォルト値は型推論に役立ちます
-3. **わかりやすいメソッド名を使用**: メソッド名は説明の生成に使用されます
-4. **パブリックとプライベートを分離**: ヘルパーメソッドを除外するために`private`キーワードを使用
-5. **自動補完をテスト**: CLIツールを使用して生成された定義を確認
-
-#### トラブルシューティング
-
-**よくある問題:**
-- **自動補完が機能しない**: `~/monadic/config/env`ファイルの`MDSL_AUTO_COMPLETE`設定を確認
-- **型推論が間違っている**: Rubyメソッド定義のデフォルト値を確認
-- **メソッドが見つからない**: メソッドがパブリック（`private`キーワードより前）であることを確認
-- **ファイルが見つからない**: ファイル命名規則がパターンと一致することを確認
-
-**デバッグモード:**
-1. `~/monadic/config/env`ファイルに以下を追加：
-```
-MDSL_AUTO_COMPLETE=debug
-```
-2. Monadic Chatを再起動して詳細な自動補完ログを確認
 
 ### ツール/関数呼び出し
 
@@ -354,12 +228,12 @@ end
 
 MDSLでのツール実装は、ファサードパターンを使用した構造化されたアプローチに従います：
 
-1. **ツールの定義**: ツールはMDSLファイルで明示的に定義するか、Ruby実装から自動補完されます
+1. **ツールの定義**: ツールはMDSLファイルで明示的に定義する必要があります
 2. **ツールの実装**: ファサードパターンを使用してコンパニオン`*_tools.rb`ファイルにメソッドを実装します
 
-#### 推奨: 自動補完付きファサードパターン
+#### 推奨: ファサードパターン
 
-最小限または空のツール定義でMDSLファイルを作成：
+ツール定義を含むMDSLファイルを作成：
 
 ```ruby
 # mermaid_grapher_openai.mdsl
@@ -385,7 +259,9 @@ app "MermaidGrapherOpenAI" do
   end
   
   tools do
-    # ツールはmermaid_grapher_tools.rbから自動補完されます
+    define_tool "mermaid_documentation", "mermaid.jsの構文ドキュメントを取得" do
+      parameter :diagram_type, "string", "図のタイプ（graph、sequence、flowchartなど）", required: true
+    end
   end
 end
 ```
@@ -437,7 +313,10 @@ app "WikipediaOpenAI" do
   include_modules ["WikipediaHelper"]
   
   tools do
-    # wikipedia_tools.rbから自動補完
+    define_tool "search_wikipedia", "Wikipedia記事を検索" do
+      parameter :search_query, "string", "検索クエリ", required: true
+      parameter :language_code, "string", "言語コード（デフォルト: en）", required: false
+    end
   end
 end
 ```
@@ -498,7 +377,6 @@ DSLアプリのトラブルシューティング時には、次の点を確認�
 - アプリ名がクラス名と正確に一致しているか確認
 - `monadic`と`toggle`が両方有効になっていないか確認
 - 詳細なデバッグ出力には`EXTRA_LOGGING=true`を使用
-- ツールのテストには`ruby bin/mdsl_tool_completer app_name`を使用
 
 ## ベストプラクティス
 
@@ -527,7 +405,7 @@ end
 
 # オプション2: app_name_tools.rbを作成
 class AppNameProvider < MonadicApp
-  # ツールメソッドが自動補完されます
+  # 実装メソッド - すべてのツールはMDSLで定義する必要があります
 end
 ```
 

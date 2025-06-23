@@ -1,6 +1,6 @@
 app "NovelWriterOpenAI" do
   description <<~TEXT
-  Craft a novel with engaging characters, vivid descriptions, and compelling plots. Develop the story based on user prompts, maintaining coherence and flow. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  AI-powered novel writing assistant. Develops characters, plots, and maintains narrative coherence with word tracking. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "book"
   
@@ -34,7 +34,7 @@ app "NovelWriterOpenAI" do
   llm do
     provider "openai"
     model "gpt-4.1"
-    temperature 0.0
+    temperature 0.7
     response_format({
       type: "json_schema",
       json_schema: {

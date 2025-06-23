@@ -1,15 +1,15 @@
 app "Mermaid Grapher" do
   description <<~TEXT
-    This application helps you visualize data leveraging mermaid.js. Give any data you have and the agent will choose the best diagram type and provide the mermaid code for it, from which you can create a diagram. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mermaid-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    Data visualization with Mermaid.js. Automatically selects optimal diagram types and generates ready-to-use Mermaid code. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mermaid-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "diagram"
+  display_name "Mermaid Grapher"
   
   include_modules "WebSearchAgent"
   
   system_prompt <<~TEXT
     You are tasked with creating visual representations of data structures using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure.
 
-    Respond to the user's request in the language in which the user speaks or writes.
 
     ## Creating Reliable Mermaid Diagrams - IMPORTANT WORKFLOW
 

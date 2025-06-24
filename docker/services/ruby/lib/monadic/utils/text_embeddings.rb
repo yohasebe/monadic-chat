@@ -161,10 +161,10 @@ class TextEmbeddings
     { doc_id: doc_id, total_items: items_data.size }
   end
 
-  def find_closest_text(text, top_n: 1)
+  def find_closest_text(text, top_n: 1, api_key: nil)
     return false if text == ""
 
-    embedding = get_embeddings(text)
+    embedding = get_embeddings(text, api_key: api_key)
     
     with_retry("Closest text search") do
       sql = <<~SQL
@@ -186,10 +186,10 @@ class TextEmbeddings
     end
   end
 
-  def find_closest_doc(text, top_n: 1)
+  def find_closest_doc(text, top_n: 1, api_key: nil)
     return false if text == ""
 
-    embedding = get_embeddings(text)
+    embedding = get_embeddings(text, api_key: api_key)
 
     with_retry("Closest document search") do
       sql = <<~SQL

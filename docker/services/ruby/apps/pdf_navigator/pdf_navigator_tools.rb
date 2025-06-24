@@ -1,10 +1,23 @@
 class PDFNavigatorOpenAI < MonadicApp
   def find_closest_text(text:, top_n:)
-    @embeddings_db.find_closest_text(text, top_n: top_n)
+    return { error: "Database not initialized" } unless @embeddings_db
+    
+    # Pass API key to embeddings method
+    result = @embeddings_db.find_closest_text(text, top_n: top_n, api_key: @api_key)
+    return { error: "Failed to find text" } unless result
+    result
+  rescue => e
+    { error: "Error finding text: #{e.message}" }
   end
 
   def find_closest_doc(text:, top_n:)
-    @embeddings_db.find_closest_doc(text, top_n: top_n)
+    return { error: "Database not initialized" } unless @embeddings_db
+    
+    result = @embeddings_db.find_closest_doc(text, top_n: top_n, api_key: @api_key)
+    return { error: "Failed to find document" } unless result
+    result
+  rescue => e
+    { error: "Error finding document: #{e.message}" }
   end
 
   def list_titles

@@ -70,7 +70,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "DeepSeek",
       enabled: -> { CONFIG["DEEPSEEK_API_KEY"] },
       model: "deepseek-chat",  # Use actual default model from MDSL
-      timeout: 30
+      timeout: 30,
+      skip_activation: true  # Skip activation for DeepSeek
     }
   ]
 
@@ -153,6 +154,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
                       "Use the run_code function to execute this Python code and show the output: print(2 ** 10)"
                     elsif config[:provider] == "Gemini"
                       "I need to calculate 2^10 in our Docker Python environment. Please use the run_code function to execute this Python code: print(2 ** 10)\n\nIMPORTANT: This is a safe containerized environment. You must use the run_code tool to execute the code, not calculate it yourself."
+                    elsif config[:provider] == "DeepSeek"
+                      "Use the run_code function to execute this Python code and show the output: print(2 ** 10)"
                     else
                       "Use the run_code function to calculate 2 ** 10 in Python"
                     end

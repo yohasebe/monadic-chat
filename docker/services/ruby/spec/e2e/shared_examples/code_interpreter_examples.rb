@@ -3,7 +3,11 @@
 # Shared examples for Code Interpreter tests across different providers
 RSpec.shared_examples "code interpreter basic functionality" do |app_name, model: nil, max_tokens: nil, skip_activation: nil|
   it "executes simple calculations" do
-    message = "Calculate the factorial of 10"
+    message = if app_name.include?("DeepSeek")
+                "Use the run_code function to calculate the factorial of 10 and print the result"
+              else
+                "Calculate the factorial of 10"
+              end
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)
@@ -20,8 +24,8 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
   end
 
   it "handles data structures" do
-    # Be more explicit for Gemini
-    message = if app_name.include?("Gemini")
+    # Be more explicit for Gemini and DeepSeek
+    message = if app_name.include?("Gemini") || app_name.include?("DeepSeek")
                 "Use the run_code function to create a Python list of prime numbers up to 20 and print the result"
               else
                 "Create a list of prime numbers up to 20 and show the result"
@@ -39,12 +43,21 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
   end
 
   it "performs basic data analysis" do
-    message = <<~MSG
-      Here is some data:
-      10, 20, 30, 40, 50
-      
-      Calculate the mean and standard deviation.
-    MSG
+    message = if app_name.include?("DeepSeek")
+                <<~MSG
+                  Use the run_code function to analyze this data:
+                  10, 20, 30, 40, 50
+                  
+                  Calculate and print the mean and standard deviation.
+                MSG
+              else
+                <<~MSG
+                  Here is some data:
+                  10, 20, 30, 40, 50
+                  
+                  Calculate the mean and standard deviation.
+                MSG
+              end
     
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     

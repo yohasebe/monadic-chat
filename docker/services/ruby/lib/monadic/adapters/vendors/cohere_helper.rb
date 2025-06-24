@@ -115,7 +115,7 @@ module CohereHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "command-r-plus")
+  def send_query(options, model: "command-r-03-2025")
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     

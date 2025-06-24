@@ -2,6 +2,13 @@
 
 require 'pg'
 require 'tempfile'
+
+# Ensure PostgreSQL environment variables are set before loading TextEmbeddings
+ENV['POSTGRES_HOST'] ||= 'localhost'
+ENV['POSTGRES_PORT'] ||= '5433'
+ENV['POSTGRES_USER'] ||= 'postgres'
+ENV['POSTGRES_PASSWORD'] ||= 'postgres'
+
 require_relative '../../lib/monadic/utils/text_embeddings'
 
 # Define EMBEDDINGS_DB if not already defined
@@ -15,13 +22,14 @@ module PDFTestHelper
   def setup_test_pdf_database
     # Create EMBEDDINGS_DB instance if not already defined
     if defined?(EMBEDDINGS_DB)
-      @test_embeddings = EMBEDDINGS_DB
-    else
-      # Create new instance - CONFIG should be loaded by now
-      @test_embeddings = TextEmbeddings.new(TEST_DB_NAME)
-      # Define the constant for other tests
-      Object.const_set(:EMBEDDINGS_DB, @test_embeddings)
+      # Replace the global EMBEDDINGS_DB with our test instance
+      Object.send(:remove_const, :EMBEDDINGS_DB)
     end
+    
+    # Create new instance for testing
+    @test_embeddings = TextEmbeddings.new(TEST_DB_NAME)
+    # Define the constant for the app to use
+    Object.const_set(:EMBEDDINGS_DB, @test_embeddings)
     
     # Clear existing data for clean test environment
     begin
@@ -34,7 +42,6 @@ module PDFTestHelper
         # Clear all data
         conn.exec("DELETE FROM items")
         conn.exec("DELETE FROM docs")
-        # Cleared existing data from database
       end
     rescue => e
       puts "WARNING: Could not clear database: #{e.message}"
@@ -74,11 +81,10 @@ module PDFTestHelper
     # Store embeddings using the same method as PDF upload
     api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
     
-    puts "DEBUG: Storing embeddings for #{title} with #{items_data.size} items" if ENV['E2E_DEBUG']
+    # Remove debug output for performance
     
     begin
       result = @test_embeddings.store_embeddings(doc_data, items_data, api_key: api_key)
-      puts "DEBUG: Successfully stored embeddings for #{title}" if ENV['E2E_DEBUG']
     rescue => e
       puts "ERROR storing embeddings: #{e.class} - #{e.message}"
       puts e.backtrace.first(5).join("\n")
@@ -107,6 +113,14 @@ module PDFTestHelper
         puts "WARNING: Could not cleanup database: #{e.message}"
       end
     end
+    
+    # Restore original EMBEDDINGS_DB
+    if defined?(EMBEDDINGS_DB)
+      Object.send(:remove_const, :EMBEDDINGS_DB)
+    end
+    # Recreate the original global instance
+    Object.const_set(:EMBEDDINGS_DB, TextEmbeddings.new("monadic_user_docs", recreate_db: false))
+    # Restored original EMBEDDINGS_DB
   end
   
   # Helper to create test PDF content

@@ -179,4 +179,10 @@ The `rake spec_e2e` task provides comprehensive end-to-end testing:
 - Starts the server if not already running
 - Runs WebSocket-based tests for all configured providers
 - Shows provider coverage summary
-- Includes retry mechanism for transient failures
+- Uses custom retry mechanism for cleaner output
+
+**Testing Philosophy**:
+- Focus on functionality, not exact output
+- Code Interpreter tests verify execution attempts, not specific numeric results
+- Flexible validation adapts to different provider response formats
+- Custom retry provides clear status updates during retries

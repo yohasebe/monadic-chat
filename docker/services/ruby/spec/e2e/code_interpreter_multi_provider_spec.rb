@@ -40,7 +40,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       app: "CodeInterpreterGemini",
       provider: "Gemini",
       enabled: -> { CONFIG["GEMINI_API_KEY"] },
-      model: "gemini-2.5-flash-preview-05-20",  # Use actual default model from MDSL
+      model: "gemini-2.5-pro",  # Updated to pro model
       timeout: 60,  # Increased timeout for Gemini (120s read timeout in real code)
       skip_activation: true  # Skip activation for Gemini
     },

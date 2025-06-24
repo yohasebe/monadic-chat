@@ -56,7 +56,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "Mistral",
       enabled: -> { CONFIG["MISTRAL_API_KEY"] },
       model: "mistral-large-latest",  # Use actual default model from MDSL
-      timeout: 60  # Increased to match provider's actual timeout
+      timeout: 60,  # Increased to match provider's actual timeout
+      skip_activation: true  # Skip activation for Mistral
     },
     {
       app: "CodeInterpreterCohere",

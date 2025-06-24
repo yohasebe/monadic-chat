@@ -20,7 +20,12 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
   end
 
   it "handles data structures" do
-    message = "Create a list of prime numbers up to 20 and show the result"
+    # Be more explicit for Gemini
+    message = if app_name.include?("Gemini")
+                "Use the run_code function to create a Python list of prime numbers up to 20 and print the result"
+              else
+                "Create a list of prime numbers up to 20 and show the result"
+              end
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens)
     
     response = wait_for_response(ws_connection, timeout: 30)

@@ -99,7 +99,11 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       context "Provider-specific behavior" do
         it "handles provider-specific code execution" do
           # Simple test that should work across all providers
-          message = "Execute this Python code: print('Hello from #{config[:provider]}!')"
+          message = if config[:provider] == "Gemini"
+                      "Please execute this Python code using the run_code function: print('Hello from #{config[:provider]}!')"
+                    else
+                      "Execute this Python code: print('Hello from #{config[:provider]}!')"
+                    end
           send_chat_message(ws_connection, message, 
             app: config[:app], 
             model: config[:model], 
@@ -128,6 +132,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           # For Mistral, be very explicit about executing new code
           message = if config[:provider] == "Mistral"
                       "Use the run_code function to execute this Python code and show the output: print(2 ** 10)"
+                    elsif config[:provider] == "Gemini"
+                      "Execute this Python code using run_code function and show me the output: print(2 ** 10)"
                     else
                       "Use the run_code function to calculate 2 ** 10 in Python"
                     end

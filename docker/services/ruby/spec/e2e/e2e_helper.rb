@@ -173,15 +173,32 @@ module E2EHelper
       if !ws_connection[:initial_message_sent][app]
         # Send a simple activation message first
         activation_msg = message_data.dup
-        activation_msg["message"] = "Hello, let's start working with code."
+        # For Gemini, use a more explicit activation message
+        if app.include?("Gemini")
+          activation_msg["message"] = "I'm ready to execute Python code. Please give me a task to perform using the run_code function."
+        else
+          activation_msg["message"] = "Hello, let's start working with code."
+        end
         ws_connection[:client].send(JSON.generate(activation_msg))
         
-        # Wait briefly for activation response
-        sleep 2
+        # Wait for activation response and consume it properly
+        start_time = Time.now
+        loop do
+          if ws_connection[:messages].any? { |msg| msg["type"] == "message" && msg["content"] == "DONE" }
+            break
+          end
+          if Time.now - start_time > 5
+            puts "#{app} activation timeout after 5 seconds"
+            break
+          end
+          sleep 0.1
+        end
+        
+        # Extract activation response for debugging
+        activation_response = extract_ai_response(ws_connection[:messages])
+        puts "#{app} activation response: #{activation_response[0..100]}..." if activation_response && !activation_response.empty?
         
         # Clear messages to prepare for actual test
-        initial_msg_count = ws_connection[:messages].length
-        puts "#{app} received #{initial_msg_count} messages during activation"
         ws_connection[:messages].clear
         
         # Mark that we've sent the initial message for this app/connection

@@ -153,10 +153,10 @@ Docker外で実行する場合、Rakefileは自動的に以下を設定します
 rake spec
 
 # 特定のテストカテゴリの実行
-rake spec_unit        # ユニットテストのみ（高速、コンテナ不要）
-rake spec_integration # 統合テスト（コンテナが必要）
+rake spec_unit        # ユニットテストのみ（高速）
+rake spec_integration # 統合テスト
 rake spec_system      # システムテスト（MDSL検証）
-rake spec_e2e         # エンドツーエンドテスト（コンテナとサーバーが必要）
+rake spec_e2e         # エンドツーエンドテスト（サーバー起動が必要）
 
 # Rubyコードスタイルチェック
 rake rubocop
@@ -175,7 +175,7 @@ rake test
 ### E2Eテスト
 
 `rake spec_e2e`タスクは包括的なエンドツーエンドテストを提供します：
-- 必要なDockerコンテナを自動的に起動
+- Dockerコンテナが動作していることを確認
 - サーバーが起動していない場合は自動的に起動
 - 設定されたすべてのプロバイダーでWebSocketベースのテストを実行
 - プロバイダーカバレッジサマリーを表示

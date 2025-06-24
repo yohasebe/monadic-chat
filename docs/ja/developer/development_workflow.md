@@ -13,6 +13,10 @@
 ### テスト構造 :id=test-structure
 - JavaScriptテストは `test/frontend/` に配置
 - Rubyテストは `docker/services/ruby/spec/` に配置
+  - ユニットテスト: `spec/unit/` - 高速で独立したテスト
+  - 統合テスト: `spec/integration/` - コンテナ連携テスト
+  - システムテスト: `spec/system/` - アプリ検証テスト
+  - E2Eテスト: `spec/e2e/` - WebSocketを使用した完全なワークフローテスト
 - アプリ固有の診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/{app_name}/` に配置
 - Jestの設定は `jest.config.js` に定義
 - JavaScriptのグローバルテスト設定は `test/setup.js` に定義
@@ -32,7 +36,30 @@
 
 #### Rubyテスト
 ```bash
+# すべてのRubyテストを実行
 rake spec
+
+# 特定のテストカテゴリを実行
+rake spec_unit        # ユニットテストのみ（高速）
+rake spec_integration # 統合テスト
+rake spec_system      # システムテスト
+rake spec_e2e         # E2Eテスト（コンテナとサーバーが必要）
+
+# パターンに一致するテストを実行
+bundle exec rspec spec/unit/*_spec.rb
+```
+
+#### E2Eテスト
+E2Eテストはコンテナとサーバーが動作している必要があります：
+```bash
+# 自動セットアップ付きですべてのE2Eテストを実行
+rake spec_e2e
+
+# このrakeタスクは自動的に：
+# - 必要なDockerコンテナを起動
+# - 必要に応じてサーバーを起動
+# - すべてのE2Eテストを実行
+# - プロバイダーカバレッジサマリーを表示
 ```
 
 #### JavaScriptテスト

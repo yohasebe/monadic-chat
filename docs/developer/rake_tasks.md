@@ -149,8 +149,14 @@ The `update_version` task updates version numbers in:
 ## Testing and Code Quality
 
 ```bash
-# Run Ruby tests (RSpec)
+# Run all Ruby tests (RSpec)
 rake spec
+
+# Run specific test categories
+rake spec_unit        # Unit tests only (fast, no container dependencies)
+rake spec_integration # Integration tests (requires containers)
+rake spec_system      # System tests (MDSL validation)
+rake spec_e2e         # End-to-end tests (requires containers and server)
 
 # Run Ruby code style checks
 rake rubocop
@@ -165,3 +171,12 @@ rake jstest_all  # Alias for backward compatibility
 # Run all tests (Ruby and JavaScript)
 rake test
 ```
+
+### E2E Testing
+
+The `rake spec_e2e` task provides comprehensive end-to-end testing:
+- Automatically starts required Docker containers
+- Starts the server if not already running
+- Runs WebSocket-based tests for all configured providers
+- Shows provider coverage summary
+- Includes retry mechanism for transient failures

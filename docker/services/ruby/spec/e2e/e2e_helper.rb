@@ -92,6 +92,11 @@ module E2EHelper
 
   # Send a chat message via WebSocket
   def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4o", max_tokens: nil)
+    # Determine if this provider needs special handling for initiate_from_assistant: false
+    needs_initial_message = false
+    if app.include?("Gemini") || app.include?("DeepSeek") || app.include?("Mistral")
+      needs_initial_message = true
+    end
     # First, send LOAD message to initialize session
     load_message = {
       "message" => "LOAD"
@@ -159,6 +164,24 @@ module E2EHelper
     
     # Add max_tokens if provided (for Claude)
     message_data["max_tokens"] = max_tokens if max_tokens
+    
+    # For providers with initiate_from_assistant: false, send an activation message first
+    if needs_initial_message && !@initial_message_sent_for ||= {}[app]
+      # Send a simple activation message first
+      activation_msg = message_data.dup
+      activation_msg["message"] = "Hello"
+      ws_connection[:client].send(JSON.generate(activation_msg))
+      
+      # Wait briefly for any response
+      sleep 1
+      
+      # Mark that we've sent the initial message for this app
+      @initial_message_sent_for ||= {}
+      @initial_message_sent_for[app] = true
+      
+      # Clear any responses from the activation message
+      ws_connection[:messages].clear
+    end
     
     ws_connection[:client].send(JSON.generate(message_data))
   end

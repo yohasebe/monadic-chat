@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 # Shared examples for Code Interpreter tests across different providers
-RSpec.shared_examples "code interpreter basic functionality" do |app_name, model: nil, max_tokens: nil|
+RSpec.shared_examples "code interpreter basic functionality" do |app_name, model: nil, max_tokens: nil, skip_activation: nil|
   it "executes simple calculations" do
     message = "Calculate the factorial of 10"
-    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens)
+    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)
     
@@ -26,7 +26,7 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
               else
                 "Create a list of prime numbers up to 20 and show the result"
               end
-    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens)
+    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)
     
@@ -46,7 +46,7 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
       Calculate the mean and standard deviation.
     MSG
     
-    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens)
+    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)
     
@@ -58,10 +58,10 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
   end
 end
 
-RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil, max_tokens: nil|
+RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil, max_tokens: nil, skip_activation: nil|
   it "handles syntax errors gracefully" do
     message = "Execute this code: print('Hello' # missing closing parenthesis"
-    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens)
+    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)
     
@@ -72,7 +72,7 @@ RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil
 
   it "handles runtime errors gracefully" do
     message = "Execute: result = 10 / 0"
-    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens)
+    send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)
     

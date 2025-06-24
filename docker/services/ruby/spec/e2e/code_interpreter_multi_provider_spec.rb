@@ -277,27 +277,4 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
     end
   end
 
-  # Summary of provider support
-  describe "Provider Coverage Summary" do
-    it "reports which providers are configured for testing" do
-      configured_providers = PROVIDER_CONFIGS.select { |c| c[:enabled].call }
-      unconfigured_providers = PROVIDER_CONFIGS.reject { |c| c[:enabled].call }
-      
-      puts "\n=== Code Interpreter Provider Test Coverage ==="
-      puts "\nConfigured providers (#{configured_providers.length}):"
-      configured_providers.each do |config|
-        puts "  ✓ #{config[:provider]} (#{config[:app]})"
-      end
-      
-      if unconfigured_providers.any?
-        puts "\nUnconfigured providers (#{unconfigured_providers.length}):"
-        unconfigured_providers.each do |config|
-          puts "  ✗ #{config[:provider]} (requires #{config[:provider].upcase}_API_KEY)"
-        end
-      end
-      
-      # This test always passes - it's just for reporting
-      expect(true).to be true
-    end
-  end
 end

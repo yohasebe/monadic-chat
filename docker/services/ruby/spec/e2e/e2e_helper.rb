@@ -97,6 +97,13 @@ module E2EHelper
     if app.include?("Gemini") || app.include?("DeepSeek") || app.include?("Mistral")
       needs_initial_message = true
     end
+    
+    # For Gemini, ensure we have a clean state
+    if app.include?("Gemini") && !ws_connection[:gemini_ready]
+      # Force re-initialization for Gemini
+      ws_connection[:messages].clear
+      ws_connection[:gemini_ready] = true
+    end
     # First, send LOAD message to initialize session
     load_message = {
       "message" => "LOAD"
@@ -203,6 +210,11 @@ module E2EHelper
         
         # Mark that we've sent the initial message for this app/connection
         ws_connection[:initial_message_sent][app] = true
+        
+        # For Gemini, add a small delay after activation
+        if app.include?("Gemini")
+          sleep 0.5
+        end
       end
     end
     

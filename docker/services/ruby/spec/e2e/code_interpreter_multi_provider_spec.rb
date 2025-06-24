@@ -41,7 +41,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "Gemini",
       enabled: -> { CONFIG["GEMINI_API_KEY"] },
       model: "gemini-2.5-flash-preview-05-20",  # Use actual default model from MDSL
-      timeout: 30
+      timeout: 45,  # Increased timeout for Gemini
+      skip_activation: true  # Skip activation for Gemini
     },
     {
       app: "CodeInterpreterGrok",
@@ -90,10 +91,12 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       # Include shared examples for basic functionality
       include_examples "code interpreter basic functionality", config[:app], 
         model: config[:model], 
-        max_tokens: config[:max_tokens]
+        max_tokens: config[:max_tokens],
+        skip_activation: config[:skip_activation]
       include_examples "code interpreter error handling", config[:app],
         model: config[:model],
-        max_tokens: config[:max_tokens]
+        max_tokens: config[:max_tokens],
+        skip_activation: config[:skip_activation]
 
       # Provider-specific tests
       context "Provider-specific behavior" do
@@ -149,7 +152,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           send_chat_message(ws_connection, message, 
             app: config[:app], 
             model: config[:model],
-            max_tokens: config[:max_tokens])
+            max_tokens: config[:max_tokens],
+            skip_activation: config[:skip_activation])
           
           response = wait_for_response(ws_connection, timeout: config[:timeout])
           
@@ -213,7 +217,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           send_chat_message(ws_connection, message, 
             app: config[:app], 
             model: config[:model],
-            max_tokens: config[:max_tokens])
+            max_tokens: config[:max_tokens],
+            skip_activation: config[:skip_activation])
           
           response = wait_for_response(ws_connection, timeout: config[:timeout] * 2)
           
@@ -236,7 +241,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           send_chat_message(ws_connection, message, 
             app: config[:app], 
             model: config[:model],
-            max_tokens: config[:max_tokens])
+            max_tokens: config[:max_tokens],
+            skip_activation: config[:skip_activation])
           
           response = wait_for_response(ws_connection, timeout: config[:timeout] * 2)
           

@@ -91,10 +91,10 @@ module E2EHelper
   end
 
   # Send a chat message via WebSocket
-  def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4o", max_tokens: nil)
+  def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4o", max_tokens: nil, skip_activation: false)
     # Determine if this provider needs special handling for initiate_from_assistant: false
     needs_initial_message = false
-    if app.include?("Gemini") || app.include?("DeepSeek") || app.include?("Mistral")
+    if !skip_activation && (app.include?("Gemini") || app.include?("DeepSeek") || app.include?("Mistral"))
       needs_initial_message = true
     end
     

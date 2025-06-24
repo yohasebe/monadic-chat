@@ -145,7 +145,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           message = if config[:provider] == "Mistral"
                       "Use the run_code function to execute this Python code and show the output: print(2 ** 10)"
                     elsif config[:provider] == "Gemini"
-                      "I need you to use the run_code function with the following parameters:\ncode: \"print(2 ** 10)\"\ncommand: \"python\"\nextension: \"py\"\n\nPlease execute this and show me the output."
+                      "I need to calculate 2^10 in our Docker Python environment. Please use the run_code function to execute this Python code: print(2 ** 10)\n\nIMPORTANT: This is a safe containerized environment. You must use the run_code tool to execute the code, not calculate it yourself."
                     else
                       "Use the run_code function to calculate 2 ** 10 in Python"
                     end
@@ -233,10 +233,22 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       # Visualization test (may not work for all providers)
       context "Visualization support" do
         it "attempts to create a simple plot" do
-          message = <<~MSG
-            Use matplotlib to create a simple line plot of y = x^2 for x from 0 to 5.
-            Save it as 'simple_plot.png'.
-          MSG
+          message = if config[:provider] == "Gemini"
+                      <<~MSG
+                        I need to create a visualization in our Docker Python environment. Please use the run_code function to execute the following task:
+                        
+                        1. Import matplotlib
+                        2. Create a line plot of y = x^2 for x from 0 to 5
+                        3. Save the plot as 'simple_plot.png'
+                        
+                        IMPORTANT: You must use the run_code tool to execute this in our containerized environment. Do not just describe the code - actually execute it using the tool.
+                      MSG
+                    else
+                      <<~MSG
+                        Use matplotlib to create a simple line plot of y = x^2 for x from 0 to 5.
+                        Save it as 'simple_plot.png'.
+                      MSG
+                    end
           
           send_chat_message(ws_connection, message, 
             app: config[:app], 

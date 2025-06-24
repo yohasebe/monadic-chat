@@ -75,7 +75,11 @@ module ValidationHelper
       /output:|result:|executed|ran|running/i,
       /```[\s\S]*?```/,  # Code blocks
       /\b\d+\b/,         # Numbers in output
-      /successfully|completed|finished/i
+      /successfully|completed|finished/i,
+      /run_code/i,       # Function call mentioned
+      /python.*print/i,  # Python execution
+      /mean|average|sum|calculation/i, # Data analysis terms
+      /dataframe|pandas|numpy/i # Data science libraries
     ]
     patterns.any? { |pattern| response.match?(pattern) }
   end

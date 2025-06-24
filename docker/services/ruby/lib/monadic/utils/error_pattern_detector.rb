@@ -23,11 +23,26 @@ module ErrorPatternDetector
     /out of memory/i,
     /disk full/i,
     /no space left/i,
+    /cannot allocate memory/i,
     
     # Network errors
     /connection refused/i,
     /network unreachable/i,
-    /timeout/i
+    /timeout/i,
+    
+    # Matplotlib/plotting specific errors
+    /backend.*not available/i,
+    /cannot create figure/i,
+    /failed to create.*window/i,
+    /display.*not.*found/i,
+    /DISPLAY.*not set/i,
+    /cairo.*error/i,
+    /agg.*error/i,
+    
+    # File I/O errors
+    /cannot write file/i,
+    /file.*locked/i,
+    /read-only file system/i
   ].freeze
   
   # Track error patterns per session
@@ -131,6 +146,30 @@ module ErrorPatternDetector
         
         Would you like me to try a different approach?
       MSG
+    when :plotting_error
+      <<~MSG
+        I'm encountering repeated plotting/visualization errors. This may be due to the display backend configuration.
+        
+        Suggestions:
+        1. Switch to a non-interactive backend: `plt.switch_backend('Agg')`
+        2. Save plots without displaying: `plt.savefig('plot.png', bbox_inches='tight')`
+        3. Use simpler plotting libraries or export data for external visualization
+        4. Try reducing plot complexity (fewer data points, simpler styles)
+        
+        Would you like me to try one of these alternatives?
+      MSG
+    when :file_io_error
+      <<~MSG
+        I'm encountering repeated file I/O errors. This may be due to permissions or file system issues.
+        
+        Suggestions:
+        1. Try saving to a different filename or location
+        2. Check if the file is already open in another program
+        3. Use a different file format (e.g., PNG instead of PDF)
+        4. Save to memory buffer instead of file
+        
+        How would you like to proceed?
+      MSG
     else
       <<~MSG
         I'm encountering repeated errors while executing this task.
@@ -185,8 +224,21 @@ module ErrorPatternDetector
     end
     
     # Check resource errors
-    if error_lower.include?('out of memory') || error_lower.include?('disk full')
+    if error_lower.include?('out of memory') || error_lower.include?('disk full') || error_lower.include?('cannot allocate memory')
       return :resource_error
+    end
+    
+    # Check plotting-specific errors
+    if error_lower.include?('backend') || error_lower.include?('display') || 
+       error_lower.include?('cairo') || error_lower.include?('agg') ||
+       error_lower.include?('figure') || error_lower.include?('window')
+      return :plotting_error
+    end
+    
+    # Check file I/O errors
+    if error_lower.include?('cannot write') || error_lower.include?('file locked') || 
+       error_lower.include?('read-only')
+      return :file_io_error
     end
     
     # Check for any system error pattern

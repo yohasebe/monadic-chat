@@ -120,16 +120,11 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           
           expect(valid_response?(response)).to be true
           
-          # Debug output for Gemini
-          if config[:provider] == "Gemini"
-            puts "Gemini code execution response: '#{response}'"
-          end
           
           # Different providers respond differently
           if config[:provider] == "Cohere"
             # Cohere might have issues with function calls or respond differently
             if response.include?("don't have the code")
-              puts "Note: Cohere failed to parse function parameters"
               # Check if it at least understood the request
               expect(response.downcase).to match(/code|run|execute/)
             else
@@ -169,17 +164,12 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           
           expect(valid_response?(response)).to be true
           
-          # Debug output for Gemini
-          if config[:provider] == "Gemini"
-            puts "Gemini run_code response: '#{response[0..200]}...'"
-          end
           
           # Different providers may respond differently
           if config[:provider] == "Mistral" && response.start_with?("[{")
             # If Mistral returns raw JSON, it might be trying to fetch a file
             # This is still a valid response showing tool usage
             expect(response).to match(/fetch_text_from_file|run_code/)
-            puts "Note: Mistral returned tool call JSON instead of output"
           elsif config[:provider] == "Gemini" && response.include?("ready to help")
             # Gemini might still be in greeting mode, skip this test
             skip "Gemini returned greeting instead of executing code"

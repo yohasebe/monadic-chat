@@ -34,7 +34,7 @@ module PDFTestHelper
         # Clear all data
         conn.exec("DELETE FROM items")
         conn.exec("DELETE FROM docs")
-        puts "Cleared existing data from database (was #{@original_doc_count} docs)"
+        # Cleared existing data from database
       end
     rescue => e
       puts "WARNING: Could not clear database: #{e.message}"
@@ -101,7 +101,7 @@ module PDFTestHelper
           # Clear test data
           conn.exec("DELETE FROM items")
           conn.exec("DELETE FROM docs")
-          puts "Cleaned up test data from database"
+          # Cleaned up test data from database
         end
       rescue => e
         puts "WARNING: Could not cleanup database: #{e.message}"

@@ -91,7 +91,7 @@ RSpec.describe "PDF Navigator E2E Workflow", type: :e2e do
     
     # Verify database has content
     db_stats = verify_test_database
-    puts "Test database created with #{db_stats[:docs]} documents and #{db_stats[:items]} items"
+    # Test database created with documents and items
   end
   
   after(:all) do

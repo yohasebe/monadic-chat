@@ -65,7 +65,7 @@ module E2EHelper
       end
       
       ws.on :error do |e|
-        puts "WebSocket error: #{e}" unless e.to_s.include?("stream closed")
+        # WebSocket error - ignore stream closed errors
       end
       
       ws.on :close do |e|
@@ -85,7 +85,7 @@ module E2EHelper
       
       { client: ws, messages: messages }
     rescue => e
-      puts "Error creating WebSocket connection: #{e.message}"
+      # Error creating WebSocket connection
       raise
     end
   end
@@ -197,7 +197,7 @@ module E2EHelper
             break
           end
           if Time.now - start_time > 5
-            puts "#{app} activation timeout after 5 seconds"
+            # Activation timeout after 5 seconds
             break
           end
           sleep 0.1
@@ -205,7 +205,7 @@ module E2EHelper
         
         # Extract activation response for debugging
         activation_response = extract_ai_response(ws_connection[:messages])
-        puts "#{app} activation response: #{activation_response[0..100]}..." if activation_response && !activation_response.empty?
+        # Activation response received
         
         # Clear messages to prepare for actual test
         ws_connection[:messages].clear

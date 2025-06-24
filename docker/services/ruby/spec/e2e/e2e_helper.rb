@@ -180,9 +180,11 @@ module E2EHelper
       if !ws_connection[:initial_message_sent][app]
         # Send a simple activation message first
         activation_msg = message_data.dup
-        # For Gemini, use a more explicit activation message
+        # For Gemini and DeepSeek, use a more explicit activation message
         if app.include?("Gemini")
           activation_msg["message"] = "I'm ready to execute Python code. Please give me a task to perform using the run_code function."
+        elsif app.include?("DeepSeek")
+          activation_msg["message"] = "Ready to execute code. What task would you like me to perform?"
         else
           activation_msg["message"] = "Hello, let's start working with code."
         end

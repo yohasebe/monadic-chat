@@ -62,11 +62,12 @@ RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil
     
     expect(response).not_to be_empty
     # Should either fix it or mention the issue
-    # Gemini might return "no response received from model" in some cases
-    if app_name == "CodeInterpreterGemini" && response.downcase.include?("no response")
-      puts "Note: Gemini returned 'no response' for syntax error test"
-      # Consider this as Gemini not being able to handle the request, which is a valid response
-      expect(response.downcase).to include("no response")
+    # Gemini with initiate_from_assistant=false might not respond to syntax errors
+    if app_name == "CodeInterpreterGemini" && response.downcase.include?("no response received from model")
+      puts "Note: Gemini API returned empty response for syntax error - this is expected behavior with initiate_from_assistant=false"
+      # This is a known limitation - Gemini doesn't respond to certain malformed requests
+      # Skip this test for Gemini as it's not a bug but a provider characteristic
+      skip "Gemini doesn't respond to syntax errors with initiate_from_assistant=false"
     else
       expect(response.downcase).to match(/error|syntax|fix|correct|parenthes|hello|missing|closed/i)
     end

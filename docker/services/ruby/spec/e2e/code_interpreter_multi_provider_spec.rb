@@ -145,7 +145,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           message = if config[:provider] == "Mistral"
                       "Use the run_code function to execute this Python code and show the output: print(2 ** 10)"
                     elsif config[:provider] == "Gemini"
-                      "Execute this Python code using run_code function and show me the output: print(2 ** 10)"
+                      "I need you to use the run_code function with the following parameters:\ncode: \"print(2 ** 10)\"\ncommand: \"python\"\nextension: \"py\"\n\nPlease execute this and show me the output."
                     else
                       "Use the run_code function to calculate 2 ** 10 in Python"
                     end

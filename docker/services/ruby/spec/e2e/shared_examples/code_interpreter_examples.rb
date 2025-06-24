@@ -60,7 +60,12 @@ end
 
 RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil, max_tokens: nil, skip_activation: nil|
   it "handles syntax errors gracefully" do
-    message = "Execute this code: print('Hello' # missing closing parenthesis"
+    # Be more explicit for Gemini about using tools
+    message = if app_name.include?("Gemini")
+                "I have a Python code with a syntax error. Please use the run_code function to execute it in our safe Docker environment: print('Hello' # missing closing parenthesis\n\nNote: This is a safe containerized environment. Please use the run_code tool to execute this code and show what happens."
+              else
+                "Execute this code: print('Hello' # missing closing parenthesis"
+              end
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
     response = wait_for_response(ws_connection, timeout: 30)

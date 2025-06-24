@@ -70,7 +70,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "DeepSeek",
       enabled: -> { CONFIG["DEEPSEEK_API_KEY"] },
       model: "deepseek-chat",  # Use actual default model from MDSL
-      timeout: 60  # Increased to match provider's actual timeout,
+      timeout: 60,  # Increased to match provider's actual timeout
       skip_activation: true  # Skip activation for DeepSeek
     }
   ]

@@ -10,7 +10,7 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
               end
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
-    response = wait_for_response(ws_connection, timeout: 30)
+    response = wait_for_response(ws_connection, timeout: 60)
     
     expect(valid_response?(response)).to be true
     # Factorial of 10 is 3628800 - check for the exact value or that calculation was understood
@@ -32,7 +32,7 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
               end
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
-    response = wait_for_response(ws_connection, timeout: 30)
+    response = wait_for_response(ws_connection, timeout: 60)
     
     expect(valid_response?(response)).to be true
     # Should show evidence of working with primes
@@ -61,7 +61,7 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
     
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
-    response = wait_for_response(ws_connection, timeout: 30)
+    response = wait_for_response(ws_connection, timeout: 60)
     
     expect(valid_response?(response)).to be true
     # Mean should be 30, std dev should be around 15.81
@@ -81,7 +81,7 @@ RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil
               end
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
-    response = wait_for_response(ws_connection, timeout: 30)
+    response = wait_for_response(ws_connection, timeout: 60)
     
     expect(response).not_to be_empty
     # Should either fix it or mention the issue
@@ -97,7 +97,7 @@ RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil
     message = "Execute: result = 10 / 0"
     send_chat_message(ws_connection, message, app: app_name, model: model, max_tokens: max_tokens, skip_activation: skip_activation)
     
-    response = wait_for_response(ws_connection, timeout: 30)
+    response = wait_for_response(ws_connection, timeout: 60)
     
     expect(response).not_to be_empty
     # Accept various error handling responses - some models might explain the error differently

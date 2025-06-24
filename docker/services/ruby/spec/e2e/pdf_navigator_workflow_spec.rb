@@ -2,10 +2,12 @@
 
 require_relative 'e2e_helper'
 require_relative 'pdf_test_helper'
+require_relative 'validation_helper'
 
 RSpec.describe "PDF Navigator E2E Workflow", type: :e2e do
   include E2EHelper
   include PDFTestHelper
+  include ValidationHelper
 
   before(:all) do
     unless check_containers_running

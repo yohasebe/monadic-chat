@@ -8,6 +8,11 @@ require 'websocket-client-simple'
 require 'timeout'
 require 'dotenv'
 
+# Load custom retry helper if enabled
+if ENV['USE_CUSTOM_RETRY'] == 'true'
+  require_relative 'e2e_retry_helper'
+end
+
 # Load configuration from ~/monadic/config/env for E2E tests
 config_path = File.expand_path("~/monadic/config/env")
 if File.exist?(config_path)

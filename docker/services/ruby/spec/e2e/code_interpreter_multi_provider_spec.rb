@@ -109,16 +109,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           
           expect(valid_response?(response)).to be true
           # Different providers respond differently
-          if config[:provider] == "Gemini"
-            if response.downcase.include?("no response")
-              puts "Note: Gemini returned 'no response' - might be related to initiate_from_assistant"
-            elsif response.downcase.include?("hello") && response.downcase.include?("ready")
-              # Gemini's greeting is "Hello! I'm ready to help you with coding tasks."
-              puts "Note: Gemini returned alternative greeting"
-            else
-              expect(response.downcase).to match(/hello|hi|greetings/)
-            end
-          elsif config[:provider] == "Cohere"
+          if config[:provider] == "Cohere"
             # Cohere might have issues with function calls or respond differently
             if response.include?("don't have the code")
               puts "Note: Cohere failed to parse function parameters"
@@ -154,18 +145,6 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
             # This is still a valid response showing tool usage
             expect(response).to match(/fetch_text_from_file|run_code/)
             puts "Note: Mistral returned tool call JSON instead of output"
-          elsif config[:provider] == "Gemini"
-            # Gemini might return garbled output or show code without result
-            if response.include?("1024")
-              expect(response).to include("1024")
-            elsif response.include?("2 ** 10") || response.include?("result")
-              # At least it shows understanding of the task
-              puts "Note: Gemini showed code but maybe not the output"
-              expect(response.downcase).to match(/2\s*\*\*\s*10|result|print/)
-            else
-              # Any response showing attempt to execute is acceptable
-              expect(response).not_to be_empty
-            end
           else
             expect(response).to include("1024")
           end
@@ -239,20 +218,8 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
           
           # More lenient expectations - some providers might not save the file
           expect(response).not_to be_empty
-          
-          # Gemini might respond differently since initiate_from_assistant is false
-          if config[:provider] == "Gemini"
-            # Check for any sign of understanding or execution
-            expect(
-              understands_task?(response, ["plot", "matplotlib", "graph", "chart", "visual", "x^2", "line"]) ||
-              shows_code_execution?(response) ||
-              response.downcase.include?("ready") ||
-              response.downcase.include?("help")
-            ).to be true
-          else
-            # Just check that the provider understood the visualization task
-            expect(understands_task?(response, ["plot", "matplotlib", "graph", "chart", "visual", "x^2", "line"])).to be true
-          end
+          # Just check that the provider understood the visualization task
+          expect(understands_task?(response, ["plot", "matplotlib", "graph", "chart", "visual", "x^2", "line"])).to be true
         end
       end
     end

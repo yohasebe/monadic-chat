@@ -46,13 +46,6 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
     response = wait_for_response(ws_connection, timeout: 30)
     
     expect(valid_response?(response)).to be true
-    
-    # Special handling for Gemini
-    if app_name == "CodeInterpreterGemini" && response.downcase.include?("no response received from model")
-      puts "Note: Gemini API returned empty response for data analysis - this may be due to initiate_from_assistant=false"
-      skip "Gemini doesn't respond to this data analysis request with initiate_from_assistant=false"
-    end
-    
     # Mean should be 30, std dev should be around 15.81
     expect(contains_number_near?(response, 30.0, 0.5)).to be true  # Mean
     # Just check that some analysis was performed
@@ -69,15 +62,7 @@ RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil
     
     expect(response).not_to be_empty
     # Should either fix it or mention the issue
-    # Gemini with initiate_from_assistant=false might not respond to syntax errors
-    if app_name == "CodeInterpreterGemini" && response.downcase.include?("no response received from model")
-      puts "Note: Gemini API returned empty response for syntax error - this is expected behavior with initiate_from_assistant=false"
-      # This is a known limitation - Gemini doesn't respond to certain malformed requests
-      # Skip this test for Gemini as it's not a bug but a provider characteristic
-      skip "Gemini doesn't respond to syntax errors with initiate_from_assistant=false"
-    else
-      expect(response.downcase).to match(/error|syntax|fix|correct|parenthes|hello|missing|closed/i)
-    end
+    expect(response.downcase).to match(/error|syntax|fix|correct|parenthes|hello|missing|closed/i)
   end
 
   it "handles runtime errors gracefully" do

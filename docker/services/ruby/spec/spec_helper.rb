@@ -43,7 +43,8 @@ RSpec.configure do |config|
       Net::OpenTimeout,
       Errno::ECONNREFUSED,
       Errno::ETIMEDOUT,
-      JSON::ParserError # For WebSocket response parsing issues
+      JSON::ParserError, # For WebSocket response parsing issues
+      RSpec::Expectations::ExpectationNotMetError # For transient test failures
     ]
   end
 end

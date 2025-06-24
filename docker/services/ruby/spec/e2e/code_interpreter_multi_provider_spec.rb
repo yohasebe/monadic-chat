@@ -103,7 +103,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
         it "handles provider-specific code execution" do
           # Simple test that should work across all providers
           message = if config[:provider] == "Gemini"
-                      "Please execute this Python code using the run_code function: print('Hello from #{config[:provider]}!')"
+                      "I have a simple Python print statement to execute in our Docker environment. Please use the run_code function to execute this exact code: print('Hello from #{config[:provider]}!')\n\nIMPORTANT: Use the run_code tool to execute this specific code, don't create a different example."
                     else
                       "Execute this Python code: print('Hello from #{config[:provider]}!')"
                     end

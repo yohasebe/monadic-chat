@@ -224,7 +224,7 @@ module E2EHelper
   end
 
   # Wait for AI response completion
-  def wait_for_response(ws_connection, timeout: 30)
+  def wait_for_response(ws_connection, timeout: 60)
     start_time = Time.now
     
     loop do

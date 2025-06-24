@@ -26,14 +26,14 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "OpenAI",
       enabled: -> { CONFIG["OPENAI_API_KEY"] },
       model: "gpt-4.1",  # Use actual default model from MDSL
-      timeout: 30
+      timeout: 60  # Increased to match provider's actual timeout
     },
     {
       app: "CodeInterpreterClaude",
       provider: "Claude",
       enabled: -> { CONFIG["ANTHROPIC_API_KEY"] },
       model: "claude-sonnet-4-20250514",  # Use actual default model from MDSL
-      timeout: 45,  # Increased timeout for Claude
+      timeout: 90,  # Increased timeout for Claude (300s read timeout in real code)
       max_tokens: 4096  # Claude requires max_tokens
     },
     {
@@ -41,7 +41,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "Gemini",
       enabled: -> { CONFIG["GEMINI_API_KEY"] },
       model: "gemini-2.5-flash-preview-05-20",  # Use actual default model from MDSL
-      timeout: 45,  # Increased timeout for Gemini
+      timeout: 60,  # Increased timeout for Gemini (120s read timeout in real code)
       skip_activation: true  # Skip activation for Gemini
     },
     {
@@ -49,28 +49,28 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       provider: "Grok",
       enabled: -> { CONFIG["XAI_API_KEY"] },
       model: "grok-3",  # Use actual default model from MDSL
-      timeout: 30
+      timeout: 60  # Increased to match provider's actual timeout
     },
     {
       app: "CodeInterpreterMistral",
       provider: "Mistral",
       enabled: -> { CONFIG["MISTRAL_API_KEY"] },
       model: "mistral-large-latest",  # Use actual default model from MDSL
-      timeout: 30
+      timeout: 60  # Increased to match provider's actual timeout
     },
     {
       app: "CodeInterpreterCohere",
       provider: "Cohere",
       enabled: -> { CONFIG["COHERE_API_KEY"] },
       model: "command-a-03-2025",  # Updated model
-      timeout: 45  # Increased timeout for Cohere
+      timeout: 60  # Increased timeout for Cohere
     },
     {
       app: "CodeInterpreterDeepSeek",
       provider: "DeepSeek",
       enabled: -> { CONFIG["DEEPSEEK_API_KEY"] },
       model: "deepseek-chat",  # Use actual default model from MDSL
-      timeout: 30,
+      timeout: 60  # Increased to match provider's actual timeout,
       skip_activation: true  # Skip activation for DeepSeek
     }
   ]

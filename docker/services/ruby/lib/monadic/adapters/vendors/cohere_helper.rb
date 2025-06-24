@@ -6,9 +6,9 @@ module CohereHelper
   MAX_FUNC_CALLS = 20
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  OPEN_TIMEOUT = 10
+  READ_TIMEOUT = 120
+  WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   VALID_ROLES = %w[user assistant system tool].freeze

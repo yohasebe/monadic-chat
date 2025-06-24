@@ -6,9 +6,9 @@ module DeepSeekHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  OPEN_TIMEOUT = 10
+  READ_TIMEOUT = 120
+  WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 

@@ -166,21 +166,27 @@ module E2EHelper
     message_data["max_tokens"] = max_tokens if max_tokens
     
     # For providers with initiate_from_assistant: false, send an activation message first
-    if needs_initial_message && !@initial_message_sent_for ||= {}[app]
-      # Send a simple activation message first
-      activation_msg = message_data.dup
-      activation_msg["message"] = "Hello"
-      ws_connection[:client].send(JSON.generate(activation_msg))
+    if needs_initial_message
+      # Check if we've sent initial message for this specific WebSocket connection
+      ws_connection[:initial_message_sent] ||= {}
       
-      # Wait briefly for any response
-      sleep 1
-      
-      # Mark that we've sent the initial message for this app
-      @initial_message_sent_for ||= {}
-      @initial_message_sent_for[app] = true
-      
-      # Clear any responses from the activation message
-      ws_connection[:messages].clear
+      if !ws_connection[:initial_message_sent][app]
+        # Send a simple activation message first
+        activation_msg = message_data.dup
+        activation_msg["message"] = "Hello, let's start working with code."
+        ws_connection[:client].send(JSON.generate(activation_msg))
+        
+        # Wait briefly for activation response
+        sleep 2
+        
+        # Clear messages to prepare for actual test
+        initial_msg_count = ws_connection[:messages].length
+        puts "#{app} received #{initial_msg_count} messages during activation"
+        ws_connection[:messages].clear
+        
+        # Mark that we've sent the initial message for this app/connection
+        ws_connection[:initial_message_sent][app] = true
+      end
     end
     
     ws_connection[:client].send(JSON.generate(message_data))

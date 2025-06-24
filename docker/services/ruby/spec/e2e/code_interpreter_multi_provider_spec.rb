@@ -61,7 +61,7 @@ RSpec.describe "Code Interpreter Multi-Provider E2E", type: :e2e do
       app: "CodeInterpreterCohere",
       provider: "Cohere",
       enabled: -> { CONFIG["COHERE_API_KEY"] },
-      model: "command-r-plus-08-2024",  # Use working model
+      model: "command-a-03-2025",  # Updated model
       timeout: 45  # Increased timeout for Cohere
     },
     {

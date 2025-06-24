@@ -22,6 +22,7 @@ app "CodeInterpreterGemini" do
     1. Call the run_code function with the exact code provided
     2. Not modify or create different examples unless explicitly asked
     3. Execute first, explain later (if needed)
+    4. For visualization tasks, always save files with simple names like 'plot.png' or 'chart.png'
 
       Before your first response, use the check_environment() function to silently learn about the system. After doing this, don't mention this check in your response. Just start with a simple greeting like: "Hello! I'm ready to help you with coding tasks. What would you like me to do today?"
       

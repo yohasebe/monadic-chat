@@ -14,7 +14,7 @@ This document contains guidelines and instructions for developers contributing t
 - JavaScript tests are in `test/frontend/`
 - Ruby tests are in `docker/services/ruby/spec/`
   - Unit tests: `spec/unit/` - Fast, isolated tests
-  - Integration tests: `spec/integration/` - Container interaction tests
+  - Integration tests: `spec/integration/` - Tests with Docker services
   - System tests: `spec/system/` - App validation tests
   - E2E tests: `spec/e2e/` - Full workflow tests with WebSocket
 - App-specific diagnostic scripts are in `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
@@ -43,20 +43,20 @@ rake spec
 rake spec_unit        # Unit tests only (fast)
 rake spec_integration # Integration tests
 rake spec_system      # System tests
-rake spec_e2e         # E2E tests (requires containers and server running)
+rake spec_e2e         # E2E tests (requires server running)
 
 # Run tests matching a pattern
 bundle exec rspec spec/unit/*_spec.rb
 ```
 
 #### E2E Tests
-E2E tests require containers and server to be running:
+E2E tests require the server to be running:
 ```bash
 # Run all E2E tests with automatic setup
 rake spec_e2e
 
 # The rake task automatically:
-# - Starts required Docker containers
+# - Checks that Docker containers are running
 # - Starts the server if needed
 # - Runs all E2E tests
 # - Shows provider coverage summary

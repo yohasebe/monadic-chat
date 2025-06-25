@@ -51,7 +51,8 @@ app "ContentReaderOpenAI" do
     end
     
     define_tool "analyze_image", "Analyze and describe the contents of an image file" do
-      parameter :image, "string", "The filename of the image to analyze", required: true
+      parameter :message, "string", "Question or instruction about the image", required: true
+      parameter :image_path, "string", "The filename of the image to analyze", required: true
     end
     
     define_tool "analyze_audio", "Analyze and transcribe audio from an audio file" do

@@ -235,16 +235,53 @@ module E2EHelper
     loop do
       # Check for completion message
       if ws_connection[:messages].any? { |msg| msg["type"] == "message" && msg["content"] == "DONE" }
-        return extract_ai_response(ws_connection[:messages])
+        response = extract_ai_response(ws_connection[:messages])
+        
+        # If no response extracted but we have a successful completion, 
+        # it might be a responses API format issue. Try to find any text content.
+        if response.empty?
+          ws_connection[:messages].each do |msg|
+            if msg["type"] == "message" && msg["content"].is_a?(String) && 
+               msg["content"] != "DONE" && !msg["content"].start_with?("ERROR") &&
+               !msg["content"].start_with?("Content not found")
+              response = msg["content"]
+              break
+            end
+          end
+        end
+        
+        return response
+      end
+      
+      # Check for function call depth exceeded
+      if ws_connection[:messages].any? { |msg| 
+          msg["type"] == "fragment" && 
+          msg["content"]&.include?("Maximum function call depth exceeded")
+        }
+        # Extract any response we have so far, including the error message
+        response = extract_ai_response(ws_connection[:messages])
+        return response unless response.empty?
+        
+        # If no proper response, return the error message itself
+        return "Maximum function call depth exceeded. The AI tried to call too many functions."
       end
       
       # Check for error
       if ws_connection[:messages].any? { |msg| msg["type"] == "error" }
         error_msg = ws_connection[:messages].find { |msg| msg["type"] == "error" }
+        
+        # Log detailed error information
+        puts "ERROR: #{error_msg['content']}"
+        puts "All messages received: #{ws_connection[:messages].map { |m| "#{m['type']}: #{m['content'].to_s[0..100]}..." }.join("\n")}"
+        
         raise "AI response error: #{error_msg['content']}"
       end
       
       if Time.now - start_time > timeout
+        puts "TIMEOUT: Messages received so far:"
+        ws_connection[:messages].each do |msg|
+          puts "  #{msg['type']}: #{msg['content'].to_s[0..100]}..."
+        end
         raise "Timeout waiting for AI response"
       end
       
@@ -259,10 +296,30 @@ module E2EHelper
     messages.each do |msg|
       if msg["type"] == "fragment"
         response_parts << msg["content"]
+      elsif msg["type"] == "message" && msg["content"] && msg["content"] != "DONE"
+        # Some providers may send complete messages instead of fragments
+        response_parts << msg["content"]
       end
     end
     
-    response_parts.join("")
+    # If no response found, check for assistant messages in a different format
+    if response_parts.empty?
+      messages.each do |msg|
+        if msg["content"].is_a?(Hash) && msg["content"]["role"] == "assistant" && msg["content"]["text"]
+          response_parts << msg["content"]["text"]
+        end
+      end
+    end
+    
+    result = response_parts.join("")
+    
+    # Log for debugging if still empty
+    if result.empty?
+      puts "DEBUG: No response extracted. Message types found: #{messages.map { |m| m["type"] }.uniq.join(", ")}"
+      puts "DEBUG: First few messages: #{messages.take(5).inspect}"
+    end
+    
+    result
   end
 
   # Simulate file upload

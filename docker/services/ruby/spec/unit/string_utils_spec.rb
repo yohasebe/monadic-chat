@@ -8,7 +8,7 @@ require_relative '../spec_helper'
 require_relative "../../lib/monadic/utils/string_utils"
 
 RSpec.describe StringUtils do
-  # Mock CLD gem to avoid language detection API calls
+  # Mock CLD gem for consistent test results (CLD is a Ruby gem, not external API)
   before do
     allow(CLD).to receive(:detect_language).and_return({code: "en"})
     

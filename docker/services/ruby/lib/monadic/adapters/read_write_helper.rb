@@ -2,8 +2,13 @@ module MonadicHelper
   def fetch_text_from_office(file: "")
     command = "office2txt.py \"#{file}\""
     res = send_command(command: command, container: "python")
+    
     if res.to_s == ""
       "Error: The file looks like empty or not an office file."
+    elsif res.include?("No such file or directory") || res.include?("not found")
+      "Error: Office file '#{file}' not found. Please ensure the file exists and the path is correct."
+    elsif res.include?("Error:")
+      res # Return the specific error message from the script
     else
       res
     end
@@ -12,8 +17,13 @@ module MonadicHelper
   def fetch_text_from_pdf(pdf: "")
     command = "pdf2txt.py \"#{pdf}\" --format md --all-pages"
     res = send_command(command: command, container: "python")
+    
     if res.to_s == ""
       "Error: The file looks like empty or not a PDF file."
+    elsif res.include?("PDF file not found:") || res.include?("No such file or directory")
+      "Error: PDF file '#{pdf}' not found. Please ensure the file exists and the path is correct."
+    elsif res.include?("Error processing PDF:") || res.include?("Error:")
+      "Error: Unable to process PDF file '#{pdf}'. The file may be corrupted or in an unsupported format."
     else
       res
     end
@@ -22,8 +32,13 @@ module MonadicHelper
   def fetch_text_from_file(file: "")
     command = "content_fetcher.rb \"#{file}\""
     res = send_command(command: command, container: "ruby")
+    
     if res.to_s == ""
       "Error: The file looks like empty."
+    elsif res.include?("does not exist or is not readable")
+      "Error: File '#{file}' not found or is not readable. Please ensure the file exists and has proper permissions."
+    elsif res.include?("ERROR:")
+      res # Return the specific error message from the script
     else
       res
     end

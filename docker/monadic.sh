@@ -301,7 +301,8 @@ build_ollama_container() {
     echo "Waiting for Ollama service to be ready..." | tee -a "${log_file}"
     OLLAMA_READY=false
     for i in {1..30}; do
-      if ${DOCKER} exec monadic-chat-ollama-container curl -s http://localhost:11434 >/dev/null 2>&1; then
+      # Use ollama's built-in command to check if service is ready
+      if ${DOCKER} exec monadic-chat-ollama-container ollama list >/dev/null 2>&1; then
         OLLAMA_READY=true
         echo "Ollama service is ready." | tee -a "${log_file}"
         break

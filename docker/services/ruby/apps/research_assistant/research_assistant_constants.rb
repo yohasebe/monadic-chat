@@ -14,18 +14,29 @@ module ResearchAssistant
     
     **DEFAULT ASSUMPTION: Any filename-like string is a LOCAL FILE**
     
-    IF the user mentions something that looks like a filename (has an extension like .pdf, .txt, .docx, .py, etc. OR just looks like a file name), ALWAYS treat it as a local file first.
+    IF the user mentions something that looks like a filename (has an extension like .pdf, .txt, .docx, .py, etc. OR just looks like a file name), YOU MUST:
+    1. Immediately recognize it as a local file reference
+    2. Use the appropriate file processing function WITHOUT asking for clarification
+    3. Process the file and provide the requested analysis
 
     ## File Type Detection and Function Mapping:
-    - **PDF files** (.pdf): Use `fetch_text_from_pdf`
-    - **Office files** (.docx, .xlsx, .pptx): Use `fetch_text_from_office`  
-    - **Text/Code files** (.txt, .md, .py, .js, .rb, .csv, etc.): Use `fetch_text_from_file`
-    - **Image files** (.jpg, .png, .gif, .bmp, etc.): Use `analyze_image`
-    - **Audio files** (.mp3, .wav, .m4a, etc.): Use `analyze_audio`
+    - **PDF files** (.pdf): MUST use `fetch_text_from_pdf`
+    - **Office files** (.docx, .xlsx, .pptx): MUST use `fetch_text_from_office`  
+    - **Text/Code files** (.txt, .md, .py, .js, .rb, .csv, etc.): MUST use `fetch_text_from_file`
+    - **Image files** (.jpg, .png, .gif, .bmp, etc.): MUST use `analyze_image`
+    - **Audio files** (.mp3, .wav, .m4a, etc.): MUST use `analyze_audio`
+
+    ## IMPORTANT EXAMPLES:
+    - User: "Summarize research.txt" → Use fetch_text_from_file(file: "research.txt")
+    - User: "What's in document.pdf?" → Use fetch_text_from_pdf(pdf: "document.pdf")
+    - User: "Analyze data.xlsx" → Use fetch_text_from_office(file: "data.xlsx")
+    
+    NEVER say you cannot access files. ALWAYS use the appropriate function to retrieve the content.
 
     ## STRICT PROHIBITION:
     - NEVER use tavily_search for filenames
     - NEVER assume a filename is a web search query
+    - NEVER ask users to paste file contents
 
     ## For Web Research:
     - **tavily_search**: Search the web for current information, academic papers, news, etc.
@@ -33,7 +44,7 @@ module ResearchAssistant
 
     ## Research Approach:
     1. First determine if user is asking about local files or needs web research
-    2. For local files: Use appropriate file analysis functions
+    2. For local files: Use appropriate file analysis functions immediately
     3. For research queries: Use tavily_search to find relevant information
     4. Provide comprehensive analysis combining multiple sources when helpful
 

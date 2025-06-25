@@ -140,4 +140,79 @@ module ValidationHelper
       contains_code?(response) ||
       acknowledges_task?(response, %w[code execute run python calculate])
   end
+  
+  # Research Assistant specific validations
+  def web_search_performed?(response)
+    # Check for indicators that web search was used
+    web_patterns = [
+      /https?:\/\//i,                    # URLs
+      /according to.*source/i,           # Citations
+      /recent.*(?:study|research|report)/i,  # Recent information
+      /\b202[0-9]\b/,                   # Recent years
+      /tavily_search|websearch_agent/i, # Function names
+      /search.*results|web.*search/i,   # Search mentions
+      /latest|current|recent.*developments/i  # Time-sensitive language
+    ]
+    web_patterns.any? { |pattern| response.match?(pattern) }
+  end
+  
+  def file_analysis_attempted?(response, filename = nil)
+    # Check if file processing was attempted
+    file_patterns = [
+      /fetch_text_from|analyze_image|analyze_audio/i,
+      /reading.*file|analyzing.*document/i,
+      /content.*of.*file|extracted.*text/i,
+      /file.*not.*found|unable.*read.*file/i
+    ]
+    
+    if filename
+      file_patterns << /#{Regexp.escape(filename.split('.').first)}/i
+    end
+    
+    file_patterns.any? { |pattern| response.match?(pattern) }
+  end
+  
+  def research_quality_response?(response)
+    # Research Assistant should provide comprehensive responses
+    return false if response.length < 100
+    
+    # Check for quality indicators
+    quality_patterns = [
+      /\n/,                    # Multiple paragraphs
+      /\d\./,                  # Numbered lists
+      /[-•]/,                  # Bullet points
+      /:\s/,                   # Explanations
+      /however|furthermore|additionally/i,  # Transition words
+      /research|study|analysis/i  # Research language
+    ]
+    
+    matched_count = quality_patterns.count { |pattern| response.match?(pattern) }
+    matched_count >= 2  # At least 2 quality indicators
+  end
+  
+  def multimedia_analysis_attempted?(response)
+    # Check for multimedia processing
+    multimedia_patterns = [
+      /image|audio|video|visual/i,
+      /analyze_image|analyze_audio|transcri/i,
+      /shows|depicts|contains|displays/i,
+      /listening.*to|viewing|examining/i
+    ]
+    multimedia_patterns.any? { |pattern| response.match?(pattern) }
+  end
+  
+  def validates_research_workflow?(response, step_type)
+    case step_type
+    when :web_search
+      web_search_performed?(response) || acknowledges_task?(response, %w[search latest recent current])
+    when :file_analysis
+      file_analysis_attempted?(response) || acknowledges_task?(response, %w[analyze read summarize file document])
+    when :comprehensive_research
+      research_quality_response?(response) && response.length > 200
+    when :multimedia
+      multimedia_analysis_attempted?(response) || acknowledges_task?(response, %w[image audio video analyze])
+    else
+      successful_response?(response)
+    end
+  end
 end

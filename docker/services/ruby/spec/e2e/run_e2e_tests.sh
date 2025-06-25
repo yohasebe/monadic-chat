@@ -169,11 +169,56 @@ else
   exit 1
 fi
 
-# Run E2E tests
+# Determine which tests to run based on arguments
+TEST_TARGET=$1
+TEST_PROVIDER=$2
+
 echo ""
 echo "Running E2E tests..."
 echo "===================="
-bundle exec rspec spec/e2e --format documentation --no-fail-fast
+
+case "$TEST_TARGET" in
+  "chat")
+    echo "Running Chat app tests only..."
+    bundle exec rspec spec/e2e/chat_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "code_interpreter")
+    echo "Running Code Interpreter tests..."
+    bundle exec rspec spec/e2e/code_interpreter_workflow_spec.rb spec/e2e/code_interpreter_multi_provider_spec.rb --format documentation --no-fail-fast
+    ;;
+  "code_interpreter_provider")
+    if [ -z "$TEST_PROVIDER" ]; then
+      echo "Error: Provider not specified"
+      exit 1
+    fi
+    echo "Running Code Interpreter tests for provider: $TEST_PROVIDER"
+    bundle exec rspec spec/e2e/code_interpreter_multi_provider_spec.rb --format documentation --no-fail-fast -e "$TEST_PROVIDER Provider"
+    ;;
+  "image_generator")
+    echo "Running Image Generator tests only..."
+    bundle exec rspec spec/e2e/image_generator_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "pdf_navigator")
+    echo "Running PDF Navigator tests only..."
+    bundle exec rspec spec/e2e/pdf_navigator_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "help")
+    echo "Running Monadic Help tests only..."
+    bundle exec rspec spec/e2e/monadic_help_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "ollama")
+    echo "Running Ollama provider tests only..."
+    bundle exec rspec spec/e2e/ollama_provider_spec.rb --format documentation --no-fail-fast
+    ;;
+  "research_assistant")
+    echo "Running Research Assistant tests only..."
+    bundle exec rspec spec/e2e/research_assistant_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  *)
+    echo "Running all E2E tests..."
+    bundle exec rspec spec/e2e --format documentation --no-fail-fast
+    ;;
+esac
 
 # Cleanup
 if [ ! -z "$SERVER_PID" ]; then

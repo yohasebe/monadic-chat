@@ -66,9 +66,13 @@ require_relative "monadic/utils/error_pattern_detector"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"
+require_relative "monadic/adapters/vendors/tavily_helper"
 
 envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)
+
+# Include TavilyHelper for tavily_fetch method
+include TavilyHelper
 
 # Connect to the database
 EMBEDDINGS_DB = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
@@ -849,9 +853,14 @@ post "/fetch_webpage" do
                         end
 
         tavily_api_key = CONFIG["TAVILY_API_KEY"]
+        puts "[DEBUG fetch_webpage] Tavily API key present: #{!tavily_api_key.nil?}"
+        
         if tavily_api_key
+          puts "[DEBUG fetch_webpage] Using Tavily to fetch: #{url}"
           markdown = tavily_fetch(url: url)
+          puts "[DEBUG fetch_webpage] Tavily returned: #{markdown.inspect}"
         else
+          puts "[DEBUG fetch_webpage] Using Selenium to fetch: #{url}"
           markdown = MonadicApp.fetch_webpage(url)
         end
         

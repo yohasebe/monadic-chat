@@ -41,8 +41,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       end
 
       it "provides research with web search when appropriate" do
-        skip "Tavily API key not configured" unless CONFIG["TAVILY_API_KEY"]
-        
+        # OpenAI has native web search, no Tavily needed
         send_chat_message(ws_connection, 
           "What are the latest developments in quantum computing in 2024?", 
           app: app_name)
@@ -86,8 +85,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         ws_connection[:messages].clear
         
         # Second test: Just web search
-        skip "Tavily API key not configured" unless CONFIG["TAVILY_API_KEY"]
-        
+        # OpenAI has native web search, no Tavily needed
         send_chat_message(ws_connection, 
           "What are the latest AI trends in 2024?", 
           app: app_name)

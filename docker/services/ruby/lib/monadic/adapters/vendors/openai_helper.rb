@@ -120,53 +120,6 @@ module OpenAIHelper
     }
   }
 
-  # Tavily-based websearch tools
-  TAVILY_WEBSEARCH_TOOLS = [
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_fetch",
-        description: "fetch the content of the web page of the given url and return its content.",
-        parameters: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "url of the web page."
-            }
-          },
-          required: ["url"],
-          additionalproperties: false
-        }
-      },
-      strict: true
-    },
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_search",
-        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "query to search for."
-            },
-            n: {
-              type: "integer",
-              description: "number of results to return (default: 3)."
-            }
-          },
-          required: ["query"],
-          additionalproperties: false
-        }
-      },
-      strict: true
-    }
-  ]
 
   WEBSEARCH_PROMPT = <<~TEXT
 
@@ -185,26 +138,6 @@ module OpenAIHelper
   TEXT
   
 
-  TAVILY_WEBSEARCH_PROMPT = <<~TEXT
-
-    Web search is enabled for this conversation via Tavily API. You have access to the following functions:
-
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    You should proactively use these functions whenever:
-    - The user asks about current events, news, or recent information
-    - The user asks about specific people, companies, organizations, or entities (e.g., "who is...")
-    - The user asks questions that would benefit from up-to-date or factual information
-    - You need to verify facts or get the latest information about something
-    - Any question where your training data might be outdated or incomplete
-    
-    Don't wait for the user to explicitly ask you to search - use your judgment to search whenever it would improve your answer.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs. Example: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-  TEXT
 
   class << self
     attr_reader :cached_models
@@ -342,6 +275,7 @@ module OpenAIHelper
 
     # Get the parameters from the session
     obj = session[:parameters]
+    
     app = obj["app_name"]
     api_key = CONFIG["OPENAI_API_KEY"]
 
@@ -389,30 +323,18 @@ module OpenAIHelper
     # Check if web search is enabled in settings
     websearch_enabled = obj["websearch"] == "true"
     
-    # Check if Tavily is explicitly requested
-    use_tavily_explicitly = CONFIG["USE_TAVILY_FOR_OPENAI"] == "true"
-    
     # Check if we should use responses API with native websearch
     # This happens when:
     # 1. Web search is enabled in settings
     # 2. Model supports it (gpt-4.1 or gpt-4.1-mini)
-    # 3. Tavily is not explicitly requested
     use_responses_api_for_websearch = websearch_enabled && 
-                                     RESPONSES_API_WEBSEARCH_MODELS.include?(model) &&
-                                     !use_tavily_explicitly
+                                     RESPONSES_API_WEBSEARCH_MODELS.include?(model)
     
-    # Use Tavily if:
-    # 1. Web search is enabled
-    # 2. Tavily API key is available
-    # 3. Either Tavily is explicitly requested OR native websearch is not available
-    use_tavily_websearch = websearch_enabled && 
-                          CONFIG["TAVILY_API_KEY"] && 
-                          (use_tavily_explicitly || !use_responses_api_for_websearch)
+    # OpenAI only uses native web search, no Tavily support
     
     # Store these variables in obj for later use in the method
     obj["websearch_enabled"] = websearch_enabled
     obj["use_responses_api_for_websearch"] = use_responses_api_for_websearch
-    obj["use_tavily_websearch"] = use_tavily_websearch
     
     # Update use_responses_api flag if we need it for websearch
     if use_responses_api_for_websearch && !use_responses_api
@@ -506,9 +428,7 @@ module OpenAIHelper
     end
     
     # Determine which prompt to use based on web search type
-    websearch_prompt = if obj["use_tavily_websearch"]
-                       TAVILY_WEBSEARCH_PROMPT
-                     elsif websearch_enabled
+    websearch_prompt = if websearch_enabled
                        WEBSEARCH_PROMPT
                      else
                        nil
@@ -551,25 +471,38 @@ module OpenAIHelper
       body.delete("tools")
       body.delete("response_format")
     else
-      if obj["tools"] && !obj["tools"].empty?
-        body["tools"] = APPS[app].settings["tools"]
-        body["tools"] = [] if body["tools"].nil?
-        
-        # Add appropriate web search tools for chat/completions API
-        # (Responses API websearch is handled separately)
-        if obj["use_tavily_websearch"] && !use_responses_api
-          body["tools"].push(*TAVILY_WEBSEARCH_TOOLS)
+      # Parse tools if they're sent as JSON string
+      tools_param = obj["tools"]
+      if tools_param.is_a?(String)
+        begin
+          tools_param = JSON.parse(tools_param)
+        rescue JSON::ParserError
+          tools_param = nil
+        end
+      end
+      
+      if tools_param && !tools_param.empty?
+        # Get tools from app settings, or use the parsed tools from request
+        app_tools = APPS[app]&.settings&.[]("tools")
+        if app_tools && !app_tools.empty?
+          body["tools"] = app_tools
+        elsif tools_param.is_a?(Array) && !tools_param.empty?
+          # Use tools from request if app doesn't have them
+          body["tools"] = tools_param
+        else
+          body["tools"] = []
         end
         
+        # OpenAI uses native web search, no additional tools needed
+        
         body["tools"].uniq!
-      elsif obj["use_tavily_websearch"] && !use_responses_api
-        body["tools"] = TAVILY_WEBSEARCH_TOOLS
       else
         body.delete("tools")
         body.delete("tool_choice")
       end
     end
 
+    
     # The context is added to the body
     messages_containing_img = false
     image_file_references = []

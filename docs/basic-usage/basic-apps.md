@@ -121,20 +121,21 @@ Second Opinion apps are available for all supported models: OpenAI, Claude, Gemi
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-This app is designed to support academic and scientific research by serving as an intelligent research assistant. It retrieves and analyzes information from the web, including data from web pages, images, audio files, and documents. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your scientific inquiries.
+This app is designed to support academic and scientific research by serving as an intelligent research assistant with powerful web search capabilities. It retrieves and analyzes information from online sources, helping you find current information, verify facts, and research topics comprehensively. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your inquiries.
 
 Research Assistant apps are also available for the following models:
 
 - OpenAI
 - Anthropic Claude  
 - xAI Grok
-- Google Gemini
-- Mistral AI
-- Cohere
+- Google Gemini (requires Tavily API)
+- Mistral AI (requires Tavily API)
+- Cohere (requires Tavily API)
+- DeepSeek (requires Tavily API)
 
 ?> **Web Search Functionality**: 
-> - **Native search** (no Tavily API required): OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)
-> - **Tavily API required**: Google Gemini, Mistral AI, and Cohere. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
+> - **Native search**: OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)
+> - **Requires Tavily API**: Google Gemini, Mistral AI, Cohere, and DeepSeek. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
 > - **Note:** Perplexity doesn't have a separate Research Assistant app because all its models include web search capabilities
 
 ## Language Related :id=language-related

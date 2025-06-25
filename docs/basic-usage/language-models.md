@@ -57,17 +57,13 @@ Web search is available in two ways:
 - **xAI Grok**: Native Live Search API support
 
 ### 2. Tavily Web Search
-- Available for all providers when `TAVILY_API_KEY` is configured
-- Required for providers without native web search
-- Can be forced for OpenAI with `USE_TAVILY_FOR_OPENAI=true`
+- Available for providers that don't have native web search
+- Required for: Google Gemini, Mistral AI, Cohere, DeepSeek
 
 ### Configuration Options
 ```
 # Tavily API key for web search
 TAVILY_API_KEY=your_tavily_api_key
-
-# Force OpenAI to use Tavily instead of native search
-USE_TAVILY_FOR_OPENAI=true
 
 # Model for web search when using reasoning models (o1, o3)
 WEBSEARCH_MODEL=gpt-4o-mini

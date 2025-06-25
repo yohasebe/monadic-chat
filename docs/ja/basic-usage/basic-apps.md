@@ -121,20 +121,21 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、インテリジェントな研究アシスタントとして機能します。ウェブページ、画像、音声ファイル、ドキュメントなどの情報を取得し、分析します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、科学的な問い合わせを進めます。
+アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、強力なウェブ検索機能を持つインテリジェントな研究アシスタントとして機能します。オンラインソースから情報を取得・分析し、最新情報の検索、事実の検証、トピックの包括的な調査を支援します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、あなたの探究を進めます。
 
 下記の言語モデルでResearch Assistantアプリが利用可能です。
 
 - OpenAI
 - Anthropic Claude
 - xAI Grok
-- Google Gemini
-- Mistral AI
-- Cohere
+- Google Gemini（Tavily API必須）
+- Mistral AI（Tavily API必須）
+- Cohere（Tavily API必須）
+- DeepSeek（Tavily API必須）
 
 ?> **ウェブ検索機能について**: 
-> - **ネイティブ検索**（Tavily API不要）：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Perplexity（sonarモデルに組み込み）
-> - **Tavily API必須**：Google Gemini、Mistral AI、Cohere。[Tavily](https://tavily.com/)から無料APIキーを取得できます（月1,000回の無料API呼び出し）
+> - **ネイティブ検索**：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Perplexity（sonarモデルに組み込み）
+> - **Tavily API必須**：Google Gemini、Mistral AI、Cohere、DeepSeek。[Tavily](https://tavily.com/)から無料APIキーを取得できます（月1,000回の無料API呼び出し）
 > - **注:** Perplexityは全モデルにウェブ検索機能が含まれているため、個別のResearch Assistantアプリはありません
 
 ## 言語関連 :id=language-related

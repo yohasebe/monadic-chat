@@ -42,10 +42,5 @@ app "ResearchAssistantGrok" do
     define_tool "analyze_audio", "Analyze audio and return transcription" do
       parameter :audio_path, "string", "Path to the audio file", required: true
     end
-    
-    define_tool "tavily_search", "Search the web using Tavily API" do
-      parameter :query, "string", "The search query", required: true
-      parameter :n, "integer", "Number of results to return (default: 5)"
-    end
   end
 end

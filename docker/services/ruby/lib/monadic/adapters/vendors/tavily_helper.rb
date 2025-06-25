@@ -26,11 +26,15 @@ module TavilyHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
+    # Try with array format as per documentation
     body = {
-      "urls" => [url],  # Tavily expects an array of URLs
-      "include_images": false,
-      "extract_depth": "basic",
+      "urls" => [url],  # Array of URLs
+      "include_images" => false,
+      "extract_depth" => "basic",
+      "format" => "markdown"  # Explicitly request markdown format
     }
+    
+    puts "[DEBUG Tavily] Request body: #{body.inspect}"
 
     target_uri = "https://api.tavily.com/extract"
 
@@ -39,23 +43,36 @@ module TavilyHelper
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
       if res.status.success?
-        res = JSON.parse(res.body)
-        res["webfetch_agent"] = "tavily"
+        parsed_response = JSON.parse(res.body)
         
         # Debug: Print the response structure
-        puts "[DEBUG Tavily] Response keys: #{res.keys}"
-        puts "[DEBUG Tavily] Full response: #{res.inspect}" if CONFIG["EXTRA_LOGGING"]
+        puts "[DEBUG Tavily] Response keys: #{parsed_response.keys}"
+        puts "[DEBUG Tavily] Response: #{parsed_response.inspect}"
         
-        # Check different possible response structures
-        content = res.dig("results", 0, "raw_content") || 
-                  res.dig("results", 0, "content") ||
-                  res.dig("raw_content") ||
-                  res.dig("content") ||
-                  res["text"] ||
-                  res["markdown"] ||
-                  "No content found"
+        # Check for failed results
+        if parsed_response["failed_results"] && !parsed_response["failed_results"].empty?
+          failed = parsed_response["failed_results"][0]
+          puts "[DEBUG Tavily] Extraction failed: #{failed['error']} for URL: #{failed['url']}"
+          return "ERROR: #{failed['error']}"
+        end
         
-        return content
+        # Check if results array exists
+        if parsed_response["results"] && parsed_response["results"].is_a?(Array) && !parsed_response["results"].empty?
+          # Extract content from first result
+          result = parsed_response["results"][0]
+          puts "[DEBUG Tavily] Result keys: #{result.keys}"
+          content = result["raw_content"]
+          
+          if content.nil? || content.empty?
+            puts "[DEBUG Tavily] No raw_content found in result"
+            return "No content found"
+          end
+          
+          return content
+        else
+          puts "[DEBUG Tavily] No results array found"
+          return "No content found"
+        end
       else
         error_report = JSON.parse(res.body)
         return "ERROR: #{error_report}"

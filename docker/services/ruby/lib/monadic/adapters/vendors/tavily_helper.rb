@@ -13,83 +13,9 @@ module TavilyHelper
   # Delay between retries (seconds)
   RETRY_DELAY = 2
 
-  def tavily_fetch(url:)
-    $stderr.puts "[DEBUG Tavily] tavily_fetch called with url: #{url}"
-    
-    api_key = CONFIG["TAVILY_API_KEY"]
-    $stderr.puts "[DEBUG Tavily] API key present: #{!api_key.nil? && !api_key.empty?}"
-    
-    # Check if API key is present
-    if api_key.nil? || api_key.empty?
-      $stderr.puts "[DEBUG Tavily] No API key found"
-      return "No content found"  # Return string instead of hash
-    end
-    
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-
-    # Try with array format as per documentation
-    body = {
-      "urls" => [url],  # Array of URLs
-      "include_images" => false,
-      "extract_depth" => "basic",
-      "format" => "markdown"  # Explicitly request markdown format
-    }
-    
-    $stderr.puts "[DEBUG Tavily] Request body: #{body.inspect}"
-
-    target_uri = "https://api.tavily.com/extract"
-
-    begin
-      http = HTTP.headers(headers)
-      res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
-
-      if res.status.success?
-        parsed_response = JSON.parse(res.body)
-        
-        # Debug: Print the response structure
-        puts "[DEBUG Tavily] Response keys: #{parsed_response.keys}"
-        puts "[DEBUG Tavily] Response: #{parsed_response.inspect}"
-        
-        # Check for failed results
-        if parsed_response["failed_results"] && !parsed_response["failed_results"].empty?
-          failed = parsed_response["failed_results"][0]
-          puts "[DEBUG Tavily] Extraction failed: #{failed['error']} for URL: #{failed['url']}"
-          return "ERROR: #{failed['error']}"
-        end
-        
-        # Check if results array exists
-        if parsed_response["results"] && parsed_response["results"].is_a?(Array) && !parsed_response["results"].empty?
-          # Extract content from first result
-          result = parsed_response["results"][0]
-          puts "[DEBUG Tavily] Result keys: #{result.keys}"
-          content = result["raw_content"]
-          
-          if content.nil? || content.empty?
-            puts "[DEBUG Tavily] No raw_content found in result"
-            return "No content found"
-          end
-          
-          return content
-        else
-          puts "[DEBUG Tavily] No results array found"
-          return "No content found"
-        end
-      else
-        error_report = JSON.parse(res.body)
-        return "ERROR: #{error_report}"
-      end
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      $stderr.puts "[DEBUG Tavily] HTTP Error: #{e.class} - #{e.message}"
-      "Error occurred: #{e.message}"
-    rescue => e
-      $stderr.puts "[DEBUG Tavily] Unexpected error: #{e.class} - #{e.message}"
-      $stderr.puts e.backtrace.first(5).join("\n")
-      "Error occurred: #{e.message}"
-    end
-  end
+  # NOTE: tavily_fetch is implemented in interaction_utils.rb
+  # This is here only for module completeness
+  # The actual implementation used by the application is in interaction_utils.rb
 
   def tavily_search(query:, n: 1)
     DebugHelper.debug("tavily_search called with query: #{query}, n: #{n}", category: :web_search, level: :debug)

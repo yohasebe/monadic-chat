@@ -27,7 +27,7 @@ module TavilyHelper
     }
 
     body = {
-      "urls" => url,
+      "urls" => [url],  # Tavily expects an array of URLs
       "include_images": false,
       "extract_depth": "basic",
     }
@@ -41,13 +41,25 @@ module TavilyHelper
       if res.status.success?
         res = JSON.parse(res.body)
         res["webfetch_agent"] = "tavily"
+        
+        # Debug: Print the response structure
+        puts "[DEBUG Tavily] Response keys: #{res.keys}"
+        puts "[DEBUG Tavily] Full response: #{res.inspect}" if CONFIG["EXTRA_LOGGING"]
+        
+        # Check different possible response structures
+        content = res.dig("results", 0, "raw_content") || 
+                  res.dig("results", 0, "content") ||
+                  res.dig("raw_content") ||
+                  res.dig("content") ||
+                  res["text"] ||
+                  res["markdown"] ||
+                  "No content found"
+        
+        return content
       else
-        JSON.parse(res.body)
         error_report = JSON.parse(res.body)
-        res ="ERROR: #{error_report}"
+        return "ERROR: #{error_report}"
       end
-
-      res.dig("results", 0, "raw_content") || "No content found"
     rescue HTTP::Error, HTTP::TimeoutError => e
       "Error occurred: #{e.message}"
     end

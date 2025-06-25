@@ -4,10 +4,12 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/boolean_parser"
 
 module GeminiHelper
   include InteractionUtils
   include ErrorPatternDetector
+  include BooleanParsable
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
@@ -468,7 +470,7 @@ module GeminiHelper
     temperature = obj["temperature"]&.to_f
     
     # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
-    if obj["ai_user"] == "true"
+    if parse_boolean(obj["ai_user"])
       max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_tokens"]&.to_i
     else
       max_tokens = obj["max_tokens"]&.to_i
@@ -484,7 +486,7 @@ module GeminiHelper
     # Debug websearch parameters
     puts "[DEBUG Gemini] Checking websearch: obj['websearch']=#{obj['websearch'].inspect} (class: #{obj['websearch'].class}), TAVILY_API_KEY=#{CONFIG['TAVILY_API_KEY'] ? 'exists' : 'nil'}"
     
-    websearch = CONFIG["TAVILY_API_KEY"] && (obj["websearch"] == true || obj["websearch"] == "true")
+    websearch = CONFIG["TAVILY_API_KEY"] && parse_boolean(obj["websearch"])
     puts "[DEBUG Gemini api_request] websearch=#{websearch}, obj['websearch']=#{obj['websearch']}, TAVILY_API_KEY exists=#{!CONFIG['TAVILY_API_KEY'].nil?}"
     DebugHelper.debug("Gemini websearch value: #{websearch}, obj['websearch']: #{obj['websearch']}, TAVILY_API_KEY exists: #{!CONFIG['TAVILY_API_KEY'].nil?}", category: :api, level: :debug)
     

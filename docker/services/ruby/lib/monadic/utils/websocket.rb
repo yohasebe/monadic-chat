@@ -2,6 +2,7 @@
 
 require 'timeout'
 require_relative '../agents/ai_user_agent'
+require_relative 'boolean_parser'
 
 module WebSocketHelper
   include AIUserAgent
@@ -548,6 +549,8 @@ module WebSocketHelper
         
         begin
           obj = JSON.parse(event.data)
+          # Normalize boolean values from JavaScript
+          obj = BooleanParser.parse_hash(obj)
         rescue JSON::ParserError => e
           DebugHelper.debug("Invalid JSON in WebSocket message: #{event.data[0..100]}", "websocket", level: :error)
           @channel.push({ "type" => "error", "content" => "Invalid message format received" }.to_json)

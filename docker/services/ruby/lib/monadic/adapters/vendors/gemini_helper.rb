@@ -1126,11 +1126,7 @@ module GeminiHelper
           argument_hash[:session] = session
         end
         
-        # Special handling for tavily_search - convert n parameter to options hash
-        if function_name == "tavily_search" && argument_hash[:n]
-          n_value = argument_hash.delete(:n)
-          argument_hash[:options] = { n: n_value }
-        end
+        # tavily_search already accepts n parameter directly, no need to convert
         
         # Call the function with the provided arguments
         function_return = send(function_name.to_sym, **argument_hash)

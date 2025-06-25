@@ -11,74 +11,84 @@ E2E tests simulate real user interactions with the system, testing the integrati
 - Database operations
 - Container orchestration
 
-## Prerequisites
-
-### Required Setup
-
-1. **All Docker containers must be running:**
-   ```bash
-   ./docker/monadic.sh start
-   ```
-
-2. **Ruby server must be running:**
-   ```bash
-   rake server
-   ```
-
-3. **Required gems:**
-   ```bash
-   gem install websocket-client-simple prawn
-   ```
-
-### Environment Variables
-
-Ensure your `~/monadic/config/env` file contains:
-- `OPENAI_API_KEY` (for ChatOpenAI and CodeInterpreter tests)
-- `POSTGRES_*` variables (for PDF Navigator tests)
-
 ## Test Structure
 
-### chat_workflow_spec.rb
-Tests basic chat application functionality:
-- Simple Q&A interactions
-- Context management across messages
-- Error handling
-- Different model configurations
-- Performance characteristics
+```
+e2e/
+├── chat_workflow_spec.rb              # Basic chat functionality
+├── code_interpreter_basic_spec.rb     # Core Code Interpreter tests
+├── code_interpreter_multi_provider_spec.rb  # Provider-specific tests
+├── code_interpreter_workflow_spec.rb  # Complex Code Interpreter workflows
+├── image_generator_workflow_spec.rb   # Image generation tests
+├── monadic_help_workflow_spec.rb      # Help system tests
+├── pdf_navigator_workflow_spec.rb     # PDF search tests
+├── shared_examples/                   # Reusable test examples
+├── e2e_helper.rb                      # WebSocket connection helpers
+├── validation_helper.rb               # Flexible validation methods
+└── run_e2e_tests.sh                   # Test runner script
+```
 
-### code_interpreter_workflow_spec.rb
-Tests code execution and data analysis:
-- Python code execution
-- Data science library usage
-- File I/O operations
-- Multi-step analysis workflows
-- Error handling in code execution
+## Running Tests
 
-### pdf_navigator_workflow_spec.rb
-Tests PDF processing and search:
-- PDF upload and text extraction
-- Semantic search capabilities
-- Multi-PDF queries
-- Complex technical queries
-- Edge cases and error handling
+### All E2E Tests (automatic setup)
+```bash
+rake spec_e2e
+```
 
-## Running the Tests
+### Specific App Tests
+```bash
+rake spec_e2e:chat              # Chat app only
+rake spec_e2e:code_interpreter   # All Code Interpreter tests
+rake spec_e2e:image_generator    # Image Generator only
+rake spec_e2e:pdf_navigator      # PDF Navigator only
+rake spec_e2e:help              # Monadic Help only
+```
 
-### Run all E2E tests:
+### Provider-Specific Tests
+```bash
+rake spec_e2e:code_interpreter_provider[openai]
+rake spec_e2e:code_interpreter_provider[claude]
+rake spec_e2e:code_interpreter_provider[gemini]
+# etc.
+```
+
+### Manual Test Execution
 ```bash
 cd docker/services/ruby
-bundle exec rspec spec/e2e --format documentation
-```
-
-### Run specific test file:
-```bash
 bundle exec rspec spec/e2e/chat_workflow_spec.rb
+bundle exec rspec spec/e2e/code_interpreter_workflow_spec.rb:23  # specific line
 ```
 
-### Run with specific example:
-```bash
-bundle exec rspec spec/e2e/chat_workflow_spec.rb:23
+## Test Philosophy
+
+1. **Functional Validation**: Tests focus on whether features work, not exact output matching
+2. **Flexible Assertions**: Use pattern matching and existence checks rather than exact string comparisons
+3. **Provider Agnostic**: Tests adapt to different provider response formats
+4. **Minimal Redundancy**: Each test covers unique functionality
+5. **Clean Retry**: Custom retry mechanism provides clear feedback during retries
+
+## Key Testing Patterns
+
+### Code Execution Validation
+```ruby
+expect(code_execution_attempted?(response)).to be true
 ```
+
+### Flexible Content Matching
+```ruby
+expect(response.downcase).to match(/keyword1|keyword2|keyword3/i)
+```
+
+### System Error Handling
+```ruby
+skip "System error or tool failure" if system_error?(response)
+```
+
+## Prerequisites
+
+- Docker containers (automatically started by `rake spec_e2e`)
+- Server on localhost:4567 (automatically started if needed)
+- API keys configured in `~/monadic/config/env`
 
 ## Writing New E2E Tests
 

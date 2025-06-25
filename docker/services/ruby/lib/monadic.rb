@@ -848,7 +848,7 @@ post "/fetch_webpage" do
                           Dir.home + "/monadic/data"
                         end
 
-        tavily_api_key = CONFIG["TAVILY_API_key"]
+        tavily_api_key = CONFIG["TAVILY_API_KEY"]
         if tavily_api_key
           markdown = tavily_fetch(url: url)
         else
@@ -887,7 +887,7 @@ post "/fetch_webpage" do
                         Dir.home + "/monadic/data"
                       end
 
-      tavily_api_key = CONFIG["TAVILY_API_key"]
+      tavily_api_key = CONFIG["TAVILY_API_KEY"]
       if tavily_api_key
         markdown = tavily_fetch(url: url)
       else

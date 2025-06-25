@@ -857,8 +857,16 @@ post "/fetch_webpage" do
         
         if tavily_api_key
           puts "[DEBUG fetch_webpage] Using Tavily to fetch: #{url}"
-          markdown = tavily_fetch(url: url)
-          puts "[DEBUG fetch_webpage] Tavily returned: #{markdown.inspect}"
+          puts "[DEBUG fetch_webpage] Methods available: #{self.methods.grep(/tavily/).inspect}"
+          puts "[DEBUG fetch_webpage] TavilyHelper included? #{self.class.included_modules.include?(TavilyHelper)}"
+          begin
+            markdown = tavily_fetch(url: url)
+            puts "[DEBUG fetch_webpage] Tavily returned: #{markdown.inspect}"
+          rescue => e
+            puts "[DEBUG fetch_webpage] Error calling tavily_fetch: #{e.class} - #{e.message}"
+            puts e.backtrace.first(5).join("\n")
+            markdown = "Error: #{e.message}"
+          end
         else
           puts "[DEBUG fetch_webpage] Using Selenium to fetch: #{url}"
           markdown = MonadicApp.fetch_webpage(url)

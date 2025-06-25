@@ -752,15 +752,19 @@ module InteractionUtils
 
   def tavily_fetch(url:)
     api_key = CONFIG["TAVILY_API_KEY"]
+    
+    # Check if API key is present
+    if api_key.nil? || api_key.empty?
+      return "ERROR: Tavily API key is not configured"
+    end
+    
     headers = {
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
 
     body = {
-      "urls" => url,
-      "include_images": false,
-      "extract_depth": "basic"
+      "urls" => [url]  # Must be an array according to API docs
     }
 
     target_uri = "https://api.tavily.com/extract"
@@ -771,17 +775,56 @@ module InteractionUtils
 
       if res.status.success?
         res_json = JSON.parse(res.body)
-        res_json.dig("results", 0, "raw_content") || "No content found"
+        
+        # Debug output
+        puts "[DEBUG tavily_fetch] Response structure: #{res_json.keys}"
+        puts "[DEBUG tavily_fetch] Full response: #{res_json.inspect}"
+        
+        # Check for failed results
+        if res_json["failed_results"] && !res_json["failed_results"].empty?
+          failed = res_json["failed_results"][0]
+          puts "[DEBUG tavily_fetch] Failed result details: #{failed.inspect}"
+          return "ERROR: #{failed['error']} for URL: #{failed['url']}"
+        end
+        
+        # Extract content from results array
+        if res_json["results"] && res_json["results"].is_a?(Array) && !res_json["results"].empty?
+          result = res_json["results"][0]
+          puts "[DEBUG tavily_fetch] Result keys: #{result.keys}"
+          
+          # Try different possible content fields
+          content = result["raw_content"] || result["content"] || result["text"]
+          
+          if content.nil? || content.empty?
+            puts "[DEBUG tavily_fetch] No content found in result. Available keys: #{result.keys}"
+            return "No content found"
+          end
+          
+          return content
+        else
+          puts "[DEBUG tavily_fetch] No results in response"
+          return "No content found"
+        end
       else
         # Parse the response body only once
-        error_report = JSON.parse(res.body)
+        puts "[DEBUG tavily_fetch] HTTP Error: #{res.status}"
+        error_report = begin
+          JSON.parse(res.body)
+        rescue
+          res.body.to_s
+        end
+        puts "[DEBUG tavily_fetch] Error response: #{error_report}"
         "ERROR: #{error_report}"
       end
     rescue HTTP::Error, HTTP::TimeoutError => e
+      puts "[DEBUG tavily_fetch] Network error: #{e.class} - #{e.message}"
       "Error occurred: #{e.message}"
     rescue JSON::ParserError => e
+      puts "[DEBUG tavily_fetch] JSON parse error: #{e.message}"
       "Error parsing response: #{e.message}"
     rescue StandardError => e
+      puts "[DEBUG tavily_fetch] Unexpected error: #{e.class} - #{e.message}"
+      puts e.backtrace.first(5).join("\n")
       "Unexpected error in tavily_fetch: #{e.message}"
     end
   end

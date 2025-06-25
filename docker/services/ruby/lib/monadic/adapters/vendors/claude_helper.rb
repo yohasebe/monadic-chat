@@ -20,41 +20,6 @@ module ClaudeHelper
   MIN_PROMPT_CACHING = 1024
   MAX_PC_PROMPTS = 4
 
-  # Tavily-based websearch tools
-  TAVILY_WEBSEARCH_TOOLS = [
-    {
-      name: "tavily_fetch",
-      description: "fetch the content of the web page of the given url and return its content.",
-      input_schema: {
-        type: "object",
-        properties: {
-          url: {
-            type: "string",
-            description: "url of the web page."
-          }
-        },
-        required: ["url"],
-      }
-    },
-    {
-      name: "tavily_search",
-      description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-      input_schema: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "query to search for."
-          },
-          n: {
-            type: "integer",
-            description: "number of results to return (default: 3)."
-          }
-        },
-        required: ["query"],
-      }
-    }
-  ]
 
   # Native Anthropic web search tool
   NATIVE_WEBSEARCH_TOOL = {
@@ -72,17 +37,6 @@ module ClaudeHelper
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
   TEXT
 
-  TAVILY_WEBSEARCH_PROMPT = <<~TEXT
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
-
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-  TEXT
 
 
   attr_accessor :thinking, :signature
@@ -357,14 +311,10 @@ module ClaudeHelper
                           native_websearch_models.any? { |m| model.to_s.include?(m) } &&
                           CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"] != "false"
     
-    # Use Tavily if API key is available and native is not being used
-    use_tavily_websearch = websearch && 
-                          CONFIG["TAVILY_API_KEY"] && 
-                          !use_native_websearch
+    # Claude only uses native web search
     
     # Store these variables in obj for later use in the method
     obj["use_native_websearch"] = use_native_websearch
-    obj["use_tavily_websearch"] = use_tavily_websearch
 
     system_prompts = []
     system_prompt_count = 0
@@ -381,8 +331,8 @@ module ClaudeHelper
       end
 
       # Add appropriate websearch prompt based on implementation
-      if system_prompts.empty? && (use_native_websearch || use_tavily_websearch)
-        prompt_suffix = use_tavily_websearch ? TAVILY_WEBSEARCH_PROMPT : WEBSEARCH_PROMPT
+      if system_prompts.empty? && use_native_websearch
+        prompt_suffix = WEBSEARCH_PROMPT
         text = msg["text"] + "\n---\n" + prompt_suffix
       else
         text = msg["text"]
@@ -516,27 +466,42 @@ module ClaudeHelper
     end
 
     # Configure tools based on app settings and web search type
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings["tools"]
-      
-      # Add appropriate web search tools
-      if obj["use_native_websearch"]
-        body["tools"] ||= []
-        body["tools"] << NATIVE_WEBSEARCH_TOOL
-      elsif obj["use_tavily_websearch"]
-        body["tools"] ||= []
-        body["tools"].push(*TAVILY_WEBSEARCH_TOOLS)
+    # Parse tools if they're sent as JSON string
+    tools_param = obj["tools"]
+    if tools_param.is_a?(String)
+      begin
+        tools_param = JSON.parse(tools_param)
+      rescue JSON::ParserError
+        tools_param = nil
+      end
+    end
+    
+    if tools_param && !tools_param.empty?
+      # Get tools from app settings, or use the parsed tools from request
+      app_tools = APPS[app]&.settings&.[]("tools")
+      if app_tools && !app_tools.empty?
+        body["tools"] = app_tools
+      elsif tools_param.is_a?(Array) && !tools_param.empty?
+        # Use tools from request if app doesn't have them
+        # Filter out any Tavily tools since Claude uses native web search
+        body["tools"] = tools_param.reject do |tool|
+          tool_name = tool.dig("name") || tool.dig("function", "name")
+          ["tavily_search", "tavily_fetch"].include?(tool_name)
+        end
+      else
+        body["tools"] = []
       end
       
+      # Claude uses native web search, no additional tools needed
+      
+      
       body["tools"].uniq!
-    elsif obj["use_native_websearch"]
-      body["tools"] = [NATIVE_WEBSEARCH_TOOL]
-    elsif obj["use_tavily_websearch"]
-      body["tools"] = TAVILY_WEBSEARCH_TOOLS
     else
       body.delete("tools")
       body.delete("tool_choice")
     end
+    
+    
 
     # Add the context to the body
     messages = context.compact.map do |msg|

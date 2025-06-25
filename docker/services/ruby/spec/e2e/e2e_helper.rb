@@ -162,9 +162,10 @@ module E2EHelper
       "initial_prompt" => initial_prompt,  # Use the app's initial prompt
       "monadic" => false,
       "agent_name" => "",
-      "websearch" => false,
+      "websearch" => app.include?("ResearchAssistant"),
       "auto_speech" => false,
-      "tools" => tools  # Include tools for the app
+      "stream" => true
+      # Don't send tools - let each provider's helper handle tool configuration based on websearch setting
     }
     
     # For apps with initiate_from_assistant, ensure message is not empty
@@ -187,9 +188,17 @@ module E2EHelper
         activation_msg = message_data.dup
         # For Gemini and DeepSeek, use a more explicit activation message
         if app.include?("Gemini")
-          activation_msg["message"] = "I'm ready to execute Python code. Please give me a task to perform using the run_code function."
+          if app.include?("CodeInterpreter")
+            activation_msg["message"] = "I'm ready to execute Python code. Please give me a task to perform using the run_code function."
+          else
+            activation_msg["message"] = "Hello, I'm ready to help you with your research. What would you like to know?"
+          end
         elsif app.include?("DeepSeek")
-          activation_msg["message"] = "Ready to execute code. What task would you like me to perform?"
+          if app.include?("CodeInterpreter")
+            activation_msg["message"] = "Ready to execute code. What task would you like me to perform?"
+          else
+            activation_msg["message"] = "Hello, I'm ready to help. What can I assist you with?"
+          end
         else
           activation_msg["message"] = "Hello, let's start working with code."
         end
@@ -224,6 +233,8 @@ module E2EHelper
         end
       end
     end
+    
+    # Send the message
     
     ws_connection[:client].send(JSON.generate(message_data))
   end
@@ -270,18 +281,10 @@ module E2EHelper
       if ws_connection[:messages].any? { |msg| msg["type"] == "error" }
         error_msg = ws_connection[:messages].find { |msg| msg["type"] == "error" }
         
-        # Log detailed error information
-        puts "ERROR: #{error_msg['content']}"
-        puts "All messages received: #{ws_connection[:messages].map { |m| "#{m['type']}: #{m['content'].to_s[0..100]}..." }.join("\n")}"
-        
         raise "AI response error: #{error_msg['content']}"
       end
       
       if Time.now - start_time > timeout
-        puts "TIMEOUT: Messages received so far:"
-        ws_connection[:messages].each do |msg|
-          puts "  #{msg['type']}: #{msg['content'].to_s[0..100]}..."
-        end
         raise "Timeout waiting for AI response"
       end
       
@@ -313,11 +316,7 @@ module E2EHelper
     
     result = response_parts.join("")
     
-    # Log for debugging if still empty
-    if result.empty?
-      puts "DEBUG: No response extracted. Message types found: #{messages.map { |m| m["type"] }.uniq.join(", ")}"
-      puts "DEBUG: First few messages: #{messages.take(5).inspect}"
-    end
+    # Return the extracted result
     
     result
   end

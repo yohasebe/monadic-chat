@@ -556,6 +556,12 @@ module WebSocketHelper
         
         msg = obj["message"] || ""
         
+        # Debug logging for research assistant apps
+        if obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
+          puts "[DEBUG WebSocket] Received message type: #{msg.inspect}"
+          puts "[DEBUG WebSocket] App name from obj: #{obj["app_name"]}"
+        end
+        
         case msg
         when "TTS"
           provider = obj["provider"]
@@ -1144,6 +1150,20 @@ module WebSocketHelper
 
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
+            
+            # Debug logging for troubleshooting
+            if app_name && (app_name.include?("Perplexity") || app_name.include?("DeepSeek"))
+              puts "[DEBUG WebSocket] Processing message for app: #{app_name}"
+              puts "[DEBUG WebSocket] App object found: #{!app_obj.nil?}"
+              puts "[DEBUG WebSocket] Available apps: #{APPS.keys.select { |k| k.include?("Research") }}"
+            end
+            
+            unless app_obj
+              error_msg = "App '#{app_name}' not found in APPS"
+              puts "[ERROR] #{error_msg}"
+              @channel.push({ "type" => "error", "content" => error_msg }.to_json)
+              next
+            end
 
             prev_texts_for_tts = []
             responses = app_obj.api_request("user", session) do |fragment|

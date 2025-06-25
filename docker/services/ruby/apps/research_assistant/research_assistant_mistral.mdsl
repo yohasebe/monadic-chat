@@ -22,30 +22,5 @@ app "ResearchAssistantMistral" do
   end
 
   tools do
-    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
-      parameter :pdf, "string", "The filename of the PDF to read", required: true
-    end
-
-    define_tool "fetch_text_from_office", "Extract text content from Office files (docx, xlsx, pptx)" do
-      parameter :file, "string", "The filename of the Office file to read", required: true
-    end
-
-    define_tool "fetch_text_from_file", "Fetch text content from a file" do
-      parameter :file, "string", "The filename to read", required: true
-    end
-
-    define_tool "analyze_image", "Analyze an image and return description" do
-      parameter :message, "string", "Question or instruction about the image", required: true
-      parameter :image_path, "string", "Path to the image file or URL", required: true
-    end
-
-    define_tool "analyze_audio", "Analyze audio and return transcription" do
-      parameter :audio, "string", "Path to the audio file", required: true
-    end
-    
-    define_tool "tavily_search", "Search the web using Tavily API" do
-      parameter :query, "string", "The search query", required: true
-      parameter :n, "integer", "Number of results to return (default: 5)"
-    end
   end
 end

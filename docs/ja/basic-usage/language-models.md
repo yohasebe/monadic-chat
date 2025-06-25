@@ -57,17 +57,13 @@ Web検索は2つの方法で利用可能です：
 - **xAI Grok**: ネイティブLive Search APIサポート
 
 ### 2. Tavily Web検索
-- `TAVILY_API_KEY`が設定されている場合、全プロバイダで利用可能
-- ネイティブWeb検索を持たないプロバイダでは必須
-- OpenAIで`USE_TAVILY_FOR_OPENAI=true`を設定することで強制可能
+- ネイティブWeb検索を持たないプロバイダで利用可能
+- 必須プロバイダ：Google Gemini、Mistral AI、Cohere、DeepSeek
 
 ### 設定オプション
 ```
 # Web検索用のTavily APIキー
 TAVILY_API_KEY=your_tavily_api_key
-
-# OpenAIでネイティブ検索の代わりにTavilyを強制使用
-USE_TAVILY_FOR_OPENAI=true
 
 # 推論モデル（o1、o3）使用時のWeb検索用モデル
 WEBSEARCH_MODEL=gpt-4o-mini

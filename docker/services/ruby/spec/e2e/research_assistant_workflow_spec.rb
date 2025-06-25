@@ -52,73 +52,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       end
     end
 
-    context "file analysis" do
-      before do
-        @test_file = create_test_file("research_test.txt", "This is a test document about artificial intelligence and machine learning.")
-      end
-      
-      after do
-        cleanup_test_files("research_test.txt")
-      end
-
-      it "analyzes local text files" do
-        # This test is flaky because models sometimes don't recognize they have file reading tools
-        # Skip it for now until we have a more reliable way to test this
-        skip "OpenAI models inconsistently recognize file reading tools"
-        
-        send_chat_message(ws_connection, 
-          "Please analyze the content of research_test.txt", 
-          app: app_name)
-        response = wait_for_response(ws_connection, timeout: 30)
-        
-        expect(response).not_to be_empty
-        expect(response.downcase).to match(/artificial intelligence|machine learning/)
-      end
-
-      it "distinguishes between files and web search queries" do
-        # Skip due to unreliable file tool recognition
-        skip "OpenAI models inconsistently recognize file reading tools"
-        
-        # First test: Just read the file
-        send_chat_message(ws_connection, 
-          "What is in research_test.txt?", 
-          app: app_name)
-        response = wait_for_response(ws_connection, timeout: 30)
-        
-        expect(response).not_to be_empty
-        expect(response.downcase).to include("artificial intelligence")
-        
-        # Clear messages for next query
-        ws_connection[:messages].clear
-        
-        # Second test: Just web search
-        # OpenAI has native web search, no Tavily needed
-        send_chat_message(ws_connection, 
-          "What are the latest AI trends in 2024?", 
-          app: app_name)
-        response = wait_for_response(ws_connection, timeout: 60)
-        
-        expect(response).not_to be_empty
-        expect(response.downcase).to match(/ai|artificial intelligence|trends|2024/)
-      end
-    end
-
-    context "multimedia analysis" do
-      it "handles image analysis requests" do
-        # Create a simple test image
-        test_image = File.join(Dir.home, "monadic", "data", "test_research_image.txt")
-        File.write(test_image, "[This would be an image file]")
-        
-        send_chat_message(ws_connection, 
-          "What can you tell me about test_research_image.txt?", 
-          app: app_name)
-        response = wait_for_response(ws_connection, timeout: 30)
-        
-        expect(response).not_to be_empty
-        
-        File.delete(test_image) if File.exist?(test_image)
-      end
-    end
+    # File analysis tests removed - Research Assistant does not support file access
 
     context "conversation flow" do
       it "maintains context across multiple queries" do
@@ -167,9 +101,6 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
     end
 
     it "performs web search using native Claude search" do
-      # Claude has issues with tool schema validation, skip for now
-      skip "Claude has JSON schema validation issues"
-      
       send_chat_message(ws_connection, 
         "What are the latest developments in quantum computing in 2024?", 
         app: app_name,
@@ -181,24 +112,6 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       expect(response.downcase).to match(/quantum|computing|research|development/)
     end
 
-    it "handles file analysis with Claude" do
-      # Claude has issues with tool definitions, skip for now
-      skip "Claude has JSON schema validation issues with tool definitions"
-      
-      test_file = create_test_file("claude_research.txt", "Analysis of climate change impacts on biodiversity.")
-      
-      send_chat_message(ws_connection, 
-        "Summarize claude_research.txt", 
-        app: app_name,
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000)
-      response = wait_for_response(ws_connection, timeout: 30)
-      
-      expect(response).not_to be_empty
-      expect(response.downcase).to match(/climate|biodiversity/)
-      
-      cleanup_test_files("claude_research.txt")
-    end
   end
 
   describe "Research Assistant Gemini" do
@@ -214,6 +127,9 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
     end
 
     it "performs research with Gemini" do
+      # Skip if Tavily not configured
+      skip "This test requires TAVILY_API_KEY" unless CONFIG["TAVILY_API_KEY"]
+      
       send_chat_message(ws_connection, 
         "Explain the concept of neural networks", 
         app: app_name,
@@ -245,48 +161,6 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       ws_connection[:client].close if ws_connection[:client]
     end
 
-    it "compares responses across providers for same query" do
-      query = "What is machine learning?"
-      providers = []
-      responses = {}
-      
-      if CONFIG["OPENAI_API_KEY"]
-        providers << { app: "ResearchAssistantOpenAI", name: "OpenAI", model: "gpt-4.1" }
-      end
-      
-      # Skip Claude due to tool schema validation issues
-      # if CONFIG["ANTHROPIC_API_KEY"]
-      #   providers << { app: "ResearchAssistantClaude", name: "Claude", model: "claude-sonnet-4-20250514", max_tokens: 1000 }
-      # end
-      
-      if CONFIG["GEMINI_API_KEY"]
-        providers << { app: "ResearchAssistantGemini", name: "Gemini", model: "gemini-2.0-flash" }
-      end
-      
-      skip "No providers configured" if providers.empty?
-      
-      providers.each do |provider|
-        ws_connection[:messages].clear
-        
-        params = { app: provider[:app] }
-        params[:model] = provider[:model] if provider[:model]
-        params[:max_tokens] = provider[:max_tokens] if provider[:max_tokens]
-        
-        send_chat_message(ws_connection, query, **params)
-        
-        response = wait_for_response(ws_connection, timeout: 30)
-        responses[provider[:name]] = response
-        
-        # Basic validation that each provider gives a reasonable response
-        expect(response).not_to be_empty
-        expect(response.downcase).to match(/machine learning|algorithm|data|model/)
-      end
-      
-      # All providers should give substantive responses
-      responses.each do |provider, response|
-        expect(response.length).to be > 100, "#{provider} response too short"
-      end
-    end
   end
 
   describe "Error handling" do
@@ -296,18 +170,6 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       ws_connection[:client].close if ws_connection[:client]
     end
 
-    it "handles non-existent file gracefully" do
-      skip "OpenAI API key not configured" unless CONFIG["OPENAI_API_KEY"]
-      
-      send_chat_message(ws_connection, 
-        "Please analyze non_existent_file_12345.pdf", 
-        app: "ResearchAssistantOpenAI")
-      response = wait_for_response(ws_connection, timeout: 30)
-      
-      expect(response).not_to be_empty
-      # Should mention file not found or inability to access - models phrase this differently
-      expect(response.downcase).to match(/not found|doesn't exist|unable to find|error|unable to access|can't access|cannot access|unable to/)
-    end
 
     it "handles web search failures gracefully" do
       skip "Claude API key not configured" unless CONFIG["ANTHROPIC_API_KEY"]
@@ -327,34 +189,131 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
     end
   end
 
-  describe "Advanced research features" do
+  describe "Research Assistant Grok" do
     let(:ws_connection) { create_websocket_connection }
+    let(:app_name) { "ResearchAssistantGrok" }
     
     after do
       ws_connection[:client].close if ws_connection[:client]
     end
 
-    it "combines multiple sources for comprehensive research" do
-      # Skip this test as it's problematic with function calling depth limits
-      skip "This test causes function call depth issues"
+    before do
+      skip "xAI API key not configured" unless CONFIG["XAI_API_KEY"]
     end
 
-    it "handles complex multi-step research requests" do
-      skip "Gemini API key not configured" unless CONFIG["GEMINI_API_KEY"]
-      # Skip test due to Gemini function calling issues with options parameter
-      skip "Gemini has issues with tavily_search function parameters"
-      
+    it "performs web search using native Grok Live Search" do
       send_chat_message(ws_connection, 
-        "Compare supervised and unsupervised learning approaches", 
-        app: "ResearchAssistantGemini",
-        model: "gemini-2.0-flash")
-      response = wait_for_response(ws_connection, timeout: 45)
+        "What are the latest AI developments in 2024?", 
+        app: app_name,
+        model: "grok-3")
+      response = wait_for_response(ws_connection, timeout: 30)
       
       expect(response).not_to be_empty
-      expect(response.downcase).to include("supervised")
-      expect(response.downcase).to include("unsupervised")
-      # Should include comparisons
-      expect(response.downcase).to match(/difference|compare|contrast|versus/)
+      expect(response.downcase).to match(/ai|artificial intelligence|development|research/)
     end
   end
+
+  describe "Research Assistant Perplexity" do
+    let(:ws_connection) { create_websocket_connection }
+    let(:app_name) { "ResearchAssistantPerplexity" }
+    
+    after do
+      ws_connection[:client].close if ws_connection[:client]
+    end
+
+    before do
+      skip "Perplexity API key not configured" unless CONFIG["PERPLEXITY_API_KEY"]
+    end
+
+    it "performs research with built-in web search" do
+      send_chat_message(ws_connection, 
+        "What are the key features of machine learning?", 
+        app: app_name,
+        model: "sonar",
+        skip_activation: true)
+      response = wait_for_response(ws_connection, timeout: 90)
+      
+      expect(response).not_to be_empty
+      expect(response.downcase).to match(/machine learning|algorithm|data|model|training/)
+    end
+  end
+
+  describe "Research Assistant Mistral" do
+    let(:ws_connection) { create_websocket_connection }
+    let(:app_name) { "ResearchAssistantMistral" }
+    
+    after do
+      ws_connection[:client].close if ws_connection[:client]
+    end
+
+    before do
+      skip "Mistral API key not configured" unless CONFIG["MISTRAL_API_KEY"]
+      skip "Tavily API key not configured" unless CONFIG["TAVILY_API_KEY"]
+    end
+
+    it "performs research using Tavily web search" do
+      send_chat_message(ws_connection, 
+        "What is quantum computing?", 
+        app: app_name,
+        model: "mistral-large-latest")
+      response = wait_for_response(ws_connection, timeout: 30)
+      
+      expect(response).not_to be_empty
+      expect(response.downcase).to match(/quantum|computing|qubit/)
+    end
+  end
+
+  describe "Research Assistant Cohere" do
+    let(:ws_connection) { create_websocket_connection }
+    let(:app_name) { "ResearchAssistantCohere" }
+    
+    after do
+      ws_connection[:client].close if ws_connection[:client]
+    end
+
+    before do
+      skip "Cohere API key not configured" unless CONFIG["COHERE_API_KEY"]
+      skip "Tavily API key not configured" unless CONFIG["TAVILY_API_KEY"]
+    end
+
+    it "performs research using Tavily web search" do
+      send_chat_message(ws_connection, 
+        "Explain blockchain technology", 
+        app: app_name,
+        model: "command-a-03-2025")
+      response = wait_for_response(ws_connection, timeout: 60)
+      
+      expect(response).not_to be_empty
+      expect(response.downcase).to match(/blockchain|distributed|ledger|cryptocurrency/)
+    end
+  end
+
+  describe "Research Assistant DeepSeek" do
+    let(:ws_connection) { create_websocket_connection }
+    let(:app_name) { "ResearchAssistantDeepSeek" }
+    
+    after do
+      ws_connection[:client].close if ws_connection[:client]
+    end
+
+    before do
+      skip "DeepSeek API key not configured" unless CONFIG["DEEPSEEK_API_KEY"]
+      skip "Tavily API key not configured" unless CONFIG["TAVILY_API_KEY"]
+    end
+
+    it "performs research using Tavily web search" do
+      send_chat_message(ws_connection, 
+        "What is artificial intelligence?", 
+        app: app_name,
+        model: "deepseek-chat",
+        max_tokens: 1000,
+        skip_activation: true)
+      response = wait_for_response(ws_connection, timeout: 90)
+      
+      expect(response).not_to be_empty
+      expect(response.downcase).to match(/artificial intelligence|ai|machine|computer|algorithm/)
+    end
+  end
+
+
 end

@@ -477,7 +477,16 @@ module GeminiHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    # Debug all obj parameters
+    DebugHelper.debug("Gemini obj parameters: #{obj.inspect}", category: :api, level: :debug)
+    puts "[DEBUG Gemini api_request] obj parameters: #{obj.inspect}"
+    
+    # Debug websearch parameters
+    puts "[DEBUG Gemini] Checking websearch: obj['websearch']=#{obj['websearch'].inspect} (class: #{obj['websearch'].class}), TAVILY_API_KEY=#{CONFIG['TAVILY_API_KEY'] ? 'exists' : 'nil'}"
+    
+    websearch = CONFIG["TAVILY_API_KEY"] && (obj["websearch"] == true || obj["websearch"] == "true")
+    puts "[DEBUG Gemini api_request] websearch=#{websearch}, obj['websearch']=#{obj['websearch']}, TAVILY_API_KEY exists=#{!CONFIG['TAVILY_API_KEY'].nil?}"
+    DebugHelper.debug("Gemini websearch value: #{websearch}, obj['websearch']: #{obj['websearch']}, TAVILY_API_KEY exists: #{!CONFIG['TAVILY_API_KEY'].nil?}", category: :api, level: :debug)
     
     # Handle thinking models based on reasoning_effort parameter presence
     reasoning_effort = obj["reasoning_effort"]
@@ -609,18 +618,32 @@ module GeminiHelper
       end
     end
 
-    if settings["tools"]
+    # Get tools from app settings
+    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+    
+    # Debug settings
+    DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
+    DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
+    DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
+    
+    # Add immediate debug for Research Assistant
+    if app && app.include?("ResearchAssistant")
+      puts "[DEBUG Gemini tools] app=#{app}, websearch=#{websearch}, TAVILY_API_KEY=#{!CONFIG['TAVILY_API_KEY'].nil?}, obj['websearch']=#{obj['websearch']}"
+      puts "[DEBUG Gemini tools] app_tools.empty?=#{app_tools.empty?}, WEBSEARCH_TOOLS.length=#{WEBSEARCH_TOOLS.length}"
+    end
+    
+    if app_tools && !app_tools.empty?
       # Convert the tools format if it's an array (initialize_from_assistant apps)
-      if settings["tools"].is_a?(Array)
-        body["tools"] = {"function_declarations" => settings["tools"]}
+      if app_tools.is_a?(Array)
+        body["tools"] = [{"function_declarations" => app_tools}]
       else
-        body["tools"] = settings["tools"]
+        body["tools"] = [app_tools]
       end
       
       # Ensure function_declarations exists
-      body["tools"]["function_declarations"] ||= []
-      body["tools"]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
-      body["tools"]["function_declarations"].uniq!
+      body["tools"][0]["function_declarations"] ||= []
+      body["tools"][0]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
+      body["tools"][0]["function_declarations"].uniq!
 
       body["tool_config"] = {
         "function_calling_config" => {
@@ -628,13 +651,21 @@ module GeminiHelper
         }
       }
     elsif websearch
-      body["tools"] = {"function_declarations" => WEBSEARCH_TOOLS}
+      # Debug: Check WEBSEARCH_TOOLS content
+      DebugHelper.debug("Gemini using websearch, WEBSEARCH_TOOLS: #{WEBSEARCH_TOOLS.inspect}", category: :api, level: :debug)
+      
+      # Debug websearch flag state
+      puts "[DEBUG Gemini] websearch=#{websearch}, TAVILY_API_KEY exists=#{!CONFIG['TAVILY_API_KEY'].nil?}, obj['websearch']=#{obj['websearch']}"
+      puts "[DEBUG Gemini] WEBSEARCH_TOOLS=#{WEBSEARCH_TOOLS.inspect}"
+      
+      body["tools"] = [{"function_declarations" => WEBSEARCH_TOOLS}]
       body["tool_config"] = {
         "function_calling_config" => {
           "mode" => "ANY"
         }
       }
     else
+      DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
       body.delete("tools")
       body.delete("tool_config")
     end
@@ -657,6 +688,24 @@ module GeminiHelper
       }
     end
 
+    # Remove empty function_declarations to avoid API error
+    if body["tools"] && body["tools"].is_a?(Array)
+      body["tools"].each do |tool|
+        if tool["function_declarations"] && tool["function_declarations"].empty?
+          body.delete("tools")
+          body.delete("tool_config")
+          break
+        end
+      end
+    end
+    
+    # Debug logging
+    if app && app.include?("ResearchAssistant")
+      puts "[DEBUG Gemini] app=#{app}, websearch=#{websearch}, app_tools=#{app_tools.inspect}"
+      puts "[DEBUG Gemini] Final request body:"
+      puts JSON.pretty_generate(body)
+    end
+    
     # Use v1beta for thinking models, v1alpha for others
     endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
     target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
@@ -1120,6 +1169,16 @@ module GeminiHelper
           memo[k.to_sym] = v
           memo
         end
+        
+        # Check if Gemini wrapped arguments in an "options" key and unwrap them
+        if argument_hash.keys == [:options] && argument_hash[:options].is_a?(Hash)
+          argument_hash = argument_hash[:options]
+          # Convert the unwrapped hash keys to symbols as well
+          argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+            memo[k.to_sym] = v
+            memo
+          end
+        end
 
         # Add session parameter for functions that need access to uploaded images
         if function_name == "generate_video_with_veo" || function_name == "generate_image_with_gemini"
@@ -1127,6 +1186,15 @@ module GeminiHelper
         end
         
         # tavily_search already accepts n parameter directly, no need to convert
+        
+        # Special handling for tavily_search to ensure proper parameter mapping
+        if function_name == "tavily_search"
+          # Ensure we only pass the parameters tavily_search expects
+          clean_args = {}
+          clean_args[:query] = argument_hash[:query] || argument_hash[:q] if argument_hash[:query] || argument_hash[:q]
+          clean_args[:n] = argument_hash[:n] || argument_hash[:max_results] || 3
+          argument_hash = clean_args
+        end
         
         # Call the function with the provided arguments
         function_return = send(function_name.to_sym, **argument_hash)

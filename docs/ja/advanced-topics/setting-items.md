@@ -139,7 +139,6 @@ end
 - **`AI_USER_MODEL`** - AI生成ユーザーメッセージ用のモデル
 - **`AI_USER_MAX_TOKENS`** - ユーザーメッセージ生成の最大トークン数（デフォルト：2000）
 - **`WEBSEARCH_MODEL`** - ウェブ検索用のモデル（デフォルト：gpt-4.1-mini）
-- **`USE_TAVILY_FOR_OPENAI`** - OpenAIモデルでネイティブの代わりにTavilyウェブ検索を強制使用（true/false）
 - **`TAVILY_API_KEY`** - Tavilyウェブ検索サービスのAPIキー
 - **`STT_MODEL`** - 音声認識モデル
 - **`ROUGE_THEME`** - シンタックスハイライトテーマ

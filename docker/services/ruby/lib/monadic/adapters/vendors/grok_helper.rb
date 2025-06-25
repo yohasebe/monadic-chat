@@ -14,69 +14,6 @@ module GrokHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  # Grok Live Search is built-in, no tool definition needed
-
-  # Tavily-based websearch tools
-  TAVILY_WEBSEARCH_TOOLS = [
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_fetch",
-        description: "fetch the content of the web page of the given url and return its content.",
-        parameters: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "url of the web page."
-            }
-          },
-          required: ["url"],
-          additionalproperties: false
-        }
-      },
-      strict: true
-    },
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_search",
-        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "query to search for."
-            },
-            n: {
-              type: "integer",
-              description: "number of results to return (default: 3)."
-            }
-          },
-          required: ["query"],
-          additionalproperties: false
-        }
-      },
-      strict: true
-    }
-  ]
-
-  # Grok Live Search prompt not needed - it's handled automatically
-
-  TAVILY_WEBSEARCH_PROMPT = <<~TEXT
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
-
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-  TEXT
 
   class << self
     attr_reader :cached_models
@@ -263,10 +200,7 @@ module GrokHelper
 
     # Check for websearch configuration
     websearch = obj["websearch"] == "true"
-    # Grok uses native Live Search by default
     websearch_native = websearch
-    # Only use Tavily if native is disabled
-    websearch_tavily = CONFIG["TAVILY_API_KEY"] && websearch && CONFIG["GROK_DISABLE_NATIVE_WEBSEARCH"]
 
     message = nil
     data = nil
@@ -345,17 +279,7 @@ module GrokHelper
 
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"] || []
-      
-      # Only add Tavily tools if using Tavily
-      if websearch_tavily
-        body["tools"].concat(TAVILY_WEBSEARCH_TOOLS)
-        body["tools"].uniq!
-      end
-      
       body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
-    elsif websearch_tavily
-      body["tools"] = TAVILY_WEBSEARCH_TOOLS
-      body["tool_choice"] = "auto"
     else
       body.delete("tools")
       body.delete("tool_choice")
@@ -461,29 +385,6 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    websearch_prompt_added = false
-
-    # Add Tavily websearch prompt if using Tavily
-    if websearch_tavily && !websearch_prompt_added
-      body["messages"].each do |msg|
-        if msg["role"] == "system" && msg["content"]
-          # Handle both string and array content
-          if msg["content"].is_a?(Array)
-            msg["content"].each do |content_item|
-              if content_item["type"] == "text"
-                content_item["text"] = content_item["text"] + "\n\n" + TAVILY_WEBSEARCH_PROMPT
-                websearch_prompt_added = true
-                break
-              end
-            end
-          else
-            msg["content"] = msg["content"] + "\n\n" + TAVILY_WEBSEARCH_PROMPT
-            websearch_prompt_added = true
-          end
-          break if websearch_prompt_added
-        end
-      end
-    end
 
     # Process tool calls if any
     body["messages"].each do |msg|

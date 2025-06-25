@@ -247,6 +247,8 @@ module PerplexityHelper
     obj = session[:parameters]
     app = obj["app_name"]
     api_key = CONFIG["PERPLEXITY_API_KEY"]
+    
+    # Process the API request
 
     # Get the parameters from the session
     initial_prompt = if session[:messages].empty?
@@ -326,6 +328,8 @@ module PerplexityHelper
     
     # Mark all context messages as active
     context.each { |msg| msg["active"] = true if msg }
+    
+    # Context is ready for API request
 
     # Set the headers for the API request
     headers = {
@@ -381,6 +385,14 @@ module PerplexityHelper
       message
     end
     
+    # If no messages in context, add initial system message
+    if body["messages"].empty? && initial_prompt
+      body["messages"] << {
+        "role" => "system",
+        "content" => [{ "type" => "text", "text" => initial_prompt }]
+      }
+    end
+    
     # Get the roles in the message list
     roles = body["messages"].map { |msg| msg["role"] }
     
@@ -434,7 +446,7 @@ module PerplexityHelper
       end
     end
 
-    last_text = context.last["text"]
+    last_text = context.last&.dig("text") || ""
 
     # Decorate the last message in the context with the message with the snippet
     # and the prompt suffix
@@ -477,6 +489,8 @@ module PerplexityHelper
       body.delete("stop")
     end
 
+    # Request body is ready
+    
     # Call the API
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"

@@ -143,6 +143,7 @@ if [ -f ~/monadic/config/env ]; then
     "MISTRAL_API_KEY:Mistral"
     "COHERE_API_KEY:Cohere"
     "DEEPSEEK_API_KEY:DeepSeek"
+    "PERPLEXITY_API_KEY:Perplexity"
     "TAVILY_API_KEY:Tavily (Web Search)"
   )
   

@@ -275,9 +275,14 @@ module DeepSeekHelper
     end
 
     session[:messages].each { |msg| msg["active"] = false }
-    context = [session[:messages].first]
-    if session[:messages].length > 1
-      context += session[:messages][1..].last(context_size + 1)
+    
+    # Safer context building with nil checks
+    context = []
+    if session[:messages] && !session[:messages].empty?
+      context = [session[:messages].first]
+      if session[:messages].length > 1
+        context += session[:messages][1..].last(context_size + 1)
+      end
     end
 
     headers = {
@@ -307,26 +312,41 @@ module DeepSeekHelper
     # Debug app loading
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     
-    if APPS[app] && APPS[app].settings["tools"]
-      body["tools"] = APPS[app].settings["tools"] || []
-      if websearch
-        websearch_tools = WEBSEARCH_TOOLS.dup
-        body["tools"].concat(websearch_tools)
+    # Get tools from app settings
+    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+    
+    # Debug logging
+    DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
+    DebugHelper.debug("DeepSeek websearch enabled: #{websearch}", category: :api, level: :debug)
+    
+    # Build the tools array
+    if websearch
+      # Always include websearch tools when websearch is enabled
+      body["tools"] = WEBSEARCH_TOOLS.dup
+      # Add any app-specific tools
+      if app_tools && !app_tools.empty?
+        body["tools"].concat(app_tools)
         body["tools"].uniq!
       end
-      
-      # Try different tool_choice values to see if DeepSeek responds differently
-      # "auto" should work, but let's add more explicit logging
       body["tool_choice"] = "auto"
       
       # Debug logging for tools
       DebugHelper.debug("DeepSeek tools configured: #{body["tools"].map { |t| t.dig(:function, :name) || t.dig("function", "name") }.join(", ")}", category: :api, level: :debug)
       DebugHelper.debug("DeepSeek tool_choice: #{body["tool_choice"]}", category: :api, level: :debug)
       DebugHelper.debug("DeepSeek tools full: #{body["tools"].inspect}", category: :api, level: :verbose)
-    elsif websearch
-      body["tools"] = WEBSEARCH_TOOLS
+    elsif app_tools && !app_tools.empty?
+      # Only app tools, no websearch
+      body["tools"] = app_tools
       body["tool_choice"] = "auto"
     else
+      # No tools at all - don't send empty array
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+    
+    # Final check: ensure tools is not an empty array
+    if body["tools"] && body["tools"].empty?
+      DebugHelper.debug("DeepSeek: Removing empty tools array", category: :api, level: :debug)
       body.delete("tools")
       body.delete("tool_choice")
     end

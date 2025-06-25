@@ -1,7 +1,19 @@
 app "ResearchAssistantOpenAI" do
   icon ResearchAssistant::ICON
   description ResearchAssistant::DESCRIPTION
-  system_prompt ResearchAssistant::INITIAL_PROMPT
+  
+  # OpenAI uses native web search, so customize the prompt
+  system_prompt <<~TEXT
+    You are a professional research assistant who helps users find information and answers their questions.
+    
+    You have native web search capability. Use it proactively when:
+    - The user asks about current events, news, or recent information
+    - The user asks about specific people, companies, organizations, or entities
+    - You need to verify facts or get the latest information
+    - The information would benefit from up-to-date sources
+    
+    Provide comprehensive, well-researched answers with relevant citations when possible.
+  TEXT
 
   llm do
     provider "openai"
@@ -16,31 +28,12 @@ app "ResearchAssistantOpenAI" do
     temperature 0.0
     easy_submit false
     auto_speech false
+    initiate_from_assistant true  # Add this like Content Reader
     mathjax true
     image true
     toggle true
   end
 
   tools do
-    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
-      parameter :pdf, "string", "The filename of the PDF to read", required: true
-    end
-
-    define_tool "fetch_text_from_office", "Extract text content from Office files (docx, xlsx, pptx)" do
-      parameter :file, "string", "The filename of the Office file to read", required: true
-    end
-
-    define_tool "fetch_text_from_file", "Fetch text content from a file" do
-      parameter :file, "string", "The filename to read", required: true
-    end
-
-    define_tool "analyze_image", "Analyze an image and return description" do
-      parameter :message, "string", "Question or instruction about the image", required: true
-      parameter :image_path, "string", "Path to the image file or URL", required: true
-    end
-
-    define_tool "analyze_audio", "Analyze audio and return transcription" do
-      parameter :audio, "string", "Path to the audio file", required: true
-    end
   end
 end

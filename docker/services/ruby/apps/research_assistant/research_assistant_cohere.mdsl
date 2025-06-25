@@ -40,7 +40,7 @@ app "ResearchAssistantCohere" do
     end
 
     define_tool "analyze_audio", "Analyze audio and return transcription" do
-      parameter :audio_path, "string", "Path to the audio file", required: true
+      parameter :audio, "string", "Path to the audio file", required: true
     end
     
     define_tool "tavily_search", "Search the web using Tavily API" do

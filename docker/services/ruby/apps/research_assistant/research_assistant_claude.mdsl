@@ -82,7 +82,7 @@ app "ResearchAssistantClaude" do
     end
 
     define_tool "analyze_audio", "Analyze audio and return transcription" do
-      parameter :audio_path, "string", "Path to the audio file", required: true
+      parameter :audio, "string", "Path to the audio file", required: true
     end
     
   end

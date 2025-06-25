@@ -14,11 +14,15 @@ module TavilyHelper
   RETRY_DELAY = 2
 
   def tavily_fetch(url:)
+    $stderr.puts "[DEBUG Tavily] tavily_fetch called with url: #{url}"
+    
     api_key = CONFIG["TAVILY_API_KEY"]
+    $stderr.puts "[DEBUG Tavily] API key present: #{!api_key.nil? && !api_key.empty?}"
     
     # Check if API key is present
     if api_key.nil? || api_key.empty?
-      return { error: "Tavily API key is not configured. Please set TAVILY_API_KEY in your environment." }
+      $stderr.puts "[DEBUG Tavily] No API key found"
+      return "No content found"  # Return string instead of hash
     end
     
     headers = {
@@ -34,7 +38,7 @@ module TavilyHelper
       "format" => "markdown"  # Explicitly request markdown format
     }
     
-    puts "[DEBUG Tavily] Request body: #{body.inspect}"
+    $stderr.puts "[DEBUG Tavily] Request body: #{body.inspect}"
 
     target_uri = "https://api.tavily.com/extract"
 
@@ -78,6 +82,11 @@ module TavilyHelper
         return "ERROR: #{error_report}"
       end
     rescue HTTP::Error, HTTP::TimeoutError => e
+      $stderr.puts "[DEBUG Tavily] HTTP Error: #{e.class} - #{e.message}"
+      "Error occurred: #{e.message}"
+    rescue => e
+      $stderr.puts "[DEBUG Tavily] Unexpected error: #{e.class} - #{e.message}"
+      $stderr.puts e.backtrace.first(5).join("\n")
       "Error occurred: #{e.message}"
     end
   end

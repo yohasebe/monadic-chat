@@ -285,4 +285,141 @@ module MonadicHelper
     jupyter_port = CONFIG["JUPYTER_PORT"] || ENV["JUPYTER_PORT"] || "8889"
     "http://#{jupyter_host}:#{jupyter_port}"
   end
+  
+  public
+  
+  # Delete a cell from notebook
+  def delete_jupyter_cell(filename: "", index: 0)
+    return "Error: Filename is required." if filename.empty?
+    
+    command = "jupyter_controller.py delete '#{filename}' #{index}"
+    send_command(command: command, container: "python")
+  end
+  
+  # Update a cell in notebook
+  def update_jupyter_cell(filename: "", index: 0, content: "", cell_type: "code")
+    return "Error: Filename is required." if filename.empty?
+    return "Error: Content is required." if content.empty?
+    
+    # Escape content for shell command
+    escaped_content = content.gsub("'", "'\\''")
+    
+    command = "jupyter_controller.py update '#{filename}' #{index} '#{escaped_content}' #{cell_type}"
+    send_command(command: command, container: "python")
+  end
+  
+  # Get all cells with their execution results
+  def get_jupyter_cells_with_results(filename: "")
+    return "Error: Filename is required." if filename.empty?
+    
+    notebook_path = if IN_CONTAINER
+                      "/monadic/data/#{filename}.ipynb"
+                    else
+                      "#{Dir.home}/monadic/data/#{filename}.ipynb"
+                    end
+    
+    return "Error: Notebook not found." unless File.exist?(notebook_path)
+    
+    begin
+      notebook = JSON.parse(File.read(notebook_path))
+      cells_with_results = []
+      
+      notebook['cells'].each_with_index do |cell, index|
+        cell_info = {
+          index: index,
+          type: cell['cell_type'],
+          source: cell['source'].is_a?(Array) ? cell['source'].join : cell['source']
+        }
+        
+        if cell['cell_type'] == 'code' && cell['outputs'] && !cell['outputs'].empty?
+          outputs = cell['outputs']
+          cell_info[:has_error] = outputs.any? { |o| o['output_type'] == 'error' }
+          
+          if cell_info[:has_error]
+            error_output = outputs.find { |o| o['output_type'] == 'error' }
+            cell_info[:error_type] = error_output['ename']
+            cell_info[:error_message] = error_output['evalue']
+            cell_info[:traceback] = error_output['traceback'].join("\n").gsub(/\e\[[0-9;]*m/, '')
+          else
+            # Collect non-error outputs
+            cell_info[:outputs] = outputs.map do |output|
+              case output['output_type']
+              when 'execute_result'
+                output['data']['text/plain'] if output['data']
+              when 'stream'
+                output['text']
+              when 'display_data'
+                output['data']['text/plain'] if output['data']
+              end
+            end.compact
+          end
+        end
+        
+        cells_with_results << cell_info
+      end
+      
+      cells_with_results
+    rescue StandardError => e
+      "Error reading notebook: #{e.message}"
+    end
+  end
+  
+  # Execute cells and fix errors with retry limit
+  def execute_and_fix_jupyter_cells(filename: "", max_retries: 3)
+    return "Error: Filename is required." if filename.empty?
+    
+    retry_count = 0
+    fixed_cells = []
+    
+    while retry_count < max_retries
+      # Get current state of all cells
+      cells_info = get_jupyter_cells_with_results(filename: filename)
+      return cells_info if cells_info.is_a?(String) && cells_info.start_with?("Error:")
+      
+      # Find cells with errors
+      error_cells = cells_info.select { |cell| cell[:has_error] }
+      
+      break if error_cells.empty? # All cells executed successfully
+      
+      retry_count += 1
+      
+      # Process each error cell
+      error_cells.each do |error_cell|
+        fixed_cells << {
+          index: error_cell[:index],
+          original_code: error_cell[:source],
+          error_type: error_cell[:error_type],
+          error_message: error_cell[:error_message],
+          retry_count: retry_count
+        }
+        
+        # Return error info for AI to fix
+        return {
+          status: "error_found",
+          cell_index: error_cell[:index],
+          cell_type: error_cell[:type],
+          source: error_cell[:source],
+          error_type: error_cell[:error_type],
+          error_message: error_cell[:error_message],
+          traceback: error_cell[:traceback],
+          retry_count: retry_count,
+          max_retries: max_retries
+        }
+      end
+    end
+    
+    if retry_count >= max_retries
+      {
+        status: "max_retries_reached",
+        message: "Maximum retry attempts reached. Some cells still have errors.",
+        fixed_cells: fixed_cells
+      }
+    else
+      {
+        status: "success",
+        message: "All cells executed successfully.",
+        retry_count: retry_count
+      }
+    end
+  end
 end

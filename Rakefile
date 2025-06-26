@@ -1064,6 +1064,34 @@ namespace :spec_e2e do
       sh "./spec/e2e/run_e2e_tests.sh voice_chat"
     end
   end
+  
+  desc "Run E2E tests for Content Reader"
+  task :content_reader do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh content_reader"
+    end
+  end
+  
+  desc "Run E2E tests for Coding Assistant"
+  task :coding_assistant do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh coding_assistant"
+    end
+  end
+  
+  desc "Run E2E tests for Second Opinion"
+  task :second_opinion do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh second_opinion"
+    end
+  end
+  
+  desc "Run E2E tests for Jupyter Notebook"
+  task :jupyter_notebook do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh jupyter_notebook"
+    end
+  end
 end
 
 # Test JavaScript code with Jest

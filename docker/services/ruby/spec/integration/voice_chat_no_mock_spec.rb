@@ -13,12 +13,16 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
   include InteractionUtils
   include RealAudioTestHelper
   
-  # Use real API key from CONFIG
-  let(:settings) { OpenStruct.new(api_key: CONFIG["OPENAI_API_KEY"]) }
-  
   before do
     skip "OpenAI API key not configured" unless CONFIG["OPENAI_API_KEY"]
-    allow(self).to receive(:settings).and_return(settings)
+    
+    # Ensure API key is available in environment for InteractionUtils
+    ENV['OPENAI_API_KEY'] = CONFIG["OPENAI_API_KEY"]
+  end
+  
+  after do
+    # Clean up environment
+    ENV.delete('OPENAI_API_KEY')
   end
   
   describe "Speech-to-Text Processing with Real API" do

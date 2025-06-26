@@ -43,7 +43,12 @@ class DockerContainerManager
     private
     
     def containers_healthy?
-      REQUIRED_SERVICES.keys.all? { |service| container_running?(service) && service_healthy?(service) }
+      REQUIRED_SERVICES.keys.all? do |service|
+        running = container_running?(service)
+        healthy = service_healthy?(service)
+        puts "[DEBUG] #{service}: running=#{running}, healthy=#{healthy}" if ENV['DEBUG_CONTAINERS']
+        running && healthy
+      end
     end
     
     def container_running?(service)
@@ -76,7 +81,7 @@ class DockerContainerManager
     def postgres_healthy?
       require "pg"
       conn = PG.connect(
-        host: ENV["IN_CONTAINER"] ? "monadic-chat-postgres-container" : "localhost",
+        host: ENV["IN_CONTAINER"] ? "monadic-chat-pgvector-container" : "localhost",
         port: 5433,
         user: "postgres",
         password: "postgres",
@@ -85,7 +90,8 @@ class DockerContainerManager
       conn.exec("SELECT 1")
       conn.close
       true
-    rescue PG::Error
+    rescue PG::Error => e
+      puts "[DEBUG] PostgreSQL health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
       false
     end
     
@@ -158,9 +164,15 @@ class DockerContainerManager
           print "⏳ Waiting for containers: "
           
           statuses = REQUIRED_SERVICES.keys.map do |service|
-            if container_running?(service) && service_healthy?(service)
+            running = container_running?(service)
+            healthy = service_healthy?(service)
+            
+            if running && healthy
               print "✅ #{service} "
               true
+            elsif running
+              print "🟡 #{service} (unhealthy) "
+              false
             else
               print "⏸️  #{service} "
               false

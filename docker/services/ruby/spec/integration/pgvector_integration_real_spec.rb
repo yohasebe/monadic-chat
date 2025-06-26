@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
 require_relative '../spec_helper'
+require_relative '../support/pgvector_test_helper'
 require 'pg'
 
 RSpec.describe "pgvector Integration (Real Implementation)", :integration do
+  include PgvectorTestHelper
   before(:all) do
     skip "Docker tests require Docker environment" unless docker_available?
     skip "PostgreSQL tests require pg gem" unless defined?(PG)
@@ -90,7 +92,7 @@ RSpec.describe "pgvector Integration (Real Implementation)", :integration do
         conn = PG.connect(@db_config.merge(dbname: @test_database))
         
         # Create vector extension
-        conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
+        create_vector_extension(conn)
         
         # Verify extension is installed
         result = conn.exec("SELECT * FROM pg_extension WHERE extname = 'vector'")
@@ -114,7 +116,7 @@ RSpec.describe "pgvector Integration (Real Implementation)", :integration do
         conn = PG.connect(@db_config.merge(dbname: @test_database))
         
         # Ensure vector extension exists
-        conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
+        create_vector_extension(conn)
         
         # Create a table with vector column
         conn.exec(<<-SQL)
@@ -146,10 +148,10 @@ RSpec.describe "pgvector Integration (Real Implementation)", :integration do
       
       # Set up test table
       @conn = PG.connect(@db_config.merge(dbname: @test_database))
-      @conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
+      create_vector_extension(@conn)
       
       # Drop and recreate table to ensure clean state
-      @conn.exec("DROP TABLE IF EXISTS test_embeddings")
+      drop_table_if_exists(@conn, "test_embeddings")
       @conn.exec(<<-SQL)
         CREATE TABLE test_embeddings (
           id SERIAL PRIMARY KEY,

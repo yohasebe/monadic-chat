@@ -355,7 +355,7 @@ class HelpEmbeddings < TextEmbeddings
           language text DEFAULT 'en',
           items integer DEFAULT 0,
           metadata jsonb DEFAULT '{}',
-          embedding vector(3072),
+          embedding vector(#{EMBEDDINGS_DIMENSION}),
           created_at timestamp DEFAULT CURRENT_TIMESTAMP,
           updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(file_path, language)
@@ -371,7 +371,7 @@ class HelpEmbeddings < TextEmbeddings
           position smallint NOT NULL,
           heading text,
           metadata jsonb DEFAULT '{}',
-          embedding vector(3072),
+          embedding vector(#{EMBEDDINGS_DIMENSION}),
           created_at timestamp DEFAULT CURRENT_TIMESTAMP
         )
       SQL

@@ -137,14 +137,17 @@ RSpec.describe "Docker Container Integration", type: :integration do
     end
 
     it "can take screenshots via Selenium" do
-      skip "Selenium screenshot test requires full integration setup"
+      # Test Selenium screenshot capability using the webpage_fetcher.py script
+      test_url = "https://example.com"
       
-      # This would require setting up Selenium WebDriver
-      # Example structure:
-      # driver = create_selenium_driver
-      # driver.navigate.to "https://example.com"
-      # screenshot = driver.screenshot_as(:png)
-      # expect(screenshot).not_to be_nil
+      # Run webpage_fetcher.py directly without code parameter
+      container_name = "monadic-chat-python-container"
+      command = "docker exec #{container_name} webpage_fetcher.py --url \"#{test_url}\" --filepath \"/monadic/data/\" --mode \"png\""
+      
+      result = `#{command} 2>&1`
+      
+      # Check if image was saved
+      expect(result).to match(/saved to:|\.png/i)
     end
   end
 
@@ -155,13 +158,29 @@ RSpec.describe "Docker Container Integration", type: :integration do
     end
 
     it "has pgvector extension available" do
-      skip "PostgreSQL test requires database connection setup"
+      require 'pg'
       
-      # This would require setting up database connection
-      # Example structure:
-      # conn = PG.connect(host: "pgvector", dbname: "monadic")
-      # result = conn.exec("SELECT * FROM pg_extension WHERE extname = 'vector'")
-      # expect(result.ntuples).to be > 0
+      # Connect to PostgreSQL
+      conn = PG.connect(
+        host: IN_CONTAINER ? "pgvector_service" : "localhost",
+        port: IN_CONTAINER ? 5432 : (ENV['POSTGRES_PORT'] || 5433),
+        user: "postgres",
+        password: "postgres",
+        dbname: "postgres"
+      )
+      
+      # Ensure pgvector extension is created
+      conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
+      
+      # Check pgvector extension
+      result = conn.exec("SELECT * FROM pg_extension WHERE extname = 'vector'")
+      expect(result.ntuples).to be > 0
+      
+      # Check version
+      version_result = conn.exec("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+      expect(version_result[0]['extversion']).not_to be_nil
+      
+      conn.close
     end
   end
 
@@ -237,10 +256,10 @@ RSpec.describe "Docker Container Integration", type: :integration do
     end
 
     it "handles file permission issues" do
-      skip "Permission test may require specific setup"
+      skip "Permission test depends on container user configuration"
       
-      # This would test handling of permission-denied scenarios
-      # Example: trying to write to a read-only directory
+      # This test would require specific container setup with restricted permissions
+      # Docker containers may run as different users, making permission testing complex
     end
   end
 

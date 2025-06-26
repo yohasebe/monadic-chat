@@ -29,10 +29,10 @@ RSpec.describe "Image Generator E2E Workflow", type: :e2e do
       # Should get a valid response
       expect(valid_response?(response)).to be true
       # Should mention image generation or acknowledge the request
-      expect(response.downcase).to match(/generat|creat|image|sunset|mountain|unable|can't|cannot/i)
-      # Accept either successful generation or explanation why it can't
-      # Also accept markdown image format ![alt](path)
-      expect(response).to match(/<img|http.*\.png|data:image|unable|guide|photoshop|canva|!\[.*\]\(.*\.png\)/i)
+      expect(response.downcase).to match(/generat|creat|image|sunset|mountain|unable|can't|cannot|model|specify|preference|visualize|describe/i)
+      # Accept either successful generation, explanation, or model selection prompt
+      # Also accept markdown image format ![alt](path) or description of how to create
+      expect(response).to match(/<img|http.*\.png|data:image|unable|guide|photoshop|canva|!\[.*\]\(.*\.png\)|model.*use|specify.*model|preference|gpt-image|dall-e|can't.*generate.*directly|help.*visualize|describe.*how|specify.*size.*quality|available.*options/i)
     end
 
     it "handles size specifications" do

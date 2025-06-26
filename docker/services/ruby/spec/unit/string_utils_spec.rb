@@ -8,14 +8,22 @@ require_relative '../spec_helper'
 require_relative "../../lib/monadic/utils/string_utils"
 
 RSpec.describe StringUtils do
-  # Mock CLD gem for consistent test results (CLD is a Ruby gem, not external API)
+  # Use real CONFIG or define it for testing
   before do
-    allow(CLD).to receive(:detect_language).and_return({code: "en"})
-    
-    # Mock CONFIG constant
-    stub_const("CONFIG", {
-      "ROUGE_THEME" => "github:light"
-    })
+    unless defined?(CONFIG)
+      # Define CONFIG directly if it doesn't exist
+      Object.const_set(:CONFIG, {
+        "ROUGE_THEME" => "github:light"
+      })
+      @config_defined = true
+    end
+  end
+  
+  after do
+    # Clean up CONFIG if we defined it
+    if @config_defined && Object.const_defined?(:CONFIG)
+      Object.send(:remove_const, :CONFIG)
+    end
   end
   
   describe ".process_tts_dictionary" do
@@ -42,32 +50,55 @@ RSpec.describe StringUtils do
     end
     
     it "handles malformed CSV with fallback parsing" do
-      # Simulating CSV parsing failure
+      # Create a helper method that temporarily overrides CSV.parse
       csv_data = "長谷部,ハセベ\n同志社,ドウシシャ"
       
-      # Mock the CSV.parse method to raise an exception
-      allow(CSV).to receive(:parse).and_raise(StandardError.new("CSV parse error"))
-      # Suppress puts output to keep test output clean
-      allow(StringUtils).to receive(:puts)
+      # Store original parse method
+      original_csv_parse = CSV.method(:parse)
+      
+      # Override CSV.parse to simulate failure
+      CSV.define_singleton_method(:parse) do |*args|
+        raise StandardError.new("CSV parse error")
+      end
+      
+      # Suppress puts output by redirecting stdout
+      original_stdout = $stdout
+      $stdout = StringIO.new
       
       result = StringUtils.process_tts_dictionary(csv_data)
       
       expect(result.size).to eq(2)
       expect(result["長谷部"]).to eq("ハセベ")
       expect(result["同志社"]).to eq("ドウシシャ")
+      
+      # Restore original methods
+      CSV.singleton_class.send(:remove_method, :parse)
+      CSV.define_singleton_method(:parse, original_csv_parse)
+      $stdout = original_stdout
     end
   end
   
   describe ".detect_language" do
     it "detects the language of text" do
-      result = StringUtils.detect_language("Hello, world!")
+      # Use real CLD detection with actual English text
+      result = StringUtils.detect_language("Hello, world! This is an English text.")
+      # CLD should detect this as English
       expect(result).to eq("en")
     end
     
-    it "delegates to CLD gem" do
-      expect(CLD).to receive(:detect_language).with("Test text").and_return({code: "fr"})
-      result = StringUtils.detect_language("Test text")
-      expect(result).to eq("fr")
+    it "detects different languages" do
+      # Test with real language detection for different languages
+      # French text
+      french_result = StringUtils.detect_language("Bonjour le monde! Ceci est un texte français.")
+      expect(["fr", "en"]).to include(french_result) # CLD might detect as either
+      
+      # Japanese text  
+      japanese_result = StringUtils.detect_language("こんにちは世界！これは日本語のテキストです。")
+      expect(japanese_result).to eq("ja")
+      
+      # Spanish text
+      spanish_result = StringUtils.detect_language("¡Hola mundo! Este es un texto en español.")
+      expect(["es", "en"]).to include(spanish_result) # CLD might detect as either
     end
   end
   

@@ -2,7 +2,7 @@
 
 require_relative '../spec_helper'
 
-RSpec.describe "App Loading and Initialization" do
+RSpec.describe "App Loading and Initialization (Real Implementation)" do
   let(:app_base_dir) { 
     # Handle both direct execution and rake execution
     if Dir.pwd.end_with?('docker/services/ruby')
@@ -15,9 +15,8 @@ RSpec.describe "App Loading and Initialization" do
   
   before(:each) do
     # Clear any previous loading errors
-    $MONADIC_LOADING_ERRORS = []
-    # Mock global APPS constant
-    stub_const("APPS", {})
+    $MONADIC_LOADING_ERRORS = [] if defined?($MONADIC_LOADING_ERRORS)
+    # Note: We're NOT mocking APPS constant - using the real one if it exists
   end
 
   describe "App File Discovery" do
@@ -88,15 +87,21 @@ RSpec.describe "App Loading and Initialization" do
         next unless content.include?("class") && content.include?("< MonadicApp")
         
         # Check for required helper includes based on provider
-        # Skip MDSL-only support files and module-based files
+        # Skip MDSL-only support files, module-based files, and tool implementation files
         module_based_files = ["chat_app.rb", "coding_assistant_constants.rb", "drawio_grapher_tools.rb", "mermaid_grapher_tools.rb", "novel_writer_tools.rb", "research_assistant_constants.rb", "monadic_help_openai.rb"]
-        unless module_based_files.any? { |f| file.end_with?(f) } || content.match(/include\s+\w+Agent/)
+        tool_implementation_files = ["_tools.rb"]
+        
+        # Skip if it's a module-based file or a tool implementation file
+        is_tool_file = tool_implementation_files.any? { |pattern| file.include?(pattern) }
+        is_module_file = module_based_files.any? { |f| file.end_with?(f) }
+        
+        unless is_module_file || is_tool_file || content.match(/include\s+\w+Agent/)
           if content.include?("OpenAI") || content.include?("gpt-")
             expect(content).to match(/include\s+OpenAIHelper/), "#{file} should include OpenAIHelper"
           end
         end
         
-        unless module_based_files.any? { |f| file.end_with?(f) } || content.match(/include\s+\w+Agent/)
+        unless is_module_file || is_tool_file || content.match(/include\s+\w+Agent/)
           if content.include?("Claude") || content.include?("claude-")
             expect(content).to match(/include\s+ClaudeHelper/), "#{file} should include ClaudeHelper"
           end
@@ -527,6 +532,7 @@ RSpec.describe "App Loading and Initialization" do
     end
   end
 
+
   private
 
   def discover_standard_tools
@@ -542,14 +548,17 @@ RSpec.describe "App Loading and Initialization" do
     
     # Dynamically discover additional standard tools from MonadicApp if available
     begin
+      # Try to load MonadicApp to get real method list
+      require_relative '../../lib/monadic/app'
       if defined?(MonadicApp)
         instance_methods = MonadicApp.instance_methods(false)
         standard_tool_pattern = /^(fetch_|analyze_|run_|lib_|check_|search_|write_|create_|add_|system_)/
         dynamic_standard = instance_methods.select { |m| m.to_s.match?(standard_tool_pattern) }.map(&:to_s)
         known_standard = (known_standard + dynamic_standard).uniq
       end
-    rescue
+    rescue LoadError, NameError
       # Fallback to static list if dynamic discovery fails
+      puts "Note: Using static standard tools list (MonadicApp not available)"
     end
     
     known_standard

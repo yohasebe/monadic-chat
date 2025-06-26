@@ -2,8 +2,8 @@
 
 require_relative '../spec_helper'
 
-# Define MonadicApp module to include helpers
-module MonadicApp
+# Define test module to include helpers
+module TestMonadicAppBehavior
   # Basic app functionality needed for tests
   def settings
     @settings ||= {}
@@ -67,8 +67,20 @@ module BashCommandHelper
   end
   
   def send_command(command:, container:, success_with_output: nil)
+    # Check if Ruby container is running
     container_name = "monadic-chat-#{container}-container"
-    output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+    container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
+    
+    if container_running
+      # Use Docker container
+      output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+    else
+      # Use local execution
+      data_dir = File.join(Dir.home, "monadic", "data")
+      Dir.chdir(data_dir) do
+        output = `#{command} 2>&1`
+      end
+    end
     
     message = success_with_output || "Command has been executed with the following output:\n"
     "#{message}#{output}"
@@ -91,8 +103,20 @@ module ReadWriteHelper
   end
   
   def send_command(command:, container:, success_with_output: nil)
+    # Check if container is running
     container_name = "monadic-chat-#{container}-container"
-    output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+    container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
+    
+    if container_running
+      # Use Docker container
+      output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+    else
+      # Use local execution
+      data_dir = File.join(Dir.home, "monadic", "data")
+      Dir.chdir(data_dir) do
+        output = `#{command} 2>&1`
+      end
+    end
     
     message = success_with_output || ""
     "#{message}#{output}"
@@ -107,7 +131,7 @@ RSpec.describe "Container Helpers Integration", type: :integration do
   describe "PythonContainerHelper" do
     let(:test_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include PythonContainerHelper
         
         def initialize
@@ -224,7 +248,7 @@ RSpec.describe "Container Helpers Integration", type: :integration do
   describe "BashCommandHelper" do
     let(:test_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include BashCommandHelper
         
         def initialize
@@ -275,7 +299,7 @@ RSpec.describe "Container Helpers Integration", type: :integration do
   describe "ReadWriteHelper" do
     let(:test_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include ReadWriteHelper
         
         def initialize
@@ -325,7 +349,7 @@ RSpec.describe "Container Helpers Integration", type: :integration do
   describe "Cross-Helper Integration" do
     let(:test_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include PythonContainerHelper
         include BashCommandHelper
         include ReadWriteHelper

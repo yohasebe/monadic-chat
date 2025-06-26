@@ -8,6 +8,11 @@ require "matrix"
 require "dotenv/load"
 
 EMBEDDINGS_MODEL = "text-embedding-3-large"
+# OpenAI's text-embedding-3-large produces 3072-dimensional vectors
+# We use the full dimensions as pgvector supports this without indexes
+# Note: pgvector index limits: ivfflat/HNSW - 2000 dims, halfvec - 4000 dims
+# Since we don't use indexes for the help database, 3072 dims works fine
+EMBEDDINGS_DIMENSION = 3072
 
 class TextEmbeddings
   attr_accessor :conn
@@ -102,8 +107,8 @@ class TextEmbeddings
     with_retry("Database initialization") do
       new_conn.exec("SET client_min_messages TO warning")
       new_conn.exec("CREATE EXTENSION IF NOT EXISTS vector")
-      new_conn.exec("CREATE TABLE IF NOT EXISTS docs (id serial primary key, title text, items integer, metadata jsonb, embedding vector(3072))")
-      new_conn.exec("CREATE TABLE IF NOT EXISTS items (id serial primary key, doc_id integer, text text, position smallint, metadata jsonb, embedding vector(3072))")
+      new_conn.exec("CREATE TABLE IF NOT EXISTS docs (id serial primary key, title text, items integer, metadata jsonb, embedding vector(#{EMBEDDINGS_DIMENSION}))")
+      new_conn.exec("CREATE TABLE IF NOT EXISTS items (id serial primary key, doc_id integer, text text, position smallint, metadata jsonb, embedding vector(#{EMBEDDINGS_DIMENSION}))")
     end
 
     registry = PG::BasicTypeRegistry.new.define_default_types
@@ -266,7 +271,7 @@ class TextEmbeddings
   end
   
   def combine_embeddings(snippets_embeddings)
-    return Vector.zero(3072) if snippets_embeddings.empty?
+    return Vector.zero(EMBEDDINGS_DIMENSION) if snippets_embeddings.empty?
 
     num_snippets = snippets_embeddings.size
     combined_embedding = Vector.zero(snippets_embeddings.first.size)

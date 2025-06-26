@@ -2,8 +2,19 @@
 
 require_relative '../spec_helper'
 
-# Define MonadicApp module for testing
+# Define MonadicApp constants globally for SeleniumHelper
 module MonadicApp
+  SHARED_VOL = "/monadic/data"
+  LOCAL_SHARED_VOL = File.join(Dir.home, "monadic", "data")
+end
+
+# Define IN_CONTAINER constant for SeleniumHelper if not already defined
+unless defined?(IN_CONTAINER)
+  IN_CONTAINER = false
+end
+
+# Test implementation module that provides MonadicApp-like behavior
+module TestMonadicAppBehavior
   def settings
     @settings ||= {}
   end
@@ -11,7 +22,33 @@ module MonadicApp
   # Basic implementation of send_command for testing
   def send_command(command:, container:, success_with_output: nil)
     container_name = "monadic-chat-#{container}-container"
-    output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+    container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
+    
+    if container_running
+      # Use Docker container
+      output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+      status = $?.success?
+    else
+      # Use local execution for Ruby container
+      if container == "ruby"
+        data_dir = File.join(Dir.home, "monadic", "data")
+        Dir.chdir(data_dir) do
+          output = `#{command} 2>&1`
+          status = $?.success?
+        end
+      else
+        # For other containers, return error if not running
+        output = "Error: Container #{container_name} is not running"
+        status = false
+      end
+    end
+    
+    # If block is provided (for SeleniumHelper compatibility), yield to it
+    if block_given?
+      status_obj = Object.new
+      status_obj.define_singleton_method(:success?) { status }
+      yield output, output, status_obj
+    end
     
     message = success_with_output || "Command has been executed with the following output:\n"
     "#{message}#{output}"
@@ -94,7 +131,7 @@ RSpec.describe "App Docker Integration", type: :integration do
     let(:app_class) do
       # Create a test app class that includes actual implementation
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         
         def initialize
           @settings = {
@@ -193,7 +230,7 @@ RSpec.describe "App Docker Integration", type: :integration do
   describe "File Processing Tools" do
     let(:app_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include ReadWriteHelper
         
         def initialize
@@ -230,7 +267,7 @@ RSpec.describe "App Docker Integration", type: :integration do
   describe "Web Scraping with Selenium" do
     let(:app_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include SeleniumHelper if defined?(SeleniumHelper)
         
         def initialize
@@ -244,19 +281,29 @@ RSpec.describe "App Docker Integration", type: :integration do
     let(:app) { app_class.new }
 
     it "checks Selenium container availability" do
-      skip "Selenium integration requires SeleniumHelper" unless defined?(SeleniumHelper)
+      # Test basic Selenium container connectivity
+      selenium_running = system("docker ps | grep selenium > /dev/null 2>&1")
+      expect(selenium_running).to be true
       
-      # This would test actual Selenium functionality
-      # For now, just check container is running
-      container_running = system("docker ps | grep selenium > /dev/null 2>&1")
-      expect(container_running).to be true
+      # Test webpage_fetcher.py script availability in Python container
+      test_command = "python -c \"import sys; print('Python available')\""
+      python_result = `docker exec monadic-chat-python-container #{test_command} 2>&1`
+      expect(python_result).to include("Python available")
+      
+      # Test that webpage_fetcher.py exists and can show help
+      help_command = "webpage_fetcher.py --help"
+      help_result = `docker exec monadic-chat-python-container #{help_command} 2>&1`
+      expect(help_result).to include("usage:")
+      
+      # This verifies the Selenium infrastructure is available
+      # Full functional testing would require more complex setup
     end
   end
 
   describe "Bash Command Execution" do
     let(:app_class) do
       Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         include BashCommandHelper if defined?(BashCommandHelper)
         
         def initialize
@@ -270,8 +317,6 @@ RSpec.describe "App Docker Integration", type: :integration do
     let(:app) { app_class.new }
 
     it "executes bash commands in containers" do
-      skip "Bash command integration requires BashCommandHelper" unless defined?(BashCommandHelper)
-      
       # Test basic command execution
       result = app.run_bash_command(command: "echo 'Hello from container'")
       expect(result).to include("Hello from container")
@@ -282,8 +327,6 @@ RSpec.describe "App Docker Integration", type: :integration do
     end
 
     it "handles command failures appropriately" do
-      skip "Bash command integration requires BashCommandHelper" unless defined?(BashCommandHelper)
-      
       # The 'false' command returns exit code 1 but no output
       result = app.run_bash_command(command: "false || echo 'Command failed'")
       expect(result).to include("Command failed") # Should handle non-zero exit codes
@@ -293,7 +336,7 @@ RSpec.describe "App Docker Integration", type: :integration do
   describe "Multi-Container Workflow" do
     it "completes a data processing workflow across containers" do
       app_class = Class.new do
-        include MonadicApp
+        include TestMonadicAppBehavior
         def initialize
           @settings = {}
         end

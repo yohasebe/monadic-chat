@@ -923,7 +923,7 @@ task :spec_docker do
   Dir.chdir("docker/services/ruby") do
     puts "Running Docker integration tests..."
     puts "Note: These tests require Docker containers to be running"
-    sh "bundle exec rspec spec/integration/*docker*.rb spec/integration/*container*.rb spec/integration/*pgvector*.rb --format documentation --no-fail-fast"
+    sh "bundle exec rspec spec/integration/*docker*.rb spec/integration/*container*.rb spec/integration/*pgvector*.rb spec/integration/*selenium*.rb --format documentation --no-fail-fast"
   end
 end
 
@@ -1041,6 +1041,27 @@ namespace :spec_e2e do
   task :research_assistant do
     Dir.chdir("docker/services/ruby") do
       sh "./spec/e2e/run_e2e_tests.sh research_assistant"
+    end
+  end
+  
+  desc "Run E2E tests for Visual Web Explorer"
+  task :visual_web_explorer do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh visual_web_explorer"
+    end
+  end
+  
+  desc "Run E2E tests for Mermaid Grapher"
+  task :mermaid_grapher do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh mermaid_grapher"
+    end
+  end
+  
+  desc "Run E2E tests for Voice Chat"
+  task :voice_chat do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh voice_chat"
     end
   end
 end

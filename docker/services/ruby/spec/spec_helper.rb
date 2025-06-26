@@ -8,6 +8,15 @@ require 'json'
 # Load the application
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
+# Load configuration for integration tests
+require 'dotenv'
+CONFIG = {}
+config_path = File.expand_path("~/monadic/config/env")
+if File.exist?(config_path)
+  Dotenv.load(config_path)
+  ENV.each { |k, v| CONFIG[k] = v }
+end
+
 # Load custom retry mechanism
 require_relative 'support/custom_retry'
 
@@ -17,9 +26,8 @@ RSpec.configure do |config|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end
 
-  config.mock_with :rspec do |mocks|
-    mocks.verify_partial_doubles = true
-  end
+  # Mock framework is not used - all tests use real implementations
+  # See CLAUDE.md for testing philosophy and mock replacement strategies
 
   config.shared_context_metadata_behavior = :apply_to_host_groups
   config.filter_run_when_matching :focus

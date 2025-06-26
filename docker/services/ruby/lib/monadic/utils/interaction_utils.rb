@@ -76,9 +76,12 @@ module InteractionUtils
   private
 
   def extract_error_message(error_data)
+    # Handle string input
+    return error_data if error_data.is_a?(String)
+    
     # Try various common error message paths
     return error_data["message"] if error_data["message"]
-    return error_data["error"]["message"] if error_data.dig("error", "message")
+    return error_data.dig("error", "message") if error_data.is_a?(Hash) && error_data["error"].is_a?(Hash)
     return error_data["detail"] if error_data["detail"]
     return error_data["error"] if error_data["error"].is_a?(String)
     
@@ -93,10 +96,13 @@ module InteractionUtils
   end
 
   def extract_error_context(error_data)
+    # Handle string input
+    return "" if error_data.is_a?(String)
+    
     context_parts = []
 
     # Handle quota errors specifically
-    if error_data.dig("error", "code") == 429 || error_data["code"] == 429
+    if (error_data.is_a?(Hash) && error_data["error"].is_a?(Hash) && error_data.dig("error", "code") == 429) || error_data["code"] == 429
       context_parts << "Rate limit exceeded"
       
       # Extract quota information
@@ -112,7 +118,11 @@ module InteractionUtils
     end
 
     # Handle other specific error codes
-    case error_data.dig("error", "code") || error_data["code"]
+    error_code = if error_data.is_a?(Hash)
+      (error_data["error"].is_a?(Hash) ? error_data.dig("error", "code") : nil) || error_data["code"]
+    end
+    
+    case error_code
     when 401
       context_parts << "Authentication failed"
     when 403
@@ -124,7 +134,7 @@ module InteractionUtils
     end
 
     # Extract status information
-    if error_data.dig("error", "status") && error_data["error"]["status"] != "RESOURCE_EXHAUSTED"
+    if error_data.is_a?(Hash) && error_data["error"].is_a?(Hash) && error_data.dig("error", "status") && error_data["error"]["status"] != "RESOURCE_EXHAUSTED"
       context_parts << "Status: #{error_data["error"]["status"]}"
     end
 

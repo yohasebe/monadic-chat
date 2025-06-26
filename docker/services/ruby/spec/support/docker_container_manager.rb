@@ -54,6 +54,11 @@ class DockerContainerManager
     def container_running?(service)
       container_name = "monadic-chat-#{service}-container"
       output, status = Open3.capture2("docker ps --format '{{.Names}}'")
+      if ENV['DEBUG_CONTAINERS']
+        puts "[DEBUG] Looking for container: #{container_name}"
+        puts "[DEBUG] Docker ps output: #{output.inspect}"
+        puts "[DEBUG] Found: #{output.include?(container_name)}"
+      end
       return false unless status.success?
       output.include?(container_name)
     end

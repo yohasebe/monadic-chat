@@ -42,8 +42,8 @@ def get_base64(image_path, max_dimension = 512)
   base64_data = ""
   if width > new_width || height > new_height
     tempfile_path = File.join(File.dirname(image_path), "#{SecureRandom.uuid}#{File.extname(image_path)}")
-    # Use `convert` to resize the image with ImageMagick
-    command = "convert '#{image_path}' -resize #{new_width}x#{new_height} '#{tempfile_path}'"
+    # Use `magick` to resize the image with ImageMagick
+    command = "magick '#{image_path}' -resize #{new_width}x#{new_height} '#{tempfile_path}'"
 
     system(command)
     base64_data = Base64.strict_encode64(File.open(tempfile_path, "rb").read)

@@ -657,7 +657,7 @@ module InteractionUtils
         block&.call finish
         return nil
       else
-        { "type" => "audio", "content" => Base64.strict_encode64(res) }
+        { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
       end
     end
   end

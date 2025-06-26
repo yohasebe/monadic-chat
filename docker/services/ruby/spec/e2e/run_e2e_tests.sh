@@ -215,6 +215,18 @@ case "$TEST_TARGET" in
     echo "Running Research Assistant tests only..."
     bundle exec rspec spec/e2e/research_assistant_workflow_spec.rb --format documentation --no-fail-fast
     ;;
+  "visual_web_explorer")
+    echo "Running Visual Web Explorer tests only..."
+    bundle exec rspec spec/e2e/visual_web_explorer_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "mermaid_grapher")
+    echo "Running Mermaid Grapher tests only..."
+    bundle exec rspec spec/e2e/mermaid_grapher_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "voice_chat")
+    echo "Running Voice Chat tests only..."
+    bundle exec rspec spec/e2e/voice_chat_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
   *)
     echo "Running all E2E tests..."
     bundle exec rspec spec/e2e --format documentation --no-fail-fast

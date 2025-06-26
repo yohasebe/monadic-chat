@@ -1,45 +1,46 @@
 # frozen_string_literal: true
 
 require_relative '../spec_helper'
-require_relative '../../lib/monadic/app'
 require_relative '../../lib/monadic/adapters/file_analysis_helper'
+require 'fileutils'
 
-RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
-  # Create a test app that includes the necessary modules
-  let(:test_app) do
-    Class.new(MonadicApp) do
-      include MonadicHelper
-      
-      def initialize
-        super(
-          app_name: "TestFileAnalysis",
-          icon: "test",
-          description: "Test app for file analysis",
-          initial_prompt: "Test prompt"
-        )
-        @settings = {
-          "model" => "gpt-4.1",
-          :model => "gpt-4.1"
-        }
+# Test implementation that mimics MonadicApp behavior
+class TestFileAnalysisApp
+  include MonadicHelper
+  attr_reader :settings
+  
+  def initialize
+    @settings = {
+      "model" => "gpt-4.1",
+      :model => "gpt-4.1"
+    }
+  end
+  
+  # Mock check_vision_capability method
+  def check_vision_capability(model)
+    # Return model as-is for testing
+    model
+  end
+  
+  def send_command(command:, container:, **kwargs)
+    container_name = "monadic-chat-#{container}-container"
+    container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
+    
+    if container_running
+      # Use Docker container
+      `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+    else
+      # Use local execution
+      data_dir = File.join(Dir.home, "monadic", "data")
+      Dir.chdir(data_dir) do
+        `#{command} 2>&1`
       end
     end
   end
-  
-  let(:app_instance) { test_app.new }
-  
-  # Skip tests if required scripts are not available
-  before(:all) do
-    # Check if image_query.rb exists
-    image_query_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                         "/monadic/scripts/cli_tools/image_query.rb"
-                       else
-                         File.join(Dir.home, "monadic/scripts/cli_tools/image_query.rb")
-                       end
-    
-    unless File.exist?(image_query_path)
-      skip "This test requires image_query.rb script to be available"
-    end
-  end
+end
+
+RSpec.describe "FileAnalysisHelper Integration", type: :integration do
+  let(:app_instance) { TestFileAnalysisApp.new }
   
   describe "#analyze_image" do
     context "with a real test image" do
@@ -52,11 +53,13 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
                            end
         
         # Create a simple PNG image using ImageMagick if available
-        if system("which convert > /dev/null 2>&1")
-          system("convert -size 100x100 xc:white -pointsize 20 -draw 'text 10,50 \"TEST\"' #{@test_image_path}")
+        if system("which magick > /dev/null 2>&1")
+          system("magick -size 100x100 xc:white -pointsize 20 -draw 'text 10,50 \"TEST\"' #{@test_image_path}")
         else
-          # If ImageMagick is not available, skip the test
-          skip "ImageMagick is required for this test"
+          # If ImageMagick is not available, create a minimal PNG file
+          # PNG header and minimal data
+          png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].pack("C*")
+          File.binwrite(@test_image_path, png_data)
         end
       end
       
@@ -64,7 +67,7 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
         File.delete(@test_image_path) if File.exist?(@test_image_path)
       end
       
-      it "analyzes an image and returns a result" do
+      it "analyzes an image with a custom message" do
         result = app_instance.analyze_image(
           message: "What is in this image?",
           image_path: @test_image_path,
@@ -76,6 +79,16 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
         # The actual result will depend on the model's response
       end
       
+      it "uses the model from settings if not provided" do
+        result = app_instance.analyze_image(
+          message: "Describe this image",
+          image_path: @test_image_path
+        )
+        
+        expect(result).to be_a(String)
+        expect(result).not_to be_empty
+      end
+      
       it "handles quotes in the message" do
         result = app_instance.analyze_image(
           message: 'Describe this image with "quotes" in the prompt',
@@ -84,6 +97,28 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
         
         expect(result).to be_a(String)
         expect(result).not_to be_empty
+      end
+      
+      it "handles special characters in image paths" do
+        # Create test image with special characters
+        special_path = if defined?(IN_CONTAINER) && IN_CONTAINER
+                         "/monadic/data/test image (special).png"
+                       else
+                         File.join(Dir.home, "monadic/data/test image (special).png")
+                       end
+        
+        # Copy test image to special path
+        FileUtils.cp(@test_image_path, special_path)
+        
+        result = app_instance.analyze_image(
+          message: "Test special path",
+          image_path: special_path
+        )
+        
+        expect(result).to be_a(String)
+        
+        # Cleanup
+        File.delete(special_path) if File.exist?(special_path)
       end
     end
     
@@ -115,8 +150,10 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
           # Generate a 1-second sine wave
           system("sox -n #{@test_audio_path} synth 1 sine 440")
         else
-          # If sox is not available, skip the test
-          skip "Sox is required for this test"
+          # Create a minimal WAV file header
+          # WAV file with minimal header (44 bytes)
+          wav_header = "RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x44\xAC\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+          File.binwrite(@test_audio_path, wav_header)
         end
       end
       
@@ -124,7 +161,7 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
         File.delete(@test_audio_path) if File.exist?(@test_audio_path)
       end
       
-      it "analyzes audio and returns a result" do
+      it "analyzes audio files" do
         result = app_instance.analyze_audio(
           audio: @test_audio_path,
           model: "whisper-1"
@@ -134,12 +171,33 @@ RSpec.describe "FileAnalysisHelper Docker Integration", type: :integration do
         # The result should be a JSON string or transcription
       end
       
-      it "uses default model when not specified" do
+      it "uses default audio model when not specified" do
         result = app_instance.analyze_audio(
           audio: @test_audio_path
         )
         
         expect(result).to be_a(String)
+      end
+      
+      it "handles special characters in audio paths" do
+        # Create audio file with special characters
+        special_audio_path = if defined?(IN_CONTAINER) && IN_CONTAINER
+                               "/monadic/data/test audio (special).wav"
+                             else
+                               File.join(Dir.home, "monadic/data/test audio (special).wav")
+                             end
+        
+        # Copy test audio to special path
+        FileUtils.cp(@test_audio_path, special_audio_path)
+        
+        result = app_instance.analyze_audio(
+          audio: special_audio_path
+        )
+        
+        expect(result).to be_a(String)
+        
+        # Cleanup
+        File.delete(special_audio_path) if File.exist?(special_audio_path)
       end
     end
     

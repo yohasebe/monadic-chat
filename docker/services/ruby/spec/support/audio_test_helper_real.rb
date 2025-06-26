@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module AudioTestHelper
+module AudioTestHelperReal
   # Generate a simple test audio file using TTS
   def generate_test_audio(text, output_file)
     # Use the existing TTS functionality to create test audio
@@ -49,24 +49,49 @@ module AudioTestHelper
     send_websocket_message(app_name, message)
   end
   
-  # Mock STT response for testing
-  def mock_stt_response(transcription, confidence = 0.95)
-    allow_any_instance_of(InteractionUtils).to receive(:stt_api_request).and_return({
-      success: true,
-      text: transcription,
-      confidence: confidence,
-      logprobs: [-0.05] * transcription.split.length
-    })
+  # Real STT processing (no mocks)
+  def process_audio_with_stt(audio_file, lang = "en")
+    # Use the real STT CLI tool
+    stt_command = <<~BASH
+      docker exec monadic-chat-ruby-container ruby /monadic/scripts/cli_tools/stt_query.rb \
+        /monadic/data/#{File.basename(audio_file)} \
+        /tmp \
+        json \
+        #{lang} \
+        whisper-1
+    BASH
+    
+    output = `#{stt_command}`
+    
+    # Parse the response
+    begin
+      JSON.parse(output.lines.last)
+    rescue
+      { "text" => output.strip }
+    end
   end
   
-  # Mock TTS response for testing
-  def mock_tts_response(audio_data = nil)
-    audio_data ||= File.read("spec/fixtures/audio/sample_response.mp3", mode: "rb")
+  # Real TTS processing (no mocks)
+  def generate_audio_with_tts(text, voice = "alloy", format = "mp3")
+    # Create temporary text file
+    text_file = "/tmp/tts_input_#{Time.now.to_i}.txt"
+    File.write(text_file, text)
     
-    allow_any_instance_of(InteractionUtils).to receive(:tts_api_request).and_return({
-      success: true,
-      audio: Base64.strict_encode64(audio_data),
-      format: "mp3"
-    })
+    # Use the real TTS CLI tool
+    tts_command = <<~BASH
+      docker exec monadic-chat-ruby-container ruby /monadic/scripts/cli_tools/tts_query.rb \
+        /tmp/#{File.basename(text_file)} \
+        --provider openai \
+        --model tts-1 \
+        --voice #{voice} \
+        --format #{format}
+    BASH
+    
+    audio_data = `#{tts_command}`
+    
+    # Clean up
+    File.delete(text_file) if File.exist?(text_file)
+    
+    audio_data
   end
 end

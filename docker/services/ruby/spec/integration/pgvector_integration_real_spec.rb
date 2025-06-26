@@ -3,11 +3,13 @@
 require_relative '../spec_helper'
 require 'pg'
 
-RSpec.describe "pgvector Integration (Real Implementation)", type: :integration do
+RSpec.describe "pgvector Integration (Real Implementation)", :integration do
   before(:all) do
     skip "Docker tests require Docker environment" unless docker_available?
     skip "PostgreSQL tests require pg gem" unless defined?(PG)
-    
+  end
+  
+  before(:context) do
     # Set up connection parameters
     @db_config = {
       host: ENV['POSTGRES_HOST'] || 'localhost',
@@ -16,14 +18,24 @@ RSpec.describe "pgvector Integration (Real Implementation)", type: :integration 
       password: ENV['POSTGRES_PASSWORD'] || 'postgres'
     }
     
-    # Create test database
+    # Wait a moment for containers to be ready
+    sleep 1 if ENV['CI']
+    
+    # Create test database with retry logic
+    retries = 0
     begin
       conn = PG.connect(@db_config.merge(dbname: 'postgres'))
       @test_database = "test_pgvector_#{Time.now.to_i}"
       conn.exec("CREATE DATABASE #{@test_database}")
       conn.close
     rescue PG::Error => e
-      skip "Cannot create test database: #{e.message}"
+      retries += 1
+      if retries < 3
+        sleep 2
+        retry
+      else
+        skip "Cannot create test database after #{retries} attempts: #{e.message}"
+      end
     end
   end
 

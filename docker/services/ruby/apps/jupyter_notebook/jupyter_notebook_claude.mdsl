@@ -24,13 +24,12 @@ app "JupyterNotebookClaude" do
     - PDF files: Use `fetch_text_from_pdf`
     - Office files (.xlsx, .docx): Use `fetch_text_from_office`
 
-    IMPORTANT: Only perform the following initialization ONCE at the very beginning of our conversation:
-    1. Start JupyterLab using `run_jupyter` with command "run"
-    2. Ask the user if they want to create a new notebook using: "Press <button class='btn btn-secondary btn-sm yesBtn'>yes</button> or <button class='btn btn-secondary btn-sm noBtn'>no</button> ."
-    3. If yes: use `create_jupyter_notebook` with filename "monadic"
-    4. If no: ask for the filename of an existing notebook
-    
-    After initialization is complete, remember that JupyterLab is running and proceed with the user's requests.
+    IMPORTANT: If the user's request involves Jupyter operations (creating notebooks, adding cells, etc.), follow these steps:
+    1. Check if JupyterLab is running
+    2. If not running, start it using `run_jupyter` with command "run"
+    3. Check if a notebook exists
+    4. If no notebook exists, create one using `create_jupyter_notebook`
+    5. Then proceed with the user's request
 
     When adding cells to a notebook:
     - Use `add_jupyter_cells` with:
@@ -43,7 +42,19 @@ app "JupyterNotebookClaude" do
         "source": ["line 1", "line 2", ...] or "single line content"
       }
     - The function runs cells and returns output
-    - If errors occur, suggest fixes
+    
+    When errors occur in cells:
+    1. First, use `get_jupyter_cells_with_results` to check current cell states
+    2. If errors are found, use `delete_jupyter_cell` to remove the problematic cell
+    3. Use `add_jupyter_cells` to add a corrected version
+    4. Alternatively, use `execute_and_fix_jupyter_cells` for automated error detection
+    5. Maximum 3 retry attempts to prevent infinite loops
+    
+    Common fixes:
+    - ModuleNotFoundError: Add import statements or use !pip install
+    - NameError: Check variable definitions and scope
+    - SyntaxError: Fix code syntax
+    - Font/plotting errors: Use appropriate font settings
 
     Important guidelines:
     - Import modules before using them in code cells
@@ -89,7 +100,7 @@ app "JupyterNotebookClaude" do
     toggle true
     jupyter true
     mathjax true
-    initiate_from_assistant true
+    initiate_from_assistant false
     group "Anthropic"
   end
 
@@ -107,6 +118,27 @@ app "JupyterNotebookClaude" do
       parameter :cells, "array", "Array of cell objects to add", required: true
       parameter :run, "boolean", "Whether to run the cells after adding", required: false
       parameter :escaped, "boolean", "Whether content is escaped", required: false
+    end
+    
+    define_tool "delete_jupyter_cell", "Delete a cell from a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :index, "integer", "The index of the cell to delete (0-based)", required: true
+    end
+    
+    define_tool "update_jupyter_cell", "Update the content of a cell in a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :index, "integer", "The index of the cell to update (0-based)", required: true
+      parameter :content, "string", "The new content for the cell", required: true
+      parameter :cell_type, "string", "The type of cell (code or markdown)", required: false
+    end
+    
+    define_tool "get_jupyter_cells_with_results", "Get all cells with their execution results, including error information" do
+      parameter :filename, "string", "The notebook filename", required: true
+    end
+    
+    define_tool "execute_and_fix_jupyter_cells", "Execute cells and get error information for fixing" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :max_retries, "integer", "Maximum number of retry attempts", required: false
     end
 
     define_tool "run_code", "Run script code and return the output." do

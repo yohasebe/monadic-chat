@@ -227,6 +227,22 @@ case "$TEST_TARGET" in
     echo "Running Voice Chat tests only..."
     bundle exec rspec spec/e2e/voice_chat_workflow_spec.rb --format documentation --no-fail-fast
     ;;
+  "content_reader")
+    echo "Running Content Reader tests only..."
+    bundle exec rspec spec/e2e/content_reader_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "coding_assistant")
+    echo "Running Coding Assistant tests only..."
+    bundle exec rspec spec/e2e/coding_assistant_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "second_opinion")
+    echo "Running Second Opinion tests only..."
+    bundle exec rspec spec/e2e/second_opinion_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
+  "jupyter_notebook")
+    echo "Running Jupyter Notebook tests only..."
+    bundle exec rspec spec/e2e/jupyter_notebook_workflow_spec.rb --format documentation --no-fail-fast
+    ;;
   *)
     echo "Running all E2E tests..."
     bundle exec rspec spec/e2e --format documentation --no-fail-fast

@@ -745,8 +745,16 @@ module InteractionUtils
       # Audio file uploaded successfully
       JSON.parse(response.body)
     else
-      # Debug output removed
-      { "type" => "error", "content" => "Speech-to-Text API Error" }
+      # Parse error details from response body
+      error_message = begin
+        error_data = JSON.parse(response.body)
+        formatted_error = format_api_error(error_data, "openai")
+        "Speech-to-Text API Error: #{formatted_error}"
+      rescue JSON::ParserError
+        "Speech-to-Text API Error: #{response.status} - #{response.body}"
+      end
+      
+      { "type" => "error", "content" => error_message }
     end
   end
 

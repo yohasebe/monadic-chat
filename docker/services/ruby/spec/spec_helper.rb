@@ -20,6 +20,9 @@ end
 # Load custom retry mechanism
 require_relative 'support/custom_retry'
 
+# Load Docker container manager for automatic container startup
+require_relative 'support/docker_container_manager'
+
 # Basic RSpec configuration without mocks
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
@@ -45,6 +48,21 @@ RSpec.configure do |config|
 
   # Include custom retry helper for E2E tests
   config.include E2ERetryHelper, type: :e2e
+  
+  # Automatically start containers for integration and E2E tests
+  config.before(:suite) do
+    # Only start containers if running integration or E2E tests
+    if RSpec.world.filtered_examples.values.flatten.any? { |ex| 
+         ex.metadata[:integration] || ex.metadata[:e2e] 
+       }
+      DockerContainerManager.ensure_containers_running
+    end
+  end
+  
+  # Optional: Stop containers after tests (commented out by default)
+  # config.after(:suite) do
+  #   DockerContainerManager.stop_containers
+  # end
 end
 
 # Minimal constants needed for tests

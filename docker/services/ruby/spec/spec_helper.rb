@@ -74,9 +74,4 @@ unless defined?(IN_CONTAINER)
   IN_CONTAINER = false
 end
 
-# Early container startup for integration tests
-# This runs before any specs are loaded
-if ARGV.any? { |arg| arg.include?('integration') || arg.include?('e2e') }
-  require_relative 'support/docker_container_manager'
-  DockerContainerManager.ensure_containers_running
-end
+# Removed early container startup - handled by before(:suite) hook instead

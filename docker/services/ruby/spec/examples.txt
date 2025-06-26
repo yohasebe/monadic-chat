@@ -205,7 +205,7 @@ example_id                                                           | status  |
 ./spec/integration/read_write_helper_real_spec.rb[1:4:1:4]           | passed  | 0.00123 seconds        |
 ./spec/integration/read_write_helper_real_spec.rb[1:4:2:1]           | pending | 0.00085 seconds        |
 ./spec/integration/read_write_helper_real_spec.rb[1:5:1]             | passed  | 0.00053 seconds        |
-./spec/integration/selenium_integration_spec.rb[1:1:1]               | passed  | 0.03901 seconds        |
+./spec/integration/selenium_integration_spec.rb[1:1:1]               | passed  | 0.04068 seconds        |
 ./spec/integration/selenium_integration_spec.rb[1:1:2]               | passed  | 0.00637 seconds        |
 ./spec/integration/selenium_integration_spec.rb[1:2:1]               | passed  | 1.08 seconds           |
 ./spec/integration/selenium_integration_spec.rb[1:2:2]               | passed  | 2.41 seconds           |

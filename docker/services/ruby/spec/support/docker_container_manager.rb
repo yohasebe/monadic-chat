@@ -85,18 +85,31 @@ class DockerContainerManager
     
     def postgres_healthy?
       require "pg"
+      
+      # Quick check if container is in healthy state
+      container_name = "monadic-chat-pgvector-container"
+      output, = Open3.capture2("docker inspect --format='{{.State.Health.Status}}' #{container_name} 2>/dev/null")
+      
+      # If Docker reports healthy, trust it
+      return true if output.strip == "healthy"
+      
+      # Otherwise try to connect
       conn = PG.connect(
         host: ENV["IN_CONTAINER"] ? "monadic-chat-pgvector-container" : "localhost",
         port: 5433,
         user: "postgres",
         password: "postgres",
-        dbname: "postgres"
+        dbname: "postgres",
+        connect_timeout: 5
       )
       conn.exec("SELECT 1")
       conn.close
       true
     rescue PG::Error => e
-      puts "[DEBUG] PostgreSQL health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
+      # Only print detailed errors in debug mode
+      if ENV['DEBUG_CONTAINERS'] && !e.message.include?("starting up")
+        puts "[DEBUG] PostgreSQL health check failed: #{e.message}"
+      end
       false
     end
     
@@ -164,37 +177,58 @@ class DockerContainerManager
     end
     
     def wait_for_containers_ready
-      Timeout.timeout(HEALTH_CHECK_TIMEOUT) do
-        loop do
-          print "⏳ Waiting for containers: "
+      interrupted = false
+      trap("INT") { interrupted = true }
+      
+      start_time = Time.now
+      unhealthy_count = 0
+      
+      loop do
+        if interrupted
+          puts "\n\n❌ Container startup interrupted by user"
+          exit 1
+        end
+        
+        if Time.now - start_time > HEALTH_CHECK_TIMEOUT
+          puts "\n❌ Timeout: Containers failed to become healthy within #{HEALTH_CHECK_TIMEOUT} seconds"
+          raise "Container startup timeout"
+        end
+        
+        print "\r⏳ Waiting for containers: "
+        
+        statuses = REQUIRED_SERVICES.keys.map do |service|
+          running = container_running?(service)
+          healthy = service_healthy?(service)
           
-          statuses = REQUIRED_SERVICES.keys.map do |service|
-            running = container_running?(service)
-            healthy = service_healthy?(service)
-            
-            if running && healthy
-              print "✅ #{service} "
-              true
-            elsif running
-              print "🟡 #{service} (unhealthy) "
-              false
-            else
-              print "⏸️  #{service} "
-              false
-            end
-          end
-          
-          puts
-          
-          if statuses.all?
-            break
+          if running && healthy
+            print "✅ #{service} "
+            true
+          elsif running
+            print "🟡 #{service} "
+            false
           else
-            sleep 2
+            print "⏸️  #{service} "
+            false
           end
         end
+        
+        puts
+        
+        if statuses.all?
+          break
+        else
+          unhealthy_count += 1
+          # If pgvector stays unhealthy for too long, try restarting it
+          if unhealthy_count > 15 && !statuses[0]  # pgvector is first
+            puts "\n⚠️  pgvector is taking too long, attempting restart..."
+            system("docker restart monadic-chat-pgvector-container")
+            unhealthy_count = 0
+          end
+          sleep 2
+        end
       end
-    rescue Timeout::Error
-      raise "Containers failed to become healthy within #{HEALTH_CHECK_TIMEOUT} seconds"
+    ensure
+      trap("INT", "DEFAULT")
     end
   end
 end

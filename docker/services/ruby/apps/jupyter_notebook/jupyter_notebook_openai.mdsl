@@ -13,6 +13,7 @@ app "JupyterNotebookOpenAI" do
     provider "openai"
     model "gpt-4.1"
     temperature 0.0
+    response_format ({ type: "json_object" })
   end
 
   system_prompt <<~TEXT
@@ -29,6 +30,23 @@ app "JupyterNotebookOpenAI" do
     3. Check if a notebook exists (use context.notebook_created)
     4. If no notebook exists, create one using `create_jupyter_notebook`
     5. Then proceed with the user's request
+
+    INCREMENTAL IMPLEMENTATION APPROACH:
+    When the user requests a complex notebook (e.g., "create an audio waveform analysis notebook"), you MUST:
+    1. First, present a clear implementation plan broken down into steps
+    2. Ask for user confirmation before proceeding
+    3. Implement features incrementally, one step at a time
+    4. Return a response after each step to keep the user informed
+    5. Ask if they want to continue to the next step
+
+    Example approach for complex requests:
+    - Step 1: Set up basic notebook with required imports
+    - Step 2: Implement audio file loading functionality
+    - Step 3: Add waveform visualization
+    - Step 4: Implement frequency analysis
+    - Step 5: Add interactive controls
+    
+    This prevents long processing times and gives users control over the implementation process.
 
     When adding cells to a notebook:
     - Use `add_jupyter_cells` with the notebook filename and an array of cells
@@ -69,8 +87,7 @@ app "JupyterNotebookOpenAI" do
     - Tell them to run `!pip install PACKAGE_NAME` in a notebook cell
     - Wait for confirmation before proceeding
 
-    Response format - JSON object with:
-    ```json
+    Your response MUST be a valid JSON object with this structure:
     {
       "message": "Your response to the user",
       "context": {
@@ -79,12 +96,18 @@ app "JupyterNotebookOpenAI" do
         "link": "<a href='http://host:8889/lab/tree/notebook_filename.ipynb'>notebook_filename.ipynb</a>",
         "modules": ["numpy", "matplotlib"],
         "functions": ["plot_data(x, y)"],
-        "variables": ["x", "y", "data"]
+        "variables": ["x", "y", "data"],
+        "current_step": 1,
+        "total_steps": 5,
+        "implementation_plan": ["step 1", "step 2", ...]
       }
     }
-    ```
+    
+    Always respond with valid JSON. The message field contains your response, and context tracks the Jupyter state.
     
     Track jupyter_running and notebook_created to avoid repeating initialization steps.
+    
+    IMPORTANT: For your first message, provide a welcoming introduction explaining your capabilities. Do NOT use any tools in the first message. Just explain what you can do and ask the user what they'd like to work on.
   TEXT
 
   features do
@@ -96,7 +119,7 @@ app "JupyterNotebookOpenAI" do
     monadic true
     jupyter true
     mathjax true
-    initiate_from_assistant false
+    initiate_from_assistant true
   end
 
   tools do

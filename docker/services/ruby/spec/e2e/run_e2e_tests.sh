@@ -225,7 +225,7 @@ case "$TEST_TARGET" in
     ;;
   "voice_chat")
     echo "Running Voice Chat tests only..."
-    bundle exec rspec spec/e2e/voice_chat_workflow_spec.rb --format documentation --no-fail-fast
+    bundle exec rspec spec/e2e/voice_chat_workflow_no_mock_spec.rb spec/e2e/voice_chat_real_audio_spec.rb --format documentation --no-fail-fast
     ;;
   "content_reader")
     echo "Running Content Reader tests only..."

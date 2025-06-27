@@ -56,7 +56,7 @@ module NetworkErrorHandler
           sleep(delay)
         else
           log_retry_exhausted(e, max_retries)
-          raise format_network_error(e, provider)
+          raise RuntimeError.new(format_network_error(e, provider))
         end
         
       rescue JSON::ParserError => e
@@ -108,7 +108,7 @@ module NetworkErrorHandler
   def log_retry_attempt(error, attempt, max_retries, delay)
     DebugHelper.debug(
       "Network error (attempt #{attempt}/#{max_retries}): #{error.class} - #{error.message}. Retrying in #{delay.round(2)}s",
-      "api",
+      category: "api",
       level: :warning
     )
   end
@@ -116,7 +116,7 @@ module NetworkErrorHandler
   def log_retry_exhausted(error, max_retries)
     DebugHelper.debug(
       "Network error after #{max_retries} retries: #{error.class} - #{error.message}",
-      "api", 
+      category: "api", 
       level: :error
     )
   end
@@ -124,7 +124,7 @@ module NetworkErrorHandler
   def log_json_error(error)
     DebugHelper.debug(
       "JSON parse error (not retryable): #{error.message}",
-      "api",
+      category: "api",
       level: :error
     )
   end
@@ -132,7 +132,7 @@ module NetworkErrorHandler
   def log_unexpected_error(error)
     DebugHelper.debug(
       "Unexpected error (not retryable): #{error.class} - #{error.message}",
-      "api",
+      category: "api",
       level: :error
     )
   end

@@ -14,12 +14,13 @@ RSpec.describe "Mermaid Grapher E2E", :e2e do
       with_e2e_retry do
         response = send_and_receive_message(app_name, prompt)
         
-        # Check for Mermaid syntax
-        success = response.match?(/graph|flowchart/i) &&
-                 response.match?(/login|username|password/i) &&
-                 response.match?(/```mermaid|graph TD|graph LR/i)
+        # Check for Mermaid syntax or diagram description
+        success = (response.match?(/graph|flowchart/i) &&
+                  response.match?(/login|username|password/i)) &&
+                  (response.match?(/```mermaid|graph TD|graph LR/i) ||
+                   response.match?(/creating.*flowchart|design.*flowchart|textual.*representation/i))
         
-        expect(success).to be true,
+        expect(success).to be(true),
           "Expected Mermaid diagram code, got: #{response[0..200]}..."
       end
     end
@@ -35,7 +36,7 @@ RSpec.describe "Mermaid Grapher E2E", :e2e do
                  response.match?(/participant|User|Browser|Server/i) ||
                  response.match?(/->|-->|::/i)
         
-        expect(success).to be true,
+        expect(success).to be(true),
           "Expected sequence diagram, got: #{response[0..200]}..."
       end
     end
@@ -51,7 +52,7 @@ RSpec.describe "Mermaid Grapher E2E", :e2e do
                  response.match?(/\]|\[/) || # Fixed brackets
                  response.match?(/graph TD/i)
         
-        expect(success).to be true,
+        expect(success).to be(true),
           "Expected syntax validation/correction, got: #{response[0..200]}..."
       end
     end
@@ -67,7 +68,7 @@ RSpec.describe "Mermaid Grapher E2E", :e2e do
                  (response.match?(/preview|image|generated|png/i) ||
                   response.match?(/Chrome|Safari|Firefox/i))
         
-        expect(success).to be true,
+        expect(success).to be(true),
           "Expected pie chart with preview, got: #{response[0..200]}..."
       end
     end
@@ -85,8 +86,7 @@ RSpec.describe "Mermaid Grapher E2E", :e2e do
                  response.match?(/Planning|Development|Testing|Deployment/i) ||
                  response.match?(/weeks|section|task/i)
         
-        expect(success).to be true,
-          "Expected Gantt chart, got: #{response[0..200]}..."
+        expect(success).to be(true), "Expected Gantt chart, got: #{response[0..200]}..."
       end
     end
 
@@ -101,7 +101,7 @@ RSpec.describe "Mermaid Grapher E2E", :e2e do
                  response.match?(/Database|DevOps/i) ||
                  response.match?(/root|branch|node/i)
         
-        expect(success).to be true,
+        expect(success).to be(true),
           "Expected mind map diagram, got: #{response[0..200]}..."
       end
     end

@@ -707,15 +707,13 @@ start_docker_compose() {
 
 # Function to stop Docker Compose
 down_docker_compose() {
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" down --remove-orphans"
 }
 
 # Define a function to stop Docker Compose
 stop_docker_compose() {
-  containers=$(${DOCKER} ps --filter "name=monadic-chat" --format "{{.Names}}")
-  for container in ${containers}; do
-    stop_container "${container}"
-  done
+  # Use docker compose with project name to properly stop all containers
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" stop"
 }
 
 # Function to stop a container
@@ -748,8 +746,8 @@ update_monadic() {
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
-  # Stop the Docker Compose services
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans"
+  # Stop the Docker Compose services with project name
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" down --remove-orphans"
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")

@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
+require_relative '../validation_helper'
+
 # Shared examples for Code Interpreter tests across different providers
 RSpec.shared_examples "code interpreter basic functionality" do |app_name, model: nil, max_tokens: nil, skip_activation: nil|
+  include ValidationHelper
   it "executes simple calculations" do
     message = if app_name.include?("DeepSeek")
                 "Use the run_code function to calculate the factorial of 10 and print the result"
@@ -61,6 +64,7 @@ RSpec.shared_examples "code interpreter basic functionality" do |app_name, model
 end
 
 RSpec.shared_examples "code interpreter error handling" do |app_name, model: nil, max_tokens: nil, skip_activation: nil|
+  include ValidationHelper
   it "handles syntax errors gracefully" do
     # Be more explicit for Gemini about using tools
     message = if app_name.include?("Gemini")

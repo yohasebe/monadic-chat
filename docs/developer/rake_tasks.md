@@ -148,41 +148,62 @@ The `update_version` task updates version numbers in:
 
 ## Testing and Code Quality
 
+For comprehensive testing documentation, see the [Testing Guide](testing_guide.md).
+
+### Quick Test Commands
+
 ```bash
+# Run all tests (Ruby + JavaScript) and code style checks
+rake
+
 # Run all Ruby tests (RSpec)
 rake spec
+rake test  # Alias
 
 # Run specific test categories
-rake spec_unit        # Unit tests only (fast)
-rake spec_integration # Integration tests
+rake spec_unit        # Unit tests only (fast, no dependencies)
+rake spec_integration # Integration tests (requires containers)
 rake spec_system      # System tests (MDSL validation)
-rake spec_e2e         # End-to-end tests (requires server running)
+rake spec_docker      # Docker infrastructure tests
+rake spec_e2e         # End-to-end tests (requires API keys)
 
-# Run Ruby code style checks
-rake rubocop
-
-# Run JavaScript linting
-rake eslint
-
-# Run JavaScript tests (Jest)
-rake jstest
-rake jstest_all  # Alias for backward compatibility
-
-# Run all tests (Ruby and JavaScript)
-rake test
+# Code quality checks
+rake rubocop          # Ruby code style
+rake eslint           # JavaScript linting
+rake jstest           # JavaScript tests (Jest)
 ```
+
+### Test Dependencies
+
+| Test Type | Required Dependencies |
+|-----------|----------------------|
+| `spec_unit` | Ruby only |
+| `spec_integration` | • PostgreSQL + pgvector (Docker, port 5433)<br>• Python container (Flask API, port 5070)<br>• Selenium container (port 4444)<br>• OpenAI API key (for embeddings) |
+| `spec_system` | Ruby only |
+| `spec_docker` | All Docker containers running |
+| `spec_e2e` | • All Docker containers<br>• AI provider API keys<br>• WebSocket server (auto-started) |
 
 ### E2E Testing
 
 The `rake spec_e2e` task provides comprehensive end-to-end testing:
-- Verifies Docker containers are running
-- Starts the server if not already running
-- Runs WebSocket-based tests for all configured providers
-- Shows provider coverage summary
-- Uses custom retry mechanism for cleaner output
 
-**Testing Philosophy**:
-- Focus on functionality, not exact output
-- Code Interpreter tests verify execution attempts, not specific numeric results
-- Flexible validation adapts to different provider response formats
-- Custom retry provides clear status updates during retries
+```bash
+# Test all providers
+rake spec_e2e
+
+# Test specific workflows
+rake spec_e2e:chat
+rake spec_e2e:code_interpreter
+rake spec_e2e:jupyter_notebook
+rake spec_e2e:voice_chat
+
+# Test specific provider
+rake spec_e2e:code_interpreter_provider[openai]
+rake spec_e2e:code_interpreter_provider[claude]
+```
+
+**Features**:
+- Automatic container startup and health checks
+- Provider coverage summary
+- Custom retry mechanism for reliability
+- Flexible validation for different AI response formats

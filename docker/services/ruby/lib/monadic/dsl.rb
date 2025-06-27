@@ -883,6 +883,13 @@ module MonadicDSL
       
       feature_name = FEATURE_MAP[method_name] || method_name
       @state.features[feature_name] = value
+      
+      # Validate monadic/toggle mutual exclusivity
+      if feature_name == :monadic && value && @state.features[:toggle]
+        raise ConfigurationError, "Cannot have both monadic and toggle enabled"
+      elsif feature_name == :toggle && value && @state.features[:monadic]
+        raise ConfigurationError, "Cannot have both monadic and toggle enabled"
+      end
     end
     
     def respond_to_missing?(method_name, include_private = false)

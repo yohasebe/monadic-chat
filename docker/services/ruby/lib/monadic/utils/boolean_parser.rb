@@ -63,19 +63,58 @@ module BooleanParser
     
     parsed = hash.dup
     
-    # If no specific fields provided, check common boolean field names
-    if fields.empty?
-      fields = hash.keys.select do |key|
-        key.to_s.match?(/^(is_|has_|enable_|disable_|use_|websearch|auto_|monadic|toggle|jupyter|image|pdf|easy_submit|initiate_from_assistant|stream|vision|reasoning|ai_user)/i)
+    # Load MDSL schema if available
+    begin
+      require_relative 'mdsl_schema'
+      use_schema = true
+    rescue LoadError
+      use_schema = false
+    end
+    
+    if use_schema
+      # First normalize the hash to convert aliases to canonical names
+      parsed = MDSLSchema.normalize_hash(parsed)
+      
+      # Use MDSL schema for type information
+      fields = parsed.keys.select { |key| MDSLSchema.boolean?(key) } if fields.empty?
+    else
+      # Fallback to pattern matching
+      # Fields that should never be converted to boolean
+      protected_fields = %w[images message text content html data files pdfs documents cells parameters settings config options]
+      
+      # If no specific fields provided, check common boolean field names
+      if fields.empty?
+        fields = hash.keys.select do |key|
+          key_str = key.to_s.downcase
+          # Skip protected fields
+          next if protected_fields.include?(key_str)
+          
+          # Match boolean-like field names (exact match for single words)
+          key_str.match?(/^(is_|has_|enable_|disable_|use_|websearch$|auto_|monadic$|toggle$|jupyter$|image$|pdf$|easy_submit$|initiate_from_assistant$|stream$|vision$|reasoning$|ai_user$)/i)
+        end
       end
     end
     
     fields.each do |field|
       field_str = field.to_s
       if parsed.key?(field_str)
-        parsed[field_str] = parse(parsed[field_str])
+        value = parsed[field_str]
+        # Skip if MDSL schema says this field should be protected
+        next if use_schema && MDSLSchema.protected?(field_str)
+        
+        # Only parse if it's a boolean-like value (not arrays, hashes, or complex objects)
+        if value.nil? || value.is_a?(String) || value.is_a?(Integer) || value.is_a?(Float) || value.is_a?(TrueClass) || value.is_a?(FalseClass)
+          parsed[field_str] = parse(value)
+        end
       elsif parsed.key?(field.to_sym)
-        parsed[field.to_sym] = parse(parsed[field.to_sym])
+        value = parsed[field.to_sym]
+        # Skip if MDSL schema says this field should be protected
+        next if use_schema && MDSLSchema.protected?(field.to_sym)
+        
+        # Only parse if it's a boolean-like value (not arrays, hashes, or complex objects)
+        if value.nil? || value.is_a?(String) || value.is_a?(Integer) || value.is_a?(Float) || value.is_a?(TrueClass) || value.is_a?(FalseClass)
+          parsed[field.to_sym] = parse(value)
+        end
       end
     end
     

@@ -31,6 +31,23 @@ app "JupyterNotebookClaude" do
     4. If no notebook exists, create one using `create_jupyter_notebook`
     5. Then proceed with the user's request
 
+    INCREMENTAL IMPLEMENTATION APPROACH:
+    When the user requests a complex notebook (e.g., "create an audio waveform analysis notebook"), you MUST:
+    1. First, present a clear implementation plan broken down into steps
+    2. Ask for user confirmation before proceeding
+    3. Implement features incrementally, one step at a time
+    4. Return a response after each step to keep the user informed
+    5. Ask if they want to continue to the next step
+
+    Example approach for complex requests:
+    - Step 1: Set up basic notebook with required imports
+    - Step 2: Implement audio file loading functionality
+    - Step 3: Add waveform visualization
+    - Step 4: Implement frequency analysis
+    - Step 5: Add interactive controls
+    
+    This prevents long processing times and gives users control over the implementation process.
+
     When adding cells to a notebook:
     - Use `add_jupyter_cells` with:
       - filename: the notebook filename
@@ -84,11 +101,16 @@ app "JupyterNotebookClaude" do
       Link: "<a href='http://host:8889/lab/tree/notebook.ipynb' target='_blank' rel='noopener noreferrer'>notebook.ipynb</a>",
       Modules: ["numpy", "matplotlib"],
       Functions: ["plot_data(x, y)"],
-      Variables: ["x", "y", "data"]
+      Variables: ["x", "y", "data"],
+      CurrentStep: 1,
+      TotalSteps: 5,
+      ImplementationPlan: ["step 1", "step 2", ...]
     </pre></div>
     ```
     
     Track JupyterRunning and NotebookCreated to avoid repeating initialization steps.
+    
+    IMPORTANT: For your first message, provide a welcoming introduction explaining your capabilities. Do NOT use any tools in the first message. Just explain what you can do and ask the user what they'd like to work on.
   TEXT
 
   features do
@@ -100,7 +122,7 @@ app "JupyterNotebookClaude" do
     toggle true
     jupyter true
     mathjax true
-    initiate_from_assistant false
+    initiate_from_assistant true
     group "Anthropic"
   end
 

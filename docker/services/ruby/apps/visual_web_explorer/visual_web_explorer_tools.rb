@@ -24,7 +24,7 @@ module VisualWebExplorerTools
     
     cmd_parts << "--overlap #{overlap}" if overlap
     
-    command = "python $(which " + cmd_parts[0] + ") " + cmd_parts[1..-1].join(" ")
+    command = cmd_parts.join(" ")
     
     # Execute capture
     output = send_command(command: command, container: "python")
@@ -265,7 +265,7 @@ module VisualWebExplorerTools
       end
     else
       # Use webpage_fetcher.py for direct text extraction
-      command = "python $(which webpage_fetcher.py) --url \"#{url}\" --mode md --output stdout"
+      command = "webpage_fetcher.py --url \"#{url}\" --mode md --output stdout"
       output = send_command(command: command, container: "python")
       
       # Check if successful

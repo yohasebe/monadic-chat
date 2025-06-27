@@ -30,24 +30,42 @@ module RealAudioTestHelper
     # Properly escape the text for shell
     escaped_text = text.gsub('"', '\\"').gsub("'", "\\'").gsub('$', '\\$').gsub('`', '\\`')
     
+    # Write text to a file in the shared volume
+    text_filename = "test_text_#{timestamp}.md"
+    text_path = File.join(Dir.home, "monadic", "data", text_filename)
+    File.write(text_path, text)
+    
+    # Run locally in development environment
+    # Run from the Ruby service directory for proper paths
+    script_path = 'scripts/cli_tools/tts_query.rb'
+    
     command = <<~BASH
-      docker exec monadic-chat-ruby-container bash -c "
-        echo '#{escaped_text}' > #{text_file} &&
-        ruby /monadic/scripts/cli_tools/tts_query.rb #{text_file} \
-          --provider=#{provider} \
-          --voice=#{voice} &&
-        rm -f #{text_file}
-      "
+      cd #{File.dirname(__FILE__)}/../.. && \
+      ruby -I lib #{script_path} #{text_path} \
+        --provider=#{provider} \
+        --voice=#{voice} \
+        --speed=#{speed} 2>&1
     BASH
     
-    result = `#{command} 2>&1`
+    result = `#{command}`
     
-    # Check if the tool created the audio file in the container
-    expected_file = "test_text_#{timestamp}.mp3"  # TTS tool outputs based on input filename
-    container_path = "/monadic/data/#{expected_file}"
-    host_path = File.join(Dir.home, "monadic", "data", expected_file)
+    # TTS tool outputs audio file with same base name but different extension
+    # Look for any audio file with the timestamp
+    audio_patterns = ["test_text_#{timestamp}.mp3", "test_text_#{timestamp}.wav", "#{timestamp}.mp3"]
+    host_path = nil
     
-    if result.include?("Text-to-speech audio") && File.exist?(host_path)
+    audio_patterns.each do |pattern|
+      potential_path = File.join(Dir.home, "monadic", "data", pattern)
+      if File.exist?(potential_path)
+        host_path = potential_path
+        break
+      end
+    end
+    
+    # Clean up text file
+    File.delete(text_path) if File.exist?(text_path)
+    
+    if host_path && File.exist?(host_path)
       host_path
     else
       raise "Failed to generate audio file: #{result}"
@@ -58,9 +76,10 @@ module RealAudioTestHelper
   def convert_to_webm(input_file)
     output_file = input_file.gsub(/\.\w+$/, '.webm')
     
+    # Use local ffmpeg
     command = <<~BASH
-      docker exec monadic-chat-python-container ffmpeg -i /monadic/data/#{File.basename(input_file)} \
-        -c:a libopus -b:a 64k -f webm -y /monadic/data/#{File.basename(output_file)} 2>&1
+      ffmpeg -i #{input_file} \
+        -c:a libopus -b:a 64k -f webm -y #{output_file} 2>&1
     BASH
     
     result = `#{command}`
@@ -81,14 +100,17 @@ module RealAudioTestHelper
     output_dir = "/tmp"
     response_format = "json"
     
+    # Run locally in development environment
+    script_path = 'scripts/cli_tools/stt_query.rb'
+    
     command = <<~BASH
-      docker exec monadic-chat-ruby-container ruby /monadic/scripts/cli_tools/stt_query.rb \
-        /monadic/data/#{File.basename(audio_file)} \
+      cd #{File.dirname(__FILE__)}/../.. && \
+      ruby -I lib #{script_path} \
+        #{audio_file} \
         #{output_dir} \
         #{response_format} \
         #{lang} \
-        #{model} \
-        2>&1
+        #{model} 2>&1
     BASH
     
     output = `#{command}`
@@ -110,6 +132,9 @@ module RealAudioTestHelper
       raise "Failed to transcribe audio: #{output}"
     end
   end
+  
+  # Alias for backward compatibility
+  alias generate_test_audio generate_real_audio_file
   
   # Full TTS -> STT pipeline test
   def test_voice_pipeline(text, options = {})
@@ -230,7 +255,7 @@ module RealAudioTestHelper
         type: "AUDIO",
         content: audio_base64,
         format: format,
-        lang: options[:lang] || "en-US"
+        lang: options[:lang] || "en"
       }
       
       send_websocket_message(app_name, message)

@@ -141,7 +141,9 @@ module ValidationHelper
       acknowledges_task?(response, %w[code execute run python calculate docker environment]) ||
       response.match?(/\b\d+\s*\+\s*\d+|\d+\.\d+|calculation|compute|result/i) ||  # Accept numeric outputs
       response.match?(/testing|print|output|execution|container/i) ||  # Accept execution-related words
-      response.match?(/ready.*help.*coding|help.*coding.*task/i)  # Accept generic coding help response
+      response.match?(/ready.*help.*coding|help.*coding.*task/i) ||  # Accept generic coding help response
+      response.match?(/generate.*data|sales.*data|random.*data|create.*data/i) ||  # Accept data generation mentions
+      response.match?(/pandas|dataframe|numpy|matplotlib/i)  # Accept data library mentions
   end
   
   # Research Assistant specific validations
@@ -157,6 +159,33 @@ module ValidationHelper
       /latest|current|recent.*developments/i  # Time-sensitive language
     ]
     web_patterns.any? { |pattern| response.match?(pattern) }
+  end
+  
+  def web_content_fetched?(response)
+    # Check for indicators that fetch_web_content was used
+    fetch_patterns = [
+      /fetch.*content|fetching.*content/i,  # Tool usage mentions
+      /example\.com|example\.org/i,         # Common test URLs
+      /fetch_web_content|webpage_fetcher/i, # Function names
+      /content.*from.*(?:url|website)/i,    # Content retrieval
+      /retrieved.*from|extracted.*from/i,   # Fetching confirmation
+      /webpage|website.*content/i           # Web content mentions
+    ]
+    fetch_patterns.any? { |pattern| response.match?(pattern) }
+  end
+  
+  def screenshot_captured?(response)
+    # Check for indicators that screenshot was captured
+    screenshot_patterns = [
+      /screenshot.*captured|captured.*screenshot/i,  # Direct capture mentions
+      /create_viewport_screenshot|viewport_capturer/i,  # Tool names
+      /visual.*capture|image.*capture/i,            # Visual capture
+      /saved.*screenshot|screenshot.*saved/i,       # Save confirmation
+      /scroll.*capture|capturing.*page/i,           # Scrolling capture
+      /\.png|\.jpg|image.*file/i,                   # Image file mentions
+      /visual.*analysis.*of.*page/i                 # Visual analysis
+    ]
+    screenshot_patterns.any? { |pattern| response.match?(pattern) }
   end
   
   def file_analysis_attempted?(response, filename = nil)

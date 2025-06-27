@@ -3,8 +3,11 @@
 # Example of secure MCP server implementation with authentication
 # This is a concept for future implementation
 
-require 'jwt'
-require 'bcrypt'
+# JWT and bcrypt would be required for full implementation
+# require 'jwt'
+# require 'bcrypt'
+
+require_relative 'server'
 
 module Monadic
   module MCP

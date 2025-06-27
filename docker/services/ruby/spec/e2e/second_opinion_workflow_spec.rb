@@ -26,12 +26,7 @@ RSpec.describe "Second Opinion E2E", :e2e do
   describe "Second Opinion workflow" do
     it "displays welcome message and explains two-step process" do
       with_e2e_retry do
-        ws_connection = create_websocket_connection
-        sleep 1.0  # Wait for WebSocket connection to stabilize
-        send_chat_message(ws_connection, "", app: app_name)
-        sleep 1.0  # Wait for greeting
-        response = wait_for_response(ws_connection)
-        ws_connection[:client].close
+        response = activate_app_and_get_greeting(app_name)
         
         # Should explain the two-step process
         expect(response.downcase).to match(/welcome|second opinion|two-step|step 1|step 2/i)

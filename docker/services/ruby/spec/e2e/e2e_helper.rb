@@ -13,6 +13,9 @@ if ENV['USE_CUSTOM_RETRY'] == 'true'
   require_relative 'e2e_retry_helper'
 end
 
+# Always load the retry helper module
+require_relative '../support/custom_retry'
+
 # Load configuration from ~/monadic/config/env for E2E tests
 config_path = File.expand_path("~/monadic/config/env")
 if File.exist?(config_path)
@@ -30,6 +33,7 @@ ENV['POSTGRES_PASSWORD'] ||= 'postgres'
 
 # E2E Test Helper Module
 module E2EHelper
+  include E2ERetryHelper
   # Wait for server to be ready
   def wait_for_server(host: 'localhost', port: 4567, timeout: 30)
     Timeout.timeout(timeout) do
@@ -320,6 +324,29 @@ module E2EHelper
     
     result
   end
+  
+  # Check if a specific tool was used in the conversation
+  def tool_used?(messages, tool_name)
+    messages.any? do |msg|
+      if msg["type"] == "tool_use" || msg["type"] == "function_call"
+        msg["name"] == tool_name || msg["tool_name"] == tool_name
+      elsif msg["type"] == "fragment" && msg["content"]
+        # Some providers might include tool use in fragments
+        msg["content"].to_s.include?("#{tool_name}(") || 
+        msg["content"].to_s.match?(/using.*#{tool_name}/i) ||
+        msg["content"].to_s.match?(/calling.*#{tool_name}/i)
+      end
+    end
+  end
+  
+  # Check if any tool was used
+  def any_tool_used?(messages)
+    common_tools = ["run_code", "fetch_text_from_file", "fetch_text_from_pdf", 
+                    "fetch_web_content", "create_viewport_screenshot", "run_bash_command",
+                    "check_environment", "websearch_agent", "tavily_search"]
+    
+    common_tools.any? { |tool| tool_used?(messages, tool) }
+  end
 
   # Simulate file upload
   def upload_file(host: 'localhost', port: 4567, file_path:, app_name:)
@@ -366,6 +393,24 @@ module E2EHelper
       path = File.join(Dir.home, "monadic", "data", filename)
       File.delete(path) if File.exist?(path)
     end
+  end
+  
+  # Simple helper to send a message and receive a response
+  def send_and_receive_message(app_name, message)
+    ws_connection = create_websocket_connection
+    send_chat_message(ws_connection, message, app: app_name)
+    response = wait_for_response(ws_connection)
+    ws_connection[:client].close
+    response
+  end
+  
+  # Helper to activate an app and get the greeting message
+  def activate_app_and_get_greeting(app_name)
+    ws_connection = create_websocket_connection
+    send_chat_message(ws_connection, "Hello", app: app_name)
+    response = wait_for_response(ws_connection)
+    ws_connection[:client].close
+    response
   end
 end
 

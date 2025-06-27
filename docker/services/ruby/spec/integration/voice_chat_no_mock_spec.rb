@@ -10,19 +10,25 @@ require_relative "../../lib/monadic/utils/interaction_utils"
 require_relative "../support/real_audio_test_helper"
 
 RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
-  include InteractionUtils
+  # Test class that includes InteractionUtils module
+  class TestVoiceChatUtils
+    include InteractionUtils
+    
+    attr_accessor :settings
+    
+    def initialize(api_key = nil)
+      @settings = OpenStruct.new(api_key: api_key)
+    end
+  end
+  
+  let(:utils) { TestVoiceChatUtils.new(CONFIG["OPENAI_API_KEY"]) }
   include RealAudioTestHelper
   
   before do
     skip "OpenAI API key not configured" unless CONFIG["OPENAI_API_KEY"]
     
-    # Ensure API key is available in environment for InteractionUtils
-    ENV['OPENAI_API_KEY'] = CONFIG["OPENAI_API_KEY"]
-  end
-  
-  after do
-    # Clean up environment
-    ENV.delete('OPENAI_API_KEY')
+    # Clear API key cache before each test
+    InteractionUtils.api_key_cache.clear
   end
   
   describe "Speech-to-Text Processing with Real API" do
@@ -32,7 +38,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       audio_blob = File.read(audio_file, mode: "rb")
       
       # Call real STT API
-      result = stt_api_request(audio_blob, "mp3", "en", "whisper-1")
+      result = utils.stt_api_request(audio_blob, "mp3", "en", "whisper-1")
       
       # Handle error response
       if result["type"] == "error"
@@ -58,7 +64,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
         audio_blob = File.read(audio_file, mode: "rb")
         
         # Process through real STT
-        result = stt_api_request(audio_blob, format, "en", "whisper-1")
+        result = utils.stt_api_request(audio_blob, format, "en", "whisper-1")
         
         # Handle error response
         if result["type"] == "error"
@@ -80,7 +86,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       audio_file = generate_real_audio_file("Clear speech for confidence testing", format: "mp3")
       audio_blob = File.read(audio_file, mode: "rb")
       
-      result = stt_api_request(audio_blob, "mp3", "en", "whisper-1")
+      result = utils.stt_api_request(audio_blob, "mp3", "en", "whisper-1")
       
       # Handle error response
       if result["type"] == "error"
@@ -101,7 +107,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
   
   describe "Text-to-Speech Processing with Real API" do
     it "generates real audio for text input" do
-      result = tts_api_request(
+      result = utils.tts_api_request(
         "Hello, this is a real TTS test.",
         provider: "openai-tts",
         voice: "alloy",
@@ -128,7 +134,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
         "TTS" => "text to speech"
       }.to_json
       
-      result = tts_api_request(
+      result = utils.tts_api_request(
         "AI and TTS are useful technologies.",
         provider: "openai-tts",
         voice: "alloy",
@@ -140,7 +146,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       
       # Generate audio without replacements for comparison
       CONFIG["TTS_DICT_DATA"] = nil
-      result_no_dict = tts_api_request(
+      result_no_dict = utils.tts_api_request(
         "AI and TTS are useful technologies.",
         provider: "openai-tts",
         voice: "alloy",
@@ -163,7 +169,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       test_voice = voices.sample
       test_speed = speeds.sample
       
-      result = tts_api_request(
+      result = utils.tts_api_request(
         "Testing voice #{test_voice} at speed #{test_speed}",
         provider: "openai-tts",
         voice: test_voice,
@@ -182,7 +188,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       original_text = "The quick brown fox jumps over the lazy dog."
       
       # Generate audio from text
-      tts_result = tts_api_request(
+      tts_result = utils.tts_api_request(
         original_text,
         provider: "openai-tts",
         voice: "alloy",
@@ -196,7 +202,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       audio_data = Base64.strict_decode64(tts_result["content"])
       
       # Transcribe back to text
-      stt_result = stt_api_request(audio_data, "mp3", "en", "whisper-1")
+      stt_result = utils.stt_api_request(audio_data, "mp3", "en", "whisper-1")
       
       # Handle error response
       if stt_result["type"] == "error"
@@ -226,7 +232,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       test_text = language_tests[test_lang]
       
       # Generate audio
-      tts_result = tts_api_request(
+      tts_result = utils.tts_api_request(
         test_text,
         provider: "openai-tts",
         voice: "alloy",
@@ -237,7 +243,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       audio_data = Base64.strict_decode64(tts_result["content"])
       
       # Transcribe with language hint
-      stt_result = stt_api_request(audio_data, "mp3", test_lang, "whisper-1")
+      stt_result = utils.stt_api_request(audio_data, "mp3", test_lang, "whisper-1")
       
       # Handle error response
       if stt_result["type"] == "error"
@@ -267,7 +273,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       # Send non-audio data
       invalid_audio = "This is not audio data"
       
-      result = stt_api_request(invalid_audio, "mp3", "en", "whisper-1")
+      result = utils.stt_api_request(invalid_audio, "mp3", "en", "whisper-1")
       
       expect(result["type"]).to eq("error")
       expect(result["content"]).to include("Error")
@@ -277,7 +283,7 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       # Generate very long text (but within API limits)
       long_text = "This is a test sentence. " * 100  # ~2500 characters
       
-      result = tts_api_request(
+      result = utils.tts_api_request(
         long_text,
         provider: "openai-tts",
         voice: "alloy",

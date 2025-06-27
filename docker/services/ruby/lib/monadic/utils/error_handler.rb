@@ -1,5 +1,15 @@
 # frozen_string_literal: true
 
+require 'net/http'
+require 'json'
+
+# Mock HTTP module for error types if not already loaded
+module HTTP
+  class Error < StandardError; end
+  class TimeoutError < Error; end
+  class ConnectionError < Error; end
+end unless defined?(HTTP)
+
 # Centralized error handling module for Monadic Chat
 module ErrorHandler
   # Common exception categories

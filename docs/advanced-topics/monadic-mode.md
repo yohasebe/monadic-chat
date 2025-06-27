@@ -21,13 +21,16 @@ In Monadic Mode, each response from the AI includes both a message and a structu
 
 ## When Monadic Mode is Used
 
-Monadic Mode is currently used primarily with OpenAI models because it requires reliable structured outputs (JSON format). While there is some experimental implementation for other providers, stable support is currently limited to:
+Monadic Mode is commonly used with providers that support structured JSON outputs:
 
-- **OpenAI** - Full support with reliable structured outputs
+- **OpenAI** - Full support with `response_format`
+- **DeepSeek** - JSON output support
+- **Perplexity** - Structured response capabilities
+- **Grok** - JSON format support
 
-For providers that don't yet support reliable structured outputs (such as Claude, Gemini, Mistral, and Cohere), Monadic Chat uses an alternative implementation called "toggle mode" to provide similar context management functionality.
+For providers that don't require structured JSON outputs (such as Claude, Gemini, Mistral, Cohere, and Ollama), Monadic Chat typically uses "toggle mode" to provide context management through HTML-based display.
 
-?> **Note**: The `monadic` and `toggle` features are mutually exclusive. The appropriate mode is automatically selected based on your chosen provider. Future versions may extend Monadic Mode support to additional providers as their structured output capabilities improve.
+?> **Note**: The `monadic` and `toggle` features are mutually exclusive. However, the choice between them is about UI display and context management approach, not API limitations. Even JSON-capable providers like OpenAI can use toggle mode when flexible formatting is preferred over structured responses.
 
 ## Architecture
 

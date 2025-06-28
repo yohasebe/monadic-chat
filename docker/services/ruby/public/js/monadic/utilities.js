@@ -328,7 +328,7 @@ function setAlertClass(alertType = "error") {
 
 function setAlert(text = "", alertType = "success") {
   if (alertType === "error") {
-    $("#monnadic-spinner").hide();
+    $("#monadic-spinner").hide();
     // check if text["content"] exists
     let msg = text;
     if (text["content"]) {

@@ -250,6 +250,9 @@ module E2EHelper
     loop do
       # Check for completion message
       if ws_connection[:messages].any? { |msg| msg["type"] == "message" && msg["content"] == "DONE" }
+        # For monadic apps, wait a bit for HTML processing
+        sleep 0.5
+        
         response = extract_ai_response(ws_connection[:messages])
         
         # If no response extracted but we have a successful completion, 
@@ -298,6 +301,20 @@ module E2EHelper
 
   # Extract AI response from messages
   def extract_ai_response(messages)
+    # First check for HTML messages (which contain the rendered output)
+    html_messages = messages.select { |msg| msg["type"] == "html" }
+    if html_messages.any?
+      last_html = html_messages.last
+      if last_html["content"].is_a?(Hash) && last_html["content"]["html"]
+        puts "[DEBUG] Found HTML message with html content"
+        return last_html["content"]["html"]
+      elsif last_html["content"].is_a?(Hash) && last_html["content"]["text"]
+        puts "[DEBUG] Found HTML message with text content"
+        # For monadic apps, the text might contain the raw JSON
+        return last_html["content"]["text"]
+      end
+    end
+    
     response_parts = []
     
     messages.each do |msg|
@@ -321,6 +338,7 @@ module E2EHelper
     result = response_parts.join("")
     
     # Return the extracted result
+    puts "[DEBUG] Returning fragment-based response: #{result[0..100]}..."
     
     result
   end

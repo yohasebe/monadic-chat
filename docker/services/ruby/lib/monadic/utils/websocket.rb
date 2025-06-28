@@ -771,7 +771,12 @@ module WebSocketHelper
               end
 
               html = if session["parameters"]["monadic"]
-                       APPS[session["parameters"]["app_name"]].monadic_html(text)
+                       pp "[DEBUG] WebSocket monadic mode - calling monadic_html with text:"
+                       pp "[DEBUG]   text class: #{text.class}"
+                       pp "[DEBUG]   text content: #{text[0..200]}..." if text
+                       result = APPS[session["parameters"]["app_name"]].monadic_html(text)
+                       pp "[DEBUG]   monadic_html result: #{result[0..200]}..."
+                       result
                      else
                        markdown_to_html(text)
                      end

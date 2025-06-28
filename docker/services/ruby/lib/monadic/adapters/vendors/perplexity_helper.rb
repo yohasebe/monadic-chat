@@ -872,10 +872,11 @@ module PerplexityHelper
     if json && !stopped
       stopped = true
       
+      # Get citations from the response
+      citations = json["citations"] if json["citations"]
+      
       # Skip citations processing for monadic mode
       if !obj["monadic"]
-        citations = json["citations"] if json["citations"]
-        
         # Debug: Log second citation processing
         if CONFIG["EXTRA_LOGGING"]
           DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
@@ -895,75 +896,173 @@ module PerplexityHelper
         end
       else
         if CONFIG["EXTRA_LOGGING"]
-          DebugHelper.debug("Perplexity: Skipping second citation processing for monadic mode", category: :api, level: :info)
+          DebugHelper.debug("Perplexity: Processing citations for monadic mode", category: :api, level: :info)
+        end
+        
+        # For monadic mode, we need to store citations separately
+        # They will be processed after JSON parsing
+        if citations && citations.any? && texts.first && texts.first[1]
+          # Store citations in a temporary location
+          texts.first[1]["__citations__"] = citations
+          pp "[DEBUG] Perplexity monadic - Stored #{citations.size} citations for later processing"
+        elsif citations && citations.any?
+          pp "[DEBUG] Perplexity monadic - Found #{citations.size} citations but texts not ready yet"
+        else
+          pp "[DEBUG] Perplexity monadic - No citations found in response"
         end
       end
     end
 
     thinking_result = thinking.empty? ? nil : thinking.join("\n\n")
     text_result = texts.empty? ? nil : texts.first[1]
+    
+    # Store citations in text_result if available
+    if text_result && json && json["citations"] && json["citations"].any? && obj["monadic"]
+      text_result["__citations__"] = json["citations"]
+      pp "[DEBUG] Perplexity monadic - Stored #{json["citations"].size} citations in text_result"
+    end
 
-    if text_result
-      if obj["monadic"]
-        choice = text_result["choices"][0]
-        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-          # For monadic mode, ensure we have proper JSON content
-          content = choice["message"]["content"]
+    if text_result && obj["monadic"]
+      # For monadic mode, fix Perplexity's malformed JSON structure
+      content = text_result["choices"][0]["message"]["content"]
+      pp "[DEBUG] Perplexity monadic - Raw content from streaming: #{content[0..200]}..."
+      pp "[DEBUG] Perplexity monadic - Content starts with: #{content[0..10].inspect}"
+      
+      # Perplexity returns a malformed JSON structure like: {"{"message":"...
+      # We need to extract the actual JSON starting from the second {
+      if content.start_with?('{"{"') || content.start_with?("{'{\"")
+        pp "[DEBUG] Perplexity monadic - Detected malformed JSON structure"
+        
+        # Find the start of the actual JSON (second opening brace)
+        actual_json_start = content.index('{', 1)
+        if actual_json_start
+          # Extract from the second { to the end
+          actual_json = content[actual_json_start..-1]
           
-          # Debug log the content
-          if CONFIG["EXTRA_LOGGING"]
-            DebugHelper.debug("Perplexity monadic content: #{content}", category: :api, level: :debug)
+          # Find the matching closing brace for the actual JSON
+          # Count braces to find the correct closing position
+          brace_count = 0
+          last_valid_pos = -1
+          
+          actual_json.each_char.with_index do |char, idx|
+            if char == '{'
+              brace_count += 1
+            elsif char == '}'
+              brace_count -= 1
+              if brace_count == 0
+                last_valid_pos = idx
+                break
+              end
+            end
           end
           
-          # Parse JSON if it's a string
-          begin
-            if content.is_a?(String)
-              # Parse JSON content
-              parsed_content = JSON.parse(content)
-            else
-              parsed_content = content
+          if last_valid_pos > -1
+            actual_json = actual_json[0..last_valid_pos]
+            pp "[DEBUG] Perplexity monadic - Extracted JSON: #{actual_json[0..100]}..."
+            
+            begin
+              parsed = JSON.parse(actual_json)
+              if parsed.is_a?(Hash) && parsed.key?("message") && parsed.key?("context")
+                # Process citations if they exist
+                if text_result["__citations__"]
+                  citations = text_result["__citations__"]
+                  pp "[DEBUG] Perplexity monadic - Processing #{citations.size} citations"
+                  
+                  # Check citations in both message and reasoning fields
+                  pp "[DEBUG] Perplexity monadic - Message before check_citations: #{parsed["message"][0..200]}..."
+                  pp "[DEBUG] Perplexity monadic - Reasoning: #{parsed["context"]["reasoning"][0..200]}..." if parsed["context"]["reasoning"]
+                  pp "[DEBUG] Perplexity monadic - Citations array: #{citations.map.with_index { |c, i| "#{i+1}: #{c}" }.join(", ")[0..200]}..."
+                  
+                  # Combine message and reasoning to check all citations
+                  combined_text = "#{parsed["message"]} #{parsed["context"]["reasoning"]}"
+                  pp "[DEBUG] Perplexity monadic - Citation references in combined text: #{combined_text.scan(/\[(\d+)\]/).flatten}"
+                  
+                  # Process citations for both fields
+                  new_message, _ = check_citations(parsed["message"], citations)
+                  new_reasoning, new_citations = check_citations(parsed["context"]["reasoning"], citations) if parsed["context"]["reasoning"]
+                  
+                  pp "[DEBUG] Perplexity monadic - New citations after check: #{new_citations&.size || 0} items"
+                  parsed["message"] = new_message
+                  parsed["context"]["reasoning"] = new_reasoning if new_reasoning
+                  
+                  # Add citations to context
+                  parsed["context"]["citations"] = new_citations if new_citations && new_citations.any?
+                  pp "[DEBUG] Perplexity monadic - Added citations to context"
+                  pp "[DEBUG] Perplexity monadic - Context after adding citations: #{parsed["context"].keys}"
+                  
+                  # Remove temporary citation storage
+                  text_result.delete("__citations__")
+                end
+                
+                # Generate the final JSON with citations included
+                final_json = JSON.generate(parsed)
+                text_result["choices"][0]["message"]["content"] = final_json
+                
+                pp "[DEBUG] Perplexity monadic - Successfully fixed malformed JSON"
+                pp "[DEBUG] Perplexity monadic - Message preview: #{parsed["message"][0..50]}..."
+                pp "[DEBUG] Perplexity monadic - Context keys: #{parsed["context"].keys}"
+                if parsed["context"]["citations"]
+                  pp "[DEBUG] Perplexity monadic - Citations count: #{parsed["context"]["citations"].size}"
+                  pp "[DEBUG] Perplexity monadic - First citation: #{parsed["context"]["citations"].first}"
+                else
+                  pp "[DEBUG] Perplexity monadic - No citations in context"
+                end
+                
+                # Debug: Check the final JSON
+                begin
+                  final_parsed = JSON.parse(final_json)
+                  pp "[DEBUG] Perplexity monadic - Final JSON has citations: #{final_parsed.dig("context", "citations") ? "yes" : "no"}"
+                rescue => e
+                  pp "[DEBUG] Perplexity monadic - Error parsing final JSON: #{e.message}"
+                end
+              end
+            rescue JSON::ParserError => e
+              pp "[DEBUG] Perplexity monadic - Failed to parse extracted JSON: #{e.message}"
             end
+          end
+        end
+      else
+        # Try to parse as normal JSON
+        begin
+          parsed = JSON.parse(content)
+          if parsed.is_a?(Hash) && parsed.key?("message") && parsed.key?("context")
+            pp "[DEBUG] Perplexity monadic - Content already has correct JSON structure"
             
-            # Debug: log parsed content structure
-            pp "[DEBUG] Perplexity monadic parsed_content class: #{parsed_content.class}"
-            pp "[DEBUG] Perplexity monadic parsed_content keys: #{parsed_content.keys if parsed_content.is_a?(Hash)}"
-            pp "[DEBUG] Perplexity monadic parsed_content: #{parsed_content}"
-            
-            # For monadic apps, store the full JSON in content field
-            # The WebSocket handler will pass this to monadic_html for processing
-            if parsed_content.is_a?(Hash) && parsed_content.key?("message")
-              # Store the full JSON object for monadic_html processing
-              choice["message"]["content"] = parsed_content.to_json
-              # Don't set text field - let WebSocket handler use content field
-              choice["message"]["text"] = nil
-              choice["message"]["html"] = nil  # Let WebSocket handler generate HTML
+            # Process citations if they exist
+            if text_result["__citations__"]
+              citations = text_result["__citations__"]
+              pp "[DEBUG] Perplexity monadic - Processing #{citations.size} citations for normal JSON"
               
-              pp "[DEBUG] Perplexity monadic - Stored JSON in content field"
-            else
-              # If structure is unexpected, wrap it
-              pp "[DEBUG] Perplexity monadic - Unexpected structure, wrapping content"
-              wrapped = {
-                "message" => content,
-                "context" => {}
-              }
-              choice["message"]["content"] = wrapped.to_json
-              choice["message"]["text"] = nil
-              choice["message"]["html"] = nil
+              # Check citations in both message and reasoning fields
+              pp "[DEBUG] Perplexity monadic (normal) - Message before check_citations: #{parsed["message"][0..200]}..."
+              pp "[DEBUG] Perplexity monadic (normal) - Reasoning: #{parsed["context"]["reasoning"][0..200]}..." if parsed["context"]["reasoning"]
+              
+              # Combine message and reasoning to check all citations
+              combined_text = "#{parsed["message"]} #{parsed["context"]["reasoning"]}"
+              pp "[DEBUG] Perplexity monadic (normal) - Citation references in combined text: #{combined_text.scan(/\[(\d+)\]/).flatten}"
+              
+              # Process citations for both fields
+              new_message, _ = check_citations(parsed["message"], citations)
+              new_reasoning, new_citations = check_citations(parsed["context"]["reasoning"], citations) if parsed["context"]["reasoning"]
+              
+              pp "[DEBUG] Perplexity monadic (normal) - New citations after check: #{new_citations&.size || 0} items"
+              parsed["message"] = new_message
+              parsed["context"]["reasoning"] = new_reasoning if new_reasoning
+              
+              # Add citations to context
+              parsed["context"]["citations"] = new_citations if new_citations && new_citations.any?
+              
+              # Update the content with modified JSON
+              text_result["choices"][0]["message"]["content"] = JSON.generate(parsed)
+              pp "[DEBUG] Perplexity monadic - Updated JSON with citations"
+              pp "[DEBUG] Perplexity monadic - Citations added: #{parsed["context"]["citations"]&.size || 0}"
+              
+              # Remove temporary citation storage
+              text_result.delete("__citations__")
             end
-          rescue JSON::ParserError => e
-            # If parsing fails, wrap the content
-            pp "[DEBUG] Perplexity monadic JSON parse error: #{e.message}"
-            if CONFIG["EXTRA_LOGGING"]
-              DebugHelper.debug("Perplexity monadic JSON parse error: #{e.message}", category: :api, level: :error)
-            end
-            wrapped = {
-              "message" => content,
-              "context" => {}
-            }
-            choice["message"]["content"] = wrapped.to_json
-            choice["message"]["text"] = wrapped.to_json  # Full JSON for monadic_html
-            choice["message"]["html"] = nil
           end
+        rescue JSON::ParserError => e
+          pp "[DEBUG] Perplexity monadic - Content is not valid JSON: #{e.message}"
         end
       end
     end
@@ -994,8 +1093,6 @@ module PerplexityHelper
         [text_result]
       end
     elsif text_result
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-      block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason
       text_result["choices"][0]["message"]["thinking"] = thinking_result.strip if thinking_result
       
@@ -1003,11 +1100,32 @@ module PerplexityHelper
       # The WebSocket handler will use content field for monadic apps
       
       # Debug final text_result structure
+      # Set text field for WebSocket handler - it expects this field
+      text_result["choices"][0]["text"] = text_result["choices"][0]["message"]["content"]
+      
       pp "[DEBUG] Perplexity final text_result structure:"
       pp "[DEBUG]   choices[0].message.content type: #{text_result["choices"][0]["message"]["content"].class}"
       pp "[DEBUG]   choices[0].message.content value: #{text_result["choices"][0]["message"]["content"][0..200]}..."
       pp "[DEBUG]   choices[0] keys: #{text_result["choices"][0].keys}"
       pp "[DEBUG]   monadic mode: #{obj["monadic"]}"
+      pp "[DEBUG]   choices[0].text present: #{!text_result["choices"][0]["text"].nil?}"
+      
+      # Check final JSON structure for citations
+      if obj["monadic"]
+        begin
+          final_json = JSON.parse(text_result["choices"][0]["message"]["content"])
+          pp "[DEBUG] Perplexity final JSON - has citations: #{final_json.dig("context", "citations") ? "yes" : "no"}"
+          if final_json.dig("context", "citations")
+            pp "[DEBUG] Perplexity final JSON - citation count: #{final_json["context"]["citations"].size}"
+          end
+        rescue => e
+          pp "[DEBUG] Perplexity final JSON - parse error: #{e.message}"
+        end
+      end
+      
+      # Send DONE message after all processing is complete, not before
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
+      block&.call res
       
       [text_result]
     else

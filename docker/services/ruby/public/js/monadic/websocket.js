@@ -1752,7 +1752,8 @@ function connect_websocket(callback) {
         callingFunction = true;
         setAlert(data["content"], "warning");
         
-        // Update spinner message for function calls
+        // Show the spinner and update its message
+        $("#monadic-spinner").show();
         $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request');
         break;
       }

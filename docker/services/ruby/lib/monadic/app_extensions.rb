@@ -36,7 +36,7 @@ module MonadicChat
     
     # Convert a monad to HTML (maintains exact original behavior)
     def monadic_html(monad)
-      render_as_html(monad, settings)
+      render_as_html(monad, {})
     end
     
     # Alias for backward compatibility - maintain original signature

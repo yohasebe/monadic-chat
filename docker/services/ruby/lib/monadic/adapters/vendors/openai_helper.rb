@@ -1220,8 +1220,16 @@ module OpenAIHelper
         choice = result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
           message = choice["message"]["content"]
+          # monadic_map returns JSON string, but we need the actual content
           modified = APPS[app].monadic_map(message)
-          choice["text"] = modified
+          # Parse the JSON and extract the message field
+          begin
+            parsed = JSON.parse(modified)
+            choice["message"]["content"] = parsed["message"] || modified
+          rescue JSON::ParserError
+            # If parsing fails, use the original modified value
+            choice["message"]["content"] = modified
+          end
         end
       end
     end

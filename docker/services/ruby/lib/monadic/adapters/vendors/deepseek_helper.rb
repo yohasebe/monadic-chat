@@ -254,10 +254,11 @@ module DeepSeekHelper
         end
       end
 
-      html = if message != ""
-               markdown_to_html(message)
+      # HTML is generated from the original message, not the monadic version
+      html = if obj["message"] != ""
+               markdown_to_html(obj["message"])
              else
-               message
+               obj["message"]
              end
 
       if message != "" && role == "user"
@@ -265,8 +266,8 @@ module DeepSeekHelper
                 "content" => {
                   "mid" => request_id,
                   "role" => role,
-                  "text" => message,
-                  "html" => html,
+                  "text" => obj["message"],
+                  "html" => markdown_to_html(obj["message"]),
                   "lang" => detect_language(obj["message"])
                 } }
         block&.call res
@@ -623,8 +624,16 @@ module DeepSeekHelper
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
           message = choice["message"]["content"]
+          # monadic_map returns JSON string, but we need the actual content
           modified = APPS[app].monadic_map(message)
-          choice["text"] = modified
+          # Parse the JSON and extract the message field
+          begin
+            parsed = JSON.parse(modified)
+            choice["message"]["content"] = parsed["message"] || modified
+          rescue JSON::ParserError
+            # If parsing fails, use the original modified value
+            choice["message"]["content"] = modified
+          end
         end
       end
     end

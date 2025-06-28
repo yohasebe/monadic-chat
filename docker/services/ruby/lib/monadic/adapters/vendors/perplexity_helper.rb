@@ -240,6 +240,8 @@ module PerplexityHelper
 
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, &block)
+    pp "[DEBUG] Perplexity api_request called with role: #{role}"
+    
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -247,6 +249,17 @@ module PerplexityHelper
     obj = session[:parameters]
     app = obj["app_name"]
     api_key = CONFIG["PERPLEXITY_API_KEY"]
+    
+    pp "[DEBUG] Perplexity API key present: #{!api_key.nil? && !api_key.empty?}"
+    pp "[DEBUG] Perplexity app: #{app}, model: #{obj["model"]}"
+    
+    unless api_key && !api_key.empty?
+      error_message = "ERROR: PERPLEXITY_API_KEY not found or empty"
+      pp error_message
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return [res]
+    end
     
     # Process the API request
 
@@ -259,6 +272,9 @@ module PerplexityHelper
 
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
+    
+    pp "[DEBUG] Perplexity model from obj: #{model}"
+    pp "[DEBUG] Perplexity all obj keys: #{obj.keys}"
 
     max_tokens = obj["max_tokens"]&.to_i 
     temperature = obj["temperature"]&.to_f
@@ -285,7 +301,7 @@ module PerplexityHelper
         end
       end
 
-      html = markdown_to_html(message, mathjax: obj["mathjax"])
+      html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
 
       if message != "" && role == "user"
 
@@ -350,12 +366,61 @@ module PerplexityHelper
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_tokens"] = max_tokens if max_tokens
 
+    # Perplexity supports json_schema format for structured outputs
     if obj["response_format"]
       body["response_format"] = APPS[app].settings["response_format"]
     end
 
+    # For monadic apps, we need to provide a proper JSON schema
     if obj["monadic"] || obj["json"]
-      body["response_format"] ||= { "type" => "json_object" }
+      # Define the JSON schema for Chat Plus response
+      chat_plus_schema = {
+        "type" => "json_schema",
+        "json_schema" => {
+          "schema" => {
+            "type" => "object",
+            "properties" => {
+              "message" => {
+                "type" => "string",
+                "description" => "Your response to the user"
+              },
+              "context" => {
+                "type" => "object",
+                "properties" => {
+                  "reasoning" => {
+                    "type" => "string",
+                    "description" => "The reasoning and thought process behind your response"
+                  },
+                  "topics" => {
+                    "type" => "array",
+                    "items" => {
+                      "type" => "string"
+                    },
+                    "description" => "A list of topics discussed in the conversation"
+                  },
+                  "people" => {
+                    "type" => "array",
+                    "items" => {
+                      "type" => "string"
+                    },
+                    "description" => "A list of people and their relationships mentioned"
+                  },
+                  "notes" => {
+                    "type" => "array",
+                    "items" => {
+                      "type" => "string"
+                    },
+                    "description" => "Important information to remember"
+                  }
+                },
+                "required" => ["reasoning", "topics", "people", "notes"]
+              }
+            },
+            "required" => ["message", "context"]
+          }
+        }
+      }
+      body["response_format"] ||= chat_plus_schema
     end
 
     if obj["tools"] && !obj["tools"].empty?
@@ -491,6 +556,10 @@ module PerplexityHelper
 
     # Request body is ready
     
+    # Send initial spinner message
+    res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
+    block&.call res
+    
     # Call the API
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
@@ -508,6 +577,8 @@ module PerplexityHelper
       end
     end
 
+    pp "[DEBUG] Perplexity API request body: #{body.inspect}"
+    
     MAX_RETRIES.times do
       res = http.timeout(connect: OPEN_TIMEOUT,
                          write: WRITE_TIMEOUT,
@@ -517,6 +588,8 @@ module PerplexityHelper
       sleep RETRY_DELAY
     end
 
+    pp "[DEBUG] Perplexity API response status: #{res.status}"
+    
     unless res.status.success?
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
@@ -587,6 +660,10 @@ module PerplexityHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
+    pp "[DEBUG] Perplexity process_json_data started"
+    pp "[DEBUG] App: #{app}, Session params: #{session[:parameters]["app_name"]}"
+    pp "[DEBUG] Monadic mode: #{session[:parameters]["monadic"]}"
+    
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
@@ -726,47 +803,54 @@ module PerplexityHelper
               end
             end
 
-            citations = json["citations"] if json["citations"]
-            
-            # Debug: Check citations for all models
-            if CONFIG["EXTRA_LOGGING"]
-              DebugHelper.debug("Perplexity: Model #{obj["model"]} - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
-              if citations && citations.any?
-                DebugHelper.debug("Perplexity: Citations content: #{citations.inspect}", category: :api, level: :debug)
-              end
-              # Check if content has citation references
-              content = texts.first[1]["choices"][0]["message"]["content"]
-              citation_refs = content.scan(/\[(\d+)\]/).flatten
-              if citation_refs.any?
-                DebugHelper.debug("Perplexity: Found citation references in content: #{citation_refs}", category: :api, level: :info)
-              end
-            end
-            
-            new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
-            
-            # Debug: Log citation processing results
-            if CONFIG["EXTRA_LOGGING"]
-              DebugHelper.debug("Perplexity: After check_citations - new_citations count: #{new_citations&.size || 0}", category: :api, level: :info)
-              if new_text != texts.first[1]["choices"][0]["message"]["content"]
-                DebugHelper.debug("Perplexity: Citation references were renumbered", category: :api, level: :debug)
-              end
-            end
-            
-            # add citations to the last message
-            if citations && citations.any?
-              citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
-                "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
-              end.join("\n") + "</ol></div>"
+            # Skip citations processing for monadic mode
+            if !obj["monadic"]
+              citations = json["citations"] if json["citations"]
               
+              # Debug: Check citations for all models
               if CONFIG["EXTRA_LOGGING"]
-                DebugHelper.debug("Perplexity: Adding citation HTML to content", category: :api, level: :info)
-                DebugHelper.debug("Perplexity: Citation HTML preview: #{citation_text[0..100]}...", category: :api, level: :debug)
+                DebugHelper.debug("Perplexity: Model #{obj["model"]} - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
+                if citations && citations.any?
+                  DebugHelper.debug("Perplexity: Citations content: #{citations.inspect}", category: :api, level: :debug)
+                end
+                # Check if content has citation references
+                content = texts.first[1]["choices"][0]["message"]["content"]
+                citation_refs = content.scan(/\[(\d+)\]/).flatten
+                if citation_refs.any?
+                  DebugHelper.debug("Perplexity: Found citation references in content: #{citation_refs}", category: :api, level: :info)
+                end
               end
               
-              texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
+              new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
+              
+              # Debug: Log citation processing results
+              if CONFIG["EXTRA_LOGGING"]
+                DebugHelper.debug("Perplexity: After check_citations - new_citations count: #{new_citations&.size || 0}", category: :api, level: :info)
+                if new_text != texts.first[1]["choices"][0]["message"]["content"]
+                  DebugHelper.debug("Perplexity: Citation references were renumbered", category: :api, level: :debug)
+                end
+              end
+              
+              # add citations to the last message
+              if citations && citations.any?
+                citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
+                  "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
+                end.join("\n") + "</ol></div>"
+                
+                if CONFIG["EXTRA_LOGGING"]
+                  DebugHelper.debug("Perplexity: Adding citation HTML to content", category: :api, level: :info)
+                  DebugHelper.debug("Perplexity: Citation HTML preview: #{citation_text[0..100]}...", category: :api, level: :debug)
+                end
+                
+                texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
+              else
+                if CONFIG["EXTRA_LOGGING"]
+                  DebugHelper.debug("Perplexity: No citations to add (citations nil or empty)", category: :api, level: :info)
+                end
+              end
             else
               if CONFIG["EXTRA_LOGGING"]
-                DebugHelper.debug("Perplexity: No citations to add (citations nil or empty)", category: :api, level: :info)
+                DebugHelper.debug("Perplexity: Skipping citations for monadic mode", category: :api, level: :info)
               end
             end
             stopped = true
@@ -787,23 +871,31 @@ module PerplexityHelper
 
     if json && !stopped
       stopped = true
-      citations = json["citations"] if json["citations"]
       
-      # Debug: Log second citation processing
-      if CONFIG["EXTRA_LOGGING"]
-        DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
-      end
-      
-      new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
-      # add citations to the last message
-      if citations && citations.any?
-        citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
-          "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
-        end.join("\n") + "</ol></div>"
-        texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
+      # Skip citations processing for monadic mode
+      if !obj["monadic"]
+        citations = json["citations"] if json["citations"]
         
+        # Debug: Log second citation processing
         if CONFIG["EXTRA_LOGGING"]
-          DebugHelper.debug("Perplexity: Second citation processing - added citations to content", category: :api, level: :info)
+          DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
+        end
+        
+        new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
+        # add citations to the last message
+        if citations && citations.any?
+          citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
+            "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
+          end.join("\n") + "</ol></div>"
+          texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
+          
+          if CONFIG["EXTRA_LOGGING"]
+            DebugHelper.debug("Perplexity: Second citation processing - added citations to content", category: :api, level: :info)
+          end
+        end
+      else
+        if CONFIG["EXTRA_LOGGING"]
+          DebugHelper.debug("Perplexity: Skipping second citation processing for monadic mode", category: :api, level: :info)
         end
       end
     end
@@ -815,9 +907,63 @@ module PerplexityHelper
       if obj["monadic"]
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-          message = choice["message"]["content"]
-          modified = APPS[app].monadic_map(message)
-          choice["text"] = modified
+          # For monadic mode, ensure we have proper JSON content
+          content = choice["message"]["content"]
+          
+          # Debug log the content
+          if CONFIG["EXTRA_LOGGING"]
+            DebugHelper.debug("Perplexity monadic content: #{content}", category: :api, level: :debug)
+          end
+          
+          # Parse JSON if it's a string
+          begin
+            if content.is_a?(String)
+              # Parse JSON content
+              parsed_content = JSON.parse(content)
+            else
+              parsed_content = content
+            end
+            
+            # Debug: log parsed content structure
+            pp "[DEBUG] Perplexity monadic parsed_content class: #{parsed_content.class}"
+            pp "[DEBUG] Perplexity monadic parsed_content keys: #{parsed_content.keys if parsed_content.is_a?(Hash)}"
+            pp "[DEBUG] Perplexity monadic parsed_content: #{parsed_content}"
+            
+            # For monadic apps, store the full JSON in content field
+            # The WebSocket handler will pass this to monadic_html for processing
+            if parsed_content.is_a?(Hash) && parsed_content.key?("message")
+              # Store the full JSON object for monadic_html processing
+              choice["message"]["content"] = parsed_content.to_json
+              # Don't set text field - let WebSocket handler use content field
+              choice["message"]["text"] = nil
+              choice["message"]["html"] = nil  # Let WebSocket handler generate HTML
+              
+              pp "[DEBUG] Perplexity monadic - Stored JSON in content field"
+            else
+              # If structure is unexpected, wrap it
+              pp "[DEBUG] Perplexity monadic - Unexpected structure, wrapping content"
+              wrapped = {
+                "message" => content,
+                "context" => {}
+              }
+              choice["message"]["content"] = wrapped.to_json
+              choice["message"]["text"] = nil
+              choice["message"]["html"] = nil
+            end
+          rescue JSON::ParserError => e
+            # If parsing fails, wrap the content
+            pp "[DEBUG] Perplexity monadic JSON parse error: #{e.message}"
+            if CONFIG["EXTRA_LOGGING"]
+              DebugHelper.debug("Perplexity monadic JSON parse error: #{e.message}", category: :api, level: :error)
+            end
+            wrapped = {
+              "message" => content,
+              "context" => {}
+            }
+            choice["message"]["content"] = wrapped.to_json
+            choice["message"]["text"] = wrapped.to_json  # Full JSON for monadic_html
+            choice["message"]["html"] = nil
+          end
         end
       end
     end
@@ -852,6 +998,17 @@ module PerplexityHelper
       block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason
       text_result["choices"][0]["message"]["thinking"] = thinking_result.strip if thinking_result
+      
+      # Don't set text field - let WebSocket handler decide which field to use
+      # The WebSocket handler will use content field for monadic apps
+      
+      # Debug final text_result structure
+      pp "[DEBUG] Perplexity final text_result structure:"
+      pp "[DEBUG]   choices[0].message.content type: #{text_result["choices"][0]["message"]["content"].class}"
+      pp "[DEBUG]   choices[0].message.content value: #{text_result["choices"][0]["message"]["content"][0..200]}..."
+      pp "[DEBUG]   choices[0] keys: #{text_result["choices"][0].keys}"
+      pp "[DEBUG]   monadic mode: #{obj["monadic"]}"
+      
       [text_result]
     else
       res = { "type" => "message", "content" => "DONE" }
@@ -859,8 +1016,10 @@ module PerplexityHelper
       [res]
     end
   rescue StandardError => e
-    pp "Error in process_json_data: #{e.message}"
-    pp e.backtrace
+    pp "[ERROR] Error in process_json_data: #{e.message}"
+    pp "[ERROR] Error class: #{e.class}"
+    pp "[ERROR] Backtrace:"
+    pp e.backtrace[0..5]
     res = { "type" => "error", "content" => "ERROR: #{e.message}" }
     block&.call res
     [res]

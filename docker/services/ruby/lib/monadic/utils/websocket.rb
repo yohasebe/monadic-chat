@@ -728,7 +728,9 @@ module WebSocketHelper
             begin
               content = last_one["choices"][0]
 
+              # Always use message content - monadic apps will have JSON in content field
               text = content["text"] || content["message"]["content"]
+              pp "[DEBUG] WebSocket - text extraction: content keys = #{content.keys}, text = #{text.class}:#{text.to_s[0..100]}..." if session["parameters"]["app_name"]&.include?("Perplexity")
               # Extract thinking content uniformly from message
               thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
               
@@ -1158,7 +1160,9 @@ module WebSocketHelper
             if app_name && (app_name.include?("Perplexity") || app_name.include?("DeepSeek"))
               puts "[DEBUG WebSocket] Processing message for app: #{app_name}"
               puts "[DEBUG WebSocket] App object found: #{!app_obj.nil?}"
-              puts "[DEBUG WebSocket] Available apps: #{APPS.keys.select { |k| k.include?("Research") }}"
+              puts "[DEBUG WebSocket] ChatPlusPerplexity exists: #{APPS.key?("ChatPlusPerplexity")}"
+              puts "[DEBUG WebSocket] All Chat Plus apps: #{APPS.keys.select { |k| k.include?("ChatPlus") }}"
+              puts "[DEBUG WebSocket] Total apps count: #{APPS.keys.length}"
             end
             
             unless app_obj

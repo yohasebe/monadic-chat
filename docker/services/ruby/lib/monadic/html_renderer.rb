@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'json_handler'
+require 'cgi'
 
 module MonadicChat
   # HTML rendering for monadic structures
@@ -9,8 +10,14 @@ module MonadicChat
     
     # Render monadic structure as HTML (compatible with existing monadic_html)
     def render_as_html(monad, settings = {})
+      pp "[DEBUG] HtmlRenderer.render_as_html called with:"
+      pp "[DEBUG]   monad class: #{monad.class}"
+      pp "[DEBUG]   monad content: #{monad.to_s[0..200]}..."
       obj = unwrap_from_json(monad)
-      json_to_html(obj, settings)
+      pp "[DEBUG]   unwrapped obj: #{obj}"
+      result = json_to_html(obj, settings)
+      pp "[DEBUG]   json_to_html result preview: #{result[0..200]}..."
+      result
     end
     
     # Convert JSON to HTML (matching existing json2html implementation)
@@ -119,7 +126,27 @@ module MonadicChat
     
     # Render array field
     def render_array_field(display_key, value, data_key, iteration, options)
-      if value.all? { |v| v.is_a?(String) }
+      # Special handling for citations
+      if data_key == "citations" && value.all? { |v| v.is_a?(String) && v.match?(/^https?:\/\//i) }
+        items = value.map.with_index do |url, idx|
+          "<li><a href='#{url}' target='_blank' rel='noopener noreferrer'>[#{idx + 1}] #{CGI.unescape(url)}</a></li>"
+        end.join("\n")
+        
+        <<~HTML
+          <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
+            <div class='json-header' onclick='toggleItem(this)'>
+              <span>Citations</span>
+              <i class='fas fa-chevron-down float-right'></i> 
+              <span class='toggle-text'>click to toggle</span>
+            </div>
+            <div class='json-content'>
+              <ol>
+                #{items}
+              </ol>
+            </div>
+          </div>
+        HTML
+      elsif value.all? { |v| v.is_a?(String) }
         # Simple string array
         <<~HTML
           <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>

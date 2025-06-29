@@ -18,16 +18,11 @@ module MonadicChat
     
     # Unwrap from JSON (compatible with existing monadic_unwrap)
     def unwrap_from_json(json_string)
-      pp "[DEBUG] JsonHandler.unwrap_from_json called with class: #{json_string.class}"
-      
       case json_string
       when String
         begin
-          pp "[DEBUG] JsonHandler - Attempting to parse: #{json_string[0..100]}..."
-          
           # First attempt to parse
           parsed = JSON.parse(json_string)
-          pp "[DEBUG] JsonHandler - First parse result class: #{parsed.class}"
           
           # Check for various double-encoding situations
           if parsed.is_a?(Hash)
@@ -35,35 +30,29 @@ module MonadicChat
             if parsed.key?("message") && parsed.key?("context")
               # Check if the message is itself an escaped JSON string
               if parsed["message"].is_a?(String) && parsed["message"].match(/^\{\\"/)
-                pp "[DEBUG] JsonHandler - Message contains escaped JSON, unescaping it"
                 begin
                   # First unescape the string
                   unescaped = parsed["message"].gsub('\"', '"').gsub('\\\\', '\\')
-                  pp "[DEBUG] JsonHandler - Unescaped: #{unescaped[0..100]}..."
                   
                   # Then parse the unescaped JSON
                   actual_content = JSON.parse(unescaped)
                   if actual_content.is_a?(Hash) && actual_content.key?("message") && actual_content.key?("context")
-                    pp "[DEBUG] JsonHandler - Successfully extracted actual content from escaped JSON"
                     return actual_content
                   end
                 rescue JSON::ParserError => e
-                  pp "[DEBUG] JsonHandler - Failed to parse unescaped JSON: #{e.message}"
                   # Try another approach - use eval to handle the escaping
                   begin
                     # This is a last resort for heavily escaped JSON
                     evaluated = eval('"' + parsed["message"] + '"')
                     actual_content = JSON.parse(evaluated)
                     if actual_content.is_a?(Hash) && actual_content.key?("message") && actual_content.key?("context")
-                      pp "[DEBUG] JsonHandler - Successfully extracted using eval approach"
                       return actual_content
                     end
                   rescue => e2
-                    pp "[DEBUG] JsonHandler - Eval approach also failed: #{e2.message}"
+                    # Continue with original parsed value
                   end
                 end
               end
-              pp "[DEBUG] JsonHandler - Correct structure found"
               return parsed
             end
             
@@ -71,20 +60,17 @@ module MonadicChat
             if parsed.keys.length == 1 && parsed.keys.first.start_with?('{')
               # The JSON itself is the key! Extract and parse it
               json_key = parsed.keys.first
-              pp "[DEBUG] JsonHandler - JSON as key detected: #{json_key[0..100]}..."
               begin
                 actual_json = JSON.parse(json_key)
-                pp "[DEBUG] JsonHandler - Successfully parsed JSON from key"
                 return actual_json
               rescue JSON::ParserError
-                pp "[DEBUG] JsonHandler - Failed to parse JSON from key"
+                # Continue with original parsed value
               end
             end
           elsif parsed.is_a?(String) && parsed.start_with?('{')
             # Double-encoded JSON string
             begin
               double_parsed = JSON.parse(parsed)
-              pp "[DEBUG] JsonHandler - Double-encoded JSON detected and parsed"
               return double_parsed
             rescue JSON::ParserError
               # Not double-encoded, use first parse result
@@ -94,15 +80,12 @@ module MonadicChat
           
           parsed
         rescue JSON::ParserError => e
-          pp "[DEBUG] JsonHandler - Parse error: #{e.message}"
           # Fallback behavior matching original implementation
           { "message" => json_string.to_s, "context" => @context || {} }
         end
       when Hash
-        pp "[DEBUG] JsonHandler - Already a hash"
         json_string
       else
-        pp "[DEBUG] JsonHandler - Other type, wrapping as message"
         { "message" => json_string.to_s, "context" => @context || {} }
       end
     end

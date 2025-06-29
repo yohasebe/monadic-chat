@@ -2141,17 +2141,24 @@ $(function () {
     function setupCustomDropdown() {
       const $select = $("#apps");
       const $customDropdown = $("#custom-apps-dropdown");
+      let isDropdownOpen = false;
       
-      // Show custom dropdown when clicking on the overlay div
-      $("#app-select-overlay").on("click", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Toggle custom dropdown
-        $customDropdown.toggle();
-        
-        // If dropdown is now visible, highlight the currently selected option
-        if ($customDropdown.is(":visible")) {
+      // Function to close the dropdown
+      function closeDropdown() {
+        if (isDropdownOpen) {
+          $customDropdown.hide();
+          isDropdownOpen = false;
+          // Remove the document click handler
+          $(document).off("click.customDropdown");
+        }
+      }
+      
+      // Function to open the dropdown
+      function openDropdown() {
+        if (!isDropdownOpen) {
+          $customDropdown.show();
+          isDropdownOpen = true;
+          
           // Get current selected value
           const currentValue = $select.val();
           
@@ -2186,21 +2193,38 @@ $(function () {
             // Ensure the selected option is visible in the dropdown
             ensureVisibleInDropdown($selectedOption, $customDropdown);
           }
+          
+          // Position the dropdown relative to the select
+          positionDropdown();
+          
+          // Update the height of group headers to match the apps select
+          const appsHeight = $("#apps").outerHeight();
+          $(".custom-dropdown-group").css("height", appsHeight + "px");
+          
+          // Set up click outside handler with a small delay to avoid immediate closing
+          setTimeout(function() {
+            $(document).on("click.customDropdown", function(e) {
+              // Check if click is outside the dropdown and trigger elements
+              // Also check if the click is not on a group header (which toggles group expansion)
+              if (!$(e.target).closest("#custom-apps-dropdown, #app-select-overlay, .app-select-wrapper").length) {
+                closeDropdown();
+              }
+            });
+          }, 10);
         }
+      }
+      
+      // Show custom dropdown when clicking on the overlay div
+      $("#app-select-overlay").on("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         
-        // Position the dropdown relative to the select
-        positionDropdown();
-        
-        // Update the height of group headers to match the apps select
-        const appsHeight = $("#apps").outerHeight();
-        $(".custom-dropdown-group").css("height", appsHeight + "px");
-        
-        // Handle clicking outside to close dropdown
-        $(document).one("click", function(e) {
-          if (!$(e.target).closest("#custom-apps-dropdown").length) {
-            $customDropdown.hide();
-          }
-        });
+        // Toggle custom dropdown
+        if (isDropdownOpen) {
+          closeDropdown();
+        } else {
+          openDropdown();
+        }
       });
       
       // Also add click handler to the wrapper as a fallback
@@ -2213,64 +2237,26 @@ $(function () {
         e.stopPropagation();
         
         // Toggle custom dropdown
-        $customDropdown.toggle();
-        
-        // If dropdown is now visible, highlight the currently selected option
-        if ($customDropdown.is(":visible")) {
-          // Get current selected value
-          const currentValue = $select.val();
-          
-          // Clear any existing highlights
-          $(".custom-dropdown-option.highlighted").removeClass("highlighted");
-          
-          // First, collapse all group containers
-          $(".group-container").addClass("collapsed");
-          $(".custom-dropdown-group .group-toggle-icon i")
-            .removeClass("fa-chevron-down")
-            .addClass("fa-chevron-right");
-          
-          // Find and highlight the option matching the current selection
-          const $selectedOption = $(`.custom-dropdown-option[data-value="${currentValue}"]`);
-          if ($selectedOption.length) {
-            $selectedOption.addClass("highlighted");
-            
-            // Find the parent group container and expand it
-            const $parentGroup = $selectedOption.closest(".group-container");
-            if ($parentGroup.length) {
-              $parentGroup.removeClass("collapsed");
-              
-              // Update the toggle icon
-              const groupId = $parentGroup.attr("id");
-              const groupName = groupId.replace("group-", "");
-              const $groupHeader = $(`.custom-dropdown-group[data-group="${groupName}"]`);
-              $groupHeader.find(".group-toggle-icon i")
-                .removeClass("fa-chevron-right")
-                .addClass("fa-chevron-down");
-            }
-            
-            // Ensure the selected option is visible in the dropdown
-            ensureVisibleInDropdown($selectedOption, $customDropdown);
-          }
+        if (isDropdownOpen) {
+          closeDropdown();
+        } else {
+          openDropdown();
         }
-        
-        // Position the dropdown relative to the select
-        positionDropdown();
-        
-        // Update the height of group headers to match the apps select
-        const appsHeight = $("#apps").outerHeight();
-        $(".custom-dropdown-group").css("height", appsHeight + "px");
-        
-        // Handle clicking outside to close dropdown
-        $(document).one("click", function(e) {
-          if (!$(e.target).closest("#custom-apps-dropdown").length) {
-            $customDropdown.hide();
-          }
-        });
+      });
+      
+      // Add global ESC key handler that works regardless of focus
+      $(document).on("keydown.customDropdownEsc", function(e) {
+        if (e.key === "Escape" && isDropdownOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeDropdown();
+          return false;
+        }
       });
       
       // Add keyboard navigation to the custom dropdown
       $(document).on("keydown", function(e) {
-        if ($customDropdown.is(":visible")) {
+        if (isDropdownOpen) {
           const $options = $(".custom-dropdown-option:not(.disabled)");
           const $highlighted = $(".custom-dropdown-option.highlighted");
           let index = $options.index($highlighted);
@@ -2338,7 +2324,7 @@ $(function () {
             case "Escape":
               e.preventDefault();
               e.stopPropagation(); // Prevent event from bubbling up
-              $customDropdown.hide();
+              closeDropdown();
               return false; // Prevent default and stop propagation
               break;
           }
@@ -2377,8 +2363,8 @@ $(function () {
         // Update the real select value
         $select.val(value).trigger("change");
         
-        // Hide dropdown
-        $customDropdown.hide();
+        // Close dropdown using the proper method
+        closeDropdown();
       });
       
       // Add mouse hover functionality to highlight options
@@ -2393,7 +2379,7 @@ $(function () {
       
       // Update dropdown position on window resize
       $(window).on("resize", function() {
-        if ($customDropdown.is(":visible")) {
+        if (isDropdownOpen) {
           positionDropdown();
         }
         
@@ -2417,6 +2403,15 @@ $(function () {
           zIndex: 1100
         });
       }
+      
+      // Clean up event handlers when the page is unloaded
+      $(window).on("beforeunload", function() {
+        if (isDropdownOpen) {
+          closeDropdown();
+        }
+        // Remove the global ESC key handler
+        $(document).off("keydown.customDropdownEsc");
+      });
     }
     
     // Function to set up enhanced styling for other select elements

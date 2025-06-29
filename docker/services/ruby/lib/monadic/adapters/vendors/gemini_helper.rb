@@ -589,8 +589,19 @@ module GeminiHelper
     DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
     DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
+    DebugHelper.debug("Gemini websearch: #{websearch}", category: :api, level: :debug)
     
-    if app_tools && !app_tools.empty?
+    # Check if app_tools has actual function declarations
+    has_function_declarations = false
+    if app_tools
+      if app_tools.is_a?(Hash) && app_tools["function_declarations"]
+        has_function_declarations = !app_tools["function_declarations"].empty?
+      elsif app_tools.is_a?(Array)
+        has_function_declarations = !app_tools.empty?
+      end
+    end
+    
+    if has_function_declarations
       # Convert the tools format if it's an array (initialize_from_assistant apps)
       if app_tools.is_a?(Array)
         body["tools"] = [{"function_declarations" => app_tools}]

@@ -199,7 +199,8 @@ module GrokHelper
     message_with_snippet = nil
 
     # Check for websearch configuration
-    websearch = obj["websearch"] == "true"
+    # Handle both string and boolean values for websearch parameter
+    websearch = obj["websearch"] == "true" || obj["websearch"] == true
     websearch_native = websearch
 
     message = nil

@@ -307,7 +307,8 @@ module MistralHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = obj["websearch"] == "true"
+    # Handle both string and boolean values for websearch parameter
+    websearch = obj["websearch"] == "true" || obj["websearch"] == true
     
     # Debug logging for websearch
     DebugHelper.debug("Mistral websearch enabled: #{websearch}", category: :api, level: :info) if websearch

@@ -385,11 +385,13 @@ module MistralHelper
         body["tools"] = body["tools"] + WEBSEARCH_TOOLS
         body["tools"].uniq! { |tool| tool.dig(:function, :name) }
         
-        # Add websearch prompt to system message
-        system_msg = context.first
-        if system_msg && system_msg["role"] == "system"
-          system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-          DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
+        # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
+        unless app.to_s.include?("ResearchAssistant")
+          system_msg = context.first
+          if system_msg && system_msg["role"] == "system"
+            system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+            DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
+          end
         end
         
       end
@@ -398,11 +400,13 @@ module MistralHelper
       body["tools"] = WEBSEARCH_TOOLS
       DebugHelper.debug("Mistral websearch tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
 
-      # Add websearch prompt to system message
-      system_msg = context.first
-      if system_msg && system_msg["role"] == "system"
-        system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-        DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
+      # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
+      unless app.to_s.include?("ResearchAssistant")
+        system_msg = context.first
+        if system_msg && system_msg["role"] == "system"
+          system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+          DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
+        end
       end
       
     end

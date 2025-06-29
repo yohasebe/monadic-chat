@@ -9,12 +9,12 @@ RSpec.describe MDSLSchema do
       expect(described_class::PROPERTIES).to include(
         :description, :icon, :display_name, :system_prompt,
         :provider, :model, :temperature, :context_size,
-        :monadic, :toggle, :image, :pdf, :images, :messages
+        :monadic, :image, :pdf, :images, :messages
       )
     end
     
     it 'correctly categorizes boolean properties' do
-      boolean_props = %i[disabled monadic toggle easy_submit auto_speech 
+      boolean_props = %i[disabled monadic easy_submit auto_speech 
                          initiate_from_assistant image pdf jupyter mathjax 
                          websearch stream vision reasoning ai_user]
       
@@ -115,7 +115,6 @@ RSpec.describe MDSLSchema do
   describe '.boolean?' do
     it 'identifies boolean properties' do
       expect(described_class.boolean?('monadic')).to be true
-      expect(described_class.boolean?('toggle')).to be true
       expect(described_class.boolean?('easy_submit')).to be true
       expect(described_class.boolean?('easySubmit')).to be true  # alias
     end
@@ -302,7 +301,7 @@ RSpec.describe MDSLSchema do
       props = described_class.boolean_properties
       
       # Check canonical names are included
-      expect(props).to include('monadic', 'toggle', 'easy_submit', 'auto_speech')
+      expect(props).to include('monadic', 'easy_submit', 'auto_speech')
       
       # Check aliases are included
       expect(props).to include('easySubmit', 'autoSpeech')

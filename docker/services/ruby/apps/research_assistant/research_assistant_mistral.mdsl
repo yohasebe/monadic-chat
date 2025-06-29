@@ -18,7 +18,6 @@ app "ResearchAssistantMistral" do
     auto_speech false
     mathjax true
     image true
-    toggle true
   end
 
   tools do

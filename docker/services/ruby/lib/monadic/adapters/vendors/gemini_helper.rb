@@ -4,11 +4,17 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../monadic_provider_interface"
+require_relative "../../monadic_schema_validator"
+require_relative "../../monadic_performance"
 
 module GeminiHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
+  include MonadicProviderInterface
+  include MonadicSchemaValidator
+  include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
   OPEN_TIMEOUT = 10
@@ -477,15 +483,8 @@ module GeminiHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    # Debug all obj parameters
-    DebugHelper.debug("Gemini obj parameters: #{obj.inspect}", category: :api, level: :debug)
-    puts "[DEBUG Gemini api_request] obj parameters: #{obj.inspect}"
-    
     # Debug websearch parameters
-    puts "[DEBUG Gemini] Checking websearch: obj['websearch']=#{obj['websearch'].inspect} (class: #{obj['websearch'].class}), TAVILY_API_KEY=#{CONFIG['TAVILY_API_KEY'] ? 'exists' : 'nil'}"
-    
     websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"]
-    puts "[DEBUG Gemini api_request] websearch=#{websearch}, obj['websearch']=#{obj['websearch']}, TAVILY_API_KEY exists=#{!CONFIG['TAVILY_API_KEY'].nil?}"
     DebugHelper.debug("Gemini websearch value: #{websearch}, obj['websearch']: #{obj['websearch']}, TAVILY_API_KEY exists: #{!CONFIG['TAVILY_API_KEY'].nil?}", category: :api, level: :debug)
     
     # Handle thinking models based on reasoning_effort parameter presence
@@ -585,10 +584,14 @@ module GeminiHelper
       end
     end
 
+    # Configure monadic response format using unified interface
+    body = configure_monadic_response(body, :gemini, app)
+
     websearch_suffixed = false
     body["contents"] = context.compact.map do |msg|
       if websearch && !websearch_suffixed
         text = "#{msg["text"]}\n\n#{WEBSEARCH_PROMPT}"
+        websearch_suffixed = true
       else
         text = msg["text"]
       end
@@ -601,6 +604,19 @@ module GeminiHelper
     end
 
     if body["contents"].last["role"] == "user"
+      # Apply monadic transformation if in monadic mode
+      if obj["monadic"].to_s == "true" && role == "user"
+        body["contents"].last["parts"].each do |part|
+          if part["text"]
+            # Extract the base message without prompt suffix
+            base_message = part["text"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
+            # Apply monadic transformation using unified interface
+            monadic_message = apply_monadic_transformation(base_message, app, "user")
+            part["text"] = monadic_message
+          end
+        end
+      end
+      
       # append prompt suffix to the first item of parts with the key "text"
       body["contents"].last["parts"].each do |part|
         if part["text"]
@@ -626,12 +642,6 @@ module GeminiHelper
     DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
     DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
     
-    # Add immediate debug for Research Assistant
-    if app && app.include?("ResearchAssistant")
-      puts "[DEBUG Gemini tools] app=#{app}, websearch=#{websearch}, TAVILY_API_KEY=#{!CONFIG['TAVILY_API_KEY'].nil?}, obj['websearch']=#{obj['websearch']}"
-      puts "[DEBUG Gemini tools] app_tools.empty?=#{app_tools.empty?}, WEBSEARCH_TOOLS.length=#{WEBSEARCH_TOOLS.length}"
-    end
-    
     if app_tools && !app_tools.empty?
       # Convert the tools format if it's an array (initialize_from_assistant apps)
       if app_tools.is_a?(Array)
@@ -653,10 +663,6 @@ module GeminiHelper
     elsif websearch
       # Debug: Check WEBSEARCH_TOOLS content
       DebugHelper.debug("Gemini using websearch, WEBSEARCH_TOOLS: #{WEBSEARCH_TOOLS.inspect}", category: :api, level: :debug)
-      
-      # Debug websearch flag state
-      puts "[DEBUG Gemini] websearch=#{websearch}, TAVILY_API_KEY exists=#{!CONFIG['TAVILY_API_KEY'].nil?}, obj['websearch']=#{obj['websearch']}"
-      puts "[DEBUG Gemini] WEBSEARCH_TOOLS=#{WEBSEARCH_TOOLS.inspect}"
       
       body["tools"] = [{"function_declarations" => WEBSEARCH_TOOLS}]
       body["tool_config"] = {
@@ -700,10 +706,19 @@ module GeminiHelper
     end
     
     # Debug logging
-    if app && app.include?("ResearchAssistant")
+    if CONFIG["EXTRA_LOGGING"]  # Enable with EXTRA_LOGGING config setting
       puts "[DEBUG Gemini] app=#{app}, websearch=#{websearch}, app_tools=#{app_tools.inspect}"
       puts "[DEBUG Gemini] Final request body:"
-      puts JSON.pretty_generate(body)
+      puts JSON.pretty_generate(body.dup.tap { |b| 
+        # Truncate long system prompts for readability
+        if b["system_instruction"] && b["system_instruction"]["parts"]
+          b["system_instruction"]["parts"].each do |part|
+            if part["text"] && part["text"].length > 200
+              part["text"] = part["text"][0..200] + "... [truncated]"
+            end
+          end
+        end
+      })
     end
     
     # Use v1beta for thinking models, v1alpha for others
@@ -802,7 +817,13 @@ module GeminiHelper
           end
 
           candidates = json_obj["candidates"]
-          candidates.each do |candidate|
+          
+          # Debug: Log if no candidates
+          if CONFIG["EXTRA_LOGGING"] && (candidates.nil? || candidates.empty?)
+            puts "[DEBUG Gemini] No candidates in response: #{json_obj.inspect}"
+          end
+          
+          candidates&.each do |candidate|
 
             finish_reason = candidate["finishReason"]
             case finish_reason
@@ -819,6 +840,23 @@ module GeminiHelper
             end
 
             content = candidate["content"]
+            
+            # Debug: Log why content might be skipped
+            if CONFIG["EXTRA_LOGGING"]
+              if content.nil?
+                puts "[DEBUG Gemini] Skipping candidate: content is nil"
+              elsif finish_reason == "recitation"
+                puts "[DEBUG Gemini] Skipping candidate: finish_reason is recitation"
+              elsif finish_reason == "safety"
+                puts "[DEBUG Gemini] Skipping candidate: finish_reason is safety"
+                # For safety, try to provide more information
+                safety_ratings = candidate["safetyRatings"]
+                if safety_ratings
+                  puts "[DEBUG Gemini] Safety ratings: #{safety_ratings.inspect}"
+                end
+              end
+            end
+            
             next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
 
             content["parts"]&.each do |part|
@@ -1141,6 +1179,16 @@ module GeminiHelper
       # Add thinking content if present (similar to Claude)
       if thinking_parts.any?
         response_data["choices"][0]["message"]["thinking"] = thinking_parts.join("\n")
+      end
+      
+      # Apply monadic transformation if enabled
+      obj = session[:parameters]
+      if obj["monadic"] && final_content
+        # Process through unified interface
+        processed = process_monadic_response(final_content, app)
+        # Validate the response
+        validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+        response_data["choices"][0]["message"]["content"] = validated.is_a?(Hash) ? JSON.generate(validated) : validated
       end
       
       [response_data]

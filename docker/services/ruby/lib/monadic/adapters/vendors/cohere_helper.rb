@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 require_relative "../../utils/interaction_utils"
+require_relative "../../monadic_provider_interface"
+require_relative "../../monadic_schema_validator"
+require_relative "../../monadic_performance"
 
 module CohereHelper
   include InteractionUtils
+  include MonadicProviderInterface
+  include MonadicSchemaValidator
+  include MonadicPerformance
   MAX_FUNC_CALLS = 20
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
@@ -611,6 +617,7 @@ module CohereHelper
     # Handle non-tool messages and update session
     if role != "tool"
       message ||= "Hi there!"
+      
       html = if message != ""
                markdown_to_html(message)
              else
@@ -677,6 +684,17 @@ module CohereHelper
         "content" => current_message
       }
     end
+    
+    # Apply monadic transformation to the last user message if in monadic mode
+    if obj["monadic"].to_s == "true" && messages.any? && 
+       messages.last["role"] == "user" && role == "user"
+      # Remove prompt suffix to get base message
+      base_message = messages.last["content"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
+      # Apply monadic transformation using unified interface
+      monadic_message = apply_monadic_transformation(base_message, app, "user")
+      # Add prompt suffix back
+      messages.last["content"] = "#{monadic_message}\n\n#{obj["prompt_suffix"]}".strip
+    end
 
     # Construct request body with v2 API compatible parameters
     body = {
@@ -687,6 +705,9 @@ module CohereHelper
     # Add optional parameters with validation
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
+
+    # Configure monadic response format using unified interface
+    body = configure_monadic_response(body, :cohere, app)
 
     # Handle tools differently for Cohere
     if obj["tools"] && !obj["tools"].empty?
@@ -967,12 +988,23 @@ module CohereHelper
       # Return final text result exactly like the command_r_helper does
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
+      
+      # Apply monadic transformation if enabled
+      final_result = result
+      if obj["monadic"] && final_result
+        # Process through unified interface
+        processed = process_monadic_response(final_result, app)
+        # Validate the response
+        validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+        final_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
+      end
+      
       [
         {
           "choices" => [
             {
               "finish_reason" => finish_reason, 
-              "message" => { "content" => result }
+              "message" => { "content" => final_result }
             }
           ]
         }

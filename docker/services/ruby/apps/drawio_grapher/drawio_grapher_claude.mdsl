@@ -95,7 +95,6 @@ app "DrawIOGrapherClaude" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    toggle false
     image true
     sourcecode true
     group "Anthropic"

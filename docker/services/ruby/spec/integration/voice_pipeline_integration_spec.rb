@@ -40,7 +40,7 @@ RSpec.describe "Voice Pipeline Integration", :integration do
           original_words = text.downcase.split
           transcribed_words = result[:transcription].downcase.split
           word_match = original_words.any? { |w| transcribed_words.include?(w) }
-          expect(word_match).to be true, "No matching words found between '#{text}' and '#{result[:transcription]}'"
+          expect(word_match).to be(true).or(satisfy { |_| puts "No matching words found between '#{text}' and '#{result[:transcription]}'" })
         else
           expect(result[:accuracy]).to be > 0.5  # 50% accuracy threshold
         end
@@ -184,16 +184,20 @@ RSpec.describe "Voice Pipeline Integration", :integration do
   end
   
   describe "CLI tool integration" do
+    let(:scripts_base_path) { File.expand_path("../../scripts/cli_tools", __dir__) }
+    
     it "verifies TTS CLI tool is available", requires_api: false do
       # TTS tool shows usage when no arguments provided
-      output = `docker exec monadic-chat-ruby-container ruby /monadic/scripts/cli_tools/tts_query.rb 2>&1`
+      tts_script = File.join(scripts_base_path, "tts_query.rb")
+      output = `ruby #{tts_script} 2>&1`
       expect(output).to include("Usage")
       expect(output).to include("--provider")
     end
     
     it "verifies STT CLI tool is available", requires_api: false do
       # STT tool shows error when no arguments provided
-      output = `docker exec monadic-chat-ruby-container ruby /monadic/scripts/cli_tools/stt_query.rb 2>&1`
+      stt_script = File.join(scripts_base_path, "stt_query.rb")
+      output = `ruby #{stt_script} 2>&1`
       expect(output).to include("ERROR: No audio file provided")
       expect($?.success?).to be false
     end

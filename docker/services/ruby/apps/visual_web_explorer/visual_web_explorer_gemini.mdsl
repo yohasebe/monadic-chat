@@ -43,7 +43,6 @@ app "VisualWebExplorerGemini" do
   features do
     disabled !CONFIG["GEMINI_API_KEY"]
     monadic false
-    toggle false
     websearch true
     context_size 20
   end

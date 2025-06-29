@@ -28,7 +28,6 @@ app "ChatDeepSeek" do
     pdf false
     image false
     sourcecode true
-    toggle true
     websearch false
     group "DeepSeek"
   end

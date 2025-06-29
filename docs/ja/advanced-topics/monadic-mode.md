@@ -21,16 +21,15 @@ Monadicモードでは、AIからの各レスポンスにメッセージと構�
 
 ## Monadicモードが使用される場合
 
-Monadicモードは構造化されたJSON出力をサポートするプロバイダーで一般的に使用されます：
+Monadicモードは統一インターフェースを通じてすべてのプロバイダーでサポートされています：
 
-- **OpenAI** - `response_format`による完全サポート
-- **DeepSeek** - JSON出力サポート
-- **Perplexity** - 構造化レスポンス機能
-- **Grok** - JSONフォーマットサポート
+- **OpenAI/DeepSeek/Perplexity/Grok** - `response_format`によるネイティブサポート
+- **Claude** - システムプロンプトによるJSON構造化
+- **Gemini** - `responseMimeType`と`responseSchema`の設定
+- **Mistral/Cohere** - JSONスキーマを使用した`response_format`
+- **Ollama** - `format: "json"`とシステム指示
 
-構造化されたJSON出力を必要としないプロバイダー（Claude、Gemini、Mistral、Cohere、Ollamaなど）では、Monadic Chatは通常「トグルモード」を使用してHTMLベースの表示によるコンテキスト管理を提供します。
-
-?> **注意**: `monadic`と`toggle`の機能は相互排他的です。ただし、これらの選択はUI表示とコンテキスト管理のアプローチに関するものであり、APIの制限ではありません。OpenAIのようなJSON対応プロバイダーでも、構造化されたレスポンスよりも柔軟なフォーマットが好まれる場合はトグルモードを使用できます。
+?> **注意**: すべてのプロバイダーがMonadicモードをサポートするようになりました。標準モード（`monadic: false`）は、構造化されたコンテキスト管理を必要としない場合に使用します。
 
 ## アーキテクチャ
 

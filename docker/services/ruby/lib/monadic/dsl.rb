@@ -20,7 +20,6 @@ module MonadicDSL
   # - mathjax: Enables mathematical notation rendering using MathJax library
   # - abc: Enables ABC music notation rendering and playback for music composition
   # - sourcecode: Enables enhanced source code highlighting and formatting (code_highlight)
-  # - toggle: Controls collapsible sections for code blocks and other content
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation
   # - monadic: Enables monadic mode for structured JSON responses and special rendering
@@ -884,12 +883,6 @@ module MonadicDSL
       feature_name = FEATURE_MAP[method_name] || method_name
       @state.features[feature_name] = value
       
-      # Validate monadic/toggle mutual exclusivity
-      if feature_name == :monadic && value && @state.features[:toggle]
-        raise ConfigurationError, "Cannot have both monadic and toggle enabled"
-      elsif feature_name == :toggle && value && @state.features[:monadic]
-        raise ConfigurationError, "Cannot have both monadic and toggle enabled"
-      end
     end
     
     def respond_to_missing?(method_name, include_private = false)

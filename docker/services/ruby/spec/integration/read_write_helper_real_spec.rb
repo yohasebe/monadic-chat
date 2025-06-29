@@ -7,9 +7,11 @@ require 'open3'
 require 'ostruct'
 
 # Define MonadicApp module with constants before requiring helper
-module MonadicApp
-  SHARED_VOL = "/monadic/data"
-  LOCAL_SHARED_VOL = File.join(Dir.home, "monadic", "data")
+unless defined?(MonadicApp::SHARED_VOL)
+  module MonadicApp
+    SHARED_VOL = "/monadic/data"
+    LOCAL_SHARED_VOL = File.join(Dir.home, "monadic", "data")
+  end
 end
 
 require_relative '../../lib/monadic/adapters/read_write_helper'

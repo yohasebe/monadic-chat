@@ -32,7 +32,12 @@
 
 ### テスト実行方法 :id=running-tests
 
-?> **注意:** `rake server:debug`を使用して開発する場合、RubyテストはローカルのRuby環境を使用してホスト上で直接実行されます。
+?> **注意:** `rake server:debug`を使用して開発する場合、RubyテストはローカルのRuby環境を使用してホスト上で直接実行されます。開発環境ではRubyコンテナは使用されません。
+
+#### 開発環境
+- **Rubyコンテナ**: 使用しません - ローカルのRuby環境を使用
+- **その他のコンテナ**: Python、PostgreSQL、Seleniumコンテナは起動している必要があります
+- **スクリプト**: CLIツールとスクリプトは`docker/services/ruby/scripts/`からローカルで実行されます
 
 #### Rubyテスト
 ```bash

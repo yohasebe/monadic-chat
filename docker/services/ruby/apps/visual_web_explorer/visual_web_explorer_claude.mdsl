@@ -43,7 +43,6 @@ app "VisualWebExplorerClaude" do
   features do
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     monadic false
-    toggle false
     websearch true
     context_size 20
   end

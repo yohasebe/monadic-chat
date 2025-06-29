@@ -18,7 +18,6 @@ app "ResearchAssistantDeepSeek" do
     auto_speech false
     mathjax true
     image true
-    toggle true
     initiate_from_assistant false
   end
 

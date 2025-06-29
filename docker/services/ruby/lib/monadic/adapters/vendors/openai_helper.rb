@@ -7,10 +7,16 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
+require_relative "../../monadic_provider_interface"
+require_relative "../../monadic_schema_validator"
+require_relative "../../monadic_performance"
 module OpenAIHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
+  include MonadicProviderInterface
+  include MonadicSchemaValidator
+  include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
 
@@ -78,13 +84,18 @@ module OpenAIHelper
   
   # Models that require the new responses API endpoint
   RESPONSES_API_MODELS = [
-    "o3-pro"
+    "o3-pro",
+    "o3",
+    "o4-mini"
   ]
   
   # Models that use responses API for web search
   RESPONSES_API_WEBSEARCH_MODELS = [
     "gpt-4.1",
-    "gpt-4.1-mini"
+    "gpt-4.1-mini",
+    "o3",
+    "o3-pro",
+    "o4-mini"
   ]
 
   # Native OpenAI web search tool configuration for responses API
@@ -352,13 +363,8 @@ module OpenAIHelper
         session.delete(:model_switch_notified)
       end
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        if message != ""
-          APPS[app].methods
-          message = APPS[app].monadic_unit(message)
-        end
-      end
+      # Apply monadic transformation if needed (for display purposes only)
+      # The actual API transformation happens later when building messages
 
       html = markdown_to_html(message, mathjax: obj["mathjax"])
 
@@ -456,9 +462,8 @@ module OpenAIHelper
         body["response_format"] = APPS[app].settings["response_format"]
       end
 
-      if obj["monadic"] || obj["json"]
-        body["response_format"] ||= { "type" => "json_object" }
-      end
+      # Use the new unified interface for monadic mode
+      body = configure_monadic_response(body, :openai, app)
     end
 
     if non_stream_model
@@ -665,6 +670,20 @@ module OpenAIHelper
         "content" => data.strip
       }
     end
+    
+    # Apply monadic transformation to the last user message for API
+    if obj["monadic"].to_s == "true" && body["messages"].any? && 
+       body["messages"].last["role"] == "user" && role == "user"
+      last_msg = body["messages"].last
+      if last_msg["content"].is_a?(Array)
+        text_content = last_msg["content"].find { |c| c["type"] == "text" }
+        if text_content
+          original_text = text_content["text"]
+          monadic_text = apply_monadic_transformation(original_text, app, "user")
+          text_content["text"] = monadic_text
+        end
+      end
+    end
 
     # initial prompt in the body is appended with the settings["system_prompt_suffix"
     if initial_prompt.to_s != "" && obj["system_prompt_suffix"].to_s != ""
@@ -680,7 +699,7 @@ module OpenAIHelper
       # Check if the current model has vision capability
       # gpt-4.1-mini and gpt-4.1 both have vision capability
       vision_capable_models = ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-preview", "gpt-4.1-mini-2025-04-14", "gpt-4.1-2025-04-14", 
-                               "gpt-4.5", "gpt-4.5-preview", "gpt-4o", "gpt-4o-mini", "o3-pro"]
+                               "gpt-4.5", "gpt-4.5-preview", "gpt-4o", "gpt-4o-mini", "o3-pro", "o3", "o4-mini"]
       current_model = body["model"]
       has_vision = vision_capable_models.any? { |m| current_model.include?(m) }
       
@@ -863,13 +882,7 @@ module OpenAIHelper
         # Add native web search tool for responses API
         responses_body["tools"] = [NATIVE_WEBSEARCH_TOOL]
         
-      elsif websearch_enabled && obj["model"] == "o3-pro" && block
-        # Web search requested but not supported for o3-pro
-        system_msg = {
-          "type" => "system_info",
-          "content" => "Web search is not yet supported for o3-pro model. Proceeding without web search functionality."
-        }
-        block.call system_msg
+      # Native web search is now supported for o3, o3-pro, and o4-mini models
       end
       
       # Enhanced tool support for responses API
@@ -1220,15 +1233,24 @@ module OpenAIHelper
         choice = result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
           message = choice["message"]["content"]
-          # monadic_map returns JSON string, but we need the actual content
-          modified = APPS[app].monadic_map(message)
-          # Parse the JSON and extract the message field
-          begin
-            parsed = JSON.parse(modified)
-            choice["message"]["content"] = parsed["message"] || modified
-          rescue JSON::ParserError
-            # If parsing fails, use the original modified value
-            choice["message"]["content"] = modified
+          
+          # Use performance-optimized processing with caching
+          cache_key = MonadicPerformance.generate_cache_key("openai", obj["model"], body["messages"])
+          
+          # Process and validate the monadic response
+          processed = MonadicPerformance.performance_monitor.measure("monadic_processing") do
+            # First, apply monadic transformation
+            transformed = process_monadic_response(message, app)
+            # Then validate the response
+            validated = validate_monadic_response!(transformed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+            validated
+          end
+          
+          # Update the choice with processed content
+          if processed.is_a?(Hash)
+            choice["message"]["content"] = processed["message"] || JSON.generate(processed)
+          else
+            choice["message"]["content"] = processed
           end
         end
       end

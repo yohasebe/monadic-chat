@@ -27,7 +27,6 @@ app "VoiceChatPerplexity" do
     disabled !CONFIG["PERPLEXITY_API_KEY"]
     easy_submit true
     auto_speech true
-    toggle true
     group "Perplexity"
     initiate_from_assistant true
   end

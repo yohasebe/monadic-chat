@@ -3,9 +3,11 @@
 require_relative '../spec_helper'
 
 # Define MonadicApp constants globally for SeleniumHelper
-module MonadicApp
-  SHARED_VOL = "/monadic/data"
-  LOCAL_SHARED_VOL = File.join(Dir.home, "monadic", "data")
+unless defined?(MonadicApp)
+  module MonadicApp
+    SHARED_VOL = "/monadic/data"
+    LOCAL_SHARED_VOL = File.join(Dir.home, "monadic", "data")
+  end
 end
 
 # Define IN_CONTAINER constant for SeleniumHelper if not already defined

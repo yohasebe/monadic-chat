@@ -98,10 +98,6 @@ module MDSLSchema
       type: :boolean,
       description: "Enable monadic JSON response format"
     },
-    toggle: {
-      type: :boolean,
-      description: "Enable toggle UI for responses"
-    },
     easy_submit: {
       type: :boolean,
       description: "Enable easy submit mode"

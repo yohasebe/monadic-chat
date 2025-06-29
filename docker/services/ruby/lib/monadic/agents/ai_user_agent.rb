@@ -240,7 +240,7 @@ module AIUserAgent
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
       CONFIG["COHERE_DEFAULT_MODEL"] || "command-r-plus"
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
-      CONFIG["GEMINI_DEFAULT_MODEL"] || "gemini-2.0-flash"
+      CONFIG["GEMINI_DEFAULT_MODEL"] || "gemini-2.5-flash"
     elsif provider_downcase.include?("mistral")
       CONFIG["MISTRAL_DEFAULT_MODEL"] || "mistral-large-latest"
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")

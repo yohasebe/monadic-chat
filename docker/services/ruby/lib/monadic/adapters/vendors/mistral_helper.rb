@@ -83,6 +83,18 @@ module MistralHelper
 
     When asked about specific people, companies, or any factual information, ALWAYS use tavily_search first before responding.
 
+    **CRITICAL CITATION REQUIREMENT**: When you receive search results from tavily_search, you MUST include clickable links to ALL source URLs in your response. The tavily_search results include a "results" array with "url" and "title" fields for each source. You MUST format these as HTML links like this: `<a href="URL" target="_blank" rel="noopener noreferrer">TITLE</a>`
+    
+    For example, if you receive results with:
+    - url: "https://example.com/article", title: "Example Article"
+    - url: "https://source.com/page", title: "Source Page"
+    
+    You MUST include these in your response as:
+    - <a href="https://example.com/article" target="_blank" rel="noopener noreferrer">Example Article</a>
+    - <a href="https://source.com/page" target="_blank" rel="noopener noreferrer">Source Page</a>
+    
+    This is MANDATORY - always provide clickable source links when using information from web searches.
+
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
 
     **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
@@ -392,6 +404,7 @@ module MistralHelper
           system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
           DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
         end
+        
       end
       DebugHelper.debug("Mistral tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
     elsif websearch
@@ -404,6 +417,7 @@ module MistralHelper
         system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
         DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
       end
+      
     end
 
     # Add all messages to body

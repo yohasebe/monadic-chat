@@ -3054,6 +3054,12 @@ function connect_websocket(callback) {
             
             $("#monadic-spinner").hide();
             
+            // If this is the first assistant message (from initiate_from_assistant), show user panel
+            if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
+              $("#user-panel").show();
+              setInputFocus();
+            }
+            
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
             
             // For assistant messages, don't show "Ready to start" immediately

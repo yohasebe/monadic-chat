@@ -1219,9 +1219,11 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
+      if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from_assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
+        $("#monadic-spinner").show(); // Show spinner for initial assistant message
+        setAlert("<i class='fas fa-spinner fa-spin'></i> Generating response from assistant...", "info");
         document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         reconnect_websocket(ws, function (ws) {
           // Ensure critical parameters are correctly set based on checkboxes

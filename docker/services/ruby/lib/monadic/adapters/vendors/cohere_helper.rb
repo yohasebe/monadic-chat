@@ -1087,7 +1087,9 @@ module CohereHelper
             "document" => {
               "id" => tool_call_id,
               "data" => {
-                "results" => function_return.to_s
+                "results" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? 
+                            JSON.generate(function_return) : 
+                            function_return.to_s
               }
             }
           }

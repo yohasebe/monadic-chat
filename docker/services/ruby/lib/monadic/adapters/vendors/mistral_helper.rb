@@ -709,7 +709,11 @@ module MistralHelper
         end
 
         # Add to function returns with proper encoding
-        content = function_return.to_s
+        content = if function_return.is_a?(Hash) || function_return.is_a?(Array)
+                    JSON.generate(function_return)
+                  else
+                    function_return.to_s
+                  end
         # Ensure content is not nil or empty
         content = "No result returned" if content.nil? || content.empty?
         # Ensure UTF-8 encoding

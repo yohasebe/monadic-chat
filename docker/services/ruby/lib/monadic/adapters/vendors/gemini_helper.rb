@@ -752,6 +752,20 @@ module GeminiHelper
 
           if CONFIG["EXTRA_LOGGING"]
             extra_log.puts(JSON.pretty_generate(json_obj))
+            
+            # Specifically log if this is a web search response
+            if session[:parameters]["websearch"] && json_obj["candidates"]
+              json_obj["candidates"].each_with_index do |candidate, idx|
+                if candidate["content"] && candidate["content"]["parts"]
+                  candidate["content"]["parts"].each_with_index do |part, part_idx|
+                    if part["text"] && (part["grounding_metadata"] || part["searchEntryPoint"])
+                      puts "[DEBUG Gemini WebSearch] Candidate #{idx}, Part #{part_idx} contains search data"
+                      puts "[DEBUG Gemini WebSearch] Text preview: #{part["text"][0..200]}..." if part["text"]
+                    end
+                  end
+                end
+              end
+            end
           end
 
           candidates = json_obj["candidates"]
@@ -798,6 +812,11 @@ module GeminiHelper
             next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
 
             content["parts"]&.each do |part|
+              # Debug: Log if we have search grounding metadata
+              if CONFIG["EXTRA_LOGGING"] && part["grounding_metadata"]
+                puts "[DEBUG Gemini] Found grounding metadata (search results): #{part["grounding_metadata"].inspect}"
+              end
+              
               # Check if this part contains thinking content
               if part["thought"] == true && part["text"]
                 thinking_fragment = part["text"]

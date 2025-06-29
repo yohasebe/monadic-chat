@@ -353,7 +353,7 @@ RSpec.describe AIUserAgent do
     
     it 'handles various provider names' do
       providers_and_defaults = {
-        "gemini" => "gemini-2.0-flash",
+        "gemini" => "gemini-2.5-flash",
         "mistral" => "mistral-large-latest",
         "grok" => "grok-2",
         "perplexity" => "sonar",

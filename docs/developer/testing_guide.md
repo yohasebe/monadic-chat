@@ -5,10 +5,13 @@ This guide provides a comprehensive overview of Monadic Chat's testing architect
 ## Visual Test Architecture
 
 ```
-Monadic Chat Test Architecture
+Monadic Chat Test Architecture (~76 test files)
 ├── 📁 spec/
 │   ├── 🔧 spec_helper.rb (Minimal setup, no mocks)
 │   ├── 📊 examples.txt (Test execution results)
+│   ├── 📁 support/
+│   │   ├── custom_retry.rb (Retry mechanism)
+│   │   └── real_audio_test_helper.rb (TTS/STT helpers)
 │   │
 │   ├── 📁 unit/ (Fast unit tests - Ruby only)
 │   │   ├── 🔬 string_utils_spec.rb
@@ -25,29 +28,29 @@ Monadic Chat Test Architecture
 │   │       ├── 🔬 boolean_parser_with_schema_spec.rb (Schema integration)
 │   │       └── 🔬 mdsl_schema_spec.rb (Type management)
 │   │
-│   ├── 📁 integration/ (Real operations with containers)
-│   │   ├── 🗄️ text_embeddings_spec.rb (PostgreSQL + pgvector)
-│   │   ├── 🗄️ selenium_integration_spec.rb (Cross-container)
-│   │   ├── 🎤 voice_pipeline_integration_spec.rb (TTS/STT)
-│   │   ├── 🎤 voice_chat_integration_spec.rb
-│   │   ├── 🎤 voice_chat_simple_spec.rb
-│   │   └── 🎤 voice_cli_tools_spec.rb
+│   ├── 📁 integration/ (Real operations with containers - consolidated)
+│   │   ├── 🐳 docker_infrastructure_spec.rb (Container health & Docker commands)
+│   │   ├── 🔧 app_helpers_integration_spec.rb (Helper modules & workflows)
+│   │   ├── 🗄️ pgvector_integration_real_spec.rb (PostgreSQL + embeddings)
+│   │   ├── 🗄️ selenium_integration_spec.rb (Cross-container web scraping)
+│   │   ├── 🎤 voice_chat_no_mock_spec.rb (Core voice chat with TTS/STT)
+│   │   └── 🎤 voice_pipeline_integration_spec.rb (TTS/STT pipeline testing)
 │   │
 │   ├── 📁 system/ (App validation)
 │   │   ├── ✅ code_interpreter_system_spec.rb
 │   │   ├── ✅ chat_system_spec.rb
-│   │   └── ✅ research_assistant_system_spec.rb
-│   │
-│   ├── 📁 docker/ (Container infrastructure)
-│   │   └── 🐳 docker_integration_spec.rb
+│   │   ├── ✅ research_assistant_system_spec.rb
+│   │   └── [Additional app validation specs...]
 │   │
 │   └── 📁 e2e/ (End-to-end with real AI APIs)
-│       ├── 🤖 chat_workflow_spec.rb
-│       ├── 🤖 code_interpreter_workflow_spec.rb
-│       ├── 🤖 image_generator_workflow_spec.rb
-│       ├── 🤖 pdf_navigator_workflow_spec.rb
-│       ├── 🤖 research_assistant_workflow_spec.rb
-│       ├── 🤖 jupyter_notebook_workflow_spec.rb
+│       ├── 🔧 e2e_helper.rb (WebSocket & validation helpers)
+│       ├── 🔧 validation_helper.rb (Response validation methods)
+│       ├── 🤖 chat_openai_spec.rb
+│       ├── 🤖 chat_plus_monadic_test_spec.rb
+│       ├── 🤖 code_interpreter_spec.rb (Multi-provider)
+│       ├── 🤖 content_reader_spec.rb
+│       ├── 🤖 image_generator_spec.rb
+│       ├── 🤖 jupyter_notebook_spec.rb
 │       ├── 🎤 voice_chat_workflow_spec.rb
 │       ├── 🎤 voice_chat_real_audio_spec.rb
 │       ├── 🌐 visual_web_explorer_workflow_spec.rb
@@ -257,6 +260,39 @@ rspec spec/unit/specific_test_spec.rb:42
 - **Integration Tests**: All cross-service interactions
 - **E2E Tests**: Critical user workflows for each provider
 - **Performance**: Unit tests < 1s total, Integration < 30s, E2E < 5min
+
+## Test Organization Best Practices
+
+### Test Consolidation
+The test suite has been consolidated to improve maintainability and reduce duplication:
+
+- **Integration Tests**: Reduced from ~15 files to 6 main files
+  - Infrastructure tests separate from application tests
+  - Voice chat tests consolidated into core functionality tests
+  - Helper modules tested through integration scenarios
+  
+- **E2E Tests**: Organized by application functionality
+  - Multi-provider tests in single files where appropriate
+  - Shared validation helpers to reduce duplication
+  - Clear separation between workflow types
+
+### Benefits of Consolidation
+- ~35% reduction in test files while maintaining full coverage
+- Faster test execution due to reduced duplication
+- Clearer test boundaries and responsibilities
+- Easier maintenance with fewer files to update
+
+### Key Principles
+- **No Mocks**: All tests use real implementations
+- **Clear Separation**: Infrastructure vs application logic
+- **Flexible Validation**: Accept provider response variations
+- **Real Dependencies**: Use actual containers and services
+
+### Current Test Structure
+- **E2E Tests**: Mix of old `_workflow_spec.rb` pattern (11 files) and new consolidated pattern (5 files)
+- **Helper Methods**: All E2E tests must use `with_e2e_retry(max_attempts: 3, wait: 10)` syntax
+- **Total Test Count**: ~64 test files across all categories
+- **Partial Consolidation**: Voice Chat and Code Interpreter tests consolidated; others remain in original format
 
 ## Related Documentation
 

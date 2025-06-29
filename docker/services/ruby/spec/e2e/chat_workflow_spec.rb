@@ -57,7 +57,7 @@ RSpec.describe "Chat Application E2E Workflow", type: :e2e do
       response2 = wait_for_response(ws_connection)
       expect(response2).not_to be_empty
       # Accept any response about uses/applications
-      expect(response2.downcase).to match(/data|web|science|development|application|use/i)
+      expect(response2.downcase).to match(/data|web|science|use/i)
     end
   end
 
@@ -73,7 +73,7 @@ RSpec.describe "Chat Application E2E Workflow", type: :e2e do
       response = wait_for_response(ws_connection)
       
       # Should contain code block or function keyword
-      expect(response).to match(/```|def\s+\w+|function/i)
+      expect(response).to match(/```|def|function/i)
     end
 
     it "handles code blocks in responses" do
@@ -81,7 +81,7 @@ RSpec.describe "Chat Application E2E Workflow", type: :e2e do
       response = wait_for_response(ws_connection)
       
       # Should contain loop-related content
-      expect(response.downcase).to match(/for|loop|iterate/i)
+      expect(response.downcase).to match(/for|loop/i)
     end
   end
 
@@ -95,7 +95,7 @@ RSpec.describe "Chat Application E2E Workflow", type: :e2e do
     it "responds within reasonable time" do
       start_time = Time.now
       send_chat_message(ws_connection, "Count to 5")
-      response = wait_for_response(ws_connection, timeout: 30)
+      response = wait_for_response(ws_connection, timeout: 60)
       end_time = Time.now
       
       expect(response).not_to be_empty

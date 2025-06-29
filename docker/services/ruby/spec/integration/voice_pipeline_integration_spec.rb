@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "fileutils"
 require_relative "../support/real_audio_test_helper"
 
 RSpec.describe "Voice Pipeline Integration", :integration do
   include RealAudioTestHelper
+  
+  # In development environment, we run scripts locally
+  let(:scripts_base_path) { File.expand_path("../../scripts/cli_tools", __dir__) }
   
   before(:all) do
     # Check if we have necessary API keys
@@ -186,26 +190,85 @@ RSpec.describe "Voice Pipeline Integration", :integration do
   describe "CLI tool integration" do
     let(:scripts_base_path) { File.expand_path("../../scripts/cli_tools", __dir__) }
     
-    it "verifies TTS CLI tool is available", requires_api: false do
-      # TTS tool shows usage when no arguments provided
-      tts_script = File.join(scripts_base_path, "tts_query.rb")
-      output = `ruby #{tts_script} 2>&1`
-      expect(output).to include("Usage")
-      expect(output).to include("--provider")
+    describe "stt_query.rb" do
+      let(:stt_script) { File.join(scripts_base_path, "stt_query.rb") }
+      
+      it "exists and is executable", requires_api: false do
+        expect(File.exist?(stt_script)).to be true
+        expect(File.executable?(stt_script)).to be true
+      end
+      
+      it "verifies STT CLI tool is available", requires_api: false do
+        # STT tool shows error when no arguments provided
+        output = `ruby #{stt_script} 2>&1`
+        expect(output).to include("ERROR: No audio file provided")
+        expect($?.success?).to be false
+      end
+      
+      it "expects positional arguments", requires_api: false do
+        # The tool expects: audiofile, outpath, response_format, lang_code, model
+        output = `ruby #{stt_script} /nonexistent/audio.mp3 2>&1`
+        expect(output).to include("No such file")
+        expect(output).to include("An error occurred:")
+      end
     end
     
-    it "verifies STT CLI tool is available", requires_api: false do
-      # STT tool shows error when no arguments provided
-      stt_script = File.join(scripts_base_path, "stt_query.rb")
-      output = `ruby #{stt_script} 2>&1`
-      expect(output).to include("ERROR: No audio file provided")
-      expect($?.success?).to be false
+    describe "tts_query.rb" do
+      let(:tts_script) { File.join(scripts_base_path, "tts_query.rb") }
+      
+      it "exists and is executable", requires_api: false do
+        expect(File.exist?(tts_script)).to be true
+        expect(File.executable?(tts_script)).to be true
+      end
+      
+      it "verifies TTS CLI tool is available", requires_api: false do
+        # TTS tool shows usage when no arguments provided
+        output = `ruby #{tts_script} 2>&1`
+        expect(output).to include("Usage")
+        expect(output).to include("--provider")
+      end
+      
+      it "can list available voices", requires_api: false do
+        output = `ruby #{tts_script} --list 2>&1`
+        expect(output).to include("openai")
+      end
+      
+      context "with text input" do
+        let(:test_text_file) { "/tmp/test_tts_input_#{Time.now.to_i}.txt" }
+        
+        before do
+          File.write(test_text_file, "Hello world")
+        end
+        
+        after do
+          FileUtils.rm_f(test_text_file)
+        end
+        
+        it "expects text file as first argument", requires_api: false do
+          output = `ruby #{tts_script} #{test_text_file} 2>&1`
+          expect(output).to include("Text-to-speech audio")
+        end
+      end
     end
     
-    it "checks FFmpeg availability in Python container", requires_api: false do
-      output = `docker exec monadic-chat-python-container ffmpeg -version 2>&1`
-      expect($?.success?).to be true
-      expect(output).to include("ffmpeg version")
+    describe "Audio format utilities" do
+      it "checks FFmpeg availability in Python container", requires_api: false do
+        output = `docker exec monadic-chat-python-container ffmpeg -version 2>&1`
+        expect($?.success?).to be true
+        expect(output).to include("ffmpeg version")
+      end
+      
+      it "can create test audio files", requires_api: false do
+        command = <<~BASH
+          docker exec monadic-chat-python-container bash -c "
+            ffmpeg -f lavfi -i sine=frequency=440:duration=1 -ar 16000 -ac 1 -f wav -y /tmp/test_tone.wav &&
+            ls -la /tmp/test_tone.wav
+          "
+        BASH
+        
+        output = `#{command} 2>&1`
+        expect(output).to include("test_tone.wav")
+      end
     end
   end
 end

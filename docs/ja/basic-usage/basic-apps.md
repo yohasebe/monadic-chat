@@ -18,7 +18,7 @@
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | | |
+| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
 | Translate | ✅ | | | | | | | | |
@@ -128,15 +128,15 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 - OpenAI
 - Anthropic Claude
 - xAI Grok
-- Google Gemini（Tavily API必須）
+- Google Gemini
 - Mistral AI（Tavily API必須）
 - Cohere（Tavily API必須）
 - DeepSeek（Tavily API必須）
+- Perplexity
 
 ?> **ウェブ検索機能について**: 
-> - **ネイティブ検索**：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Perplexity（sonarモデルに組み込み）
-> - **Tavily API必須**：Google Gemini、Mistral AI、Cohere、DeepSeek。[Tavily](https://tavily.com/)から無料APIキーを取得できます（月1,000回の無料API呼び出し）
-> - **注:** Perplexityは全モデルにウェブ検索機能が含まれているため、個別のResearch Assistantアプリはありません
+> - **ネイティブ検索**：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Google Gemini（ネイティブGoogle検索）、Perplexity（sonarモデルに組み込み）
+> - **Tavily API必須**：Mistral AI、Cohere、DeepSeek。[Tavily](https://tavily.com/)から無料APIキーを取得できます（月1,000回の無料API呼び出し）
 
 ## 言語関連 :id=language-related
 

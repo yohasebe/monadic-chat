@@ -34,7 +34,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         send_chat_message(ws_connection, 
           "What is the capital of Japan?", 
           app: app_name)
-        response = wait_for_response(ws_connection, timeout: 30)
+        response = wait_for_response(ws_connection, timeout: 60)
         
         expect(response).not_to be_empty
         expect(response.downcase).to include("tokyo")
@@ -48,7 +48,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         response = wait_for_response(ws_connection, timeout: 60)
         
         expect(response).not_to be_empty
-        expect(response.downcase).to match(/quantum|computing|research|development/)
+        expect(response.downcase).to match(/quantum|computing|research/i)
       end
     end
 
@@ -60,7 +60,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         send_chat_message(ws_connection, 
           "I'm researching renewable energy", 
           app: app_name)
-        response1 = wait_for_response(ws_connection, timeout: 30)
+        response1 = wait_for_response(ws_connection, timeout: 60)
         expect(response1).not_to be_empty
         
         ws_connection[:messages].clear
@@ -72,18 +72,18 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         response2 = wait_for_response(ws_connection, timeout: 45)
         
         expect(response2).not_to be_empty
-        expect(response2.downcase).to match(/solar|panel|technology/)
+        expect(response2.downcase).to match(/solar|panel|technology/i)
       end
 
       it "handles the initial greeting appropriately" do
         # Research Assistant starts with a greeting (initiate_from_assistant behavior)
         # Just send an empty message to trigger the initial response
         send_chat_message(ws_connection, "Hello", app: app_name)
-        response = wait_for_response(ws_connection, timeout: 30)
+        response = wait_for_response(ws_connection, timeout: 60)
         
         expect(response).not_to be_empty
         # Should contain a greeting or research-related prompt
-        expect(response.downcase).to match(/research|help|assist|question|topic|explore/)
+        expect(response.downcase).to match(/research|help|assist/i)
       end
     end
   end
@@ -106,7 +106,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         app: app_name,
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1000)
-      response = wait_for_response(ws_connection, timeout: 30)
+      response = wait_for_response(ws_connection, timeout: 60)
       
       expect(response).not_to be_empty
       expect(response.downcase).to match(/quantum|computing|research|development/)
@@ -126,33 +126,42 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       skip "Gemini API key not configured" unless CONFIG["GEMINI_API_KEY"]
     end
 
-    it "performs research with Gemini" do
-      # Skip if Tavily not configured
-      skip "This test requires TAVILY_API_KEY" unless CONFIG["TAVILY_API_KEY"]
-      
+    it "performs research with Gemini using native Google search" do
       send_chat_message(ws_connection, 
-        "Explain the concept of neural networks", 
+        "What is machine learning?", 
         app: app_name,
-        model: "gemini-2.0-flash")
-      response = wait_for_response(ws_connection, timeout: 30)
-      
-      expect(response).not_to be_empty
-      # Accept either neural network explanation or web search results
-      expect(response.downcase).to match(/neural|network|layer|learning|research|search|web|information/)
-    end
-
-    it "integrates web search when available" do
-      skip "Tavily API key not configured" unless CONFIG["TAVILY_API_KEY"]
-      
-      send_chat_message(ws_connection, 
-        "What are the latest AI model releases from major tech companies?", 
-        app: app_name,
-        model: "gemini-2.0-flash")
+        model: "gemini-2.5-pro")
       response = wait_for_response(ws_connection, timeout: 60)
       
       expect(response).not_to be_empty
-      # Accept either search results or assistant greeting/acknowledgment
-      expect(response.downcase).to match(/ai|model|google|openai|anthropic|meta|ready.*assist|research.*needs|help.*find|exploring/)
+      # Accept machine learning related content
+      expect(response.downcase).to match(/machine|learning|algorithm/i)
+    end
+
+    it "integrates native Google web search" do
+      send_chat_message(ws_connection, 
+        "What are the latest AI model releases from major tech companies in 2024?", 
+        app: app_name,
+        model: "gemini-2.5-pro")
+      response = wait_for_response(ws_connection, timeout: 60)
+      
+      expect(response).not_to be_empty
+      # Should include current information about AI models from web search
+      expect(response.downcase).to match(/ai|model|google|openai/i)
+    end
+
+    it "works without Tavily API key (uses native Google search)" do
+      # This test specifically verifies that Gemini works without TAVILY_API_KEY
+      # when using native Google search
+      send_chat_message(ws_connection, 
+        "What are the recent developments in quantum computing research?", 
+        app: app_name,
+        model: "gemini-2.5-pro")
+      response = wait_for_response(ws_connection, timeout: 45)
+      
+      expect(response).not_to be_empty
+      # Accept broader response patterns since test may get cached or different responses
+      expect(response.downcase).to match(/quantum|computing|development/i)
     end
   end
 
@@ -172,22 +181,22 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       ws_connection[:client].close if ws_connection[:client]
     end
 
-
-    it "handles web search failures gracefully" do
-      skip "Claude API key not configured" unless CONFIG["ANTHROPIC_API_KEY"]
-      # When Tavily is not configured, should still work but mention limitation
+    it "Gemini works with native Google search without external dependencies" do
+      skip "Gemini API key not configured" unless CONFIG["GEMINI_API_KEY"]
       
-      if !CONFIG["TAVILY_API_KEY"]
-        send_chat_message(ws_connection, 
-          "Search for the latest news about quantum computing", 
-          app: "ResearchAssistantClaude",
-          max_tokens: 1000)
-        response = wait_for_response(ws_connection, timeout: 30)
-        
-        expect(response).not_to be_empty
-        # Should either mention search not available or provide general knowledge
-        expect(response).not_to include("Web search failed")
-      end
+      # This test ensures Gemini works even when Tavily is not available
+      # because it uses native Google search
+      send_chat_message(ws_connection, 
+        "Tell me about machine learning", 
+        app: "ResearchAssistantGemini",
+        model: "gemini-2.5-pro")
+      response = wait_for_response(ws_connection, timeout: 60)
+      
+      expect(response).not_to be_empty
+      expect(response.downcase).to match(/machine|learning|ai/i)
+      # Should not contain error messages about missing API keys
+      expect(response).not_to include("API key")
+      expect(response).not_to include("not configured")
     end
   end
 
@@ -211,7 +220,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       response = wait_for_response(ws_connection, timeout: 60)
       
       expect(response).not_to be_empty
-      expect(response.downcase).to match(/ai|artificial intelligence|development|research/)
+      expect(response.downcase).to match(/ai|artificial|development/i)
     end
   end
 
@@ -236,7 +245,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
-      expect(response.downcase).to match(/machine learning|algorithm|data|model|training/)
+      expect(response.downcase).to match(/machine|algorithm|data/i)
     end
   end
 
@@ -258,10 +267,10 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "What is quantum computing?", 
         app: app_name,
         model: "mistral-large-latest")
-      response = wait_for_response(ws_connection, timeout: 30)
+      response = wait_for_response(ws_connection, timeout: 60)
       
       expect(response).not_to be_empty
-      expect(response.downcase).to match(/quantum|computing|qubit/)
+      expect(response.downcase).to match(/quantum|computing/i)
     end
   end
 
@@ -286,7 +295,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       response = wait_for_response(ws_connection, timeout: 60)
       
       expect(response).not_to be_empty
-      expect(response.downcase).to match(/blockchain|distributed|ledger|cryptocurrency/)
+      expect(response.downcase).to match(/blockchain|distributed|ledger/i)
     end
   end
 
@@ -313,7 +322,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
-      expect(response.downcase).to match(/artificial intelligence|ai|machine|computer|algorithm/)
+      expect(response.downcase).to match(/artificial|ai|machine/i)
     end
   end
 

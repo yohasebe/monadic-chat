@@ -83,6 +83,17 @@ npm run test:coverage # Run tests with coverage report
 rake test  # Run both Ruby and JavaScript tests
 ```
 
+### Test Organization :id=test-organization
+
+Tests are organized to minimize duplication and improve maintainability:
+
+- **Unit Tests** (`spec/unit/`): Fast, isolated tests with no external dependencies
+- **Integration Tests** (`spec/integration/`): 
+  - `docker_infrastructure_spec.rb` - Container health, Docker commands, database connectivity
+  - `app_helpers_integration_spec.rb` - Helper modules and app functionality
+- **System Tests** (`spec/system/`): App validation and MDSL verification
+- **E2E Tests** (`spec/e2e/`): Full workflow tests with real API calls
+
 ## Debug System :id=debug-system
 
 Monadic Chat uses a unified debug system controlled via configuration variables in `~/monadic/config/env`:

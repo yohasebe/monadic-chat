@@ -917,7 +917,7 @@ task :spec_docker do
   Dir.chdir("docker/services/ruby") do
     puts "Running Docker integration tests..."
     puts "Note: These tests require Docker containers to be running"
-    sh "bundle exec rspec spec/integration/*docker*.rb spec/integration/*container*.rb spec/integration/*pgvector*.rb spec/integration/*selenium*.rb --format documentation --no-fail-fast"
+    sh "bundle exec rspec spec/integration/docker_infrastructure_spec.rb spec/integration/app_helpers_integration_spec.rb spec/integration/pgvector_integration_real_spec.rb spec/integration/selenium_integration_spec.rb --format documentation --no-fail-fast"
   end
 end
 

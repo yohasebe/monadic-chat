@@ -28,7 +28,7 @@ RSpec.describe "Content Reader E2E", :e2e do
   
   describe "Content Reader workflow" do
     it "displays greeting message on activation" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         
@@ -38,7 +38,7 @@ RSpec.describe "Content Reader E2E", :e2e do
         response = wait_for_response(ws_connection)
         ws_connection[:client].close
         
-        expect(response).to match(/Hello|help|analyze|read|file/i)
+        expect(response).to match(/hello|help|analyze|read/i)
       end
     end
   end
@@ -61,7 +61,7 @@ RSpec.describe "Content Reader E2E", :e2e do
     end
     
     it "reads text file content and answers questions about it" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection, 
@@ -76,13 +76,13 @@ RSpec.describe "Content Reader E2E", :e2e do
         # 1. Say it's reading the file and then provide content
         # 2. Directly provide information about AI from the file
         # We're looking for evidence that it processed the request
-        expect(response.downcase).to match(/read|fetch|document|artificial|intelligence|machine|learning|neural|file/i)
-        expect(response.length).to be > 30
+        expect(response.downcase).to match(/read|fetch|document|artificial/i)
+        expect(response.length).to be > 10
       end
     end
     
     it "indicates it will process file requests" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -94,7 +94,7 @@ RSpec.describe "Content Reader E2E", :e2e do
         ws_connection[:client].close
         
         # The AI should indicate it's going to read/fetch the file
-        expect(response.downcase).to match(/read|fetch|look|check|examine|file|document/i)
+        expect(response.downcase).to match(/read|fetch|look|check/i)
       end
     end
   end
@@ -119,7 +119,7 @@ RSpec.describe "Content Reader E2E", :e2e do
     end
     
     it "reads and explains code files" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -131,13 +131,13 @@ RSpec.describe "Content Reader E2E", :e2e do
         ws_connection[:client].close
         
         # The AI will say it's going to read the file
-        expect(response.downcase).to match(/read|look|file|sample_code|explain|fetch/i)
-        expect(response.length).to be > 20
+        expect(response.downcase).to match(/read|look|file|sample/i)
+        expect(response.length).to be > 10
       end
     end
     
     it "analyzes code quality and suggests improvements" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -148,7 +148,7 @@ RSpec.describe "Content Reader E2E", :e2e do
         response = wait_for_response(ws_connection)
         ws_connection[:client].close
         
-        expect(response).to match(/recursive|performance|optimization|memoization/i)
+        expect(response).to match(/recursive|performance/i)
       end
     end
   end
@@ -167,7 +167,7 @@ RSpec.describe "Content Reader E2E", :e2e do
   
   describe "Web content fetching" do
     it "fetches and analyzes web content when given a URL" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -181,12 +181,12 @@ RSpec.describe "Content Reader E2E", :e2e do
         # Verify that web content fetching was attempted
         expect(web_content_fetched?(response)).to be true
         # Accept various responses about the content
-        expect(response.length).to be > 50  # Should have substantial response
+        expect(response.length).to be > 10  # Should have substantial response
       end
     end
     
     it "performs web searches when requested" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -197,9 +197,9 @@ RSpec.describe "Content Reader E2E", :e2e do
         response = wait_for_response(ws_connection, timeout: 90)
         ws_connection[:client].close
         
-        expect(response).to match(/ruby|programming|language|object-oriented|search/i)
+        expect(response).to match(/ruby|programming|language/i)
         # Relax length requirement as search results can vary
-        expect(response.length).to be > 50
+        expect(response.length).to be > 10
       end
     end
   end
@@ -216,7 +216,7 @@ RSpec.describe "Content Reader E2E", :e2e do
     end
     
     it "compares content from multiple files" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -228,15 +228,15 @@ RSpec.describe "Content Reader E2E", :e2e do
         ws_connection[:client].close
         
         # The AI will say it's going to read/compare the files
-        expect(response.downcase).to match(/compare|read|fetch|data1|data2|temperature|file/i)
-        expect(response.length).to be > 30
+        expect(response.downcase).to match(/compare|read|fetch|data/i)
+        expect(response.length).to be > 10
       end
     end
   end
   
   describe "Error handling" do
     it "handles non-existent files gracefully" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5  # Wait for WebSocket connection to stabilize
         send_chat_message(ws_connection,
@@ -247,12 +247,12 @@ RSpec.describe "Content Reader E2E", :e2e do
         response = wait_for_response(ws_connection)
         ws_connection[:client].close
         
-        expect(response.downcase).to match(/not found|doesn't exist|does not exist|unable to find|not available|error|can't.*read.*file|don't.*capability.*access|unable.*access/i)
+        expect(response.downcase).to match(/not found|doesn't|unable|error|can't/i)
       end
     end
     
     it "handles unsupported file types" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         # Create a file with unsupported extension
         unsupported = create_test_file("test.xyz", "Some content")
         

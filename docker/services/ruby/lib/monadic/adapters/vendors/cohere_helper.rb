@@ -802,6 +802,7 @@ module CohereHelper
     buffer = String.new
     current_tool_call = nil
     accumulated_tool_calls = []
+    citations = []  # Store citation data
 
     res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
@@ -902,6 +903,13 @@ module CohereHelper
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
               end
+            when "citation-start"
+              # Capture citation information
+              if citation_data = json.dig("delta", "message", "citations")
+                citations << citation_data
+              end
+            when "citation-end"
+              # Citation end marker - no action needed
             when "message-end"
               if json.dig("delta", "finish_reason")
                 finish_reason = case json["delta"]["finish_reason"]
@@ -935,6 +943,11 @@ module CohereHelper
 
     # Prepare final result from accumulated text
     result = texts.empty? ? nil : texts.join("")
+    
+    # Process citations if any were collected
+    if result && citations.any?
+      result = process_citations(result, citations)
+    end
 
     # Process accumulated tool calls if any exist
     if accumulated_tool_calls.any?
@@ -1101,5 +1114,93 @@ module CohereHelper
   def translate_role(role)
     role_lower = role.to_s.downcase
     VALID_ROLES.include?(role_lower) ? role_lower : "user"
+  end
+
+  # Process citations to add HTML links
+  def process_citations(text, citations)
+    return text if citations.empty?
+    
+    # Sort citations by start position in reverse order to process from end to beginning
+    # This prevents position shifts when inserting HTML
+    sorted_citations = citations.sort_by { |c| -(c["start"] || 0) }
+    
+    result = text.dup
+    
+    sorted_citations.each do |citation|
+      next unless citation["start"] && citation["end"] && citation["sources"]
+      
+      start_pos = citation["start"]
+      end_pos = citation["end"]
+      cited_text = citation["text"]
+      
+      # Extract URLs from the sources
+      urls = []
+      citation["sources"].each do |source|
+        if source["tool_output"] && source["tool_output"]["results"]
+          begin
+            # Parse the JSON results
+            results = JSON.parse(source["tool_output"]["results"])
+            if results["results"] && results["results"].is_a?(Array)
+              results["results"].each do |r|
+                if r["url"] && r["title"]
+                  urls << { url: r["url"], title: r["title"] }
+                end
+              end
+            end
+          rescue JSON::ParserError
+            # Skip if can't parse
+          end
+        end
+      end
+      
+      # Replace the cited text with linked version
+      if urls.any?
+        # Use the first URL as the main link
+        first_url = urls.first
+        linked_text = "<a href=\"#{first_url[:url]}\" target=\"_blank\" rel=\"noopener noreferrer\">#{cited_text}</a>"
+        
+        # Replace in the result string
+        if result[start_pos...end_pos] == cited_text
+          result[start_pos...end_pos] = linked_text
+        end
+      end
+    end
+    
+    # Add references section at the end
+    if citations.any?
+      references = "\n\n参考資料:\n"
+      all_urls = []
+      
+      citations.each do |citation|
+        next unless citation["sources"]
+        
+        citation["sources"].each do |source|
+          if source["tool_output"] && source["tool_output"]["results"]
+            begin
+              results = JSON.parse(source["tool_output"]["results"])
+              if results["results"] && results["results"].is_a?(Array)
+                results["results"].each do |r|
+                  if r["url"] && r["title"]
+                    all_urls << { url: r["url"], title: r["title"] }
+                  end
+                end
+              end
+            rescue JSON::ParserError
+              # Skip if can't parse
+            end
+          end
+        end
+      end
+      
+      # Remove duplicates and format
+      all_urls.uniq! { |u| u[:url] }
+      all_urls.each do |url_info|
+        references += "- <a href=\"#{url_info[:url]}\" target=\"_blank\" rel=\"noopener noreferrer\">#{url_info[:title]}</a>\n"
+      end
+      
+      result += references
+    end
+    
+    result
   end
 end

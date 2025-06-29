@@ -113,14 +113,11 @@ end
 # プロバイダー固有の機能:
 features do  
   pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
-  toggle true             # 折りたたみ可能セクションを有効にする（Claude/Gemini/Mistral/Cohere/Ollama）
   jupyter_access true     # Jupyterノートブックインターフェースへのアクセスを有効にする
   image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
-  monadic true            # 構造化JSONレスポンス（OpenAI/DeepSeek/Perplexity/Grok）
-  initiate_from_assistant true # AIメッセージで会話を開始（Claude/Gemini）
+  monadic true            # 構造化JSONレスポンス（すべてのプロバイダーでサポート）
+  initiate_from_assistant true # AIメッセージで会話を開始
 end
-
-?> **重要**: `monadic`と`toggle`を両方有効にしないでください - これらは相互排他的です。
 ```
 
 ### 5. ツール定義
@@ -160,7 +157,7 @@ app "ChatClaude" do  # クラス名と正確に一致する必要があります
   end
   
   features do
-    toggle true  # Claudeはトグルモードを使用
+    monadic false  # 標準モードを使用
     initiate_from_assistant true
   end
 end
@@ -375,7 +372,7 @@ DSLアプリのトラブルシューティング時には、次の点を確認�
 
 - アプリ読み込みエラーは`~/monadic/data/error.log`を確認
 - アプリ名がクラス名と正確に一致しているか確認
-- `monadic`と`toggle`が両方有効になっていないか確認
+- プロバイダーに適したモード設定を確認
 - 詳細なデバッグ出力には`EXTRA_LOGGING=true`を使用
 
 ## ベストプラクティス

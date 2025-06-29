@@ -76,7 +76,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
         input = {
           # Boolean properties (various formats)
           'monadic' => 'true',
-          'toggle' => 'false',
           'image' => '1',
           'pdf' => '0',
           'websearch' => 'yes',
@@ -101,7 +100,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
         
         # Boolean conversions
         expect(result['monadic']).to be true
-        expect(result['toggle']).to be false
         expect(result['image']).to be true
         expect(result['pdf']).to be false
         expect(result['websearch']).to be true
@@ -119,13 +117,11 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
       it 'handles nil values in boolean fields' do
         input = {
           'monadic' => nil,
-          'toggle' => nil
         }
         
         result = BooleanParser.parse_hash(input)
         
         expect(result['monadic']).to be false
-        expect(result['toggle']).to be false
       end
       
       it 'handles empty strings in boolean fields' do
@@ -168,7 +164,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
         
         # BooleanParser normalizes to string keys when using MDSLSchema
         expect(result['monadic']).to be true
-        expect(result['toggle']).to be false
         expect(result['images']).to eq(['test.png'])
         expect(result['temperature']).to eq(0.7)
       end
@@ -176,7 +171,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
       it 'handles mixed string and symbol keys' do
         input = {
           'monadic' => 'true',
-          :toggle => 'false',
           'images' => ['test.png'],
           :temperature => 0.7
         }
@@ -185,7 +179,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
         
         # All keys are normalized to strings when using MDSLSchema
         expect(result['monadic']).to be true
-        expect(result['toggle']).to be false
         expect(result['images']).to eq(['test.png'])
         expect(result['temperature']).to eq(0.7)
       end
@@ -260,7 +253,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
       ws_message = {
         'app_name' => 'ChatOpenAI',
         'monadic' => 'true',
-        'toggle' => 'false',
         'easy_submit' => '1',
         'auto_speech' => '0',
         'initiate_from_assistant' => 'yes',
@@ -276,7 +268,6 @@ RSpec.describe 'BooleanParser with MDSLSchema Integration' do
       
       # Boolean conversions
       expect(result['monadic']).to be true
-      expect(result['toggle']).to be false
       expect(result['easy_submit']).to be true
       expect(result['auto_speech']).to be false
       expect(result['initiate_from_assistant']).to be true

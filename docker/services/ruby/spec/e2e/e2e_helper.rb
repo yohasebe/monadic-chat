@@ -31,9 +31,13 @@ ENV['POSTGRES_PORT'] ||= '5433'
 ENV['POSTGRES_USER'] ||= 'postgres'
 ENV['POSTGRES_PASSWORD'] ||= 'postgres'
 
+# Load validation helper for shared validations
+require_relative 'validation_helper'
+
 # E2E Test Helper Module
 module E2EHelper
   include E2ERetryHelper
+  include ValidationHelper
   # Wait for server to be ready
   def wait_for_server(host: 'localhost', port: 4567, timeout: 30)
     Timeout.timeout(timeout) do

@@ -1484,10 +1484,8 @@ module WebSocketHelper
     # Write updated config to file (optional - depends on persistence requirements)
     # This would require implementing a save_config method
     
-    # Restart MCP server if needed
+    # Send updated MCP server status
     if defined?(Monadic::MCP::Server)
-      # TODO: Implement server restart logic
-      # For now, just send updated status
       mcp_status = Monadic::MCP::Server.status
       ws.send({ "type" => "mcp_status", "content" => mcp_status }.to_json)
     end

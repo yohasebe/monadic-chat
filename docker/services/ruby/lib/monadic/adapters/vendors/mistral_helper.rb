@@ -2,9 +2,15 @@
 
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
+require_relative "../../monadic_provider_interface"
+require_relative "../../monadic_schema_validator"
+require_relative "../../monadic_performance"
 
 module MistralHelper
   include InteractionUtils
+  include MonadicProviderInterface
+  include MonadicSchemaValidator
+  include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT   = 5
@@ -154,10 +160,6 @@ module MistralHelper
     
     # Get the requested model
     # Use the model provided directly - trust default_model_for_provider in AI User Agent
-    # Log the model being used
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-      puts "MistralHelper.send_query: Using model: #{model}"
-    end
     
     # Format messages with validation
     messages = []
@@ -215,10 +217,6 @@ module MistralHelper
     # For reasoning models, use reasoning_effort instead of temperature
     if is_reasoning_model && options["reasoning_effort"]
       body["reasoning_effort"] = options["reasoning_effort"]
-      # Log if extra logging is enabled
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "MistralHelper: Using reasoning_effort '#{options["reasoning_effort"]}' for model #{model}"
-      end
     else
       # For non-reasoning models, use temperature
       body["temperature"] = options["temperature"] || 0.7
@@ -376,6 +374,9 @@ module MistralHelper
     # Set the max tokens
     body["max_tokens"] = max_tokens || 4096
 
+    # Configure monadic response format using unified interface
+    body = configure_monadic_response(body, :mistral, app)
+
     # Add tools if available
     if obj["tools"] && !obj["tools"].empty?
       body["tools"] = APPS[app].settings["tools"]
@@ -430,6 +431,24 @@ module MistralHelper
       else
         # Simple text-only format
         { "role" => msg["role"], "content" => msg["text"] }
+      end
+    end
+    
+    # Apply monadic transformation to the last user message if in monadic mode
+    if obj["monadic"].to_s == "true" && body["messages"].any? && 
+       body["messages"].last["role"] == "user" && role == "user"
+      last_msg = body["messages"].last
+      if last_msg["content"].is_a?(Array)
+        # Handle structured content with images
+        text_part = last_msg["content"].find { |part| part["type"] == "text" }
+        if text_part
+          monadic_message = apply_monadic_transformation(text_part["text"], app, "user")
+          text_part["text"] = monadic_message
+        end
+      else
+        # Handle simple text content
+        monadic_message = apply_monadic_transformation(last_msg["content"], app, "user")
+        last_msg["content"] = monadic_message
       end
     end
 
@@ -759,6 +778,15 @@ module MistralHelper
       if CONFIG["EXTRA_LOGGING"]
         DebugHelper.debug("Mistral: Collected #{thinking.length} thinking block(s) for #{obj["model"]}", category: :api, level: :info)
       end
+    end
+
+    # Apply monadic transformation if enabled
+    if obj["monadic"] && final_content
+      # Process through unified interface
+      processed = process_monadic_response(final_content, app)
+      # Validate the response
+      validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+      response["choices"][0]["message"]["content"] = validated.is_a?(Hash) ? JSON.generate(validated) : validated
     end
 
     [response]

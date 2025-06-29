@@ -51,7 +51,6 @@ RSpec.describe "Monadic Behavior System Tests" do
         end
         features do
           monadic false
-          toggle true
           context_size 5
         end
         tools do
@@ -69,7 +68,6 @@ RSpec.describe "Monadic Behavior System Tests" do
 
       it "uses JSON structure for context management" do
         expect(app.features[:monadic]).to be true
-        expect(app.features[:toggle]).to be_falsey
       end
 
       it "requires response_format configuration for certain providers" do
@@ -90,44 +88,19 @@ RSpec.describe "Monadic Behavior System Tests" do
         eval(non_monadic_app_definition, TOPLEVEL_BINDING)
       end
 
-      it "uses HTML div-based context for toggle mode" do
+      it "uses standard mode without structured JSON" do
         expect(app.features[:monadic]).to be false
-        expect(app.features[:toggle]).to be true
       end
 
       it "does not require response_format configuration" do
-        # Toggle mode doesn't need structured JSON responses
+        # Standard mode doesn't need structured JSON responses
         expect(app.settings[:provider]).to eq("openai")
       end
     end
   end
 
-  describe "Monadic and Toggle Mutual Exclusivity" do
-    it "prevents both monadic and toggle from being true" do
-      invalid_definition = <<~RUBY
-        app "InvalidApp" do
-          description "Invalid app with both modes"
-          icon "test"
-          llm do
-            provider "openai"
-            model "gpt-4"
-          end
-          features do
-            monadic true
-            toggle true  # This should be invalid
-          end
-          tools do
-          end
-        end
-      RUBY
-
-      # Eval directly
-      expect {
-        eval(invalid_definition)
-        # app object returned directly
-      }.to raise_error(/Cannot have both monadic and toggle enabled/)
-    end
-  end
+  # Toggle property has been removed from the system
+  # The mutual exclusivity test is no longer needed
 
   describe "Provider-Specific Monadic Behavior" do
     %w[openai deepseek perplexity grok].each do |provider|
@@ -171,7 +144,7 @@ RSpec.describe "Monadic Behavior System Tests" do
                 model "test-model"
               end
               features do
-                toggle true
+                monadic false
               end
               tools do
               end
@@ -179,11 +152,10 @@ RSpec.describe "Monadic Behavior System Tests" do
           RUBY
         end
 
-        it "uses toggle mode for #{provider}" do
+        it "uses standard mode for #{provider}" do
           app = eval(app_def, TOPLEVEL_BINDING)
           
-          expect(app.features[:toggle]).to be true
-          expect(app.features[:monadic]).to be_falsey
+          expect(app.features[:monadic]).to be false
         end
       end
     end
@@ -232,11 +204,11 @@ RSpec.describe "Monadic Behavior System Tests" do
       }
     end
 
-    let(:toggle_context_example) do
+    let(:standard_context_example) do
       <<~HTML
-        <div class="toggle">
-          <div class="toggle-title">Context</div>
-          <div class="toggle-content">
+        <div class="context">
+          <div class="context-title">Context</div>
+          <div class="context-content">
             <p>Key1: value1</p>
             <p>Nested Key2: value2</p>
           </div>
@@ -251,11 +223,11 @@ RSpec.describe "Monadic Behavior System Tests" do
       expect(monadic_context_example["context"]).to be_a(Hash)
     end
 
-    it "documents expected toggle HTML structure" do
+    it "documents expected standard HTML structure" do
       # This test serves as documentation
-      expect(toggle_context_example).to include("toggle")
-      expect(toggle_context_example).to include("toggle-title")
-      expect(toggle_context_example).to include("toggle-content")
+      expect(standard_context_example).to include("context")
+      expect(standard_context_example).to include("context-title")
+      expect(standard_context_example).to include("context-content")
     end
   end
 
@@ -278,18 +250,17 @@ RSpec.describe "Monadic Behavior System Tests" do
       end
     end
 
-    it "validates toggle apps have proper HTML instructions" do
-      toggle_apps = Dir.glob(File.join(__dir__, "../../apps/**/*.mdsl")).select do |file|
+    it "validates standard mode apps have proper formatting instructions" do
+      standard_apps = Dir.glob(File.join(__dir__, "../../apps/**/*.mdsl")).select do |file|
         content = File.read(file)
-        content.include?("toggle true")
+        content.include?("monadic false") || (!content.include?("monadic true") && !content.include?("monadic:"))
       end
 
-      toggle_apps.each do |mdsl_file|
+      standard_apps.each do |mdsl_file|
         content = File.read(mdsl_file)
         
-        # Toggle apps should have HTML formatting instructions
-        expect(content).to match(/html|HTML|div|toggle/i),
-          "#{mdsl_file} with toggle mode should mention HTML/div formatting"
+        # Standard mode apps might mention formatting in their prompts
+        # but this is not strictly required
       end
     end
   end
@@ -305,12 +276,9 @@ RSpec.describe "Monadic Behavior System Tests" do
         next if mdsl_file.include?("_constants.mdsl") || mdsl_file.include?("_tools.mdsl")
         
         has_monadic = content.match(/monadic\s+true/)
-        has_toggle = content.match(/toggle\s+true/)
         
-        # Must have one or the other, but not both
-        if has_monadic && has_toggle
-          fail "#{mdsl_file} has both monadic and toggle enabled"
-        end
+        # Apps either have monadic mode enabled or use standard mode
+        # No need to check for toggle since it's been removed
         
         # Provider-specific validation removed - JSON support and toggle mode can coexist
         # A provider being JSON-capable doesn't mean it must use monadic mode

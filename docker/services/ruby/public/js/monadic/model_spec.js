@@ -291,9 +291,9 @@ const modelSpec = {
   },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [[[0.0, 1.0], 1.0], 8192],
-    "temperature": [0.0, 1.0],
-    "top_p": [0.0, 1.0],
+    "max_output_tokens" : [1, 8192],
+    "temperature": [[0.0, 1.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "vision_capability": false
   },
@@ -307,9 +307,9 @@ const modelSpec = {
   },
   "claude-3-opus-20240229": {
     "context_window" : [1, 200000],
-    "max_output_tokens" : [[0.0, 1.0], 1.0],
-    "temperature": [0.0, 1.0],
-    "top_p": [0.0, 1.0],
+    "max_output_tokens" : [1, 4096],
+    "temperature": [[0.0, 1.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "vision_capability": true
   },
@@ -459,6 +459,14 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
   // Gemini models
+  "gemini-2.5-flash": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true
+  },
   "gemini-2.5-flash-lite-preview-06-17": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -649,12 +657,14 @@ const modelSpec = {
   },
   // mistral models
   "magistral-medium": {
+    "context_window" : [1, 128000],
     "max_output_tokens" : [1, 131000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
     "reasoning_model": true
   },
   "magistral-small": {
+    "context_window" : [1, 128000],
     "max_output_tokens" : [1, 131000],
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "tool_capability": true,
@@ -668,6 +678,23 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true
+  },
+  "mistral-medium-2506": {
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "mistral-small-2506": {
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true
   },
   "mistral-large-latest": {
     "max_output_tokens" : [1, 131000],
@@ -779,6 +806,7 @@ const modelSpec = {
   // xAI models
   "grok-3": {
     "context_window" : [1, 131072],
+    "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
@@ -786,6 +814,7 @@ const modelSpec = {
   },
   "grok-3-mini": {
     "context_window" : [1, 131072],
+    "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
@@ -793,6 +822,7 @@ const modelSpec = {
   },
   "grok-3-fast": {
     "context_window" : [1, 131072],
+    "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
@@ -800,6 +830,7 @@ const modelSpec = {
   },
   "grok-3-mini-fast": {
     "context_window" : [1, 131072],
+    "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
@@ -922,7 +953,7 @@ const modelSpec = {
   },
   // DeepSeek models
   "deepseek-chat": {
-    "context_window" : [1, 64000],
+    "context_window" : [1, 128000],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
@@ -931,7 +962,7 @@ const modelSpec = {
     "tool_capability": true
   },
   "deepseek-reasoner": {
-    "context_window" : [1, 32000],
+    "context_window" : [1, 64000],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
@@ -942,7 +973,9 @@ const modelSpec = {
 }
 
 // Expose modelSpec globally for browser environment
-window.modelSpec = modelSpec;
+if (typeof window !== 'undefined') {
+  window.modelSpec = modelSpec;
+}
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {

@@ -43,7 +43,6 @@ app "VisualWebExplorerGrok" do
   features do
     disabled !CONFIG["XAI_API_KEY"]
     monadic false
-    toggle false
     websearch true
     context_size 20
   end

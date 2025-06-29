@@ -119,7 +119,6 @@ app "JupyterNotebookClaude" do
     auto_speech false
     image true
     pdf false
-    toggle true
     jupyter true
     mathjax true
     initiate_from_assistant true

@@ -23,7 +23,6 @@ app "ChatOllama" do
     easy_submit false
     auto_speech false
     image true
-    toggle true
     initiate_from_assistant false
     context_size 100
   end

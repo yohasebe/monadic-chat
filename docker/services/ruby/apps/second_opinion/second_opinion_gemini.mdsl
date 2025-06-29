@@ -84,7 +84,6 @@ app "SecondOpinionGemini" do
     initiate_from_assistant true
     image true
     pdf false
-    toggle true
     group "Google"
   end
 

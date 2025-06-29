@@ -5,7 +5,7 @@ app "ResearchAssistantGemini" do
 
   llm do
     provider "gemini"
-    model "gemini-2.5-flash-preview-05-20"
+    model "gemini-2.5-pro"
   end
 
   display_name "Research Assistant"
@@ -19,9 +19,12 @@ app "ResearchAssistantGemini" do
     initiate_from_assistant true  # Add this like Content Reader
     mathjax true
     image true
-    toggle true
   end
 
   tools do
+    define_tool "tavily_search", "Search the web for information" do
+      parameter :query, "string", "The search query", required: true
+      parameter :n, "integer", "Number of results to return (default: 3)", required: false
+    end
   end
 end

@@ -4,6 +4,8 @@ require 'sinatra/base'
 require 'json'
 require 'securerandom'
 require 'time'
+require 'eventmachine'
+require 'thin'
 require_relative '../utils/debug_helper'
 require_relative 'cache_invalidator'
 

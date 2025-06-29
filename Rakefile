@@ -868,12 +868,6 @@ task :spec do
     puts "Running unit tests..."
     sh "bundle exec rspec spec/unit --format documentation --no-fail-fast --no-profile"
     
-    # Skip remaining legacy tests as they are part of the old mock-based system
-    # puts "\nRunning remaining core tests..."
-    # remaining_tests = Dir["spec/*.rb"].reject { |f| f.include?("spec_helper") }
-    # if remaining_tests.any?
-    #   sh "bundle exec rspec #{remaining_tests.join(' ')} --format documentation --no-fail-fast --no-profile"
-    # end
     
     # Run integration tests if available
     puts "\nRunning integration tests..."

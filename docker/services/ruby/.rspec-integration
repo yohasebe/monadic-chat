@@ -1,0 +1,2 @@
+--exclude-pattern "**/adapters/vendors/**/*_spec.rb"
+--format documentation

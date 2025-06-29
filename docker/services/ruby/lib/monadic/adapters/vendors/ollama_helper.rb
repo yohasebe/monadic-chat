@@ -1,6 +1,12 @@
 require 'http'
+require_relative "../../monadic_provider_interface"
+require_relative "../../monadic_schema_validator"
+require_relative "../../monadic_performance"
 
 module OllamaHelper
+  include MonadicProviderInterface
+  include MonadicSchemaValidator
+  include MonadicPerformance
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
   WRITE_TIMEOUT = 60
@@ -177,11 +183,7 @@ module OllamaHelper
 
     message = obj["message"].to_s
 
-    if obj["monadic"].to_s == "true" && message != ""
-      message = APPS[app].monadic_unit(message)
-
-      html = markdown_to_html(obj["message"]) if message != ""
-    elsif message != ""
+    if message != ""
       html = markdown_to_html(message)
     end
 
@@ -200,9 +202,9 @@ module OllamaHelper
     if message != "" && role == "user"
       res = { "mid" => request_id,
               "role" => role,
-              "text" => message,
-              "html" => markdown_to_html(message),
-              "lang" => detect_language(message),
+              "text" => obj["message"],
+              "html" => html,
+              "lang" => detect_language(obj["message"]),
               "active" => true }
       if obj["image"]
         res["images"] = obj["images"]
@@ -254,9 +256,8 @@ module OllamaHelper
       }
     }
 
-    if obj["monadic"] || obj["json"]
-      body["response_format"] = { "type" => "json_object" }
-    end
+    # Configure monadic response format using unified interface
+    body = configure_monadic_response(body, :ollama, app)
 
     messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
@@ -271,6 +272,15 @@ module OllamaHelper
     end
 
     if role == "user"
+      # Apply monadic transformation if in monadic mode
+      if obj["monadic"].to_s == "true" && body["messages"].any? && body["messages"].last["role"] == "user"
+        # Get the base message without prompt suffix
+        base_message = body["messages"].last["content"]
+        # Apply monadic transformation using unified interface
+        monadic_message = apply_monadic_transformation(base_message, app, "user")
+        body["messages"].last["content"] = monadic_message
+      end
+      
       body["messages"].last["content"] += "\n\n" + settings[:prompt_suffix] if settings[:prompt_suffix]
     end
 
@@ -379,8 +389,11 @@ module OllamaHelper
     end
 
     if result && obj["monadic"]
-      modified = APPS[app].monadic_map(result)
-      result = modified
+      # Process through unified interface
+      processed = process_monadic_response(result, app)
+      # Validate the response
+      validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+      result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
     end
 
     if result

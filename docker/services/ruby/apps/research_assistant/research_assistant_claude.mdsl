@@ -31,7 +31,6 @@ app "ResearchAssistantClaude" do
     initiate_from_assistant true  # Add this like Content Reader
     mathjax true
     image true
-    toggle true
   end
 
   tools do

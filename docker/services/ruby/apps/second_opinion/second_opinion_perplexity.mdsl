@@ -66,7 +66,6 @@ app "SecondOpinionPerplexity" do
     initiate_from_assistant false
     image true
     pdf false
-    toggle true
     group "Perplexity"
   end
 

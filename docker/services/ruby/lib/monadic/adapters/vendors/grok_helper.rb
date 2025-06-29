@@ -407,15 +407,12 @@ module GrokHelper
     http = HTTP.headers(headers)
     
     # Debug final request for web search
-    if websearch_native && CONFIG["EXTRA_LOGGING"]
+    if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Grok final API request:")
+      extra_log.puts("\n[#{Time.now}] Grok final API request:")
       extra_log.puts("URL: #{target_uri}")
-      extra_log.puts("Model: #{body["model"]}")
-      extra_log.puts("Search parameters present: #{body["search_parameters"] ? "Yes" : "No"}")
-      if body["search_parameters"]
-        extra_log.puts("Search parameters: #{JSON.pretty_generate(body["search_parameters"])}")
-      end
+      extra_log.puts("Full request body:")
+      extra_log.puts(JSON.pretty_generate(body))
       extra_log.close
     end
 
@@ -539,7 +536,19 @@ module GrokHelper
             json = JSON.parse(json_data)
 
             if CONFIG["EXTRA_LOGGING"]
-              DebugHelper.debug("Response: #{JSON.pretty_generate(json)}", category: :api, level: :debug)
+              # Log first response chunk in detail
+              if !started
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("\n[#{Time.now}] First Grok response chunk:")
+                extra_log.puts(JSON.pretty_generate(json))
+                # Check for citations in the response
+                if json.dig("choices", 0, "delta", "citations") || json.dig("citations")
+                  extra_log.puts("CITATIONS FOUND in response")
+                else
+                  extra_log.puts("NO CITATIONS in this chunk")
+                end
+                extra_log.close
+              end
             end
             
             # Check if response model differs from requested model

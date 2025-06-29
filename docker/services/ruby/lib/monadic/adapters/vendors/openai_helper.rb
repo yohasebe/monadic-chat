@@ -335,15 +335,23 @@ module OpenAIHelper
     websearch_enabled = obj["websearch"] == "true"
     
     # Check if web search is enabled
-    # OpenAI web search uses the standard chat API with web_search_preview tool
-    # NOT the responses API
-    use_responses_api_for_websearch = false  # Never use responses API for websearch
+    # OpenAI web search requires Responses API according to official documentation
+    # https://platform.openai.com/docs/guides/tools-web-search
+    use_responses_api_for_websearch = websearch_enabled && 
+                                     RESPONSES_API_WEBSEARCH_MODELS.include?(model)
+    
+    DebugHelper.debug("OpenAI web search check - websearch_enabled: #{websearch_enabled}, model: #{model}, use_responses_api_for_websearch: #{use_responses_api_for_websearch}", category: :api, level: :debug)
     
     # OpenAI only uses native web search, no Tavily support
     
     # Store these variables in obj for later use in the method
     obj["websearch_enabled"] = websearch_enabled
     obj["use_responses_api_for_websearch"] = use_responses_api_for_websearch
+    
+    # Update use_responses_api flag if we need it for websearch
+    if use_responses_api_for_websearch && !use_responses_api
+      use_responses_api = true
+    end
 
     message = nil
     data = nil
@@ -491,15 +499,7 @@ module OpenAIHelper
           body["tools"] = []
         end
         
-        # Add web search tool if enabled
-        if websearch_enabled
-          DebugHelper.debug("OpenAI: Adding web_search_preview tool for web search", category: :api, level: :debug)
-          web_search_tool = {
-            "type" => "web_search_preview"
-          }
-          body["tools"] ||= []
-          body["tools"] << web_search_tool
-        end
+        # Web search for OpenAI is handled through Responses API, not regular chat API tools
         
         body["tools"].uniq!
       else
@@ -882,6 +882,7 @@ module OpenAIHelper
       if obj["use_responses_api_for_websearch"]
         # Add native web search tool for responses API
         responses_body["tools"] = [NATIVE_WEBSEARCH_TOOL]
+        DebugHelper.debug("OpenAI: Adding web_search_preview tool via Responses API", category: :api, level: :debug)
         
       # Native web search is now supported for o3, o3-pro, and o4-mini models
       end

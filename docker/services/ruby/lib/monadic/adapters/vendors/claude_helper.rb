@@ -508,8 +508,13 @@ module ClaudeHelper
       websearch_enabled = obj["websearch"] == "true"
       if websearch_enabled
         DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
+        # Claude's web search tool requires specific format per documentation
+        # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
         web_search_tool = {
-          "type" => "web_search_20250305"
+          "type" => "web_search_20250305",
+          "name" => "web_search",
+          # Optional: Limit the number of searches per request
+          "max_uses" => 5
         }
         body["tools"] ||= []
         body["tools"] << web_search_tool
@@ -601,6 +606,11 @@ module ClaudeHelper
 
     # Configure monadic response format
     body = configure_monadic_response(body, :claude, app)
+
+    # Debug final request body for web search
+    if websearch_enabled
+      DebugHelper.debug("Claude final request with web search - tools: #{body["tools"]&.map { |t| "#{t["type"]}:#{t["name"]}" }.join(", ")}", category: :api, level: :debug)
+    end
 
     # Call the API
     target_uri = "#{API_ENDPOINT}/messages"

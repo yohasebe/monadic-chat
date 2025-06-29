@@ -316,7 +316,8 @@ module ClaudeHelper
     model = obj["model"]
     
     # Check if web search is enabled
-    websearch = obj["websearch"] == "true"
+    # Handle both string and boolean values for websearch parameter
+    websearch = obj["websearch"] == "true" || obj["websearch"] == true
     
     # Determine which web search implementation to use
     # Models that support native web search: Claude 3.5/3.7 Sonnet, Claude 3.5 Haiku

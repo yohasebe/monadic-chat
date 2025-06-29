@@ -332,7 +332,8 @@ module OpenAIHelper
     use_responses_api = RESPONSES_API_MODELS.include?(original_user_model)
     
     # Check if web search is enabled in settings
-    websearch_enabled = obj["websearch"] == "true"
+    # Handle both string and boolean values for websearch parameter
+    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
     
     # Check if web search is enabled
     # OpenAI web search requires Responses API according to official documentation

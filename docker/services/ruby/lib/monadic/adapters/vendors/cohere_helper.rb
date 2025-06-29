@@ -608,7 +608,8 @@ module CohereHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"] == "true"
+    # Handle both string and boolean values for websearch parameter
+    websearch = CONFIG["TAVILY_API_KEY"] && (obj["websearch"] == "true" || obj["websearch"] == true)
     message = obj["message"]
     
     # Debug logging for websearch

@@ -327,7 +327,7 @@ module MistralHelper
                     "html" => html,
                     "lang" => detect_language(message)
                   } }
-          res["content"]["images"] = obj["images"] if obj["images"]
+          res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
 
           block&.call res
           session[:messages] << res["content"]

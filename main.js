@@ -224,7 +224,7 @@ function openWebViewWindow(url) {
           if(confirm('Reset will clear all data and return to the initial state, including app selection. Continue?')) {
             window.electronAPI.resetWebUI();
           }
-        }, 'Reset App'));
+        }, 'New Session'));
         container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow(), 'Monadic Chat Console'));
 
         document.body.appendChild(container);

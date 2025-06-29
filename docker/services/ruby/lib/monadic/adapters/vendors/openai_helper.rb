@@ -746,7 +746,7 @@ module OpenAIHelper
       if block
         processing_msg = {
           "type" => "processing_status",
-          "content" => "This may take a few minutes."
+          "content" => "This may take a while."
         }
         block.call processing_msg
       end

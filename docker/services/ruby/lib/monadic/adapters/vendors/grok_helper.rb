@@ -202,6 +202,15 @@ module GrokHelper
     # Handle both string and boolean values for websearch parameter
     websearch = obj["websearch"] == "true" || obj["websearch"] == true
     websearch_native = websearch
+    
+    # Debug log websearch parameter
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] === Grok websearch parameter check ===")
+      extra_log.puts("obj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})")
+      extra_log.puts("websearch enabled = #{websearch}")
+      extra_log.close
+    end
 
     message = nil
     data = nil
@@ -298,6 +307,17 @@ module GrokHelper
         ]
       }
       
+      # Debug logging for web search
+      DebugHelper.debug("Grok: Native Live Search enabled with search_parameters", category: :api, level: :debug)
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] === Grok API Request Started ===")
+        extra_log.puts("App: #{app}")
+        extra_log.puts("Websearch enabled: #{websearch}")
+        extra_log.puts("Search parameters: #{body["search_parameters"].inspect}")
+        extra_log.close
+      end
+      
       # Debug logging
       if DebugHelper.extra_logging?
         DebugHelper.debug("Grok Live Search enabled with search_parameters:\n#{JSON.pretty_generate(body["search_parameters"])}", category: :api, level: :info)
@@ -385,6 +405,19 @@ module GrokHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
+    
+    # Debug final request for web search
+    if websearch_native && CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("Grok final API request:")
+      extra_log.puts("URL: #{target_uri}")
+      extra_log.puts("Model: #{body["model"]}")
+      extra_log.puts("Search parameters present: #{body["search_parameters"] ? "Yes" : "No"}")
+      if body["search_parameters"]
+        extra_log.puts("Search parameters: #{JSON.pretty_generate(body["search_parameters"])}")
+      end
+      extra_log.close
+    end
 
 
     # Process tool calls if any

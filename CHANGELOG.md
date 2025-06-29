@@ -1,6 +1,5 @@
 - [June, 2025] 1.0.0-beta.2
-  - **Gemini Native Search**: Google Gemini now uses native search API instead of Tavily
-    - Removed `GEMINI_USE_TAVILY_SEARCH` configuration option
+  - **Gemini Native Search**: Google Gemini now uses native search API
     - No additional API key required for web search with Gemini
   - **Gemini Model Updates**: Standardized default models across all Gemini apps
     - Code execution apps: `gemini-2.5-pro` (Code Interpreter, Coding Assistant, Research Assistant)

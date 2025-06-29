@@ -158,7 +158,7 @@ Enter your DeepSeek API key. This key is required to use the DeepSeek models. It
 Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers].
 
 **TAVILY_API_KEY** <br />
-Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature (if not provided, Selenium will be used as a fallback), and 2) For web search functionality in apps using language model providers other than OpenAI (Claude, Gemini, Mistral, etc.). It can be obtained from [https://tavily.com/].
+Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature (if not provided, Selenium will be used as a fallback), and 2) For web search functionality in apps using providers without native search (Mistral, Cohere, DeepSeek, Ollama). It can be obtained from [https://tavily.com/].
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 

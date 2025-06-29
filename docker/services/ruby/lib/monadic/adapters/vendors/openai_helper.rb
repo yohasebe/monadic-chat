@@ -341,6 +341,7 @@ module OpenAIHelper
                                      RESPONSES_API_WEBSEARCH_MODELS.include?(model)
     
     DebugHelper.debug("OpenAI web search check - websearch_enabled: #{websearch_enabled}, model: #{model}, use_responses_api_for_websearch: #{use_responses_api_for_websearch}", category: :api, level: :debug)
+    DebugHelper.debug("RESPONSES_API_WEBSEARCH_MODELS: #{RESPONSES_API_WEBSEARCH_MODELS.inspect}", category: :api, level: :debug)
     
     # OpenAI only uses native web search, no Tavily support
     
@@ -686,12 +687,26 @@ module OpenAIHelper
       end
     end
 
-    # initial prompt in the body is appended with the settings["system_prompt_suffix"
-    if initial_prompt.to_s != "" && obj["system_prompt_suffix"].to_s != ""
-      new_text = initial_prompt.to_s + "\n\n" + obj["system_prompt_suffix"].strip
-      body["messages"].first["content"].each do |content_item|
-        if content_item["type"] == "text"
-          content_item["text"] = new_text
+    # initial prompt in the body is appended with the settings["system_prompt_suffix" and web search prompt if enabled
+    if initial_prompt.to_s != ""
+      parts = [initial_prompt.to_s]
+      
+      # Add web search prompt for non-reasoning models using Responses API
+      if websearch_enabled && websearch_prompt && !reasoning_model
+        parts << websearch_prompt.strip
+      end
+      
+      # Add system prompt suffix if present
+      if obj["system_prompt_suffix"].to_s != ""
+        parts << obj["system_prompt_suffix"].strip
+      end
+      
+      if parts.length > 1
+        new_text = parts.join("\n\n")
+        body["messages"].first["content"].each do |content_item|
+          if content_item["type"] == "text"
+            content_item["text"] = new_text
+          end
         end
       end
     end
@@ -883,8 +898,8 @@ module OpenAIHelper
         # Add native web search tool for responses API
         responses_body["tools"] = [NATIVE_WEBSEARCH_TOOL]
         DebugHelper.debug("OpenAI: Adding web_search_preview tool via Responses API", category: :api, level: :debug)
+        DebugHelper.debug("Responses API body tools: #{responses_body['tools'].inspect}", category: :api, level: :debug)
         
-      # Native web search is now supported for o3, o3-pro, and o4-mini models
       end
       
       # Enhanced tool support for responses API
@@ -942,6 +957,11 @@ module OpenAIHelper
       # Use responses body instead
       body = responses_body
       
+      # Debug log the final body for responses API
+      if obj["use_responses_api_for_websearch"]
+        DebugHelper.debug("Final Responses API request body: #{body.inspect}", category: :api, level: :debug)
+      end
+      
     else
       # Use standard chat/completions API
       target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -961,6 +981,10 @@ module OpenAIHelper
     
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
+    
+    # Debug which API endpoint is being used
+    DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
+    DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
 
     # Use longer timeout for responses API as o3-pro can take minutes
     timeout_settings = if use_responses_api

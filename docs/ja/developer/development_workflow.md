@@ -12,14 +12,16 @@
 
 ### テスト構造 :id=test-structure
 - JavaScriptテストは `test/frontend/` に配置
-- Rubyテストは `docker/services/ruby/spec/` に配置
-  - ユニットテスト: `spec/unit/` - 高速で独立したテスト
-  - 統合テスト: `spec/integration/` - Dockerサービスとの連携テスト
-  - システムテスト: `spec/system/` - アプリ検証テスト
-  - E2Eテスト: `spec/e2e/` - WebSocketを使用した完全なワークフローテスト
+- Rubyテストは `docker/services/ruby/spec/` に配置（約64ファイル）
+  - ユニットテスト: `spec/unit/` - 高速で独立したテスト（26ファイル）
+  - 統合テスト: `spec/integration/` - Dockerサービスとの連携テスト（13ファイル）
+  - システムテスト: `spec/system/` - アプリ検証テスト（2ファイル）
+  - E2Eテスト: `spec/e2e/` - WebSocketを使用した完全なワークフローテスト（16ファイル、一部統合済み）
 - アプリ固有の診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/{app_name}/` に配置
 - Jestの設定は `jest.config.js` に定義
 - JavaScriptのグローバルテスト設定は `test/setup.js` に定義
+
+!> **注意:** E2Eテストは `with_e2e_retry(max_attempts: 3, wait: 10)` の形式を使用する必要があります。
 
 ### アプリ固有の診断スクリプト :id=app-specific-test-scripts
 特定のテストや診断が必要なアプリケーションの場合：
@@ -80,6 +82,17 @@ npm run test:coverage # カバレッジレポート付きでテストを実行
 ```bash
 rake test  # RubyとJavaScriptの両方のテストを実行
 ```
+
+### テストの構成 :id=test-organization
+
+テストは重複を最小限に抑え、保守性を向上させるように構成されています：
+
+- **ユニットテスト** (`spec/unit/`): 外部依存関係のない高速で独立したテスト
+- **統合テスト** (`spec/integration/`): 
+  - `docker_infrastructure_spec.rb` - コンテナヘルス、Dockerコマンド、データベース接続
+  - `app_helpers_integration_spec.rb` - ヘルパーモジュールとアプリ機能
+- **システムテスト** (`spec/system/`): アプリ検証とMDSL検証
+- **E2Eテスト** (`spec/e2e/`): 実際のAPIコールを使用した完全なワークフローテスト
 
 
 ## デバッグシステム :id=debug-system

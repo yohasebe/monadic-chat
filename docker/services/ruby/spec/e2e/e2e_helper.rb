@@ -248,7 +248,7 @@ module E2EHelper
   end
 
   # Wait for AI response completion
-  def wait_for_response(ws_connection, timeout: 60)
+  def wait_for_response(ws_connection, timeout: 60, max_tokens: nil)
     start_time = Time.now
     
     loop do
@@ -427,12 +427,17 @@ module E2EHelper
   end
   
   # Helper to activate an app and get the greeting message
-  def activate_app_and_get_greeting(app_name)
-    ws_connection = create_websocket_connection
-    send_chat_message(ws_connection, "Hello", app: app_name)
-    response = wait_for_response(ws_connection)
-    ws_connection[:client].close
-    response
+  def activate_app_and_get_greeting(app_name, ws_connection = nil, model: nil, max_tokens: nil)
+    if ws_connection.nil?
+      ws_connection = create_websocket_connection
+      send_chat_message(ws_connection, "Hello", app: app_name, model: model, max_tokens: max_tokens)
+      response = wait_for_response(ws_connection, max_tokens: max_tokens)
+      ws_connection[:client].close
+      response
+    else
+      send_chat_message(ws_connection, "Hello", app: app_name, model: model, max_tokens: max_tokens)
+      wait_for_response(ws_connection, max_tokens: max_tokens)
+    end
   end
 end
 

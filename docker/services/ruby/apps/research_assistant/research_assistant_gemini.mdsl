@@ -11,7 +11,7 @@ app "ResearchAssistantGemini" do
   display_name "Research Assistant"
 
   features do
-    disabled !CONFIG["GEMINI_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
+    disabled !CONFIG["GEMINI_API_KEY"]
     websearch true
     temperature 0.0
     easy_submit false
@@ -22,9 +22,6 @@ app "ResearchAssistantGemini" do
   end
 
   tools do
-    define_tool "tavily_search", "Search the web for information" do
-      parameter :query, "string", "The search query", required: true
-      parameter :n, "integer", "Number of results to return (default: 3)", required: false
-    end
+    # Uses native Google search - no tool definitions needed
   end
 end

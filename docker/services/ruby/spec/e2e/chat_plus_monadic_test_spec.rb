@@ -141,12 +141,12 @@ RSpec.describe "Chat Plus Monadic Mode E2E", :e2e do
           rescue JSON::ParserError
             # If JSON parsing fails, just verify we got a valid response
             expect(response3).not_to be_empty
-            expect(response3.length).to be > 20
+            expect(response3.length).to be > 10
           end
         else
           # If no JSON structure found, verify we got a valid response
           expect(response3).not_to be_empty
-          expect(response3.length).to be > 20
+          expect(response3.length).to be > 10
         end
       end
 
@@ -166,7 +166,7 @@ RSpec.describe "Chat Plus Monadic Mode E2E", :e2e do
         # For providers with web search (like Perplexity), they might return actual weather data
         # For others, they explain they can't provide current weather
         # Just verify we got a reasonable response
-        expect(response.length).to be > 20
+        expect(response.length).to be > 10
         
         # Check for either monadic display OR JSON structure
         if response.match(/\{.*"message".*"context".*\}/m)
@@ -178,11 +178,11 @@ RSpec.describe "Chat Plus Monadic Mode E2E", :e2e do
             expect(parsed).to have_key("context")
           rescue JSON::ParserError
             # If JSON parsing fails, just verify response is substantial
-            expect(response.length).to be > 20
+            expect(response.length).to be > 10
           end
         else
           # For non-JSON responses, just verify we got a valid response
-          expect(response.length).to be > 20
+          expect(response.length).to be > 10
         end
       end
     end

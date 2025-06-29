@@ -17,7 +17,7 @@ app "CodingAssistantDeepSeek" do
   
   llm do
     provider "deepseek"
-    model "deepseek-coder"
+    model "deepseek-chat"
     temperature 0.0
   end
   

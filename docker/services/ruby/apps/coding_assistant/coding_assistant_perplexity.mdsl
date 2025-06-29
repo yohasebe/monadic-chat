@@ -17,7 +17,7 @@ app "CodingAssistantPerplexity" do
   
   llm do
     provider "perplexity"
-    model "pplx-7b-online"
+    model "sonar-pro"
     temperature 0.0
   end
   

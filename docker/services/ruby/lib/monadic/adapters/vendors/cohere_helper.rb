@@ -1168,7 +1168,7 @@ module CohereHelper
     
     # Add references section at the end
     if citations.any?
-      references = "\n\n参考資料:\n"
+      references = "\n\nReferences:\n"
       all_urls = []
       
       citations.each do |citation|

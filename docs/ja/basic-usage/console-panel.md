@@ -159,7 +159,7 @@ DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.co
 ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声モデルを使用するためのものです。APIキーは[https://elevenlabs.io/developers]から取得できます。
 
 **TAVILY_API_KEY** <br />
-Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) OpenAI以外の言語モデルプロバイダー（Claude、Gemini、Mistralなど）を使用するアプリでのWeb検索機能。APIキーは[https://tavily.com/]から取得できます。
+Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/]から取得できます。
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 

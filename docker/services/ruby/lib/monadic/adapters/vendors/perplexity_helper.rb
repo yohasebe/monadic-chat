@@ -249,6 +249,16 @@ module PerplexityHelper
     app = obj["app_name"]
     api_key = CONFIG["PERPLEXITY_API_KEY"]
     
+    # Debug log at the very beginning
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] === Perplexity API Request Started ===")
+      extra_log.puts("App: #{app}")
+      extra_log.puts("Model: #{obj["model"]}")
+      extra_log.puts("Note: Perplexity models have built-in web search capability")
+      extra_log.close
+    end
+    
     
     unless api_key && !api_key.empty?
       error_message = "ERROR: PERPLEXITY_API_KEY not found or empty"
@@ -559,6 +569,17 @@ module PerplexityHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
+    
+    # Debug final request
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] Perplexity final API request:")
+      extra_log.puts("URL: #{target_uri}")
+      extra_log.puts("Model: #{body["model"]}")
+      extra_log.puts("Request body (first 1000 chars):")
+      extra_log.puts(JSON.pretty_generate(body).slice(0, 1000))
+      extra_log.close
+    end
 
     body["messages"].each do |msg|
       next unless msg["tool_calls"] || msg[:tool_call]
@@ -694,7 +715,18 @@ module PerplexityHelper
           json = JSON.parse(json_str)
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log.puts(JSON.pretty_generate(json))
+            # Log first response chunk in detail
+            if !started
+              started = true
+              extra_log.puts("\n[#{Time.now}] First Perplexity response chunk:")
+              extra_log.puts(JSON.pretty_generate(json))
+              # Check for citations in the response
+              if json.dig("citations") || json.dig("sources") || json.dig("urls")
+                extra_log.puts("CITATIONS/SOURCES FOUND in response")
+              else
+                extra_log.puts("NO CITATIONS/SOURCES in this chunk")
+              end
+            end
           end
 
           finish_reason = json.dig("choices", 0, "finish_reason")

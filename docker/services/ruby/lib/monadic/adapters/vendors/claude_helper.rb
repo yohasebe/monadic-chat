@@ -297,6 +297,16 @@ module ClaudeHelper
 
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
+    
+    # Debug log at the very beginning
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] === Claude API Request Started ===")
+      extra_log.puts("Role: #{role}")
+      extra_log.puts("App: #{session[:parameters]["app_name"]}")
+      extra_log.puts("Session parameters: #{session[:parameters].inspect}")
+      extra_log.close
+    end
 
     begin
       # First check CONFIG, then ENV for API key
@@ -318,6 +328,15 @@ module ClaudeHelper
     # Check if web search is enabled
     # Handle both string and boolean values for websearch parameter
     websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    
+    # Debug log websearch parameter
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("[#{Time.now}] Claude websearch parameter check:")
+      extra_log.puts("obj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})")
+      extra_log.puts("websearch enabled = #{websearch}")
+      extra_log.close
+    end
     
     # Determine which web search implementation to use
     # Models that support native web search: Claude 3.5/3.7 Sonnet, Claude 3.5 Haiku
@@ -506,7 +525,7 @@ module ClaudeHelper
       end
       
       # Add web search tool if enabled
-      websearch_enabled = obj["websearch"] == "true"
+      websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
       if websearch_enabled
         DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
         # Claude's web search tool requires specific format per documentation
@@ -519,6 +538,14 @@ module ClaudeHelper
         }
         body["tools"] ||= []
         body["tools"] << web_search_tool
+        
+        # Log the tool for debugging
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] Claude: web_search_20250305 tool added to request")
+          extra_log.puts("Tools array: #{body["tools"].inspect}")
+          extra_log.close
+        end
       end
       
       
@@ -611,6 +638,19 @@ module ClaudeHelper
     # Debug final request body for web search
     if websearch_enabled
       DebugHelper.debug("Claude final request with web search - tools: #{body["tools"]&.map { |t| "#{t["type"]}:#{t["name"]}" }.join(", ")}", category: :api, level: :debug)
+      
+      # Additional logging for debugging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude final API request:")
+        extra_log.puts("URL: #{API_ENDPOINT}/messages")
+        extra_log.puts("Model: #{body["model"]}")
+        extra_log.puts("Tools present: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}")
+        if body["tools"]
+          extra_log.puts("Tools: #{JSON.pretty_generate(body["tools"])}")
+        end
+        extra_log.close
+      end
     end
 
     # Call the API

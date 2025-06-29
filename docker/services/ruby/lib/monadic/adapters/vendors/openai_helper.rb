@@ -334,23 +334,16 @@ module OpenAIHelper
     # Check if web search is enabled in settings
     websearch_enabled = obj["websearch"] == "true"
     
-    # Check if we should use responses API with native websearch
-    # This happens when:
-    # 1. Web search is enabled in settings
-    # 2. Model supports it (gpt-4.1 or gpt-4.1-mini)
-    use_responses_api_for_websearch = websearch_enabled && 
-                                     RESPONSES_API_WEBSEARCH_MODELS.include?(model)
+    # Check if web search is enabled
+    # OpenAI web search uses the standard chat API with web_search_preview tool
+    # NOT the responses API
+    use_responses_api_for_websearch = false  # Never use responses API for websearch
     
     # OpenAI only uses native web search, no Tavily support
     
     # Store these variables in obj for later use in the method
     obj["websearch_enabled"] = websearch_enabled
     obj["use_responses_api_for_websearch"] = use_responses_api_for_websearch
-    
-    # Update use_responses_api flag if we need it for websearch
-    if use_responses_api_for_websearch && !use_responses_api
-      use_responses_api = true
-    end
 
     message = nil
     data = nil
@@ -498,7 +491,15 @@ module OpenAIHelper
           body["tools"] = []
         end
         
-        # OpenAI uses native web search, no additional tools needed
+        # Add web search tool if enabled
+        if websearch_enabled
+          DebugHelper.debug("OpenAI: Adding web_search_preview tool for web search", category: :api, level: :debug)
+          web_search_tool = {
+            "type" => "web_search_preview"
+          }
+          body["tools"] ||= []
+          body["tools"] << web_search_tool
+        end
         
         body["tools"].uniq!
       else

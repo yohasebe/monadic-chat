@@ -504,7 +504,16 @@ module ClaudeHelper
         body["tools"] = []
       end
       
-      # Claude uses native web search, no additional tools needed
+      # Add web search tool if enabled
+      websearch_enabled = obj["websearch"] == "true"
+      if websearch_enabled
+        DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
+        web_search_tool = {
+          "type" => "web_search_20250305"
+        }
+        body["tools"] ||= []
+        body["tools"] << web_search_tool
+      end
       
       
       body["tools"].uniq!

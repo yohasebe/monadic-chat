@@ -536,14 +536,22 @@ module GrokHelper
             json = JSON.parse(json_data)
 
             if CONFIG["EXTRA_LOGGING"]
-              # Log first response chunk in detail
-              if !started
+              # Log first few response chunks in detail
+              if texts.size < 5 || json.dig("choices", 0, "finish_reason")
                 extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts("\n[#{Time.now}] First Grok response chunk:")
+                if !started
+                  extra_log.puts("\n[#{Time.now}] First Grok response chunk:")
+                elsif json.dig("choices", 0, "finish_reason")
+                  extra_log.puts("\n[#{Time.now}] Final Grok response chunk:")
+                end
                 extra_log.puts(JSON.pretty_generate(json))
-                # Check for citations in the response
-                if json.dig("choices", 0, "delta", "citations") || json.dig("citations")
-                  extra_log.puts("CITATIONS FOUND in response")
+                # Check for citations in various possible locations
+                citations = json.dig("choices", 0, "delta", "citations") || 
+                          json.dig("choices", 0, "message", "citations") ||
+                          json.dig("citations") ||
+                          json.dig("search_results")
+                if citations
+                  extra_log.puts("CITATIONS FOUND: #{citations.inspect}")
                 else
                   extra_log.puts("NO CITATIONS in this chunk")
                 end

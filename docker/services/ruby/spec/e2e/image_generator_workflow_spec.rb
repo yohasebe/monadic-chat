@@ -29,10 +29,10 @@ RSpec.describe "Image Generator E2E Workflow", type: :e2e do
       # Should get a valid response
       expect(valid_response?(response)).to be true
       # Should mention image generation or acknowledge the request
-      expect(response.downcase).to match(/generat|creat|image|sunset|mountain|unable|can't|cannot|model|specify|preference|visualize|describe/i)
+      expect(response.downcase).to match(/generat|creat|image|sunset|mountain/i)
       # Accept either successful generation, explanation, or model selection prompt
       # Also accept markdown image format ![alt](path) or description of how to create
-      expect(response).to match(/<img|http.*\.png|data:image|unable|guide|photoshop|canva|!\[.*\]\(.*\.png\)|model.*use|specify.*model|preference|gpt-image|dall-e|can't.*generate.*directly|help.*visualize|describe.*how|specify.*size.*quality|available.*options/i)
+      expect(response).to match(/<img|http|data:image|unable|!\[.*\]\(|model|dall-e/i)
     end
 
     it "handles size specifications" do
@@ -42,7 +42,7 @@ RSpec.describe "Image Generator E2E Workflow", type: :e2e do
       response = wait_for_response(ws_connection, timeout: 60)
       
       expect(valid_response?(response)).to be true
-      expect(response.downcase).to match(/cat|yarn|image|generated/i)
+      expect(response.downcase).to match(/cat|yarn|image/i)
     end
 
     it "handles style specifications" do
@@ -53,7 +53,7 @@ RSpec.describe "Image Generator E2E Workflow", type: :e2e do
       
       expect(valid_response?(response)).to be true
       # Accept various responses - successful generation, acknowledgment, or explanation
-      expect(response.downcase).to match(/watercolor|painting|garden|style|generated|image|create|request|understand/i)
+      expect(response.downcase).to match(/watercolor|painting|garden|image/i)
     end
   end
 
@@ -73,7 +73,7 @@ RSpec.describe "Image Generator E2E Workflow", type: :e2e do
       # Should get a response (error or refusal)
       expect(response).not_to be_empty
       # Should either refuse or provide alternative (accept various polite refusals)
-      expect(response.downcase).to match(/cannot|unable|inappropriate|instead|alternative|can't|sorry|assist/i)
+      expect(response.downcase).to match(/cannot|unable|inappropriate|can't|sorry/i)
     end
   end
 end

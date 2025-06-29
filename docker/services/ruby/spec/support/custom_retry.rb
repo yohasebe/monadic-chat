@@ -97,14 +97,14 @@ end
 
 # Helper for E2E tests
 module E2ERetryHelper
-  def with_e2e_retry(&block)
+  def with_e2e_retry(max_attempts: 3, wait: 10, &block)
     # Mark this example as potentially retried
     RSpec.current_example.metadata[:retried] = true
     RSpec.current_example.metadata[:retry_attempts] = 0
     
     with_retry(
-      max_attempts: 3,
-      wait: 10,
+      max_attempts: max_attempts,
+      wait: wait,
       exceptions: [
         RuntimeError,
         Net::ReadTimeout,

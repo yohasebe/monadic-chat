@@ -243,30 +243,40 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
       end
     end
     
-    context "when in container" do
-      it "creates file and attempts docker copy" do
-        # Skip this test if not running in a container
-        skip "This test is for container environment only" unless defined?(IN_CONTAINER) && IN_CONTAINER
-        
+    context "when testing cross-container file operations" do
+      it "verifies file sharing between Python container and local Ruby environment" do
+        # Test file operations through Python container which is always running
         filename = "container_test_#{Time.now.to_i}"
-        content = "Container test content"
+        content = "Container test content from Python"
         
-        result = helper.write_to_file(
-          filename: filename,
+        # Use Python container to write a file
+        python_code = <<~PYTHON
+          with open('/monadic/data/#{filename}.txt', 'w') as f:
+              f.write('#{content}')
+          print('File written successfully')
+        PYTHON
+        
+        # Execute in Python container
+        result = `docker exec monadic-chat-python-container python -c "#{python_code}" 2>&1`
+        expect($?.success?).to be true
+        expect(result).to include("File written successfully")
+        
+        # Now verify the file exists in the local shared volume
+        local_file = File.join(Dir.home, "monadic", "data", "#{filename}.txt")
+        expect(File.exist?(local_file)).to be true
+        expect(File.read(local_file)).to eq(content)
+        
+        # Also test that write_to_file works correctly in development
+        write_result = helper.write_to_file(
+          filename: "local_test_#{Time.now.to_i}",
           extension: "txt",
-          text: content
+          text: "Local write test"
         )
+        expect(write_result).to include("has been written successfully")
         
-        # In container, it should still return success
-        expect(result).to include("has been written successfully")
-        
-        # Verify file exists in the shared volume
-        expected_file = File.join(MonadicApp::SHARED_VOL, "#{filename}.txt")
-        if File.exist?(expected_file)
-          expect(File.read(expected_file)).to eq(content)
-          # Clean up
-          File.delete(expected_file)
-        end
+        # Clean up
+        File.delete(local_file) if File.exist?(local_file)
+        Dir.glob(File.join(Dir.home, "monadic", "data", "local_test_*.txt")).each { |f| File.delete(f) }
       end
     end
   end

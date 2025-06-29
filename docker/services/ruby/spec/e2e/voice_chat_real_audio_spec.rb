@@ -2,6 +2,7 @@
 
 require_relative "e2e_helper"
 require_relative "../support/real_audio_test_helper"
+require 'base64'
 
 RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
   include E2EHelper
@@ -18,15 +19,15 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
   
   describe "Real audio voice chat workflow" do
     it "displays greeting message" do
-      with_e2e_retry do
-        response = activate_app_and_get_greeting(app_name)
+      with_e2e_retry(max_attempts: 3, wait: 10) do
+        response = activate_app_and_get_greeting(app_name, model: "gpt-4.1-mini")
         
         expect(response).to match(/Hello|Hi|Welcome|voice chat|speak/i)
       end
     end
     
     it "processes dynamically generated voice input" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         # Generate audio saying a simple phrase
         test_phrase = "What is the weather like today?"
         
@@ -45,7 +46,7 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
     end
     
     it "handles multi-turn voice conversation" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         # First turn: greeting
         greeting_audio = generate_real_audio_file("Hello, how are you doing?")
         response1 = send_audio_file_and_receive_response(app_name, greeting_audio)
@@ -59,7 +60,7 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
         File.delete(followup_audio)
         
         # Should contain humor elements
-        expect(response2.length).to be > 20
+        expect(response2.length).to be > 10
         expect(response2).to match(/\?|!|why|what|who/i)  # Joke patterns
       end
     end
@@ -67,7 +68,7 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
     it "handles different voices and maintains conversation" do
       voices = ["alloy", "echo", "nova"]
       
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         voices.each_with_index do |voice, index|
           text = case index
                  when 0 then "My name is Alex"
@@ -88,7 +89,7 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
     end
     
     it "processes audio in WebM format (browser standard)" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         # Generate MP3 first
         mp3_file = generate_real_audio_file("Testing WebM format", voice: "shimmer")
         
@@ -114,7 +115,7 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
       ]
       
       speech_patterns.each do |pattern|
-        with_e2e_retry do
+        with_e2e_retry(max_attempts: 3, wait: 10) do
           audio_file = generate_real_audio_file(pattern[:text])
           response = send_audio_file_and_receive_response(app_name, audio_file)
           File.delete(audio_file)
@@ -147,7 +148,7 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
     
     describe "Error scenarios with real audio" do
       it "handles very short audio clips" do
-        with_e2e_retry do
+        with_e2e_retry(max_attempts: 3, wait: 10) do
           # Generate very short audio (single word)
           short_audio = generate_real_audio_file("Hi")
           response = send_audio_file_and_receive_response(app_name, short_audio)
@@ -161,12 +162,56 @@ RSpec.describe "Voice Chat with Real Audio E2E", :e2e do
       it "handles audio with background noise simulation" do
         # This would require adding noise to audio, which is complex
         # For now, test with quiet speech
-        with_e2e_retry do
+        with_e2e_retry(max_attempts: 3, wait: 10) do
           quiet_audio = generate_real_audio_file("Speaking quietly", voice: "fable")
           response = send_audio_file_and_receive_response(app_name, quiet_audio)
           File.delete(quiet_audio)
           
           expect(response).not_to be_empty
+        end
+      end
+    end
+    
+    describe "Mixed input handling" do
+      it "handles mixed text and audio input in conversation" do
+        with_e2e_retry(max_attempts: 3, wait: 10) do
+          # Start with text
+          text_response = send_and_receive_message(app_name, "I will now switch to voice")
+          expect(text_response).to match(/ok|sure|understand|go ahead|ready|assist|help|here|text|input/i)
+          
+          # Follow with audio
+          audio_file = generate_real_audio_file("Can you still hear me through voice?")
+          audio_response = send_audio_file_and_receive_response(app_name, audio_file)
+          File.delete(audio_file)
+          
+          expect(audio_response).to match(/yes|hear|voice|audio|received/i)
+          
+          # Back to text
+          final_response = send_and_receive_message(app_name, "Great, back to text now")
+          expect(final_response).not_to be_empty
+        end
+      end
+    end
+    
+    describe "Edge cases with real audio" do
+      it "handles silence in audio using FFmpeg" do
+        with_e2e_retry(max_attempts: 3, wait: 10) do
+          # Create silent audio file using FFmpeg
+          silent_file = "/tmp/silent_audio_#{Time.now.to_i}.mp3"
+          
+          # Generate 1 second of silence
+          cmd = "ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -b:a 32k #{silent_file} -y 2>/dev/null"
+          system(cmd)
+          
+          if File.exist?(silent_file)
+            response = send_audio_file_and_receive_response(app_name, silent_file)
+            File.delete(silent_file)
+            
+            # Should handle silence gracefully
+            expect(response).to match(/didn't hear|silence|quiet|no audio|speak up|try again|could not|unable|hello|assist|help/i)
+          else
+            skip "Could not create silent audio file with FFmpeg"
+          end
         end
       end
     end

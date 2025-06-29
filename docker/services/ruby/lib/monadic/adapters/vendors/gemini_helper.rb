@@ -41,52 +41,6 @@ module GeminiHelper
     }
   ]
 
-  WEBSEARCH_TOOLS = [
-    {
-      name: "tavily_fetch",
-      description: "fetch the content of the web page of the given url and return its content.",
-      parameters: {
-        type: "object",
-        properties: {
-          url: {
-            type: "string",
-            description: "url of the web page."
-          }
-        },
-        required: ["url"]
-      }
-    },
-    {
-      name: "tavily_search",
-      description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "query to search for."
-          },
-          n: {
-            type: "integer",
-            description: "number of results to return (default: 3)."
-          }
-        },
-        required: ["query", "n"]
-      }
-    }
-  ]
-
-  WEBSEARCH_PROMPT = <<~TEXT
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
-
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
-  TEXT
 
 
   attr_reader :models
@@ -483,9 +437,10 @@ module GeminiHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    # Debug websearch parameters
-    websearch = CONFIG["TAVILY_API_KEY"] && obj["websearch"]
-    DebugHelper.debug("Gemini websearch value: #{websearch}, obj['websearch']: #{obj['websearch']}, TAVILY_API_KEY exists: #{!CONFIG['TAVILY_API_KEY'].nil?}", category: :api, level: :debug)
+    # Use native Google search when websearch is enabled
+    websearch = obj["websearch"]
+    
+    DebugHelper.debug("Gemini websearch enabled: #{websearch}", category: :api, level: :debug)
     
     # Handle thinking models based on reasoning_effort parameter presence
     reasoning_effort = obj["reasoning_effort"]
@@ -587,18 +542,11 @@ module GeminiHelper
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :gemini, app)
 
-    websearch_suffixed = false
     body["contents"] = context.compact.map do |msg|
-      if websearch && !websearch_suffixed
-        text = "#{msg["text"]}\n\n#{WEBSEARCH_PROMPT}"
-        websearch_suffixed = true
-      else
-        text = msg["text"]
-      end
       message = {
         "role" => translate_role(msg["role"]),
         "parts" => [
-          { "text" => text }
+          { "text" => msg["text"] }
         ]
       }
     end
@@ -650,26 +598,16 @@ module GeminiHelper
         body["tools"] = [app_tools]
       end
       
-      # Ensure function_declarations exists
-      body["tools"][0]["function_declarations"] ||= []
-      body["tools"][0]["function_declarations"].push(*WEBSEARCH_TOOLS) if websearch
-      body["tools"][0]["function_declarations"].uniq!
-
       body["tool_config"] = {
         "function_calling_config" => {
           "mode" => "ANY"
         }
       }
     elsif websearch
-      # Debug: Check WEBSEARCH_TOOLS content
-      DebugHelper.debug("Gemini using websearch, WEBSEARCH_TOOLS: #{WEBSEARCH_TOOLS.inspect}", category: :api, level: :debug)
+      # Use native Google search
+      DebugHelper.debug("Gemini using native Google search", category: :api, level: :debug)
       
-      body["tools"] = [{"function_declarations" => WEBSEARCH_TOOLS}]
-      body["tool_config"] = {
-        "function_calling_config" => {
-          "mode" => "ANY"
-        }
-      }
+      body["tools"] = [{"google_search" => {}}]
     else
       DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
       body.delete("tools")

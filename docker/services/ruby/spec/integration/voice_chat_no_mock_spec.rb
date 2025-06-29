@@ -301,4 +301,103 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
       end
     end
   end
+
+  describe "Audio Format Handling" do
+    it "normalizes audio format aliases" do
+      # Test format alias normalization logic (from voice_chat_real_spec.rb)
+      formats = {
+        "audio/webm" => "webm",
+        "audio/ogg" => "ogg", 
+        "audio/mpeg" => "mp3",
+        "audio/mp3" => "mp3",
+        "audio/wav" => "wav",
+        "audio/x-m4a" => "m4a",
+        "webm/opus" => "webm"
+      }
+      
+      formats.each do |input, expected|
+        # Test format normalization
+        normalized = case input
+                     when "webm", "audio/webm", "webm/opus" then "webm"
+                     when "ogg", "audio/ogg" then "ogg"
+                     when "mp3", "audio/mpeg", "audio/mp3" then "mp3"
+                     when "wav", "audio/wav" then "wav"
+                     when "m4a", "audio/x-m4a" then "m4a"
+                     else input
+                     end
+        expect(normalized).to eq(expected)
+      end
+    end
+    
+    it "detects audio format from content type" do
+      # Test content type to format conversion (from voice_chat_real_spec.rb)
+      content_types = {
+        "audio/webm" => "webm",
+        "audio/ogg" => "ogg",
+        "audio/mpeg" => "mp3",
+        "audio/mp3" => "mp3",
+        "audio/wav" => "wav",
+        "audio/x-m4a" => "m4a"
+      }
+      
+      content_types.each do |content_type, expected_format|
+        format = case content_type
+                 when /webm/ then "webm"
+                 when /ogg/ then "ogg"
+                 when /mpeg|mp3/ then "mp3"
+                 when /wav/ then "wav"
+                 when /m4a/ then "m4a"
+                 else content_type.split("/").last
+                 end
+        expect(format).to eq(expected_format)
+      end
+    end
+  end
+
+  describe "WebSocket Audio Message Validation" do
+    it "validates audio message structure" do
+      # From voice_chat_real_spec.rb
+      valid_message = {
+        "content" => Base64.encode64("audio_data"),
+        "format" => "webm",
+        "lang" => "en"
+      }
+      
+      # Direct validation
+      expect { 
+        validate_audio_message(valid_message)
+      }.not_to raise_error
+    end
+    
+    it "rejects invalid audio messages" do
+      # Test each invalid case
+      expect { 
+        validate_audio_message({})
+      }.to raise_error(RuntimeError, /Missing audio content/)
+      
+      expect {
+        validate_audio_message({ "format" => "webm" })
+      }.to raise_error(RuntimeError, /Missing audio content/)
+      
+      expect {
+        validate_audio_message({ "content" => "" })
+      }.to raise_error(RuntimeError, /Missing audio content/)
+      
+      # Valid base64 but missing format
+      msg = { "content" => Base64.encode64("data") }
+      expect { validate_audio_message(msg) }.to raise_error(/Invalid format/)
+    end
+    
+    private
+    
+    def validate_audio_message(message)
+      raise "Missing audio content" unless message["content"]&.length&.positive?
+      raise "Invalid format" unless message["format"]
+      
+      # Try to decode base64
+      Base64.decode64(message["content"])
+    rescue => e
+      raise "Invalid audio message: #{e.message}"
+    end
+  end
 end

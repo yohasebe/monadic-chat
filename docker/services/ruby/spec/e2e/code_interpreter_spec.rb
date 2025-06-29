@@ -17,6 +17,63 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
     end
   end
 
+  # Provider configurations for multi-provider testing
+  PROVIDER_CONFIGS = [
+    {
+      app: "CodeInterpreterOpenAI",
+      provider: "OpenAI",
+      enabled: -> { CONFIG["OPENAI_API_KEY"] },
+      model: "gpt-4.1",
+      timeout: 60
+    },
+    {
+      app: "CodeInterpreterClaude",
+      provider: "Claude", 
+      enabled: -> { CONFIG["ANTHROPIC_API_KEY"] },
+      model: "claude-sonnet-4-20250514",
+      timeout: 90,
+      max_tokens: 4096
+    },
+    {
+      app: "CodeInterpreterGemini",
+      provider: "Gemini",
+      enabled: -> { CONFIG["GEMINI_API_KEY"] },
+      model: "gemini-2.5-pro",
+      timeout: 60,
+      skip_activation: true
+    },
+    {
+      app: "CodeInterpreterGrok",
+      provider: "Grok",
+      enabled: -> { CONFIG["XAI_API_KEY"] },
+      model: "grok-3",
+      timeout: 60
+    },
+    {
+      app: "CodeInterpreterMistral",
+      provider: "Mistral",
+      enabled: -> { CONFIG["MISTRAL_API_KEY"] },
+      model: "mistral-large-latest",
+      timeout: 60,
+      skip_activation: true
+    },
+    {
+      app: "CodeInterpreterCohere",
+      provider: "Cohere",
+      enabled: -> { CONFIG["COHERE_API_KEY"] },
+      model: "command-a-03-2025",
+      timeout: 60
+    },
+    {
+      app: "CodeInterpreterDeepSeek",
+      provider: "DeepSeek",
+      enabled: -> { CONFIG["DEEPSEEK_API_KEY"] },
+      model: "deepseek-chat",
+      timeout: 60,
+      skip_activation: true
+    }
+  ]
+
   describe "Python Code Execution" do
     let(:ws_connection) { create_websocket_connection }
     
@@ -86,7 +143,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
       response = wait_for_response(ws_connection, timeout: 90)
       
-      expect(response.downcase).to match(/chart|plot|matplotlib|created|saved/i)
+      expect(response.downcase).to match(/chart|plot|matplotlib/i)
     end
 
     it "uses numpy for calculations" do
@@ -95,7 +152,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
       response = wait_for_response(ws_connection)
       
-      expect(response.downcase).to match(/numpy|matrix|determinant/i)
+      expect(response.downcase).to match(/numpy|matrix/i)
       expect(code_execution_attempted?(response)).to be true
     end
   end
@@ -130,7 +187,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       response = wait_for_response(ws_connection)
       
       expect(valid_response?(response)).to be true
-      expect(response.downcase).to match(/csv|product|price|expensive/i)
+      expect(response.downcase).to match(/csv|product|price/i)
     end
   end
 
@@ -163,6 +220,62 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       send_chat_message(ws_connection, message3, app: "CodeInterpreterOpenAI")
       response3 = wait_for_response(ws_connection, timeout: 90)
       expect(response3).not_to be_empty
+    end
+  end
+
+  describe "Multi-Provider Compatibility" do
+    PROVIDER_CONFIGS.each do |config|
+      describe "#{config[:provider]} Provider" do
+        before(:all) do
+          unless config[:enabled].call
+            skip "#{config[:provider]} tests require API key"
+          end
+        end
+
+        let(:ws_connection) { create_websocket_connection }
+
+        after do
+          ws_connection[:client].close if ws_connection[:client]
+        end
+
+        it "executes Python code successfully" do
+          message = case config[:provider]
+                    when "DeepSeek", "Mistral"
+                      "Use the run_code function to execute: print('Testing ' + str(2 + 3))"
+                    when "Gemini"
+                      "Use run_code to execute this Python: print('Testing ' + str(2 + 3)). This is in our Docker environment."
+                    else
+                      "Execute this Python code: print('Testing ' + str(2 + 3))"
+                    end
+        
+          ws_connection[:messages].clear
+          
+          with_e2e_retry(max_attempts: 3, wait: 10) do
+            # Handle apps that don't initiate from assistant
+            if config[:skip_activation]
+              send_chat_message(ws_connection, message, app: config[:app], model: config[:model], max_tokens: config[:max_tokens])
+            else
+              response = activate_app_and_get_greeting(config[:app], ws_connection, model: config[:model], max_tokens: config[:max_tokens])
+              expect(response).not_to be_empty
+              
+              ws_connection[:messages].clear
+              send_chat_message(ws_connection, message, app: config[:app], model: config[:model], max_tokens: config[:max_tokens])
+            end
+            
+            response = wait_for_response(ws_connection, timeout: config[:timeout] || 60, max_tokens: config[:max_tokens])
+            
+            # Check for successful code execution
+            expect(code_execution_attempted?(response)).to be(true), 
+              "Expected code execution in response for #{config[:provider]}, got: #{response[0..500]}"
+          end
+        rescue StandardError => e
+          if e.message.include?("internal") && config[:provider] == "Gemini"
+            skip "Gemini returned internal error - skipping test"
+          else
+            raise e
+          end
+        end
+      end
     end
   end
 end

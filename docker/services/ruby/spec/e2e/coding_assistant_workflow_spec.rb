@@ -26,7 +26,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Coding Assistant workflow" do
     it "responds to greeting appropriately" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0  # Wait longer for WebSocket connection to stabilize
         send_chat_message(ws_connection, "Hello", app: app_name)
@@ -43,7 +43,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Code writing assistance" do
     it "writes a simple function when requested" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         send_chat_message(ws_connection, 
@@ -61,7 +61,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
     end
     
     it "provides code explanation when requested" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         send_chat_message(ws_connection,
@@ -80,7 +80,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Code with __DATA__ separator" do
     it "processes code improvement requests with data separator" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0  # Wait longer for connection
         
@@ -114,7 +114,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Multi-language support" do
     it "writes code in different programming languages" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         send_chat_message(ws_connection,
@@ -135,7 +135,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Code refactoring assistance" do
     it "suggests refactoring improvements" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         
@@ -166,7 +166,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Debugging assistance" do
     it "helps identify and fix bugs in code" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         
@@ -193,7 +193,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Algorithm implementation" do
     it "implements algorithms when requested" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         send_chat_message(ws_connection,
@@ -213,7 +213,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Code documentation" do
     it "adds documentation to existing code" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 0.5
         
@@ -238,7 +238,7 @@ RSpec.describe "Coding Assistant E2E", :e2e do
   
   describe "Long response handling" do
     it "handles long code generation requests" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0  # Wait longer for connection
         send_chat_message(ws_connection,

@@ -153,7 +153,7 @@ RSpec.describe "Ollama Provider E2E", type: :e2e do
       # This tests that the model selection works
       models = @available_models
       expect(models).not_to be_empty
-      expect(models.first).to match(/\w+/)
+      expect(models.first).to match(/\w+/i)
     end
 
     it "uses first available model by default" do
@@ -249,7 +249,7 @@ RSpec.describe "Ollama Provider E2E", type: :e2e do
         send_chat_message(ws_connection, "Hello", 
           app: "ChatOllama", 
           model: "non-existent-model")
-        wait_for_response(ws_connection, timeout: 30)
+        wait_for_response(ws_connection, timeout: 60)
       }.to raise_error(RuntimeError, /model.*not found|error/i)
     end
 

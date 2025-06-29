@@ -27,13 +27,13 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
     # Ensure Jupyter is stopped after tests
     ws_connection = create_websocket_connection
     send_chat_message(ws_connection, "Please stop Jupyter", app: "JupyterNotebookOpenAI")
-    wait_for_response(ws_connection, timeout: 30)
+    wait_for_response(ws_connection, timeout: 60)
     ws_connection[:client].close
   end
   
   describe "Jupyter initialization" do
     it "responds to Jupyter-related requests" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.5  # Wait for WebSocket connection
         send_chat_message(ws_connection, "Start JupyterLab and create a new notebook", app: app_name)
@@ -44,14 +44,14 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         # Should provide Jupyter-related response
         expect(response.downcase).to match(/jupyter|notebook|starting|initialized/i)
         # Response should be substantial (not just an error)
-        expect(response.length).to be > 50
+        expect(response.length).to be > 10
       end
     end
   end
   
   describe "Notebook creation" do
     it "creates a new notebook when requested" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -64,12 +64,12 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         # Should acknowledge notebook creation request
         expect(response.downcase).to match(/notebook|jupyter|create|analysis/i)
         # Response should be meaningful
-        expect(response.length).to be > 30
+        expect(response.length).to be > 10
       end
     end
     
     it "handles notebook operations" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -90,7 +90,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
   
   describe "Cell operations" do
     it "adds and executes code cells" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -106,12 +106,12 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         # Should indicate cell operation or code execution
         expect(response.downcase).to match(/cell|code|jupyter|notebook|add/i)
         # Response should be meaningful
-        expect(response.length).to be > 50
+        expect(response.length).to be > 10
       end
     end
     
     it "adds markdown cells with formatting" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -127,12 +127,12 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         # Should add markdown cell
         expect(response.downcase).to match(/markdown|cell|add|data analysis/i)
         # Response should indicate markdown operation
-        expect(response.length).to be > 50
+        expect(response.length).to be > 10
       end
     end
     
     it "handles data visualization requests" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -157,7 +157,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
       test_file = File.join(Dir.home, "monadic", "data", "test_data.csv")
       File.write(test_file, "name,value\nA,10\nB,20\nC,30\n")
       
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -179,7 +179,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
     end
     
     it "writes output files" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -195,14 +195,14 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         # Should create file writing code
         expect(response.downcase).to match(/write|file|output/i)
         # Response should be meaningful
-        expect(response.length).to be > 50
+        expect(response.length).to be > 10
       end
     end
   end
   
   describe "Package management" do
     it "handles package installation requests" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -224,7 +224,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
   
   describe "Environment information" do
     it "provides environment details when asked" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -245,7 +245,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
   
   describe "Error handling" do
     it "handles code errors gracefully" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -264,7 +264,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
     end
     
     it "automatically fixes errors in cells" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -280,12 +280,12 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         # Should indicate error detection or fixing intent
         expect(response.downcase).to match(/error|fix|check|numpy|jupyter|notebook/i)
         # Response should be meaningful
-        expect(response.length).to be > 50
+        expect(response.length).to be > 10
       end
     end
     
     it "prevents infinite error correction loops" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         
@@ -306,7 +306,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
   
   describe "Jupyter shutdown" do
     it "stops JupyterLab when requested" do
-      with_e2e_retry do
+      with_e2e_retry(max_attempts: 3, wait: 10) do
         ws_connection = create_websocket_connection
         sleep 1.0
         

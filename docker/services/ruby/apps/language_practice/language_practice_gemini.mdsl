@@ -15,7 +15,7 @@ app "LanguagePracticeGemini" do
   
   llm do
     provider "gemini"
-    model "gemini-2.5-flash-preview-05-20"
+    model "gemini-2.5-flash"
   end
   
   display_name "Language Practice"

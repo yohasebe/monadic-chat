@@ -18,7 +18,7 @@ The table below shows which apps are available for which AI model providers. If 
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Research Assistant | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | | |
+| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
 | Translate | ✅ | | | | | | | | |
@@ -128,15 +128,15 @@ Research Assistant apps are also available for the following models:
 - OpenAI
 - Anthropic Claude  
 - xAI Grok
-- Google Gemini (requires Tavily API)
+- Google Gemini
 - Mistral AI (requires Tavily API)
 - Cohere (requires Tavily API)
 - DeepSeek (requires Tavily API)
+- Perplexity
 
 ?> **Web Search Functionality**: 
-> - **Native search**: OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), and Perplexity (built into sonar models)
-> - **Requires Tavily API**: Google Gemini, Mistral AI, Cohere, and DeepSeek. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
-> - **Note:** Perplexity doesn't have a separate Research Assistant app because all its models include web search capabilities
+> - **Native search**: OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), Google Gemini (native Google Search), and Perplexity (built into sonar models)
+> - **Requires Tavily API**: Mistral AI, Cohere, and DeepSeek. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
 
 ## Language Related :id=language-related
 

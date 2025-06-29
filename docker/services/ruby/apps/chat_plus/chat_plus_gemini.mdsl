@@ -33,7 +33,7 @@ app "ChatPlusGemini" do
   
   llm do
     provider "google"
-    model "gemini-2.0-flash"
+    model "gemini-2.5-flash"
     context_size 100
   end
   

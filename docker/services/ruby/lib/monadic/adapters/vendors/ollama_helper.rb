@@ -271,6 +271,14 @@ module OllamaHelper
       message
     end
 
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      body["messages"] << {
+        "role" => "user",
+        "content" => "Let's start"
+      }
+    end
+
     if role == "user"
       # Apply monadic transformation if in monadic mode
       if obj["monadic"].to_s == "true" && body["messages"].any? && body["messages"].last["role"] == "user"

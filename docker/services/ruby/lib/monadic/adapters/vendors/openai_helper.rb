@@ -737,6 +737,14 @@ module OpenAIHelper
       body.delete("stop")
     end
 
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      body["messages"] << {
+        "role" => "user",
+        "content" => [{ "type" => "text", "text" => "Let's start" }]
+      }
+    end
+
     # Determine which API endpoint to use
     if use_responses_api
       # Use responses API for o3-pro

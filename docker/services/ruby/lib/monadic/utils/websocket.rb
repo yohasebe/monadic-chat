@@ -237,6 +237,9 @@ module WebSocketHelper
         elsif p == "tools" && (m.is_a?(Array) || m.is_a?(Hash))
           # Tools need to be sent as proper JSON too
           apps[k][p] = m.to_json
+        elsif p == "disabled"
+          # Keep disabled as a string for compatibility with frontend
+          apps[k][p] = m.to_s
         else
           apps[k][p] = m ? m.to_s : nil
         end

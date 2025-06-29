@@ -21,7 +21,7 @@ module WebSearchAgent
       end
     end
     
-    # For providers that explicitly use Tavily (Mistral, Gemini, Cohere, etc.)
+    # For providers that use Tavily (Mistral, Cohere, DeepSeek, Ollama)
     if CONFIG["TAVILY_API_KEY"]
       DebugHelper.debug("WebSearchAgent: Using Tavily for #{provider} provider", category: :web_search, level: :info)
       return tavily_search(query: query, n: 5)

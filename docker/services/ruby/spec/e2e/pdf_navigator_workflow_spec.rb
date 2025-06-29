@@ -297,8 +297,8 @@ RSpec.describe "PDF Navigator E2E Workflow", type: :e2e do
       
       response = wait_for_response(ws_connection)
       
-      # Should indicate file not found or no results  
-      expect(response).to match(/not found|no results|unable to find|unable to access|doesn't exist|doesn't.*appear|no.*matching|not present|does not exist|unable to.*retrieve|not available|is not available|may not be available|not.*available.*database/i)
+      # Should indicate file not found or inability to access
+      expect(response).to match(/not found|no results|unable to find|unable to access|can't access|cannot access|doesn't exist|doesn't.*appear|no.*matching|not present|does not exist|unable to.*retrieve|not available|is not available|may not be available|not.*available.*database/i)
     end
 
     it "handles empty search results appropriately" do

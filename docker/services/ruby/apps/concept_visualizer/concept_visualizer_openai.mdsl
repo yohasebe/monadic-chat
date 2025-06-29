@@ -113,7 +113,6 @@ app "ConceptVisualizerOpenAI" do
     initiate_from_assistant true
     image true
     pdf false
-    toggle true
     context_size 20
   end
   

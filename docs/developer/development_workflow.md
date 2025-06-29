@@ -32,7 +32,12 @@ For applications that require specific testing or diagnosis:
 
 ### Running Tests :id=running-tests
 
-?> **Note:** When using `rake server:debug` for development, Ruby tests run directly on the host using your local Ruby environment.
+?> **Note:** When using `rake server:debug` for development, Ruby tests run directly on the host using your local Ruby environment. The Ruby container is NOT used in development.
+
+#### Development Environment
+- **Ruby Container**: Not used - local Ruby environment is used instead
+- **Other Containers**: Python, PostgreSQL, and Selenium containers must be running
+- **Scripts**: CLI tools and scripts run locally from `docker/services/ruby/scripts/`
 
 #### Ruby Tests
 ```bash
@@ -41,13 +46,15 @@ rake spec
 
 # Run specific test categories
 rake spec_unit        # Unit tests only (fast)
-rake spec_integration # Integration tests
+rake spec_integration # Integration tests (requires containers)
 rake spec_system      # System tests
 rake spec_e2e         # E2E tests (requires server running)
 
 # Run tests matching a pattern
 bundle exec rspec spec/unit/*_spec.rb
 ```
+
+!> **Important:** Vendor helper modules (OpenAIHelper, ClaudeHelper, etc.) do not have dedicated test files. Their functionality is tested indirectly through E2E tests, following the "no mocks" testing philosophy.
 
 #### E2E Tests
 E2E tests require the server to be running:

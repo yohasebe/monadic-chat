@@ -26,7 +26,6 @@ app "LanguagePracticePerplexity" do
     context_size 100
     easy_submit true
     auto_speech true
-    toggle true
     initiate_from_assistant true
   end
 end

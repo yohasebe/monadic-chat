@@ -131,7 +131,10 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Conversations as Monads
 
-- ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state** of the conversation by obtaining additional responses and updating values within a predefined JSON object
+- ♻️ **Monadic mode** enables structured conversations with JSON-based context management
+- 📊 **All providers** now support monadic mode: OpenAI, Claude, Gemini, Mistral, Cohere, DeepSeek, Perplexity, Grok, and Ollama
+- 🔄 Context includes reasoning process, topics discussed, people mentioned, and important notes
+- 🎯 **Chat Plus** apps demonstrate monadic capabilities across all providers
 
 ## Developer
 

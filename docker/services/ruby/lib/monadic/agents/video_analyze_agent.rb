@@ -8,25 +8,32 @@ module VideoAnalyzeAgent
 
     split_res = send_command(command: split_command, container: "python")
 
-    prompt = <<~TEXT
-      The user tried to split the video into frames using a command and got the following response. If the process was successful, the user will get a JSON file containing the list of base64 images of the frames extracted from the video and an audio file. The two files will be separated by a semicolon. If it is not successful, the user will get an error message. Examine the command response and provide the result in the following JSON format:
+    # Debug output
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
+      puts "DEBUG: extract_frames output: #{split_res.inspect}"
+    end
 
-      {
-        "result": "success" | "error",
-        "content": JSON_FILE;AUDIO_FILE | ERROR_MESSAGE
-      }
-
-      ### Command Response
-
-      #{split_res}
-    TEXT
-
-    agent_res = command_output_agent(prompt, split_res)
-
-    if agent_res["result"] == "success"
-      json_file, audio_file = agent_res["content"].split(";")
-    else
-      return agent_res["content"]
+    # Parse the output directly instead of using AI
+    json_file = nil
+    audio_file = nil
+    
+    # Look for patterns in the output
+    if split_res =~ /Base64-encoded frames saved to (.+\.json)/
+      json_file = $1.strip
+    end
+    
+    if split_res =~ /Audio extracted to (.+\.mp3)/
+      audio_file = $1.strip
+    end
+    
+    # Check if extraction was successful
+    if json_file.nil? || json_file.empty?
+      return "Error: Failed to extract frames from video. Output: #{split_res}"
+    end
+    
+    # Debug output
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
+      puts "DEBUG: Parsed json_file: #{json_file.inspect}, audio_file: #{audio_file.inspect}"
     end
 
     query = query ? " \"#{query}\"" : ""
@@ -39,7 +46,22 @@ module VideoAnalyzeAgent
       bash -c 'video_query.rb "#{json_file}" #{query} "#{model}"'
     CMD
 
+    # Debug output
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
+      puts "DEBUG: Executing video_command: #{video_command.inspect}"
+    end
+
     description = send_command(command: video_command, container: "ruby")
+    
+    # Debug output
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
+      puts "DEBUG: video_query result: #{description.inspect}"
+    end
+    
+    # Check if there was an error
+    if description.to_s.start_with?("ERROR:", "Error:")
+      return "Video analysis failed: #{description}"
+    end
 
     if audio_file
       # video description needs whisper-1, not gpt-4o-mini-tts
@@ -49,6 +71,11 @@ module VideoAnalyzeAgent
         bash -c 'stt_query.rb "#{audio_file}" "." "srt" "" "#{stt_model}"'
       CMD
       audio_description = send_command(command: audio_command, container: "ruby")
+      
+      # Check if there was an error with audio processing
+      if audio_description.to_s.start_with?("ERROR:", "Error:", "An error occurred:")
+        audio_description = "Audio transcription failed: #{audio_description}"
+      end
 
       description += "\n\n---\n\n"
       description += "Audio Transcript:\n#{audio_description}"

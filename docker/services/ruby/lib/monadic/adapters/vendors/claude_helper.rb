@@ -508,6 +508,9 @@ module ClaudeHelper
       end
     end
     
+    # Check for web search first, as it should be independent of other tools
+    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+    
     if tools_param && !tools_param.empty?
       # Get tools from app settings, or use the parsed tools from request
       app_tools = APPS[app]&.settings&.[]("tools")
@@ -523,32 +526,36 @@ module ClaudeHelper
       else
         body["tools"] = []
       end
+    elsif websearch_enabled
+      # Even if no other tools, we need to add web search tool
+      body["tools"] = []
+    end
+    
+    # Add web search tool if enabled
+    if websearch_enabled
+      DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
+      # Claude's web search tool requires specific format per documentation
+      # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
+      web_search_tool = {
+        "type" => "web_search_20250305",
+        "name" => "web_search",
+        # Optional: Limit the number of searches per request
+        "max_uses" => 5
+      }
+      body["tools"] ||= []
+      body["tools"] << web_search_tool
       
-      # Add web search tool if enabled
-      websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
-      if websearch_enabled
-        DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
-        # Claude's web search tool requires specific format per documentation
-        # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
-        web_search_tool = {
-          "type" => "web_search_20250305",
-          "name" => "web_search",
-          # Optional: Limit the number of searches per request
-          "max_uses" => 5
-        }
-        body["tools"] ||= []
-        body["tools"] << web_search_tool
-        
-        # Log the tool for debugging
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("[#{Time.now}] Claude: web_search_20250305 tool added to request")
-          extra_log.puts("Tools array: #{body["tools"].inspect}")
-          extra_log.close
-        end
+      # Log the tool for debugging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude: web_search_20250305 tool added to request")
+        extra_log.puts("Tools array: #{body["tools"].inspect}")
+        extra_log.close
       end
-      
-      
+    end
+    
+    # Only clean up if we have tools
+    if body["tools"] && !body["tools"].empty?
       body["tools"].uniq!
     else
       body.delete("tools")

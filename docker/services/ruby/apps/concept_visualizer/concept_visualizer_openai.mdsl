@@ -11,7 +11,7 @@ app "ConceptVisualizerOpenAI" do
 
   llm do
     provider "openai"
-    model "o3"
+    model "gpt-4.1"
     max_tokens 4000
     temperature 0.0
   end

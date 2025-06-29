@@ -311,6 +311,14 @@ module DeepSeekHelper
       end
     end
 
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      body["messages"] << {
+        "role" => "user",
+        "content" => "Let's start"
+      }
+    end
+
     # Debug app loading
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     

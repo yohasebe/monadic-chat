@@ -730,6 +730,14 @@ module CohereHelper
       body["messages"] = messages
     end
 
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      body["messages"] << {
+        "role" => "user",
+        "content" => "Let's start"
+      }
+    end
+
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
 

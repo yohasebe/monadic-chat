@@ -344,6 +344,14 @@ module GrokHelper
       message
     end
 
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      body["messages"] << {
+        "role" => "user",
+        "content" => [{ "type" => "text", "text" => "Let's start" }]
+      }
+    end
+
     if role == "tool"
       body["messages"] += obj["function_returns"]
       body["tool_choice"] = "auto"

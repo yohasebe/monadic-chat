@@ -69,17 +69,6 @@ module CohereHelper
 
     Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from the web search results as possible to provide the user with the most up-to-date and relevant information.
 
-    **CRITICAL CITATION REQUIREMENT**: When you receive search results from tavily_search, you MUST include clickable links to ALL source URLs in your response. The tavily_search results include a "results" array with "url" and "title" fields for each source. You MUST format these as HTML links like this: `<a href="URL" target="_blank" rel="noopener noreferrer">TITLE</a>`
-    
-    For example, if you receive results with:
-    - url: "https://example.com/article", title: "Example Article"
-    - url: "https://source.com/page", title: "Source Page"
-    
-    You MUST include these in your response as:
-    - <a href="https://example.com/article" target="_blank" rel="noopener noreferrer">Example Article</a>
-    - <a href="https://source.com/page" target="_blank" rel="noopener noreferrer">Source Page</a>
-    
-    This is MANDATORY - always provide clickable source links when using information from web searches.
   TEXT
 
   class << self

@@ -33,7 +33,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 OPENAI_DEFAULT_MODEL=gpt-4.1
 ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
 COHERE_DEFAULT_MODEL=command-r-plus
-GEMINI_DEFAULT_MODEL=gemini-2.0-flash
+GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 MISTRAL_DEFAULT_MODEL=mistral-large-latest
 GROK_DEFAULT_MODEL=grok-2
 PERPLEXITY_DEFAULT_MODEL=sonar

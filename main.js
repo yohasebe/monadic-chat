@@ -2556,7 +2556,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.GEMINI_DEFAULT_MODEL) {
-        envConfig.GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash-preview-05-20';
+        envConfig.GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
     }
 
     if (!envConfig.MISTRAL_DEFAULT_MODEL) {

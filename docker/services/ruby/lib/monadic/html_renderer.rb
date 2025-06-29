@@ -10,14 +10,8 @@ module MonadicChat
     
     # Render monadic structure as HTML (compatible with existing monadic_html)
     def render_as_html(monad, settings = {})
-      pp "[DEBUG] HtmlRenderer.render_as_html called with:"
-      pp "[DEBUG]   monad class: #{monad.class}"
-      pp "[DEBUG]   monad content: #{monad.to_s[0..200]}..."
       obj = unwrap_from_json(monad)
-      pp "[DEBUG]   unwrapped obj: #{obj}"
-      result = json_to_html(obj, settings)
-      pp "[DEBUG]   json_to_html result preview: #{result[0..200]}..."
-      result
+      json_to_html(obj, settings)
     end
     
     # Convert JSON to HTML (matching existing json2html implementation)

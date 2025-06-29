@@ -549,6 +549,7 @@ module GeminiHelper
           { "text" => msg["text"] }
         ]
       }
+      message
     end
 
     if body["contents"].last["role"] == "user"
@@ -580,6 +581,14 @@ module GeminiHelper
           }
         }
       end
+    end
+
+    # Handle initiate_from_assistant case where only system message exists
+    if body["contents"].empty? && initial_prompt.to_s != ""
+      body["contents"] << {
+        "role" => "user",
+        "parts" => [{ "text" => "Let's start" }]
+      }
     end
 
     # Get tools from app settings

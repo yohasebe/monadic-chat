@@ -111,7 +111,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps with real-time validation
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
-- 🔍 **Web search** capabilities using the [Tavily](https://tavily.com/) API and native search features in OpenAI, Anthropic Claude, xAI Grok, and Perplexity
+- 🔍 **Web search** capabilities using native search features in OpenAI, Claude, Gemini, xAI Grok, and Perplexity, with [Tavily](https://tavily.com/) API for other providers
 - 🌎 Perform **web scraping** using Selenium
 - 📦 Add custom **Docker containers**
 - 📝 **Declarative DSL** for simplified app development with error pattern detection

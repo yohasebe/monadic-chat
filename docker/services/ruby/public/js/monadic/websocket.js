@@ -2285,9 +2285,12 @@ function connect_websocket(callback) {
                 
                 // Add group header to custom dropdown with conditional styling
                 const groupClass = allAppsDisabled ? ' all-disabled' : '';
-                const groupTitle = allAppsDisabled ? ' title="API key required for this provider"' : '';
+                // Special handling for Ollama - it doesn't require an API key
+                const disabledMessage = group === "Ollama" ? "(Ollama container not available)" : "(API key required)";
+                const groupTitle = allAppsDisabled ? 
+                  (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required for this provider"') : '';
                 $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
-                  <span>──${group}──${allAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
+                  <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
                   <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
                 </div>`);
                 
@@ -2311,7 +2314,9 @@ function connect_websocket(callback) {
                   
                   // Add the same option to custom dropdown with icon
                   const disabledClass = isDisabled ? ' disabled' : '';
-                  const disabledTitle = isDisabled ? ' title="API key required"' : '';
+                  // Special handling for Ollama apps
+                  const disabledTitle = isDisabled ? 
+                    (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required"') : '';
                   const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                     <span style="margin-right: 8px;">${appIcon}</span>
                     <span>${displayText}</span></div>`);

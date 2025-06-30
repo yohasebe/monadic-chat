@@ -738,11 +738,31 @@ module OpenAIHelper
     end
 
     # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("[#{Time.now}] OpenAI initiate_from_assistant check:")
+      extra_log.puts("obj['initiate_from_assistant'] = #{obj["initiate_from_assistant"].inspect}")
+      extra_log.puts("body['messages'].length = #{body["messages"].length}")
+      extra_log.puts("body['messages'] = #{body["messages"].map { |m| { role: m["role"], content_preview: m["content"].is_a?(Array) ? "Array[#{m["content"].length}]" : m["content"].to_s[0..50] } }.inspect}")
+      extra_log.close
+    end
+    
+    # Check if we need to add a dummy user message for initiate_from_assistant
+    # This happens when there's no user message in the conversation yet
+    has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
+    
+    if !has_user_message && obj["initiate_from_assistant"]
       body["messages"] << {
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Let's start" }]
       }
+      
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] OpenAI: Added dummy user message for initiate_from_assistant")
+        extra_log.puts("has_user_message = #{has_user_message}, obj['initiate_from_assistant'] = #{obj["initiate_from_assistant"]}")
+        extra_log.close
+      end
     end
 
     # Determine which API endpoint to use

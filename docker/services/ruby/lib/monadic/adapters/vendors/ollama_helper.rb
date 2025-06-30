@@ -271,12 +271,20 @@ module OllamaHelper
       message
     end
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    # Handle initiate_from_assistant case
+    has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
+    
+    if !has_user_message && obj["initiate_from_assistant"]
       body["messages"] << {
         "role" => "user",
         "content" => "Let's start"
       }
+      
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Ollama: Added dummy user message for initiate_from_assistant")
+        extra_log.close
+      end
     end
 
     if role == "user"

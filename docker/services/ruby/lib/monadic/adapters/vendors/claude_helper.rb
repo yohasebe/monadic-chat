@@ -640,12 +640,6 @@ module ClaudeHelper
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Let's start" }]
       }
-      
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] Claude: Added dummy user message for initiate_from_assistant")
-        extra_log.close
-      end
     end
 
     if role == "tool"

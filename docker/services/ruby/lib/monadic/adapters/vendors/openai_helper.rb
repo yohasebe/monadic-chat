@@ -281,16 +281,6 @@ module OpenAIHelper
 
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("[#{Time.now}] OpenAI api_request called:")
-      extra_log.puts("role: #{role}")
-      extra_log.puts("session[:parameters]['initiate_from_assistant']: #{session[:parameters]['initiate_from_assistant'].inspect}")
-      extra_log.puts("session[:parameters]['message']: #{session[:parameters]['message'].inspect}")
-      extra_log.puts("session[:messages] count: #{session[:messages]&.length}")
-      extra_log.close
-    end
-    
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -748,28 +738,12 @@ module OpenAIHelper
     end
 
     # Handle initiate_from_assistant case where only system message exists
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("[#{Time.now}] OpenAI initiate_from_assistant check:")
-      extra_log.puts("obj['initiate_from_assistant'] = #{obj["initiate_from_assistant"].inspect}")
-      extra_log.puts("body['messages'].length = #{body["messages"].length}")
-      extra_log.puts("body['messages'] = #{body["messages"].map { |m| { role: m["role"], content_preview: m["content"].is_a?(Array) ? "Array[#{m["content"].length}]" : m["content"].to_s[0..50] } }.inspect}")
-      extra_log.close
-    end
-    
-    # Handle initiate_from_assistant case where only system message exists
     # This matches Perplexity's working implementation
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
       body["messages"] << {
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Let's start" }]
       }
-      
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] OpenAI: Added dummy user message for initiate_from_assistant (only system message exists)")
-        extra_log.close
-      end
     end
 
     # Determine which API endpoint to use
@@ -1038,15 +1012,6 @@ module OpenAIHelper
                       end
 
 
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("[#{Time.now}] OpenAI API Request:")
-      extra_log.puts("target_uri: #{target_uri}")
-      extra_log.puts("body messages count: #{body["messages"]&.length}")
-      extra_log.puts("messages: #{body["messages"]&.map { |m| "#{m["role"]}: #{m["content"].is_a?(Array) ? "Array[#{m["content"].length}]" : m["content"].to_s[0..30]}" }.join(", ")}")
-      extra_log.close
-    end
-    
     MAX_RETRIES.times do
       res = http.timeout(**timeout_settings).post(target_uri, json: body)
       break if res.status.success?

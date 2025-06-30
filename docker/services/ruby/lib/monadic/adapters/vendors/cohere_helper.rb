@@ -730,20 +730,12 @@ module CohereHelper
       body["messages"] = messages
     end
 
-    # Handle initiate_from_assistant case
-    has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
-    
-    if !has_user_message && obj["initiate_from_assistant"]
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
       body["messages"] << {
         "role" => "user",
         "content" => "Let's start"
       }
-      
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] Cohere: Added dummy user message for initiate_from_assistant")
-        extra_log.close
-      end
     end
 
     target_uri = "#{API_ENDPOINT}/chat"

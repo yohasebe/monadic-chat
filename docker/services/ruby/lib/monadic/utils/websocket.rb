@@ -1106,15 +1106,6 @@ module WebSocketHelper
         else # fragment
           session[:parameters].merge! obj
           
-          # Debug logging for initiate_from_assistant
-          if CONFIG["EXTRA_LOGGING"] && obj["initiate_from_assistant"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("[#{Time.now}] WebSocket received initiate_from_assistant: #{obj["initiate_from_assistant"].inspect}")
-            extra_log.puts("obj keys: #{obj.keys.inspect}")
-            extra_log.puts("message: #{obj["message"].inspect}")
-            extra_log.close
-          end
-          
           # Start background token counting for the user message immediately
           message_text = obj["message"].to_s
           if !message_text.empty?

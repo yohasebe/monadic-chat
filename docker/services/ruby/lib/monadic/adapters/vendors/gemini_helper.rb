@@ -583,20 +583,12 @@ module GeminiHelper
       end
     end
 
-    # Handle initiate_from_assistant case
-    has_user_message = body["contents"].any? { |msg| msg["role"] == "user" }
-    
-    if !has_user_message && obj["initiate_from_assistant"]
+    # Handle initiate_from_assistant case where only system message exists
+    if body["contents"].empty? && initial_prompt.to_s != ""
       body["contents"] << {
         "role" => "user",
         "parts" => [{ "text" => "Let's start" }]
       }
-      
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] Gemini: Added dummy user message for initiate_from_assistant")
-        extra_log.close
-      end
     end
 
     # Get tools from app settings

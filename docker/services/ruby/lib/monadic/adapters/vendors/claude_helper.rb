@@ -634,12 +634,20 @@ module ClaudeHelper
 
     body["messages"] = messages
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 0 && initial_prompt.to_s != ""
+    # Handle initiate_from_assistant case
+    has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
+    
+    if !has_user_message && obj["initiate_from_assistant"]
       body["messages"] << {
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Let's start" }]
       }
+      
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude: Added dummy user message for initiate_from_assistant")
+        extra_log.close
+      end
     end
 
     if role == "tool"

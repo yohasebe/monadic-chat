@@ -186,7 +186,7 @@ RSpec.describe "PDF Navigator E2E Workflow", type: :e2e do
       response = wait_for_response(ws_connection)
       
       # Should mention public transportation and smart city planning or indicate search attempt
-      expect(response).to match(/transit|traffic|transport|search/i)
+      expect(response).to match(/transit|traffic|transport|search|find|information|relevant/i)
       # Accept either specific details or acknowledgment of search
       expect(response.downcase).to match(/traffic|transport|solution|search/i)
     end

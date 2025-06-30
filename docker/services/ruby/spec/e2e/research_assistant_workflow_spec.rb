@@ -34,7 +34,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         send_chat_message(ws_connection, 
           "What is the capital of Japan?", 
           app: app_name)
-        response = wait_for_response(ws_connection, timeout: 60)
+        response = wait_for_response(ws_connection, timeout: 90)
         
         expect(response).not_to be_empty
         # More flexible expectation - may get greeting or answer

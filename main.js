@@ -1011,13 +1011,20 @@ async function quitApp() {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
-          await dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes.</p>', 'Stopping', 'Quitting');
+          // Start the Docker stop process but don't wait for it to complete
+          // This allows the app to quit more quickly while Docker handles cleanup in the background
+          dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes.</p>', 'Stopping', 'Quitting')
+            .catch(error => {
+              console.error('Error stopping Docker containers during quit:', error);
+            });
+          // Immediately proceed with cleanup - don't wait for Docker stop to complete
           cleanupAndQuit();
         } else {
           cleanupAndQuit();
         }
       } catch (error) {
         console.error('Error occurred during application quit:', error);
+        cleanupAndQuit();
       }
     } else {
       isQuittingDialogShown = false;
@@ -1034,7 +1041,8 @@ function cleanupAndQuit() {
   
   // No shutdown notification needed with the simplified approach
   
-  // Delay actual exit to allow message to be processed by browser
+  // Reduce delay from 3000ms to 1000ms to allow message to be processed by browser
+  // This makes the app feel more responsive when quitting
   setTimeout(() => {
     if (tray) {
       tray.destroy();
@@ -1056,7 +1064,7 @@ function cleanupAndQuit() {
     
     // Exit the app completely
     app.exit(0);
-  }, 3000);
+  }, 1000);
 }
 
 // Update the app's quit handler

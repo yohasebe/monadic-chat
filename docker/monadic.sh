@@ -713,7 +713,9 @@ down_docker_compose() {
 # Define a function to stop Docker Compose
 stop_docker_compose() {
   # Use docker compose with project name to properly stop all containers
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" stop"
+  # Add --timeout 5 to speed up shutdown (default is 10 seconds)
+  # Docker compose v2 stops containers in parallel by default
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" stop --timeout 5"
 }
 
 # Function to stop a container

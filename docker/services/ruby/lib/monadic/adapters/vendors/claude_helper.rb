@@ -634,10 +634,8 @@ module ClaudeHelper
 
     body["messages"] = messages
 
-    # Handle initiate_from_assistant case
-    has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
-    
-    if !has_user_message && obj["initiate_from_assistant"]
+    # Handle initiate_from_assistant case where only system message exists
+    if body["messages"].length == 0 && initial_prompt.to_s != ""
       body["messages"] << {
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Let's start" }]

@@ -1219,7 +1219,7 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from_assistant").is(":checked")) {
+      if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
         $("#monadic-spinner").show(); // Show spinner for initial assistant message

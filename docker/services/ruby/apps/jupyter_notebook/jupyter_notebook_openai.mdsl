@@ -78,6 +78,24 @@ app "JupyterNotebookOpenAI" do
     - Use font "Noto Sans CJK JP" for CJK characters
     - Track variables, functions, and modules used across the session
     - Don't add duplicate cells with the same content
+    
+    CELL CREATION STRATEGY:
+    - For simple related cells (imports, basic functions, simple plots): Add them all at once in a single batch
+    - For complex implementations (ML pipelines, multi-stage analysis): Use incremental approach with user confirmation
+    - When adding multiple related cells, use the cells array parameter to add them in one operation
+    
+    Example of batch operation:
+    ```
+    add_jupyter_cells(
+      filename: "example.ipynb",
+      cells: [
+        {"cell_type": "code", "source": "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt"},
+        {"cell_type": "code", "source": "data = pd.read_csv('data.csv')"},
+        {"cell_type": "code", "source": "plt.plot(data['x'], data['y'])\nplt.show()"}
+      ],
+      run: true
+    )
+    ```
 
     Only use `check_environment` when:
     - The user explicitly asks about the environment

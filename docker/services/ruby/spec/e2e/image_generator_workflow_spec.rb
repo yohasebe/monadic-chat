@@ -30,9 +30,10 @@ RSpec.describe "Image Generator E2E Workflow", type: :e2e do
       expect(valid_response?(response)).to be true
       # Should mention image generation or acknowledge the request
       expect(response.downcase).to match(/generat|creat|image|sunset|mountain/i)
-      # Accept either successful generation, explanation, or model selection prompt
-      # Also accept markdown image format ![alt](path) or description of how to create
-      expect(response).to match(/<img|http|data:image|unable|!\[.*\]\(|model|dall-e/i)
+      # The assistant should use the generate_image_with_openai tool
+      # Accept either successful generation (with image path), tool usage, or API issues
+      expect(response).not_to match(/unable to generate images directly|can't generate images/i)
+      expect(response).to match(/<img|http|data:image|!\[.*\]\(.*\)|error|api|failed|model|dall-e|generating.*image/i)
     end
 
     it "handles size specifications" do

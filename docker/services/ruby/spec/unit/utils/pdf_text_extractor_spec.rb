@@ -10,9 +10,10 @@ RSpec.describe PDF2Text do
   let(:test_pdf_path) { '/tmp/test.pdf' }
   let(:extractor) { described_class.new(path: test_pdf_path) }
   
-  # Mock constants
+  # Mock constants and environment
   before do
-    stub_const('IN_CONTAINER', false)
+    allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(File.expand_path('~/monadic/data'))
     stub_const('MonadicApp::TOKENIZER', double('tokenizer'))
   end
   
@@ -95,7 +96,8 @@ RSpec.describe PDF2Text do
       
       context 'when running in container' do
         before do
-          stub_const('IN_CONTAINER', true)
+          allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(true)
+          allow(Monadic::Utils::Environment).to receive(:data_path).and_return('/monadic/data')
         end
         
         it 'uses container data path' do

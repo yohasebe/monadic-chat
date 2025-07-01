@@ -9,9 +9,6 @@ docker exec monadic-chat-ruby-container bash -c '
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Define IN_CONTAINER constant
-IN_CONTAINER = true
-
 $LOAD_PATH.unshift("/monadic/lib")
 require "monadic/utils/help_embeddings"
 require "json"

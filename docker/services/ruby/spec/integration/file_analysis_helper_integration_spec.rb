@@ -46,11 +46,7 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
     context "with a real test image" do
       before do
         # Create a simple test image
-        @test_image_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                             "/monadic/data/test_image.png"
-                           else
-                             File.join(Dir.home, "monadic/data/test_image.png")
-                           end
+        @test_image_path = File.join(Monadic::Utils::Environment.data_path, "test_image.png")
         
         # Create a simple PNG image using ImageMagick if available
         if system("which magick > /dev/null 2>&1")
@@ -101,11 +97,7 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
       
       it "handles special characters in image paths" do
         # Create test image with special characters
-        special_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                         "/monadic/data/test image (special).png"
-                       else
-                         File.join(Dir.home, "monadic/data/test image (special).png")
-                       end
+        special_path = File.join(Monadic::Utils::Environment.data_path, "test image (special).png")
         
         # Copy test image to special path
         FileUtils.cp(@test_image_path, special_path)
@@ -139,11 +131,7 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
     context "with a real test audio" do
       before do
         # Create a simple test audio file
-        @test_audio_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                             "/monadic/data/test_audio.wav"
-                           else
-                             File.join(Dir.home, "monadic/data/test_audio.wav")
-                           end
+        @test_audio_path = File.join(Monadic::Utils::Environment.data_path, "test_audio.wav")
         
         # Create a simple WAV file using sox if available
         if system("which sox > /dev/null 2>&1")
@@ -181,11 +169,7 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
       
       it "handles special characters in audio paths" do
         # Create audio file with special characters
-        special_audio_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                               "/monadic/data/test audio (special).wav"
-                             else
-                               File.join(Dir.home, "monadic/data/test audio (special).wav")
-                             end
+        special_audio_path = File.join(Monadic::Utils::Environment.data_path, "test audio (special).wav")
         
         # Copy test audio to special path
         FileUtils.cp(@test_audio_path, special_audio_path)

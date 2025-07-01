@@ -4,7 +4,7 @@ module Paths
 
   retries = 0
 
-  if IN_CONTAINER
+  if Monadic::Utils::Environment.in_container?
     ENV_PATH = "/monadic/config/env"
     SCRIPTS_PATH = "/monadic/data/scripts"
     APPS_PATH = "/monadic/data/apps"

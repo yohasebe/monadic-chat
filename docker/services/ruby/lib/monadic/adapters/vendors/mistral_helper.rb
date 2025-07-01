@@ -377,9 +377,32 @@ module MistralHelper
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :mistral, app)
 
-    # Add tools if available
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings["tools"]
+    # Skip tool setup if we're processing tool results
+    if role != "tool"
+      # Get tools from app settings
+      app_tools = APPS[app]&.settings&.[]("tools")
+      
+      # Add tools if available
+      if obj["tools"] && !obj["tools"].empty?
+        body["tools"] = app_tools || []
+        # Add websearch tools if websearch is enabled
+        if websearch && body["tools"]
+          body["tools"] = body["tools"] + WEBSEARCH_TOOLS
+          body["tools"].uniq! { |tool| tool.dig(:function, :name) }
+          
+          # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
+          unless app.to_s.include?("ResearchAssistant")
+            system_msg = context.first
+            if system_msg && system_msg["role"] == "system"
+              system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+              DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
+            end
+          end
+          
+        end
+    elsif app_tools && !app_tools.empty?
+      # If no tools param but app has tools, use them
+      body["tools"] = app_tools
       # Add websearch tools if websearch is enabled
       if websearch
         body["tools"] = body["tools"] + WEBSEARCH_TOOLS
@@ -393,7 +416,6 @@ module MistralHelper
             DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
           end
         end
-        
       end
       DebugHelper.debug("Mistral tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
     elsif websearch
@@ -410,6 +432,7 @@ module MistralHelper
       end
       
     end
+    end  # end of role != "tool"
 
     # Add all messages to body
     body["messages"] = context.reject do |msg|

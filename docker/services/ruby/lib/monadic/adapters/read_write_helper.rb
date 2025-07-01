@@ -45,7 +45,7 @@ module MonadicHelper
   end
 
   def write_to_file(filename:, extension:, text:)
-    if IN_CONTAINER
+    if Monadic::Utils::Environment.in_container?
       data_dir = MonadicApp::SHARED_VOL
     else
       data_dir = MonadicApp::LOCAL_SHARED_VOL
@@ -80,7 +80,7 @@ module MonadicHelper
     end
 
     if success
-      if IN_CONTAINER
+      if Monadic::Utils::Environment.in_container?
         docker_command = <<~DOCKER
           docker cp #{filepath} #{container}:#{data_dir}
         DOCKER

@@ -13,7 +13,9 @@ app "ResearchAssistantClaude" do
     - The information would benefit from up-to-date sources
     
     When using web search:
-    - You can perform multiple searches to gather comprehensive information (up to 5 searches per request)
+    - Use searches efficiently - DO NOT search for the same or very similar terms repeatedly
+    - Limit yourself to 3 searches per request (not 5)
+    - If initial searches don't yield desired results, try different keywords ONCE
     - Citations are automatically included in your responses
     - Search results will include source URLs, titles, and content
     

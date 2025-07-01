@@ -243,7 +243,7 @@ module GrokHelper
                   "role" => role,
                   "lang" => detect_language(message)
                 } }
-        res["content"]["images"] = obj["images"] if obj["images"]
+        res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         block&.call res
         session[:messages] << res["content"]
       end
@@ -287,13 +287,24 @@ module GrokHelper
       body["response_format"] ||= { "type" => "json_object" }
     end
 
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings["tools"] || []
-      body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
-    else
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
+    # Get tools from app settings
+    app_tools = APPS[app]&.settings&.[]("tools")
+    
+    # Only include tools if this is not a tool response
+    if role != "tool"
+      if obj["tools"] && !obj["tools"].empty?
+        # Use app tools if available, otherwise fallback to empty array
+        body["tools"] = app_tools || []
+        body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
+      elsif app_tools && !app_tools.empty?
+        # If no tools param but app has tools, use them
+        body["tools"] = app_tools
+        body["tool_choice"] = "auto"
+      else
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    end # end of role != "tool"
     
     # Add search_parameters for native Grok Live Search
     if websearch_native
@@ -733,7 +744,12 @@ module GrokHelper
       function_name = function_call["name"]
 
       begin
-        argument_hash = JSON.parse(function_call["arguments"])
+        # Handle empty string arguments for tools with no parameters
+        if function_call["arguments"].to_s.strip.empty?
+          argument_hash = {}
+        else
+          argument_hash = JSON.parse(function_call["arguments"])
+        end
       rescue JSON::ParserError
         argument_hash = {}
       end

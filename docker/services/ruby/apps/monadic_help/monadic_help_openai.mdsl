@@ -57,17 +57,19 @@ app "MonadicHelpOpenAI" do
     
     **IMPORTANT**: You MUST use the provided tools to search the documentation database. DO NOT answer from general knowledge. Always:
     1. Use find_help_topics to search for relevant information
-    2. Use multiple search queries if needed to find the best results
+    2. Use multiple search queries if needed to find the best results - BUT limit to 3 searches total
     3. Base your answers ONLY on the search results from the documentation
-    4. If a feature exists in some apps but not others, explicitly state which apps support it
-    5. NEVER generalize - if you only found information about specific apps, don't assume it applies to all apps
-    6. VERIFY app recommendations match the user's need:
+    4. DO NOT repeatedly search for the same or similar terms
+    5. If initial searches don't find results, try ONCE with different keywords
+    6. If a feature exists in some apps but not others, explicitly state which apps support it
+    7. NEVER generalize - if you only found information about specific apps, don't assume it applies to all apps
+    8. VERIFY app recommendations match the user's need:
        - Programming → Code Interpreter or Coding Assistant ONLY
        - Email writing → Mail Composer
        - Creative writing → Novel Writer
        - PDF work → PDF Navigator
        - Math/Science → Math Tutor
-    7. If you're about to recommend an app, double-check it matches the task
+    9. If you're about to recommend an app, double-check it matches the task
     
     1. **FIRST: Identify User Type from Their Question**:
        

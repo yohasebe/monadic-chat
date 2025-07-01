@@ -195,7 +195,7 @@ module OllamaHelper
                 "html" => html,
                 "lang" => detect_language(obj["message"])
               } }
-      res["images"] = obj["images"] if obj["images"]
+      res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
       block&.call res
     end
 
@@ -206,7 +206,7 @@ module OllamaHelper
               "html" => html,
               "lang" => detect_language(obj["message"]),
               "active" => true }
-      if obj["image"]
+      if obj["images"] && obj["images"].is_a?(Array)
         res["images"] = obj["images"]
       end
       session[:messages] << res

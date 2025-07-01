@@ -34,13 +34,7 @@ RSpec.describe "TextEmbeddings with real database", type: :integration do
       
       # Drop the test database
       begin
-        conn = PG.connect(
-          host: ENV['POSTGRES_HOST'] || 'localhost',
-          port: ENV['POSTGRES_PORT'] || '5432',
-          dbname: 'postgres',
-          user: ENV['POSTGRES_USER'] || 'postgres',
-          password: ENV['POSTGRES_PASSWORD']
-        )
+        conn = PG.connect(postgres_connection_params)
         conn.exec("DROP DATABASE IF EXISTS #{@test_db_name}")
         conn.close
       rescue => e
@@ -262,13 +256,7 @@ RSpec.describe "TextEmbeddings with real database", type: :integration do
   private
 
   def can_connect_to_postgres?
-    conn = PG.connect(
-      host: ENV['POSTGRES_HOST'] || 'localhost',
-      port: ENV['POSTGRES_PORT'] || '5432',
-      dbname: 'postgres',
-      user: ENV['POSTGRES_USER'] || 'postgres',
-      password: ENV['POSTGRES_PASSWORD']
-    )
+    conn = PG.connect(postgres_connection_params)
     conn.close
     true
   rescue => e

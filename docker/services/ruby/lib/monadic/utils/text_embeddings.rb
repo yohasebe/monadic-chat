@@ -6,6 +6,7 @@ require "net/http"
 require "json"
 require "matrix"
 require "dotenv/load"
+require_relative "environment"
 
 EMBEDDINGS_MODEL = "text-embedding-3-large"
 # OpenAI's text-embedding-3-large produces 3072-dimensional vectors
@@ -59,14 +60,7 @@ class TextEmbeddings
     
     # Initial connection to PostgreSQL
     with_retry("Database connection") do
-      conn = if IN_CONTAINER
-               PG.connect(dbname: "postgres", host: "pgvector_service", port: 5432, user: "postgres")
-             else
-               # For local development, connect to Docker container's PostgreSQL
-               host = ENV['POSTGRES_HOST'] || "localhost"
-               port = (ENV['POSTGRES_PORT'] || 5432).to_i
-               PG.connect(dbname: "postgres", host: host, port: port, user: "postgres")
-             end
+      conn = PG.connect(Monadic::Utils::Environment.postgres_params)
     end
 
     if recreate_db
@@ -93,14 +87,7 @@ class TextEmbeddings
     # Connect to the new database
     new_conn = nil
     with_retry("New database connection") do
-      new_conn = if IN_CONTAINER
-                   PG.connect(dbname: db_name, host: "pgvector_service", port: 5432, user: "postgres")
-                 else
-                   # For local development, connect to Docker container's PostgreSQL
-                   host = ENV['POSTGRES_HOST'] || "localhost"
-                   port = (ENV['POSTGRES_PORT'] || 5432).to_i
-                   PG.connect(dbname: db_name, host: host, port: port, user: "postgres")
-                 end
+      new_conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: db_name))
     end
 
     # Initialize database

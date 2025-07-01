@@ -2,6 +2,7 @@
 
 require_relative "e2e_helper"
 require_relative "../support/custom_retry"
+require_relative "../../lib/monadic/utils/environment"
 
 RSpec.describe "Jupyter Notebook E2E", :e2e do
   include E2EHelper
@@ -154,7 +155,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
   describe "File operations" do
     it "reads and processes data files" do
       # First create a test CSV file
-      test_file = File.join(Dir.home, "monadic", "data", "test_data.csv")
+      test_file = File.join(Monadic::Utils::Environment.data_path, "test_data.csv")
       File.write(test_file, "name,value\nA,10\nB,20\nC,30\n")
       
       with_e2e_retry(max_attempts: 3, wait: 10) do

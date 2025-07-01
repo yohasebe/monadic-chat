@@ -13,12 +13,7 @@ RSpec.describe "pgvector Integration (Real Implementation)", :integration do
   
   before(:context) do
     # Set up connection parameters
-    @db_config = {
-      host: ENV['POSTGRES_HOST'] || 'localhost',
-      port: ENV['POSTGRES_PORT'] || '5433',  # Using 5433 as shown in previous tests
-      user: ENV['POSTGRES_USER'] || 'postgres',
-      password: ENV['POSTGRES_PASSWORD'] || 'postgres'
-    }
+    @db_config = postgres_connection_params
     
     # Wait a moment for containers to be ready
     sleep 1 if ENV['CI']

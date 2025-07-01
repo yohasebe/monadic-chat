@@ -709,19 +709,31 @@ module CohereHelper
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :cohere, app)
 
-    # Handle tools differently for Cohere
-    if obj["tools"] && !obj["tools"].empty?
-      body["tools"] = APPS[app].settings["tools"]
-      body["tools"].push(*WEBSEARCH_TOOLS) if websearch
-      body["tools"].uniq!
-      DebugHelper.debug("Cohere tools with websearch: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-    elsif websearch
-      body["tools"] = WEBSEARCH_TOOLS
-      DebugHelper.debug("Cohere tools (websearch only): #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-    else
-      body.delete("tools")
-      DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
-    end
+    # Get tools from app settings
+    app_tools = APPS[app]&.settings&.[]("tools")
+    
+    # Only include tools if this is not a tool response
+    if role != "tool"
+      # Handle tools differently for Cohere
+      if obj["tools"] && !obj["tools"].empty?
+        body["tools"] = app_tools || []
+        body["tools"].push(*WEBSEARCH_TOOLS) if websearch && body["tools"]
+        body["tools"].uniq! if body["tools"]
+        DebugHelper.debug("Cohere tools with websearch: #{body["tools"]&.map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+      elsif app_tools && !app_tools.empty?
+        # If no tools param but app has tools, use them
+        body["tools"] = app_tools
+        body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+        body["tools"].uniq!
+        DebugHelper.debug("Cohere tools from app settings: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+      elsif websearch
+        body["tools"] = WEBSEARCH_TOOLS
+        DebugHelper.debug("Cohere tools (websearch only): #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+      else
+        body.delete("tools")
+        DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
+      end
+    end # end of role != "tool"
 
     # Handle tool results in v2 format
     if role == "tool" && obj["tool_results"]

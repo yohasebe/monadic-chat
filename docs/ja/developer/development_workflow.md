@@ -306,7 +306,7 @@ rake server:debug
 - **Rubyコンテナ**: ローカルRuby環境を使用するために停止可能
 - **その他のコンテナ**: 依存するアプリのために実行を継続する必要がある
 - **Pythonコンテナ**: LaTeXを使用するConcept VisualizerやSyntax Treeなどのアプリに必要
-- **パス**: `IN_CONTAINER`環境変数により自動調整
+- **パス**: `Monadic::Utils::Environment`モジュールにより自動調整
 
 ### コンテナ依存アプリのテスト :id=testing-container-dependencies
 特定のコンテナを必要とするアプリ（例：LaTeX用のPythonコンテナが必要なConcept Visualizer）の場合：

@@ -60,7 +60,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
   
   let(:helper) { test_class.new }
   let(:test_dir) do
-    dir = if defined?(IN_CONTAINER) && IN_CONTAINER
+    dir = if Monadic::Utils::Environment.in_container?
             # In container, create test directory in /tmp instead of read-only /monadic
             "/tmp/test_#{Time.now.to_i}_#{rand(1000)}"
           else
@@ -156,17 +156,8 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
   describe "#write_to_file" do
     context "when not in container" do
       before do
-        # Save original value if it exists
-        @original_in_container = Object.const_defined?(:IN_CONTAINER) ? IN_CONTAINER : nil
-        # Remove and redefine constant
-        Object.send(:remove_const, :IN_CONTAINER) if Object.const_defined?(:IN_CONTAINER)
-        Object.const_set(:IN_CONTAINER, false)
-      end
-      
-      after do
-        # Restore original value
-        Object.send(:remove_const, :IN_CONTAINER) if Object.const_defined?(:IN_CONTAINER)
-        Object.const_set(:IN_CONTAINER, @original_in_container) if @original_in_container != nil
+        allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
+        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(File.join(Dir.home, "monadic", "data"))
       end
       
       it "writes content to a real file" do

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "./utils/string_utils"
+require_relative "./utils/environment"
+require_relative "./utils/flask_app_client"
 
 Dir.glob(File.expand_path("adapters/**/*.rb", __dir__)).sort.each do |rb|
   require rb
@@ -9,11 +11,7 @@ Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
 
-user_helpers_dir = if IN_CONTAINER
-                    "/monadic/data/plugins/**/helpers"
-                  else
-                    Dir.home + "/monadic/data/plugins/**/helpers"
-                  end
+user_helpers_dir = File.join(Monadic::Utils::Environment.plugins_path, "**/helpers")
 
 Dir.glob(File.expand_path(user_helpers_dir + "/**/*.rb")).sort.each do |rb|
   require rb
@@ -98,17 +96,8 @@ class MonadicApp
   SHARED_VOL = "/monadic/data"
 
 
-  COMMAND_LOG_FILE = if IN_CONTAINER
-                       "/monadic/log/command.log"
-                     else
-                       Dir.home + "/monadic/log/command.log"
-                     end
-
-  EXTRA_LOG_FILE = if IN_CONTAINER
-                       "/monadic/log/extra.log"
-                     else
-                       Dir.home + "/monadic/log/extra.log"
-                     end
+  COMMAND_LOG_FILE = Monadic::Utils::Environment.command_log_file
+  EXTRA_LOG_FILE = Monadic::Utils::Environment.extra_log_file
 
   # script directory in the dev mode (= when ruby-container is not used)
   LOCAL_SYSTEM_SCRIPT_DIR = File.expand_path(File.join(__dir__, "..", "..", "scripts"))
@@ -301,7 +290,7 @@ class MonadicApp
 
     case container.to_s
     when "ruby"
-      if IN_CONTAINER
+      if Monadic::Utils::Environment.in_container?
         system_script_dir = SYSTEM_SCRIPT_DIR
         user_system_script_dir = USER_SCRIPT_DIR
         shared_volume = SHARED_VOL
@@ -389,7 +378,7 @@ class MonadicApp
 
     begin
       # Set appropriate paths based on environment
-      if IN_CONTAINER
+      if Monadic::Utils::Environment.in_container?
         data_dir = SHARED_VOL
         files_dir = SHARED_VOL
       else

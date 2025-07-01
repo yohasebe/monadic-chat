@@ -312,11 +312,7 @@ module OpenAIHelper
     image_generation = obj["image_generation"] == "true"
     
     # Define shared folder path based on environment
-    shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
-                     MonadicApp::SHARED_VOL # "/monadic/data"
-                    else
-                     MonadicApp::LOCAL_SHARED_VOL # "~/monadic/data"
-                    end
+    shared_folder = Monadic::Utils::Environment.shared_volume
     
     temperature = obj["temperature"].to_f
     presence_penalty = obj["presence_penalty"].to_f
@@ -381,7 +377,7 @@ module OpenAIHelper
                   "role" => role,
                   "lang" => detect_language(message)
                 } }
-        res["content"]["images"] = obj["images"] if obj["images"]
+        res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         block&.call res
         session[:messages] << res["content"]
       end
@@ -475,7 +471,12 @@ module OpenAIHelper
       body["stream"] = true
     end
 
-    if non_tool_model
+    if non_tool_model || role == "tool"
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] OpenAI: Skipping tools because non_tool_model=#{non_tool_model} or role='#{role}'")
+        extra_log.close
+      end
       body.delete("tools")
       body.delete("response_format")
     else
@@ -489,9 +490,11 @@ module OpenAIHelper
         end
       end
       
+      # Get tools from app settings first
+      app_tools = APPS[app]&.settings&.[]("tools")
+      
       if tools_param && !tools_param.empty?
-        # Get tools from app settings, or use the parsed tools from request
-        app_tools = APPS[app]&.settings&.[]("tools")
+        # If tools_param is provided, prefer app_tools if available
         if app_tools && !app_tools.empty?
           body["tools"] = app_tools
         elsif tools_param.is_a?(Array) && !tools_param.empty?
@@ -504,9 +507,19 @@ module OpenAIHelper
         # Web search for OpenAI is handled through Responses API, not regular chat API tools
         
         body["tools"].uniq!
+      elsif app_tools && !app_tools.empty?
+        # If no tools_param but app has tools, use them
+        body["tools"] = app_tools
       else
+        # No tools available from either source
         body.delete("tools")
         body.delete("tool_choice")
+      end
+      
+      if CONFIG["EXTRA_LOGGING"] && body["tools"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] OpenAI: Including #{body["tools"].length} tools for app='#{app}', role='#{role}', call_depth=#{call_depth}")
+        extra_log.close
       end
     end
 
@@ -1375,7 +1388,12 @@ module OpenAIHelper
       function_name = function_call["name"]
 
       begin
-        argument_hash = JSON.parse(function_call["arguments"])
+        # Handle empty string arguments for tools with no parameters
+        if function_call["arguments"].to_s.strip.empty?
+          argument_hash = {}
+        else
+          argument_hash = JSON.parse(function_call["arguments"])
+        end
       rescue JSON::ParserError
         argument_hash = {}
       end

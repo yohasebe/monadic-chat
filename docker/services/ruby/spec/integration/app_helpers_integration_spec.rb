@@ -12,9 +12,7 @@ unless defined?(MonadicApp)
   end
 end
 
-unless defined?(IN_CONTAINER)
-  IN_CONTAINER = false
-end
+# Environment is now handled by Monadic::Utils::Environment module
 
 # Test implementation module
 module TestMonadicAppBehavior

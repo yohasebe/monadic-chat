@@ -3,6 +3,7 @@
 require_relative "e2e_helper"
 require_relative "validation_helper"
 require_relative "../support/custom_retry"
+require_relative "../../lib/monadic/utils/environment"
 require "fileutils"
 
 RSpec.describe "Content Reader E2E", :e2e do
@@ -38,7 +39,7 @@ RSpec.describe "Content Reader E2E", :e2e do
         response = wait_for_response(ws_connection)
         ws_connection[:client].close
         
-        expect(response).to match(/hello|help|analyze|read/i)
+        expect(response).to match(/hello|help|analyze|read|assist/i)
       end
     end
   end
@@ -285,13 +286,13 @@ RSpec.describe "Content Reader E2E", :e2e do
   private
   
   def create_test_file(filename, content)
-    filepath = File.join(Dir.home, "monadic", "data", filename)
+    filepath = File.join(Monadic::Utils::Environment.data_path, filename)
     File.write(filepath, content)
     filepath
   end
   
   def create_test_pdf(filename, title, content)
-    filepath = File.join(Dir.home, "monadic", "data", filename)
+    filepath = File.join(Monadic::Utils::Environment.data_path, filename)
     
     # Use Python to create a real PDF
     # Write Python script to file first
@@ -336,7 +337,7 @@ RSpec.describe "Content Reader E2E", :e2e do
   end
   
   def create_test_docx(filename, title, content)
-    filepath = File.join(Dir.home, "monadic", "data", filename)
+    filepath = File.join(Monadic::Utils::Environment.data_path, filename)
     
     # Use Python to create a real DOCX
     python_script = <<~PYTHON
@@ -354,7 +355,7 @@ RSpec.describe "Content Reader E2E", :e2e do
   end
   
   def create_test_image_with_text(filename, text)
-    filepath = File.join(Dir.home, "monadic", "data", filename)
+    filepath = File.join(Monadic::Utils::Environment.data_path, filename)
     
     # Use Python PIL to create an image with text
     python_script = <<~PYTHON
@@ -395,7 +396,7 @@ RSpec.describe "Content Reader E2E", :e2e do
     audio_file = generate_real_audio_file(text, format: "mp3")
     
     # Move to expected location
-    target_path = File.join(Dir.home, "monadic", "data", filename)
+    target_path = File.join(Monadic::Utils::Environment.data_path, filename)
     FileUtils.mv(audio_file, target_path)
     
     target_path

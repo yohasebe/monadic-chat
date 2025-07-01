@@ -1,7 +1,7 @@
 module MonadicHelper
 
   JUPYTER_RUN_TIMEOUT = 600
-  JUPYTER_LOG_FILE = if IN_CONTAINER
+  JUPYTER_LOG_FILE = if Monadic::Utils::Environment.in_container?
                        "/monadic/log/jupyter.log"
                      else
                        Dir.home + "/monadic/log/jupyter.log"
@@ -107,7 +107,7 @@ module MonadicHelper
     tempfile = Time.now.to_i.to_s
     write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
 
-    shared_volume = if IN_CONTAINER
+    shared_volume = if Monadic::Utils::Environment.in_container?
                       MonadicApp::SHARED_VOL
                     else
                       MonadicApp::LOCAL_SHARED_VOL
@@ -157,7 +157,7 @@ module MonadicHelper
       success_with_output: "The notebook has been executed with the following output:\n"
     )
 
-    shared_volume = if IN_CONTAINER
+    shared_volume = if Monadic::Utils::Environment.in_container?
                       MonadicApp::SHARED_VOL
                     else
                       MonadicApp::LOCAL_SHARED_VOL
@@ -312,11 +312,7 @@ module MonadicHelper
   def get_jupyter_cells_with_results(filename: "")
     return "Error: Filename is required." if filename.empty?
     
-    notebook_path = if IN_CONTAINER
-                      "/monadic/data/#{filename}.ipynb"
-                    else
-                      "#{Dir.home}/monadic/data/#{filename}.ipynb"
-                    end
+    notebook_path = File.join(Monadic::Utils::Environment.data_path, "#{filename}.ipynb")
     
     return "Error: Notebook not found." unless File.exist?(notebook_path)
     

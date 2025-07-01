@@ -444,7 +444,7 @@ module ClaudeHelper
                 "active" => true
               } }
 
-      res["content"]["images"] = obj["images"] if obj["images"]
+      res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
       block&.call res
       session[:messages] << res["content"]
     end
@@ -498,45 +498,52 @@ module ClaudeHelper
     end
 
     # Configure tools based on app settings and web search type
-    # Parse tools if they're sent as JSON string
-    tools_param = obj["tools"]
-    if tools_param.is_a?(String)
-      begin
-        tools_param = JSON.parse(tools_param)
-      rescue JSON::ParserError
-        tools_param = nil
-      end
-    end
-    
-    # Check for web search first, as it should be independent of other tools
-    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
-    
-    if tools_param && !tools_param.empty?
-      # Get tools from app settings, or use the parsed tools from request
-      app_tools = APPS[app]&.settings&.[]("tools")
-      if app_tools && !app_tools.empty?
-        body["tools"] = app_tools
-      elsif tools_param.is_a?(Array) && !tools_param.empty?
-        # Use tools from request if app doesn't have them
-        # Filter out any Tavily tools since Claude uses native web search
-        body["tools"] = tools_param.reject do |tool|
-          tool_name = tool.dig("name") || tool.dig("function", "name")
-          ["tavily_search", "tavily_fetch"].include?(tool_name)
+    # Skip tool setup if we're processing tool results
+    if role != "tool"
+      # Parse tools if they're sent as JSON string
+      tools_param = obj["tools"]
+      if tools_param.is_a?(String)
+        begin
+          tools_param = JSON.parse(tools_param)
+        rescue JSON::ParserError
+          tools_param = nil
         end
-      else
+      end
+      
+      # Check for web search first, as it should be independent of other tools
+      websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+      
+      # Get tools from app settings first
+      app_tools = APPS[app]&.settings&.[]("tools")
+      
+      if tools_param && !tools_param.empty?
+        # If tools_param is provided, prefer app_tools if available
+        if app_tools && !app_tools.empty?
+          body["tools"] = app_tools
+        elsif tools_param.is_a?(Array) && !tools_param.empty?
+          # Use tools from request if app doesn't have them
+          # Filter out any Tavily tools since Claude uses native web search
+          body["tools"] = tools_param.reject do |tool|
+            tool_name = tool.dig("name") || tool.dig("function", "name")
+            ["tavily_search", "tavily_fetch"].include?(tool_name)
+          end
+        else
+          body["tools"] = []
+        end
+      elsif app_tools && !app_tools.empty?
+        # If no tools_param but app has tools, use them
+        body["tools"] = app_tools
+      elsif websearch_enabled
+        # Even if no other tools, we need to add web search tool
         body["tools"] = []
       end
-    elsif websearch_enabled
-      # Even if no other tools, we need to add web search tool
-      body["tools"] = []
-    end
-    
-    # Add web search tool if enabled
-    if websearch_enabled
-      DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
-      # Claude's web search tool requires specific format per documentation
-      # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
-      web_search_tool = {
+      
+      # Add web search tool if enabled
+      if websearch_enabled
+        DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
+        # Claude's web search tool requires specific format per documentation
+        # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
+        web_search_tool = {
         "type" => "web_search_20250305",
         "name" => "web_search",
         # Optional: Limit the number of searches per request
@@ -552,15 +559,15 @@ module ClaudeHelper
         extra_log.puts("Tools array: #{body["tools"].inspect}")
         extra_log.close
       end
-    end
-    
-    # Only clean up if we have tools
-    if body["tools"] && !body["tools"].empty?
-      body["tools"].uniq!
-    else
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
+      
+      # Only clean up if we have tools
+      if body["tools"] && !body["tools"].empty?
+        body["tools"].uniq!
+      else
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    end  # end of role != "tool"
     
     
 
@@ -923,7 +930,12 @@ module ClaudeHelper
 
         # Parse tool call input
         begin
-          input_hash = JSON.parse(tool_call["input"])
+          # Handle empty string input for tools with no parameters
+          if tool_call["input"].to_s.strip.empty?
+            input_hash = {}
+          else
+            input_hash = JSON.parse(tool_call["input"])
+          end
         rescue JSON::ParserError => e
           # Log the error for debugging
           debug_log = "[Claude Tool Call JSON Parse Error at #{Time.now}]\n"

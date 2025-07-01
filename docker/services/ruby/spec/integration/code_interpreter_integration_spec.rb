@@ -23,11 +23,7 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
         # Basic file system test
         create_test_file(test_file_name, test_file_content)
         
-        data_dir = if defined?(IN_CONTAINER) && IN_CONTAINER
-                     "/monadic/data"
-                   else
-                     File.join(Dir.home, "monadic", "data")
-                   end
+        data_dir = Monadic::Utils::Environment.data_path
         
         file_path = File.join(data_dir, test_file_name)
         expect(File.exist?(file_path)).to be true
@@ -54,11 +50,7 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
     # Simplified check - just ensure basic file system operations work
     begin
       # Check if we can create the test directory
-      data_dir = if defined?(IN_CONTAINER) && IN_CONTAINER
-                   "/monadic/data"
-                 else
-                   File.join(Dir.home, "monadic", "data")
-                 end
+      data_dir = Monadic::Utils::Environment.data_path
       
       FileUtils.mkdir_p(data_dir) unless Dir.exist?(data_dir)
       true
@@ -69,11 +61,7 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
 
   def create_test_file(filename, content)
     # Create a test file in the shared data directory
-    data_dir = if defined?(IN_CONTAINER) && IN_CONTAINER
-                 "/monadic/data"
-               else
-                 File.join(Dir.home, "monadic", "data")
-               end
+    data_dir = Monadic::Utils::Environment.data_path
     
     FileUtils.mkdir_p(data_dir) unless Dir.exist?(data_dir)
     File.write(File.join(data_dir, filename), content)
@@ -81,11 +69,7 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
 
   def cleanup_test_files
     # Clean up any test files created during the test
-    data_dir = if defined?(IN_CONTAINER) && IN_CONTAINER
-                 "/monadic/data"
-               else
-                 File.join(Dir.home, "monadic", "data")
-               end
+    data_dir = Monadic::Utils::Environment.data_path
     
     return unless Dir.exist?(data_dir)
     

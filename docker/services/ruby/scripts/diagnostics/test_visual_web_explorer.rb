@@ -8,7 +8,7 @@ require 'active_support/core_ext/hash/indifferent_access'
 
 # Set up minimal environment
 $MODELS = ActiveSupport::HashWithIndifferentAccess.new
-IN_CONTAINER = false
+require_relative '../../lib/monadic/utils/environment'
 CONFIG = { "EXTRA_LOGGING" => true }
 
 # Mock the MonadicApp base class

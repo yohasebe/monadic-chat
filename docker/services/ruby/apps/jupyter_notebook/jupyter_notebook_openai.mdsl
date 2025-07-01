@@ -64,6 +64,12 @@ app "JupyterNotebookOpenAI" do
     4. Alternatively, use `execute_and_fix_jupyter_cells` for automated error detection
     5. Maximum 3 retry attempts to prevent infinite loops
     
+    IMPORTANT: DO NOT repeatedly execute the same cells or similar code:
+    - Each cell should be executed ONCE unless fixing an error
+    - If a cell runs successfully, do NOT re-run it
+    - When fixing errors, limit retries to 2 attempts maximum
+    - If still failing after 2 attempts, explain the issue to the user
+    
     Common fixes:
     - ModuleNotFoundError: Add import statements or use !pip install
     - NameError: Check variable definitions and scope

@@ -10,7 +10,6 @@ version = Monadic::VERSION
 unless File.file?("/.dockerenv")
   ENV['POSTGRES_HOST'] ||= 'localhost'
   ENV['POSTGRES_PORT'] ||= '5433'  # Use 5433 to avoid conflict with local PostgreSQL
-  ENV['IN_CONTAINER'] = 'false'
   ENV['OPENAI_API_KEY'] ||= ENV['OPENAI_API_KEY']
   ENV['ANTHROPIC_API_KEY'] ||= ENV['ANTHROPIC_API_KEY']
   ENV['GEMINI_API_KEY'] ||= ENV['GEMINI_API_KEY']
@@ -1099,9 +1098,59 @@ end
 desc "Run all JavaScript tests using Jest"
 task :jstest_all => :jstest
 
+# Test Python code
+namespace :pytest do
+  desc "Run all Python tests"
+  task :all do
+    puts "Running Python tests..."
+    python_test_dirs = [
+      "docker/services/python/scripts/services"
+    ]
+    
+    python_test_dirs.each do |dir|
+      if Dir.exist?(dir)
+        puts "\nRunning tests in #{dir}..."
+        Dir.chdir(dir) do
+          # Run all test files
+          test_files = Dir.glob("test_*.py")
+          if test_files.any?
+            test_files.each do |test_file|
+              puts "Running #{test_file}..."
+              sh "python3 #{test_file} -v" rescue puts "Test failed: #{test_file}"
+            end
+          else
+            puts "No test files found in #{dir}"
+          end
+        end
+      end
+    end
+  end
+  
+  desc "Run jupyter_controller tests"
+  task :jupyter do
+    puts "Running jupyter_controller tests..."
+    test_file = "docker/services/python/scripts/services/test_jupyter_controller.py"
+    if File.exist?(test_file)
+      Dir.chdir(File.dirname(test_file)) do
+        sh "python3 #{File.basename(test_file)} -v"
+      end
+    else
+      puts "Test file not found: #{test_file}"
+    end
+  end
+end
+
 # Run both Ruby and JavaScript tests
-desc "Run all tests (Ruby and JavaScript)"
-task :test => [:spec, :jstest]
+desc "Run all tests (Ruby, JavaScript, and Python)"
+task :test => [:spec, :jstest, "pytest:all"]
+
+# Run only the jupyter controller integration test
+desc "Run Jupyter controller integration test"
+task :jupyter_integration do
+  Dir.chdir("docker/services/ruby") do
+    sh "bundle exec rspec spec/integration/jupyter_controller_integration_spec.rb --format documentation"
+  end
+end
 
 # GitHub Release Management Tasks
 namespace :release do

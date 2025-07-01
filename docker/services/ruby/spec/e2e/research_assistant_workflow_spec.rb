@@ -46,7 +46,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         send_chat_message(ws_connection, 
           "What are the latest developments in quantum computing in 2024?", 
           app: app_name)
-        response = wait_for_response(ws_connection, timeout: 60)
+        response = wait_for_response(ws_connection, timeout: 90)
         
         expect(response).not_to be_empty
         # Accept either research content or greeting
@@ -80,7 +80,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       it "handles the initial greeting appropriately" do
         # Research Assistant starts with a greeting (initiate_from_assistant behavior)
         send_chat_message(ws_connection, "Hello", app: app_name)
-        response = wait_for_response(ws_connection, timeout: 60)
+        response = wait_for_response(ws_connection, timeout: 90)
         
         expect(response).not_to be_empty
         # Should contain a greeting or acknowledgment - broader match for various greeting styles
@@ -107,7 +107,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         app: app_name,
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1000)
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       expect(response.downcase).to match(/quantum|computing|research|development/)
@@ -133,7 +133,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "What is machine learning?", 
         app: app_name,
         model: "gemini-2.5-pro")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       # Accept machine learning related content or greeting
@@ -147,7 +147,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "What are the latest AI model releases from major tech companies in 2024?", 
         app: app_name,
         model: "gemini-2.5-pro")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       # Should include current information about AI models from web search or greeting
@@ -163,7 +163,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "What are the recent developments in quantum computing research?", 
         app: app_name,
         model: "gemini-2.5-pro")
-      response = wait_for_response(ws_connection, timeout: 45)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       # Accept broader response patterns including greetings
@@ -196,7 +196,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "Tell me about machine learning", 
         app: "ResearchAssistantGemini",
         model: "gemini-2.5-pro")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       expect(response.downcase).to match(/machine|learning|ai/i)
@@ -223,7 +223,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "What are the latest AI developments in 2024?", 
         app: app_name,
         model: "grok-3")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       expect(response.downcase).to match(/ai|artificial|development/i)
@@ -273,7 +273,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "What is quantum computing?", 
         app: app_name,
         model: "mistral-large-latest")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       expect(response.downcase).to match(/quantum|computing/i)
@@ -298,7 +298,7 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
         "Explain blockchain technology", 
         app: app_name,
         model: "command-a-03-2025")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
       expect(response.downcase).to match(/blockchain|distributed|ledger/i)

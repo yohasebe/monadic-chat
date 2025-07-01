@@ -1,3 +1,5 @@
+require_relative '../utils/environment'
+
 module MonadicHelper
   def fetch_web_content(url: "")
     puts "DEBUG: fetch_web_content called with url: #{url}" if ENV['APP_DEBUG']
@@ -14,11 +16,7 @@ module MonadicHelper
       if status.success?
         filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
 
-        shared_volume = if IN_CONTAINER
-                          MonadicApp::SHARED_VOL
-                        else
-                          MonadicApp::LOCAL_SHARED_VOL
-                        end
+        shared_volume = Monadic::Utils::Environment.shared_volume
 
         filepath = File.join(shared_volume, File.basename(filename))
 

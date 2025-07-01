@@ -22,30 +22,8 @@ module DrawIOGrapher
     # Handle file extension
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
     
-    # Use the correct data directory based on whether we're in a container
-    # Handle both direct MonadicApp constants and global constants
-    in_container = defined?(MonadicApp::IN_CONTAINER) ? MonadicApp::IN_CONTAINER : 
-                   defined?(IN_CONTAINER) ? IN_CONTAINER : false
-    
-    if in_container
-      # Try multiple possible paths for container environment
-      data_dir = if defined?(MonadicApp::SHARED_VOL)
-                   MonadicApp::SHARED_VOL
-                 elsif defined?(SHARED_VOL)
-                   SHARED_VOL
-                 else
-                   "/monadic/data"
-                 end
-    else
-      # Try multiple possible paths for local environment
-      data_dir = if defined?(MonadicApp::LOCAL_SHARED_VOL)
-                   MonadicApp::LOCAL_SHARED_VOL
-                 elsif defined?(LOCAL_SHARED_VOL)
-                   LOCAL_SHARED_VOL
-                 else
-                   File.expand_path(File.join(Dir.home, "monadic", "data"))
-                 end
-    end
+    # Use the unified environment module for data directory
+    data_dir = Monadic::Utils::Environment.shared_volume
     
     # Ensure the data directory exists
     unless File.directory?(data_dir)
@@ -60,7 +38,7 @@ module DrawIOGrapher
     
     # Debug information for troubleshooting (enabled via environment variable)
     if ENV['DRAWIO_DEBUG']
-      puts "[DEBUG] DrawIOGrapher: in_container=#{in_container}"
+      puts "[DEBUG] DrawIOGrapher: in_container=#{Monadic::Utils::Environment.in_container?}"
       puts "[DEBUG] DrawIOGrapher: data_dir=#{data_dir}"
       puts "[DEBUG] DrawIOGrapher: filepath=#{filepath}"
       puts "[DEBUG] DrawIOGrapher: directory exists=#{File.directory?(data_dir)}"

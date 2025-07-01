@@ -6,8 +6,8 @@ require "json"
 require "digest"
 require "dotenv"
 
-# Define IN_CONTAINER constant before requiring help_embeddings
-IN_CONTAINER = File.file?("/.dockerenv")
+# Load environment module
+require_relative '../../lib/monadic/utils/environment'
 
 # Load configuration from ~/monadic/config/env
 config_path = File.expand_path("~/monadic/config/env")

@@ -24,7 +24,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       provider: "OpenAI",
       enabled: -> { CONFIG["OPENAI_API_KEY"] },
       model: "gpt-4.1",
-      timeout: 60
+      timeout: 90
     },
     {
       app: "CodeInterpreterClaude",
@@ -39,7 +39,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       provider: "Gemini",
       enabled: -> { CONFIG["GEMINI_API_KEY"] },
       model: "gemini-2.5-pro",
-      timeout: 60,
+      timeout: 90,
       skip_activation: true
     },
     {
@@ -47,14 +47,14 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       provider: "Grok",
       enabled: -> { CONFIG["XAI_API_KEY"] },
       model: "grok-3",
-      timeout: 60
+      timeout: 90
     },
     {
       app: "CodeInterpreterMistral",
       provider: "Mistral",
       enabled: -> { CONFIG["MISTRAL_API_KEY"] },
       model: "mistral-large-latest",
-      timeout: 60,
+      timeout: 90,
       skip_activation: true
     },
     {
@@ -62,14 +62,14 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       provider: "Cohere",
       enabled: -> { CONFIG["COHERE_API_KEY"] },
       model: "command-a-03-2025",
-      timeout: 60
+      timeout: 90
     },
     {
       app: "CodeInterpreterDeepSeek",
       provider: "DeepSeek",
       enabled: -> { CONFIG["DEEPSEEK_API_KEY"] },
       model: "deepseek-chat",
-      timeout: 60,
+      timeout: 90,
       skip_activation: true
     }
   ]
@@ -85,7 +85,8 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       message = "Calculate the sum of squares from 1 to 5 using Python"
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
       
-      response = wait_for_response(ws_connection)
+      response = wait_for_response(ws_connection, timeout: 90)
+      
       
       expect(valid_response?(response)).to be true
       expect(code_execution_attempted?(response)).to be true
@@ -111,7 +112,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       message = "Try to divide by zero and explain what happens"
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
       
-      response = wait_for_response(ws_connection)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response.downcase).to match(/error|zero|division/i)
     end
@@ -131,7 +132,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       MSG
       
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
-      response = wait_for_response(ws_connection, timeout: 60)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(valid_response?(response)).to be true
       expect(code_execution_attempted?(response)).to be true
@@ -150,7 +151,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       message = "Use numpy to create a 3x3 matrix and calculate its determinant"
       
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
-      response = wait_for_response(ws_connection)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response.downcase).to match(/numpy|matrix/i)
       expect(code_execution_attempted?(response)).to be true
@@ -171,7 +172,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       MSG
       
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
-      response = wait_for_response(ws_connection)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(valid_response?(response)).to be true
       expect(code_execution_attempted?(response)).to be true
@@ -184,7 +185,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       MSG
       
       send_chat_message(ws_connection, message, app: "CodeInterpreterOpenAI")
-      response = wait_for_response(ws_connection)
+      response = wait_for_response(ws_connection, timeout: 90)
       
       expect(valid_response?(response)).to be true
       expect(response.downcase).to match(/csv|product|price/i)
@@ -218,7 +219,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       # Step 3: Visualize
       message3 = "Create a visualization showing the quarterly trends"
       send_chat_message(ws_connection, message3, app: "CodeInterpreterOpenAI")
-      response3 = wait_for_response(ws_connection, timeout: 90)
+      response3 = wait_for_response(ws_connection, timeout: 120)
       expect(response3).not_to be_empty
     end
   end
@@ -262,7 +263,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
               send_chat_message(ws_connection, message, app: config[:app], model: config[:model], max_tokens: config[:max_tokens])
             end
             
-            response = wait_for_response(ws_connection, timeout: config[:timeout] || 60, max_tokens: config[:max_tokens])
+            response = wait_for_response(ws_connection, timeout: config[:timeout] || 90, max_tokens: config[:max_tokens])
             
             # Check for successful code execution
             expect(code_execution_attempted?(response)).to be(true), 

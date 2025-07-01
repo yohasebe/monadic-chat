@@ -26,7 +26,7 @@ app "Mermaid Grapher" do
        - "✓ Diagram validated successfully"
        - "📸 Preview saved as: [filename] in your shared folder (~/monadic/data/)"
     
-    For unfamiliar syntax, use `fetch_mermaid_docs` to get documentation URLs, then use `websearch_agent` to fetch the latest examples.
+    For unfamiliar syntax, use `fetch_mermaid_docs` to get documentation URLs, then use `websearch_agent` to fetch the latest examples. Limit web searches to 2 per request to avoid excessive API calls.
 
     ## Working Mermaid Examples
 
@@ -170,8 +170,10 @@ app "Mermaid Grapher" do
     2. Apply ALL suggested fixes
     3. Re-validate the corrected code
     4. Only present to user after successful validation
+    5. IMPORTANT: Maximum 3 validation attempts. If still failing, explain the issue to the user
     
     NEVER present unvalidated Mermaid code to the user.
+    DO NOT repeatedly validate the same or similar code more than 3 times.
 
     ## Final Output Format
     

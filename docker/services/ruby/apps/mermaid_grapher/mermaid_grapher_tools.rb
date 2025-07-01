@@ -1,3 +1,5 @@
+require_relative '../../lib/monadic/utils/environment'
+
 class MermaidGrapher < MonadicApp
   def validate_mermaid_syntax(code:)
     raise ArgumentError, "Code cannot be empty" if code.to_s.strip.empty?
@@ -24,11 +26,7 @@ class MermaidGrapher < MonadicApp
     screenshot_filename = "mermaid_preview_#{timestamp}.png"
     
     # Determine correct path based on environment
-    shared_volume = if defined?(IN_CONTAINER) && IN_CONTAINER
-                      MonadicApp::SHARED_VOL
-                    else
-                      MonadicApp::LOCAL_SHARED_VOL
-                    end
+    shared_volume = Monadic::Utils::Environment.shared_volume
     
     html_path = File.join(shared_volume, html_filename)
     screenshot_path = File.join(shared_volume, screenshot_filename)
@@ -224,11 +222,7 @@ finally:
     html_filename = "mermaid_test_#{timestamp}.html"
     
     # Determine correct path based on environment
-    shared_volume = if defined?(IN_CONTAINER) && IN_CONTAINER
-                      MonadicApp::SHARED_VOL
-                    else
-                      MonadicApp::LOCAL_SHARED_VOL
-                    end
+    shared_volume = Monadic::Utils::Environment.shared_volume
     
     html_path = File.join(shared_volume, html_filename)
     

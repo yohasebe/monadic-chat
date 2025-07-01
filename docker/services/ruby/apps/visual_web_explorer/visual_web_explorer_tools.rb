@@ -129,13 +129,8 @@ module VisualWebExplorerTools
       if result[:success] && result[:screenshots] && !result[:screenshots].empty?
         # Use provider-specific image recognition
         first_screenshot = result[:screenshots].first
-        # Use the correct path based on environment
-        # IN_CONTAINER is a constant defined in lib/monadic.rb
-        image_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                       "/monadic/data/#{first_screenshot}"
-                     else
-                       File.join(Dir.home, "monadic", "data", first_screenshot)
-                     end
+        # Use unified environment module for path resolution
+        image_path = File.join(Monadic::Utils::Environment.data_path, first_screenshot)
         
         analysis_prompt = "Extract all text content from this webpage screenshot. Format the output as clean Markdown with proper headings, lists, and paragraphs. Include all visible text but exclude navigation elements and advertisements if possible."
         
@@ -143,11 +138,10 @@ module VisualWebExplorerTools
           # Check if file exists with fallback
           unless File.exist?(image_path)
             # Try alternative path if first path fails
-            alternative_path = if defined?(IN_CONTAINER) && IN_CONTAINER
-                                File.join(Dir.home, "monadic", "data", first_screenshot)
-                              else
+            # This logic seems backwards, but keeping the same behavior
+            alternative_path = Monadic::Utils::Environment.in_container? ?
+                                File.join(Dir.home, "monadic", "data", first_screenshot) :
                                 "/monadic/data/#{first_screenshot}"
-                              end
             
             if File.exist?(alternative_path)
               image_path = alternative_path
@@ -155,7 +149,7 @@ module VisualWebExplorerTools
               # If still not found, provide detailed error
               return {
                 success: false,
-                error: "Screenshot file not found. Tried paths: #{image_path} and #{alternative_path}. Environment: #{defined?(IN_CONTAINER) ? (IN_CONTAINER ? 'container' : 'local') : 'unknown'}"
+                error: "Screenshot file not found. Tried paths: #{image_path} and #{alternative_path}. Environment: #{Monadic::Utils::Environment.in_container? ? 'container' : 'local'}"
               }
             end
           end

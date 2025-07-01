@@ -3,6 +3,7 @@
 require "open3"
 require "timeout"
 require "net/http"
+require_relative '../../lib/monadic/utils/environment'
 
 # Manages Docker containers for testing
 class DockerContainerManager
@@ -95,12 +96,7 @@ class DockerContainerManager
       
       # Otherwise try to connect
       conn = PG.connect(
-        host: ENV["IN_CONTAINER"] ? "monadic-chat-pgvector-container" : "localhost",
-        port: 5433,
-        user: "postgres",
-        password: "postgres",
-        dbname: "postgres",
-        connect_timeout: 5
+        Monadic::Utils::Environment.postgres_params.merge(connect_timeout: 5)
       )
       conn.exec("SELECT 1")
       conn.close

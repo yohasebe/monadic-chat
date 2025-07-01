@@ -16,6 +16,9 @@ end
 # Always load the retry helper module
 require_relative '../support/custom_retry'
 
+# Load environment utilities
+require_relative '../../lib/monadic/utils/environment'
+
 # Load configuration from ~/monadic/config/env for E2E tests
 config_path = File.expand_path("~/monadic/config/env")
 if File.exist?(config_path)
@@ -404,7 +407,7 @@ module E2EHelper
 
   # Create test file
   def create_test_file(filename, content)
-    path = File.join(Dir.home, "monadic", "data", filename)
+    path = File.join(Monadic::Utils::Environment.data_path, filename)
     File.write(path, content)
     path
   end
@@ -412,7 +415,7 @@ module E2EHelper
   # Clean up test files
   def cleanup_test_files(*filenames)
     filenames.each do |filename|
-      path = File.join(Dir.home, "monadic", "data", filename)
+      path = File.join(Monadic::Utils::Environment.data_path, filename)
       File.delete(path) if File.exist?(path)
     end
   end

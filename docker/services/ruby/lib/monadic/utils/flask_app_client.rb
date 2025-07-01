@@ -1,13 +1,14 @@
 require "net/http"
 require "uri"
 require "json"
+require_relative "environment"
 
 class FlaskAppClient
   # Default port for Python service
   PYTHON_PORT = (defined?(CONFIG) && CONFIG["PYTHON_PORT"]) || "5070"
   
   # Determine base URL based on environment
-  BASE_URL = if File.file?("/.dockerenv")
+  BASE_URL = if Monadic::Utils::Environment.in_container?
                # Inside Docker container, use service name
                "http://python_service:5070"
              else

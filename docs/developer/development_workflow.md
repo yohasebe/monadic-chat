@@ -336,7 +336,7 @@ When developing locally while using container features:
 - **Ruby container**: Can be stopped to use local Ruby environment
 - **Other containers**: Must remain running for apps that depend on them
 - **Python container**: Required for apps like Concept Visualizer and Syntax Tree that use LaTeX
-- **Paths**: Automatically adjusted via `IN_CONTAINER` constant (automatically set based on container detection)
+- **Paths**: Automatically adjusted via `Monadic::Utils::Environment` module
 
 ### Testing Apps with Container Dependencies :id=testing-container-dependencies
 For apps that require specific containers (e.g., Concept Visualizer needs Python container for LaTeX):

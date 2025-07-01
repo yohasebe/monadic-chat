@@ -40,10 +40,14 @@ require "csv"
 # Make $MODELS a HashWithIndifferentAccess so it can be accessed with both strings and symbols
 $MODELS = ActiveSupport::HashWithIndifferentAccess.new
 
-# return true if we are inside a docker container
-IN_CONTAINER = File.file?("/.dockerenv")
-
 require_relative "monadic/version"
+
+# Load environment utilities early
+require_relative "monadic/utils/environment"
+
+# Backward compatibility - DEPRECATED
+# All tests have been migrated. This can be removed after verifying no external dependencies.
+IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
 require_relative "monadic/utils/flask_app_client"
@@ -212,11 +216,7 @@ end
 def load_app_files
   apps_to_load = {}
   base_app_dir = File.join(__dir__, "..", "apps")
-  user_plugins_dir = if IN_CONTAINER
-                   "/monadic/data/plugins"
-                 else
-                   Dir.home + "/monadic/data/plugins"
-                 end
+  user_plugins_dir = Monadic::Utils::Environment.user_plugins_path
 
   # Initialize global error tracking variable
   $MONADIC_LOADING_ERRORS = []
@@ -276,11 +276,7 @@ def load_tts_dict(tts_dict_data = nil)
   tts_dict = {}
   
   # 1. Check for TTS_DICT.csv in the config directory first (for Docker container)
-  config_dict_path = if IN_CONTAINER
-                        "/monadic/config/TTS_DICT.csv"
-                      else
-                        File.join(Dir.home, "monadic", "config", "TTS_DICT.csv")
-                      end
+  config_dict_path = File.join(Monadic::Utils::Environment.config_path, "TTS_DICT.csv")
   
   if File.exist?(config_dict_path)
     begin
@@ -588,7 +584,7 @@ get "/" do
   session[:parameters] ||= {}
   session[:messages] ||= []
   session[:version] = Monadic::VERSION
-  session[:docker] = IN_CONTAINER
+  session[:docker] = Monadic::Utils::Environment.in_container?
 
   if Faye::WebSocket.websocket?(env)
     websocket_handler(env)
@@ -598,11 +594,7 @@ get "/" do
 end
 
 def fetch_file(file_name)
-  datadir = if IN_CONTAINER
-              File.expand_path(File.join(__dir__, "..", "data"))
-            else
-              File.expand_path(File.join(Dir.home, "monadic", "data"))
-            end
+  datadir = Monadic::Utils::Environment.data_path
   file_path = File.join(datadir, file_name)
   if File.exist?(file_path)
     send_file file_path
@@ -779,11 +771,7 @@ post "/document" do
         # get filename from the file handler
         filename = params["docFile"]["filename"]
 
-        user_data_dir = if IN_CONTAINER
-                          "/monadic/data"
-                        else
-                          Dir.home + "/monadic/data"
-                        end
+        user_data_dir = Monadic::Utils::Environment.data_path
 
         # Copy the file to user data directory
         doc_file_path = File.join(user_data_dir, filename)
@@ -824,11 +812,7 @@ post "/document" do
       # get filename from the file handler
       filename = params["docFile"]["filename"]
 
-      user_data_dir = if IN_CONTAINER
-                        "/monadic/data"
-                      else
-                        Dir.home + "/monadic/data"
-                      end
+      user_data_dir = Monadic::Utils::Environment.data_path
 
       # Copy the file to user data directory
       doc_file_path = File.join(user_data_dir, filename)
@@ -866,11 +850,7 @@ post "/fetch_webpage" do
         url_decoded = CGI.unescape(url)
         label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-        user_data_dir = if IN_CONTAINER
-                          "/monadic/data"
-                        else
-                          Dir.home + "/monadic/data"
-                        end
+        user_data_dir = Monadic::Utils::Environment.data_path
 
         tavily_api_key = CONFIG["TAVILY_API_KEY"]
         puts "[DEBUG fetch_webpage] Tavily API key present: #{!tavily_api_key.nil?}"
@@ -918,11 +898,7 @@ post "/fetch_webpage" do
       url_decoded = CGI.unescape(url)
       label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-      user_data_dir = if IN_CONTAINER
-                        "/monadic/data"
-                      else
-                        Dir.home + "/monadic/data"
-                      end
+      user_data_dir = Monadic::Utils::Environment.data_path
 
       tavily_api_key = CONFIG["TAVILY_API_KEY"]
       if tavily_api_key

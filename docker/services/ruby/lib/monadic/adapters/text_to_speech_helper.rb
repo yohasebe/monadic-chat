@@ -20,11 +20,7 @@ module MonadicHelper
 
     text = text.gsub(/"/, '\"')
 
-    save_path = if IN_CONTAINER
-                  MonadicApp::SHARED_VOL
-                else
-                  MonadicApp::LOCAL_SHARED_VOL
-                end
+    save_path = Monadic::Utils::Environment.shared_volume
 
     textfile = "#{Time.now.to_i}.md"
     textpath = File.join(save_path, textfile)

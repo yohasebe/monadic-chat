@@ -7,13 +7,11 @@ require "digest"
 require "open3"
 require "securerandom"
 require "pg"
+require_relative "../../lib/monadic/utils/environment"
 
 # Configuration
 EXPORT_DIR = File.expand_path("../../../../../docker/services/pgvector/help_data", __dir__)
 CONTAINER = "monadic-chat-pgvector-container"
-
-# Set IN_CONTAINER if not already set
-IN_CONTAINER = File.file?("/.dockerenv") unless defined?(IN_CONTAINER)
 
 class HelpDatabaseExporter
   def initialize
@@ -57,24 +55,19 @@ class HelpDatabaseExporter
   private
   
   def container_running?
-    stdout, _, status = Open3.capture3("docker ps --format '{{.Names}}' | grep -q '#{CONTAINER}'")
-    status.success?
+    system("docker ps --format '{{.Names}}' | grep -q '#{CONTAINER}'", out: File::NULL, err: File::NULL)
   end
   
   def database_exists?
     begin
-      # Connect directly to PostgreSQL based on environment
-      host = IN_CONTAINER ? "pgvector_service" : (ENV['POSTGRES_HOST'] || "localhost")
-      port = ENV['POSTGRES_PORT'] || 5432
-      
       # Check if database exists
-      conn = PG.connect(host: host, port: port, dbname: "postgres", user: "postgres")
+      conn = PG.connect(Monadic::Utils::Environment.postgres_params)
       result = conn.exec("SELECT 1 FROM pg_database WHERE datname = 'monadic_help'")
       conn.close
       return false if result.ntuples == 0
       
       # Check if help_docs table exists
-      conn = PG.connect(host: host, port: port, dbname: "monadic_help", user: "postgres")
+      conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: "monadic_help"))
       result = conn.exec("SELECT 1 FROM information_schema.tables WHERE table_name = 'help_docs'")
       exists = result.ntuples > 0
       conn.close
@@ -143,9 +136,7 @@ class HelpDatabaseExporter
     
     begin
       # Connect directly to PostgreSQL
-      host = IN_CONTAINER ? "pgvector_service" : (ENV['POSTGRES_HOST'] || "localhost")
-      port = ENV['POSTGRES_PORT'] || 5432
-      conn = PG.connect(host: host, port: port, dbname: "monadic_help", user: "postgres")
+      conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: "monadic_help"))
       
       # Export help_docs
       result = conn.exec("SELECT * FROM help_docs ORDER BY id")
@@ -185,9 +176,7 @@ class HelpDatabaseExporter
     
     begin
       # Reuse or create new connection
-      host = IN_CONTAINER ? "pgvector_service" : (ENV['POSTGRES_HOST'] || "localhost")
-      port = ENV['POSTGRES_PORT'] || 5432
-      conn = PG.connect(host: host, port: port, dbname: "monadic_help", user: "postgres")
+      conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: "monadic_help"))
       
       result = conn.exec("SELECT * FROM help_items ORDER BY id")
       items = []
@@ -228,9 +217,7 @@ class HelpDatabaseExporter
   def generate_metadata
     begin
       # Connect directly to get counts
-      host = IN_CONTAINER ? "pgvector_service" : (ENV['POSTGRES_HOST'] || "localhost")
-      port = ENV['POSTGRES_PORT'] || 5432
-      conn = PG.connect(host: host, port: port, dbname: "monadic_help", user: "postgres")
+      conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: "monadic_help"))
       
       docs_result = conn.exec("SELECT COUNT(*) FROM help_docs")
       docs_count = docs_result[0]["count"].to_i

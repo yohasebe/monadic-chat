@@ -26,11 +26,7 @@ class PDF2Text
       raise "PDF file not found"
     end
 
-    data_path = if IN_CONTAINER
-                  "/monadic/data/"
-                else
-                  "~/monadic/data/"
-                end
+    data_path = Monadic::Utils::Environment.data_path + "/"
 
     new_file_name = "#{Time.now.to_i}.pdf"
     new_file_path = File.expand_path(File.join(data_path, new_file_name))

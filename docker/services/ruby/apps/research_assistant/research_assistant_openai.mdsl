@@ -6,6 +6,11 @@ app "ResearchAssistantOpenAI" do
   system_prompt <<~TEXT
     You are a professional research assistant who helps users find information and answers their questions.
     
+    IMPORTANT: Use web search efficiently. DO NOT repeatedly search for the same or very similar terms. If your initial search doesn't yield the desired results:
+    1. Try ONE different search query with alternative keywords
+    2. If still unsuccessful, work with the information you have or explain what you couldn't find
+    3. DO NOT perform more than 3 searches total for a single user request
+    
     You have native web search capability. Use it proactively when:
     - The user asks about current events, news, or recent information
     - The user asks about specific people, companies, organizations, or entities

@@ -464,7 +464,7 @@ module GeminiHelper
                   "html" => html,
                   "lang" => detect_language(message)
                 } }
-        res["content"]["images"] = obj["images"] if obj["images"]
+        res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         session[:messages] << res["content"]
         block&.call res
       end
@@ -591,48 +591,51 @@ module GeminiHelper
       }
     end
 
-    # Get tools from app settings
-    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
-    
-    # Debug settings
-    DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
-    DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
-    DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
-    DebugHelper.debug("Gemini websearch: #{websearch}", category: :api, level: :debug)
-    
-    # Check if app_tools has actual function declarations
-    has_function_declarations = false
-    if app_tools
-      if app_tools.is_a?(Hash) && app_tools["function_declarations"]
-        has_function_declarations = !app_tools["function_declarations"].empty?
-      elsif app_tools.is_a?(Array)
-        has_function_declarations = !app_tools.empty?
-      end
-    end
-    
-    if has_function_declarations
-      # Convert the tools format if it's an array (initialize_from_assistant apps)
-      if app_tools.is_a?(Array)
-        body["tools"] = [{"function_declarations" => app_tools}]
-      else
-        body["tools"] = [app_tools]
+    # Skip tool setup if we're processing tool results
+    if role != "tool"
+      # Get tools from app settings
+      app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+      
+      # Debug settings
+      DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
+      DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
+      DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
+      DebugHelper.debug("Gemini websearch: #{websearch}", category: :api, level: :debug)
+      
+      # Check if app_tools has actual function declarations
+      has_function_declarations = false
+      if app_tools
+        if app_tools.is_a?(Hash) && app_tools["function_declarations"]
+          has_function_declarations = !app_tools["function_declarations"].empty?
+        elsif app_tools.is_a?(Array)
+          has_function_declarations = !app_tools.empty?
+        end
       end
       
-      body["tool_config"] = {
-        "function_calling_config" => {
-          "mode" => "ANY"
+      if has_function_declarations
+        # Convert the tools format if it's an array (initialize_from_assistant apps)
+        if app_tools.is_a?(Array)
+          body["tools"] = [{"function_declarations" => app_tools}]
+        else
+          body["tools"] = [app_tools]
+        end
+        
+        body["tool_config"] = {
+          "function_calling_config" => {
+            "mode" => "ANY"
+          }
         }
-      }
-    elsif websearch
-      # Use native Google search
-      DebugHelper.debug("Gemini using native Google search", category: :api, level: :debug)
-      
-      body["tools"] = [{"google_search" => {}}]
-    else
-      DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
-      body.delete("tools")
-      body.delete("tool_config")
-    end
+      elsif websearch
+        # Use native Google search
+        DebugHelper.debug("Gemini using native Google search", category: :api, level: :debug)
+        
+        body["tools"] = [{"google_search" => {}}]
+      else
+        DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
+        body.delete("tools")
+        body.delete("tool_config")
+      end
+    end  # end of role != "tool"
 
     if role == "tool"
       parts = obj["tool_results"].map { |result|
@@ -1719,11 +1722,7 @@ module GeminiHelper
       end
       
       # Set up shared folder path
-      shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
-                       MonadicApp::SHARED_VOL
-                      else
-                       MonadicApp::LOCAL_SHARED_VOL
-                      end
+      shared_folder = Monadic::Utils::Environment.shared_volume
       
       # Prepare the request body with corrected structure
       request_body = {
@@ -1908,11 +1907,7 @@ module GeminiHelper
       
       
       # Set up shared folder path
-      shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
-                       MonadicApp::SHARED_VOL
-                      else
-                       MonadicApp::LOCAL_SHARED_VOL
-                      end
+      shared_folder = Monadic::Utils::Environment.shared_volume
       
       # Prepare the request body for Imagen 3
       request_body = {

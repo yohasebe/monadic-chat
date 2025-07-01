@@ -37,11 +37,7 @@ module MonadicHelper
       original_image = File.basename(images.first.to_s)
       
       # Set shared folder path for mask images
-      shared_folder = if defined?(IN_CONTAINER) && IN_CONTAINER
-                       MonadicApp::SHARED_VOL
-                      else
-                       MonadicApp::LOCAL_SHARED_VOL
-                      end
+      shared_folder = Monadic::Utils::Environment.shared_volume
       
       # Look for mask file directly in the shared folder with naming convention
       # Try all possible naming conventions for masks

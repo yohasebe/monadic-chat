@@ -130,13 +130,7 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
       require 'pg'
       
       # Connect to PostgreSQL
-      conn = PG.connect(
-        host: IN_CONTAINER ? "pgvector_service" : "localhost",
-        port: IN_CONTAINER ? 5432 : (ENV['POSTGRES_PORT'] || 5433),
-        user: "postgres",
-        password: "postgres",
-        dbname: "postgres"
-      )
+      conn = PG.connect(postgres_connection_params)
       
       # Ensure pgvector extension is created
       conn.exec("CREATE EXTENSION IF NOT EXISTS vector")

@@ -23,7 +23,7 @@ sleep 2
 
 # Now run the Ruby script with proper environment variables
 echo "Running documentation processor..."
-POSTGRES_HOST=localhost POSTGRES_PORT=5432 IN_CONTAINER=false ruby "$(dirname "$0")/process_documentation.rb" "$@"
+POSTGRES_HOST=localhost POSTGRES_PORT=5432 ruby "$(dirname "$0")/process_documentation.rb" "$@"
 
 # Stop the port forward
 docker stop pgvector-port-forward 2>/dev/null || true

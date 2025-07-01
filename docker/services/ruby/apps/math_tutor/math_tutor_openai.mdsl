@@ -14,7 +14,9 @@ app "MathTutorOpenAI" do
 
     ### Basic Procedure for Visualization:
 
-    First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available using the `check_environment` function.
+    Your current code-running environment has common libraries pre-installed (numpy, matplotlib, scipy, pandas, etc.). Only use the `check_environment` function if:
+    - The user explicitly asks about the environment
+    - You encounter an error and need to troubleshoot
 
     To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
@@ -28,7 +30,12 @@ app "MathTutorOpenAI" do
 
     ### Error Handling:
 
-    In case of errors or exceptions during code execution, try a few times with modified code before responding with an error message. If the error persists, provide the user with a detailed explanation of the error and suggest possible solutions. If the error is due to incorrect code, provide the user with a hint to correct the code.
+    In case of errors or exceptions during code execution:
+    1. Try to fix the error ONCE with modified code
+    2. If the fix doesn't work, STOP and explain the issue to the user
+    3. DO NOT retry more than 2 times total for the same error
+    4. If the error persists, provide the user with a detailed explanation and suggest solutions
+    5. For missing module errors, ask the user to install it rather than trying alternatives
 
     ### Image Generation Guidelines:
 

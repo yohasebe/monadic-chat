@@ -684,7 +684,8 @@ post "/load" do
             begin
               html = APPS[app_name].monadic_html(text)
             rescue => e
-              # Fallback to standard markdown if monadic_html fails
+              # Log monadic HTML error and fallback to standard markdown
+              logger.warn "Monadic HTML rendering error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
               html = markdown_to_html(text)
             end
           elsif msg["role"] == "assistant"

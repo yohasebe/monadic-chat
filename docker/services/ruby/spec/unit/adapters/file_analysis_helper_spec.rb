@@ -68,7 +68,8 @@ RSpec.describe MonadicHelper do
       )
       
       expect(helper.last_command).to include('image_query.rb')
-      expect(helper.last_command).to include('What is in this image?')
+      # Shellwords.escape escapes spaces in the message
+      expect(helper.last_command).to include('What\\ is\\ in\\ this\\ image\\?')
       expect(helper.last_command).to include(test_image_path)
       expect(helper.last_command).to include('gpt-4.1')
       expect(helper.last_container).to eq('ruby')
@@ -96,7 +97,8 @@ RSpec.describe MonadicHelper do
         image_path: test_image_path
       )
       
-      expect(helper.last_command).to include('What is the \\"main\\" content?')
+      # Shellwords.escape escapes the entire string
+      expect(helper.last_command).to include('What\\ is\\ the\\ \\"main\\"\\ content\\?')
     end
     
     it 'uses check_vision_capability to validate model' do
@@ -123,7 +125,9 @@ RSpec.describe MonadicHelper do
         image_path: test_image_path
       )
       
-      expect(helper.last_command).to include('image_query.rb ""')
+      # Empty string is still passed as ''
+      expect(helper.last_command).to include("image_query.rb ''")
+      expect(helper.last_command).to include(test_image_path)
       expect(result).to be_a(String)
     end
     
@@ -137,7 +141,9 @@ RSpec.describe MonadicHelper do
           image_path: special_path
         )
         
-        expect(helper.last_command).to include(special_path)
+        # Shellwords.escape will escape spaces and parentheses
+        escaped_path = "/tmp/test\\ image\\ \\(1\\).png"
+        expect(helper.last_command).to include(escaped_path)
       ensure
         File.delete(special_path) if File.exist?(special_path)
       end
@@ -156,7 +162,8 @@ RSpec.describe MonadicHelper do
       expect(helper.last_command).to include('stt_query.rb')
       expect(helper.last_command).to include(audio_path)
       expect(helper.last_command).to include('gpt-4o-transcribe')
-      expect(helper.last_command).to include('"." "json" ""')  # output dir, format, lang
+      # Parameters are escaped, no quotes
+      expect(helper.last_command).to match(/stt_query\.rb\s+#{Regexp.escape(audio_path)}\s+\.\s+json\s+""\s+gpt-4o-transcribe/)
       expect(helper.last_container).to eq('ruby')
       expect(result).to include('test audio transcription')
     end

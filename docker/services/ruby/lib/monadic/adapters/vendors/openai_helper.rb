@@ -787,8 +787,8 @@ module OpenAIHelper
         end
         
         # Responses API uses specific text types based on role
-        # System and user messages use "text", assistant messages use "output_text"
-        text_type = (role == "assistant") ? "output_text" : "text"
+        # System and user messages use "input_text", assistant messages use "output_text"
+        text_type = (role == "assistant") ? "output_text" : "input_text"
         
         # Handle messages with complex content (text + images)
         if content.is_a?(Array)

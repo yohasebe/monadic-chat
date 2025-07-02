@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'shellwords'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
 require_relative "./utils/flask_app_client"
@@ -306,18 +307,18 @@ class MonadicApp
         "#{system_script_dir}/generators",
         user_system_script_dir
       ].join(":")
-      system_command = <<~SYS
+      # Build the full command that will be executed
+      # Note: Command is not escaped here, will be handled by system() call
+      full_command = <<~SYS
         find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
         find #{user_system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
         export PATH="#{ruby_script_dirs}:${PATH}" && \
         cd #{shared_volume} && \
         #{command}
       SYS
+      system_command = full_command
     when "python"
       container = "monadic-chat-python-container"
-      # Combine commands into a single bash command to avoid multi-line execution issues
-      # Escape single quotes in the command to prevent shell interpretation issues
-      escaped_command = command.gsub("'", "'\"'\"'")
       # Add all Python script directories to PATH
       python_script_dirs = [
         "/monadic/scripts",
@@ -327,16 +328,20 @@ class MonadicApp
         "/monadic/scripts/converters",
         "#{USER_SCRIPT_DIR}"
       ].join(":")
+      # Build the bash command that will be executed inside the container
+      # Note: We don't escape the command here because it will be properly escaped
+      # when passed to bash -c via Shellwords.escape(bash_command)
+      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}\"; #{command}"
       system_command = <<~DOCKER.strip
-        docker exec -w #{SHARED_VOL} #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH="#{python_script_dirs}:${PATH}"; #{escaped_command}'
+        docker exec -w #{SHARED_VOL} #{container} bash -c #{Shellwords.escape(bash_command)}
       DOCKER
     else
       container = "monadic-chat-#{container}-container"
-      # Combine commands into a single bash command to avoid multi-line execution issues
-      # Escape single quotes in the command to prevent shell interpretation issues
-      escaped_command = command.gsub("'", "'\"'\"'")
+      # Build the bash command that will be executed inside the container
+      # Note: Command is not escaped here, will be properly escaped when passed to bash -c
+      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; #{command}"
       system_command = <<~DOCKER.strip
-        docker exec -w #{SHARED_VOL} #{container} bash -c 'find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; #{escaped_command}'
+        docker exec -w #{SHARED_VOL} #{container} bash -c #{Shellwords.escape(bash_command)}
       DOCKER
     end
 
@@ -570,18 +575,22 @@ class MonadicApp
     # get the file extension
     extension = File.extname(basename).downcase
     container = "monadic-chat-python-container"
+    
+    # Safely escape the filename to prevent command injection
+    escaped_basename = Shellwords.escape(basename)
+    
     case extension
     when ".pdf"
       docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c 'pdf2txt.py "#{basename}" --format md'
+        docker exec -w #{SHARED_VOL} #{container} bash -c "pdf2txt.py #{escaped_basename} --format md"
       DOCKER
     when ".docx", ".xlsx", ".pptx"
       docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c 'office2txt.py "#{basename}"'
+        docker exec -w #{SHARED_VOL} #{container} bash -c "office2txt.py #{escaped_basename}"
       DOCKER
     else
       docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c 'content_fetcher.py "#{basename}"'
+        docker exec -w #{SHARED_VOL} #{container} bash -c "content_fetcher.py #{escaped_basename}"
       DOCKER
     end
 

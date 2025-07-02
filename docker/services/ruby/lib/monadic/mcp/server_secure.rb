@@ -8,14 +8,24 @@
 # require 'bcrypt'
 
 require_relative 'server'
+require_relative 'rate_limiter'
 
 module Monadic
   module MCP
     class SecureServer < Server
+      # Initialize rate limiter with configurable limits
+      @@rate_limiter = RateLimiter.new(
+        max_ips: (CONFIG["MCP_RATE_LIMIT_MAX_IPS"] || 10_000).to_i,
+        requests_per_minute: (CONFIG["MCP_RATE_LIMIT_REQUESTS"] || 60).to_i
+      )
+      
       # Add authentication middleware
       before do
         # Skip auth for OPTIONS requests
         pass if request.request_method == 'OPTIONS'
+        
+        # Check rate limit first
+        rate_limit_check
         
         # Check authentication token
         unless authenticate_request
@@ -47,24 +57,23 @@ module Monadic
         super
       end
 
-      # Add rate limiting
-      @@request_counts = {}
-      
+      # Rate limiting with LRU eviction
       def rate_limit_check
         client_ip = request.ip
-        current_time = Time.now.to_i
         
-        # Clean old entries
-        @@request_counts.delete_if { |_, data| data[:time] < current_time - 60 }
-        
-        # Check rate limit (60 requests per minute)
-        if @@request_counts[client_ip]
-          if @@request_counts[client_ip][:count] > 60
-            halt 429, json_rpc_error(nil, "Rate limit exceeded", -32002)
+        # Check if request is allowed
+        unless @@rate_limiter.allow?(client_ip)
+          # Log rate limit hit if debugging enabled
+          if CONFIG["EXTRA_LOGGING"]
+            logger.warn "Rate limit exceeded for IP: #{client_ip} (#{@@rate_limiter.request_count(client_ip)} requests)"
           end
-          @@request_counts[client_ip][:count] += 1
-        else
-          @@request_counts[client_ip] = { count: 1, time: current_time }
+          
+          halt 429, json_rpc_error(nil, "Rate limit exceeded", -32002)
+        end
+        
+        # Log current tracking status periodically
+        if CONFIG["EXTRA_LOGGING"] && rand(100) == 0
+          logger.info "Rate limiter tracking #{@@rate_limiter.tracked_ips_count} IPs"
         end
       end
     end

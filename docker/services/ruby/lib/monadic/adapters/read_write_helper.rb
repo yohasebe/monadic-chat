@@ -1,6 +1,10 @@
+require 'shellwords'
+
 module MonadicHelper
   def fetch_text_from_office(file: "")
-    command = "office2txt.py \"#{file}\""
+    # Safely escape the filename
+    escaped_file = Shellwords.escape(file)
+    command = "office2txt.py #{escaped_file}"
     res = send_command(command: command, container: "python")
     
     if res.to_s == ""
@@ -15,7 +19,9 @@ module MonadicHelper
   end
 
   def fetch_text_from_pdf(pdf: "")
-    command = "pdf2txt.py \"#{pdf}\" --format md --all-pages"
+    # Safely escape the filename
+    escaped_pdf = Shellwords.escape(pdf)
+    command = "pdf2txt.py #{escaped_pdf} --format md --all-pages"
     res = send_command(command: command, container: "python")
     
     if res.to_s == ""
@@ -30,7 +36,9 @@ module MonadicHelper
   end
 
   def fetch_text_from_file(file: "")
-    command = "content_fetcher.rb \"#{file}\""
+    # Safely escape the filename
+    escaped_file = Shellwords.escape(file)
+    command = "content_fetcher.rb #{escaped_file}"
     res = send_command(command: command, container: "ruby")
     
     if res.to_s == ""

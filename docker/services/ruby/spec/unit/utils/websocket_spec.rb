@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'websocket'
 require 'ostruct'
+require 'faye/websocket'
 require_relative '../../../lib/monadic/utils/websocket'
 
 RSpec.describe WebSocketHelper do
@@ -32,6 +33,10 @@ RSpec.describe WebSocketHelper do
     
     def closed?
       @closed
+    end
+    
+    def ready_state
+      @closed ? Faye::WebSocket::CLOSED : Faye::WebSocket::OPEN
     end
   end
   

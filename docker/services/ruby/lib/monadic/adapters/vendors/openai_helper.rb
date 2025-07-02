@@ -1572,6 +1572,7 @@ module OpenAIHelper
                   tools[item_id] ||= {}
                   tools[item_id]["name"] = item["name"] if item["name"]
                   tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
+                  tools[item_id]["arguments"] ||= ""
                 end
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
@@ -1595,7 +1596,8 @@ module OpenAIHelper
               item_id = json["item_id"]
               delta = json["delta"]
               if item_id && delta
-                tools[item_id] ||= { "arguments" => "" }
+                tools[item_id] ||= {}
+                tools[item_id]["arguments"] ||= ""
                 tools[item_id]["arguments"] += delta
               end
               

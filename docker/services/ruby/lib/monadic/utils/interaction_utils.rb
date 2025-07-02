@@ -692,6 +692,8 @@ module InteractionUtils
         }
       end
     rescue StandardError => e
+      # Log ElevenLabs API error and return empty array
+      logger.warn "ElevenLabs voice list error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
       []
     end
   end

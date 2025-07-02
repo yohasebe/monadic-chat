@@ -1110,6 +1110,13 @@ module MonadicDSL
     # Add extra modules if specified
     include_modules = state.settings[:include_modules] || []
     include_statements = [helper_module]
+    
+    # Automatically include tool module if it exists
+    # Remove provider suffix to get base app name
+    app_base_name = state.name.sub(/OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama$/, '')
+    tool_module_name = "#{app_base_name}Tools"
+    include_statements << tool_module_name
+    
     include_statements += include_modules
     include_lines = include_statements.map { |m| "        include #{m} if defined?(#{m})" }.join("\n")
     

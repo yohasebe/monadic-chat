@@ -42,8 +42,8 @@ RSpec.describe Monadic::MCP::SecureServer do
   end
   
   describe 'Rate limiting' do
-    it 'initializes rate limit tracking' do
-      expect(described_class.class_variable_defined?(:@@request_counts)).to be true
+    it 'initializes rate limiter' do
+      expect(described_class.class_variable_defined?(:@@rate_limiter)).to be true
     end
     
     it 'defines rate limit method' do
@@ -53,9 +53,10 @@ RSpec.describe Monadic::MCP::SecureServer do
   end
   
   describe 'Rate limit implementation' do
-    it 'tracks requests in class variable' do
-      # Verify rate limit tracking structure exists
-      expect(described_class.class_variable_defined?(:@@request_counts)).to be true
+    it 'uses RateLimiter class' do
+      # Verify rate limiter is an instance of RateLimiter
+      rate_limiter = described_class.class_variable_get(:@@rate_limiter)
+      expect(rate_limiter).to be_a(Monadic::MCP::RateLimiter)
     end
     
     it 'implements rate limit check method' do
@@ -177,16 +178,12 @@ RSpec.describe Monadic::MCP::SecureServer do
   
   describe 'Thread safety' do
     it 'uses class variable for shared state' do
-      # Rate limiting uses @@request_counts which is shared across instances
-      expect(described_class.class_variable_defined?(:@@request_counts)).to be true
+      # Rate limiting uses @@rate_limiter which is shared across instances
+      expect(described_class.class_variable_defined?(:@@rate_limiter)).to be true
       
-      # Initialize if needed
-      unless described_class.class_variable_get(:@@request_counts)
-        described_class.class_variable_set(:@@request_counts, {})
-      end
-      
-      # Verify it's a Hash for thread-safe operations
-      expect(described_class.class_variable_get(:@@request_counts)).to be_a(Hash)
+      # Verify rate limiter is initialized
+      rate_limiter = described_class.class_variable_get(:@@rate_limiter)
+      expect(rate_limiter).to be_a(Monadic::MCP::RateLimiter)
     end
   end
   

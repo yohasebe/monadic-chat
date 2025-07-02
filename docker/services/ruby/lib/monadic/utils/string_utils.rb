@@ -322,7 +322,8 @@ module StringUtils
             
           end
         rescue => e
-          # If an exception occurs, add the line as-is and continue
+          # Log pattern replacement error and continue with original line
+          logger.warn "Pattern replacement error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
           result_lines << line
           # Error occurred but continue processing
           

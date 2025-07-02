@@ -1,4 +1,3 @@
-require 'shellwords'
 require_relative '../utils/environment'
 
 module MonadicHelper
@@ -9,9 +8,7 @@ module MonadicHelper
 
   def selenium_fetch(url: "")
     max_retrials = 10
-    # Properly escape the URL for shell command
-    escaped_url = Shellwords.escape(url)
-    command = "webpage_fetcher.py --url #{escaped_url} --filepath /monadic/data/ --mode md"
+    command = "webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\""
 
     result = nil 
 

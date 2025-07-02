@@ -375,7 +375,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
       expect(result).to include("DataFrame created")
       expect(result).to include("Average age: 30")
       expect(result).to include("Total score: 270")
-      expect(result).to include("test_data.csv")
+      expect(result).to include("Data saved to CSV")
       
       # Verify CSV content
       csv_content = test_instance.fetch_text_from_file(file: "test_data.csv")

@@ -90,7 +90,9 @@ module ClaudeHelper
           fallback_models = [
             "claude-3-opus-20240229",
             "claude-3-5-sonnet-20241022",
-            "claude-3-haiku-20240307"
+            "claude-3-haiku-20240307",
+            "claude-opus-4-20250514",
+            "claude-sonnet-4-20250514"
           ]
           $MODELS[:anthropic] = fallback_models
           return fallback_models
@@ -100,7 +102,9 @@ module ClaudeHelper
         fallback_models = [
           "claude-3-opus-20240229",
           "claude-3-5-sonnet-20241022",
-          "claude-3-haiku-20240307"
+          "claude-3-haiku-20240307",
+          "claude-opus-4-20250514",
+          "claude-sonnet-4-20250514"
         ]
         $MODELS[:anthropic] = fallback_models
         return fallback_models
@@ -325,6 +329,16 @@ module ClaudeHelper
     app = obj["app_name"]
     model = obj["model"]
     
+    # Initialize messages array if not already initialized
+    session[:messages] ||= []
+    
+    # Get initial prompt
+    initial_prompt = if session[:messages].empty?
+                       obj["initial_prompt"]
+                     else
+                       session[:messages].first["text"]
+                     end
+    
     # Check if web search is enabled
     # Handle both string and boolean values for websearch parameter
     websearch = obj["websearch"] == "true" || obj["websearch"] == true
@@ -478,16 +492,21 @@ module ClaudeHelper
     body = {
       "system" => system_prompts,
       "model" => obj["model"],
-      "stream" => true,
-      "tool_choice" => {
+      "stream" => true
+    }
+    
+    # Only add tool_choice if not processing tool results
+    if role != "tool"
+      body["tool_choice"] = {
         "type": "any"
       }
-    }
+    end
 
     if budget_tokens
       body["max_tokens"] = max_tokens
       body["temperature"] = 1
-      body["tool_choice"] = { "type" => "auto" }
+      # Only add tool_choice if not processing tool results
+      body["tool_choice"] = { "type" => "auto" } if role != "tool"
       body["thinking"] = {
         "type": "enabled",
         "budget_tokens": budget_tokens
@@ -559,17 +578,16 @@ module ClaudeHelper
         extra_log.puts("Tools array: #{body["tools"].inspect}")
         extra_log.close
       end
+    end
+    end  # end of if role != "tool"
       
-      # Only clean up if we have tools
-      if body["tools"] && !body["tools"].empty?
-        body["tools"].uniq!
-      else
-        body.delete("tools")
-        body.delete("tool_choice")
-      end
-    end  # end of role != "tool"
-    
-    
+    # Only clean up if we have tools
+    if body["tools"] && !body["tools"].empty?
+      body["tools"].uniq!
+    else
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
 
     # Add the context to the body
     messages = context.compact.map do |msg|
@@ -641,8 +659,10 @@ module ClaudeHelper
 
     body["messages"] = messages
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 0 && initial_prompt.to_s != ""
+    # Handle initiate_from_assistant case
+    has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
+    
+    if !has_user_message && obj["initiate_from_assistant"]
       body["messages"] << {
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Let's start" }]
@@ -651,7 +671,7 @@ module ClaudeHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-      body["tool_choice"] = { "type" => "auto" }
+      # Do not add tool_choice when processing tool results
     end
 
     # Configure monadic response format
@@ -676,51 +696,72 @@ module ClaudeHelper
     end
 
     # Call the API
-    target_uri = "#{API_ENDPOINT}/messages"
-    headers["Accept"] = "text/event-stream"
-    http = HTTP.headers(headers)
+    begin
+      target_uri = "#{API_ENDPOINT}/messages"
+      headers["Accept"] = "text/event-stream"
+      http = HTTP.headers(headers)
 
-    MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
-      break if res.status.success?
+      # Debug logging before API call
+      if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
+        # API call details available with CONFIG["EXTRA_LOGGING"]
+      end
 
-      sleep RETRY_DELAY
-    end
+      res = nil
+      MAX_RETRIES.times do |retry_count|
+        if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
+          # Retry attempt #{retry_count + 1}/#{MAX_RETRIES}
+        end
+        
+        res = http.timeout(connect: OPEN_TIMEOUT,
+                           write: WRITE_TIMEOUT,
+                           read: READ_TIMEOUT).post(target_uri, json: body)
+        
+        if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
+          # Response status: #{res.status}
+        end
+        
+        break if res.status.success?
 
-    unless res.status.success?
-      error_report = JSON.parse(res.body)["error"]
-      pp error_report
-      formatted_error = format_api_error(error_report, "claude")
-      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
-      block&.call res
-      return [res]
-    end
+        sleep RETRY_DELAY
+      end
 
-    process_json_data(app: app,
-                      session: session,
-                      query: body,
-                      res: res.body,
-                      call_depth: call_depth, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
-      num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      unless res.status.success?
+        error_report = JSON.parse(res.body)["error"]
+        pp error_report
+        formatted_error = format_api_error(error_report, "claude")
+        res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+        block&.call res
+        return [res]
+      end
+
+      if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
+        # API call successful, processing response
+      end
+
+      process_json_data(app: app,
+                        session: session,
+                        query: body,
+                        res: res.body,
+                        call_depth: call_depth, &block)
+    rescue HTTP::Error, HTTP::TimeoutError
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        pp error_message = "The request has timed out."
+        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+        block&.call res
+        [res]
+      end
+    rescue StandardError => e
+      pp e.message
+      pp e.backtrace
+      pp e.inspect
+      res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
       block&.call res
       [res]
     end
-  rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
-    block&.call res
-    [res]
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
@@ -728,6 +769,10 @@ module ClaudeHelper
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
       extra_log.puts(JSON.pretty_generate(query))
+    end
+
+    if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
+      # Processing JSON data for app: #{app}, call depth: #{call_depth}
     end
 
     obj = session[:parameters]
@@ -738,10 +783,15 @@ module ClaudeHelper
     thinking_signature = nil
     tool_calls = []
     finish_reason = nil
+    chunk_count = 0
 
     content_type = "text"
 
     res.each do |chunk|
+      chunk_count += 1
+      if (CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]) && chunk_count == 1
+        # First chunk received
+      end
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -1064,8 +1114,14 @@ module ClaudeHelper
   def process_functions(app, session, tools, context, call_depth, &block)
     content = []
     obj = session[:parameters]
+    
+    # Always log to STDERR for debugging
+    # Processing #{tools.length} tools
+    
     tools.each do |tool_call|
       tool_name = tool_call["name"]
+      
+      # Processing tool: #{tool_name}
 
       begin
         argument_hash = tool_call["input"]
@@ -1073,22 +1129,51 @@ module ClaudeHelper
         argument_hash = {}
       end
 
+      # Debug logging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] === Processing Function Call ===")
+        extra_log.puts("Tool name: #{tool_name}")
+        extra_log.puts("Raw input: #{tool_call["input"].inspect}")
+        extra_log.puts("Argument hash before conversion: #{argument_hash.inspect}")
+      end
+
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
         memo[k.to_sym] = v
         memo
       end
 
+      # More debug logging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log.puts("Argument hash after conversion: #{argument_hash.inspect}")
+        extra_log.puts("App instance class: #{APPS[app].class}")
+        extra_log.puts("Method exists?: #{APPS[app].respond_to?(tool_name.to_sym)}")
+      end
+
       # wait for the app instance is ready up to 10 seconds
       app_instance = APPS[app]
 
-      if argument_hash.empty?
-        tool_return = app_instance.send(tool_name.to_sym)
-      else
-        tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+      begin
+        if argument_hash.empty?
+          tool_return = app_instance.send(tool_name.to_sym)
+        else
+          tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+        end
+      rescue => e
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log.puts("ERROR calling function: #{e.class} - #{e.message}")
+          extra_log.puts("Backtrace: #{e.backtrace.first(5).join("\n")}")
+        end
+        tool_return = "Error: #{e.message}"
       end
 
       unless tool_return
         tool_return = "Empty result"
+      end
+
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log.puts("Tool return: #{tool_return.to_s[0..200]}...")
+        extra_log.close
       end
 
       content << {
@@ -1104,6 +1189,8 @@ module ClaudeHelper
     }
 
     obj["function_returns"] = context
+    
+    # Making recursive api_request with role 'tool'
 
     # Return Array
     api_request("tool", session, call_depth: call_depth, &block)

@@ -176,6 +176,16 @@ module OllamaHelper
 
     obj = session[:parameters]
     app = obj["app_name"]
+    model = obj["model"]
+
+    # Validate model exists
+    available_models = list_models
+    if !available_models.empty? && !available_models.include?(model)
+      error_message = "Model '#{model}' not found. Available models: #{available_models.join(', ')}"
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return [res]
+    end
 
     temperature = obj["temperature"].to_f
     context_size = obj["context_size"].to_i

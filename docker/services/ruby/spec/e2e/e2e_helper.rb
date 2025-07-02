@@ -144,7 +144,12 @@ module E2EHelper
           end
         end
         
-        initial_prompt = app_settings["initial_prompt"] if app_settings["initial_prompt"]
+        # Check for system_prompt first (for Code Interpreter apps), then initial_prompt
+        if app_settings["system_prompt"]
+          initial_prompt = app_settings["system_prompt"]
+        elsif app_settings["initial_prompt"]
+          initial_prompt = app_settings["initial_prompt"]
+        end
         break
       end
     end
@@ -252,6 +257,7 @@ module E2EHelper
 
   # Wait for AI response completion
   def wait_for_response(ws_connection, timeout: 60, max_tokens: nil)
+    timeout ||= 60  # Ensure timeout is never nil
     start_time = Time.now
     
     loop do
@@ -430,16 +436,16 @@ module E2EHelper
   end
   
   # Helper to activate an app and get the greeting message
-  def activate_app_and_get_greeting(app_name, ws_connection = nil, model: nil, max_tokens: nil)
+  def activate_app_and_get_greeting(app_name, ws_connection = nil, model: nil, max_tokens: nil, timeout: nil)
     if ws_connection.nil?
       ws_connection = create_websocket_connection
       send_chat_message(ws_connection, "Hello", app: app_name, model: model, max_tokens: max_tokens)
-      response = wait_for_response(ws_connection, max_tokens: max_tokens)
+      response = wait_for_response(ws_connection, max_tokens: max_tokens, timeout: timeout)
       ws_connection[:client].close
       response
     else
       send_chat_message(ws_connection, "Hello", app: app_name, model: model, max_tokens: max_tokens)
-      wait_for_response(ws_connection, max_tokens: max_tokens)
+      wait_for_response(ws_connection, max_tokens: max_tokens, timeout: timeout)
     end
   end
 end

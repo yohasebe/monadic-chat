@@ -252,7 +252,7 @@ RSpec.describe "Jupyter Notebook E2E", :e2e do
         
         # Add code with error
         send_chat_message(ws_connection,
-          "Add a cell with this code: print(undefined_variable)",
+          "Start Jupyter if needed, create a notebook called 'error_test', and add a cell with this code: print(undefined_variable)",
           app: app_name
         )
         sleep 3.0  # Wait for error processing

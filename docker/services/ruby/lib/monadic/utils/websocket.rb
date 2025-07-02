@@ -8,31 +8,39 @@ module WebSocketHelper
   include AIUserAgent
   # Handle websocket connection
   
-  # Class variable to store WebSocket connections
+  # Class variable to store WebSocket connections with thread safety
   @@ws_connections = []
+  @@ws_mutex = Mutex.new
   
-  # Add a connection to the list
+  # Add a connection to the list (thread-safe)
   def self.add_connection(ws)
-    @@ws_connections << ws unless @@ws_connections.include?(ws)
+    @@ws_mutex.synchronize do
+      @@ws_connections << ws unless @@ws_connections.include?(ws)
+    end
   end
   
-  # Remove a connection from the list
+  # Remove a connection from the list (thread-safe)
   def self.remove_connection(ws)
-    @@ws_connections.delete(ws)
+    @@ws_mutex.synchronize do
+      @@ws_connections.delete(ws)
+    end
   end
   
-  # Broadcast MCP status to all connected clients
+  # Broadcast MCP status to all connected clients (thread-safe)
   def self.broadcast_mcp_status(status)
     message = {
       event: "mcp_status",
       data: status
     }.to_json
     
-    @@ws_connections.each do |ws|
+    # Create a copy of connections to avoid holding lock during I/O
+    connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
+    
+    connections_copy.each do |ws|
       begin
         ws.send(message) if ws && !ws.closed?
       rescue => e
-        # Remove dead connections
+        # Remove dead connections (thread-safe)
         remove_connection(ws)
       end
     end

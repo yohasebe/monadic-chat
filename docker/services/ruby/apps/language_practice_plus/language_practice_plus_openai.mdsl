@@ -75,6 +75,5 @@ app "LanguagePracticePlusOpenAI" do
     initiate_from_assistant true
     image true
     monadic true
-    websearch true
   end
 end

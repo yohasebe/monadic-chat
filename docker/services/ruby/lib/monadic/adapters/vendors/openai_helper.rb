@@ -631,6 +631,8 @@ module OpenAIHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
+      # Do not include tool_choice when processing tool results
+      body.delete("tool_choice") if body["tool_choice"]
     end
 
     last_text = context.last&.dig("text")

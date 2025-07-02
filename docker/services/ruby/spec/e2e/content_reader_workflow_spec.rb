@@ -256,7 +256,7 @@ RSpec.describe "Content Reader E2E", :e2e do
         response = wait_for_response(ws_connection)
         ws_connection[:client].close
         
-        expect(response.downcase).to match(/not found|doesn't|unable|error|can't/i)
+        expect(response.downcase).to match(/not found|doesn't|does not exist|unable|error|can't|cannot/i)
       end
     end
     

@@ -55,10 +55,13 @@ RSpec.describe "Chat Plus Monadic Mode E2E", :e2e do
         end
       end
 
-      let(:ws_connection) { create_websocket_connection }
+      let!(:ws_connection) { create_websocket_connection }
 
-      after do
-        ws_connection[:client].close if ws_connection[:client]
+      after(:each) do
+        if ws_connection && ws_connection[:client]
+          ws_connection[:client].close
+          sleep 0.5  # Give time for connection to close properly
+        end
       end
 
       it "returns properly structured JSON response with context" do
@@ -156,6 +159,9 @@ RSpec.describe "Chat Plus Monadic Mode E2E", :e2e do
       end
 
       it "displays reasoning in monadic format" do
+        # Add small delay for DeepSeek to ensure previous connection is fully closed
+        sleep 1.0 if config[:provider] == "DeepSeek"
+        
         message = "What's the weather like today?"
         
         send_chat_message(ws_connection, message, 

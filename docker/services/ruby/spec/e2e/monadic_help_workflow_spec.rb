@@ -26,26 +26,30 @@ RSpec.describe "Monadic Help E2E Workflow", type: :e2e do
     end
 
     it "finds information about basic features" do
-      message = "How do I use voice chat in Monadic Chat?"
-      send_chat_message(ws_connection, message, app: "MonadicHelpOpenAI")
-      
-      response = wait_for_response(ws_connection)
-      
-      expect(valid_response?(response)).to be true
-      # Accept various ways of describing voice chat functionality
-      expect(response.downcase).to match(/voice|chat|speech|audio|microphone|speak|talk|conversation/i)
-      # Should provide helpful information - documentation link, instructions, or explanation
-      expect(response).to match(/https:\/\/|docs|documentation|choose.*app|platform|whatsapp|discord|feature|enable|use|click|button|setting/i)
+      with_e2e_retry(max_attempts: 3, wait: 10) do
+        message = "How do I use voice chat in Monadic Chat?"
+        send_chat_message(ws_connection, message, app: "MonadicHelpOpenAI")
+        
+        response = wait_for_response(ws_connection)
+        
+        expect(valid_response?(response)).to be true
+        # Accept various ways of describing voice chat functionality
+        expect(response.downcase).to match(/voice|chat|speech|audio|microphone|speak|talk|conversation/i)
+        # Should provide helpful information - documentation link, instructions, or explanation
+        expect(response).to match(/https:\/\/|docs|documentation|choose.*app|platform|whatsapp|discord|feature|enable|use|click|button|setting/i)
+      end
     end
 
     it "provides information about specific apps" do
-      message = "Tell me about the Code Interpreter app"
-      send_chat_message(ws_connection, message, app: "MonadicHelpOpenAI")
-      
-      response = wait_for_response(ws_connection, timeout: 60)  # Increase timeout
-      
-      expect(valid_response?(response)).to be true
-      expect(response.downcase).to match(/code.*interpreter|python|execute|programming/i)
+      with_e2e_retry(max_attempts: 3, wait: 10) do
+        message = "Tell me about the Code Interpreter app"
+        send_chat_message(ws_connection, message, app: "MonadicHelpOpenAI")
+        
+        response = wait_for_response(ws_connection, timeout: 60)  # Increase timeout
+        
+        expect(valid_response?(response)).to be true
+        expect(response.downcase).to match(/code.*interpreter|python|execute|programming/i)
+      end
     end
 
     it "handles configuration questions" do

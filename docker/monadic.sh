@@ -933,7 +933,7 @@ build_user_containers)
   fi
   ;;
 build_ollama_container)
-  ensure_data_dir "" &&
+  ensure_data_dir "ollama" &&
 
   while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}

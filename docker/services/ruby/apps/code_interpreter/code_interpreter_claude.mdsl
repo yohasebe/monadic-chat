@@ -7,7 +7,7 @@ app "CodeInterpreterClaude" do
 
   display_name "Code Interpreter"
 
-  include_modules "WebSearchAgent"
+  include_modules "WebSearchAgent", "MonadicHelper"
 
   llm do
     provider "anthropic"

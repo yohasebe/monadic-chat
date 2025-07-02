@@ -185,7 +185,7 @@ case "$TEST_TARGET" in
     ;;
   "code_interpreter")
     echo "Running Code Interpreter tests..."
-    bundle exec rspec spec/e2e/code_interpreter_workflow_spec.rb spec/e2e/code_interpreter_multi_provider_spec.rb --format documentation --no-fail-fast
+    bundle exec rspec spec/e2e/code_interpreter_spec.rb --format documentation --no-fail-fast
     ;;
   "code_interpreter_provider")
     if [ -z "$TEST_PROVIDER" ]; then
@@ -193,7 +193,36 @@ case "$TEST_TARGET" in
       exit 1
     fi
     echo "Running Code Interpreter tests for provider: $TEST_PROVIDER"
-    bundle exec rspec spec/e2e/code_interpreter_multi_provider_spec.rb --format documentation --no-fail-fast -e "$TEST_PROVIDER Provider"
+    # Convert provider name to proper case
+    case "$TEST_PROVIDER" in
+      "openai")
+        PROVIDER_NAME="OpenAI"
+        ;;
+      "claude")
+        PROVIDER_NAME="Claude"
+        ;;
+      "gemini")
+        PROVIDER_NAME="Gemini"
+        ;;
+      "grok")
+        PROVIDER_NAME="Grok"
+        ;;
+      "mistral")
+        PROVIDER_NAME="Mistral"
+        ;;
+      "cohere")
+        PROVIDER_NAME="Cohere"
+        ;;
+      "deepseek")
+        PROVIDER_NAME="DeepSeek"
+        ;;
+      *)
+        # Fallback: capitalize first letter
+        PROVIDER_NAME=$(echo "$TEST_PROVIDER" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+        ;;
+    esac
+    echo "Looking for test pattern: '$PROVIDER_NAME Provider'"
+    bundle exec rspec spec/e2e/code_interpreter_spec.rb --format documentation --no-fail-fast --example "$PROVIDER_NAME Provider"
     ;;
   "image_generator")
     echo "Running Image Generator tests only..."
@@ -225,7 +254,7 @@ case "$TEST_TARGET" in
     ;;
   "voice_chat")
     echo "Running Voice Chat tests only..."
-    bundle exec rspec spec/e2e/voice_chat_workflow_no_mock_spec.rb spec/e2e/voice_chat_real_audio_spec.rb --format documentation --no-fail-fast
+    bundle exec rspec spec/e2e/voice_chat_real_audio_spec.rb --format documentation --no-fail-fast
     ;;
   "content_reader")
     echo "Running Content Reader tests only..."
@@ -243,6 +272,14 @@ case "$TEST_TARGET" in
     echo "Running Jupyter Notebook tests only..."
     bundle exec rspec spec/e2e/jupyter_notebook_workflow_spec.rb --format documentation --no-fail-fast
     ;;
+  "chat_export_import")
+    echo "Running Chat Export/Import tests only..."
+    bundle exec rspec spec/e2e/chat_export_import_spec.rb --format documentation --no-fail-fast
+    ;;
+  "chat_plus_monadic_test")
+    echo "Running Chat Plus Monadic tests only..."
+    bundle exec rspec spec/e2e/chat_plus_monadic_test_spec.rb --format documentation --no-fail-fast
+    ;;
   *)
     echo "Running all E2E tests..."
     bundle exec rspec spec/e2e --format documentation --no-fail-fast
@@ -254,7 +291,10 @@ if [ ! -z "$SERVER_PID" ]; then
   echo ""
   echo "Stopping test server..."
   kill $SERVER_PID 2>/dev/null || true
-  wait $SERVER_PID 2>/dev/null || true
+  # Give the server a moment to stop gracefully
+  sleep 2
+  # Force kill if still running
+  kill -9 $SERVER_PID 2>/dev/null || true
   echo "Server stopped"
 fi
 

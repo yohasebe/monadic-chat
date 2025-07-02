@@ -365,7 +365,7 @@ module GrokHelper
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
-      body["tool_choice"] = "auto"
+      # Don't add tool_choice when role is "tool" - tools aren't included in these requests
     end
 
     last_text = context.last["text"]

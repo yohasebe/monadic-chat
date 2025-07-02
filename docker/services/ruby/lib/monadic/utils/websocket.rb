@@ -38,9 +38,13 @@ module WebSocketHelper
     
     connections_copy.each do |ws|
       begin
-        ws.send(message) if ws && !ws.closed?
+        # Check if WebSocket is open (Faye::WebSocket uses ready_state)
+        if ws && ws.ready_state == Faye::WebSocket::OPEN
+          ws.send(message)
+        end
       rescue => e
-        # Remove dead connections (thread-safe)
+        # Log WebSocket send error and remove dead connection
+        puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
         remove_connection(ws)
       end
     end
@@ -71,7 +75,11 @@ module WebSocketHelper
         # Store for later use in check_past_messages
         Thread.current[:token_count_result] = result
       rescue => e
-        # Silently handle token counting errors
+        # Log token counting errors for debugging
+        if defined?(logger) && logger && CONFIG["EXTRA_LOGGING"]
+          logger.warn "Token counting error: #{e.message}"
+        end
+        # Continue without blocking the operation
       ensure
         Thread.current[:token_count_in_progress] = false
       end
@@ -1155,9 +1163,15 @@ module WebSocketHelper
                   end
                 end
               rescue Timeout::Error
-                # Silently continue without precounted tokens
+                # Log timeout and continue without precounted tokens
+                if defined?(logger) && logger && CONFIG["EXTRA_LOGGING"]
+                  logger.warn "Token counting timeout - continuing without precount"
+                end
               rescue => e
-                # Silently handle errors
+                # Log error but continue operation
+                if defined?(logger) && logger && CONFIG["EXTRA_LOGGING"]
+                  logger.warn "Token counting error in WebSocket handler: #{e.message}"
+                end
               end
             end
             

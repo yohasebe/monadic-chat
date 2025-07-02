@@ -947,8 +947,8 @@ module OpenAIHelper
           end
         end
         
-        # Add custom function tools if available and not using websearch-only mode
-        if body["tools"] && !body["tools"].empty? && !obj["use_responses_api_for_websearch"]
+        # Add custom function tools if available
+        if body["tools"] && !body["tools"].empty?
           # Convert function tools to Responses API format
           # Responses API expects a flat structure for functions
           function_tools = body["tools"].map do |tool|

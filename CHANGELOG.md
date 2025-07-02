@@ -1,4 +1,12 @@
 - [June, 2025] 1.0.0-beta.2
+  - **Security**: Path traversal protection for file operations
+    - Validates file paths are within allowed directories
+    - Prevents symlink-based attacks with `File.realpath`
+    - Proper shell escaping for command execution
+  - **Bug Fixes**: Provider-specific issues resolved
+    - OpenAI Responses API: Fixed hash initialization for tool calls
+    - Gemini: Fixed tool response role (user vs model)
+    - DeepSeek: Added support for text-based function calls
   - **Gemini Native Search**: Google Gemini now uses native search API
     - No additional API key required for web search with Gemini
   - **Gemini Model Updates**: Standardized default models across all Gemini apps

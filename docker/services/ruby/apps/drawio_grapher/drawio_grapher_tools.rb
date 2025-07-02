@@ -38,10 +38,7 @@ module DrawIOGrapher
     
     # Debug information for troubleshooting (enabled via environment variable)
     if ENV['DRAWIO_DEBUG']
-      puts "[DEBUG] DrawIOGrapher: in_container=#{Monadic::Utils::Environment.in_container?}"
-      puts "[DEBUG] DrawIOGrapher: data_dir=#{data_dir}"
-      puts "[DEBUG] DrawIOGrapher: filepath=#{filepath}"
-      puts "[DEBUG] DrawIOGrapher: directory exists=#{File.directory?(data_dir)}"
+      # Debug information available with ENV['DRAWIO_DEBUG']
     end
     
     # Validate and repair XML content

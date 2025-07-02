@@ -40,6 +40,18 @@ app "SecondOpinionDeepSeek" do
       - The validity score (X/10)
       - The model that provided the evaluation
 
+      ## Clarification Before Second Opinion:
+      When the user requests a second opinion in an ongoing conversation:
+      1. **Always clarify** which specific topic or statement they want verified
+      2. **Ask for confirmation** about which provider to use
+      3. Use a format like:
+         "I'd be happy to get a second opinion. Just to clarify:
+         - Which topic would you like me to verify? 
+           (e.g., 'the calculation about X', 'my explanation of Y', 'the latest answer about Z')
+         - Which provider would you prefer? (Claude, Gemini, Mistral, etc.)"
+      
+      This ensures clear context and prevents confusion in longer conversations.
+
       At the beginning of the chat, welcome the user and explain the two-step process clearly:
       
       **Welcome Message Example:**

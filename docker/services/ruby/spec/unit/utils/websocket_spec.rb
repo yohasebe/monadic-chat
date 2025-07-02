@@ -6,6 +6,12 @@ require 'ostruct'
 require_relative '../../../lib/monadic/utils/websocket'
 
 RSpec.describe WebSocketHelper do
+  # Helper method to get connections safely
+  def get_connections_safely
+    mutex = described_class.class_variable_get(:@@ws_mutex)
+    mutex.synchronize { described_class.class_variable_get(:@@ws_connections).dup }
+  end
+  
   # Mock WebSocket class for testing
   class MockWebSocket
     attr_reader :messages_sent, :closed
@@ -43,8 +49,11 @@ RSpec.describe WebSocketHelper do
   let(:app) { TestWebSocketApp.new }
   
   before do
-    # Clear connections before each test
-    described_class.class_variable_set(:@@ws_connections, [])
+    # Clear connections before each test with thread safety
+    mutex = described_class.class_variable_get(:@@ws_mutex)
+    mutex.synchronize do
+      described_class.class_variable_set(:@@ws_connections, [])
+    end
   end
   
   describe '.add_connection' do
@@ -53,7 +62,7 @@ RSpec.describe WebSocketHelper do
       
       described_class.add_connection(ws)
       
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).to include(ws)
     end
     
@@ -63,7 +72,7 @@ RSpec.describe WebSocketHelper do
       described_class.add_connection(ws)
       described_class.add_connection(ws)
       
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections.count(ws)).to eq(1)
     end
     
@@ -74,7 +83,7 @@ RSpec.describe WebSocketHelper do
       described_class.add_connection(ws1)
       described_class.add_connection(ws2)
       
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).to contain_exactly(ws1, ws2)
     end
   end
@@ -86,7 +95,7 @@ RSpec.describe WebSocketHelper do
       
       described_class.remove_connection(ws)
       
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).not_to include(ws)
     end
     
@@ -123,7 +132,7 @@ RSpec.describe WebSocketHelper do
       
       # The implementation doesn't remove closed connections unless they raise an exception
       # So we expect both connections to still be in the list
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).to include(ws_good, ws_dead)
       
       # But only the good connection should have received the message
@@ -291,7 +300,7 @@ RSpec.describe WebSocketHelper do
       
       threads.each(&:join)
       
-      stored_connections = described_class.class_variable_get(:@@ws_connections)
+      stored_connections = get_connections_safely
       expect(stored_connections.length).to eq(10)
     end
     
@@ -331,7 +340,7 @@ RSpec.describe WebSocketHelper do
       described_class.broadcast_mcp_status({ test: true })
       
       # Check final state
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).to contain_exactly(ws1, ws3)
       expect(ws1.messages_sent.length).to eq(1)
       expect(ws3.messages_sent.length).to eq(1)
@@ -346,7 +355,7 @@ RSpec.describe WebSocketHelper do
       # Test the class method directly
       described_class.add_connection(ws)
       
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).to include(ws)
     end
     
@@ -401,7 +410,7 @@ RSpec.describe WebSocketHelper do
       described_class.broadcast_mcp_status({ test: true })
       
       # Connection should remain in list unless it raises an exception
-      connections = described_class.class_variable_get(:@@ws_connections)
+      connections = get_connections_safely
       expect(connections).to include(ws)
     end
     

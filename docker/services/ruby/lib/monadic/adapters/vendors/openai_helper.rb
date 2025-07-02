@@ -786,8 +786,9 @@ module OpenAIHelper
           next
         end
         
-        # Responses API uses input_text for all text content in the input array
-        text_type = "input_text"
+        # Responses API uses specific text types based on role
+        # System and user messages use "text", assistant messages use "output_text"
+        text_type = (role == "assistant") ? "output_text" : "text"
         
         # Handle messages with complex content (text + images)
         if content.is_a?(Array)
@@ -1565,8 +1566,28 @@ module OpenAIHelper
               # New output item added
               item = json["item"]
               if item && item["type"] == "function_call"
+                # Store the function name and ID for later use
+                item_id = item["id"]
+                if item_id
+                  tools[item_id] ||= {}
+                  tools[item_id]["name"] = item["name"] if item["name"]
+                  tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
+                end
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
+              end
+              
+            when "response.output_item.done"
+              # Output item completed
+              item = json["item"]
+              if item && item["type"] == "function_call"
+                item_id = item["id"]
+                if item_id && tools[item_id]
+                  # Update with final data
+                  tools[item_id]["name"] = item["name"] if item["name"]
+                  tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
+                  tools[item_id]["completed"] = true
+                end
               end
               
             when "response.function_call_arguments.delta", "response.function_call.arguments.delta"

@@ -600,13 +600,25 @@ def fetch_file(file_name)
   datadir = Monadic::Utils::Environment.data_path
   file_path = File.join(datadir, safe_name)
   
-  # Ensure the resolved path is within the data directory
-  real_path = File.expand_path(file_path)
-  real_datadir = File.expand_path(datadir)
-  
-  if real_path.start_with?(real_datadir) && File.exist?(file_path)
-    send_file file_path
-  else
+  begin
+    # Resolve real paths to handle symlinks
+    real_path = File.realpath(file_path) if File.exist?(file_path)
+    real_datadir = File.realpath(datadir)
+    
+    # Ensure proper directory separator
+    real_datadir_with_sep = real_datadir.end_with?(File::SEPARATOR) ? 
+                           real_datadir : 
+                           real_datadir + File::SEPARATOR
+    
+    if real_path && real_path.start_with?(real_datadir_with_sep) && File.exist?(file_path)
+      send_file file_path
+    else
+      status 404
+      "Sorry, the file you are looking for is unavailable."
+    end
+  rescue StandardError => e
+    puts "File fetch error: #{e.message}" if ENV["DEBUG"]
+    status 404
     "Sorry, the file you are looking for is unavailable."
   end
 end

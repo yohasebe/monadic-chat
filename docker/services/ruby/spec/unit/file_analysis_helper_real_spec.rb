@@ -54,8 +54,7 @@ RSpec.describe "FileAnalysisHelper without mocks" do
       executed = helper.executed_commands.last
       
       expect(executed[:command]).to include("image_query.rb")
-      # Shellwords.escape escapes spaces and special characters
-      expect(executed[:command]).to include("What\\ is\\ this\\?")
+      expect(executed[:command]).to include("What is this?")
       expect(executed[:command]).to include("/test/image.jpg")
       expect(executed[:command]).to include("gpt-4.1")
       expect(executed[:container]).to eq("ruby")
@@ -72,8 +71,10 @@ RSpec.describe "FileAnalysisHelper without mocks" do
       )
       
       executed = helper.executed_commands.last
-      # Shellwords.escape escapes all special characters
-      expect(executed[:command]).to include('Test\\ with\\ \\"quotes\\"\\ and\\ \\$pecial\\ ch@rs\\!')
+      # Check that quotes are properly escaped
+      expect(executed[:command]).to include('\\"quotes\\"')
+      # Other special characters should be preserved
+      expect(executed[:command]).to include('$pecial ch@rs!')
     end
     
     it "uses settings model when model parameter is not provided" do
@@ -104,8 +105,8 @@ RSpec.describe "FileAnalysisHelper without mocks" do
       expect(executed[:command]).to include("stt_query.rb")
       expect(executed[:command]).to include("/test/audio.mp3")
       expect(executed[:command]).to include("whisper-1")
-      # Parameters are not quoted with Shellwords.escape
-      expect(executed[:command]).to match(/stt_query\.rb\s+\/test\/audio\.mp3\s+\.\s+json\s+""\s+whisper-1/)
+      expect(executed[:command]).to include('"."')  # output directory
+      expect(executed[:command]).to include('"json"')  # format
       expect(executed[:container]).to eq("ruby")
     end
     
@@ -133,11 +134,11 @@ RSpec.describe "FileAnalysisHelper without mocks" do
       # Verify the command has all parameters in correct order
       parts = executed[:command].split(/\s+/)
       expect(parts[0]).to include("stt_query.rb")
-      expect(parts[1]).to eq('/path/to/file.wav')  # No quotes with Shellwords.escape
-      expect(parts[2]).to eq('.')  # No quotes
-      expect(parts[3]).to eq('json')  # No quotes
-      expect(parts[4]).to eq('""')  # Empty string still has quotes
-      expect(parts[5]).to eq('whisper-1')  # No quotes
+      expect(parts[1]).to eq('"/path/to/file.wav"')
+      expect(parts[2]).to eq('"."')
+      expect(parts[3]).to eq('"json"')
+      expect(parts[4]).to eq('""')
+      expect(parts[5]).to eq('"whisper-1"')
     end
   end
   

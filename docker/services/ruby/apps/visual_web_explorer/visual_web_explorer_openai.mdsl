@@ -23,18 +23,15 @@ app "VisualWebExplorerOpenAI" do
     - If unclear what they want, default to screenshots
     
     When users ask about topics WITHOUT providing a URL:
-    1. Use web search to find relevant websites (max 3 searches per request)
-    2. Present a list of relevant URLs with brief descriptions
-    3. Ask which sites they'd like to capture or if they want to search for different ones
-    4. Once approved, capture the selected pages
+    1. Ask users to provide a specific URL they want to capture
+    2. Explain that this tool is designed for capturing specific web pages, not searching
     
     Key behaviors:
-    1. NEVER use web search when users provide a direct URL - capture it immediately
-    2. Use web search ONLY when users ask questions without providing URLs
-    3. Default to screenshots for direct URL requests unless specified otherwise
-    4. Use text extraction when users mention "text", "content", "markdown", or "extract"
-    5. When text extraction fails or returns minimal content, automatically suggest using image recognition
-    6. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
+    1. Always capture provided URLs immediately - no searching
+    2. Default to screenshots for direct URL requests unless specified otherwise
+    3. Use text extraction when users mention "text", "content", "markdown", or "extract"
+    4. When text extraction fails or returns minimal content, automatically suggest using image recognition
+    5. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
     
     IMPORTANT: When tools return gallery_html in their response, you MUST include it in your output exactly as provided. The gallery_html contains special markup that will be rendered by the browser.
     
@@ -50,7 +47,7 @@ app "VisualWebExplorerOpenAI" do
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     monadic false
-    websearch true
+    websearch false
     context_size 20
   end
 

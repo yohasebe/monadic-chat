@@ -31,7 +31,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
       provider: "Claude", 
       enabled: -> { CONFIG["ANTHROPIC_API_KEY"] },
       model: "claude-sonnet-4-20250514",
-      timeout: 90,
+      timeout: 120,
       max_tokens: 4096
     },
     {
@@ -256,7 +256,7 @@ RSpec.describe "Code Interpreter E2E Workflow", type: :e2e do
             if config[:skip_activation]
               send_chat_message(ws_connection, message, app: config[:app], model: config[:model], max_tokens: config[:max_tokens])
             else
-              response = activate_app_and_get_greeting(config[:app], ws_connection, model: config[:model], max_tokens: config[:max_tokens])
+              response = activate_app_and_get_greeting(config[:app], ws_connection, model: config[:model], max_tokens: config[:max_tokens], timeout: config[:timeout])
               expect(response).not_to be_empty
               
               ws_connection[:messages].clear

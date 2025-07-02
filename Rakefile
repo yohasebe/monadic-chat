@@ -1086,6 +1086,20 @@ namespace :spec_e2e do
       sh "./spec/e2e/run_e2e_tests.sh jupyter_notebook"
     end
   end
+  
+  desc "Run E2E tests for Chat Export/Import functionality"
+  task :chat_export_import do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh chat_export_import"
+    end
+  end
+  
+  desc "Run E2E tests for Chat Plus Monadic functionality"
+  task :chat_plus_monadic_test do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh chat_plus_monadic_test"
+    end
+  end
 end
 
 # Test JavaScript code with Jest

@@ -20,7 +20,16 @@ RSpec.describe "Vendor Helper Consistency" do
       
       if File.exist?(helper_path)
         require_relative helper_path
-        Object.const_get(helper.split('_').map(&:capitalize).join)
+        # Special cases for modules with non-standard capitalization
+        module_name = case helper
+        when 'openai_helper'
+          'OpenAIHelper'
+        when 'deepseek_helper'
+          'DeepSeekHelper'
+        else
+          helper.split('_').map(&:capitalize).join
+        end
+        Object.const_get(module_name)
       end
     end.compact
   end

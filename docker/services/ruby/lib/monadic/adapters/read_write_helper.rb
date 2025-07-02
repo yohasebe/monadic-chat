@@ -1,6 +1,34 @@
+require 'shellwords'
+
 module MonadicHelper
+  # Validate file path is within allowed directories
+  def validate_file_path(file_path)
+    return nil if file_path.nil? || file_path.empty?
+    
+    # Get the data directory path
+    data_dir = Monadic::Utils::Environment.data_path
+    
+    # Expand paths to handle relative paths and symlinks
+    begin
+      real_file = File.expand_path(file_path)
+      real_data_dir = File.expand_path(data_dir)
+      
+      # Check if file is within data directory
+      if real_file.start_with?(real_data_dir)
+        return file_path
+      else
+        return nil
+      end
+    rescue
+      return nil
+    end
+  end
+  
   def fetch_text_from_office(file: "")
-    command = "office2txt.py \"#{file}\""
+    # Validate file path to prevent directory traversal
+    return "Error: Invalid file path" unless validate_file_path(file)
+    
+    command = "office2txt.py #{Shellwords.escape(file)}"
     res = send_command(command: command, container: "python")
     
     if res.to_s == ""
@@ -15,7 +43,10 @@ module MonadicHelper
   end
 
   def fetch_text_from_pdf(pdf: "")
-    command = "pdf2txt.py \"#{pdf}\" --format md --all-pages"
+    # Validate file path to prevent directory traversal
+    return "Error: Invalid file path" unless validate_file_path(pdf)
+    
+    command = "pdf2txt.py #{Shellwords.escape(pdf)} --format md --all-pages"
     res = send_command(command: command, container: "python")
     
     if res.to_s == ""
@@ -30,7 +61,10 @@ module MonadicHelper
   end
 
   def fetch_text_from_file(file: "")
-    command = "content_fetcher.rb \"#{file}\""
+    # Validate file path to prevent directory traversal
+    return "Error: Invalid file path" unless validate_file_path(file)
+    
+    command = "content_fetcher.rb #{Shellwords.escape(file)}"
     res = send_command(command: command, container: "ruby")
     
     if res.to_s == ""
@@ -45,6 +79,10 @@ module MonadicHelper
   end
 
   def write_to_file(filename:, extension:, text:)
+    # Sanitize filename and extension to prevent directory traversal
+    safe_filename = File.basename(filename)
+    safe_extension = extension.gsub(/[^a-zA-Z0-9]/, '')
+    
     if Monadic::Utils::Environment.in_container?
       data_dir = MonadicApp::SHARED_VOL
     else
@@ -52,7 +90,7 @@ module MonadicHelper
     end
 
     container = "monadic-chat-python-container"
-    filepath = File.join(data_dir, "#{filename}.#{extension}")
+    filepath = File.join(data_dir, "#{safe_filename}.#{safe_extension}")
 
     # create a temporary file inside the data directory
     begin

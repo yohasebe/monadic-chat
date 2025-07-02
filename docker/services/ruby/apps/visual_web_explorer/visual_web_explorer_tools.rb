@@ -1,5 +1,3 @@
-require 'shellwords'
-
 module VisualWebExplorerTools
   
   # Track screenshots for the current session
@@ -13,7 +11,7 @@ module VisualWebExplorerTools
       return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
     end
     
-    # Build command with URL
+    # Build command
     cmd_parts = ["viewport_capturer.py", url]
     
     # Apply preset or custom dimensions
@@ -261,9 +259,7 @@ module VisualWebExplorerTools
       end
     else
       # Use webpage_fetcher.py for direct text extraction
-      # Properly escape the URL for shell command
-      escaped_url = Shellwords.escape(url)
-      command = "webpage_fetcher.py --url #{escaped_url} --mode md --output stdout"
+      command = "webpage_fetcher.py --url \"#{url}\" --mode md --output stdout"
       output = send_command(command: command, container: "python")
       
       # Check if successful

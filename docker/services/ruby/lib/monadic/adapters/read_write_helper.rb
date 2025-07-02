@@ -8,18 +8,42 @@ module MonadicHelper
     # Get the data directory path
     data_dir = Monadic::Utils::Environment.data_path
     
-    # Expand paths to handle relative paths and symlinks
     begin
-      real_file = File.expand_path(file_path)
-      real_data_dir = File.expand_path(data_dir)
+      # Normalize and expand paths
+      expanded_file = File.expand_path(file_path)
+      expanded_data_dir = File.expand_path(data_dir)
+      
+      # If file exists, resolve symlinks with realpath
+      if File.exist?(expanded_file)
+        real_file = File.realpath(expanded_file)
+        real_data_dir = File.realpath(expanded_data_dir)
+      else
+        # File doesn't exist yet, check the directory path
+        dir_path = File.dirname(expanded_file)
+        if File.exist?(dir_path)
+          real_file = File.join(File.realpath(dir_path), File.basename(expanded_file))
+          real_data_dir = File.realpath(expanded_data_dir)
+        else
+          # Neither file nor directory exists, use expanded paths
+          real_file = expanded_file
+          real_data_dir = expanded_data_dir
+        end
+      end
+      
+      # Ensure proper directory separator at the end of data_dir
+      real_data_dir_with_sep = real_data_dir.end_with?(File::SEPARATOR) ? 
+                               real_data_dir : 
+                               real_data_dir + File::SEPARATOR
       
       # Check if file is within data directory
-      if real_file.start_with?(real_data_dir)
+      if real_file.start_with?(real_data_dir_with_sep)
         return file_path
       else
         return nil
       end
-    rescue
+    rescue StandardError => e
+      # Log error for debugging but don't expose details to user
+      puts "Path validation error: #{e.message}" if ENV["DEBUG"]
       return nil
     end
   end

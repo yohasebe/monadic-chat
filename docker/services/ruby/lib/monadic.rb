@@ -594,9 +594,17 @@ get "/" do
 end
 
 def fetch_file(file_name)
+  # Prevent path traversal attacks by sanitizing the filename
+  safe_name = File.basename(file_name)
+  
   datadir = Monadic::Utils::Environment.data_path
-  file_path = File.join(datadir, file_name)
-  if File.exist?(file_path)
+  file_path = File.join(datadir, safe_name)
+  
+  # Ensure the resolved path is within the data directory
+  real_path = File.expand_path(file_path)
+  real_datadir = File.expand_path(datadir)
+  
+  if real_path.start_with?(real_datadir) && File.exist?(file_path)
     send_file file_path
   else
     "Sorry, the file you are looking for is unavailable."

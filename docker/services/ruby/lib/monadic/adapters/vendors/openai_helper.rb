@@ -1890,6 +1890,31 @@ module OpenAIHelper
         response["choices"][0]["message"]["reasoning_content"] = reasoning_content
       end
       
+      # Apply monadic transformation if needed
+      if obj["monadic"] && (finish_reason == "stop" || finish_reason == "length")
+        choice = response["choices"][0]
+        message = choice["message"]["content"]
+        
+        # Process and validate the monadic response
+        processed = begin
+          # First, apply monadic transformation
+          transformed = process_monadic_response(message, app)
+          # Then validate the response
+          validated = validate_monadic_response!(transformed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+          validated
+        rescue => e
+          DebugHelper.debug("Monadic processing error in Responses API: #{e.message}", category: :api, level: :error)
+          # Fall back to original content if processing fails
+          message
+        end
+        
+        # Update the choice with processed content
+        if processed.is_a?(Hash)
+          choice["message"]["content"] = processed["message"] || JSON.generate(processed)
+        else
+          choice["message"]["content"] = processed
+        end
+      end
       
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" })
       [response]

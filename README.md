@@ -1,6 +1,24 @@
-<div id="monadic-chat"><img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-logo.png" width="600px"/></div>
-
-<div><img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/basic-architecture.png" width="800px"/></div>
+<div align="center">
+  
+  <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-logo.png" width="700px" alt="Monadic Chat Logo">
+  
+  [![Release](https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge)](https://github.com/yohasebe/monadic-chat/releases)
+  [![License](https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge)](LICENSE)
+  [![Tests](https://img.shields.io/badge/tests-1036_passing-success?style=for-the-badge)](https://yohasebe.github.io/monadic-chat/#/developer/testing_guide)
+  
+  ---
+  
+  **🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat)
+  
+  **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · Perplexity · xAI · DeepSeek · Ollama
+  
+  **🛠 Built with** · Ruby · Electron · Docker · PostgreSQL · WebSocket
+  
+  ---
+  
+  <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/basic-architecture.png" width="800px" alt="Monadic Chat Architecture">
+  
+</div>
 
 ## Overview
 

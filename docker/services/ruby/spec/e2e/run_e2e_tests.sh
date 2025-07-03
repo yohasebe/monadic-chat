@@ -5,6 +5,59 @@
 
 set -e
 
+# Track which containers we started
+STARTED_CONTAINERS=()
+# Initialize variables
+NEED_TO_RESTART_CONTAINER=false
+SERVER_PID=""
+
+# Cleanup function
+cleanup() {
+  local exit_code=$?
+  
+  # Cleanup server if we started it
+  if [ ! -z "$SERVER_PID" ]; then
+    echo ""
+    echo "Stopping test server..."
+    kill $SERVER_PID 2>/dev/null || true
+    sleep 2
+    kill -9 $SERVER_PID 2>/dev/null || true
+    echo "Server stopped"
+  fi
+  
+  # Restart Ruby container if we stopped it
+  if [ "$NEED_TO_RESTART_CONTAINER" = true ]; then
+    echo "Restarting Ruby container..."
+    docker start monadic-chat-ruby-container > /dev/null 2>&1 || true
+    echo "Ruby container restarted"
+  fi
+  
+  # Optional: Stop containers we started
+  if [ "${STOP_CONTAINERS_AFTER_TESTS}" = "true" ] && [ ${#STARTED_CONTAINERS[@]} -gt 0 ]; then
+    echo ""
+    echo "Stopping containers that were started for tests..."
+    for container in "${STARTED_CONTAINERS[@]}"; do
+      case $container in
+        "python")
+          docker stop monadic-chat-python-container > /dev/null 2>&1 || true
+          ;;
+        "pgvector")
+          docker stop monadic-chat-pgvector-container > /dev/null 2>&1 || true
+          ;;
+        "selenium")
+          docker stop monadic-chat-selenium-container > /dev/null 2>&1 || true
+          ;;
+      esac
+    done
+    echo "Containers stopped"
+  fi
+  
+  exit $exit_code
+}
+
+# Set up trap for cleanup on exit
+trap cleanup EXIT INT TERM
+
 # Get the absolute path to the project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # From docker/services/ruby/spec/e2e/ we need to go up 5 levels to reach project root
@@ -25,9 +78,8 @@ echo "=============="
 
 # Check if Docker containers are running
 echo "1. Checking Docker containers..."
-# For Code Interpreter tests, we only need Python container
-# pgvector is optional (needed for PDF Navigator and Monadic Help)
-CONTAINERS_NEEDED=("python")
+# E2E tests need all containers except Ruby (which runs locally)
+CONTAINERS_NEEDED=("python" "pgvector" "selenium")
 MISSING_CONTAINERS=()
 
 for container in "${CONTAINERS_NEEDED[@]}"; do
@@ -47,21 +99,119 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
   
   # Only start the specific containers we need
   echo "   Starting required containers..."
+  
+  # Get compose file paths
+  COMPOSE_FILE="$PROJECT_ROOT/docker/services/compose.yml"
+  PROJECT_DIR="$PROJECT_ROOT/docker"
+  
   for container in "${MISSING_CONTAINERS[@]}"; do
     case $container in
       "python")
-        docker start monadic-chat-python-container 2>/dev/null || \
-          docker run -d --name monadic-chat-python-container \
-            --network monadic-chat-network \
-            -v ~/monadic/data:/monadic/data \
-            yohasebe/python
+        echo "   Starting python container..."
+        # Try to start existing container first
+        if docker start monadic-chat-python-container 2>/dev/null; then
+          echo "   ✓ Started existing python container"
+          STARTED_CONTAINERS+=("python")
+        else
+          # If container doesn't exist, create it using docker compose
+          echo "   Creating new python container..."
+          if docker compose --project-directory "$PROJECT_DIR" -f "$COMPOSE_FILE" -p 'monadic-chat' up -d python_service; then
+            echo "   ✓ Created and started python container"
+            STARTED_CONTAINERS+=("python")
+          else
+            echo "   ✗ Failed to start python container"
+            exit 1
+          fi
+        fi
+        ;;
+      "pgvector")
+        echo "   Starting pgvector container..."
+        # Try to start existing container first
+        if docker start monadic-chat-pgvector-container 2>/dev/null; then
+          echo "   ✓ Started existing pgvector container"
+          STARTED_CONTAINERS+=("pgvector")
+        else
+          # If container doesn't exist, create it using docker compose
+          echo "   Creating new pgvector container..."
+          if docker compose --project-directory "$PROJECT_DIR" -f "$COMPOSE_FILE" -p 'monadic-chat' up -d pgvector_service; then
+            echo "   ✓ Created and started pgvector container"
+            STARTED_CONTAINERS+=("pgvector")
+          else
+            echo "   ✗ Failed to start pgvector container"
+            exit 1
+          fi
+        fi
+        ;;
+      "selenium")
+        echo "   Starting selenium container..."
+        # Try to start existing container first
+        if docker start monadic-chat-selenium-container 2>/dev/null; then
+          echo "   ✓ Started existing selenium container"
+          STARTED_CONTAINERS+=("selenium")
+        else
+          # If container doesn't exist, create it using docker compose
+          echo "   Creating new selenium container..."
+          if docker compose --project-directory "$PROJECT_DIR" -f "$COMPOSE_FILE" -p 'monadic-chat' up -d selenium_service; then
+            echo "   ✓ Created and started selenium container"
+            STARTED_CONTAINERS+=("selenium")
+          else
+            echo "   ✗ Failed to start selenium container"
+            exit 1
+          fi
+        fi
         ;;
     esac
   done
   
   # Wait for containers to be ready
   echo "   Waiting for containers to be ready..."
-  sleep 5
+  
+  # Wait for pgvector PostgreSQL to be ready if it was started
+  if [[ " ${MISSING_CONTAINERS[@]} " =~ " pgvector " ]]; then
+    echo "   Waiting for PostgreSQL to be ready..."
+    max_attempts=30
+    attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+      if docker exec monadic-chat-pgvector-container pg_isready -U postgres > /dev/null 2>&1; then
+        echo "   ✓ PostgreSQL is ready!"
+        break
+      fi
+      attempt=$((attempt + 1))
+      if [ $attempt -eq $max_attempts ]; then
+        echo "   ✗ PostgreSQL did not become ready in time"
+        echo "   Note: PDF Navigator and Monadic Help tests may fail"
+      else
+        echo -n "."
+        sleep 1
+      fi
+    done
+    echo ""
+  fi
+  
+  # Wait for selenium to be ready if it was started
+  if [[ " ${MISSING_CONTAINERS[@]} " =~ " selenium " ]]; then
+    echo "   Waiting for Selenium to be ready..."
+    max_attempts=20
+    attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+      if curl -s http://localhost:4444/wd/hub/status > /dev/null 2>&1; then
+        echo "   ✓ Selenium is ready!"
+        break
+      fi
+      attempt=$((attempt + 1))
+      if [ $attempt -eq $max_attempts ]; then
+        echo "   ✗ Selenium did not become ready in time"
+        echo "   Note: Visual Web Explorer and Mermaid Grapher tests may fail"
+      else
+        echo -n "."
+        sleep 1
+      fi
+    done
+    echo ""
+  fi
+  
+  # General wait for other containers
+  sleep 2
   
   # Verify containers are now running
   echo "   Verifying container status..."
@@ -104,6 +254,15 @@ if curl -s http://localhost:4567/health > /dev/null 2>&1; then
   SERVER_PID=""
 else
   echo "   Starting local server..."
+  
+  # Load environment variables from config file if it exists
+  CONFIG_FILE="$HOME/monadic/config/env"
+  if [ -f "$CONFIG_FILE" ]; then
+    echo "   Loading configuration from $CONFIG_FILE..."
+    set -a  # automatically export all variables
+    source "$CONFIG_FILE"
+    set +a
+  fi
   
   # Start server in background (stay in docker/services/ruby)
   bundle exec rackup config.ru -p 4567 > /tmp/monadic_server.log 2>&1 &
@@ -286,24 +445,6 @@ case "$TEST_TARGET" in
     ;;
 esac
 
-# Cleanup
-if [ ! -z "$SERVER_PID" ]; then
-  echo ""
-  echo "Stopping test server..."
-  kill $SERVER_PID 2>/dev/null || true
-  # Give the server a moment to stop gracefully
-  sleep 2
-  # Force kill if still running
-  kill -9 $SERVER_PID 2>/dev/null || true
-  echo "Server stopped"
-fi
-
-# Restart Ruby container if we stopped it
-if [ "$NEED_TO_RESTART_CONTAINER" = true ]; then
-  echo "Restarting Ruby container..."
-  docker start monadic-chat-ruby-container > /dev/null 2>&1 || true
-  echo "Ruby container restarted"
-fi
-
 echo ""
 echo "E2E tests completed!"
+# Cleanup will be handled by the trap function

@@ -79,7 +79,12 @@ Dotenv.load(envpath)
 include TavilyHelper
 
 # Connect to the database
-EMBEDDINGS_DB = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
+begin
+  EMBEDDINGS_DB = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
+rescue TextEmbeddings::DatabaseError => e
+  puts "[WARNING] Failed to initialize help embeddings database: #{e.message}"
+  EMBEDDINGS_DB = nil
+end
 
 DEFAULT_PROMPT_SUFFIX = <<~PROMPT
 When creating a numbered list in Markdown that contains code blocks or other content within list items, please follow these formatting rules:
@@ -576,6 +581,14 @@ configure do
   
   # Add MIME type for WebAssembly files
   mime_type :wasm, 'application/wasm'
+end
+
+# API endpoint to check environment settings
+get "/api/environment" do
+  content_type :json
+  {
+    has_tavily_key: !CONFIG["TAVILY_API_KEY"].to_s.empty?
+  }.to_json
 end
 
 # Accept requests from the client

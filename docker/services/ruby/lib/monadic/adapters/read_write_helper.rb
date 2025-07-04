@@ -1,4 +1,4 @@
-require 'shellwords'
+# Path validation helper for read/write operations
 
 module MonadicHelper
   # Validate file path is within allowed directories
@@ -52,7 +52,7 @@ module MonadicHelper
     # Validate file path to prevent directory traversal
     return "Error: Invalid file path" unless validate_file_path(file)
     
-    command = "office2txt.py #{Shellwords.escape(file)}"
+    command = "office2txt.py \"#{file}\""
     res = send_command(command: command, container: "python")
     
     if res.to_s == ""
@@ -70,7 +70,7 @@ module MonadicHelper
     # Validate file path to prevent directory traversal
     return "Error: Invalid file path" unless validate_file_path(pdf)
     
-    command = "pdf2txt.py #{Shellwords.escape(pdf)} --format md --all-pages"
+    command = "pdf2txt.py \"#{pdf}\" --format md --all-pages"
     res = send_command(command: command, container: "python")
     
     if res.to_s == ""
@@ -88,7 +88,7 @@ module MonadicHelper
     # Validate file path to prevent directory traversal
     return "Error: Invalid file path" unless validate_file_path(file)
     
-    command = "content_fetcher.rb #{Shellwords.escape(file)}"
+    command = "content_fetcher.rb \"#{file}\""
     res = send_command(command: command, container: "ruby")
     
     if res.to_s == ""
@@ -103,6 +103,11 @@ module MonadicHelper
   end
 
   def write_to_file(filename:, extension:, text:)
+    # Check for directory traversal attempts in filename
+    if filename.include?("/") || filename.include?("\\")
+      return "Error: Invalid filename - directory paths are not allowed"
+    end
+    
     # Sanitize filename and extension to prevent directory traversal
     safe_filename = File.basename(filename)
     safe_extension = extension.gsub(/[^a-zA-Z0-9]/, '')

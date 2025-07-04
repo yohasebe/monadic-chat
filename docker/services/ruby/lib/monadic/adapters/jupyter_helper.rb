@@ -288,6 +288,27 @@ module MonadicHelper
   
   public
   
+  # List all Jupyter notebooks in the data directory
+  def list_jupyter_notebooks
+    data_path = Monadic::Utils::Environment.data_path
+    notebooks = Dir.glob(File.join(data_path, "*.ipynb")).map do |path|
+      {
+        filename: File.basename(path, ".ipynb"),
+        path: path,
+        modified: File.mtime(path),
+        size: File.size(path)
+      }
+    end
+    
+    if notebooks.empty?
+      "No Jupyter notebooks found in the data directory."
+    else
+      notebooks.sort_by { |nb| nb[:modified] }.reverse.map do |nb|
+        "- #{nb[:filename]} (modified: #{nb[:modified].strftime('%Y-%m-%d %H:%M:%S')})"
+      end.join("\n")
+    end
+  end
+  
   # Delete a cell from notebook
   def delete_jupyter_cell(filename: "", index: 0)
     return "Error: Filename is required." if filename.empty?

@@ -393,8 +393,9 @@ module MistralHelper
           # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
           unless app.to_s.include?("ResearchAssistant")
             system_msg = context.first
-            if system_msg && system_msg["role"] == "system"
+            if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
               system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+              system_msg["websearch_added"] = true
               DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
             end
           end
@@ -411,8 +412,9 @@ module MistralHelper
         # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
         unless app.to_s.include?("ResearchAssistant")
           system_msg = context.first
-          if system_msg && system_msg["role"] == "system"
+          if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
             system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+            system_msg["websearch_added"] = true
             DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
           end
         end
@@ -425,8 +427,9 @@ module MistralHelper
       # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
       unless app.to_s.include?("ResearchAssistant")
         system_msg = context.first
-        if system_msg && system_msg["role"] == "system"
+        if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
           system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
+          system_msg["websearch_added"] = true
           DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
         end
       end
@@ -512,6 +515,14 @@ module MistralHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    # Log extra information if enabled
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("Processing Mistral query at #{Time.now} (Call depth: #{call_depth})")
+        log.puts(JSON.pretty_generate(body))
+      end
+    end
+
     begin
       res = http.timeout(connect: OPEN_TIMEOUT,
                         write: WRITE_TIMEOUT,
@@ -535,6 +546,15 @@ module MistralHelper
         res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
         block&.call res
         return [res]
+      end
+    end
+
+    # Log response status if extra logging is enabled
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("Response status: #{res.status}")
+        log.puts("Response headers: #{res.headers.to_h}")
+        log.puts("About to process streaming response...")
       end
     end
 
@@ -750,6 +770,7 @@ module MistralHelper
       end
 
       # Create assistant message with tool calls for Mistral's message ordering
+      # Note: Mistral requires content field even if empty for tool calls
       tool_calls_message = {
         "role" => "assistant",
         "content" => content_buffer,

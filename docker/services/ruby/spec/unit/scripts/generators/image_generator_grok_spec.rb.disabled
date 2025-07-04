@@ -6,18 +6,32 @@ require "tempfile"
 require "stringio"
 require "http"
 
-# Save and clear ARGV to prevent option parsing
-original_argv = ARGV.dup
-ARGV.clear
-ARGV.push("-p", "test") # Add required argument
+# Create a test environment that prevents script execution
+before(:all) do
+  # Mock the config file reading before loading the script
+  test_config_content = "XAI_API_KEY=test-key-12345\n"
+  allow(File).to receive(:read).and_call_original
+  allow(File).to receive(:read).with("/monadic/config/env").and_return(test_config_content)
+  allow(File).to receive(:read).with(/\/monadic\/config\/env$/).and_return(test_config_content)
+  
+  # Save and modify ARGV to prevent script execution
+  @original_argv = ARGV.dup
+  ARGV.clear
+  
+  # Prevent the script from executing by mocking exit
+  allow_any_instance_of(Object).to receive(:exit).and_return(nil)
+  allow_any_instance_of(Object).to receive(:puts).and_return(nil)
+  
+  # Now load the script - it will define the method but not execute
+  script_path = File.expand_path("../../../../scripts/generators/image_generator_grok.rb", __dir__)
+  load script_path, true  # Load in anonymous module to isolate
+end
 
-# Load the script
-script_path = File.expand_path("../../../../scripts/generators/image_generator_grok.rb", __dir__)
-load script_path
-
-# Restore ARGV
-ARGV.clear
-ARGV.concat(original_argv)
+after(:all) do
+  # Restore ARGV
+  ARGV.clear
+  ARGV.concat(@original_argv) if @original_argv
+end
 
 RSpec.describe "ImageGeneratorGrok" do
   let(:mock_api_key) { "test-xai-api-key-12345" }

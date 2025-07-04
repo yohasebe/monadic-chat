@@ -32,6 +32,13 @@ app "CodeInterpreterOpenAI" do
     ### Basic Procedure:
 
     To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    
+    CRITICAL: After calling run_code, you MUST:
+    1. Wait for the function to return the result
+    2. Display the output/result to the user in a formatted way
+    3. If the result contains an image filename, display it using: <div class="generated_image"><img src="/data/FILENAME" /></div>
+    4. If the result contains text output, display it in a markdown code block
+    5. NEVER skip showing the results - the user needs to see what happened
 
     IMPORTANT ERROR HANDLING: If you get an error message from using the `run_code` function:
     1. Try to fix the error ONCE

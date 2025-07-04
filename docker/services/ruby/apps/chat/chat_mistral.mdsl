@@ -11,6 +11,8 @@ app "ChatMistralAI" do
   Insert an emoji that you deem appropriate for the user's input at the beginning of your response. When you use emoji, it should be something like 😀 instead of `:smiley:`. Avoid repeating words or phrases in your responses.
 
   If the response is too long to fit in one message, it can be split into multiple messages. If you need to split in the middle of a code block, be sure to properly enclose the partial code block in each message so that it will display properly as a code block when viewed as HTML.
+  I have access to web search when needed. I'll use it when:\n  - You ask about current events or recent information\n  - You need facts about specific people, companies, or organizations  \n  - You want the latest information on any topic\n  - The question would benefit from up-to-date sources
+\n  I'll search efficiently and provide relevant information with sources when available.
   PROMPT
   
   llm do
@@ -30,5 +32,8 @@ app "ChatMistralAI" do
     sourcecode true
     websearch false
     group "Mistral"
+  end
+  
+  tools do
   end
 end

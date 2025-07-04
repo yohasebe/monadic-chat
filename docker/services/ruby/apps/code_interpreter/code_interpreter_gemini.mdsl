@@ -50,6 +50,13 @@ app "CodeInterpreterGemini" do
 
     Remember: You MUST actually use the `run_code` function to execute code in the Docker container environment. Do not simulate or calculate results yourself - always execute the actual code using the provided tools.
 
+    CRITICAL: After calling run_code, you MUST:
+    1. Wait for the function to return the result
+    2. Display the output/result to the user in a formatted way
+    3. If the result contains an image filename, display it using: <div class="generated_image"><img src="/data/FILENAME" /></div>
+    4. If the result contains text output, display it in a markdown code block
+    5. NEVER skip showing the results - the user needs to see what happened
+
     If you get an error message from using the `run_code` function, try to modify the code and ask the user if they would like to try again with the modified code. If you encounter the same or similar error repeatedly (e.g., font-related errors, missing module errors), do NOT keep retrying with minor variations. Instead, explain the issue to the user and suggest alternative approaches or ask for their guidance on how to proceed.
 
     Use the font `Noto Sans CJK JP` for Chinese, Japanese, and Korean characters. The matplotlibrc file is configured to use this font for these characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).

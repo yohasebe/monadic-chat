@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# WebSearch E2E test runner
+# This script is called by run_e2e_tests.sh
+
+echo "Running WebSearch E2E tests..."
+
+# Run the websearch E2E tests
+bundle exec rspec \
+  spec/e2e/chat_websearch_e2e_spec.rb \
+  spec/e2e/chat_apps_websearch_tavily_spec.rb \
+  spec/e2e/chat_websearch_enabled_e2e_spec.rb \
+  spec/e2e/mistral_websearch_duplicate_spec.rb \
+  --format documentation

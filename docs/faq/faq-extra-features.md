@@ -20,7 +20,7 @@
 
 ##### Q: Can I use web search capabilities in my conversations? :id=web-search-capabilities
 
-**A**: Yes, many of the apps in Monadic Chat support web search functionality through the `websearch` setting. When enabled (set to `true`), this allows the AI to search the web for current information to provide more accurate responses. Several providers offer native web search capabilities (OpenAI, Claude, Gemini, Grok, and Perplexity), while others (Mistral, Cohere, DeepSeek, Ollama) require the `TAVILY_API_KEY` to be configured to use Tavily's search API. The availability of native search may depend on specific models and settings. Note that reasoning models that don't support function calling will automatically switch to a search-capable model when web search is enabled.
+**A**: Yes, many of the apps in Monadic Chat support web search functionality through the `websearch` setting. In Chat apps, this feature is disabled by default to give users control over costs and privacy - you can enable it manually when you need current information. The web search functionality is now reliable and well-tested. Several providers offer native web search capabilities (OpenAI, Claude, Gemini, Grok, and Perplexity), while others (Mistral, Cohere, DeepSeek, Ollama) require the `TAVILY_API_KEY` to be configured to use Tavily's search API. The availability of native search may depend on specific models and settings. Note that reasoning models that don't support function calling will automatically switch to a search-capable model when web search is enabled.
 
 ---
 

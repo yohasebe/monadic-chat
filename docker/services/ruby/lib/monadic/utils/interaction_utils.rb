@@ -804,7 +804,7 @@ module InteractionUtils
         if res_json["failed_results"] && !res_json["failed_results"].empty?
           failed = res_json["failed_results"][0]
           puts "[DEBUG tavily_fetch] Failed result details: #{failed.inspect}"
-          return "ERROR: #{failed['error']} for URL: #{failed['url']}"
+          return { error: "Tavily fetch failed: #{failed['error']} for URL: #{failed['url']}" }
         end
         
         # Extract content from results array
@@ -817,13 +817,13 @@ module InteractionUtils
           
           if content.nil? || content.empty?
             puts "[DEBUG tavily_fetch] No content found in result. Available keys: #{result.keys}"
-            return "No content found"
+            return { error: "No content found in Tavily response" }
           end
           
           return content
         else
           puts "[DEBUG tavily_fetch] No results in response"
-          return "No content found"
+          return { error: "No results found in Tavily response" }
         end
       else
         # Parse the response body only once
@@ -834,18 +834,19 @@ module InteractionUtils
           res.body.to_s
         end
         puts "[DEBUG tavily_fetch] Error response: #{error_report}"
-        "ERROR: #{error_report}"
+        error_message = error_report.is_a?(Hash) ? (error_report["error"] || error_report["message"] || "Unknown error") : error_report.to_s
+        { error: "Tavily API error: #{error_message}" }
       end
     rescue HTTP::Error, HTTP::TimeoutError => e
       puts "[DEBUG tavily_fetch] Network error: #{e.class} - #{e.message}"
-      "Error occurred: #{e.message}"
+      { error: "Network error occurred: #{e.message}" }
     rescue JSON::ParserError => e
       puts "[DEBUG tavily_fetch] JSON parse error: #{e.message}"
-      "Error parsing response: #{e.message}"
+      { error: "Error parsing response: #{e.message}" }
     rescue StandardError => e
       puts "[DEBUG tavily_fetch] Unexpected error: #{e.class} - #{e.message}"
       puts e.backtrace.first(5).join("\n")
-      "Unexpected error in tavily_fetch: #{e.message}"
+      { error: "Unexpected error in tavily_fetch: #{e.message}" }
     end
   end
   

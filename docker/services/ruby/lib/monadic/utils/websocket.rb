@@ -247,6 +247,12 @@ module WebSocketHelper
     APPS.each do |k, v|
       apps[k] = {}
       v.settings.each do |p, m|
+        # Debug log for JupyterNotebookClaude reasoning_effort
+        if k == "JupyterNotebookClaude" && p == "reasoning_effort" && CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] WebSocket: JupyterNotebookClaude reasoning_effort = #{m.inspect}")
+          extra_log.close
+        end
         # Special case for models array to ensure it's properly sent as JSON
         if p == "models" && m.is_a?(Array)
           apps[k][p] = m.to_json

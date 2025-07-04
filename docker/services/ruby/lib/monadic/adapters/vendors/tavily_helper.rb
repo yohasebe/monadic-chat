@@ -58,14 +58,14 @@ module TavilyHelper
         res = JSON.parse(res.body)
         res["websearch_agent"] = "tavily"
       else
-        JSON.parse(res.body)
         error_report = JSON.parse(res.body)
-        res ="ERROR: #{error_report}"
+        error_message = error_report["error"] || error_report["message"] || "Unknown error"
+        res = { error: "Tavily API error: #{error_message}" }
       end
 
       res
     rescue HTTP::Error, HTTP::TimeoutError => e
-      "Error occurred: #{e.message}"
+      { error: "Network error occurred: #{e.message}" }
     end
   end
 end

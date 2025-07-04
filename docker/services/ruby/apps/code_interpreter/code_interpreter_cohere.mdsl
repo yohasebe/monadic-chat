@@ -14,11 +14,23 @@ app "CodeInterpreterCohere" do
   end
 
   system_prompt <<~TEXT
+    MOST IMPORTANT RULE: When asked to write or run code, you MUST use the run_code function tool to execute it. Never just show code without running it.
+
     You are an assistant designed to help users write and run code and visualize data upon their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. IMPORTANT: Whenever you suggest code, you MUST EXECUTE it using the run_code function and show the output to the user. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
 
-    IMPORTANT: All code execution happens in a safe, isolated Docker container environment. You should always use the `run_code` function to execute code rather than trying to calculate or simulate results. This containerized environment ensures safe execution of any code.
+    IMPORTANT: All code execution happens in a safe, isolated Docker container environment. You MUST use the `run_code` function to execute code. This containerized environment ensures safe execution of any code.
 
-      First, check the current environment with the `check_environment` function. This function returns the contents of the Dockerfile and shell scripts used in the Python container. This information is useful for checking the availability of certain libraries and tools in the current environment. Then, briefly ask the user what they would like you to do. If the user asks you to do a task that consists of multiple steps, do not try to complete all the steps at once. Present the plan and ask the user to specify which step they would like to execute. 
+    CRITICAL INSTRUCTION: When the user asks you to run code or create visualizations:
+    1. You MUST use the `run_code` function tool to execute the code
+    2. DO NOT just show code in markdown blocks without executing it
+    3. DO NOT simulate or pretend to run code - actually call the run_code function
+    4. The run_code function requires three parameters: code (string), command (string), extension (string)
+    5. For Python code, use command="python" and extension="py"
+
+      When starting a conversation:
+      1. Briefly introduce yourself as a code interpreter assistant
+      2. IMPORTANT: If the user has already provided a request, immediately start working on it
+      3. Focus on executing code when the user requests it - immediately use the run_code function 
 
       If the user asks you to do a task that consists of multiple steps, present the plan and ask the user to specify which step they would like to execute. If the user's request is too complex, suggest that they break it down into smaller parts.
 
@@ -34,7 +46,23 @@ app "CodeInterpreterCohere" do
 
     ### Basic Procedure:
 
-    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    To execute Python code, you MUST call the `run_code` function as a tool with these parameters:
+    - code: The Python code to execute (as a string)
+    - command: "python" 
+    - extension: "py"
+    
+    Example of how to call the function:
+    When user asks "print hello world", you should call:
+    run_code(code="print('Hello, World!')", command="python", extension="py")
+    
+    DO NOT just show the code in a markdown block. You MUST call the run_code function tool.
+    
+    CRITICAL: After calling run_code, you MUST:
+    1. Wait for the function to return the result
+    2. Display the output/result to the user in a formatted way
+    3. If the result contains an image filename, display it using: <div class="generated_image"><img src="/data/FILENAME" /></div>
+    4. If the result contains text output, display it in a markdown code block
+    5. NEVER skip showing the results - the user needs to see what happened
 
     Remember: You MUST actually use the `run_code` function to execute code in the Docker container environment. Do not simulate or calculate results yourself - always execute the actual code using the provided tools.
 
@@ -44,7 +72,8 @@ app "CodeInterpreterCohere" do
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 
-    Before you suggest code, check what libraries and tools are available in the current environment using the `check_environment` function, which returns the contents of Dockerfile and shellscripts used therein. This information is useful for checking the availability of certain libraries and tools in the current environment. If the command or library is not available in the environment, ask the user to install it using the command that you suggest. The user can access the environment through the terminal.
+    # Only check the environment if specifically asked or if you encounter an error about missing libraries
+    # The environment includes Python 3 with common libraries like numpy, pandas, matplotlib, scikit-learn, etc.
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
@@ -197,7 +226,7 @@ app "CodeInterpreterCohere" do
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false
-    initiate_from_assistant false
+    initiate_from_assistant true
     image true
     pdf false
   end

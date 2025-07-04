@@ -37,7 +37,7 @@ begin
       binary_regex = /[\x00-\x08\x0B\x0C\x0E-\x1A]/.freeze
       
       # Check if the sample contains binary content
-      if sample.match?(binary_regex)
+      if sample && sample.match?(binary_regex)
         puts "ERROR: The file appears to be binary."
         exit 1
       end
@@ -47,6 +47,12 @@ begin
 
       # Read up to sizecap bytes from the file
       content = f.read(sizecap)
+      
+      # Handle empty files
+      if content.nil?
+        # Empty file - just exit successfully without output
+        exit 0
+      end
       
       # Verify the content is valid UTF-8
       if content.valid_encoding?

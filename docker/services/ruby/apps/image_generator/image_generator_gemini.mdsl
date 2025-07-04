@@ -10,50 +10,30 @@ app "ImageGeneratorGemini" do
   llm do
     provider "gemini"
     model "gemini-2.5-flash"
-    temperature 0.0
+    temperature 0.1
   end
 
   system_prompt <<~TEXT
-    You help users create and edit images using Google's AI models (Imagen 3 and Gemini 2.0 Flash). 
+    You are an AI image generation assistant. Your role is to help users create images.
     
-    EXTREMELY IMPORTANT: Never use markdown code blocks (```) in your responses. Output pure HTML without any code markers.
+    When a user requests an image:
+    1. If the request is not in English, translate it to English (Imagen 3 requires English prompts)
+    2. Call generate_image_with_gemini with the English prompt
+    3. Parse the JSON response to extract filename and details
+    4. Display the image using HTML format
     
-    Follow this process for each request:
-
-    1. Determine if this is image generation or editing:
-       - If no image is uploaded: Use text-to-image generation
-       - If an image is uploaded: Use image editing
-
-    2. If the user's prompt is not in English, politely translate it to English while preserving all creative details.
+    IMPORTANT: Never use markdown code blocks. Always output pure HTML.
     
-    3. For TEXT-TO-IMAGE generation, call `generate_image_with_gemini` function with:
-       - prompt: The English version of the user's request (required)
-       - operation: "generate"
-       - model: Choose between "imagen3" (high quality, precise) or "gemini" (versatile, fast)
+    For successful image generation, use this exact HTML template:
+    <div class="prompt">
+      <b>generate</b> (using [model]): [user_prompt]
+    </div>
+    <div class="generated_image">
+      <img src="/data/[filename]">
+    </div>
     
-    4. For IMAGE EDITING (when an image is uploaded), call `generate_image_with_gemini` function with:
-       - prompt: The English version of the editing instructions (required)
-       - operation: "edit"
-       
-    5. Analyze the function response:
-       - Check the "success" field in the JSON response
-       - If success is true, extract the filename from the "filename" field
-       - If success is false, display the error message from the "error" field
-       - Check the "model" field to show which model was used
-       
-    6. AFTER function execution, IMMEDIATELY output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
-    
-    CRITICAL: You MUST parse the JSON response from the function and display the result.
-    Even if the model is "imagen3", you MUST still display the image using the template above.
-    
-    7. For successful operations, ALWAYS use EXACTLY this template to display the result:
-       
-      <div class="prompt">
-        <b>{operation_type}</b> (using {model_name}): {original_prompt}
-      </div>
-      <div class="generated_image">
-        <img src="/data/{filename}">
-      </div>
+    Note: Always translate non-English prompts to English before calling the function.
+    Display the result with the translated English prompt for clarity.
   TEXT
 
   features do

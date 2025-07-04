@@ -535,19 +535,48 @@ $(function () {
       $("#model-non-default").hide();
     }
 
+    // Handle reasoning effort dropdown
+    if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
+      $("#reasoning-effort").prop("disabled", false);
+      
+      // Update options based on model spec
+      const reasoningSpec = modelSpec[selectedModel]["reasoning_effort"];
+      if (reasoningSpec && Array.isArray(reasoningSpec) && reasoningSpec.length >= 2) {
+        const availableOptions = reasoningSpec[0]; // Array of available options
+        const defaultValue = reasoningSpec[1]; // Default value
+        
+        // Clear current options
+        $("#reasoning-effort").empty();
+        
+        // Add options from model spec
+        if (Array.isArray(availableOptions)) {
+          availableOptions.forEach(option => {
+            $("#reasoning-effort").append($('<option>', {
+              value: option,
+              text: option
+            }));
+          });
+          
+          // Set the default value
+          $("#reasoning-effort").val(defaultValue);
+        }
+      }
+    } else {
+      $("#reasoning-effort").prop("disabled", true);
+      // Restore default options when disabled
+      $("#reasoning-effort").empty();
+      $("#reasoning-effort").append($('<option>', { value: 'low', text: 'low' }));
+      $("#reasoning-effort").append($('<option>', { value: 'medium', text: 'medium' }));
+      $("#reasoning-effort").append($('<option>', { value: 'high', text: 'high' }));
+      $("#reasoning-effort").val('medium');
+    }
+
     if (modelSpec[selectedModel]) {
       if (modelSpec[selectedModel].hasOwnProperty("tool_capability") && modelSpec[selectedModel]["tool_capability"]) {
         $("#websearch").prop("disabled", false);
       } else {
         $("#websearch-badge").hide();
         $("#websearch").prop("disabled", true);
-      }
-
-      if (modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-        $("#reasoning-effort").prop("disabled", false);
-        $("#reasoning-effort").val(modelSpec[selectedModel]["reasoning_effort"]);
-      } else {
-        $("#reasoning-effort").prop("disabled", true);
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
@@ -703,6 +732,12 @@ $(function () {
     // Preserve the current state of mathjax checkbox if not defined in app
     const currentMathjax = $("#mathjax").prop('checked');
     Object.assign(params, apps[appValue]);
+    
+    // Debug: Check if reasoning_effort is present in app settings
+    if (appValue === "JupyterNotebookClaude") {
+      console.log("JupyterNotebookClaude app settings:", apps[appValue]);
+      console.log("reasoning_effort in app:", apps[appValue].reasoning_effort);
+    }
     // Default 'initiate_from_assistant' to false if not explicitly set in app parameters
     if (!apps[appValue].hasOwnProperty('initiate_from_assistant')) {
       params['initiate_from_assistant'] = false;
@@ -771,7 +806,7 @@ $(function () {
         $("#websearch").prop("disabled", true);
       }
 
-      $("#model").val(model);
+      $("#model").val(model).trigger("change");
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
         uiUtils.adjustImageUploadButton(model);
@@ -856,6 +891,14 @@ $(function () {
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+
+    // Ensure reasoning-effort dropdown is updated after app change
+    setTimeout(function() {
+      const currentModel = $("#model").val();
+      if (currentModel) {
+        $("#model").trigger("change");
+      }
+    }, 100);
 
     $("#apps").focus();
   }

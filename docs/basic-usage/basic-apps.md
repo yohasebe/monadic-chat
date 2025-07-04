@@ -47,7 +47,7 @@ The table below shows which apps are available for which AI model providers. If 
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-This is a standard chat application. The AI responds to the text input by the user. Emojis corresponding to the content are also displayed.
+This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search capabilities are available but disabled by default for user control over costs and privacy. You can enable web search manually in the app settings when you need current information.
 
 Chat apps are also available for the following models:
 

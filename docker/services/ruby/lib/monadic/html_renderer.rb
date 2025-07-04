@@ -79,10 +79,7 @@ module MonadicChat
     # Render empty field
     def render_empty_field(display_key, data_key, iteration)
       <<~HTML
-        <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
-          <span>#{display_key}: </span>
-          <span>no value</span>
-        </div>
+        <div class='json-item json-simple' data-depth='#{iteration}' data-key='#{data_key}'><span>#{display_key}: </span><span style='color: #999; font-style: italic;'>no value</span></div>
       HTML
     end
     
@@ -95,7 +92,7 @@ module MonadicChat
             <i class='fas fa-chevron-down float-right'></i> 
             <span class='toggle-text'>click to toggle</span>
           </div>
-          <div class='json-content'>
+          <div class='json-content' style='display: block;'>
             #{render_json_as_html(value, options.merge(iteration: iteration))}
           </div>
         </div>
@@ -111,7 +108,7 @@ module MonadicChat
             <i class='fas fa-chevron-down float-right'></i> 
             <span class='toggle-text'>click to toggle</span>
           </div>
-          <div class='json-content'>
+          <div class='json-content' style='display: block;'>
             #{render_json_as_html(value, options.merge(iteration: iteration))}
           </div>
         </div>
@@ -133,7 +130,7 @@ module MonadicChat
               <i class='fas fa-chevron-down float-right'></i> 
               <span class='toggle-text'>click to toggle</span>
             </div>
-            <div class='json-content'>
+            <div class='json-content' style='display: block;'>
               <ol>
                 #{items}
               </ol>
@@ -142,11 +139,32 @@ module MonadicChat
         HTML
       elsif value.all? { |v| v.is_a?(String) }
         # Simple string array
-        <<~HTML
-          <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
-            <span>#{display_key}: [#{value.join(', ')}]</span>
-          </div>
-        HTML
+        # Check if it's a long array that should be displayed differently
+        if value.any? { |v| v.length > 50 } || value.join(', ').length > 150
+          # Long content - use list format
+          items = value.map { |v| "<li>#{v}</li>" }.join("\n")
+          <<~HTML
+            <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
+              <div class='json-header' onclick='toggleItem(this)'>
+                <span>#{display_key}</span>
+                <i class='fas fa-chevron-down float-right'></i> 
+                <span class='toggle-text'>click to toggle</span>
+              </div>
+              <div class='json-content' style='display: block;'>
+                <ol style='font-weight: normal;'>
+                  #{items}
+                </ol>
+              </div>
+            </div>
+          HTML
+        else
+          # Short content - inline display
+          <<~HTML
+            <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
+              <span style='white-space: nowrap;'>#{display_key}: </span><span style='font-weight: normal;'>[#{value.join(', ')}]</span>
+            </div>
+          HTML
+        end
       else
         # Complex array
         items = value.map do |v|
@@ -164,7 +182,7 @@ module MonadicChat
               <i class='fas fa-chevron-down float-right'></i> 
               <span class='toggle-text'>click to toggle</span>
             </div>
-            <div class='json-content'>
+            <div class='json-content' style='display: block;'>
               <ul class='no-bullets'>
                 #{items}
               </ul>
@@ -177,19 +195,21 @@ module MonadicChat
     # Render simple field
     def render_simple_field(display_key, value, data_key, iteration, options)
       if value.is_a?(String) && !value.include?("\n")
-        # Single line string
-        <<~HTML
-          <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
-            <span>#{display_key}: </span>
-            <span>#{value}</span>
-          </div>
-        HTML
+        # Single line string - keep on same line
+        if value.to_s == "no value"
+          <<~HTML
+            <div class='json-item json-simple' data-depth='#{iteration}' data-key='#{data_key}'><span>#{display_key}: </span><span style='color: #999; font-style: italic;'>#{value}</span></div>
+          HTML
+        else
+          <<~HTML
+            <div class='json-item json-simple' data-depth='#{iteration}' data-key='#{data_key}'><span>#{display_key}: </span><span>#{value}</span></div>
+          HTML
+        end
       else
         # Multi-line or other content
         <<~HTML
-          <div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>
-            <span>#{display_key}: </span>
-            <span>#{render_markdown(value.to_s, options[:mathjax])}</span>
+          <div class='json-item json-simple' data-depth='#{iteration}' data-key='#{data_key}'>
+            <span>#{display_key}: </span><span>#{render_markdown(value.to_s, options[:mathjax])}</span>
           </div>
         HTML
       end

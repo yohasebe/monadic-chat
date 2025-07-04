@@ -894,6 +894,15 @@ task :spec_unit do
   end
 end
 
+# Unit test categories
+namespace :spec_unit do
+  desc "Run web search unit tests"
+  task :websearch do
+    Dir.chdir("docker/services/ruby") do
+      sh "bundle exec rspec spec/unit/openai_websearch_message_spec.rb spec/unit/websearch_tavily_config_spec.rb spec/unit/mistral_websearch_performance_spec.rb --format documentation"
+    end
+  end
+end
 
 # Integration tests only (requires containers)
 desc "Run integration tests only"
@@ -908,6 +917,16 @@ desc "Run system tests only"
 task :spec_system do
   Dir.chdir("docker/services/ruby") do
     sh "bundle exec rspec spec/system --format documentation"
+  end
+end
+
+# System test categories
+namespace :spec_system do
+  desc "Run web search system tests"
+  task :websearch do
+    Dir.chdir("docker/services/ruby") do
+      sh "bundle exec rspec spec/system/chat_websearch_system_spec.rb spec/system/chat_websearch_update_spec.rb --format documentation"
+    end
   end
 end
 
@@ -1098,6 +1117,13 @@ namespace :spec_e2e do
   task :chat_plus_monadic_test do
     Dir.chdir("docker/services/ruby") do
       sh "./spec/e2e/run_e2e_tests.sh chat_plus_monadic_test"
+    end
+  end
+  
+  desc "Run E2E tests for web search functionality"
+  task :websearch do
+    Dir.chdir("docker/services/ruby") do
+      sh "./spec/e2e/run_e2e_tests.sh websearch"
     end
   end
 end

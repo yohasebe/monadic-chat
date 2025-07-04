@@ -31,4 +31,7 @@ app "ChatPerplexity" do
     websearch false
     group "Perplexity"
   end
+  
+  tools do
+  end
 end

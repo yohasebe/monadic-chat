@@ -638,13 +638,15 @@ module GeminiHelper
     end  # end of role != "tool"
 
     if role == "tool"
+      # Add tool results as a user message to continue the conversation
       parts = obj["tool_results"].map { |result|
         { "text" => result.dig("functionResponse", "response", "content") }
       }.filter { |part| part["text"] }
 
       if parts.any?
+        # Add tool results as a new user message to prompt the model for a response
         body["contents"] << {
-          "role" => "model",
+          "role" => "user",
           "parts" => parts
         }
       end

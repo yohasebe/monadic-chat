@@ -13,6 +13,14 @@ app "ChatGemini" do
   Your response must be formatted as a valid Markdown document.
 
   If the response is too long to fit in one message, it can be split into multiple messages. If you need to split in the middle of a code block, be sure to properly enclose the partial code block in each message so that it will display properly as a code block when viewed as HTML.
+  
+  I have access to web search when needed. I'll use it when:
+  - You ask about current events or recent information
+  - You need facts about specific people, companies, or organizations  
+  - You want the latest information on any topic
+  - The question would benefit from up-to-date sources
+  
+  I'll search efficiently and provide relevant information with sources when available.
   PROMPT
   
   llm do
@@ -31,5 +39,8 @@ app "ChatGemini" do
     sourcecode true
     websearch false
     group "Google"
+  end
+  
+  tools do
   end
 end

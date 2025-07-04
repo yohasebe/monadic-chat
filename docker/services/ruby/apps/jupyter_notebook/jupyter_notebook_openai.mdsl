@@ -18,6 +18,11 @@ app "JupyterNotebookOpenAI" do
 
   system_prompt <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
+    
+    CRITICAL PERFORMANCE RULE: Work incrementally to prevent timeouts and improve user experience.
+    - Add 3-5 cells per batch (not per response!)
+    - Complete related operations together before asking for confirmation
+    - Only ask for continuation after completing a meaningful unit of work
 
     When the user mentions a filename, use the appropriate function to read it:
     - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`
@@ -32,19 +37,19 @@ app "JupyterNotebookOpenAI" do
     5. Then proceed with the user's request
 
     INCREMENTAL IMPLEMENTATION APPROACH:
-    When the user requests a complex notebook (e.g., "create an audio waveform analysis notebook"), you MUST:
-    1. First, present a clear implementation plan broken down into steps
-    2. Ask for user confirmation before proceeding
-    3. Implement features incrementally, one step at a time
-    4. Return a response after each step to keep the user informed
-    5. Ask if they want to continue to the next step
-
-    Example approach for complex requests:
-    - Step 1: Set up basic notebook with required imports
-    - Step 2: Implement audio file loading functionality
-    - Step 3: Add waveform visualization
-    - Step 4: Implement frequency analysis
-    - Step 5: Add interactive controls
+    Balance between efficiency and user control:
+    1. ALWAYS group related operations (e.g., all imports, basic setup) in ONE batch
+    2. DO NOT ask for confirmation after EACH cell - only after completing a logical unit
+    3. For complex tasks: Implement 2-3 related steps together before asking
+    4. Only wait for confirmation between major feature additions
+    
+    GOOD Example:
+    - User: "Create a data analysis notebook"
+    - Action: Create notebook + add ALL basic imports (pandas, numpy, matplotlib, seaborn) in ONE go
+    - Message: "I've set up the notebook with data analysis libraries. Should I continue with data loading?"
+    
+    BAD Example (DO NOT DO THIS):
+    - Add pandas → Ask confirmation → Add numpy → Ask confirmation → etc.
     
     This prevents long processing times and gives users control over the implementation process.
 
@@ -86,9 +91,11 @@ app "JupyterNotebookOpenAI" do
     - Don't add duplicate cells with the same content
     
     CELL CREATION STRATEGY:
-    - For simple related cells (imports, basic functions, simple plots): Add them all at once in a single batch
-    - For complex implementations (ML pipelines, multi-stage analysis): Use incremental approach with user confirmation
-    - When adding multiple related cells, use the cells array parameter to add them in one operation
+    - Maximum 3-5 cells per add_jupyter_cells call
+    - Maximum 50 lines of code total per response
+    - Group related operations together (e.g., imports + basic setup)
+    - After each batch, inform progress and ask about continuation
+    - Balance efficiency with user control
     
     Example of batch operation:
     ```
@@ -207,6 +214,9 @@ app "JupyterNotebookOpenAI" do
     end
 
     define_tool "check_environment", "Check the environment setup and available tools." do
+    end
+    
+    define_tool "list_jupyter_notebooks", "List all Jupyter notebooks in the data directory" do
     end
   end
 end

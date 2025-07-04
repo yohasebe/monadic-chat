@@ -1752,9 +1752,19 @@ function connect_websocket(callback) {
         callingFunction = true;
         setAlert(data["content"], "warning");
         
-        // Show the spinner and update its message
+        // Show the spinner and update its message based on the content
         $("#monadic-spinner").show();
-        $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request');
+        
+        // Customize spinner message based on wait content
+        if (data["content"].includes("CALLING FUNCTIONS")) {
+          $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Calling functions');
+        } else if (data["content"].includes("SEARCHING WEB")) {
+          $("#monadic-spinner span").html('<i class="fas fa-search fa-pulse"></i> Searching web');
+        } else if (data["content"].includes("PROCESSING")) {
+          $("#monadic-spinner span").html('<i class="fas fa-spinner fa-pulse"></i> Processing');
+        } else {
+          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request');
+        }
         break;
       }
 
@@ -1988,7 +1998,9 @@ function connect_websocket(callback) {
         
         // Also show as system message
         const $systemDiv = $('<div class="system-info-message"><i class="fas fa-hourglass-half"></i> </div>');
-        $systemDiv.append($('<span>').text(data.content));
+        // Handle case where content might be an object
+        const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
+        $systemDiv.append($('<span>').text(contentText));
         
         const systemElement = createCard("system", 
           "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
@@ -2014,7 +2026,9 @@ function connect_websocket(callback) {
         // Display system information in the conversation
         // Use jQuery's text() method to properly escape the content
         const $systemDiv = $('<div class="system-info-message"><i class="fas fa-info-circle"></i> </div>');
-        $systemDiv.append($('<span>').text(data.content));
+        // Handle case where content might be an object
+        const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
+        $systemDiv.append($('<span>').text(contentText));
         
         const systemElement = createCard("system", 
           "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
@@ -2788,6 +2802,16 @@ function connect_websocket(callback) {
       }
       case "message": {
         if (data["content"] === "DONE") {
+          // Check if tool calls are pending
+          if (data["finish_reason"] === "tool_calls") {
+            // Keep spinner visible for tool calls
+            callingFunction = true;
+            $("#monadic-spinner").show();
+            $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Processing tools');
+          } else {
+            // No tool calls, ensure callingFunction is false
+            callingFunction = false;
+          }
           ws.send(JSON.stringify({ "message": "HTML" }));
         } else if (data["content"] === "CLEAR") {
           $("#chat").html("");
@@ -3000,7 +3024,12 @@ function connect_websocket(callback) {
 
       case "html": {
         responseStarted = false;
-        callingFunction = false;
+        
+        // If we receive an HTML message while callingFunction is true,
+        // this is likely the result of a tool call, so reset the flag
+        if (callingFunction && data.content && data.content.role === 'assistant') {
+          callingFunction = false;
+        }
         
         // Hide the temp-card as we're about to show the final HTML
         $("#temp-card").hide();
@@ -3052,7 +3081,10 @@ function connect_websocket(callback) {
             $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
             $("#select-role").prop("disabled", false);
             
-            $("#monadic-spinner").hide();
+            // Only hide spinner if we're not waiting for function calls
+            if (!callingFunction) {
+              $("#monadic-spinner").hide();
+            }
             
             // If this is the first assistant message (from initiate_from_assistant), show user panel
             if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
@@ -3096,7 +3128,10 @@ function connect_websocket(callback) {
           appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
           $("#message").show();
           $("#message").prop("disabled", false);
-          $("#monadic-spinner").hide();
+          // Only hide spinner if we're not waiting for function calls
+          if (!callingFunction) {
+            $("#monadic-spinner").hide();
+          }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         } else if (data["content"]["role"] === "system") {
@@ -3104,7 +3139,10 @@ function connect_websocket(callback) {
           appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
           $("#message").show();
           $("#message").prop("disabled", false);
-          $("#monadic-spinner").hide();
+          // Only hide spinner if we're not waiting for function calls
+          if (!callingFunction) {
+            $("#monadic-spinner").hide();
+          }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
         }

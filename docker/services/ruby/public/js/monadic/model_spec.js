@@ -255,14 +255,14 @@ const modelSpec = {
   "claude-opus-4-20250514": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [[1, 32000], 32000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "claude-sonnet-4-20250514": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [[1, 64000], 64000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
@@ -910,12 +910,9 @@ const modelSpec = {
     "reasoning_model": true
   },
   "sonar-deep-research": {
-    "context_window" : [1, 60000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true
+    "context_window" : [1, 128000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_model": true,
   },
   "sonar-reasoning-pro": {
     "context_window" : [1, 128000],

@@ -1,6 +1,8 @@
 # frozen_string_literal: false
 
 require_relative "../../utils/interaction_utils"
+require 'strscan'
+require 'securerandom'
 
 module DeepSeekHelper
   include InteractionUtils
@@ -58,14 +60,33 @@ module DeepSeekHelper
 
   WEBSEARCH_PROMPT = <<~TEXT
 
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
+    IMPORTANT: You have access to web search functions. You MUST use these functions when users ask questions requiring current information or web research.
 
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
+    Available functions:
+    1. **tavily_search** - Search the web for information
+       - Parameters: query (string), n (integer, default 3)
+       - Example call: {"name": "tavily_search", "arguments": {"query": "latest AI developments 2025", "n": 5}}
+       
+    2. **tavily_fetch** - Fetch full content from a specific URL
+       - Parameters: url (string)
+       - Example call: {"name": "tavily_fetch", "arguments": {"url": "https://example.com/article"}}
 
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
+    When to use these functions:
+    - User asks about current events, news, or recent information
+    - User asks about specific people, companies, or organizations  
+    - User asks questions requiring factual, up-to-date information
+    - You need to verify or update information
 
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+    Example function calling pattern:
+    User: "What are the latest developments in quantum computing?"
+    Assistant: I'll search for the latest information about quantum computing developments.
+    [Call tavily_search with query "latest quantum computing developments 2025"]
+
+    Always:
+    - Use English in search queries for better results
+    - Translate results back to user's language if needed
+    - Cite sources using HTML links: <a href="URL" target="_blank" rel="noopener noreferrer">Source</a>
+    - Use search results to provide accurate, well-supported responses
   TEXT
 
   class << self
@@ -419,6 +440,15 @@ module DeepSeekHelper
       block&.call res
       return [res]
     end
+    
+    # Debug: Log before passing to process_json_data
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("Response status: #{res.status}")
+        log.puts("Response headers: #{res.headers.to_h}")
+        log.puts("About to process streaming response...")
+      end
+    end
 
     process_json_data(app: app,
                       session: session,
@@ -458,46 +488,42 @@ module DeepSeekHelper
     texts = {}
     tools = {}
     finish_reason = nil
-    partial_json = nil
-    first_message = true
 
+    chunk_count = 0
     res.each do |chunk|
       begin
+        chunk_count += 1
         chunk = chunk.force_encoding("UTF-8")
-        if buffer.valid_encoding? == false
-          buffer << chunk
-          next
-        end
-
-        if !chunk.force_encoding("UTF-8").valid_encoding?
-          chunk = chunk.encode("UTF-8", "UTF-8", invalid: :replace, undef: :replace)
-        end
-
-        # Process partial JSON if exists
-        if partial_json
-          buffer = partial_json + chunk
-        else
-          buffer << chunk
-        end
-
-        # Try to extract complete JSON messages
-        messages = extract_complete_messages(buffer)
+        buffer << chunk
         
-        if messages.empty?
-          # If no complete messages found, retain buffer and wait for next chunk
-          partial_json = buffer
-          next
-        else
-          # If the last message is incomplete, keep it for next processing
-          last_message = messages.pop if !is_complete_json(messages.last)
-          partial_json = last_message
-          
-          messages.each do |msg|
-            begin
-              data_content = msg.match(/data: (\{.*\})/m)
-              return unless data_content && data_content[1]
+        # Debug: Log first few chunks
+        if chunk_count <= 3 && CONFIG["EXTRA_LOGGING"]
+          extra_log.puts("Chunk #{chunk_count}: #{chunk[0..100]}")
+        end
 
-              json = JSON.parse(data_content[1])
+        if buffer.valid_encoding? == false
+          next
+        end
+
+        # Check for [DONE] message
+        begin
+          break if /\Rdata: \[DONE\]\R/ =~ buffer
+        rescue
+          next
+        end
+
+        buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+        buffer.encode!("UTF-8", "UTF-16")
+
+        scanner = StringScanner.new(buffer)
+        pattern = /data: (\{.*?\})(?=\n|\z)/
+        
+        until scanner.eos?
+          matched = scanner.scan_until(pattern)
+          if matched
+            json_data = matched.match(pattern)[1]
+            begin
+              json = JSON.parse(json_data)
 
               if CONFIG["EXTRA_LOGGING"]
                 extra_log.puts(JSON.pretty_generate(json))
@@ -551,7 +577,11 @@ module DeepSeekHelper
                   fragment = delta["content"].to_s
                   choice["message"]["content"] << fragment
 
-                  if fragment.length > 0
+                  # Check if DeepSeek is outputting function calls as text
+                  if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
+                    # DeepSeek is outputting function calls as text, don't send fragments
+                    # We'll handle this after the full message is received
+                  elsif fragment.length > 0
                     res = {
                       "type" => "fragment",
                       "content" => fragment,
@@ -611,12 +641,14 @@ module DeepSeekHelper
                 end
               end
             rescue JSON::ParserError => e
-              pp "JSON parse error in message: #{e.message}"
+              pp "JSON parse error: #{e.message}"
             end
+          else
+            scanner.pos += 1
           end
         end
 
-        buffer = String.new
+        buffer = scanner.rest
 
       rescue StandardError => e
         pp e.message
@@ -626,12 +658,49 @@ module DeepSeekHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
+      extra_log.puts("Total chunks received: #{chunk_count}")
       extra_log.close
     end
 
     text_result = texts.empty? ? nil : texts.first[1]
 
     if text_result
+      # Check if DeepSeek has output function calls as text
+      if text_result.dig("choices", 0, "message", "content") =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
+        json_match = $1
+        begin
+          # Parse the function call from text
+          func_call = JSON.parse(json_match)
+          
+          # Convert text-based function call to proper tool call format
+          if func_call["name"] && func_call["arguments"]
+            text_result["choices"][0]["message"]["tool_calls"] = [{
+              "id" => "call_#{SecureRandom.hex(8)}",
+              "type" => "function",
+              "function" => {
+                "name" => func_call["name"],
+                "arguments" => func_call["arguments"].is_a?(String) ? func_call["arguments"] : JSON.generate(func_call["arguments"])
+              }
+            }]
+            
+            # Remove the JSON block from the content
+            text_result["choices"][0]["message"]["content"] = text_result["choices"][0]["message"]["content"].gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\}\s*\n?\s*```/m, "").strip
+            
+            # Set finish reason to function_call
+            text_result["choices"][0]["finish_reason"] = "function_call"
+            finish_reason = "function_call"
+            
+            # Add to tools for processing
+            tid = text_result["choices"][0]["message"]["tool_calls"][0]["id"]
+            tools[tid] = text_result
+            
+            DebugHelper.debug("DeepSeek: Converted text function call to tool call format", category: :api, level: :debug)
+          end
+        rescue JSON::ParserError => e
+          DebugHelper.debug("DeepSeek: Failed to parse function call from text: #{e.message}", category: :api, level: :debug)
+        end
+      end
+      
       if obj["monadic"]
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
@@ -705,37 +774,13 @@ module DeepSeekHelper
       [text_result]
     else
       # Return done message if no result
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       [res]
     end
   end
 
   private
-
-  def extract_complete_messages(buffer)
-    # Split by data message boundary pattern
-    messages = buffer.split(/(?<=\n\n)(?=data: )/)
-    messages.select { |msg| msg.start_with?('data: ') }
-  end
-
-  def is_complete_json(message)
-    return false unless message.start_with?('data: ')
-    
-    begin
-      data_content = message.match(/data: (\{.*\})/m)
-      return false unless data_content && data_content[1]
-      
-      json = JSON.parse(data_content[1])
-      
-      # Check if JSON structure meets expectations
-      return false unless json["choices"]&.first&.key?("delta")
-      
-      true
-    rescue JSON::ParserError
-      false
-    end
-  end
 
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
@@ -775,7 +820,7 @@ module DeepSeekHelper
         role: "tool",
         tool_call_id: tool_call["id"],
         name: function_name,
-        content: function_return.to_s
+        content: function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
       }
     end
 

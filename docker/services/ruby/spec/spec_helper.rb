@@ -11,10 +11,29 @@ $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 # Load configuration for integration tests
 require 'dotenv'
 CONFIG = {}
-config_path = File.expand_path("~/monadic/config/env")
-if File.exist?(config_path)
-  Dotenv.load(config_path)
-  ENV.each { |k, v| CONFIG[k] = v }
+
+# Try multiple config paths
+config_paths = [
+  File.expand_path("~/monadic/config/env"),
+  File.expand_path("../../config/env", __dir__),
+  "/monadic/config/env"
+]
+
+config_path = config_paths.find { |path| File.exist?(path) }
+
+if config_path
+  # Read and parse the config file manually
+  File.readlines(config_path).each do |line|
+    next if line.strip.empty? || line.strip.start_with?('#')
+    key, value = line.strip.split('=', 2)
+    next unless key && value
+    CONFIG[key] = value
+    ENV[key] = value  # Also set in ENV for compatibility
+  end
+  
+  puts "Loaded #{CONFIG.keys.count} config values from #{config_path}" if ENV["DEBUG"]
+else
+  puts "No config file found at: #{config_paths.join(', ')}" if ENV["DEBUG"]
 end
 
 # Load custom retry mechanism

@@ -511,6 +511,13 @@ function loadParams(params, calledFor = "loadParams") {
 
   if (spec) {
     const reasoning_effort = params["reasoning_effort"];
+    
+    // Debug: Log reasoning_effort for JupyterNotebookClaude
+    if (params["app_name"] === "JupyterNotebookClaude") {
+      console.log("loadParams - reasoning_effort for JupyterNotebookClaude:", reasoning_effort);
+      console.log("loadParams - all params:", params);
+    }
+    
     if (reasoning_effort) {
       $("#reasoning-effort").val(reasoning_effort);
       $("#reasoning-effort").prop('disabled', false);

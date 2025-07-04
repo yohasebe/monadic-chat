@@ -4,6 +4,7 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/model_defaults"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -165,9 +166,12 @@ module ClaudeHelper
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
     # Basic request body
+    # Get max_tokens with fallback to model default
+    max_tokens_value = options["max_tokens"] || Monadic::Utils::ModelDefaults.get_max_tokens(model)
+    
     body = {
       "model" => model,
-      "max_tokens" => options["max_tokens"] || 1000,
+      "max_tokens" => max_tokens_value,
       "temperature" => options["temperature"] || 0.7
     }
     
@@ -415,6 +419,12 @@ module ClaudeHelper
     else
       max_tokens = obj["max_tokens"]&.to_i
     end
+    
+    # Use model defaults if max_tokens is nil or 0
+    if max_tokens.nil? || max_tokens == 0
+      max_tokens = Monadic::Utils::ModelDefaults.get_max_tokens(model)
+      DebugHelper.debug("Claude: Using default max_tokens #{max_tokens} for model #{model}", category: :api, level: :info)
+    end
 
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
@@ -425,6 +435,10 @@ module ClaudeHelper
     user_max_tokens = max_tokens
     
     case obj["reasoning_effort"]
+    when "none"
+      # Explicitly disable thinking
+      budget_tokens = nil
+      max_tokens = user_max_tokens
     when "low"
       # Use proportional approach based on user's max_tokens
       budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
@@ -436,10 +450,12 @@ module ClaudeHelper
       budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
       max_tokens = user_max_tokens
     else
-      budget_tokens = nil
+      # Default to low if no valid reasoning_effort is provided
+      budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+      max_tokens = user_max_tokens
     end
     
-    # Ensure budget_tokens is less than max_tokens
+    # Ensure budget_tokens is less than max_tokens (only if budget_tokens is set)
     if budget_tokens && budget_tokens >= max_tokens
       # Adjust budget_tokens to be at most 80% of max_tokens
       budget_tokens = (max_tokens * 0.8).to_i
@@ -495,16 +511,9 @@ module ClaudeHelper
       "stream" => true
     }
     
-    # Only add tool_choice if not processing tool results
-    if role != "tool"
-      body["tool_choice"] = {
-        "type": "any"
-      }
-    end
-
     if budget_tokens
       body["max_tokens"] = max_tokens
-      body["temperature"] = 1
+      body["temperature"] = 1  # Required to be 1 when thinking is enabled
       # Only add tool_choice if not processing tool results
       body["tool_choice"] = { "type" => "auto" } if role != "tool"
       body["thinking"] = {
@@ -514,6 +523,7 @@ module ClaudeHelper
     else
       body["temperature"] = temperature if temperature
       body["max_tokens"] = max_tokens if max_tokens
+      # tool_choice will be set later after tools are configured
     end
 
     # Configure tools based on app settings and web search type
@@ -584,6 +594,10 @@ module ClaudeHelper
     # Only clean up if we have tools
     if body["tools"] && !body["tools"].empty?
       body["tools"].uniq!
+      # Set tool_choice for non-thinking mode if not already set
+      if !budget_tokens && role != "tool" && !body["tool_choice"]
+        body["tool_choice"] = { "type" => "auto" }
+      end
     else
       body.delete("tools")
       body.delete("tool_choice")
@@ -672,6 +686,57 @@ module ClaudeHelper
     if role == "tool"
       body["messages"] += obj["function_returns"]
       # Do not add tool_choice when processing tool results
+      
+      # But we still need to include the tools array so Claude knows what tools are available
+      # Parse tools if they're sent as JSON string
+      tools_param = obj["tools"]
+      if tools_param.is_a?(String)
+        begin
+          tools_param = JSON.parse(tools_param)
+        rescue JSON::ParserError
+          tools_param = nil
+        end
+      end
+      
+      # Get tools from app settings first
+      app_tools = APPS[app]&.settings&.[]("tools")
+      
+      if tools_param && !tools_param.empty?
+        # If tools_param is provided, prefer app_tools if available
+        if app_tools && !app_tools.empty?
+          body["tools"] = app_tools
+        elsif tools_param.is_a?(Array) && !tools_param.empty?
+          # Use tools from request if app doesn't have them
+          # Filter out any Tavily tools since Claude uses native web search
+          body["tools"] = tools_param.reject do |tool|
+            tool_name = tool.dig("name") || tool.dig("function", "name")
+            ["tavily_search", "tavily_fetch"].include?(tool_name)
+          end
+        else
+          body["tools"] = []
+        end
+      elsif app_tools && !app_tools.empty?
+        # If no tools_param but app has tools, use them
+        body["tools"] = app_tools
+      end
+      
+      # Only clean up if we have tools
+      if body["tools"] && !body["tools"].empty?
+        body["tools"].uniq!
+      else
+        body.delete("tools")
+      end
+      
+      # Log for debugging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude processing tool results:")
+        extra_log.puts("Tools included: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}")
+        if body["tools"]
+          extra_log.puts("Tool names: #{body["tools"].map { |t| t["name"] || t["function"]["name"] }.join(", ")}")
+        end
+        extra_log.close
+      end
     end
 
     # Configure monadic response format
@@ -1179,7 +1244,7 @@ module ClaudeHelper
       content << {
         type: "tool_result",
         tool_use_id: tool_call["id"],
-        content: tool_return.to_s
+        content: tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
       }
     end
 

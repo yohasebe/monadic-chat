@@ -74,11 +74,15 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
     return unless Dir.exist?(data_dir)
     
     Dir.glob(File.join(data_dir, "integration_test_*")).each do |file|
-      File.delete(file) if File.exist?(file)
+      File.delete(file) if File.exist?(file) && File.file?(file)
     end
     
-    Dir.glob(File.join(data_dir, "test_output_*")).each do |file|
-      File.delete(file) if File.exist?(file)
+    Dir.glob(File.join(data_dir, "test_output_*")).each do |path|
+      if File.directory?(path)
+        FileUtils.rm_rf(path)
+      elsif File.file?(path)
+        File.delete(path)
+      end
     end
   end
 end

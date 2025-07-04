@@ -21,10 +21,20 @@ def list_openai_voices
 end
 
 def list_elevenlabs_voices
-  begin
-    elevenlabs_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
-  rescue Errno::ENOENT
-    elevenlabs_api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
+  # Try ENV first (for test environment)
+  elevenlabs_api_key = ENV["ELEVENLABS_API_KEY"]
+  
+  # Fall back to reading config file
+  unless elevenlabs_api_key
+    begin
+      elevenlabs_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
+    rescue Errno::ENOENT
+      begin
+        elevenlabs_api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
+      rescue Errno::ENOENT
+        # Config file not found
+      end
+    end
   end
 
   return [] unless elevenlabs_api_key
@@ -95,11 +105,20 @@ def tts_api_request(text,
 
   case provider
   when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
-    api_key = nil
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
-    rescue Errno::ENOENT
-      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }.split("=").last
+    # Try ENV first (for test environment)
+    api_key = ENV["ELEVENLABS_API_KEY"]
+    
+    # Fall back to reading config file
+    unless api_key
+      begin
+        api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
+      rescue Errno::ENOENT
+        begin
+          api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
+        rescue Errno::ENOENT
+          # Config file not found
+        end
+      end
     end
 
     if api_key.nil?
@@ -135,11 +154,20 @@ def tts_api_request(text,
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
   when "gemini"
-    api_key = nil
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }.split("=").last
-    rescue Errno::ENOENT
-      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }.split("=").last
+    # Try ENV first (for test environment)
+    api_key = ENV["GEMINI_API_KEY"]
+    
+    # Fall back to reading config file
+    unless api_key
+      begin
+        api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=")&.last
+      rescue Errno::ENOENT
+        begin
+          api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=")&.last
+        rescue Errno::ENOENT
+          # Config file not found
+        end
+      end
     end
 
     if api_key.nil?
@@ -198,10 +226,20 @@ def tts_api_request(text,
     # Use the Gemini 2.5 Flash Preview TTS model
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=#{api_key}"
   else # openai
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-    rescue Errno::ENOENT
-      api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
+    # Try ENV first (for test environment)
+    api_key = ENV["OPENAI_API_KEY"]
+    
+    # Fall back to reading config file
+    unless api_key
+      begin
+        api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=")&.last
+      rescue Errno::ENOENT
+        begin
+          api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=")&.last
+        rescue Errno::ENOENT
+          # Config file not found
+        end
+      end
     end
 
     if api_key.nil?

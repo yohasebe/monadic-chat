@@ -766,8 +766,8 @@ module OpenAIHelper
       # Use responses API for o3-pro
       target_uri = "#{API_ENDPOINT}/responses"
       
-      # Send processing status for long-running models
-      if block
+      # Send processing status only for long-running models (o3-pro), not for web search
+      if block && RESPONSES_API_MODELS.include?(original_user_model)
         processing_msg = {
           "type" => "processing_status",
           "content" => "This may take a while."
@@ -1378,7 +1378,7 @@ module OpenAIHelper
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
     else
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       [res]
     end

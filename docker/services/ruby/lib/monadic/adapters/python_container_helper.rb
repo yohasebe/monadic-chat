@@ -22,18 +22,12 @@ module MonadicHelper
 
   def check_environment
     dockerfile = get_dockerfile
-    rbsetup = get_rbsetup
     pysetup = get_pysetup
 
     <<~ENV
     ### Dockerfile
     ```
     #{dockerfile}
-    ```
-
-    ### rbsetup.sh
-    ```
-    #{rbsetup}
     ```
 
     ### pysetup.sh

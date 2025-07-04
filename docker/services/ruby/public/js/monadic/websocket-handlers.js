@@ -392,12 +392,19 @@ function handleHtmlMessage(data, messages, createCardFunc) {
       $('#message').prop('disabled', false);
       $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
       $('#select-role').prop('disabled', false);
-      $('#monadic-spinner').hide();
-      $('#cancel_query').hide();
       
-      // Clear the "Connected" status and show "Ready for input"
-      if (typeof setAlert === 'function') {
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+      // Only hide spinner if we're not in the middle of function calls
+      if (!window.callingFunction) {
+        $('#monadic-spinner').hide();
+        $('#cancel_query').hide();
+        
+        // Clear the "Connected" status and show "Ready for input"
+        if (typeof setAlert === 'function') {
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+        }
+      } else {
+        // Keep spinner visible but update message
+        $('#monadic-spinner span').html('<i class="fas fa-cogs fa-pulse"></i> Processing tools');
       }
       
       return true;

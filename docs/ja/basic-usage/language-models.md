@@ -70,8 +70,8 @@ WEBSEARCH_MODEL=gpt-4o-mini
 ```
 
 ### アプリのデフォルト設定
-- **Chatアプリ**: Web検索はデフォルトで無効（設定で有効化可能）
-- **Research Assistant**: Web検索はデフォルトで有効
+- **Chatアプリ**: Web検索はデフォルトで無効（コストとプライバシーを考慮）- 必要に応じて手動で有効化可能
+- **Research Assistant**: Web検索はデフォルトで有効（専門的な検索プロンプト使用）
 
 ## 推論モデル
 

@@ -969,6 +969,27 @@ legend {
 
 .json-item {
   margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+/* For simple key-value pairs */
+.json-item.json-simple {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+}
+
+.json-item.json-simple > span:first-child {
+  font-weight: bold;
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 0.3em;
+}
+
+.json-item.json-simple > span:last-child {
+  display: inline-block;
+  font-weight: normal;
+  flex-grow: 1;
 }
 
 .json-toggle {

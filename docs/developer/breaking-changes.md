@@ -2,6 +2,31 @@
 
 This page documents all breaking changes from previous versions to help users migrate to Monadic Chat 1.0.0.
 
+## Version 1.0.0-beta.2
+
+### Web Search in Chat Apps
+
+#### What Changed
+- **Chat apps now have web search disabled by default**
+- This change gives users explicit control over when web search is used
+- Helps manage API costs and maintain privacy
+
+#### Why This Change?
+- **Cost Control**: Web search operations can consume additional API calls
+- **Privacy**: Users may not want all queries to trigger web searches
+- **Predictability**: Users have explicit control over when current information is fetched
+- **Reliability**: The web search feature is now stable and well-tested
+
+#### How to Enable Web Search
+1. Open any Chat app
+2. Click on the Settings button
+3. Toggle "Web Search" to enable it
+4. The setting persists for that session
+
+#### Apps Affected
+- All Chat apps (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- Research Assistant apps continue to have web search enabled by default
+
 ## Version 1.0.0-beta.1
 
 ### Configuration System Changes

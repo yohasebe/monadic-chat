@@ -731,7 +731,7 @@ module GrokHelper
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
     else
-      res = { "type" => "message", "content" => "DONE" }
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       [res]
     end

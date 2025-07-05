@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'http'
 require_relative "../../utils/debug_helper"
 
 module TavilyHelper
@@ -24,7 +25,7 @@ module TavilyHelper
     
     # Check if API key is present
     if api_key.nil? || api_key.empty?
-      return { error: "Tavily API key is not configured. Please set TAVILY_API_KEY in your environment." }
+      return { :error => "Tavily API key is not configured. Please set TAVILY_API_KEY in your environment." }
     end
     
     headers = {
@@ -60,12 +61,12 @@ module TavilyHelper
       else
         error_report = JSON.parse(res.body)
         error_message = error_report["error"] || error_report["message"] || "Unknown error"
-        res = { error: "Tavily API error: #{error_message}" }
+        res = { :error => "Tavily API error: #{error_message}" }
       end
 
       res
     rescue HTTP::Error, HTTP::TimeoutError => e
-      { error: "Network error occurred: #{e.message}" }
+      { :error => "Network error occurred: #{e.message}" }
     end
   end
 end

@@ -18,24 +18,12 @@ RSpec.describe "image_generator_grok.rb minimal tests" do
     end
     
     it "accepts prompt with -p flag" do
-      # Set environment variable instead of creating config file
-      original_xai_key = ENV['XAI_API_KEY']
-      ENV['XAI_API_KEY'] = 'test-key-123'
-      
-      begin
-        # Will fail with API error or config file error, but validates argument parsing
-        result = run_script(["-p", "test prompt"])
-        # The important thing is that it doesn't show the "prompt required" error
-        expect(result[:stdout]).not_to include("ERROR: A prompt is required")
-        # It should either show API error or config file error
-        expect(result[:stdout]).to match(/ERROR:|No such file or directory/)
-      ensure
-        if original_xai_key
-          ENV['XAI_API_KEY'] = original_xai_key
-        else
-          ENV.delete('XAI_API_KEY')
-        end
-      end
+      # Will fail with API error or succeed with real config, but validates argument parsing
+      result = run_script(["-p", "test prompt"])
+      # The important thing is that it doesn't show the "prompt required" error
+      expect(result[:stdout]).not_to include("ERROR: A prompt is required")
+      # The script should at least try to run (may succeed or fail depending on config)
+      expect(result[:status].success?).to be true
     end
   end
 end

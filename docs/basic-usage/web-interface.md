@@ -57,7 +57,7 @@ Select one of the basic apps provided by Monadic Chat. Each app has different de
 Models available for the selected app are displayed. If a default model is set for the app, the default model is pre-selected. You can change the model by selecting a different one from the dropdown list.  With many basic apps, the model list is automatically retrieved from the API, and multiple models are selectable. Please note that using a model other than the default one might result in errors if the model isn't suitable for the app.
 
 **Reasoning Effort** <br />
-For models capable of advanced reasoning (such as OpenAI's o1, o3, o4 series, Claude 4.0, Gemini 2.5 preview models, Mistral Magistral, Grok 3, and Perplexity r1-1776), you can adjust the reasoning effort level. Selecting `low` minimizes computational resources used in the reasoning process, while selecting `high` maximizes them. The default is `low` for most models.
+For models capable of advanced reasoning (such as OpenAI's o1, o3, o4 series, Claude Opus 4 and Sonnet 4, Gemini 2.5 models, and Perplexity sonar-reasoning), you can adjust the reasoning effort level. Selecting `low` minimizes computational resources used in the reasoning process, while selecting `high` maximizes them. The default is `low` for most models.
 
 **Max Output Tokens** <br />
 Specify the maximum number of tokens to be returned in the API response. When the checkmark is on, the response is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
@@ -81,7 +81,9 @@ Turn on to display or edit the text sent to the API as the initial prompt (also 
 Displays the initial prompt given to the AI user when the AI User feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user.  Afterward, the AI will create messages on your behalf, based on the AI assistant's messages. You can edit or append to the messages entered in the text box by the AI user. The initial prompt for the AI user can be freely changed.
 
 **Prompt Caching**<br />
-Specify whether to cache the system prompt sent to the API. Enabling caching allows the same system prompt to be reused on the API side, saving API usage and improving response time. At present, this feature is only available for Anthropic's Claude model and is limited to system prompts, images, and PDFs.
+Specify whether to enable prompt caching for the API. How caching works depends on the provider:
+- **Anthropic Claude**: When enabled, explicitly marks system prompts, images, and PDFs for caching using cache_control. This reduces API costs and improves response time.
+- **OpenAI**: Automatically caches prompts of 128+ tokens for 5-10 minutes without any special configuration. This reduces API costs for cached portions. While this setting doesn't affect OpenAI's automatic caching, keeping it enabled helps maintain consistency when switching between providers.
 
 **Math Rendering**<br />
 Request the AI agent to use MathJax format when displaying mathematical expressions and render mathematical expressions in the response using MathJax.

@@ -107,7 +107,7 @@ module E2EHelper
   end
 
   # Send a chat message via WebSocket
-  def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4o", max_tokens: nil, skip_activation: false)
+  def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4o", max_tokens: nil, skip_activation: false, websearch: nil, reasoning_effort: nil)
     # Determine if this provider needs special handling for initiate_from_assistant: false
     needs_initial_message = false
     if !skip_activation && (app.include?("Gemini") || app.include?("DeepSeek") || app.include?("Mistral"))
@@ -178,7 +178,7 @@ module E2EHelper
       "initial_prompt" => initial_prompt,  # Use the app's initial prompt
       "monadic" => false,
       "agent_name" => "",
-      "websearch" => app.include?("ResearchAssistant"),
+      "websearch" => websearch.nil? ? app.include?("ResearchAssistant") : websearch,
       "auto_speech" => false,
       "stream" => true
       # Don't send tools - let each provider's helper handle tool configuration based on websearch setting
@@ -193,6 +193,9 @@ module E2EHelper
     
     # Add max_tokens if provided (for Claude)
     message_data["max_tokens"] = max_tokens if max_tokens
+    
+    # Add reasoning_effort if provided (for Claude thinking models)
+    message_data["reasoning_effort"] = reasoning_effort if reasoning_effort
     
     # For providers with initiate_from_assistant: false, send an activation message first
     if needs_initial_message

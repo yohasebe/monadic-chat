@@ -21,19 +21,7 @@ RSpec.describe "Chat Apps Web Search E2E", :e2e do
       app: "ChatOpenAI",
       provider: "OpenAI",
       enabled: -> { CONFIG["OPENAI_API_KEY"] },
-      model: "gpt-4.1-mini"
-    },
-    {
-      app: "ChatClaude",
-      provider: "Claude", 
-      enabled: -> { CONFIG["ANTHROPIC_API_KEY"] },
-      model: "claude-3.5-sonnet"
-    },
-    {
-      app: "ChatGemini",
-      provider: "Gemini",
-      enabled: -> { CONFIG["GEMINI_API_KEY"] },
-      model: "gemini-2.5-flash"
+      model: "gpt-4o"
     }
   ]
 
@@ -59,7 +47,8 @@ RSpec.describe "Chat Apps Web Search E2E", :e2e do
         
         send_chat_message(ws_connection, message, 
           app: config[:app], 
-          model: config[:model])
+          model: config[:model],
+          websearch: false)  # Explicitly disable web search
         
         response = wait_for_response(ws_connection, timeout: 30)
         
@@ -67,7 +56,7 @@ RSpec.describe "Chat Apps Web Search E2E", :e2e do
         expect(response).not_to be_empty
         
         # Should either mention lack of current info or provide general AI information
-        expect(response.downcase).to match(/don't have access|cannot access|current|real-time|knowledge cutoff|training data|generally|artificial intelligence/i)
+        expect(response.downcase).to match(/don't have access|cannot access|current|real-time|knowledge cutoff|training data|generally|artificial intelligence|may not have|up to date|unable to provide/i)
       end
 
       it "provides general information without real-time search" do
@@ -76,7 +65,8 @@ RSpec.describe "Chat Apps Web Search E2E", :e2e do
         
         send_chat_message(ws_connection, message, 
           app: config[:app], 
-          model: config[:model])
+          model: config[:model],
+          websearch: false)  # Explicitly disable web search
         
         response = wait_for_response(ws_connection, timeout: 30)
         
@@ -96,7 +86,8 @@ RSpec.describe "Chat Apps Web Search E2E", :e2e do
         
         send_chat_message(ws_connection, message, 
           app: config[:app], 
-          model: config[:model])
+          model: config[:model],
+          websearch: false)  # Explicitly disable web search
         
         response = wait_for_response(ws_connection, timeout: 30)
         

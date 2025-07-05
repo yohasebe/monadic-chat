@@ -105,8 +105,10 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       send_chat_message(ws_connection, 
         "What are the latest developments in quantum computing in 2024?", 
         app: app_name,
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000)
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        websearch: true,
+        reasoning_effort: "none")  # Disable thinking feature
       response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty
@@ -193,9 +195,10 @@ RSpec.describe "Research Assistant E2E", type: :e2e do
       # This test ensures Gemini works even when Tavily is not available
       # because it uses native Google search
       send_chat_message(ws_connection, 
-        "Tell me about machine learning", 
+        "What is machine learning and how does it work?", 
         app: "ResearchAssistantGemini",
-        model: "gemini-2.5-pro")
+        model: "gemini-2.0-flash",
+        websearch: true)  # Ensure websearch is enabled
       response = wait_for_response(ws_connection, timeout: 90)
       
       expect(response).not_to be_empty

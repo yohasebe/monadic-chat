@@ -5,8 +5,8 @@ This guide provides a comprehensive overview of Monadic Chat's testing architect
 ## Visual Test Architecture
 
 ```
-Monadic Chat Test Architecture (~76 test files)
-├── 📁 spec/
+Monadic Chat Test Architecture (~124 test files = 100 backend + 24 frontend)
+├── 📁 spec/ (Backend Ruby tests)
 │   ├── 🔧 spec_helper.rb (Minimal setup, no mocks)
 │   ├── 📊 examples.txt (Test execution results)
 │   ├── 📁 support/
@@ -51,11 +51,33 @@ Monadic Chat Test Architecture (~76 test files)
 │       ├── 🤖 content_reader_spec.rb
 │       ├── 🤖 image_generator_spec.rb
 │       ├── 🤖 jupyter_notebook_spec.rb
-│       ├── 🎤 voice_chat_workflow_spec.rb
+│       ├── 🎤 voice_chat_workflow_no_mock_spec.rb
 │       ├── 🎤 voice_chat_real_audio_spec.rb
-│       ├── 🌐 visual_web_explorer_workflow_spec.rb
-│       ├── 📊 mermaid_grapher_workflow_spec.rb
-│       └── 🦙 ollama_workflow_spec.rb
+│       ├── 🌐 visual_web_explorer_spec.rb
+│       ├── 📊 mermaid_grapher_spec.rb
+│       └── 🦙 ollama_spec.rb
+│
+└── 📁 test/frontend/no-mock/ (Frontend JavaScript tests)
+    ├── 📄 README.md (No-mock testing approach documentation)
+    ├── 📁 support/
+    │   ├── 🔧 no-mock-setup.js (Real DOM environment with jsdom)
+    │   ├── 🔧 test-utilities.js (DOM interaction helpers)
+    │   └── 🔧 fixture-loader.js (HTML fixture management)
+    │
+    └── 📁 Tests (24 tests total)
+        ├── 🌐 message-input.test.js (7 tests)
+        │   ├── ✅ Textarea auto-resize
+        │   ├── ✅ Character counter
+        │   ├── ✅ IME composition
+        │   └── ✅ Paste handling
+        ├── 🎨 message-cards.test.js (9 tests)
+        │   ├── ✅ Card creation
+        │   ├── ✅ Copy/Edit/Delete
+        │   └── ✅ Attachments
+        └── 🔌 websocket-ui-behavior.test.js (8 tests)
+            ├── ✅ Message flow
+            ├── ✅ Connection states
+            └── ✅ Real-time updates
 ```
 
 ## Test Categories and Dependencies
@@ -94,15 +116,18 @@ Monadic Chat Test Architecture (~76 test files)
 ### Quick Commands
 
 ```bash
-# Run all tests (Ruby + JavaScript)
-rake
-
-# Run specific test categories
+# Backend tests (Ruby)
+rake                   # Run all backend tests and RuboCop
+rake spec              # Run all backend tests
 rake spec_unit         # Fast unit tests (~0.1s)
 rake spec_integration  # Integration tests with containers
 rake spec_system       # System validation tests
 rake spec_docker       # Docker infrastructure tests
 rake spec_e2e          # End-to-end AI interaction tests
+
+# Frontend tests (JavaScript)
+npm run test:no-mock       # Run all UI tests without mocks
+npm run test:no-mock:watch # Watch mode for development
 ```
 
 ### E2E Test Subcategories
@@ -152,9 +177,20 @@ rake spec
 ### Core Principles
 
 1. **No Mocks** - All tests use real implementations
+   - Backend: Real containers, databases, and file operations
+   - Frontend: Real DOM with jsdom, actual jQuery library
 2. **Real Operations** - Actual file I/O, database queries, API calls
 3. **Container Auto-Management** - Tests automatically start required containers
 4. **Flexible Validation** - Adapt to different AI provider response formats
+
+### Frontend Testing Approach
+
+The frontend tests follow a no-mock philosophy:
+- **Real DOM**: Uses jsdom to provide a complete DOM environment
+- **Actual Libraries**: Loads the real jQuery library from vendor files
+- **Event Simulation**: Tests real browser events and interactions
+- **State Verification**: Checks actual DOM state changes
+- **No External Dependencies**: Tests run without WebSocket server
 
 ### Best Practices
 
@@ -259,7 +295,39 @@ rspec spec/unit/specific_test_spec.rb:42
 - **Unit Tests**: 90%+ coverage of core business logic
 - **Integration Tests**: All cross-service interactions
 - **E2E Tests**: Critical user workflows for each provider
+- **Frontend Tests**: All user interaction points
 - **Performance**: Unit tests < 1s total, Integration < 30s, E2E < 5min
+
+## Test Coverage Guidelines
+
+When developing tests, focus on:
+
+### Critical Areas
+1. **File Operations**
+   - Proper input validation
+   - Error handling
+   - Resource cleanup
+
+2. **External Integrations**
+   - API communication
+   - Response validation
+   - Error recovery
+
+3. **User Input Processing**
+   - Input validation
+   - Safe data handling
+   - Proper escaping
+
+### Integration Points
+4. **Third-party Services**
+   - Service availability handling
+   - Response format validation
+   - Timeout management
+
+5. **Audio/Media Processing**
+   - Format support
+   - Error conditions
+   - Performance considerations
 
 ## Test Organization Best Practices
 

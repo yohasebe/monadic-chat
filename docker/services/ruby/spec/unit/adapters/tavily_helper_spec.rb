@@ -1,18 +1,11 @@
 require 'spec_helper'
 require 'json'
+require 'monadic/adapters/vendors/tavily_helper'
 
 RSpec.describe TavilyHelper do
   let(:test_class) do
     Class.new do
       include TavilyHelper
-      
-      def initialize
-        @config = {}
-      end
-      
-      def CONFIG
-        @config
-      end
     end
   end
   
@@ -21,7 +14,7 @@ RSpec.describe TavilyHelper do
   describe '#tavily_search' do
     context 'when API key is missing' do
       before do
-        helper.instance_variable_get(:@config)["TAVILY_API_KEY"] = nil
+        stub_const("CONFIG", { "TAVILY_API_KEY" => nil })
       end
       
       it 'returns an error hash' do
@@ -33,7 +26,7 @@ RSpec.describe TavilyHelper do
     
     context 'when API returns an error' do
       before do
-        helper.instance_variable_get(:@config)["TAVILY_API_KEY"] = "test-key"
+        stub_const("CONFIG", { "TAVILY_API_KEY" => "test-key" })
         
         # Mock HTTP response with error
         error_response = double('response',
@@ -56,7 +49,7 @@ RSpec.describe TavilyHelper do
     
     context 'when network error occurs' do
       before do
-        helper.instance_variable_get(:@config)["TAVILY_API_KEY"] = "test-key"
+        stub_const("CONFIG", { "TAVILY_API_KEY" => "test-key" })
         
         # Mock HTTP timeout
         allow(HTTP).to receive(:headers).and_raise(HTTP::TimeoutError.new("Request timed out"))

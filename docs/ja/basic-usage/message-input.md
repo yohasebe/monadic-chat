@@ -33,7 +33,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## PDF のアップロード :id=uploading-pdfs
 
-Anthropic の Sonnet モデル、OpenAI の gpt-4.1、gpt-4.1-mini、gpt-4.1-nano、gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
+Anthropic の Claude モデル、OpenAI の gpt-4.1、gpt-4.1-mini、gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
 
 ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400')
 
@@ -41,7 +41,13 @@ Anthropic の Sonnet モデル、OpenAI の gpt-4.1、gpt-4.1-mini、gpt-4.1-nan
 
 ![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
-チャットの中で継続してPDFの内容についてのやり取りを行うためには、毎回のメッセージ入力で同じ PDF をアップロードする必要があります。セッション中にある PDF を一度アップロードすると、Monadic Chat はセッション終了までの間、毎回、AI エージェントにその PDF を送信します。その際、System Settings画面で `Prompt Caching` を有効にしている場合、同じ PDF に対するプロンプトがキャッシュされ、API の使用量を節約することができます。その PDF についてのやり取りを終了する場合は、削除 `×` ボタンをクリックして、PDF をクリアします。
+チャットの中で継続してPDFの内容についてのやり取りを行うためには、毎回のメッセージ入力で同じ PDF をアップロードする必要があります。セッション中にある PDF を一度アップロードすると、Monadic Chat はセッション終了までの間、毎回、AI エージェントにその PDF を送信します。
+
+API使用量の最適化について：
+- **Anthropic Claude**: System Settings画面で `Prompt Caching` を有効にしている場合、PDFは明示的にキャッシュされ、APIコストが大幅に削減されます
+- **OpenAI**: 特別な設定なしにPDFは5〜10分間自動的にキャッシュされ、キャッシュされた部分のAPIコストが削減されます
+
+その PDF についてのやり取りを終了する場合は、削除 `×` ボタンをクリックして、PDF をクリアします。
 
 ## 文書ファイルからのテキスト読み込み :id=reading-text-from-document-files
 

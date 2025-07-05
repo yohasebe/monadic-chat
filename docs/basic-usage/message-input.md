@@ -33,7 +33,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ## Uploading PDFs :id=uploading-pdfs
 
-In Anthropic's Sonnet models, OpenAI's gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
+In Anthropic's Claude models, OpenAI's gpt-4.1, gpt-4.1-mini, gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
 
 ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400')
 
@@ -41,7 +41,13 @@ As with images, when you upload a PDF file, the contents of the PDF are recogniz
 
 ![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
-To continue the conversation about the contents of the PDF in the chat, you need to upload the same PDF file with each message input. Once you upload a PDF during a session, Monadic Chat will send that PDF to the AI agent with each message until the session ends. If you have enabled `Prompt Caching` in the System Settings, prompts for the same PDF will be cached, saving on API usage. To end the conversation about the PDF, click the delete `×` button to clear the PDF.
+To continue the conversation about the contents of the PDF in the chat, you need to upload the same PDF file with each message input. Once you upload a PDF during a session, Monadic Chat will send that PDF to the AI agent with each message until the session ends. 
+
+For API usage optimization:
+- **Anthropic Claude**: If you have enabled `Prompt Caching` in the System Settings, the PDF will be explicitly cached, significantly reducing API costs
+- **OpenAI**: PDFs are automatically cached for 5-10 minutes without any special configuration, reducing API costs for cached portions
+
+To end the conversation about the PDF, click the delete `×` button to clear the PDF.
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 

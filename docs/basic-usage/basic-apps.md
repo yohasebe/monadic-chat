@@ -190,7 +190,7 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 This application generates images based on descriptions. 
 
-The OpenAI version uses the gpt-image-1 model and supports three main operations:
+The OpenAI version uses the latest gpt-image-1 model and supports three main operations:
 
 1. **Image Generation**: Create new images from text descriptions
 2. **Image Editing**: Modify existing images using text prompts and optional masks

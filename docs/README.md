@@ -4,7 +4,7 @@
   
   [![Release](https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge)](https://github.com/yohasebe/monadic-chat/releases)
   [![License](https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge)](LICENSE)
-  [![Tests](https://img.shields.io/badge/tests-1036_passing-success?style=for-the-badge)](https://yohasebe.github.io/monadic-chat/#/developer/testing_guide)
+  [![Tests](https://img.shields.io/badge/tests-1060_passing-success?style=for-the-badge)](https://yohasebe.github.io/monadic-chat/#/developer/testing_guide)
   
   ---
   
@@ -41,7 +41,7 @@ Monadic Chat is an AI framework grounded in the real world. The term **grounding
 
 Typically, discourse involves context and purpose, which are referenced and updated as the conversation progresses. Just as in human-to-human conversations, **maintaining and referencing context** is useful, or even essential, in conversations with AI agents. By defining the format and structure of meta-information in advance, it is expected that conversations with AI agents will become more purposeful. The process of users and AI agents advancing discourse while sharing a foundational background is the first meaning of "grounding."
 
-Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. Since it is an environment on Docker containers, it does not affect the host system. This is the second meaning of "grounding."
+Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. The system includes error pattern detection that prevents infinite retry loops, ensuring stable operation. Since it is an environment on Docker containers, it does not affect the host system. Providing an environment for AI agents to not only provide language responses but also to lead to actual actions - this is the second meaning of "grounding."
 
 ## Features
 
@@ -104,28 +104,44 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🎥 Recognition and description of **uploaded video content and audio**
 - 🎬 **Video generation** using Google's Veo model for text-to-video and image-to-video creation
 
+### Core Applications
+
+- 💬 **Chat** - Basic conversational AI with web search capabilities (All providers)
+- 💬 **Chat Plus** - Enhanced chat with monadic context management (All providers)
+- 🔧 **Code Interpreter** - Execute code and perform data analysis (All providers)
+- 👨‍💻 **Coding Assistant** - Programming help with code generation and debugging (All providers)
+- 📖 **Content Reader** - Extract and analyze content from files and URLs (All providers)
+- 🔍 **Research Assistant** - Web search and research with comprehensive analysis (All providers)
+- 🎙️ **Voice Chat** - Interactive voice conversations with TTS/STT (All providers)
+- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude)
+
 ### Specialized Applications
 
 - 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
 - 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
 - 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
 - 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)
-- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
+- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation (OpenAI)
 - 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
-- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
-- 💬 **Second Opinion** - Get verification from different AI providers for accuracy (all providers)
-- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (RAG) (OpenAI)
-- 📚 **Research Assistant** - Academic paper analysis and literature review (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
-- 💻 **Code Interpreter** - Advanced programming support with execution (all providers)
-- 🗣️ **Language Practice** - Interactive language learning with native speakers (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
-- ✍️ **Novel Writer** - Creative writing assistance with character development (OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama)
-- ❓ **Monadic Chat Help** - Built-in help system with intelligent assistance (OpenAI)
+- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI)
+- 💬 **Second Opinion** - Get verification from different AI providers for accuracy (All providers)
+- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (OpenAI)
+- 📊 **Mermaid Grapher** - Create flowcharts and diagrams using Mermaid syntax (All providers)
+- 🖼️ **Image Generator** - Generate images using DALL-E, Imagen 3, and Grok (OpenAI, Gemini, Grok)
+- 🎥 **Video Describer** - Analyze and describe video content (OpenAI)
+- 📧 **Mail Composer** - Compose professional emails with AI assistance (All providers)
+- 🌐 **Translate** - Language translation with context awareness (All providers)
+- 📖 **Language Practice** - Interactive language learning conversations (All providers)
+- 📖 **Language Practice Plus** - Advanced language learning with monadic context (All providers)
+- ✍️ **Novel Writer** - Creative writing assistant for stories and novels (All providers)
+- 🎤 **Speech Draft Helper** - Create speech drafts and presentations (All providers)
+- 📚 **Wikipedia** - Search and retrieve Wikipedia articles
+- ❓ **Monadic Help** - Built-in help system with AI explanations (OpenAI)
 
 ### Configuration and Extension
 
 - 💡 Specify and edit **API parameters** and **system prompts**
 - 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
-- 🤖 **MDSL Auto-completion** system that automatically generates tool definitions from Ruby implementations
 - 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps with real-time validation
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
@@ -137,6 +153,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Ruby container (`rbsetup.sh`)
   - Python container (`pysetup.sh`)
   - Ollama container (`olsetup.sh`)
+- 🔌 **MCP Server** integration for external tool access via JSON-RPC 2.0 protocol
 
 ### Support for Multiple LLM APIs
 
@@ -156,7 +173,10 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Conversations as Monads
 
-- ♻️ In addition to the main response from the AI assistant, it is possible to manage the (invisible) **state** of the conversation by obtaining additional responses and updating values within a predefined JSON object
+- ♻️ **Monadic mode** enables structured conversations with JSON-based context management
+- 📊 **All providers** now support monadic mode: OpenAI, Claude, Gemini, Mistral, Cohere, DeepSeek, Perplexity, Grok, and Ollama
+- 🔄 Context includes reasoning process, topics discussed, people mentioned, and important notes
+- 🎯 **Chat Plus** apps demonstrate monadic capabilities across all providers
 
 ## Developer
 

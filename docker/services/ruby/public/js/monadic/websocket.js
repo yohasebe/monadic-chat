@@ -3113,9 +3113,9 @@ function connect_websocket(callback) {
               }, 100);
             }
           } else {
-            // For non-assistant messages, show "Ready to start" immediately
+            // For non-assistant messages, show "Ready for input" immediately
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
           }
 
         } else if (data["content"]["role"] === "user") {
@@ -3133,7 +3133,7 @@ function connect_websocket(callback) {
             $("#monadic-spinner").hide();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
         } else if (data["content"]["role"] === "system") {
           // Use the appendCard helper function
           appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
@@ -3144,7 +3144,7 @@ function connect_websocket(callback) {
             $("#monadic-spinner").hide();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+          setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
         }
 
         $("#chat").html("");

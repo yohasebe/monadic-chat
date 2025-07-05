@@ -14,7 +14,9 @@
     "test": "jest",
     "test:passing": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:no-mock": "jest --config jest.no-mock.config.js",
+    "test:no-mock:watch": "jest --config jest.no-mock.config.js --watch"
   },
   "keywords": [],
   "author": "Yoichiro Hasebe <yohasebe@gmail.com>",
@@ -29,7 +31,9 @@
     "eslint-plugin-node": "^11.1.0",
     "globals": "^15.9.0",
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0"
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^24.0.0",
+    "ws": "^8.17.0"
   },
   "build": {
     "asar": true,

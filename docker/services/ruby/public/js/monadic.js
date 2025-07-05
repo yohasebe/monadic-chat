@@ -709,6 +709,12 @@ $(function () {
     messages = [];
     // Clear the discourse area
     $("#discourse").html("");
+    // Reset to settings panel instead of continuing session
+    $("#config").show();
+    $("#back-to-settings").hide();
+    $("#main-panel").hide();
+    $("#parameter-panel").hide();
+    $("#start-label").text("Start Session");
     proceedWithAppChange(newAppValue);
   });
   
@@ -1403,7 +1409,7 @@ $(function () {
 
   $("#clear").on("click", function (event) {
     event.preventDefault();
-    $("#message").css("height", "96px").val("");
+    $("#message").css("height", "100px").val("");
     setInputFocus()
   });
 

@@ -694,7 +694,17 @@ class DockerManager {
           
           // Simple command execution that handles SERVER STARTED messages
           return new Promise((resolve, reject) => {
-            let subprocess = spawn(cmd, [], {shell: true});
+            // Load environment variables from config file for Electron build
+            const envPath = getEnvPath();
+            const envConfig = readEnvFile(envPath);
+            
+            let subprocess = spawn(cmd, [], {
+              shell: true,
+              env: {
+                ...process.env,  // Keep existing environment variables
+                ...envConfig     // Add variables from ~/monadic/config/env
+              }
+            });
             
             subprocess.stdout.on('data', function (data) {
               writeToScreen(data.toString());

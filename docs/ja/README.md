@@ -4,7 +4,7 @@
   
   [![Release](https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge)](https://github.com/yohasebe/monadic-chat/releases)
   [![License](https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge)](LICENSE)
-  [![Tests](https://img.shields.io/badge/tests-1036_passing-success?style=for-the-badge)](/ja/developer/testing_guide)
+  [![Tests](https://img.shields.io/badge/tests-1060_passing-success?style=for-the-badge)](/ja/developer/testing_guide)
   
   ---
   
@@ -104,22 +104,39 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🎥 アップロードされた**動画の内容および音声の認識と分析**
 - 🎬 GoogleのVeoモデルを使用したテキストから動画、画像から動画への**動画生成**
 
+### コアアプリケーション
+
+- 💬 **Chat** - Web検索機能を備えた基本的な会話型AI（すべてのプロバイダー対応）
+- 💬 **Chat Plus** - モナディックコンテキスト管理による拡張チャット（すべてのプロバイダー対応）
+- 🔧 **Code Interpreter** - コード実行とデータ分析（すべてのプロバイダー対応）
+- 👨‍💻 **Coding Assistant** - コード生成とデバッグによるプログラミング支援（すべてのプロバイダー対応）
+- 📖 **Content Reader** - ファイルとURLからのコンテンツ抽出と分析（すべてのプロバイダー対応）
+- 🔍 **Research Assistant** - 包括的な分析によるWeb検索と調査（すべてのプロバイダー対応）
+- 🎙️ **Voice Chat** - TTS/STTによる対話型音声会話（すべてのプロバイダー対応）
+- 📓 **Jupyter Notebook** - エラー自動修正機能付き対話型ノートブック環境（OpenAI、Claude）
+
 ### 専門アプリケーション
 
 - 🌳 **Syntax Tree** - 自動エラー回復機能付きのテキスト解析用言語構文木生成（OpenAI、Claude）
 - 🎨 **Concept Visualizer** - LaTeX/TikZを使用した3D可視化を含む各種図表の作成（OpenAI、Claude）
 - 🎥 **Video Generator** - GoogleのVeoモデルを使用したテキストまたは画像からの動画作成（Gemini）
 - 🌐 **Visual Web Explorer** - Webページのスクリーンショット撮影やテキスト抽出（OpenAI、Claude、Gemini、Grok）
-- 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
+- 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話（OpenAI）
 - 📊 **DrawIO Grapher** - DrawIO形式でプロフェッショナルな図表を作成（OpenAI、Claude）
-- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
+- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI）
 - 💬 **Second Opinion** - 異なるAIプロバイダーから検証意見を取得（すべてのプロバイダー対応）
 - 📄 **PDF Navigator** - ベクトルデータベース（RAG）を使用したPDF文書のナビゲートと分析（OpenAI）
-- 📚 **Research Assistant** - 学術論文の分析と文献レビュー（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
-- 💻 **Code Interpreter** - 実行機能付き高度なプログラミングサポート（すべてのプロバイダー対応）
-- 🗣️ **Language Practice** - ネイティブスピーカーとの対話型言語学習（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
-- ✍️ **Novel Writer** - キャラクター開発を含む創作執筆支援（OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、Grok、DeepSeek、Ollama）
-- ❓ **Monadic Chat Help** - インテリジェントな支援機能付き内蔵ヘルプシステム（OpenAI）
+- 📊 **Mermaid Grapher** - Mermaid構文を使用したフローチャートと図表の作成（すべてのプロバイダー対応）
+- 🖼️ **Image Generator** - DALL-E、Imagen 3、Grokを使用した画像生成（OpenAI、Gemini、Grok）
+- 🎥 **Video Describer** - 動画コンテンツの分析と説明（OpenAI）
+- 📧 **Mail Composer** - AI支援によるプロフェッショナルなメール作成（すべてのプロバイダー対応）
+- 🌐 **Translate** - コンテキスト認識による言語翻訳（すべてのプロバイダー対応）
+- 📖 **Language Practice** - 対話型言語学習会話（すべてのプロバイダー対応）
+- 📖 **Language Practice Plus** - モナディックコンテキストによる高度な言語学習（すべてのプロバイダー対応）
+- ✍️ **Novel Writer** - 物語や小説の創作執筆支援（すべてのプロバイダー対応）
+- 🎤 **Speech Draft Helper** - スピーチ原稿とプレゼンテーションの作成（すべてのプロバイダー対応）
+- 📚 **Wikipedia** - Wikipedia記事の検索と取得
+- ❓ **Monadic Help** - AI説明付き内蔵ヘルプシステム（OpenAI）
 
 ### 設定と拡張
 
@@ -136,6 +153,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
   - Rubyコンテナ用（`rbsetup.sh`）
   - Pythonコンテナ用（`pysetup.sh`）
   - Ollamaコンテナ用（`olsetup.sh`）
+- 🔌 JSON-RPC 2.0プロトコル経由の外部ツールアクセス用**MCPサーバー**統合
 
 ### 複数のLLM APIに対応
 
@@ -155,7 +173,10 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 
 ### モナドとしての会話
 
-- ♻️   AIアシスタントからのメインのレスポンスに加えて、背後で追加のレスポンスを取得し、事前定義されたJSONオブジェクト内の値を更新することで会話の（表面下での）**状態**の管理が可能
+- ♻️ **モナディックモード**により、JSONベースのコンテキスト管理による構造化された会話が可能
+- 📊 **すべてのプロバイダー**がモナディックモードに対応：OpenAI、Claude、Gemini、Mistral、Cohere、DeepSeek、Perplexity、Grok、Ollama
+- 🔄 コンテキストには推論プロセス、議論されたトピック、言及された人物、重要な注記が含まれる
+- 🎯 **Chat Plus**アプリがすべてのプロバイダーでモナディック機能を実演
 
 ## 開発者
 

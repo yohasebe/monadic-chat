@@ -105,23 +105,44 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🎥 Recognition and description of **uploaded video content and audio**
 - 🎬 **Video generation** using Google's Veo model for text-to-video and image-to-video creation
 
+### Core Applications
+
+- 💬 **Chat** - Basic conversational AI with web search capabilities (All providers)
+- 💬 **Chat Plus** - Enhanced chat with monadic context management (All providers)
+- 🔧 **Code Interpreter** - Execute code and perform data analysis (All providers)
+- 👨‍💻 **Coding Assistant** - Programming help with code generation and debugging (All providers)
+- 📖 **Content Reader** - Extract and analyze content from files and URLs (All providers)
+- 🔍 **Research Assistant** - Web search and research with comprehensive analysis (All providers)
+- 🎙️ **Voice Chat** - Interactive voice conversations with TTS/STT (All providers)
+- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude)
+
 ### Specialized Applications
 
 - 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
 - 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
 - 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
 - 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)
-- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation
+- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation (OpenAI)
 - 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
-- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering
-- 💬 **Second Opinion** - Get verification from different AI providers for accuracy
-- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (RAG)
+- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI)
+- 💬 **Second Opinion** - Get verification from different AI providers for accuracy (All providers)
+- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (OpenAI)
+- 📊 **Mermaid Grapher** - Create flowcharts and diagrams using Mermaid syntax (All providers)
+- 🖼️ **Image Generator** - Generate images using DALL-E, Imagen 3, and Grok (OpenAI, Gemini, Grok)
+- 🎥 **Video Describer** - Analyze and describe video content (OpenAI)
+- 📧 **Mail Composer** - Compose professional emails with AI assistance (All providers)
+- 🌐 **Translate** - Language translation with context awareness (All providers)
+- 📖 **Language Practice** - Interactive language learning conversations (All providers)
+- 📖 **Language Practice Plus** - Advanced language learning with monadic context (All providers)
+- ✍️ **Novel Writer** - Creative writing assistant for stories and novels (All providers)
+- 🎤 **Speech Draft Helper** - Create speech drafts and presentations (All providers)
+- 📚 **Wikipedia** - Search and retrieve Wikipedia articles
+- ❓ **Monadic Help** - Built-in help system with AI explanations (OpenAI)
 
 ### Configuration and Extension
 
 - 💡 Specify and edit **API parameters** and **system prompts**
 - 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
-- 🤖 **MDSL Auto-completion** system that automatically generates tool definitions from Ruby implementations
 - 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps with real-time validation
 - 💎 Extend functionality using the **Ruby** programming language
 - 🐍 Extend functionality using the **Python** programming language
@@ -130,6 +151,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📦 Add custom **Docker containers**
 - 📝 **Declarative DSL** for simplified app development with error pattern detection
 - 🔧 Optional setup scripts (`rbsetup.sh`, `pysetup.sh`, `olsetup.sh`) for custom environment configuration
+- 🔌 **MCP Server** integration for external tool access via JSON-RPC 2.0 protocol
 
 ### Support for Multiple LLM APIs
 

@@ -1,10 +1,10 @@
 <div align="center">
-  
-  <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-logo.png" width="700px" alt="Monadic Chat Logo">
-  
-  [![Release](https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge)](https://github.com/yohasebe/monadic-chat/releases)
-  [![License](https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge)](LICENSE)
-  [![Tests](https://img.shields.io/badge/tests-1060_passing-success?style=for-the-badge)](/ja/developer/testing_guide)
+
+<img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/monadic-chat-logo.png" width="700px" alt="Monadic Chat Logo">
+
+<a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge" alt="Release"></a>
+<a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge" alt="License"></a>
+<a href="/ja/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1060_passing-success?style=for-the-badge" alt="Tests"></a>
   
   ---
   

@@ -9,6 +9,6 @@
 - Enable AI-to-AI communication
 - JupyterLab integration
 
-[Get Started](#monadic-chat)
+[Get Started](README.md)
 [GitHub](https://github.com/yohasebe/monadic-chat/)
 

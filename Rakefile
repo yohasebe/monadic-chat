@@ -1597,6 +1597,15 @@ namespace :release do
   end
 end
 
+# Documentation server
+desc "Start docsify documentation server"
+task :docs do
+  puts "Starting docsify documentation server..."
+  puts "Documentation will be available at: http://localhost:3000"
+  puts "Press Ctrl+C to stop the server"
+  sh "docsify serve ./docs"
+end
+
 # Help database namespace
 namespace :help do
   desc "Build help database from documentation (incremental update)"

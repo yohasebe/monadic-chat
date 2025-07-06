@@ -1,7 +1,0 @@
-{
-  "monadic-chat-help": {
-    "transport": "http",
-    "url": "http://localhost:3100/mcp",
-    "description": "Monadic Chat Help documentation via MCP"
-  }
-}

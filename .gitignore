@@ -68,6 +68,10 @@ scripts/deploy/rsync.sh
 *.log
 *.ipynb
 
+# Test output files
+test_text_*
+test_tts_input_*
+
 /icons/menu_icons/
 /icons/app_icons/
 

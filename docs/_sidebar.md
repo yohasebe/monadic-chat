@@ -1,6 +1,7 @@
 - **Getting Started**
 
     - [Monadic Chat](/README.md)
+    - [Quick Start Tutorial](/getting-started/quick-start.md)
     - [Installation](/getting-started/installation.md)
     - [Uninstallation](/getting-started/uninstallation.md)
 
@@ -34,6 +35,10 @@
     - [Help System Configuration](/advanced-topics/help-system.md)
     - [MCP Integration](/advanced-topics/mcp-integration.md)
     
+- **Reference**
+
+    - [Configuration Reference](/reference/configuration.md)
+    
 - **Frequently Asked Questions**
 
     - [Setup and Settings](/faq/faq-settings.md)
@@ -45,7 +50,7 @@
 
 - **Developer Guide**
 
-    - [Breaking Changes (1.0.0)](/developer/breaking-changes.md)
+    <!-- - [Breaking Changes (1.0.0)](/developer/breaking-changes.md) -->
     - [Development Workflow](/developer/development_workflow.md)
     - [Testing Guide](/developer/testing_guide.md)
     - [Rake Tasks](/developer/rake_tasks.md)

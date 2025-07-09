@@ -19,11 +19,14 @@ Monadic Chatのベクトルデータベース機能は以下のことを行い�
 - 高性能なベクトル保存と類似性検索を提供
 - ドキュメントの内容とそのベクトル表現の両方を保存
 
+
 ### テキスト処理フロー
 
 ![ベクトルデータベース利用のフロー](../assets/images/rag.png ':size=700')
 
 PDF Navigatorアプリでの処理フローは以下の通りです：
+
+> 📸 **スクリーンショットが必要**: PDFアップロードとクエリインターフェースを表示するPDF Navigatorアプリ
 
 1. **テキスト抽出**： 
    - PDFはPyMuPDFを使用して生テキストを抽出
@@ -82,8 +85,8 @@ PDF Navigatorアプリはこのシステムを活用して、インテリジェ�
 ## Monadic Helpでの使用 :id=use-in-monadic-help
 
 Monadic Chatはベクトルストレージ用に2つの別々のデータベースを使用します：
-- **`monadic_user_docs`** - PDF NavigatorアプリでユーザーがアップロードしたPDFドキュメント用
-- **`monadic_help`** - Monadic Helpアプリの組み込みドキュメント検索用
+- `monadic_user_docs` - PDF NavigatorアプリでユーザーがアップロードしたPDFドキュメント用
+- `monadic_help` - Monadic Helpアプリの組み込みドキュメント検索用
 
 Monadic Helpアプリは、次のようにベクトルデータベースシステムを使用します：
 

@@ -7,6 +7,8 @@
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
+> 📸 **スクリーンショットが必要**: Startボタンがハイライトされたコンソールパネル
+
 **Stop** <br />
 Monadic Chatを停止します。
 
@@ -15,10 +17,11 @@ Monadic Chatを再起動します。
 
 **Open Browser** <br />
 Monadic ChatをWebブラウザで開きます。
-アクセス URL: `http://localhost:4567`。
+アクセス URL: [http://localhost:4567](http://localhost:4567)
 
 **Shared Folder** <br />
 ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。
+
 
 **Quit**<br />
 Monadic Chat Consoleを終了します。
@@ -37,6 +40,8 @@ Monadic Chatを起動します。初回起動時はDocker上での環境構築�
 **Build All** <br />
 Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
+> 📸 **スクリーンショットが必要**: Dockerビルドの進行状況を表示するコンソール出力
+
 **Build Ruby Container** <br />
 Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を構築します。
 
@@ -53,13 +58,15 @@ Ollama経由でローカル言語モデルを実行するためのDockerイメ�
 Monadic ChatのDockerイメージおよびコンテナを削除します。
 
 **Start JupyterLab** <br />
-JupyterLabを起動します。JupyterLabは`http://localhost:8889`でアクセスできます。
+JupyterLabを起動します。JupyterLabは[http://localhost:8889](http://localhost:8889)でアクセスできます。
+
 
 **Stop JupyterLab** <br />
 JupyterLabを停止します。
 
 **Export Document DB** <br />
 Monadic Chatのベクトルデータベースに保存されているPDFドキュメントデータをエクスポートします。エクスポートされたファイルは`monadic.gz`という名前で共有フォルダに保存されます。
+
 
 **Import Document DB** <br />
 Monadic Chatで以前にエクスポートされたPDFドキュメントデータをインポートします。インポートの際には、共有フォルダに`monadic.gz`という名前のファイルを配置してください。
@@ -69,7 +76,7 @@ Monadic Chatで以前にエクスポートされたPDFドキュメントデー�
 ![Open Menu](../assets/images/open-menu.png ':size=150')
 
 **Open Browser** <br />
-Monadic Chatをデフォルトブラウザで開きます。アクセスURL: `http://localhost:4567`。
+Monadic Chatをデフォルトブラウザで開きます。アクセスURL: [http://localhost:4567](http://localhost:4567)
 
 **Open Shared Folder** <br />
 ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
@@ -88,6 +95,7 @@ Monadic Chatの設定ファイルが保存されているフォルダを開き�
 - `olsetup.sh`: Ollamaモデルをセットアップするスクリプト（オプション、ユーザー作成）
 - `compose.yml`: Docker Compose設定ファイル（ユーザーコンテナが存在する場合に自動生成）
 
+
 **Open Log Folder** <br />
 Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
@@ -101,9 +109,7 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 
 - `extra.log`: Monadic Chatの起動から終了時までに行なったチャットの記録がレスポンス時にストリーミングされるJSONオブジェクト単位で記録されるログファイル
 
-?> **デバッグログ**: GUIの「Extra Logging」オプションは`~/monadic/config/env`ファイルで`MONADIC_DEBUG=api`を設定することと同等です。より詳細なデバッグ制御には、`~/monadic/config/env`ファイルで設定変数を使用できます：
-> - `MONADIC_DEBUG`: 特定のデバッグカテゴリを有効化（例：`api`、`embeddings`、`mdsl`、`tts`、`drawio`、`ai_user`、`web_search`、または`all`）
-> - `MONADIC_DEBUG_LEVEL`: ログレベルを設定（`debug`、`info`、`warning`、`error`）
+?> **注意:** 「Extra Logging」オプションはデバッグ目的で詳細なログを有効にします。有効にすると、追加のログ情報がログディレクトリに保存されます。
 
 **Open Console** <br />
 Monadic Chatのコンソールパネルを開きます。
@@ -134,32 +140,33 @@ Monadic ChatのすべてのDockerイメージとコンテナを削除します�
 **OPENAI_API_KEY** <br />
 （推奨）OpenAI APIキーを入力します。このキーは、Chat API、DALL-E画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。必須ではありませんが、多くの基本機能がこのキーに依存しています。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
 
+
 **ANTHROPIC_API_KEY** <br />
-Anthropic APIキーを入力します。APIキーは[https://console.anthropic.com]から取得できます。
+Anthropic APIキーを入力します。APIキーは[https://console.anthropic.com](https://console.anthropic.com)から取得できます。
 
 **COHERE_API_KEY** <br />
-Cohere APIキーを入力します。APIキーは[https://dashboard.cohere.com]から取得できます。
+Cohere APIキーを入力します。APIキーは[https://dashboard.cohere.com](https://dashboard.cohere.com)から取得できます。
 
 **GEMINI_API_KEY** <br />
-Google Gemini APIキーを入力します。APIキーは[https://ai.google.dev/]から取得できます。
+Google Gemini APIキーを入力します。APIキーは[https://ai.google.dev/](https://ai.google.dev/)から取得できます。
 
 **MISTRAL_API_KEY** <br />
-Mistral APIキーを入力します。APIキーは[https://console.mistral.ai/]から取得できます。
+Mistral APIキーを入力します。APIキーは[https://console.mistral.ai/](https://console.mistral.ai/)から取得できます。
 
 **XAI_API_KEY** <br />
-xAI APIキーを入力します。APIキーは[https://x.ai/api]から取得できます。
+xAI APIキーを入力します。APIキーは[https://x.ai/api](https://x.ai/api)から取得できます。
 
 **PERPLEXITY_API_KEY** <br />
-Perplexity APIキーを入力します。このキーはPerplexityモデルを使用するために必要です。APIキーは[https://www.perplexity.ai/settings/api]から取得できます。
+Perplexity APIキーを入力します。このキーはPerplexityモデルを使用するために必要です。APIキーは[https://www.perplexity.ai/settings/api](https://www.perplexity.ai/settings/api)から取得できます。
 
 **DEEPSEEK_API_KEY** <br />
-DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.com/]から取得できます。
+DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.com/](https://platform.deepseek.com/)から取得できます。
 
 **ELEVENLABS_API_KEY** <br />
-ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声モデルを使用するためのものです。APIキーは[https://elevenlabs.io/developers]から取得できます。
+ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声モデルを使用するためのものです。APIキーは[https://elevenlabs.io/developers](https://elevenlabs.io/developers)から取得できます。
 
 **TAVILY_API_KEY** <br />
-Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/]から取得できます。
+Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 
@@ -188,8 +195,10 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 **Application Mode** <br />
 Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
 
+
 **Browser Mode** <br />
 コンソールからMonadic Chatを開く際に使用するブラウザを選択します。"Internal Browser"は組み込みのElectronブラウザウィンドウを開き、"External Browser"はシステムのデフォルトWebブラウザを開きます。デフォルトは"Internal Browser"です。
+
 
 **Extra Logging** <br />
 詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは`~/monadic/log/extra.log`に保存されます。この設定は`~/monadic/config/env`ファイルで設定変数`MONADIC_DEBUG=api`を設定することと同等です。

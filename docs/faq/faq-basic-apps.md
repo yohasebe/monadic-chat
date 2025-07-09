@@ -78,7 +78,7 @@ Note that this doesn't delete any saved files in the shared folder or reset conf
 
 ##### Q: Can I have multiple conversations in parallel? :id=multiple-conversations
 
-**A**: Currently, Monadic Chat supports one conversation at a time. However, you can save and export conversations, and switch between different applications to work on different topics.
+**A**: Monadic Chat supports one conversation at a time. However, you can save and export conversations, and switch between different applications to work on different topics.
 
 ---
 

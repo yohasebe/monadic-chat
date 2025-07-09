@@ -8,6 +8,8 @@ Clicking the `Shared Folder` button in the Monadic Chat console will launch the 
 
 By placing files in this directory, you can access those files within Monadic Chat's Docker containers. The path to the Shared Folder within each Docker container is `/monadic/data`, while the path on your local machine is `~/monadic/data`.
 
+> 📸 **Screenshot needed**: File explorer showing ~/monadic/data folder structure
+
 In apps that can execute code (e.g., Code Interpreter app), you can read files from the Shared Folder. When specifying a file, provide only the file name without the directory path.
 
 During the execution of some processes on the AI agent side (using function calling, for example), intermediate files may be saved in the Shared Folder. It is recommended to periodically check and delete unnecessary files.
@@ -32,6 +34,7 @@ When you use the `Actions/Start JupyterLab` menu in the Monadic Chat console to 
 
 Files are saved directly in the shared folder with generated filenames that often include timestamps or unique identifiers. It's recommended to periodically clean up unnecessary files.
 
+
 ## Monadic Chat Directory Structure
 
 When Monadic Chat starts for the first time, the following directory structure is automatically created:
@@ -48,17 +51,18 @@ When Monadic Chat starts for the first time, the following directory structure i
 └── ollama/         # Ollama model storage (if Ollama container is built)
 ```
 
+
 The `data` folder is the shared folder that is mounted in all containers. These subfolders are used for organizing custom content when developing additional apps. For information on how to develop additional apps, see [Developing Apps](../advanced-topics/develop_apps.md).
 
-**`apps`**
+`apps`
 
 This folder stores additional applications beyond the pre-installed basic apps. Each app should reside in its own subfolder within the `apps` directory.
 
-**`helpers`**
+`helpers`
 
 This folder stores helper Ruby files containing functions (methods) used by your apps. These helper files are loaded before the app's recipe file, allowing you to organize and reuse common code across multiple apps.
 
-**`scripts`**
+`scripts`
 
 This folder contains executable scripts (e.g., shell scripts, Python scripts, Ruby scripts) that can be run within any Monadic Chat container. Scripts placed here are automatically made executable and added to the container's PATH, allowing direct execution by name without specifying the full path.
 
@@ -99,6 +103,6 @@ send_command(
 - Scripts can access other files in the shared folder using relative paths
 - This mechanism allows extending Monadic Chat's functionality without modifying core code
 
-**`plugins`**
+`plugins`
 
 This folder is for organizing Monadic Chat plugins. Each plugin should reside in its own subfolder and can contain its own `apps` and `helpers` subfolders to keep the plugin's code self-contained. Note that plugin folders cannot contain a `scripts` subfolder; scripts should be placed in the main `scripts` directory at the root of the Shared Folder.

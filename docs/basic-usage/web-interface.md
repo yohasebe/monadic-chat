@@ -23,9 +23,11 @@ When running in internal browser mode, four additional buttons appear at the bot
 - **Reset App**: Clears session data, reloads the UI, and resets to the initial app selection
 - **Monadic Chat Console**: Shows the main console window
 
+
 ### External Browser Mode :id=external-browser-mode
 
-In external browser mode, Monadic Chat launches your default web browser and connects to the local server (at http://localhost:4567).
+In external browser mode, Monadic Chat launches your default web browser and connects to the local server (at `http://localhost:4567`).
+
 
 ## Application Modes :id=application-modes
 
@@ -59,6 +61,7 @@ Models available for the selected app are displayed. If a default model is set f
 **Reasoning Effort** <br />
 For models capable of advanced reasoning (such as OpenAI's o1, o3, o4 series, Claude Opus 4 and Sonnet 4, Gemini 2.5 models, and Perplexity sonar-reasoning), you can adjust the reasoning effort level. Selecting `low` minimizes computational resources used in the reasoning process, while selecting `high` maximizes them. The default is `low` for most models.
 
+
 **Max Output Tokens** <br />
 Specify the maximum number of tokens to be returned in the API response. When the checkmark is on, the response is limited to the specified number of tokens. The method for counting tokens varies depending on the model. For OpenAI models, see [What are tokens and how to count them](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).
 
@@ -77,6 +80,7 @@ These elements are sent as parameters to the API. For details on each parameter,
 **Show Initial Prompt**<br />
 Turn on to display or edit the text sent to the API as the initial prompt (also called the system prompt). The initial prompt can specify the character settings of the conversation and the format of the response. Default text is set according to the purpose of each app, but it can be freely changed.
 
+
 **Show Initial Prompt for AI-User**<br />
 Displays the initial prompt given to the AI user when the AI User feature is enabled. When the AI user is enabled, the first message must be created by the (non-AI) user.  Afterward, the AI will create messages on your behalf, based on the AI assistant's messages. You can edit or append to the messages entered in the text box by the AI user. The initial prompt for the AI user can be freely changed.
 
@@ -90,6 +94,7 @@ Request the AI agent to use MathJax format when displaying mathematical expressi
 
 **AI User Provider**<br />
 Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. The AI User feature automatically generates responses as if they were written by a human user, helping to test conversations and see how the assistant responds to different inputs. After the assistant has replied, clicking the `Run` button next to the AI User provider dropdown will generate a natural follow-up message based on the conversation history, which you can edit before sending. This feature supports multiple providers (OpenAI, Claude, Gemini, Cohere, Mistral, Perplexity, DeepSeek, and Grok) and intelligently handles provider-specific formatting requirements.
+
 
 **Start from assistant**<br />
 When on, the assistant makes the first utterance when starting a conversation.
@@ -108,6 +113,7 @@ When enabled, allows the AI to search the web for current information. This opti
 - OpenAI (gpt-4.1/gpt-4.1-mini): Uses native web search via Responses API
 - Other providers: Uses Tavily API when configured
 - The AI decides when to search based on the query context
+
 
 **Start Session / Continue Session** <br />
 Click this button to start a chat based on the options and parameters specified in the System Settings. If you have already started a session and click the `Settings` button to return to the System Settings panel, this button will be labeled `Continue Session`. Clicking it will return you to your ongoing conversation without resetting it.

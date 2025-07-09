@@ -10,15 +10,15 @@ Monadic DSL (MDSL) is a Ruby-based domain-specific language that simplifies AI a
 
 #### 1.1.1 Provider Abstraction
 MDSL supports multiple LLM providers through a unified interface:
-- **OpenAI** - https://openai.com
-- **Anthropic** (Claude) - https://anthropic.com
-- **Google** (Gemini) - https://ai.google.dev
-- **Mistral** - https://mistral.ai
-- **Cohere** - https://cohere.com
-- **DeepSeek** - https://deepseek.com
-- **Perplexity** - https://perplexity.ai
-- **xAI** (Grok) - https://x.ai
-- **Ollama** - https://ollama.ai
+- **OpenAI** - [https://openai.com](https://openai.com)
+- **Anthropic** (Claude) - [https://anthropic.com](https://anthropic.com)
+- **Google** (Gemini) - [https://ai.google.dev](https://ai.google.dev)
+- **Mistral** - [https://mistral.ai](https://mistral.ai)
+- **Cohere** - [https://cohere.com](https://cohere.com)
+- **DeepSeek** - [https://deepseek.com](https://deepseek.com)
+- **Perplexity** - [https://perplexity.ai](https://perplexity.ai)
+- **xAI** (Grok) - [https://x.ai](https://x.ai)
+- **Ollama** - [https://ollama.ai](https://ollama.ai)
 
 #### 1.1.2 Critical Naming Convention
 ?> **Important**: The MDSL app name must exactly match the Ruby class name. For example, `app "ChatOpenAI"` requires a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
@@ -35,6 +35,7 @@ apps/
     ├── second_opinion_tools.rb
     └── ...
 ```
+
 
 ### 1.2 Key Design Principles
 
@@ -96,9 +97,9 @@ PROVIDER_INFO = {
 ## 3. Feature Management
 
 ### 3.1 Provider-Specific Features
-- **`monadic`** - JSON state management (OpenAI, Ollama, DeepSeek, Perplexity, Grok)
-- **`toggle`** - Collapsible UI sections (Claude, Gemini, Mistral, Cohere)
-- **`initiate_from_assistant`** - Start with AI message (Claude, Gemini)
+- `monadic` - JSON state management (supported by all providers)
+- `toggle` - Collapsible UI sections (Claude, Gemini, Mistral, Cohere)
+- `initiate_from_assistant` - Start with AI message (Claude, Gemini)
 
 ?> **Important**: Never enable both `monadic` and `toggle` - they are mutually exclusive.
 
@@ -154,18 +155,14 @@ Result.new(value)
   .bind { |v| save(v) }
 ```
 
-## 6. Debugging and Development
+## 6. Common Issues
 
-### 6.1 Debug Configuration Variables
-Add these to `~/monadic/config/env`:
-- `MONADIC_DEBUG=true` - General debug output
-- `EXTRA_LOGGING=true` - Detailed logging
-
-### 6.2 Common Issues
 1. **Menu grouping problems** - Check app name matches class name
 2. **Missing models** - Ensure helper's `list_models` uses `$MODELS` cache
 3. **Tool not found** - Verify facade module is included
 4. **Feature conflicts** - Check `monadic`/`toggle` exclusivity
+
+?> **For debugging**: Enable "Extra Logging" in the Console Panel settings to get detailed logs when troubleshooting issues.
 
 ## 7. Best Practices
 

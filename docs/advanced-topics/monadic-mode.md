@@ -6,6 +6,7 @@ Monadic Mode is a distinctive feature of Monadic Chat that allows you to maintai
 
 In Monadic Mode, each response from the AI includes both a message and a structured context object. This context is preserved and updated throughout the conversation, allowing the AI to maintain state and reference previous information.
 
+
 ### Basic Structure
 
 ```json
@@ -19,27 +20,31 @@ In Monadic Mode, each response from the AI includes both a message and a structu
 }
 ```
 
-## When Monadic Mode is Used
 
-Monadic Mode is commonly used with providers that support structured JSON outputs:
+## Monadic Mode Support
 
-- **OpenAI** - Full support with `response_format`
-- **DeepSeek** - JSON output support
+All providers in Monadic Chat support monadic mode through a unified interface. This includes:
+
+- **OpenAI** - Native `response_format` support
+- **Claude** - JSON through system prompts
+- **Gemini** - `responseMimeType` configuration
+- **Mistral** - `response_format` with JSON schema
+- **Cohere** - Structured output support
+- **DeepSeek** - JSON output format
 - **Perplexity** - Structured response capabilities
 - **Grok** - JSON format support
+- **Ollama** - `format: "json"` option
 
-For providers that don't require structured JSON outputs (such as Claude, Gemini, Mistral, Cohere, and Ollama), Monadic Chat typically uses "toggle mode" to provide context management through HTML-based display.
-
-?> **Note**: The `monadic` and `toggle` features are mutually exclusive. However, the choice between them is about UI display and context management approach, not API limitations. Even JSON-capable providers like OpenAI can use toggle mode when flexible formatting is preferred over structured responses.
+?> **Note**: The `monadic` and `toggle` features are mutually exclusive. The choice between them determines how context is displayed in the UI - `monadic` uses collapsible JSON views while `toggle` uses HTML-based sections. Both approaches maintain conversation context effectively.
 
 ## Architecture
 
 The monadic functionality is implemented through several modules:
 
-- **`monadic_unit`**: Wraps messages with context in JSON format
-- **`monadic_unwrap`**: Safely extracts data from JSON responses
-- **`monadic_map`**: Transforms context with optional processing
-- **`monadic_html`**: Renders JSON context as collapsible HTML in the UI
+- `monadic_unit`: Wraps messages with context in JSON format
+- `monadic_unwrap`: Safely extracts data from JSON responses
+- `monadic_map`: Transforms context with optional processing
+- `monadic_html`: Renders JSON context as collapsible HTML in the UI
 
 ## Practical Examples
 

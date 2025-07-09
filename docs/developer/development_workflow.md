@@ -323,7 +323,7 @@ This command:
 - Does NOT start the Ruby container - uses host Ruby runtime instead
 - Starts all other containers (Python, PostgreSQL, pgvector, Ollama if available)
 - Uses files from `/docker/services/ruby/` directly on the host
-- Makes the web UI accessible via browser at `http://localhost:4567`
+- Makes the web UI accessible via browser at [http://localhost:4567](http://localhost:4567)
 
 This setup allows you to:
 - Edit Ruby code and see changes immediately without rebuilding containers

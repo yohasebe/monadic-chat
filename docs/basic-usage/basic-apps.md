@@ -1,19 +1,20 @@
 # Basic Apps
 
-Currently, the following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file.
+The following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file.
 
-Basic apps use OpenAI's models. If you want to use models from other providers, see [Language Models](./language-models.md).
+Most basic apps support multiple AI providers. See the table below for specific app availability by provider. For information on available models from each provider, see [Language Models](./language-models.md).
 
 For information on how to develop your own apps, refer to the [App Development](../advanced-topics/develop_apps.md) section.
 
 ## App Availability by Provider :id=app-availability
 
-The table below shows which apps are available for which AI model providers. If not specified in the app's description, the app is available for OpenAI's models only.
+The table below shows which apps are available for which AI model providers.
+
 
 | App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | | | | | | | | |
+| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | | | | | | | | |
@@ -49,6 +50,8 @@ The table below shows which apps are available for which AI model providers. If 
 
 This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search capabilities are available but disabled by default for user control over costs and privacy. You can enable web search manually in the app settings when you need current information.
 
+> 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis
+
 Chat apps are also available for the following models:
 
 - OpenAI
@@ -72,6 +75,7 @@ This is a chat application that is "monadic" and has additional features compare
 - people: The list of people mentioned in the conversation so far.
 - notes: The list of notes that should be remembered during the conversation.
 
+
 ### Voice Chat :id=voice-chat
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
@@ -83,6 +87,7 @@ This application allows you to chat using voice, utilizing OpenAI's Speech-to-Te
 While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
+
 
 Voice Chat apps are also available for the following models:
 
@@ -146,6 +151,7 @@ Research Assistant apps are also available for the following models:
 
 This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again.
 
+
 Language Practice apps are available for the following models:
 
 - OpenAI
@@ -164,17 +170,20 @@ Language Practice apps are available for the following models:
 This is a language learning application where the conversation starts with the assistant's speech, played back using speech synthesis.  The user starts and ends speech input by pressing the Enter key. In addition to the usual response, the assistant includes linguistic advice, presented as text, not speech.
 
 
+
 ### Translate
 
 ![Translate app icon](../assets/icons/translate.png ':size=40')
 
 This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to specify how a particular phrase should be translated, enclose the relevant part of the input text in parentheses and provide the desired translation within the parentheses.
 
+
 ### Voice Interpreter
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
 This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
+
 
 ## Content Generation :id=content-generation
 
@@ -183,6 +192,7 @@ This app translates the user's voice input into another language and speaks the 
 ![Novel Writer app icon](../assets/icons/novel-writer.png ':size=40')
 
 This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, genre, and target word count.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
+
 
 ### Image Generator
 
@@ -220,6 +230,7 @@ Here's an example of an original image that we want to edit:
 #### Creating a Mask
 
 1. **Open the Mask Editor**: After uploading an image, click on it and select "Create Mask" from the menu
+
 2. **Draw the Mask**: Use the brush tool to paint over areas you want AI to edit (white areas)
    - Use the eraser tool to remove parts of the mask
    - Adjust brush size using the slider
@@ -264,6 +275,7 @@ This application generates videos using Google's Veo model through the Gemini AP
 - **Aspect ratio options**: Choose between landscape (16:9) and portrait (9:16) formats
 - **Person generation control**: Option to allow or restrict generation of videos containing people
 
+
 **Usage:**
 1. For text-to-video: Provide a detailed description of the video you want to create
 2. For image-to-video: Upload an image and describe how it should be animated
@@ -284,6 +296,7 @@ Video Generator is available exclusively with Google Gemini models.
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
 This application is for drafting emails in collaboration with the assistant. The assistant drafts emails based on the user's requests and specifications.
+
 
 Mail Composer apps are available for the following models:
 
@@ -321,11 +334,13 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 - All preview images are saved as `mermaid_preview_[timestamp].png` in your shared folder
 - The AI will always validate diagrams before showing them to ensure they render correctly
 
+
 ### DrawIO Grapher
 
 ![DrawIO Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
 This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder.
+
 
 DrawIO Grapher apps are available for the following models:
 
@@ -345,6 +360,7 @@ This application generates linguistic syntax trees from sentences in multiple la
 - Professional linguistic notation following syntactic theory standards
 
 The generated syntax trees are displayed as SVG images with transparent backgrounds, styled with CSS for web display.
+
 
 Syntax Tree apps are available for the following models:
 
@@ -367,6 +383,7 @@ This application visualizes various concepts and relationships through diagrams 
 
 The generated diagrams are displayed as editable SVG images that can be further modified in vector graphics editors.
 
+
 **Technical Notes:**
 - Uses LaTeX/TikZ for diagram generation with comprehensive package support including:
   - Core LaTeX packages for basic diagram creation
@@ -386,6 +403,7 @@ Concept Visualizer apps are available for the following models:
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
 This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate audio files of the speech (MP3 format for OpenAI and ElevenLabs, WAV format for Gemini).
+
 
 ## Content Analysis :id=content-analysis
 
@@ -407,6 +425,7 @@ This application captures web pages as screenshots or extracts their text conten
 - `"Extract text from https://example.com with image recognition"` - Uses vision API when needed
 - `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
 
+
 **Technical Notes:**
 - Uses Selenium WebDriver for page rendering
 - `webpage_fetcher.py` handles HTML to Markdown conversion
@@ -426,6 +445,7 @@ Visual Web Explorer apps are available for the following models:
 This application analyzes video content and describes what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data, saving it as an MP3 file. Based on this information, the AI provides a description of the visual and audio content.
 
 To use this app, store the video file in the `Shared Folder` and provide the file name.  Specify the frames per second (fps) for frame extraction. If the total number of frames exceeds 50, only 50 frames will be proportionally extracted from the video.
+
 
 ### PDF Navigator
 
@@ -452,12 +472,12 @@ This application reads PDF files and allows the assistant to answer user questio
 
 PDF Navigator behavior can be customized via environment variables in `~/monadic/config/env`:
 
-- **`PDF_RAG_TOKENS`**: Number of tokens per chunk (default: 4000)
+- `PDF_RAG_TOKENS`: Number of tokens per chunk (default: 4000)
   - Controls how PDF text is split into chunks for embedding
   - Larger values provide more context but may reduce search precision
   - Recommended range: 2000-6000 tokens
 
-- **`PDF_RAG_OVERLAP_LINES`**: Number of lines to overlap between chunks (default: 4)
+- `PDF_RAG_OVERLAP_LINES`: Number of lines to overlap between chunks (default: 4)
   - Provides continuity between adjacent chunks
   - Helps prevent context loss at chunk boundaries
   - Recommended range: 2-10 lines
@@ -468,7 +488,9 @@ PDF_RAG_TOKENS=5000
 PDF_RAG_OVERLAP_LINES=6
 ```
 
+
 ![PDF button](../assets/images/app-pdf.png ':size=700')
+
 
 ![Import PDF](../assets/images/import-pdf.png ':size=400')
 
@@ -494,6 +516,7 @@ Supported file formats:
 - JPEG
 - MP3
 
+
 ## Code Generation :id=code-generation
 
 ### Code Interpreter
@@ -506,6 +529,8 @@ This application allows the AI to create and execute program code. The execution
 > - The app implements automatic error handling to prevent infinite loops when code execution fails
 > - If code execution encounters repeated errors, the app will automatically stop retrying and provide an error message
 > - For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc
+
+> 📸 **Screenshot needed**: Code Interpreter showing code execution with output and generated plots
 
 Code Interpreter apps are also available for the following models:
 
@@ -524,6 +549,7 @@ Code Interpreter apps are also available for the following models:
 This application is designed for writing computer program code. You can interact with an AI configured as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
 
 ?> While Code Interpreter executes the code, Coding Assistant specializes in providing code snippets and advice. A long code snippet will be divided into multiple parts, and the user will be asked if they want to proceed with the next part.
+
 
 Coding Assistant apps are also available for the following models:
 
@@ -545,6 +571,8 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 > You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
+> 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution
+
 !> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
 Jupyter Notebook apps are also available for the following models:
@@ -559,3 +587,4 @@ Jupyter Notebook apps are also available for the following models:
 This is an AI-powered help assistant for Monadic Chat. It provides contextual assistance based on the project's documentation, answering questions about features, usage, and troubleshooting in any language.
 
 The help system uses a pre-built knowledge base created from the English documentation. When you ask questions, it searches for relevant information and provides accurate answers based on the official documentation. For more details about the help system architecture, see [Help System](../advanced-topics/help-system.md).
+

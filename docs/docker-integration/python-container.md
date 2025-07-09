@@ -2,6 +2,7 @@
 
 Monadic Chat allows you to run Python code using Python containers. The standard Python container is provided under the name `monadic-chat-python-container`. By using the Python container, AI agents can execute Python code and return the results.
 
+
 The standard Python container is built with the following Dockerfile:
 
 ```dockerfile
@@ -138,9 +139,9 @@ To install additional libraries in the Python container, create a `pysetup.sh` f
 
 Monadic Chat supports three optional setup scripts in the config folder:
 
-- **`rbsetup.sh`** - For installing additional Ruby gems in the Ruby container
-- **`pysetup.sh`** - For installing additional Python packages in the Python container  
-- **`olsetup.sh`** - For downloading Ollama models when building the Ollama container
+- `rbsetup.sh` - For installing additional Ruby gems in the Ruby container
+- `pysetup.sh` - For installing additional Python packages in the Python container  
+- `olsetup.sh` - For downloading Ollama models when building the Ollama container
 
 These scripts are not created automatically. You need to create them manually if you want to customize the container environments. The following are examples of `pysetup.sh` scripts.
 

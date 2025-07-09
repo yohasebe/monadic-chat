@@ -10,15 +10,15 @@ Monadic DSL (MDSL)は、プロバイダーの違いを抽象化し、宣言的�
 
 #### 1.1.1 プロバイダー抽象化
 MDSLは統一されたインターフェースを通じて複数のLLMプロバイダーをサポートします：
-- **OpenAI** - https://openai.com
-- **Anthropic** (Claude) - https://anthropic.com
-- **Google** (Gemini) - https://ai.google.dev
-- **Mistral** - https://mistral.ai
-- **Cohere** - https://cohere.com
-- **DeepSeek** - https://deepseek.com
-- **Perplexity** - https://perplexity.ai
-- **xAI** (Grok) - https://x.ai
-- **Ollama** - https://ollama.ai
+- **OpenAI** - [https://openai.com](https://openai.com)
+- **Anthropic** (Claude) - [https://anthropic.com](https://anthropic.com)
+- **Google** (Gemini) - [https://ai.google.dev](https://ai.google.dev)
+- **Mistral** - [https://mistral.ai](https://mistral.ai)
+- **Cohere** - [https://cohere.com](https://cohere.com)
+- **DeepSeek** - [https://deepseek.com](https://deepseek.com)
+- **Perplexity** - [https://perplexity.ai](https://perplexity.ai)
+- **xAI** (Grok) - [https://x.ai](https://x.ai)
+- **Ollama** - [https://ollama.ai](https://ollama.ai)
 
 #### 1.1.2 重要な命名規則
 ?> **重要**: MDSLアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`は対応する`class ChatOpenAI < MonadicApp`が必要です。これにより適切なメニューグループ化と機能が保証されます。
@@ -96,9 +96,9 @@ PROVIDER_INFO = {
 ## 3. 機能管理
 
 ### 3.1 プロバイダー固有の機能
-- **`monadic`** - JSON状態管理（OpenAI/Ollama/DeepSeek/Perplexity/Grokのみ）
-- **`toggle`** - 折りたたみ可能なUIセクション（Claude/Gemini/Mistral/Cohere）
-- **`initiate_from_assistant`** - AIメッセージで開始（Claude、Gemini）
+- `monadic` - JSON状態管理（すべてのプロバイダーで対応）
+- `toggle` - 折りたたみ可能なUIセクション（Claude/Gemini/Mistral/Cohere）
+- `initiate_from_assistant` - AIメッセージで開始（Claude、Gemini）
 
 ?> **重要**: `monadic`と`toggle`を両方有効にしないでください - これらは相互排他的です。
 
@@ -154,18 +154,15 @@ Result.new(value)
   .bind { |v| save(v) }
 ```
 
-## 6. デバッグと開発
+## 6. 一般的な問題
 
-### 6.1 デバッグ設定変数
-`~/monadic/config/env`ファイルで設定：
-- `MONADIC_DEBUG=true` - 一般的なデバッグ出力
-- `EXTRA_LOGGING=true` - 詳細なログ
-
-### 6.2 一般的な問題
 1. **メニューグループの問題** - アプリ名がクラス名と一致しているか確認
 2. **モデルが見つからない** - ヘルパーの`list_models`が`$MODELS`キャッシュを使用しているか確認
 3. **ツールが見つからない** - ファサードモジュールが含まれているか確認
 4. **機能の競合** - `monadic`/`toggle`の排他性を確認
+
+?> **デバッグのために**: 問題のトラブルシューティング時には、コンソールパネルの設定で「Extra Logging」を有効にして詳細なログを取得してください。
+
 
 ## 7. ベストプラクティス
 

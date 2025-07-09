@@ -240,7 +240,7 @@ end
 
 ## Apps Using Monadic Mode
 
-Monadic Mode allows apps to maintain structured context throughout the conversation. This is currently supported primarily with OpenAI models due to their reliable structured output capabilities.
+Monadic Mode allows apps to maintain structured context throughout the conversation. This is supported primarily with OpenAI models due to their reliable structured output capabilities.
 
 ### Key Points:
 - Only enable for OpenAI providers

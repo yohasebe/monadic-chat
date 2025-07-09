@@ -6,12 +6,15 @@ Monadic Chat has a feature to launch JupyterLab. JupyterLab is an integrated dev
 
 Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab.
 
-- JupyterLab can be accessed at `http://localhost:8889` or `http://127.0.0.1:8889`
+- JupyterLab can be accessed at [http://localhost:8889](http://localhost:8889) or [http://127.0.0.1:8889](http://127.0.0.1:8889)
 - No password or token is required (configured for local use only)
+
 
 ![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
 When JupyterLab is launched, it starts with `/monadic/data` as its home directory and current working directory. This allows you to access files in the shared folder within JupyterLab.
+
+> 📸 **Screenshot needed**: JupyterLab interface showing file browser with shared folder
 
 ![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
 
@@ -28,12 +31,13 @@ In the basic Jupyter Notebook app of Monadic Chat, you can do the following by i
 - Load notebooks from the shared folder
 - Add new cells to notebooks
 
+
 ## Jupyter Access in Different Modes
 
 ### Standalone Mode
 
 In Standalone Mode, all Jupyter features are fully available:
-- The JupyterLab interface can be accessed at `http://127.0.0.1:8889`
+- The JupyterLab interface can be accessed at [http://127.0.0.1:8889](http://127.0.0.1:8889)
 - The `Jupyter Notebook` app is available in the application menu
 - AI agents can create, modify, and execute Jupyter notebooks
 
@@ -61,6 +65,7 @@ These restrictions exist because Jupyter allows arbitrary code execution, which 
 - **Persistent Storage**: All files saved in `/monadic/data` persist across container restarts
 - **Python Packages**: Additional packages can be installed using `pip install` in notebook cells
 - **Terminal Access**: Use the Terminal in JupyterLab to access the Python container directly
+
 
 ## Related Apps
 

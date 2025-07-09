@@ -9,6 +9,6 @@
 - AIどうしのチャット機能
 - JupyterLabとの連携
 
-[始めよう](README.md)
+[始めよう](ja/README.md)
 [GitHub](https://github.com/yohasebe/monadic-chat/)
 

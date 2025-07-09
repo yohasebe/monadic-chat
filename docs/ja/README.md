@@ -26,14 +26,16 @@
 
 **Mac**、**Windows**、**Linux**（Debian/Ubuntu）向けのインストーラが提供されています。
 
+
 [Changelog](https://yohasebe.github.io/monadic-chat/#/ja/changelog)
 
 ## はじめよう
 
+- [**クイックスタートチュートリアル**](https://yohasebe.github.io/monadic-chat/#/ja/getting-started/quick-start) - 10分で始められます
 - [**ドキュメント**](https://yohasebe.github.io/monadic-chat) (英語/日本語)
 - [**インストール**](https://yohasebe.github.io/monadic-chat/#/ja/getting-started/installation)
 
-!> **重要な変更**: バージョン1.0.0には設定管理とAPIに関する重要な変更が含まれています。移行手順については[重要な変更ガイド](/ja/developer/breaking-changes)を参照してください。
+
 
 ## 接地とは？
 
@@ -137,6 +139,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🎤 **Speech Draft Helper** - スピーチ原稿とプレゼンテーションの作成（すべてのプロバイダー対応）
 - 📚 **Wikipedia** - Wikipedia記事の検索と取得
 - ❓ **Monadic Help** - AI説明付き内蔵ヘルプシステム（OpenAI）
+
 
 ### 設定と拡張
 

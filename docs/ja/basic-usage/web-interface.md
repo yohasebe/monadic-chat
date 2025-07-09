@@ -25,7 +25,7 @@ Monadic Chatは2つの異なるブラウザモードでWebインターフェー�
 
 ### 外部ブラウザモード :id=external-browser-mode
 
-外部ブラウザモードでは、Monadic ChatはデフォルトのWebブラウザを起動し、ローカルサーバー（http://localhost:4567）に接続します。
+外部ブラウザモードでは、Monadic ChatはデフォルトのWebブラウザを起動し、ローカルサーバー (`http://localhost:4567`) に接続します。
 
 ## アプリケーションモード :id=application-modes
 
@@ -112,6 +112,7 @@ Monadic Chatを音声入力による会話に適した形に設定するため�
 - OpenAI (gpt-4.1/gpt-4.1-mini): Responses API経由でネイティブWeb検索を使用
 - その他のプロバイダー: Tavily APIが設定されている場合に使用
 - AIはクエリの文脈に基づいて検索タイミングを判断します
+
 
 **Start Session / Continue Session** <br />
 このボタンをクリックすると、System Settingsで指定したオプションやパラメターのもとにチャットが開始されます。すでにセッションを開始していて、`Settings`ボタンをクリックしてSystem Settingsパネルに戻った場合、このボタンは`Continue Session`と表示されます。クリックすると、会話をリセットせずに進行中の会話に戻ります。

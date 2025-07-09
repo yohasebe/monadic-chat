@@ -1,6 +1,7 @@
 - **はじめよう**
 
     - [Monadic Chat](/ja/README.md)
+    - [クイックスタートチュートリアル](/ja/getting-started/quick-start.md)
     - [インストール](/ja/getting-started/installation.md)
     - [アンインストール](/ja/getting-started/uninstallation.md)
 
@@ -34,6 +35,10 @@
     - [ヘルプシステムの設定](/ja/advanced-topics/help-system.md)
     - [MCP統合](/ja/advanced-topics/mcp-integration.md)
     
+- **リファレンス**
+
+    - [設定リファレンス](/ja/reference/configuration.md)
+    
 - **よくある質問**
     - [初期設定](/ja/faq/faq-settings.md)
     - [ユーザー・インターフェイス](/ja/faq/faq-user-interface.md)
@@ -44,7 +49,7 @@
 
 - **開発者ガイド**
 
-    - [重要な変更 (1.0.0)](/ja/developer/breaking-changes.md)
+    <!-- - [重要な変更 (1.0.0)](/ja/developer/breaking-changes.md) -->
     - [開発ワークフロー](/ja/developer/development_workflow.md)
     - [Rakeタスク](/ja/developer/rake_tasks.md)
     - [アセット管理](/ja/developer/assets.md)

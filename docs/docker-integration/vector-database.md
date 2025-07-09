@@ -19,11 +19,14 @@ The vector database functionality runs on the pgvector container (`monadic-chat-
 - Provides high-performance vector storage and similarity search
 - Stores both the document content and its vector representations
 
+
 ### Text Processing Flow
 
 ![Vector Database Flow](../assets/images/rag.png ':size=700')
 
 Here's the processing flow in the PDF Navigator app:
+
+> 📸 **Screenshot needed**: PDF Navigator app interface showing PDF upload and query interface
 
 1. **Text Extraction**: 
    - PDFs are processed using PyMuPDF to extract raw text
@@ -82,8 +85,8 @@ The app displays which document and text segment was used for each answer, clear
 ## Use in Monadic Help :id=use-in-monadic-help
 
 Monadic Chat uses two separate databases for vector storage:
-- **`monadic_user_docs`** - For user-uploaded PDF documents in the PDF Navigator app
-- **`monadic_help`** - For the built-in documentation search in the Monadic Help app
+- `monadic_user_docs` - For user-uploaded PDF documents in the PDF Navigator app
+- `monadic_help` - For the built-in documentation search in the Monadic Help app
 
 The Monadic Help app uses its vector database system as follows:
 

@@ -42,6 +42,7 @@ app "SpeechDraftHelperOpenAI" do
       - `voice_id`: Voice ID of the speech (CRITICAL: You MUST use the exact voice_id value from list_providers_and_voices, NOT display_name).
       - `instructions`: Instructions for the speech generation (tone, style, etc.). This is optional. Always use English for instructions. Available only for OpenAI.
       - `language`: Language of the speech in the format "en", "es", "ja", etc.
+      - `speed`: Speed of the speech. Default is 1.0. Range is 0.25 to 4.0 for OpenAI, 0.5 to 2.0 for ElevenLabs.
 
       CRITICAL INSTRUCTION: When using the text_to_speech function, always:
       1. First call list_providers_and_voices to get the available voice options
@@ -93,6 +94,7 @@ app "SpeechDraftHelperOpenAI" do
       parameter :voice_id, "string", "Voice ID (not name) of the speech. Use the exact voice_id value from list_providers_and_voices function.", required: false
       parameter :language, "string", "Language of the speech.", required: false
       parameter :instructions, "string", "Instructions for the speech generation (optional; tone, style, etc.).", required: false
+      parameter :speed, "number", "Speed of the speech (0.25 to 4.0 for OpenAI, 0.5 to 2.0 for ElevenLabs, default 1.0).", required: false
     end
   end
 end

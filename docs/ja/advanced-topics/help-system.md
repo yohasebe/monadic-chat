@@ -27,6 +27,7 @@ Monadic Chatには、プロジェクトのドキュメントに基づいて文�
 2. アプリメニューから「Monadic Chat Help」を選択
 3. 任意の言語でMonadic Chatについて質問
 
+
 ### よくある質問 :id=common-questions
 
 - 「グラフを生成するには？」→ Math TutorまたはMermaid Grapherアプリを提案
@@ -51,23 +52,24 @@ rake help:stats
 rake help:export
 ```
 
+
 ## 設定 :id=configuration
 
 ### 設定変数 :id=configuration-variables
 
-- **`HELP_CHUNK_SIZE`**：チャンクあたりの文字数（デフォルト：3000）
+- `HELP_CHUNK_SIZE`：チャンクあたりの文字数（デフォルト：3000）
   - 処理中にドキュメントがどのように分割されるかを制御
   - 大きい値はより多くのコンテキストを保持
 
-- **`HELP_OVERLAP_SIZE`**：チャンク間の文字の重複（デフォルト：500）
+- `HELP_OVERLAP_SIZE`：チャンク間の文字の重複（デフォルト：500）
   - チャンク間のコンテキストの連続性を維持
   - 推奨：チャンクサイズの15-20％
 
-- **`HELP_EMBEDDINGS_BATCH_SIZE`**：APIコールのバッチサイズ（デフォルト：50、最大：2048）
+- `HELP_EMBEDDINGS_BATCH_SIZE`：APIコールのバッチサイズ（デフォルト：50、最大：2048）
   - 大きいバッチはより効率的だがタイムアウトする可能性
   - APIの制限に基づいて調整
 
-- **`HELP_CHUNKS_PER_RESULT`**：結果あたりに返されるチャンク数（デフォルト：3）
+- `HELP_CHUNKS_PER_RESULT`：結果あたりに返されるチャンク数（デフォルト：3）
   - より多くのチャンクはより良いコンテキストを提供
   - 応答の品質と完全性に影響
 
@@ -88,12 +90,12 @@ HELP_CHUNKS_PER_RESULT=5
 
 ヘルプシステムは、pgvector拡張機能を持つ別個のPostgreSQLデータベース（`monadic_help`）を使用します：
 
-- **`help_docs`**：ドキュメントのメタデータとエンベディングを保存
+- `help_docs`：ドキュメントのメタデータとエンベディングを保存
   - title、file_path、section、language
   - 初期フィルタリング用のドキュメントレベルのエンベディング
   - (file_path, language)に対する一意制約
 
-- **`help_items`**：エンベディングを持つ個々のテキストチャンクを保存
+- `help_items`：エンベディングを持つ個々のテキストチャンクを保存
   - テキストコンテンツ、位置、見出し情報
   - 詳細検索用のチャンクレベルのエンベディング
   - 外部キーを介して親ドキュメントにリンク
@@ -131,19 +133,19 @@ HELP_CHUNKS_PER_RESULT=5
 
 ### ヘルプシステム設定
 
-- **`HELP_CHUNK_SIZE`**: チャンクあたりの文字数（デフォルト：3000）
+- `HELP_CHUNK_SIZE`: チャンクあたりの文字数（デフォルト：3000）
   - ドキュメントの処理時の分割方法を制御
   - 大きいチャンクはより多くのコンテキストを提供しますが、検索精度が低下する可能性があります
   
-- **`HELP_OVERLAP_SIZE`**: チャンク間でオーバーラップする文字数（デフォルト：500）
+- `HELP_OVERLAP_SIZE`: チャンク間でオーバーラップする文字数（デフォルト：500）
   - 隣接するチャンク間の連続性を提供
   - チャンク境界でのコンテキスト損失を防ぎます
 
-- **`HELP_EMBEDDINGS_BATCH_SIZE`**: API呼び出しのバッチサイズ（デフォルト：50）
+- `HELP_EMBEDDINGS_BATCH_SIZE`: API呼び出しのバッチサイズ（デフォルト：50）
   - 単一のOpenAI API呼び出しで処理されるチャンク数
   - APIレート制限に基づいて調整
 
-- **`HELP_CHUNKS_PER_RESULT`**: 検索結果ごとに返されるチャンク数（デフォルト：3）
+- `HELP_CHUNKS_PER_RESULT`: 検索結果ごとに返されるチャンク数（デフォルト：3）
   - 各検索結果に含まれる関連チャンクの数
   - 高い値はより多くのコンテキストを提供
 
@@ -186,6 +188,7 @@ rake help:stats
 # 2. Monadic Chat Helpを開く
 # 3. 異なる言語でクエリをテスト
 ```
+
 
 ### デバッグ :id=debugging
 
@@ -263,5 +266,5 @@ rake help:build
    - 一般的な原因:
      - コンテナ初期化中にPostgreSQLの初期化スクリプトが失敗
      - 起動時にPython psycopg2がlocalhostに接続できない
-   - システムは現在、PostgreSQLの準備完了後にインポートを実行するカスタムエントリーポイントスクリプトを使用しています
+   - システムはPostgreSQLの準備完了後にインポートを実行するカスタムエントリーポイントスクリプトを使用しています
    - 自動インポートが失敗してもコンテナは実行を継続し、help:build rakeタスクを使用できます

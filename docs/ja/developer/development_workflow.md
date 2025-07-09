@@ -69,6 +69,7 @@ rake spec_e2e
 # - プロバイダーカバレッジサマリーを表示
 ```
 
+
 #### JavaScriptテスト
 ```bash
 rake jstest        # 成功するJavaScriptテストを実行
@@ -141,6 +142,7 @@ MONADIC_DEBUG_LEVEL=verbose
 # APIデバッグ（Electronの「Extra Logging」に相当）
 MONADIC_DEBUG=api
 ```
+
 
 ## MDSL開発のベストプラクティス :id=mdsl-best-practices-section
 
@@ -293,13 +295,14 @@ rake server:debug
 - Rubyコンテナは起動せず、ホストのRubyランタイムを使用
 - 他のすべてのコンテナを起動（Python、PostgreSQL、pgvector、利用可能な場合はOllama）
 - ホスト上の`/docker/services/ruby/`のファイルを直接使用
-- ブラウザで`http://localhost:4567`からWeb UIにアクセス可能
+- ブラウザで[http://localhost:4567](http://localhost:4567)からWeb UIにアクセス可能
 
 このセットアップにより以下が可能になります：
 - コンテナを再ビルドせずにRubyコードを編集して即座に変更を確認
 - ローカルのRuby開発ツール（デバッガ、リンターなど）を使用
 - ブラウザインターフェースで変更を素早くテスト
 - 必要な他のサービスはコンテナで実行を維持
+
 
 ### コンテナを使用したローカル開発 :id=local-development-containers
 コンテナ機能を使用しながらローカルで開発する場合：

@@ -142,6 +142,25 @@ def tts_api_request(text,
       "text" => text,
       "model_id" => model,
     }
+    
+    # Add voice settings including speed if not default
+    # ElevenLabs speed range is typically 0.5 to 2.0, but we'll map from OpenAI's 0.25-4.0 range
+    if speed.to_f != 1.0
+      # Map OpenAI speed range (0.25-4.0) to ElevenLabs range (approx 0.5-2.0)
+      elevenlabs_speed = if speed.to_f < 0.5
+                          0.5
+                        elsif speed.to_f > 2.0
+                          2.0
+                        else
+                          speed.to_f
+                        end
+      
+      body["voice_settings"] = {
+        "stability" => 0.5,
+        "similarity_boost" => 0.75,
+        "speed" => elevenlabs_speed
+      }
+    end
 
     unless language == "auto"
       body["language_code"] = language

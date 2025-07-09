@@ -27,11 +27,13 @@ The help system uses OpenAI's embeddings to create a searchable knowledge base f
 2. Select "Monadic Help" from the app menu
 3. Ask questions about Monadic Chat in any language
 
+
 ### Common Questions :id=common-questions
 
 - "How do I generate graphs?" → Will suggest Math Tutor or Mermaid Grapher apps
 - "How can I work with PDFs?" → Will explain PDF Navigator app
 - "What voice features are available?" → Will describe Voice Chat and speech synthesis options
+
 
 ## Building the Help Database :id=building-help-database
 
@@ -51,23 +53,24 @@ rake help:stats
 rake help:export
 ```
 
+
 ## Configuration :id=configuration
 
 ### Configuration Variables :id=configuration-variables
 
-- **`HELP_CHUNK_SIZE`**: Character count per chunk (default: 3000)
+- `HELP_CHUNK_SIZE`: Character count per chunk (default: 3000)
   - Controls how documentation is split during processing
   - Larger values preserve more context
 
-- **`HELP_OVERLAP_SIZE`**: Character overlap between chunks (default: 500)
+- `HELP_OVERLAP_SIZE`: Character overlap between chunks (default: 500)
   - Maintains context continuity between chunks
   - Recommended: 15-20% of chunk size
 
-- **`HELP_EMBEDDINGS_BATCH_SIZE`**: Batch size for API calls (default: 50, max: 2048)
+- `HELP_EMBEDDINGS_BATCH_SIZE`: Batch size for API calls (default: 50, max: 2048)
   - Larger batches are more efficient but may timeout
   - Adjust based on your API limits
 
-- **`HELP_CHUNKS_PER_RESULT`**: Number of chunks returned per result (default: 3)
+- `HELP_CHUNKS_PER_RESULT`: Number of chunks returned per result (default: 3)
   - More chunks provide better context
   - Affects response quality and completeness
 
@@ -88,12 +91,12 @@ HELP_CHUNKS_PER_RESULT=5
 
 The help system uses a separate PostgreSQL database (`monadic_help`) with pgvector extension:
 
-- **`help_docs`**: Stores document metadata and embeddings
+- `help_docs`: Stores document metadata and embeddings
   - title, file_path, section, language
   - Document-level embedding for initial filtering
   - Unique constraint on (file_path, language)
 
-- **`help_items`**: Stores individual text chunks with embeddings
+- `help_items`: Stores individual text chunks with embeddings
   - Text content, position, heading information
   - Chunk-level embeddings for detailed search
   - Links to parent document via foreign key
@@ -131,19 +134,19 @@ The Help System can be configured via environment variables in `~/monadic/config
 
 ### Help System Settings
 
-- **`HELP_CHUNK_SIZE`**: Character count per chunk (default: 3000)
+- `HELP_CHUNK_SIZE`: Character count per chunk (default: 3000)
   - Controls how documentation is split during processing
   - Larger chunks provide more context but may reduce search precision
   
-- **`HELP_OVERLAP_SIZE`**: Characters to overlap between chunks (default: 500)
+- `HELP_OVERLAP_SIZE`: Characters to overlap between chunks (default: 500)
   - Provides continuity between adjacent chunks
   - Helps prevent context loss at chunk boundaries
 
-- **`HELP_EMBEDDINGS_BATCH_SIZE`**: Batch size for API calls (default: 50)
+- `HELP_EMBEDDINGS_BATCH_SIZE`: Batch size for API calls (default: 50)
   - Number of chunks processed in a single OpenAI API call
   - Adjust based on API rate limits
 
-- **`HELP_CHUNKS_PER_RESULT`**: Chunks returned per search result (default: 3)
+- `HELP_CHUNKS_PER_RESULT`: Chunks returned per search result (default: 3)
   - Number of relevant chunks included in each search result
   - Higher values provide more context
 
@@ -258,5 +261,5 @@ rake help:build
    - Common causes:
      - PostgreSQL init scripts fail during container initialization
      - Python psycopg2 cannot connect to localhost during startup
-   - The system now uses a custom entrypoint script that ensures import runs after PostgreSQL is ready
+   - The system uses a custom entrypoint script that ensures import runs after PostgreSQL is ready
    - If the automatic import still fails, the container will continue running and you can use the help:build rake task

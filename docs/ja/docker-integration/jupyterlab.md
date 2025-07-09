@@ -6,14 +6,17 @@ Monadic Chatには、JupyterLabを起動する機能があります。JupyterLab
 
 Monadic Chatコンソールの`Actions/Start JupyterLab`メニューをクリックすると、JupyterLabが起動します。
 
-- JupyterLabは`http://localhost:8889`または`http://127.0.0.1:8889`でアクセスできます
+- JupyterLabは[http://localhost:8889](http://localhost:8889)または[http://127.0.0.1:8889](http://127.0.0.1:8889)でアクセスできます
 - パスワードやトークンは不要です（ローカル使用専用に設定）
 
 ![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
+
 JupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。このため、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
 
 ![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
+
+> 📸 **スクリーンショットが必要**: 共有フォルダが表示されたJupyterLabインターフェース
 
 ## JupyterLabの停止
 
@@ -28,12 +31,13 @@ Monadic Chatの基本アプリ`Jupyter Notebook`では、AIエージェントと
 - 共有フォルダ内のノートブックの読み込み
 - ノートブックへの新規セルの追加
 
+
 ## 異なるモードでのJupyterアクセス
 
 ### Standalone モード
 
 Standalone モードでは、すべてのJupyter機能が完全に利用可能です：
-- JupyterLabインターフェースは`http://127.0.0.1:8889`でアクセス可能
+- JupyterLabインターフェースは[http://127.0.0.1:8889](http://127.0.0.1:8889)でアクセス可能
 - アプリケーションメニューに`Jupyter Notebook`アプリが表示される
 - AIエージェントがJupyterノートブックの作成、変更、実行を行える
 
@@ -61,6 +65,7 @@ ALLOW_JUPYTER_IN_SERVER_MODE=true
 - **永続的ストレージ**: `/monadic/data`に保存されたすべてのファイルはコンテナの再起動後も保持されます
 - **Pythonパッケージ**: ノートブックのセルで`pip install`を使用して追加パッケージをインストールできます
 - **ターミナルアクセス**: JupyterLabのTerminalを使用してPythonコンテナに直接アクセスできます
+
 
 ## 関連アプリ
 

@@ -74,15 +74,15 @@ end
 ```
 
 サポートされているプロバイダー：
-- `openai` - https://openai.com
-- `anthropic` - https://anthropic.com (Claude)
-- `gemini` - https://ai.google.dev (Google)
-- `mistral` - https://mistral.ai
-- `cohere` - https://cohere.com
-- `deepseek` - https://deepseek.com
-- `perplexity` - https://perplexity.ai
-- `xai` - https://x.ai (Grok)
-- `ollama` - https://ollama.ai (ローカルモデル)
+- `openai` - [https://openai.com](https://openai.com)
+- `anthropic` - [https://anthropic.com](https://anthropic.com) (Claude)
+- `gemini` - [https://ai.google.dev](https://ai.google.dev) (Google)
+- `mistral` - [https://mistral.ai](https://mistral.ai)
+- `cohere` - [https://cohere.com](https://cohere.com)
+- `deepseek` - [https://deepseek.com](https://deepseek.com)
+- `perplexity` - [https://perplexity.ai](https://perplexity.ai)
+- `xai` - [https://x.ai](https://x.ai) (Grok)
+- `ollama` - [https://ollama.ai](https://ollama.ai) (ローカルモデル)
 
 どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
 

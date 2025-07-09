@@ -6,6 +6,8 @@ After starting the server and selecting an app and configuring it, click the `St
 
 Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via Speech-to-Text API and displayed in the text area.
 
+> 📸 **Screenshot needed**: Message input area showing text area, send button, and role selector
+
 ?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the System Settings. These are enabled by default in the [Voice Chat](./basic-apps.md#voice-chat) app.
 
 ?> The `Role` selector is used to select the role of the message. Normally, select `User`, but by selecting `Assistant` or `System`, you can add or modify the context of the chat. For more information, see the [FAQ](../faq/faq-user-interface.md).
@@ -25,6 +27,8 @@ Uploading images is supported for the following models:
 
 Click `Image` (or `Image/PDF` for models that support PDF) to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
 
+> 📸 **Screenshot needed**: File upload dialog showing image format options
+
 ![](../assets/images/attach-image.png ':size=400')
 
 After uploading the image, image recognition is performed, and the AI agent provides information about the image according to the text prompt (some models do not support image recognition).
@@ -34,6 +38,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 ## Uploading PDFs :id=uploading-pdfs
 
 In Anthropic's Claude models, OpenAI's gpt-4.1, gpt-4.1-mini, gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
+
 
 ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400')
 
@@ -49,6 +54,7 @@ For API usage optimization:
 
 To end the conversation about the PDF, click the delete `×` button to clear the PDF.
 
+
 ## Reading Text from Document Files :id=reading-text-from-document-files
 
 Click the `From file` button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
@@ -63,7 +69,7 @@ Click the `From URL` button to enter a URL. The content at that URL is loaded in
 
 ## Speech Input :id=speech-input
 
-?> **Note:** Currently, voice input is supported in Chrome, Edge, and Safari browsers.
+?> **Note:** Voice input is supported in Chrome, Edge, and Safari browsers.
 
 To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Speech-to-Text API and displayed in the text area.
 
@@ -82,12 +88,14 @@ You can select the Speech-to-Text (STT) model in the console settings. Monadic C
 
 The newer models (gpt-4o-mini-transcribe, gpt-4o-transcribe) provide improved accuracy and transcription quality. Monadic Chat automatically optimizes the audio format for each STT model to ensure the best possible transcription results.
 
+
 ## Text-to-Speech Playback
 
 Monadic Chat offers two ways to play synthesized speech:
 
 ### Play Button
 Each AI response message includes a `Play` button that allows you to listen to the synthesized speech. Click the `Play` button to start playback, and it will change to a `Stop` button. Click `Stop` to halt the playback. The speech is generated using your selected TTS provider and voice settings.
+
 
 ### Auto Speech
 When `Auto Speech` is enabled in the Chat Interaction Controls, AI responses are automatically read aloud as soon as they are received. This feature works seamlessly with all supported TTS providers (OpenAI, ElevenLabs, Gemini, and Web Speech API). Auto Speech is particularly useful for voice conversations when combined with `Easy Submit` for hands-free interaction.

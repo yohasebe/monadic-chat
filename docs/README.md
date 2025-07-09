@@ -26,14 +26,16 @@
 
 Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-use installers.
 
+
 [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
 
 ## Getting Started
 
+- [**Quick Start Tutorial**](https://yohasebe.github.io/monadic-chat/#/getting-started/quick-start) - Get started in 10 minutes
 - [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)
 - [**Installation**](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)
 
-!> **Breaking Changes**: Version 1.0.0 includes significant changes to configuration management and APIs. See the [Breaking Changes Guide](/developer/breaking-changes) for migration instructions.
+
 
 ## What is Grounding?
 
@@ -137,6 +139,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🎤 **Speech Draft Helper** - Create speech drafts and presentations (All providers)
 - 📚 **Wikipedia** - Search and retrieve Wikipedia articles
 - ❓ **Monadic Help** - Built-in help system with AI explanations (OpenAI)
+
 
 ### Configuration and Extension
 

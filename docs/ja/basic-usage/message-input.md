@@ -35,7 +35,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 Anthropic の Claude モデル、OpenAI の gpt-4.1、gpt-4.1-mini、gpt-4o、gpt-4o-mini、o1 モデル、および Google Gemini モデルでは、PDF のアップロードもサポートされています。`Image/PDF` をクリックすると、メッセージに添付する PDF ファイルを選択するダイアログが表示されます。
 
-![](../assets/images/monadic-chat-pdf-attachment.png ':size=400')
+<!-- ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400') -->
 
 画像の場合と同様に、PDF ファイルをアップロードすると、PDF の内容が認識され、プロンプトのテキストでの指示に応じてAIエージェントが PDF に関する情報を提供します。
 

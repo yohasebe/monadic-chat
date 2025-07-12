@@ -1636,7 +1636,7 @@ function updateContextMenu(disableControls = false) {
         } else if (item.label === 'Restart') {
           item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
         } else if (item.label === 'Open Browser') {
-          item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
+          item.enabled = currentStatus === 'Running';
         } else if (item.label === 'Build All' || item.label === 'Build Ruby Container' || 
                    item.label === 'Build Python Container' || item.label === 'Build User Containers') {
           item.enabled = currentStatus === 'Stopped' || currentStatus === 'Uninstalled';
@@ -1906,7 +1906,7 @@ function updateApplicationMenu() {
               openBrowser(url);
             }
           },
-          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
+          enabled: currentStatus === 'Running'
         },
         { type: 'separator' },
         {

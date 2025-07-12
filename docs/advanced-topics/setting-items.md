@@ -2,7 +2,7 @@
 
 Applications in Monadic Chat are defined using MDSL (Monadic Domain Specific Language) files with the `.mdsl` extension. These settings configure the behavior, appearance, and capabilities of each application.
 
-> 📸 **Screenshot needed**: MDSL file open in text editor showing app configuration
+<!-- > 📸 **Screenshot needed**: MDSL file open in text editor showing app configuration -->
 
 ## Basic MDSL Structure
 

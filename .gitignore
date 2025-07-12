@@ -16,6 +16,7 @@ eslint.config.*
 /electron/
 /spec/reports/
 /spec/examples.txt
+/docker/services/ruby/spec/examples.txt
 /test/tmp/
 /test/version_tmp/
 /tmp/

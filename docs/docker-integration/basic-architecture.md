@@ -51,11 +51,11 @@ This container is necessary to run Monadic Chat applications. It is also used to
 - **Apps that require this container**: All apps (this is the core container that runs the web interface and manages all Monadic Chat functionality)
 
 ### Python Container (`monadic-chat-python-container`) :id=python-container
-This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab also runs on this container.
+This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab and a Flask API server also run on this container.
 - **Ports**: 
   - 8889 (JupyterLab)
   - 5070 (Flask API server for tokenization and other services)
-- **Main features**: Python code execution, JupyterLab, Flask API server, LaTeX support (for diagram generation)
+- **Main features**: Python code execution, JupyterLab, Flask API server, LaTeX support (for diagram generation), tokenization services
 - **Apps that use this container**: 
   - `Code Interpreter` - Executes Python code for data analysis and calculations
   - `Jupyter Notebook` - Interactive notebook interface for code execution

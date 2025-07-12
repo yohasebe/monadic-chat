@@ -1,106 +1,97 @@
-# コード構成とファイル構造
+# アプリ開発者のためのファイル構成
 
-このドキュメントでは、Monadic Chat の Ruby バックエンドコードのディレクトリおよびファイル構造を説明します。対象パスは `docker/services/ruby/lib/monadic` です。
+このガイドでは、Monadic Chatでカスタムアプリとスクリプトを配置する場所を説明します。
 
-## ディレクトリレイアウト
+## ユーザーディレクトリ構造
+
+Monadic Chatのユーザーディレクトリ（`~/monadic/`）の内容：
 
 ```text
-docker/services/ruby/
-├── lib/monadic/
-│   ├── version.rb        # Monadic Chatのバージョン定義
-│   ├── monadic.rb        # エントリポイントおよび環境設定の読み込み
-│   ├── app.rb            # MonadicAppクラスとアプリケーションローダー
-│   ├── app_extensions.rb # Monadic機能拡張
-│   ├── core.rb           # コア関数型プログラミング操作
-│   ├── json_handler.rb   # MonadicモードのJSONシリアライゼーション
-│   ├── html_renderer.rb  # MonadicコンテキストのHTMLレンダリング
-│   ├── dsl.rb            # Monadic DSLローダーと定義
-│   ├── agents/           # ビジネスロジック用エージェントモジュール
-│   │   ├── ai_user_agent.rb
-│   │   └── ...
-│   ├── adapters/         # 外部連携およびヘルパーモジュール
-│   │   ├── bash_command_helper.rb
-│   │   ├── file_analysis_helper.rb
-│   │   └── ...
-│   │   └── vendors/      # サードパーティAPIクライアントヘルパー
-│   │       ├── openai_helper.rb
-│   │       └── ...
-│   └── utils/            # 共通ユーティリティ関数
-│       ├── string_utils.rb
-│       ├── interaction_utils.rb
-│       └── ...
-├── apps/                 # アプリケーション定義（自動読み込み）
-│   ├── chat/
-│   ├── code_interpreter/
-│   └── ...
-├── scripts/              # ユーティリティと診断スクリプト
-│   ├── utilities/        # ビルドとセットアップユーティリティ
-│   ├── cli_tools/        # コマンドラインツール
-│   ├── generators/       # コンテンツジェネレーター
-│   └── diagnostics/      # 診断・検証スクリプト
-│       └── apps/         # アプリ別診断
-└── spec/                 # RSpecユニットテストファイル
+~/monadic/
+├── config/           # 設定ファイル
+│   ├── env           # APIキーと設定
+│   ├── rbsetup.sh    # Rubyセットアップスクリプト（オプション）
+│   ├── pysetup.sh    # Pythonセットアップスクリプト（オプション）
+│   └── olsetup.sh    # Ollamaセットアップスクリプト（オプション）
+├── data/             # データとカスタムコンテンツ
+│   ├── apps/         # カスタムアプリの配置場所
+│   ├── scripts/      # カスタムスクリプト
+│   ├── plugins/      # MCPサーバープラグイン
+│   └── help/         # ヘルプシステムドキュメント
+└── logs/             # アプリケーションログ
 ```
 
-## 各層の説明
+## カスタムアプリの作成
 
-- **version.rb**: Monadic Chat のバージョン情報を定義します。
-- **monadic.rb**: 依存関係の読み込み、環境設定の初期化、ユーティリティ設定、アプリケーションの初期化を行います。
-- **app.rb**: `MonadicApp` クラスを含み、adapters と agents の読み込み、`send_command` や `send_code` といったコアメソッドを定義します。
-- **app_extensions.rb**: MonadicAppにMonadic機能メソッド（`monadic_unit`、`monadic_unwrap`、`monadic_map`、`monadic_html`）を提供します。
-- **core.rb**: Monadicモードのためのコア関数型プログラミング操作（wrap、unwrap、transform、bind）を実装します。
-- **json_handler.rb**: Monadic状態管理のためのJSONシリアライゼーション/デシリアライゼーションを処理します。
-- **html_renderer.rb**: Monadicコンテキストを折りたたみ可能なHTMLセクションとしてレンダリングし、空のオブジェクトのUIを改善します。
-- **dsl.rb**: レシピファイル（`.rb`）および DSL ファイル（`.mdsl`）を読み込むローダーを実装します。
-- **agents/**: ビジネスロジック用エージェントモジュールを格納します。
-- **adapters/**: コマンド実行やコンテナ操作などの外部連携モジュールを格納します。`vendors/` サブフォルダには API クライアントヘルパーを配置します。
-- **utils/**: 文字列操作、ファイル I/O、エンベディング処理、セットアップスクリプトなどの純粋ユーティリティを格納します。
+### アプリディレクトリ構造
+アプリを`~/monadic/data/apps/`に配置します：
 
-この構造により、**agents**, **adapters**, **utils** が明確に区分され、コードベースの理解や拡張が直感的に行える構成です。
+```text
+~/monadic/data/apps/
+└── my_custom_app/
+    ├── my_custom_app_openai.mdsl    # アプリ定義
+    ├── my_custom_app_tools.rb       # 共有ツール（オプション）
+    └── my_custom_app_openai.rb      # Ruby実装（オプション）
+```
 
-## 重要な注意事項
+### 命名規則
+**重要**：アプリ名はRubyクラス名と一致する必要があります：
+- ファイル：`chat_assistant_openai.mdsl`
+- アプリ名：`app "ChatAssistantOpenAI"`
+- クラス名：`class ChatAssistantOpenAI < MonadicApp`
 
-### アプリの読み込み
-- `docker/services/ruby/apps/` ディレクトリ内のすべての `.rb` および `.mdsl` ファイルは初期化時に自動的に読み込まれます
-- アプリ内の `test/` サブディレクトリ内のファイルは、テストスクリプトがアプリケーションとして読み込まれないように無視されます
-- アプリ機能の検証用診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/` に配置してください
+## カスタムスクリプト
 
-### スクリプトの構成
+カスタムスクリプトを`~/monadic/data/scripts/`に配置します：
+- スクリプトは自動的に実行可能になります
+- PATHに追加されるので名前で呼び出せます
+- `.sh`、`.py`、`.rb`およびその他の実行可能形式をサポート
 
-#### Rubyスクリプト (`docker/services/ruby/scripts/`)
-- **utilities/**: ビルドとセットアップタスク用のスクリプト
-- **cli_tools/**: スタンドアロンのコマンドラインツール
-- **generators/**: コンテンツ（画像、動画など）を生成するスクリプト
-- **diagnostics/**: アプリ別に整理された診断・検証スクリプト
+例：
+```text
+~/monadic/data/scripts/
+├── my_analyzer.py
+├── data_processor.rb
+└── utility.sh
+```
 
-#### Pythonスクリプト (`docker/services/python/scripts/`)
-- **utilities/**: システムユーティリティ (`sysinfo.sh`、`run_jupyter.sh`)
-- **cli_tools/**: CLIツール (`content_fetcher.py`、`webpage_fetcher.py`)
-- **converters/**: ファイルコンバーター (`pdf2txt.py`、`office2txt.py`、`extract_frames.py`)
-- **services/**: APIサービス (`jupyter_controller.py`)
+## 組み込みアプリの場所
 
-### テストと診断
+組み込みアプリはDockerコンテナ内の以下の場所にあります：
+```text
+/monadic/apps/
+├── chat/
+├── code_interpreter/
+├── research_assistant/
+└── ...
+```
 
-#### ユニットテスト（RSpec）
-- 配置先：`docker/services/ruby/spec/`
-- Rubyコードモジュールとヘルパーの自動テスト
-- `rake spec`または`bundle exec rspec`で実行
-- RSpecの命名規則に従う：`*_spec.rb`
+これらを自分のアプリの例として使用できます。
 
-#### 診断スクリプト
-- 配置先：`docker/services/ruby/scripts/diagnostics/`
-- アプリ機能の手動検証スクリプト
-- コンテンツ生成、API連携などのテストに使用
-- 特定の機能が正しく動作するか個別に実行して検証
+## ログとデバッグ
 
-### コンテナビルドに関する注意事項
-- スクリプトの権限はコンテナビルド時に再帰的に設定されます：
-  ```dockerfile
-  RUN find /path/to/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
-  ```
-- すべてのサブディレクトリがPATHに追加され、スクリプトの実行が簡単になります
+- アプリケーションログ：`~/monadic/logs/`
+- 詳細なログのためにコンソールパネルで「Extra Logging」を有効化
+- デバッグのためにRubyコードで`puts`文を使用
 
-### ユーザースクリプト
-- ユーザーは`~/monadic/data/scripts`（ホスト）/ `/monadic/data/scripts`（コンテナ）にカスタムスクリプトを追加できます
-- これらのスクリプトはコマンド実行時に自動的に実行可能になり、PATHに追加されます
-- 詳細は[共有フォルダのドキュメント](../docker-integration/shared-folder.md#scripts)を参照してください
+## ベストプラクティス
+
+1. **機能別に整理** - 関連するアプリをサブディレクトリにグループ化
+2. **明確な名前を使用** - アプリの目的を名前から明らかにする
+3. **バックアップを保持** - 大きな変更を行う前に動作するアプリのコピーを保存
+4. **段階的にテスト** - 機能を追加するたびにテスト
+
+## 一般的なファイルタイプ
+
+| 拡張子 | 用途 | 例 |
+|--------|------|-----|
+| `.mdsl` | アプリ定義 | `chat_bot_openai.mdsl` |
+| `.rb` | Ruby実装 | `chat_bot_tools.rb` |
+| `.py` | Pythonスクリプト | `data_analyzer.py` |
+| `.sh` | シェルスクリプト | `backup.sh` |
+
+## 次のステップ
+
+- 完全なチュートリアルは[アプリ開発](./develop_apps.md)を参照
+- 構文リファレンスは[Monadic DSL](../advanced-topics/monadic_dsl.md)を確認
+- 既存のアプリを自分のアプリのテンプレートとして使用

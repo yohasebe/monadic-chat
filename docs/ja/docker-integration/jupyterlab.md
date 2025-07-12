@@ -16,7 +16,7 @@ JupyterLabを起動すると、`/monadic/data`をホームディレクトリと�
 
 ![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
 
-> 📸 **スクリーンショットが必要**: 共有フォルダが表示されたJupyterLabインターフェース
+<!-- > 📸 **スクリーンショットが必要**: 共有フォルダが表示されたJupyterLabインターフェース -->
 
 ## JupyterLabの停止
 

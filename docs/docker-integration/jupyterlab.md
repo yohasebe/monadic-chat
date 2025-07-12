@@ -14,7 +14,7 @@ Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch 
 
 When JupyterLab is launched, it starts with `/monadic/data` as its home directory and current working directory. This allows you to access files in the shared folder within JupyterLab.
 
-> 📸 **Screenshot needed**: JupyterLab interface showing file browser with shared folder
+<!-- > 📸 **Screenshot needed**: JupyterLab interface showing file browser with shared folder -->
 
 ![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
 

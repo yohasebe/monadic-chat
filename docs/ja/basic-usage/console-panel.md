@@ -7,7 +7,7 @@
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
-> 📸 **スクリーンショットが必要**: Startボタンがハイライトされたコンソールパネル
+<!-- > 📸 **スクリーンショットが必要**: Startボタンがハイライトされたコンソールパネル -->
 
 **Stop** <br />
 Monadic Chatを停止します。
@@ -40,7 +40,7 @@ Monadic Chatを起動します。初回起動時はDocker上での環境構築�
 **Build All** <br />
 Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
-> 📸 **スクリーンショットが必要**: Dockerビルドの進行状況を表示するコンソール出力
+<!-- > 📸 **スクリーンショットが必要**: Dockerビルドの進行状況を表示するコンソール出力 -->
 
 **Build Ruby Container** <br />
 Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を構築します。

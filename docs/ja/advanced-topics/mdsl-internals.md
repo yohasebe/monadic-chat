@@ -1,179 +1,83 @@
-# Monadic DSLの内部実装
+# MDSL概要
 
-?> このドキュメントはMonadic DSL (MDSL)の内部実装について詳細な説明を提供します。MDSLの内部動作を理解したい開発者や、その開発に貢献したい方向けの内容です。
+?> このドキュメントは、アプリ開発者向けにMonadic DSL (MDSL)の仕組みについて説明します。
 
-## 1. 概要
+## MDSLとは
 
-Monadic DSL (MDSL)は、プロバイダーの違いを抽象化し、宣言的な構文を提供することで、AIアプリケーション開発を簡素化するRubyベースのドメイン特化言語です。
+Monadic DSL (MDSL)は、Monadic ChatでAIアプリケーションを作成するためのシンプルなRubyベースの言語です。異なるAIプロバイダーの複雑さを処理するので、アプリの構築に集中できます。
 
-### 1.1 コアアーキテクチャ
+## 主要な概念
 
-#### 1.1.1 プロバイダー抽象化
-MDSLは統一されたインターフェースを通じて複数のLLMプロバイダーをサポートします：
-- **OpenAI** - [https://openai.com](https://openai.com)
-- **Anthropic** (Claude) - [https://anthropic.com](https://anthropic.com)
-- **Google** (Gemini) - [https://ai.google.dev](https://ai.google.dev)
-- **Mistral** - [https://mistral.ai](https://mistral.ai)
-- **Cohere** - [https://cohere.com](https://cohere.com)
-- **DeepSeek** - [https://deepseek.com](https://deepseek.com)
-- **Perplexity** - [https://perplexity.ai](https://perplexity.ai)
-- **xAI** (Grok) - [https://x.ai](https://x.ai)
-- **Ollama** - [https://ollama.ai](https://ollama.ai)
+### 1. プロバイダー独立性
+一度アプリを書けば、すべてのサポートされているプロバイダーで動作します：
+- OpenAI（GPTモデル）
+- Anthropic（Claudeモデル）  
+- Google（Geminiモデル）
+- その他多数
 
-#### 1.1.2 重要な命名規則
-?> **重要**: MDSLアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`は対応する`class ChatOpenAI < MonadicApp`が必要です。これにより適切なメニューグループ化と機能が保証されます。
+### 2. 命名規則
+**重要**：アプリ名はRubyクラス名と一致する必要があります：
+- `app "ChatOpenAI"`には`class ChatOpenAI < MonadicApp`が必要
+- これにより適切なメニューグループ化と機能が保証されます
 
-#### 1.1.3 ファイル構成
+### 3. ファイル構成
+アプリを整理しましょう：
 ```
-apps/
-├── chat/
-│   ├── chat_openai.mdsl
-│   ├── chat_openai.rb
-│   └── chat_tools.rb
-└── second_opinion/
-    ├── second_opinion_openai.mdsl
-    ├── second_opinion_tools.rb
-    └── ...
+~/monadic/data/apps/
+├── my_app/
+│   ├── my_app_openai.mdsl    # アプリ定義
+│   ├── my_app_openai.rb      # Ruby実装（オプション）
+│   └── my_app_tools.rb       # 共有ツール（オプション）
 ```
 
-### 1.2 主要な設計原則
+## 使用可能な機能
 
-1. **宣言的構文** - 実装の詳細なしでアプリを定義
-2. **プロバイダー独立性** - 最小限の変更でプロバイダーを切り替え
-3. **ツールフォーマット統一** - すべてのプロバイダー固有フォーマットに対して単一の構文
-4. **ランタイムクラス生成** - DSLを動的にRubyクラスに変換
-5. **モナディックエラー処理** - 明示的で連鎖可能なエラー管理
+### 利用可能な機能
+- `monadic` - JSONベースのコンテキスト管理を有効化
+- `context_size` - 会話履歴のサイズを設定
+- `easy_submit` - Enterキーによる送信を有効化
+- `auto_speech` - 自動音声を有効化
+- `image` - 画像アップロードを許可
+- `pdf` - PDFアップロードを許可
 
-## 2. DSL構造と処理
+### プロバイダー固有の機能
+一部の機能はプロバイダーによって動作が異なります：
+- Web検索機能
+- 画像生成
+- 音声オプション
 
-### 2.1 基本的なアプリ定義
-```ruby
-app "AppNameProvider" do
-  description "簡潔な説明"
-  icon "fa-icon"
-  
-  llm do
-    provider "provider_name"
-    model "model_name"
-  end
-  
-  features do
-    # 機能フラグ
-  end
-  
-  tools do
-    # ツール定義
-  end
-  
-  system_prompt "..."
-end
-```
+## ツールシステム
 
-### 2.2 読み込みプロセス
-1. **ファイル検出** - `.mdsl`拡張子または`app "Name" do`パターン
-2. **コンテンツ評価** - DSLは安全なコンテキストで`eval`により評価
-3. **状態構築** - 設定は`AppState`に収集
-4. **クラス生成** - 動的なRubyクラス作成
-5. **モジュール包含** - プロバイダー固有のヘルパーを含む
-
-### 2.3 プロバイダー設定
-```ruby
-PROVIDER_INFO = {
-  "openai" => {
-    helper_module: "OpenAIHelper",
-    default_model: "gpt-4.1-mini",
-    features: { monadic: true }
-  },
-  "anthropic" => {
-    helper_module: "ClaudeHelper", 
-    default_model: "claude-3-5-sonnet-20241022",
-    features: { toggle: true, initiate_from_assistant: true }
-  },
-  # ... 他のプロバイダー
-}
-```
-
-## 3. 機能管理
-
-### 3.1 プロバイダー固有の機能
-- `monadic` - JSON状態管理（すべてのプロバイダーで対応）
-- `toggle` - 折りたたみ可能なUIセクション（Claude/Gemini/Mistral/Cohere）
-- `initiate_from_assistant` - AIメッセージで開始（Claude、Gemini）
-
-?> **重要**: `monadic`と`toggle`を両方有効にしないでください - これらは相互排他的です。
-
-### 3.2 モデル固有の動作
-- **推論モデル** - o1、o3は温度調整をサポートしません
-- **思考型モデル** - Gemini 2.5は温度の代わりに`reasoning_effort`を使用
-- **ウェブ検索フォールバック** - 推論モデルはウェブクエリに`WEBSEARCH_MODEL`を使用
-
-## 4. ツールシステム
-
-### 4.1 統一されたツール定義
+AIが使用できるツール（関数）を定義します：
 ```ruby
 tools do
-  define_tool "tool_name", "ツールの説明" do
-    parameter :param_name, "type", "説明", required: true
+  define_tool "get_weather", "現在の天気を取得" do
+    parameter :location, "string", "都市名", required: true
   end
 end
 ```
 
-### 4.2 プロバイダーフォーマッタ
-各プロバイダーには、抽象定義を変換する専用フォーマッタがあります：
+MDSLシステムは自動的にこれらを各プロバイダー用にフォーマットします。
 
-```ruby
-FORMATTERS = {
-  openai: ToolFormatters::OpenAIFormatter,
-  anthropic: ToolFormatters::AnthropicFormatter,
-  gemini: ToolFormatters::GeminiFormatter,
-  # ... 他のプロバイダー
-}
-```
+## ベストプラクティス
 
-## 5. ランタイム動作
+1. **シンプルに始める** - 複雑なツールを追加する前に基本的なチャットアプリから始める
+2. **複数のプロバイダーでテスト** - アプリが複数のAIプロバイダーで動作することを確認
+3. **明確な説明を使用** - ユーザーがアプリの機能を理解できるようにする
+4. **例に従う** - 既存のアプリからパターンやアイデアを参照
 
-### 5.1 クラス生成
-MDSLは動的にRubyクラスを生成します：
-```ruby
-class AppNameProvider < MonadicApp
-  include ProviderHelper
-  
-  @settings = { /* DSLから */ }
-  @app_name = "AppNameProvider"
-  
-  # ファサードモジュールからツールメソッドを含む
-end
-```
+## よくある問題と解決策
 
-### 5.2 エラー処理
-連鎖可能なエラー処理のためにモナディックパターンを使用：
-```ruby
-Result.new(value)
-  .bind { |v| validate(v) }
-  .map { |v| transform(v) }
-  .bind { |v| save(v) }
-```
+| 問題 | 解決策 |
+|------|--------|
+| アプリがメニューに表示されない | アプリ名がクラス名と一致しているか確認 |
+| ツールが動作しない | ツール定義がシステムプロンプトと一致しているか確認 |
+| 機能が利用できない | 一部の機能はプロバイダー固有です |
 
-## 6. 一般的な問題
+## 次のステップ
 
-1. **メニューグループの問題** - アプリ名がクラス名と一致しているか確認
-2. **モデルが見つからない** - ヘルパーの`list_models`が`$MODELS`キャッシュを使用しているか確認
-3. **ツールが見つからない** - ファサードモジュールが含まれているか確認
-4. **機能の競合** - `monadic`/`toggle`の排他性を確認
+- 詳細な構文については[Monadic DSLガイド](./monadic_dsl.md)を参照
+- 完全なチュートリアルは[アプリ開発](./develop_apps.md)を参照
+- 例については[基本アプリ](../basic-usage/basic-apps.md)を確認
 
-?> **デバッグのために**: 問題のトラブルシューティング時には、コンソールパネルの設定で「Extra Logging」を有効にして詳細なログを取得してください。
-
-
-## 7. ベストプラクティス
-
-1. **命名規則に従う** - アプリ識別子はクラス名と一致する必要があります
-2. **ファサードパターンを使用** - ツールを別の`*_tools.rb`ファイルに実装
-3. **機能制約を尊重** - 互換性のない機能を混在させない
-4. **複数のプロバイダーでテスト** - 移植性を確保
-5. **エラーを適切に処理** - モナディックパターンを使用
-
-## 関連項目
-
-- [Monadic DSL](./monadic_dsl.md) - ユーザー向けDSLドキュメント
-- [アプリの開発](./develop_apps.md) - アプリ開発ガイド
-- [設定項目](./setting-items.md) - 設定リファレンス
+?> **ヘルプが必要ですか？** MDSLとアプリ開発に関する支援はMonadic Helpアプリを使用してください。

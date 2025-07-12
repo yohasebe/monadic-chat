@@ -1,179 +1,83 @@
-# MDSL Internals
+# MDSL Overview
 
-?> This document explains how Monadic DSL (MDSL) works internally. It's intended for developers who want to understand the implementation or contribute to its development.
+?> This document provides an overview of how Monadic DSL (MDSL) works for app developers.
 
-## 1. Overview
+## What is MDSL?
 
-Monadic DSL (MDSL) is a Ruby-based domain-specific language that simplifies AI application development by abstracting provider differences and offering a declarative syntax.
+Monadic DSL (MDSL) is a simple, Ruby-based language for creating AI applications in Monadic Chat. It handles the complexity of different AI providers so you can focus on building your app.
 
-### 1.1 Core Architecture
+## Key Concepts
 
-#### 1.1.1 Provider Abstraction
-MDSL supports multiple LLM providers through a unified interface:
-- **OpenAI** - [https://openai.com](https://openai.com)
-- **Anthropic** (Claude) - [https://anthropic.com](https://anthropic.com)
-- **Google** (Gemini) - [https://ai.google.dev](https://ai.google.dev)
-- **Mistral** - [https://mistral.ai](https://mistral.ai)
-- **Cohere** - [https://cohere.com](https://cohere.com)
-- **DeepSeek** - [https://deepseek.com](https://deepseek.com)
-- **Perplexity** - [https://perplexity.ai](https://perplexity.ai)
-- **xAI** (Grok) - [https://x.ai](https://x.ai)
-- **Ollama** - [https://ollama.ai](https://ollama.ai)
+### 1. Provider Independence
+Write your app once and it works with all supported providers:
+- OpenAI (GPT models)
+- Anthropic (Claude models)  
+- Google (Gemini models)
+- And many more
 
-#### 1.1.2 Critical Naming Convention
-?> **Important**: The MDSL app name must exactly match the Ruby class name. For example, `app "ChatOpenAI"` requires a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
+### 2. Naming Convention
+**Important**: Your app name must match the Ruby class name:
+- `app "ChatOpenAI"` requires `class ChatOpenAI < MonadicApp`
+- This ensures proper menu grouping and functionality
 
-#### 1.1.3 File Organization
+### 3. File Organization
+Keep your apps organized:
 ```
-apps/
-├── chat/
-│   ├── chat_openai.mdsl
-│   ├── chat_openai.rb
-│   └── chat_tools.rb
-└── second_opinion/
-    ├── second_opinion_openai.mdsl
-    ├── second_opinion_tools.rb
-    └── ...
+~/monadic/data/apps/
+├── my_app/
+│   ├── my_app_openai.mdsl    # App definition
+│   ├── my_app_openai.rb      # Ruby implementation (optional)
+│   └── my_app_tools.rb       # Shared tools (optional)
 ```
 
+## Features You Can Use
 
-### 1.2 Key Design Principles
+### Available Features
+- `monadic` - Enable JSON-based context management
+- `context_size` - Set conversation history size
+- `easy_submit` - Enable Enter key submission
+- `auto_speech` - Enable automatic speech
+- `image` - Allow image uploads
+- `pdf` - Allow PDF uploads
 
-1. **Declarative Syntax** - Define apps without implementation details
-2. **Provider Independence** - Switch providers with minimal changes
-3. **Tool Format Unification** - Single syntax for all provider-specific formats
-4. **Runtime Class Generation** - Convert DSL to Ruby classes dynamically
-5. **Monadic Error Handling** - Explicit, chainable error management
+### Provider-Specific Features
+Some features work differently across providers:
+- Web search capabilities
+- Image generation
+- Voice options
 
-## 2. DSL Structure and Processing
+## Tool System
 
-### 2.1 Basic App Definition
-```ruby
-app "AppNameProvider" do
-  description "Brief description"
-  icon "fa-icon"
-  
-  llm do
-    provider "provider_name"
-    model "model_name"
-  end
-  
-  features do
-    # Feature flags
-  end
-  
-  tools do
-    # Tool definitions
-  end
-  
-  system_prompt "..."
-end
-```
-
-### 2.2 Loading Process
-1. **File Detection** - `.mdsl` extension or `app "Name" do` pattern
-2. **Content Evaluation** - DSL evaluated with `eval` in safe context
-3. **State Building** - Configuration collected in `AppState`
-4. **Class Generation** - Dynamic Ruby class creation
-5. **Module Inclusion** - Provider-specific helpers included
-
-### 2.3 Provider Configuration
-```ruby
-PROVIDER_INFO = {
-  "openai" => {
-    helper_module: "OpenAIHelper",
-    default_model: "gpt-4.1-mini",
-    features: { monadic: true }
-  },
-  "anthropic" => {
-    helper_module: "ClaudeHelper", 
-    default_model: "claude-3-5-sonnet-20241022",
-    features: { toggle: true, initiate_from_assistant: true }
-  },
-  # ... other providers
-}
-```
-
-## 3. Feature Management
-
-### 3.1 Provider-Specific Features
-- `monadic` - JSON state management (supported by all providers)
-- `toggle` - Collapsible UI sections (Claude, Gemini, Mistral, Cohere)
-- `initiate_from_assistant` - Start with AI message (Claude, Gemini)
-
-?> **Important**: Never enable both `monadic` and `toggle` - they are mutually exclusive.
-
-### 3.2 Model-Specific Behaviors
-- **Reasoning Models** - o1, o3 don't support temperature adjustment
-- **Thinking Models** - Gemini 2.5 uses `reasoning_effort` instead of temperature
-- **Web Search Fallback** - Reasoning models use `WEBSEARCH_MODEL` for web queries
-
-## 4. Tool System
-
-### 4.1 Unified Tool Definition
+Define tools (functions) your AI can use:
 ```ruby
 tools do
-  define_tool "tool_name", "Description" do
-    parameter :param, "type", "description", required: true
+  define_tool "get_weather", "Get current weather" do
+    parameter :location, "string", "City name", required: true
   end
 end
 ```
 
-### 4.2 Provider Formatters
-Each provider has a dedicated formatter that transforms abstract definitions:
+The MDSL system automatically formats these for each provider.
 
-```ruby
-FORMATTERS = {
-  openai: ToolFormatters::OpenAIFormatter,
-  anthropic: ToolFormatters::AnthropicFormatter,
-  gemini: ToolFormatters::GeminiFormatter,
-  # ... other providers
-}
-```
+## Best Practices
 
-## 5. Runtime Behavior
+1. **Start Simple** - Begin with basic chat apps before adding complex tools
+2. **Test Across Providers** - Ensure your app works with multiple AI providers
+3. **Use Clear Descriptions** - Help users understand what your app does
+4. **Follow Examples** - Look at existing apps for patterns and ideas
 
-### 5.1 Class Generation
-MDSL dynamically generates Ruby classes:
-```ruby
-class AppNameProvider < MonadicApp
-  include ProviderHelper
-  
-  @settings = { /* from DSL */ }
-  @app_name = "AppNameProvider"
-  
-  # Tool methods included from facade modules
-end
-```
+## Common Issues and Solutions
 
-### 5.2 Error Handling
-Uses monadic patterns for chainable error handling:
-```ruby
-Result.new(value)
-  .bind { |v| validate(v) }
-  .map { |v| transform(v) }
-  .bind { |v| save(v) }
-```
+| Issue | Solution |
+|-------|----------|
+| App doesn't appear in menu | Check that app name matches class name |
+| Tools not working | Verify tool definitions match system prompt |
+| Features not available | Some features are provider-specific |
 
-## 6. Common Issues
+## Next Steps
 
-1. **Menu grouping problems** - Check app name matches class name
-2. **Missing models** - Ensure helper's `list_models` uses `$MODELS` cache
-3. **Tool not found** - Verify facade module is included
-4. **Feature conflicts** - Check `monadic`/`toggle` exclusivity
+- Read the [Monadic DSL Guide](./monadic_dsl.md) for detailed syntax
+- See [Developing Apps](./develop_apps.md) for a complete tutorial
+- Check [Basic Apps](../basic-usage/basic-apps.md) for examples
 
-?> **For debugging**: Enable "Extra Logging" in the Console Panel settings to get detailed logs when troubleshooting issues.
-
-## 7. Best Practices
-
-1. **Follow naming conventions** - App identifier must match class name
-2. **Use facade pattern** - Implement tools in separate `*_tools.rb` files
-3. **Respect feature constraints** - Don't mix incompatible features
-4. **Test with multiple providers** - Ensure portability
-5. **Handle errors gracefully** - Use monadic patterns
-
-## See Also
-
-- [Monadic DSL](./monadic_dsl.md) - User-facing DSL documentation
-- [Developing Apps](./develop_apps.md) - App development guide
-- [Setting Items](./setting-items.md) - Configuration reference
+?> **Need Help?** Use the Monadic Help app for assistance with MDSL and app development.

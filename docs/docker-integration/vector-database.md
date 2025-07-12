@@ -26,7 +26,7 @@ The vector database functionality runs on the pgvector container (`monadic-chat-
 
 Here's the processing flow in the PDF Navigator app:
 
-> 📸 **Screenshot needed**: PDF Navigator app interface showing PDF upload and query interface
+<!-- > 📸 **Screenshot needed**: PDF Navigator app interface showing PDF upload and query interface -->
 
 1. **Text Extraction**: 
    - PDFs are processed using PyMuPDF to extract raw text

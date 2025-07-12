@@ -50,7 +50,7 @@ The table below shows which apps are available for which AI model providers.
 
 This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search capabilities are available but disabled by default for user control over costs and privacy. You can enable web search manually in the app settings when you need current information.
 
-> 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis
+<!-- > 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis -->
 
 Chat apps are also available for the following models:
 
@@ -530,7 +530,7 @@ This application allows the AI to create and execute program code. The execution
 > - If code execution encounters repeated errors, the app will automatically stop retrying and provide an error message
 > - For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc
 
-> 📸 **Screenshot needed**: Code Interpreter showing code execution with output and generated plots
+<!-- > 📸 **Screenshot needed**: Code Interpreter showing code execution with output and generated plots -->
 
 Code Interpreter apps are also available for the following models:
 
@@ -571,7 +571,7 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 > You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-> 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution
+<!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
 
 !> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 

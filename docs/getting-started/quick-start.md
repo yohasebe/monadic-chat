@@ -7,7 +7,7 @@ This tutorial will help you get started with Monadic Chat in just 10 minutes. Yo
 - Monadic Chat is installed and running
 - You have at least one API key (OpenAI recommended for this tutorial)
 
-## Step 1: Initial Setup (2 minutes)
+## Step 1: Initial Setup
 
 ### 1.1 Open Settings
 
@@ -20,11 +20,11 @@ This tutorial will help you get started with Monadic Chat in just 10 minutes. Yo
 2. Paste your API key (starts with `sk-`)
 3. Click **Save**
 
-![Settings Panel](../assets/images/settings-basic.png ':size=600')
+<!-- ![Settings Panel](../assets/images/settings-basic.png ':size=600') -->
 
 ?> **No API key yet?** Get one from [OpenAI Platform](https://platform.openai.com/api-keys)
 
-## Step 2: Your First Chat (3 minutes)
+## Step 2: Your First Chat
 
 ### 2.1 Select the Chat App
 
@@ -54,7 +54,7 @@ What are the latest developments in AI this week?
 
 The AI will search the web and provide current information.
 
-## Step 3: Explore Context Management (5 minutes)
+## Step 3: Explore Context Management
 
 ### 3.1 Try Chat Plus
 
@@ -82,7 +82,7 @@ The Chat Plus app demonstrates "monadic" context management:
 - **People/Places**: Entities mentioned
 - **Important Notes**: Key information to remember
 
-## Step 4: Working with Files (3 minutes)
+## Step 4: Working with Files
 
 ### 4.1 Try Content Reader
 
@@ -101,7 +101,7 @@ Can you write a short Python script that generates a Fibonacci sequence?
 
 2. Save the response using the download button on the message
 
-## Step 5: Code Execution (2 minutes)
+## Step 5: Code Execution
 
 ### 5.1 Try Code Interpreter
 

@@ -6,7 +6,7 @@
 
 **Start** Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
-> 📸 **Screenshot needed**: Console panel with Start button highlighted
+<!-- > 📸 **Screenshot needed**: Console panel with Start button highlighted -->
 
 **Stop** <br />
 Stop Monadic Chat.
@@ -39,7 +39,7 @@ Launch Monadic Chat. The initial startup may take some time due to environment s
 **Build All** <br />
 Build all Docker images and containers for Monadic Chat.
 
-> 📸 **Screenshot needed**: Console output showing Docker build progress
+<!-- > 📸 **Screenshot needed**: Console output showing Docker build progress -->
 
 **Build Ruby Container** <br />
 Build the Docker image and container (`monadic-chat-ruby-container`) that powers Monadic Chat.

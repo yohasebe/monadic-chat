@@ -425,6 +425,14 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
     
+    # Debug log for grok-4 models
+    if body["model"]&.start_with?("grok-4")
+      DebugHelper.debug("Using grok-4 model: #{body['model']}", category: :api, level: :info)
+      if body["tools"] && !body["tools"].empty?
+        DebugHelper.debug("Tools included in request: #{body['tools'].length} tools", category: :api, level: :info)
+      end
+    end
+    
     # Debug final request for web search
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -461,6 +469,13 @@ module GrokHelper
     unless res.status.success?
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
+        
+        # Add specific debugging for grok-4 models with function calling
+        if body["model"]&.start_with?("grok-4") && body["tools"]
+          DebugHelper.debug("Grok-4 function calling error with model #{body['model']}", category: :api, level: :error)
+          DebugHelper.debug("Error response: #{error_data}", category: :api, level: :error)
+        end
+        
         formatted_error = format_api_error(error_data, "grok")
         res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
         block&.call res

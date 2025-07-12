@@ -1012,7 +1012,7 @@ module CohereHelper
       
       # Explicitly send a "wait" message to reset the UI status immediately 
       # This ensures the UI doesn't stay in the "RESPONDING" state
-      ready_msg = { "type" => "wait", "content" => "<i class='fa-solid fa-circle-check text-success'></i> <span class='text-success'>Ready to Start</span>" }
+      ready_msg = { "type" => "wait", "content" => "<i class='fa-solid fa-circle-check' style='color: #22ad50;'></i> <span style='color: #22ad50;'>Ready to Start</span>" }
       block&.call ready_msg
       
       # The "DONE" message tells the client to request HTML, which resets the status

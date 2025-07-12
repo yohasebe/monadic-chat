@@ -8,7 +8,7 @@ Clicking the `Shared Folder` button in the Monadic Chat console will launch the 
 
 By placing files in this directory, you can access those files within Monadic Chat's Docker containers. The path to the Shared Folder within each Docker container is `/monadic/data`, while the path on your local machine is `~/monadic/data`.
 
-> 📸 **Screenshot needed**: File explorer showing ~/monadic/data folder structure
+<!-- > 📸 **Screenshot needed**: File explorer showing ~/monadic/data folder structure -->
 
 In apps that can execute code (e.g., Code Interpreter app), you can read files from the Shared Folder. When specifying a file, provide only the file name without the directory path.
 

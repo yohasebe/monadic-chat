@@ -3113,9 +3113,11 @@ function connect_websocket(callback) {
               }, 100);
             }
           } else {
-            // For non-assistant messages, show "Ready for input" immediately
+            // For non-assistant messages, show "Ready for input" only if not calling functions
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+            if (!callingFunction) {
+              setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+            }
           }
 
         } else if (data["content"]["role"] === "user") {
@@ -3133,7 +3135,10 @@ function connect_websocket(callback) {
             $("#monadic-spinner").hide();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+          // Only show "Ready for input" if we're not waiting for function calls
+          if (!callingFunction) {
+            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+          }
         } else if (data["content"]["role"] === "system") {
           // Use the appendCard helper function
           appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
@@ -3144,7 +3149,10 @@ function connect_websocket(callback) {
             $("#monadic-spinner").hide();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+          // Only show "Ready for input" if we're not waiting for function calls
+          if (!callingFunction) {
+            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+          }
         }
 
         $("#chat").html("");
@@ -3337,8 +3345,8 @@ function connect_websocket(callback) {
         // This includes checking for active spinners or recent DOM updates
         let pendingOperations = false;
         
-        // Check if any spinner is still visible (in case of multiple spinners)
-        if ($(".spinner:visible").length > 0 || $(".fa-spinner:visible").length > 0) {
+        // Check if any spinner is still visible (in case of multiple spinners) or if we're calling functions
+        if ($(".spinner:visible").length > 0 || $(".fa-spinner:visible").length > 0 || callingFunction) {
           pendingOperations = true;
         }
         
@@ -3350,7 +3358,7 @@ function connect_websocket(callback) {
           } else {
             // If operations are still pending, wait and check again
             let checkInterval = setInterval(function() {
-              if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0) {
+              if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0 && !callingFunction) {
                 clearInterval(checkInterval);
                 setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
               }

@@ -804,6 +804,15 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
   },
   // xAI models
+  "grok-4-0709": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"],
+    "vision_capability": true
+  },
   "grok-3": {
     "context_window" : [1, 131072],
     "max_output_tokens" : [1, 32768],

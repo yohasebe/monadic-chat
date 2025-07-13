@@ -684,7 +684,6 @@ class DockerManager {
           
           // Update the current status and context menu
           currentStatus = statusWhileCommand;
-          console.log(`Setting currentStatus to: ${statusWhileCommand}`);
           
           // Reset the fetchWithRetryCalled flag
           fetchWithRetryCalled = false;
@@ -715,9 +714,13 @@ class DockerManager {
                 fetchWithRetry('http://localhost:4567')
                   .then((success) => {
                     if (success) {
+                      // First set to Running state
+                      currentStatus = "Running";
+                      updateTrayImage("Running");
+                      updateStatusIndicator("Running");
                       updateContextMenu(false);
                       
-                      // Set status to Ready - this will update UI
+                      // Then set to Ready
                       currentStatus = "Ready";
                       updateStatusIndicator("Ready");
                       
@@ -808,10 +811,13 @@ class DockerManager {
                 dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
               }
               
-              currentStatus = statusAfterCommand;
-              updateTrayImage(statusAfterCommand);
-              updateStatusIndicator(statusAfterCommand);
-              updateContextMenu(false);
+              // Don't update status here for 'start' command - wait for SERVER STARTED
+              if (command !== 'start') {
+                currentStatus = statusAfterCommand;
+                updateTrayImage(statusAfterCommand);
+                updateStatusIndicator(statusAfterCommand);
+                updateContextMenu(false);
+              }
               
               resolve();
             });
@@ -1638,7 +1644,6 @@ function updateContextMenu(disableControls = false) {
           item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
         } else if (item.label === 'Open Browser') {
           item.enabled = currentStatus === 'Running';
-          console.log(`Open Browser enabled: ${item.enabled}, currentStatus: ${currentStatus}`);
         } else if (item.label === 'Build All' || item.label === 'Build Ruby Container' || 
                    item.label === 'Build Python Container' || item.label === 'Build User Containers') {
           item.enabled = currentStatus === 'Stopped' || currentStatus === 'Uninstalled';

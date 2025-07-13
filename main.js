@@ -684,6 +684,7 @@ class DockerManager {
           
           // Update the current status and context menu
           currentStatus = statusWhileCommand;
+          console.log(`Setting currentStatus to: ${statusWhileCommand}`);
           
           // Reset the fetchWithRetryCalled flag
           fetchWithRetryCalled = false;
@@ -1637,6 +1638,7 @@ function updateContextMenu(disableControls = false) {
           item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
         } else if (item.label === 'Open Browser') {
           item.enabled = currentStatus === 'Running';
+          console.log(`Open Browser enabled: ${item.enabled}, currentStatus: ${currentStatus}`);
         } else if (item.label === 'Build All' || item.label === 'Build Ruby Container' || 
                    item.label === 'Build Python Container' || item.label === 'Build User Containers') {
           item.enabled = currentStatus === 'Stopped' || currentStatus === 'Uninstalled';

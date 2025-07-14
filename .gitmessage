@@ -1,0 +1,13 @@
+# Commit message guidelines for Monadic Chat
+# 
+# Format: <type>: <subject>
+# 
+# Types:
+#   feat: New feature
+#   fix: Bug fix
+#   docs: Documentation changes
+#   test: Test additions or changes
+#   refactor: Code refactoring
+#   chore: Build process or auxiliary tool changes
+# 
+# Important: Do not add Co-authored-by lines

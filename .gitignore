@@ -82,3 +82,9 @@ test_tts_input_*
 # Ignore Claude documentation (internal development docs)
 CLAUDE.md
 CLAUDE_DOCS/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

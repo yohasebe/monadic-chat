@@ -1,0 +1,24 @@
+{
+  "comment": "This is an example of custom models.json file",
+  "comment2": "Place this file at ~/monadic/config/models.json",
+  "comment3": "You can add new models or override existing model parameters",
+  
+  "_example_new_model": {
+    "context_window": [1, 200000],
+    "max_output_tokens": [1, 100000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  
+  "_example_override": {
+    "comment": "Override only specific parameters of existing models",
+    "gpt-4": {
+      "temperature": [[0.0, 2.0], 0.7],
+      "context_window": [1, 32000]
+    }
+  }
+}

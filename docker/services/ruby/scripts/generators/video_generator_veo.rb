@@ -10,7 +10,11 @@ require "open3"
 # Define constants for API and configuration
 
 # Use Vertex AI API endpoint instead of GenerativeLanguage API
-API_PREDICT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning"
+
+veo2model = "veo-2.0-generate-001"
+veo3model = "veo-3.0-generate-preview"
+
+API_PREDICT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/#{veo2model}:predictLongRunning"
 API_OPERATION_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
 CONFIG_PATHS = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"]
 DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]

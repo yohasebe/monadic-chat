@@ -20,7 +20,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 ² gpt-4.1/gpt-4.1-miniはResponses API経由でネイティブWeb検索、その他は利用可能な場合Tavilyを使用  
 ³ Haikuモデルはビジョン非対応  
 ⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）  
-⁵ PixtralおよびMedium 2505モデルのみ  
+⁵ Pixtral、mistral-medium-latest、mistral-small-latestモデル  
 ⁶ grok-2-visionモデルのみ  
 ⁷ 使用する特定のモデルの機能に依存
 
@@ -186,8 +186,8 @@ Mistral APIキーを設定すると、Mistralを用いたアプリを使用す�
 - **Magistralシリーズ**: magistral-medium、magistral-small（推論モデル）
   - 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
   - 秒間1,000トークンのパフォーマンス
-- **大規模モデル**: mistral-large-latest、mistral-medium-2505（ビジョン）
-- **Pixtralシリーズ**: pixtral-large-latest、pixtral-large-2411（ビジョンモデル）
+- **大規模モデル**: mistral-large-latest、mistral-medium-latest（ビジョン）、mistral-small-latest（ビジョン）
+- **Pixtralシリーズ**: pixtral-large-latest、pixtral-large-2411、pixtral-12b-latest（すべてビジョンモデル）
 - **小規模モデル**: mistral-saba-latest、ministral-3b-latest、ministral-8b-latest
 - **オープンモデル**: open-mistral-nemo、codestral（コード生成）
 

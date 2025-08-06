@@ -256,7 +256,15 @@ function handleErrorMessage(data) {
     // Create error card with System header (same as system_info)
     // Use jQuery's text() method to properly escape the content
     const $errorDiv = $('<div class="error-message"><i class="fas fa-exclamation-circle"></i> </div>');
-    $errorDiv.append($('<span>').text(data.content));
+    
+    // Handle both string and object error content
+    let errorContent = data.content;
+    if (typeof errorContent === 'object' && errorContent !== null) {
+      // Extract error message from object
+      errorContent = errorContent.message || errorContent.error || JSON.stringify(errorContent);
+    }
+    
+    $errorDiv.append($('<span>').text(errorContent));
     
     const errorElement = createCard("system", 
       "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 

@@ -246,7 +246,7 @@ describe('UI Utilities', () => {
     
     // Add mock for apps global
     global.apps = {
-      'chat': { image_generation: false },
+      'chat': { image_generation: false, image: true },
       'image_generator': { image_generation: true }
     };
     

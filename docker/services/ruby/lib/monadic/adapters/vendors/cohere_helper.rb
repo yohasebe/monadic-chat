@@ -844,12 +844,8 @@ module CohereHelper
 
     # Check if we need to switch to vision-capable model
     if messages_containing_img
-      # Check if the current model has vision capability
-      vision_capable_models = ["command-a-vision-07-2025"]
-      current_model = body["model"]
-      has_vision = vision_capable_models.any? { |m| current_model.include?(m) }
-      
-      unless has_vision || obj["vision_capability"]
+      # Check if the current model has vision capability from model_spec
+      unless obj["vision_capability"]
         original_model = body["model"]
         body["model"] = "command-a-vision-07-2025"
         

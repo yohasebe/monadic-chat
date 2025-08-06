@@ -67,6 +67,7 @@ require_relative "monadic/utils/text_embeddings"
 require_relative "monadic/utils/debug_helper"
 require_relative "monadic/utils/json_repair"
 require_relative "monadic/utils/error_pattern_detector"
+require_relative "monadic/utils/model_spec_loader"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"
@@ -591,6 +592,23 @@ get "/api/environment" do
   }.to_json
 end
 
+# API endpoint for dynamically loading model specifications
+# Merges default model_spec.js with user's custom models.json
+get "/api/models" do
+  content_type :json
+  
+  begin
+    default_spec_path = File.join(settings.public_folder, "js/monadic/model_spec.js")
+    merged_spec = ModelSpecLoader.load_merged_spec(default_spec_path)
+    JSON.generate(merged_spec)
+  rescue => e
+    STDERR.puts "[Model Spec Error] #{e.message}"
+    STDERR.puts e.backtrace if CONFIG["EXTRA_LOGGING"]
+    status 500
+    JSON.generate({ error: "Failed to load model specifications" })
+  end
+end
+
 # Accept requests from the client
 get "/" do
   @timestamp = Time.now.to_i
@@ -650,20 +668,6 @@ end
 
 get "/data/:file_name" do
   fetch_file(params[:file_name])
-end
-
-get "/lab/?" do
-  url = "http://127.0.0.1:8889/lab/"
-  result = HTTParty.get(url)
-  status result.code
-  result.body
-end
-
-get "/lab/*" do
-  url = "http://127.0.0.1:8889/lab/#{params["splat"].first}"
-  result = HTTParty.get(url)
-  status result.code
-  result.body
 end
 
 get "/:filename" do |filename|

@@ -255,7 +255,7 @@ $(function () {
           $("#ai_user_provider option[value='gemini']").show();
         } else if (group.includes("cohere")) {
           $("#ai_user_provider option[value='cohere']").show();
-        } else if (group.includes("mistral")) {
+        } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
           // Mistral now supports AI User
           $("#ai_user_provider option[value='mistral']").show();
         } else if (group.includes("deepseek")) {
@@ -310,7 +310,7 @@ $(function () {
           provider = "Google";
         } else if (group.includes("cohere")) {
           provider = "Cohere";
-        } else if (group.includes("mistral")) {
+        } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
           provider = "Mistral";
         } else if (group.includes("perplexity")) {
           provider = "Perplexity";
@@ -647,8 +647,8 @@ $(function () {
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
       uiUtils.adjustImageUploadButton(selectedModel);
-    } else {
-      adjustImageUploadButtonFallback(selectedModel);
+    } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
+      window.shims.uiUtils.adjustImageUploadButton(selectedModel);
     }
   });
 
@@ -816,8 +816,8 @@ $(function () {
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
         uiUtils.adjustImageUploadButton(model);
-      } else {
-        adjustImageUploadButtonFallback(model);
+      } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
+        window.shims.uiUtils.adjustImageUploadButton(model);
       }
 
     } else if (!apps[appValue]["model"] || apps[appValue]["model"].length === 0) {
@@ -849,7 +849,12 @@ $(function () {
 
       $("#model_and_file").show();
       $("#model_parameters").show();
-      adjustImageUploadButton(model);
+      // Use UI utilities module if available, otherwise fallback
+      if (uiUtils && uiUtils.adjustImageUploadButton) {
+        uiUtils.adjustImageUploadButton(model);
+      } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
+        window.shims.uiUtils.adjustImageUploadButton(model);
+      }
     }
 
     if (apps[appValue]["context_size"]) {
@@ -2512,8 +2517,8 @@ $(function () {
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
       uiUtils.adjustImageUploadButton($("#model").val());
-    } else {
-      adjustImageUploadButtonFallback($("#model").val());
+    } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
+      window.shims.uiUtils.adjustImageUploadButton($("#model").val());
     }
     $("#monadic-spinner").show();
     

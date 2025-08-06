@@ -440,7 +440,7 @@ function loadParams(params, calledFor = "loadParams") {
         provider = "Google";
       } else if (group.includes("cohere")) {
         provider = "Cohere";
-      } else if (group.includes("mistral")) {
+      } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
         provider = "Mistral";
       } else if (group.includes("perplexity")) {
         provider = "Perplexity";
@@ -890,7 +890,7 @@ function doResetActions() {
       provider = "Google";
     } else if (group.includes("cohere")) {
       provider = "Cohere";
-    } else if (group.includes("mistral")) {
+    } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
       provider = "Mistral";
     } else if (group.includes("perplexity")) {
       provider = "Perplexity";
@@ -961,7 +961,12 @@ function doResetActions() {
   stop_apps_trigger = true;
   $("#apps").trigger("change");
 
-  adjustImageUploadButton($("#model").val());
+  // Use UI utilities module if available, otherwise fallback
+  if (window.uiUtils && window.uiUtils.adjustImageUploadButton) {
+    window.uiUtils.adjustImageUploadButton($("#model").val());
+  } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
+    window.shims.uiUtils.adjustImageUploadButton($("#model").val());
+  }
   adjustScrollButtons();
 
   if (ws) {

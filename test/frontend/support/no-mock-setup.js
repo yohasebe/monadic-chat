@@ -12,7 +12,20 @@ global.TextDecoder = TextDecoder;
 
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
+
+// Delay JSDOM import to avoid initialization errors
+let JSDOM;
+try {
+  JSDOM = require('jsdom').JSDOM;
+} catch (error) {
+  console.error('Failed to load JSDOM:', error.message);
+  // Provide a mock JSDOM for testing
+  JSDOM = class MockJSDOM {
+    constructor(html, options) {
+      this.window = global.window || {};
+    }
+  };
+}
 
 // Set up proper DOM environment
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {

@@ -149,11 +149,16 @@ window.shims.uiUtils = {
     const imageFileElement = $("#image-file");
     const currentApp = $("#apps").val();
     
+    // Check if current app has image capability enabled
+    const appHasImageCapability = apps && apps[currentApp] && apps[currentApp]["image"];
+    
     // Check if current app is an image generation app
     const isImageGenerationApp = apps[currentApp] && 
       (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
     
-    if (modelData && modelData.vision_capability) {
+    // Show button only if BOTH app has image capability AND model has vision capability
+    // OR if it's an image generation app (which always needs image input)
+    if ((appHasImageCapability && modelData && modelData.vision_capability) || isImageGenerationApp) {
       // Enable the button
       imageFileElement.prop("disabled", false);
       

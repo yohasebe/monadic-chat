@@ -18,7 +18,6 @@ function escapeHtml(unsafe)
 function createCard(role, badge, html, _lang = "en", mid = "", status = true, images = [], _monadic = false) {
   const status_class = status === true ? "active" : "";
 
-  // Fix jupyter notebook URL issue
   let replaced_html;
   if (role === "system") {
     // Don't escape HTML for system messages as they may contain formatted content
@@ -29,7 +28,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
       replaced_html = html;
     }
   } else {
-    replaced_html = html.replaceAll("/lab/tree/", "/lab/tree/");
+    replaced_html = html;
   }
 
   // add "?dummy=TIMESTAMP" to the end of the URL to prevent the browser from caching the image

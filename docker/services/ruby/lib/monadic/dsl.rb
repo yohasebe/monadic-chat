@@ -570,11 +570,9 @@ module MonadicDSL
             parameters: {
               type: "object",
               properties: format_properties(tool),
-              required: tool.required,
-              additionalProperties: false
+              required: tool.required
             }
-          },
-          strict: true
+          }
         }
       end
       
@@ -587,6 +585,12 @@ module MonadicDSL
             type: param[:type],
             description: param[:description]
           }
+          
+          # Add items property for array types (required by OpenAI-compatible APIs)
+          if param[:type] == "array"
+            props[name][:items] = param[:items] || { type: "object" }
+          end
+          
           props[name][:enum] = tool.enum_values[name] if tool.enum_values[name]
         end
         props

@@ -10,11 +10,11 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 | Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
 | Gemini | ✅ 全モデル | ✅ | ✅⁴ |
 | Mistral | ✅ 一部モデル⁵ | ✅ | ✅⁴ |
-| Cohere | ❌ | ✅ | ✅⁴ |
+| Cohere | ✅ Visionモデル⁷ | ✅ | ✅⁴ |
 | xAI Grok | ✅ Visionモデル⁶ | ✅ | ✅ ネイティブ |
 | Perplexity | ✅ 全モデル | ❌ | ✅ ネイティブ |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
-| Ollama | ❓ モデル依存⁷ | ❓ モデル依存⁷ | ✅⁴ |
+| Ollama | ❓ モデル依存⁸ | ❓ モデル依存⁸ | ✅⁴ |
 
 ¹ o1、o1-mini、o3-miniを除く  
 ² gpt-4.1/gpt-4.1-miniはResponses API経由でネイティブWeb検索、その他は利用可能な場合Tavilyを使用  
@@ -22,7 +22,8 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 ⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）  
 ⁵ Pixtral、mistral-medium-latest、mistral-small-latestモデル  
 ⁶ grok-2-visionモデルのみ  
-⁷ 使用する特定のモデルの機能に依存
+⁷ command-a-visionモデルのみ  
+⁸ 使用する特定のモデルの機能に依存
 
 ## デフォルトモデルの設定
 
@@ -166,7 +167,7 @@ GEMINI_API_KEY=api_key
 CohereのAPIキーを設定すると、Cohereのモデルを用いたアプリを使用することができます。
 
 ### 利用可能なモデル
-- **Command Aシリーズ**: command-a-03-2025（最新）
+- **Command Aシリーズ**: command-a-03-2025（最新）、command-a-vision-07-2025（ビジョン機能）
 - **Command Rシリーズ**: command-r-plus-08-2024、command-r-08-2024
 - **Commandシリーズ**: command、command-light
 

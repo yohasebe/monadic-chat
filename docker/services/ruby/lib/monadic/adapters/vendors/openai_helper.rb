@@ -728,14 +728,8 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      # Check if the current model has vision capability
-      # gpt-4.1-mini and gpt-4.1 both have vision capability
-      vision_capable_models = ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-preview", "gpt-4.1-mini-2025-04-14", "gpt-4.1-2025-04-14", 
-                               "gpt-4.5", "gpt-4.5-preview", "gpt-4o", "gpt-4o-mini", "o3-pro", "o3", "o4-mini"]
-      current_model = body["model"]
-      has_vision = vision_capable_models.any? { |m| current_model.include?(m) }
-      
-      unless has_vision || obj["vision_capability"]
+      # Check if the current model has vision capability from model_spec
+      unless obj["vision_capability"]
         original_model = body["model"]
         body["model"] = "gpt-4.1"
         body.delete("reasoning_effort")

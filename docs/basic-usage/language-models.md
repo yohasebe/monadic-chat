@@ -10,11 +10,11 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 | Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
 | Gemini | ✅ All models | ✅ | ✅⁴ |
 | Mistral | ✅ Select models⁵ | ✅ | ✅⁴ |
-| Cohere | ❌ | ✅ | ✅⁴ |
+| Cohere | ✅ Vision models⁷ | ✅ | ✅⁴ |
 | xAI Grok | ✅ Vision models⁶ | ✅ | ✅ Native |
 | Perplexity | ✅ All models | ❌ | ✅ Native |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
-| Ollama | ❓ Model dependent⁷ | ❓ Model dependent⁷ | ✅⁴ |
+| Ollama | ❓ Model dependent⁸ | ❓ Model dependent⁸ | ✅⁴ |
 
 ¹ Except o1, o1-mini, o3-mini  
 ² Native web search for gpt-4.1/gpt-4.1-mini via Responses API, others use Tavily when available  
@@ -22,7 +22,8 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 ⁴ Web search via Tavily API (requires `TAVILY_API_KEY`)  
 ⁵ Pixtral, mistral-medium-latest, and mistral-small-latest models  
 ⁶ grok-2-vision models only  
-⁷ Depends on specific model capabilities
+⁷ command-a-vision models only  
+⁸ Depends on specific model capabilities
 
 ## Default Models Configuration
 
@@ -166,7 +167,7 @@ GEMINI_API_KEY=api_key
 By setting the Cohere API key, you can use apps that utilize Cohere's models.
 
 ### Available Models
-- **Command A Series**: command-a-03-2025 (latest)
+- **Command A Series**: command-a-03-2025 (latest), command-a-vision-07-2025 (vision capability)
 - **Command R Series**: command-r-plus-08-2024, command-r-08-2024
 - **Command Series**: command, command-light
 

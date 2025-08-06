@@ -1868,15 +1868,31 @@ function connect_websocket(callback) {
 
           try {
             // Check if response contains an error
-            if (data.content && typeof data.content === 'string' && data.content.includes('error')) {
-              try {
-                const errorData = JSON.parse(data.content);
-                if (errorData.error) {
-                  console.error("TTS error:", errorData.error);
-                  break;
+            if (data.content) {
+              // Handle error that might be an object
+              if (typeof data.content === 'object' && (data.content.error || data.content.type === 'error')) {
+                console.error("API error:", data.content.error || data.content.message || data.content);
+                // Convert to error message format that handleErrorMessage expects
+                data.type = 'error';
+                data.content = data.content.message || data.content.error || JSON.stringify(data.content);
+                handleErrorMessage(data);
+                break;
+              }
+              // Handle error in string format
+              else if (typeof data.content === 'string' && data.content.includes('error')) {
+                try {
+                  const errorData = JSON.parse(data.content);
+                  if (errorData.error || errorData.type === 'error') {
+                    console.error("API error:", errorData.error || errorData.message);
+                    // Convert to standard error format
+                    data.type = 'error';
+                    data.content = errorData.message || errorData.error || JSON.stringify(errorData);
+                    handleErrorMessage(data);
+                    break;
+                  }
+                } catch (e) {
+                  // If not valid JSON, continue with regular processing
                 }
-              } catch (e) {
-                // If not valid JSON, continue with regular processing
               }
             }
 
@@ -2483,7 +2499,7 @@ function connect_websocket(callback) {
               provider = "Google";
             } else if (group.includes("cohere")) {
               provider = "Cohere";
-            } else if (group.includes("mistral")) {
+            } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
               provider = "Mistral";
             } else if (group.includes("perplexity")) {
               provider = "Perplexity";

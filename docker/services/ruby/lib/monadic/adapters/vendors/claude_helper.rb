@@ -434,24 +434,31 @@ module ClaudeHelper
     # Store the original max_tokens value
     user_max_tokens = max_tokens
     
-    case obj["reasoning_effort"]
-    when "none"
-      # Explicitly disable thinking
-      budget_tokens = nil
-      max_tokens = user_max_tokens
-    when "low"
-      # Use proportional approach based on user's max_tokens
-      budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
-      max_tokens = user_max_tokens  # Keep original value
-    when "medium"
-      budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
-      max_tokens = user_max_tokens
-    when "high"
-      budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
-      max_tokens = user_max_tokens
+    # Check if the model supports thinking
+    thinking_models = ["claude-opus-4-20250514", "claude-sonnet-4-20250514"]
+    supports_thinking = thinking_models.any? { |m| obj["model"].to_s.include?(m) }
+    
+    # Only enable thinking if the model supports it AND reasoning_effort is not "none"
+    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"
+      case obj["reasoning_effort"]
+      when "low"
+        # Use proportional approach based on user's max_tokens
+        budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+        max_tokens = user_max_tokens  # Keep original value
+      when "medium"
+        budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
+        max_tokens = user_max_tokens
+      when "high"
+        budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
+        max_tokens = user_max_tokens
+      else
+        # Default to low if no valid reasoning_effort is provided for thinking models
+        budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+        max_tokens = user_max_tokens
+      end
     else
-      # Default to low if no valid reasoning_effort is provided
-      budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+      # Disable thinking for models that don't support it or when reasoning_effort is "none"
+      budget_tokens = nil
       max_tokens = user_max_tokens
     end
     

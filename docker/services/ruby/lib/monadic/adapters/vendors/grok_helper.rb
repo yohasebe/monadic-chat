@@ -7,9 +7,9 @@ module GrokHelper
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.x.ai/v1"
 
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  OPEN_TIMEOUT = 20
+  READ_TIMEOUT = 120
+  WRITE_TIMEOUT = 120
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -290,6 +290,17 @@ module GrokHelper
     # Get tools from app settings
     app_tools = APPS[app]&.settings&.[]("tools")
     
+    # Debug logging for tools
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] === Grok Tool Debug ===")
+      extra_log.puts("App: #{app}")
+      extra_log.puts("Role: #{role}")
+      extra_log.puts("obj['tools']: #{obj['tools'].inspect}")
+      extra_log.puts("app_tools: #{app_tools.inspect}")
+      extra_log.close
+    end
+    
     # Only include tools if this is not a tool response
     if role != "tool"
       if obj["tools"] && !obj["tools"].empty?
@@ -303,6 +314,16 @@ module GrokHelper
       else
         body.delete("tools")
         body.delete("tool_choice")
+      end
+      
+      # Debug log final tools being sent
+      if CONFIG["EXTRA_LOGGING"] && body["tools"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] === Grok Final Tools ===")
+        extra_log.puts("Number of tools: #{body['tools'].length}")
+        extra_log.puts("Tool names: #{body['tools'].map { |t| t.dig('function', 'name') || t['name'] }.inspect}")
+        extra_log.puts("First tool structure: #{body['tools'].first.inspect}")
+        extra_log.close
       end
     end # end of role != "tool"
     
@@ -425,19 +446,20 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
     
-    # Debug log for grok-4 models
-    if body["model"]&.start_with?("grok-4")
-      DebugHelper.debug("Using grok-4 model: #{body['model']}", category: :api, level: :info)
-      if body["tools"] && !body["tools"].empty?
-        DebugHelper.debug("Tools included in request: #{body['tools'].length} tools", category: :api, level: :info)
-      end
-    end
     
     # Debug final request for web search
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       extra_log.puts("\n[#{Time.now}] Grok final API request:")
       extra_log.puts("URL: #{target_uri}")
+      extra_log.puts("Tool choice: #{body['tool_choice'].inspect}")
+      extra_log.puts("Number of tools: #{body['tools']&.length || 0}")
+      if body['tools'] && body['tools'].any?
+        extra_log.puts("Tool signatures:")
+        body['tools'].each do |tool|
+          extra_log.puts("  - #{tool.dig('function', 'name')}: #{tool.dig('function', 'parameters', 'properties')&.keys&.inspect}")
+        end
+      end
       extra_log.puts("Full request body:")
       extra_log.puts(JSON.pretty_generate(body))
       extra_log.close
@@ -470,11 +492,6 @@ module GrokHelper
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
         
-        # Add specific debugging for grok-4 models with function calling
-        if body["model"]&.start_with?("grok-4") && body["tools"]
-          DebugHelper.debug("Grok-4 function calling error with model #{body['model']}", category: :api, level: :error)
-          DebugHelper.debug("Error response: #{error_data}", category: :api, level: :error)
-        end
         
         formatted_error = format_api_error(error_data, "grok")
         res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
@@ -610,6 +627,13 @@ module GrokHelper
 
             # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
             if json.dig("choices", 0, "delta", "tool_calls")
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("\n[#{Time.now}] Grok tool call detected in streaming response:")
+                extra_log.puts("Tool call delta: #{json.dig('choices', 0, 'delta', 'tool_calls').inspect}")
+                extra_log.close
+              end
+              
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
               block&.call res
 

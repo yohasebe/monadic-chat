@@ -31,9 +31,21 @@ def extract_text(pdf_path: str, output_format: str, all_pages: bool, show_progre
 
     if output_format not in ['markdown', 'md', 'txt', 'html', 'xml']:
         raise ValueError(f"Invalid output format: {output_format}")
+    
+    # Check if the file is actually a PDF by checking the header
+    try:
+        with open(pdf_path, 'rb') as f:
+            header = f.read(5)
+            if not header.startswith(b'%PDF-'):
+                raise fitz.FileDataError(f"Error processing PDF: File is not a valid PDF document")
+    except IOError as e:
+        raise fitz.FileDataError(f"Error processing PDF: {str(e)}")
 
     if output_format in ['markdown', 'md']:
-        doc = fitz.open(pdf_path)
+        try:
+            doc = fitz.open(pdf_path)
+        except Exception as e:
+            raise fitz.FileDataError(f"Error processing PDF: {str(e)}")
         try:
             if all_pages:
                 # Process all pages at once
@@ -64,7 +76,10 @@ def extract_text(pdf_path: str, output_format: str, all_pages: bool, show_progre
         finally:
             doc.close()
     else:
-        doc = fitz.open(pdf_path)
+        try:
+            doc = fitz.open(pdf_path)
+        except Exception as e:
+            raise fitz.FileDataError(f"Error processing PDF: {str(e)}")
         try:
             if all_pages:
                 if output_format == 'txt':

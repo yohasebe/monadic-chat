@@ -23,10 +23,7 @@ module MistralHelper
     "embed",
     "moderation",
     "open-mistral-7b",
-    "mistral-medium",
-    "mistral-small",
-    "mistral-tiny",
-    "pixtral-12b"
+    "mistral-tiny"
   ]
 
   WEBSEARCH_TOOLS = [

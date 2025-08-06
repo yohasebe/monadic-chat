@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+# Simple script to check model synchronization
+# Run from the ruby service directory
+
+require 'bundler/setup'
+require_relative '../spec/spec_helper'
+
+exec("bundle exec rspec spec/unit/model_spec_validation_spec.rb:289 --format documentation")

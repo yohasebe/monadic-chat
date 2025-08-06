@@ -166,14 +166,46 @@ module CohereHelper
                else "user" # Default to user for unknown roles
                end
         
-        # Get content
-        content = msg["content"] || msg["text"] || ""
-        
-        # Add to messages
-        messages << {
-          "role" => role,
-          "content" => content.to_s
-        }
+        # Check if message has images (for vision-capable models)
+        if msg["images"] && msg["images"].any?
+          content = []
+          
+          # Add text content
+          text = msg["content"] || msg["text"] || ""
+          content << {
+            "type" => "text",
+            "text" => text.to_s
+          }
+          
+          # Add images
+          msg["images"].each do |img|
+            if img["data"].start_with?("data:")
+              content << {
+                "type" => "image",
+                "image" => img["data"]
+              }
+            else
+              mime_type = img["type"] || "image/jpeg"
+              content << {
+                "type" => "image",
+                "image" => "data:#{mime_type};base64,#{img["data"]}"
+              }
+            end
+          end
+          
+          messages << {
+            "role" => role,
+            "content" => content
+          }
+        else
+          # Regular text-only message
+          content = msg["content"] || msg["text"] || ""
+          
+          messages << {
+            "role" => role,
+            "content" => content.to_s
+          }
+        end
       end
     end
     
@@ -654,12 +686,26 @@ module CohereHelper
 
     # Prepare messages array for v2 API format
     messages = []
+    messages_containing_img = false
 
     initial_prompt_with_suffix = if websearch
                                    initial_prompt.to_s + WEBSEARCH_PROMPT
                                  else
                                    initial_prompt.to_s
                                  end
+
+    # Check if any messages contain images first
+    context.each do |msg|
+      if msg["images"] && msg["images"].any?
+        messages_containing_img = true
+        break
+      end
+    end
+    
+    # Also check current message for images
+    if role == "user" && session[:messages].last && session[:messages].last["images"] && session[:messages].last["images"].any?
+      messages_containing_img = true
+    end
 
     # Add system message (initial prompt)
     messages << {
@@ -670,30 +716,117 @@ module CohereHelper
     # Add context messages with appropriate roles
     context.each do |msg|
       next if msg["text"].to_s.strip.empty?  # Skip empty messages
-      messages << {
-        "role" => translate_role(msg["role"]),
-        "content" => msg["text"].to_s.strip
-      }
+      
+      # Check if message contains images
+      if msg["images"] && msg["images"].any?
+        content = []
+        
+        # Add text content first
+        content << {
+          "type" => "text",
+          "text" => msg["text"].to_s.strip
+        }
+        
+        # Add images
+        msg["images"].each do |img|
+          # Cohere expects base64 images with proper formatting
+          if img["data"].start_with?("data:")
+            content << {
+              "type" => "image",
+              "image" => img["data"]
+            }
+          else
+            # If it's already base64 without the data URL prefix
+            mime_type = img["type"] || "image/jpeg"
+            content << {
+              "type" => "image", 
+              "image" => "data:#{mime_type};base64,#{img["data"]}"
+            }
+          end
+        end
+        
+        messages << {
+          "role" => translate_role(msg["role"]),
+          "content" => content
+        }
+      else
+        # Regular text-only message
+        messages << {
+          "role" => translate_role(msg["role"]),
+          "content" => msg["text"].to_s.strip
+        }
+      end
     end
 
     # Add current user message if not a tool call
     if role != "tool"
       current_message = "#{message}\n\n#{obj["prompt_suffix"]}".strip
-      messages << {
-        "role" => "user",
-        "content" => current_message
-      }
+      
+      # Check if the current message has images
+      latest_msg = session[:messages].last
+      if latest_msg && latest_msg["images"] && latest_msg["images"].any? && role == "user"
+        messages_containing_img = true
+        content = []
+        
+        # Add text content
+        content << {
+          "type" => "text",
+          "text" => current_message
+        }
+        
+        # Add images from the latest message
+        latest_msg["images"].each do |img|
+          if img["data"].start_with?("data:")
+            content << {
+              "type" => "image",
+              "image" => img["data"]
+            }
+          else
+            mime_type = img["type"] || "image/jpeg"
+            content << {
+              "type" => "image",
+              "image" => "data:#{mime_type};base64,#{img["data"]}"
+            }
+          end
+        end
+        
+        messages << {
+          "role" => "user",
+          "content" => content
+        }
+      else
+        # Regular text-only message
+        messages << {
+          "role" => "user",
+          "content" => current_message
+        }
+      end
     end
     
     # Apply monadic transformation to the last user message if in monadic mode
     if obj["monadic"].to_s == "true" && messages.any? && 
        messages.last["role"] == "user" && role == "user"
-      # Remove prompt suffix to get base message
-      base_message = messages.last["content"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
-      # Apply monadic transformation using unified interface
-      monadic_message = apply_monadic_transformation(base_message, app, "user")
-      # Add prompt suffix back
-      messages.last["content"] = "#{monadic_message}\n\n#{obj["prompt_suffix"]}".strip
+      last_msg = messages.last
+      if last_msg["content"].is_a?(Array)
+        # Handle structured content with images
+        text_content = last_msg["content"].find { |c| c["type"] == "text" }
+        if text_content
+          # Remove prompt suffix to get base message
+          base_message = text_content["text"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
+          # Apply monadic transformation using unified interface
+          monadic_message = apply_monadic_transformation(base_message, app, "user")
+          # Add prompt suffix back
+          text_content["text"] = "#{monadic_message}\n\n#{obj["prompt_suffix"]}".strip
+        end
+      else
+        # Handle simple string content
+        # Remove prompt suffix to get base message
+        base_message = messages.last["content"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
+        # Apply monadic transformation using unified interface
+        monadic_message = apply_monadic_transformation(base_message, app, "user")
+        # Add prompt suffix back
+        messages.last["content"] = "#{monadic_message}\n\n#{obj["prompt_suffix"]}".strip
+      end
     end
 
     # Construct request body with v2 API compatible parameters
@@ -708,6 +841,28 @@ module CohereHelper
 
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :cohere, app)
+
+    # Check if we need to switch to vision-capable model
+    if messages_containing_img
+      # Check if the current model has vision capability
+      vision_capable_models = ["command-r-vision-07-2025"]
+      current_model = body["model"]
+      has_vision = vision_capable_models.any? { |m| current_model.include?(m) }
+      
+      unless has_vision || obj["vision_capability"]
+        original_model = body["model"]
+        body["model"] = "command-r-vision-07-2025"
+        
+        # Send system notification about model switch
+        if block && original_model != body["model"]
+          system_msg = {
+            "type" => "system_info",
+            "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
+          }
+          block.call system_msg
+        end
+      end
+    end
 
     # Get tools from app settings
     app_tools = APPS[app]&.settings&.[]("tools")

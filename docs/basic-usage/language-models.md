@@ -20,7 +20,7 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 ² Native web search for gpt-4.1/gpt-4.1-mini via Responses API, others use Tavily when available  
 ³ Haiku models don't support vision  
 ⁴ Web search via Tavily API (requires `TAVILY_API_KEY`)  
-⁵ Pixtral and Medium 2505 models only  
+⁵ Pixtral, mistral-medium-latest, and mistral-small-latest models  
 ⁶ grok-2-vision models only  
 ⁷ Depends on specific model capabilities
 
@@ -186,8 +186,8 @@ By setting the Mistral AI API key, you can use apps that utilize Mistral.
 - **Magistral Series**: magistral-medium, magistral-small (reasoning models)
   - Multilingual reasoning in European languages
   - 1,000 tokens/second performance
-- **Large Models**: mistral-large-latest, mistral-medium-2505 (vision)
-- **Pixtral Series**: pixtral-large-latest, pixtral-large-2411 (vision models)
+- **Large Models**: mistral-large-latest, mistral-medium-latest (vision), mistral-small-latest (vision)
+- **Pixtral Series**: pixtral-large-latest, pixtral-large-2411, pixtral-12b-latest (all vision models)
 - **Small Models**: mistral-saba-latest, ministral-3b-latest, ministral-8b-latest
 - **Open Models**: open-mistral-nemo, codestral (code generation)
 

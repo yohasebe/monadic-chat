@@ -1,3 +1,6 @@
+- [August, 2025] 1.0.0-beta.3
+  - Version updated from 1.0.0-beta.2
+
 - [June, 2025] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations
     - Validates file paths are within allowed directories

@@ -1,4 +1,4 @@
-- [August, 2025] 1.0.0-beta.3
+- [August, 2025] 1.0.0-eta.4
   - Version updated from 1.0.0-beta.2
 
 - [June, 2025] 1.0.0-beta.2

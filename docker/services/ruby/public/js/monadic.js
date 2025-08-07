@@ -744,8 +744,9 @@ $(function () {
       console.log("JupyterNotebookClaude app settings:", apps[appValue]);
       console.log("reasoning_effort in app:", apps[appValue].reasoning_effort);
     }
-    // Default 'initiate_from_assistant' to false if not explicitly set in app parameters
-    if (!apps[appValue].hasOwnProperty('initiate_from_assistant')) {
+    // Only set initiate_from_assistant to false if the app explicitly defines it as false
+    // Don't override if it's already been set by setParams()
+    if (apps[appValue].hasOwnProperty('initiate_from_assistant') && apps[appValue]['initiate_from_assistant'] === false) {
       params['initiate_from_assistant'] = false;
     }
     // Restore mathjax state if not explicitly set in app parameters
@@ -1242,6 +1243,14 @@ $(function () {
       }
     }, 3000); // 3 second timeout is enough for normal operations to complete
 
+    // Clear messages if we just reset to ensure fresh start
+    alert("Debug: window.forceNewSession = " + window.forceNewSession + ", messages.length before = " + messages.length);
+    if (window.forceNewSession === true) {
+      messages.length = 0;
+      window.forceNewSession = false;
+      alert("Debug: Cleared messages, new length = " + messages.length);
+    }
+    
     if (messages.length > 0) {
       $("#config").hide();
       $("#back-to-settings").show();
@@ -1273,7 +1282,11 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      if (!$("#ai-user-toggle").is(":checked") && $("#initiate-from-assistant").is(":checked")) {
+      // Debug checkbox state
+      const checkbox = $("#initiate-from-assistant");
+      alert("Debug: checkbox exists=" + checkbox.length + ", checked=" + checkbox.is(":checked") + ", prop checked=" + checkbox.prop("checked"));
+      
+      if ($("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();
         $("#monadic-spinner").show(); // Show spinner for initial assistant message

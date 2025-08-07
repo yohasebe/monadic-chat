@@ -1,5 +1,9 @@
 - [August, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
+  - **GPT-5 Models**: Added model definitions for upcoming OpenAI GPT-5 series
+    - gpt-5, gpt-5-mini, gpt-5-nano with 400K context window
+    - 128K max output tokens and reasoning token support
+    - Models defined in model_spec.js (awaiting general availability)
 
 - [June, 2025] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations

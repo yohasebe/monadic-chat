@@ -267,20 +267,24 @@ Image Generator apps are also available for the following models:
 
 ![Video Generator app icon](../assets/icons/video-generator.png ':size=40')
 
-This application generates videos using Google's Veo model through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
+This application generates videos using Google's Veo models through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
 
 **Key Features:**
-- **Text-to-video generation**: Create videos from text descriptions
-- **Image-to-video generation**: Animate existing images by using them as the first frame
+- **Text-to-video generation**: Create videos from text descriptions using Veo 3
+- **Image-to-video generation**: Animate existing images by using them as the first frame using Veo 2
 - **Aspect ratio options**: Choose between landscape (16:9) and portrait (9:16) formats
-- **Person generation control**: Option to allow or restrict generation of videos containing people
+- **Automatic model selection**: Uses Veo 3 for text-to-video and Veo 2 for image-to-video for optimal compatibility
 
+**Technical Details:**
+- **Veo 3 (veo-3.0-generate-preview)**: Used for text-to-video generation with advanced capabilities
+- **Veo 2 (veo-2.0-generate-001)**: Used for image-to-video generation for proven compatibility
+- **Person generation**: Automatically configured based on the model and generation type
 
 **Usage:**
 1. For text-to-video: Provide a detailed description of the video you want to create
 2. For image-to-video: Upload an image and describe how it should be animated
-3. Specify the desired aspect ratio and person generation preferences
-4. The AI will process your request using Google's Veo model
+3. The appropriate Veo model will be automatically selected based on your input
+4. The AI will process your request and generate a video
 
 ?> **Note:** Video generation typically takes 2-6 minutes to complete. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
 

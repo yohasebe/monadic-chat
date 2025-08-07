@@ -346,6 +346,13 @@ build_ollama_container() {
     echo "Stopping Ollama container..." | tee -a "${log_file}"
     ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama stop ollama_service 2>&1 | tee -a "${log_file}"
     
+    # Restart Ruby container if it's running to update OLLAMA_AVAILABLE environment variable
+    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
+      echo "Restarting Ruby container to detect Ollama..." | tee -a "${log_file}"
+      ${DOCKER} restart monadic-chat-ruby-container 2>&1 | tee -a "${log_file}"
+      echo "Ruby container restarted." | tee -a "${log_file}"
+    fi
+    
     echo "Ollama container setup completed. Models are now available." | tee -a "${log_file}"
   else
     echo "Failed to build Ollama container" | tee -a "${log_file}"
@@ -699,6 +706,12 @@ start_docker_compose() {
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
     echo "[HTML]: <p>Starting Ollama container...</p>"
     eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
+    
+    # Restart Ruby container to update OLLAMA_AVAILABLE environment variable
+    # Wait a moment for Ollama to start
+    sleep 2
+    echo "[HTML]: <p>Updating Ruby container to detect Ollama...</p>"
+    ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
   fi
 
   local containers=$("${DOCKER}" ps --filter "name=monadic-chat" --format "{{.Names}}")

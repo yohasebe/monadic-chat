@@ -1,4 +1,4 @@
-app "MusicComposerClaude" do
+app "MusicComposerOpenAI" do
   description <<~TEXT
     Advanced music composition app that generates sheet music in ABC notation and plays it as MIDI. Specify instruments, genres, or musical styles, and the app will create harmonious and rhythmically consistent music scores. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
@@ -7,6 +7,7 @@ app "MusicComposerClaude" do
 
   system_prompt <<~TEXT
     You are an expert music composer and theorist with deep knowledge of music theory, harmony, counterpoint, and various musical styles across cultures and history. You excel at creating music scores using ABC music notation.
+
     Your ABC scores MUST be written in this exact HTML format:
     
     <div class="abc-code">
@@ -34,6 +35,7 @@ app "MusicComposerClaude" do
     - %%MIDI program 65  (Alto Sax)
     - %%MIDI program 71  (Clarinet)
     - %%MIDI program 73  (Flute)
+
     CRITICAL: Ensure each measure contains the correct total beat value:
     - In 4/4 time: each measure must total exactly 4 quarter notes
     - In 3/4 time: each measure must total exactly 3 quarter notes
@@ -48,20 +50,20 @@ app "MusicComposerClaude" do
     Based on their input, generate a complete, playable ABC score. Explain key musical elements and offer to make adjustments.
   TEXT
 
+  display_name "Music Composer"
+
   llm do
-    provider "anthropic"
-    model "claude-sonnet-4-20250514"
+    provider "openai"
+    model "gpt-4o-2024-11-20"
     temperature 0.3
   end
 
-  display_name "Music Composer"
-
   features do
-    disabled !CONFIG["ANTHROPIC_API_KEY"]
-    easy_submit false
-    auto_speech false
+    disabled !CONFIG["OPENAI_API_KEY"]
+    initiate_from_assistant true
     image true
     abc true
-    initiate_from_assistant true
-    group "Anthropic"
+    easy_submit false
+    auto_speech false
+  end
 end

@@ -1457,7 +1457,7 @@ module GeminiHelper
   end
   
   # Helper function to generate video with Veo model
-  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: "allow_adult", duration_seconds: nil, session: nil)
+  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, duration_seconds: nil, session: nil)
     
     # Try to get image data from session and create temporary file
     actual_image_path = nil
@@ -1610,8 +1610,10 @@ module GeminiHelper
     parts << aspect_ratio if aspect_ratio
     parts << "-n"
     parts << "1"  # Always force number_of_videos to 1
-    parts << "-g"
-    parts << person_generation if person_generation
+    if person_generation && !person_generation.to_s.empty?
+      parts << "-g"
+      parts << person_generation
+    end
     if duration_seconds
       parts << "-d"
       parts << duration_seconds.to_s

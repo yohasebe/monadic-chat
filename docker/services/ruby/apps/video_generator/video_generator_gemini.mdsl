@@ -23,14 +23,14 @@ app "VideoGeneratorGemini" do
       1. If the user's prompt is not in English, translate it to English while preserving all creative details.
 
       2. Determine if this is text-to-video or image-to-video:
-         - Text-to-video: Use the text description only
-         - Image-to-video: Use the uploaded image as first frame
+         - Text-to-video: Use the text description only (uses Veo 3)
+         - Image-to-video: Use the uploaded image as first frame (uses Veo 2 for compatibility)
 
       3. Call the `generate_video_with_veo` function with these parameters:
          - prompt: English version of the user's request (required)
          - image_path: Path to the image file (only for image-to-video)
          - aspect_ratio: "16:9" (landscape) or "9:16" (portrait)
-         - person_generation: "allow_adult" or "dont_allow"
+         - person_generation: Do not specify this parameter (it will be auto-selected)
 
       4. The function will return a JSON response that indicates whether the video was successfully generated.
          - On success, it will provide the filename of the generated video

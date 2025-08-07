@@ -695,8 +695,8 @@ start_docker_compose() {
   
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
-  # Start Ollama container if it exists (it uses a profile so needs explicit start)
-  if ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^monadic-chat-ollama-container$"; then
+  # Start Ollama container if the image exists (it uses a profile so needs explicit start)
+  if ${DOCKER} images | grep -q "yohasebe/ollama"; then
     echo "[HTML]: <p>Starting Ollama container...</p>"
     eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
   fi

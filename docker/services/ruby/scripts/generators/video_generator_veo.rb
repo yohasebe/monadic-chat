@@ -11,10 +11,14 @@ require "open3"
 
 # Use Vertex AI API endpoint instead of GenerativeLanguage API
 
+# Model selection
+USE_VEO3_FOR_TEXT = true  # Use Veo 3 for text-to-video
 veo2model = "veo-2.0-generate-001"
 veo3model = "veo-3.0-generate-preview"
 
-API_PREDICT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/#{veo2model}:predictLongRunning"
+# Note: We'll dynamically select model based on whether image is provided
+# This will be set in the generate_video function
+$current_model = nil
 API_OPERATION_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
 CONFIG_PATHS = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"]
 DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
@@ -22,7 +26,11 @@ DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
 # Define valid parameter values
 
 VALID_ASPECT_RATIOS = ["16:9", "9:16"]
-VALID_PERSON_GENERATION = ["dont_allow", "allow_adult"]
+# Person generation values depend on model
+VALID_PERSON_GENERATION_VEO2 = ["dont_allow", "allow_adult", "allow_all"]
+VALID_PERSON_GENERATION_VEO3 = ["allow_all", "dont_allow", "allow_adult"]
+# Union of all valid values (remove duplicates)
+VALID_PERSON_GENERATION = (VALID_PERSON_GENERATION_VEO2 + VALID_PERSON_GENERATION_VEO3).uniq
 VALID_DURATION_SECONDS = (5..8).to_a
 
 # Default options
@@ -30,7 +38,7 @@ VALID_DURATION_SECONDS = (5..8).to_a
 DEFAULT_OPTIONS = {
   number_of_videos: 1,          # Default to 1 video
   aspect_ratio: "16:9",         # Default aspect ratio
-  person_generation: "allow_adult", # Default person generation setting
+  person_generation: nil,        # Will be set based on model and image presence
   duration_seconds: 5,          # Default duration in seconds
   debug: false                  # Debug mode flag
 }
@@ -226,7 +234,9 @@ end
 # Make API request to initialize video generation
 
 def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio, person_generation, duration_seconds, api_key)
-  url = "#{API_PREDICT_ENDPOINT}?key=#{api_key}"
+  # Use the current model set by generate_video function
+  api_endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{$current_model}:predictLongRunning"
+  url = "#{api_endpoint}?key=#{api_key}"
   
   headers = {
     "Content-Type": "application/json"
@@ -240,11 +250,10 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
       }
     ],
     parameters: {
-      # Use the exact parameter names from Vertex AI documentation
+      # Use the exact parameter names from Veo 3 documentation
       aspectRatio: aspect_ratio,
-      personGeneration: person_generation,
-      # Force to generate only one video by explicitly setting sampleCount
-      sampleCount: 1
+      personGeneration: person_generation
+      # Note: Veo 3 always generates 1 video per request (no sampleCount parameter)
     }
   }
   
@@ -280,10 +289,22 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
           STDERR.puts "DEBUG: Determined mime type from extension: #{mime_type}" if $debug
         end
         
-        body[:instances][0][:image] = {
-          bytesBase64Encoded: base64_data,
-          mimeType: mime_type
-        }
+        # Use different format based on model
+        # Veo 2 requires both bytesBase64Encoded and mimeType
+        if $current_model == "veo-2.0-generate-001"
+          body[:instances][0][:image] = {
+            bytesBase64Encoded: base64_data,
+            mimeType: mime_type
+          }
+        else
+          # Veo 3 might use different format (currently not working for image-to-video)
+          body[:instances][0][:image] = {
+            inline_data: {
+              mime_type: mime_type,
+              data: base64_data
+            }
+          }
+        end
         
         STDERR.puts "Successfully encoded image from: #{resolved_path}"
         STDERR.puts "DEBUG: Added image to request body with base64 encoding and mimeType: #{mime_type}" if $debug
@@ -295,7 +316,7 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
     end
   end
 
-  STDERR.puts "Sending request to: #{API_PREDICT_ENDPOINT}"
+  STDERR.puts "Sending request to: #{api_endpoint}"
   STDERR.puts "Request body: #{JSON.pretty_generate(body)}"
   
   response = HTTP.headers(headers).post(url, json: body)
@@ -513,10 +534,35 @@ end
 
 # Main function to generate videos
 
-def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio = "16:9", person_generation = "allow_adult", duration_seconds = 5, num_retrials = 3)
+def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio = "16:9", person_generation = nil, duration_seconds = 5, num_retrials = 3)
   # Convert parameters to proper strings to prevent JSON encoding issues
   prompt = prompt.to_s
   aspect_ratio = aspect_ratio.to_s
+  
+  # Select model based on whether image is provided
+  # Use Veo 2 for image-to-video, Veo 3 for text-to-video
+  if image_path && !image_path.to_s.empty?
+    # Use Veo 2 for image-to-video generation
+    $current_model = "veo-2.0-generate-001"
+    use_veo3 = false
+    STDERR.puts "Using Veo 2 for image-to-video generation"
+  else
+    # Use Veo 3 for text-to-video if enabled, otherwise Veo 2
+    $current_model = USE_VEO3_FOR_TEXT ? "veo-3.0-generate-preview" : "veo-2.0-generate-001"
+    use_veo3 = USE_VEO3_FOR_TEXT
+    STDERR.puts "Using #{use_veo3 ? 'Veo 3' : 'Veo 2'} for text-to-video generation"
+  end
+  
+  # Adjust person_generation based on model and whether image is provided
+  if person_generation.nil?
+    if use_veo3 && !image_path
+      # Veo 3 text-to-video: allow_all
+      person_generation = "allow_all"
+    else
+      # Veo 2 or image-to-video: allow_adult
+      person_generation = "allow_adult"
+    end
+  end
   person_generation = person_generation.to_s
   
   # Force number_of_videos to 1 to ensure only one video is created

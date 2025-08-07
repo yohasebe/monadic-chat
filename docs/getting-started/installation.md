@@ -11,8 +11,8 @@ For macOS, follow these steps to install Monadic Chat.
 1. Install Docker Desktop for Mac.
 2. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-eta.4/Monadic.Chat-1.0.0-eta-4-arm64.dmg)
-- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-eta.4/Monadic.Chat-1.0.0-eta-4-x64.dmg)
+- 📦 [Installer package for macOS ARM64 (Apple Silicon)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.4/Monadic.Chat-1.0.0-beta-4-arm64.dmg)
+- 📦 [Installer package for macOS x64 (Intel)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.4/Monadic.Chat-1.0.0-beta-4-x64.dmg)
 
 
 ### **Windows**
@@ -23,7 +23,7 @@ For Windows, follow these steps to install Monadic Chat.
 2. Install Docker Desktop for Windows.
 3. Download and install the Monadic Chat installer:
 
-- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-eta.4/Monadic.Chat.Setup.1.0.0-eta-4.exe)
+- 📦 [Installer package for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.4/Monadic.Chat.Setup.1.0.0-beta-4.exe)
 
 
 ### **Linux**
@@ -36,8 +36,8 @@ Refer to: [Install Docker Desktop on Linux](https://docs.docker.jp/desktop/insta
 
 2. Download the Monadic Chat installer:
 
-- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-eta.4/monadic-chat_1.0.0-eta-4_amd64.deb)
-- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-eta.4/monadic-chat_1.0.0-eta-4_arm64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) x64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.4/monadic-chat_1.0.0-beta-4_amd64.deb)
+- 📦 [Installer package for Linux (Ubuntu/Debian) arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.4/monadic-chat_1.0.0-beta-4_arm64.deb)
 
 
 3. Run the following command in the terminal to install the downloaded package:

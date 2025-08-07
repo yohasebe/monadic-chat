@@ -64,4 +64,5 @@ app "MusicComposerClaude" do
     abc true
     initiate_from_assistant true
     group "Anthropic"
+  end
 end

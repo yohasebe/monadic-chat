@@ -117,6 +117,7 @@ include:
   - "${ROOT_DIR}/services/pgvector/compose.yml"
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
+  - "${ROOT_DIR}/services/ollama/compose.yml"
 ${compose_user}
 
 networks:
@@ -180,9 +181,10 @@ ensure_data_dir() {
   # remove extra.log if it exists
   rm -f "${log_dir}/extra.log"
 
-  # clear rbsetup.sh and pysetup.sh in the root dir by overwriting default comments
+  # clear rbsetup.sh, pysetup.sh and olsetup.sh in the root dir by overwriting default comments
   echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ruby/rbsetup.sh"
   echo "# This file is overwritten by pysetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
+  echo "# This file is overwritten by olsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ollama/olsetup.sh"
 
   touch "${config_dir}/env"
 
@@ -199,6 +201,14 @@ ensure_data_dir() {
     cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
     if [[ "$container_type" == "python" || "$container_type" == "" ]]; then
       echo "[HTML]: <p><i class='fa-brands fa-python'></i>Custom Python setup script (pysetup.sh) detected and will be used.</p>"
+    fi
+  fi
+
+  # Only show Ollama setup message when building Ollama container
+  if [[ -f "${config_dir}/olsetup.sh" && -s "${config_dir}/olsetup.sh" ]]; then
+    cp -f "${config_dir}/olsetup.sh" "${ROOT_DIR}/services/ollama/olsetup.sh"
+    if [[ "$container_type" == "ollama" || "$container_type" == "" ]]; then
+      echo "[HTML]: <p><i class='fa-solid fa-robot'></i>Custom Ollama setup script (olsetup.sh) detected and will be used.</p>"
     fi
   fi
 }
@@ -316,12 +326,12 @@ build_ollama_container() {
       return 1
     fi
     
-    # Check if olsetup.sh exists and run it
-    if [ -f "${HOME_DIR}/monadic/config/olsetup.sh" ]; then
+    # Check if olsetup.sh exists in the container and run it
+    if ${DOCKER} exec monadic-chat-ollama-container test -f /monadic/olsetup.sh 2>/dev/null; then
       echo "Running custom model setup..." | tee -a "${log_file}"
       # Make sure the script is executable
-      ${DOCKER} exec monadic-chat-ollama-container chmod +x /monadic/config/olsetup.sh 2>&1 | tee -a "${log_file}"
-      ${DOCKER} exec monadic-chat-ollama-container /monadic/config/olsetup.sh 2>&1 | tee -a "${log_file}"
+      ${DOCKER} exec monadic-chat-ollama-container chmod +x /monadic/olsetup.sh 2>&1 | tee -a "${log_file}"
+      ${DOCKER} exec monadic-chat-ollama-container /monadic/olsetup.sh 2>&1 | tee -a "${log_file}"
       echo "Custom model setup completed." | tee -a "${log_file}"
     else
       echo "No custom setup script found. Downloading default model..." | tee -a "${log_file}"

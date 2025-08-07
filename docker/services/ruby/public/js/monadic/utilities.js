@@ -923,6 +923,9 @@ function doResetActions() {
   // Update lastApp to match the current app to prevent app change dialog from appearing
   lastApp = currentApp;
   
+  // Trigger app change to reset all settings to defaults
+  $("#apps").trigger("change");
+  
   $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
 
   if (apps[currentApp]["monadic"]) {

@@ -20,6 +20,7 @@ module OllamaHelper
   ollama_endpoint = nil
 
   endpoints = [
+    "http://monadic-chat-ollama-container:11434/api",
     "http://host.docker.internal:11434/api",
     "http://localhost:11434/api"
   ]

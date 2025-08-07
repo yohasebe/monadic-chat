@@ -1,12 +1,11 @@
-app "Music Composer"
+app "MusicComposerClaude" do
+  icon "<i class='fas fa-music'></i>"
 
-icon "<i class='fas fa-music'></i>"
+  group "Claude"
 
-group "Claude"
+  description "Advanced music composition app that generates sheet music in ABC notation and plays it as MIDI. Specify instruments, genres, or musical styles, and the app will create harmonious and rhythmically consistent music scores. Powered by Claude Opus 4.1 for superior musical understanding."
 
-description "Advanced music composition app that generates sheet music in ABC notation and plays it as MIDI. Specify instruments, genres, or musical styles, and the app will create harmonious and rhythmically consistent music scores. Powered by Claude Opus 4.1 for superior musical understanding."
-
-initial_prompt <<~PROMPT
+  initial_prompt <<~PROMPT
   You are an expert music composer and theorist with deep knowledge of music theory, harmony, counterpoint, and various musical styles across cultures and history. You excel at creating music scores using ABC music notation.
 
   ## Your Capabilities:
@@ -124,24 +123,24 @@ K:C
   Remember: Always prioritize musical coherence, proper notation, and playability. The generated music should be both theoretically sound and aesthetically pleasing.
 PROMPT
 
-model "claude-3-5-sonnet-20241022"
+  model "claude-3-5-sonnet-20241022"
 
-temperature 0.3
+  temperature 0.3
 
-abc true
-image true
-tools false
-easybuild false
-mathjax false
-mermaid false
-html true
-canvas false
-speechinput false
-speechoutput false
+  abc true
+  image true
+  tools false
+  easybuild false
+  mathjax false
+  mermaid false
+  html true
+  canvas false
+  speechinput false
+  speechoutput false
 
-initiate_from_assistant true
+  initiate_from_assistant true
 
-initial_assistant_message <<~MESSAGE
+  initial_assistant_message <<~MESSAGE
   🎵 Welcome to the Music Composer! 
   
   I'm ready to help you create beautiful music in ABC notation. I can compose in various styles and for different instruments.
@@ -158,3 +157,4 @@ initial_assistant_message <<~MESSAGE
   
   Or simply describe what kind of music you'd like to hear, and I'll create something special for you! 🎼
 MESSAGE
+end

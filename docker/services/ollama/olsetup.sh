@@ -1,1 +1,3 @@
-# This file is overwritten by olsetup.sh prepared by the user in the shared folder.
+#!/bin/bash
+
+ollama pull gpt-oss:20b

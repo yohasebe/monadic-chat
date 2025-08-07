@@ -60,6 +60,97 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
+  // gpt-5 models
+  "gpt-5": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_effort": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "gpt-5-2025-08-07": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_effort": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "gpt-5-mini": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_effort": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "gpt-5-mini-2025-08-07": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_effort": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "gpt-5-nano": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_effort": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "gpt-5-nano-2025-08-07": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_effort": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
   // gpt-4o models
   "gpt-4o": {
     "context_window" : [1, 128000],

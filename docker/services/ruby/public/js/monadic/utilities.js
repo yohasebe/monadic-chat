@@ -673,21 +673,14 @@ function resetParams() {
 
 function setParams() {
   const app_name = $("#apps").val();
-  console.log("Debug: Selected app:", app_name);
-  console.log("Debug: App data:", apps[app_name]);
   params = Object.assign({}, apps[app_name]);
-  console.log("Debug: Final params:", params);
   params["app_name"] = app_name;
 
-  if ($("#ai-user-toggle").is(":checked")) {
-    if ($("#ai-user-initial-prompt").val().trim() !== "") {
-      params["ai_user_initial_prompt"] = $("#ai-user-initial-prompt").val();
-    }
-    params["initiate_from_assistant"] = false;
-  } else {
-    // Make sure this is a boolean, not a string
+  // Always use checkbox value if it exists (user can change it)
+  if ($("#initiate-from-assistant").length > 0) {
     params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked') ? true : false;
   }
+  // If checkbox doesn't exist, keep the value from apps[app_name]
 
   if ($("#mathjax").is(":checked")) {
     params["mathjax"] = "true";
@@ -916,6 +909,10 @@ function doResetActions() {
   $("#back-to-settings").hide();
   $("#parameter-panel").hide();
   setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
+  
+  // Set flags to indicate reset happened
+  window.forceNewSession = true;
+  window.justReset = true;
   
   // Set app selection back to current app instead of default
   $("#apps").val(currentApp);

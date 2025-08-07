@@ -2717,6 +2717,15 @@ function connect_websocket(callback) {
         break;
       }
       case "past_messages": {
+        // If we just reset, ignore past messages completely
+        if (window.forceNewSession === true) {
+          messages.length = 0;
+          $("#discourse").empty();
+          setStats(formatInfo([]), "info");
+          $("#start-label").text("Start Session");
+          break;
+        }
+        
         messages.length = 0;
         $("#discourse").empty();
 

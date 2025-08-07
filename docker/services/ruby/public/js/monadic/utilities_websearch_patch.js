@@ -45,6 +45,11 @@ window.doResetActions = function() {
   ws.send(JSON.stringify({ "message": "LOAD" }));
 
   currentPdfData = null;
+  
+  // Set flags to indicate reset happened
+  window.forceNewSession = true;
+  window.justReset = true;
+  
   resetParams();
 
   const model = $("#model").val();

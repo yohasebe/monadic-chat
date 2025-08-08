@@ -112,7 +112,22 @@
     
     // Message management
     addMessage: function(message) {
+      // Add to internal array
       this.conversation.messages.push(message);
+      
+      // Sync with legacy messages array if it exists (avoid Array.prototype.push override)
+      if (window.messages && Array.isArray(window.messages)) {
+        // Check if message is not already in the array
+        if (!window.messages.some(m => m === message || (m.mid && m.mid === message.mid))) {
+          // Use original push if available, or direct assignment
+          if (window.originalPush) {
+            window.originalPush.call(window.messages, message);
+          } else {
+            window.messages[window.messages.length] = message;
+          }
+        }
+      }
+      
       this.notifyListeners('message:added', message);
       return message;
     },

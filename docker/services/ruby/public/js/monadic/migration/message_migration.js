@@ -244,16 +244,28 @@
   
   // Patch Array.push for messages array to use our manager
   const originalPush = Array.prototype.push;
+  let isAddingMessage = false; // Prevent recursion
+  
   Array.prototype.push = function(...args) {
-    // Check if this is the messages array
-    if (this === window.messages && window.MessageManager) {
-      // Use MessageManager for messages array
-      args.forEach(item => {
-        window.MessageManager.addMessage(item);
-      });
-      return this.length;
+    // Check if this is the messages array and we're not already adding
+    if (this === window.messages && window.MessageManager && !isAddingMessage) {
+      // Prevent recursion
+      isAddingMessage = true;
+      
+      // Use original push to actually add to array
+      const result = originalPush.apply(this, args);
+      
+      // Notify SessionState about the change (without re-adding)
+      if (window.SessionState) {
+        args.forEach(item => {
+          window.SessionState.notifyListeners('message:added', item);
+        });
+      }
+      
+      isAddingMessage = false;
+      return result;
     }
-    // Use original push for other arrays
+    // Use original push for other arrays or when already adding
     return originalPush.apply(this, args);
   };
   

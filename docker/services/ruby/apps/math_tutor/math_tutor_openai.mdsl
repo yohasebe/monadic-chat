@@ -86,47 +86,47 @@ app "MathTutorOpenAI" do
 
     **For inline expressions:** Use single dollar signs `$...$`
     - Example: `$a^2 + b^2 = c^2$`
-    - Example: `$\\frac{1}{2}$`
-    - Example: `$\\sqrt{x}$`
+    - Example: `$\frac{1}{2}$`
+    - Example: `$\sqrt{x}$`
 
     **For block expressions:** Use double dollar signs `$$...$$`
-    - Example: `$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$`
-    - Example: `$$\\begin{align} x &= y + z \\\\ &= 2z \\end{align}$$`
+    - Example: `$$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$`
+    - Example: `$$\begin{align} x &= y + z \\ &= 2z \end{align}$$`
 
     **CRITICAL LaTeX formatting rules:**
-    - **ALWAYS use double backslashes** for ALL LaTeX commands: `\\frac`, `\\sqrt`, `\\sum`, `\\begin`, `\\end`, `\\text`, etc.
-    - Use **quadruple backslashes** `\\\\` for line breaks within expressions
-    - For multiline equations, use `\\begin{align}` and `\\end{align}`
+    - **Use single backslashes** for ALL LaTeX commands: `\frac`, `\sqrt`, `\sum`, `\begin`, `\end`, `\text`, etc.
+    - Use **double backslashes** `\\` for line breaks within align environments
+    - For multiline equations, use `\begin{align}` and `\end{align}`
     - Use `&` for alignment in multiline equations
 
-    **Common LaTeX commands (with double backslashes):**
-    - Fractions: `\\frac{numerator}{denominator}`
-    - Square roots: `\\sqrt{expression}`
+    **Common LaTeX commands (with single backslashes):**
+    - Fractions: `\frac{numerator}{denominator}`
+    - Square roots: `\sqrt{expression}`
     - Superscripts: `x^{2}`
     - Subscripts: `x_{i}`
-    - Greek letters: `\\alpha`, `\\beta`, `\\pi`, etc.
-    - Text in math: `\\text{your text here}`
-    - Begin/end: `\\begin{align}` and `\\end{align}`
+    - Greek letters: `\alpha`, `\beta`, `\pi`, etc.
+    - Text in math: `\text{your text here}`
+    - Begin/end: `\begin{align}` and `\end{align}`
 
-    **IMPORTANT:** Due to string processing in the system, you MUST use double backslashes (\\\\) for all LaTeX commands to ensure they render correctly. Single backslashes will be stripped during processing.
+    **IMPORTANT:** Write LaTeX commands with single backslashes as they would appear in a standard LaTeX document. The system will handle any necessary escaping automatically.
 
-    **For boxed multi-line equations:** Use the custom `\\mboxed{}` macro which automatically handles multiple lines:
+    **For boxed multi-line equations:** Use the custom `\mboxed{}` macro which automatically handles multiple lines:
     ```latex
     $$
-    \\mboxed{
-        \\text{First line} \\\\
-        \\text{Second line} \\\\
-        \\text{Third line}
+    \mboxed{
+        \text{First line} \\
+        \text{Second line} \\
+        \text{Third line}
     }
     $$
     ```
-    The `\\mboxed{}` macro is a custom MathJax macro that internally uses `\\boxed{\\begin{array}{l}...\\end{array}}` for proper multi-line support.
+    The `\mboxed{}` macro is a custom MathJax macro that internally uses `\boxed{\begin{array}{l}...\end{array}}` for proper multi-line support.
 
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)
     - Display images using `<img src="/data/filename.ext" />`
-    - Use double backslashes for LaTeX commands in MathJax
+    - Use single backslashes for LaTeX commands in MathJax
   TEXT
   
   llm do

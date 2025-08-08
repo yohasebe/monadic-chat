@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Migration Test</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+    <h1>SessionState Migration Test</h1>
+    <div id="test-results"></div>
+    
+    <!-- Include required scripts -->
+    <script src="../../public/js/monadic/session_state.js"></script>
+    <script src="../../public/js/monadic/migration/migration_config.js"></script>
+    <script src="../../public/js/monadic/state_migration_helper.js"></script>
+    <script src="../../public/js/monadic/migration/message_migration.js"></script>
+    <script src="../../public/js/monadic/migration/session_migration.js"></script>
+    
+    <script>
+        // Test suite
+        const tests = [];
+        const results = [];
+        
+        function test(name, fn) {
+            tests.push({ name, fn });
+        }
+        
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+        
+        // Define tests
+        test('SessionState exists', () => {
+            assert(window.SessionState, 'SessionState should exist');
+        });
+        
+        test('SessionState has required methods', () => {
+            assert(typeof window.SessionState.addMessage === 'function', 'Should have addMessage');
+            assert(typeof window.SessionState.clearMessages === 'function', 'Should have clearMessages');
+            assert(typeof window.SessionState.getMessages === 'function', 'Should have getMessages');
+            assert(typeof window.SessionState.on === 'function', 'Should have on');
+            assert(typeof window.SessionState.notifyListeners === 'function', 'Should have notifyListeners');
+        });
+        
+        test('Can add and retrieve messages', () => {
+            window.SessionState.clearMessages();
+            const msg = { role: 'user', content: 'test' };
+            window.SessionState.addMessage(msg);
+            const messages = window.SessionState.getMessages();
+            assert(messages.length === 1, 'Should have 1 message');
+            assert(messages[0].content === 'test', 'Message content should match');
+        });
+        
+        test('Event system works', (done) => {
+            let eventFired = false;
+            window.SessionState.on('test:event', (data) => {
+                eventFired = true;
+                assert(data === 'test-data', 'Event data should match');
+                done();
+            });
+            window.SessionState.notifyListeners('test:event', 'test-data');
+            setTimeout(() => {
+                if (!eventFired) {
+                    throw new Error('Event did not fire');
+                }
+            }, 100);
+        });
+        
+        test('Backward compatibility maintained', () => {
+            window.forceNewSession = true;
+            assert(window.SessionState.forceNewSession === true, 'Should sync forceNewSession');
+            window.SessionState.forceNewSession = false;
+            assert(window.forceNewSession === false, 'Should sync back');
+        });
+        
+        test('State validation works', () => {
+            const isValid = window.SessionState.validateState();
+            assert(isValid === true, 'State should be valid');
+        });
+        
+        test('MessageManager available when migration enabled', () => {
+            if (window.MessageManager) {
+                assert(typeof window.MessageManager.addMessage === 'function', 'Should have addMessage');
+                assert(typeof window.MessageManager.getMessages === 'function', 'Should have getMessages');
+            }
+        });
+        
+        test('SessionManager available when migration enabled', () => {
+            if (window.SessionManager) {
+                assert(typeof window.SessionManager.resetSession === 'function', 'Should have resetSession');
+                assert(typeof window.SessionManager.startNewSession === 'function', 'Should have startNewSession');
+            }
+        });
+        
+        // Run tests
+        async function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<h2>Running tests...</h2>';
+            
+            for (const test of tests) {
+                try {
+                    // Handle async tests
+                    if (test.fn.length > 0) {
+                        await new Promise((resolve, reject) => {
+                            try {
+                                test.fn((err) => {
+                                    if (err) reject(err);
+                                    else resolve();
+                                });
+                            } catch (e) {
+                                reject(e);
+                            }
+                        });
+                    } else {
+                        await test.fn();
+                    }
+                    
+                    results.push({ name: test.name, passed: true });
+                    resultsDiv.innerHTML += `<div style="color: green;">✅ ${test.name}</div>`;
+                } catch (error) {
+                    results.push({ name: test.name, passed: false, error: error.message });
+                    resultsDiv.innerHTML += `<div style="color: red;">❌ ${test.name}: ${error.message}</div>`;
+                }
+            }
+            
+            // Summary
+            const passed = results.filter(r => r.passed).length;
+            const total = results.length;
+            const allPassed = passed === total;
+            
+            resultsDiv.innerHTML += `<h2 style="color: ${allPassed ? 'green' : 'red'};">Results: ${passed}/${total} tests passed</h2>`;
+            
+            // Show migration status
+            if (window.MigrationConfig) {
+                const status = window.MigrationConfig.getStatus();
+                resultsDiv.innerHTML += '<h3>Migration Status:</h3>';
+                resultsDiv.innerHTML += '<pre>' + JSON.stringify(status, null, 2) + '</pre>';
+            }
+            
+            // Show consistency check
+            if (window.MigrationConfig) {
+                const consistency = window.MigrationConfig.checkConsistency();
+                resultsDiv.innerHTML += '<h3>Consistency Check:</h3>';
+                resultsDiv.innerHTML += '<pre>' + JSON.stringify(consistency, null, 2) + '</pre>';
+            }
+        }
+        
+        // Run tests when page loads
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

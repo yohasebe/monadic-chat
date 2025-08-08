@@ -59,8 +59,8 @@ module OpenAIHelper
     "o1",
     "gpt-5",
     "gpt-5-mini",
-    "gpt-5-nano",
-    "gpt-5-chat"
+    "gpt-5-nano"
+    # Note: gpt-5-chat-latest excluded as it doesn't support reasoning_effort
   ]
 
   # complete string match
@@ -408,7 +408,12 @@ module OpenAIHelper
       "model" => model,
     }
 
-    reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
+    # Special handling for gpt-5-chat-latest which doesn't support reasoning_effort
+    reasoning_model = if model == "gpt-5-chat-latest"
+                        false
+                      else
+                        REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
+                      end
     non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
     non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
     search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
@@ -421,7 +426,12 @@ module OpenAIHelper
       body["model"] = model
       
       # Update model flags after switching
-      reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
+      # Special handling for gpt-5-chat-latest which doesn't support reasoning_effort
+    reasoning_model = if model == "gpt-5-chat-latest"
+                        false
+                      else
+                        REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
+                      end
       non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
       non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
       search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
@@ -1163,7 +1173,12 @@ module OpenAIHelper
     end
 
     obj = session[:parameters]
-    reasoning_model = REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ obj["model"] }
+    # Special handling for gpt-5-chat-latest which doesn't support reasoning_effort
+    reasoning_model = if obj["model"] == "gpt-5-chat-latest"
+                        false
+                      else
+                        REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ obj["model"] }
+                      end
 
     buffer = String.new
     texts = {}

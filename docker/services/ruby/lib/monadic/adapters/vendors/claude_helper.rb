@@ -441,6 +441,10 @@ module ClaudeHelper
     # Only enable thinking if the model supports it AND reasoning_effort is not "none"
     if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"
       case obj["reasoning_effort"]
+      when "minimal"
+        # Use half of low effort for minimal
+        budget_tokens = [(user_max_tokens * 0.25).to_i, 8000].min
+        max_tokens = user_max_tokens  # Keep original value
       when "low"
         # Use proportional approach based on user's max_tokens
         budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min

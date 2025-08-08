@@ -545,6 +545,9 @@ $(function () {
         const availableOptions = reasoningSpec[0]; // Array of available options
         const defaultValue = reasoningSpec[1]; // Default value
         
+        // Store current value before clearing options
+        const previousValue = $("#reasoning-effort").val();
+        
         // Clear current options
         $("#reasoning-effort").empty();
         
@@ -557,14 +560,24 @@ $(function () {
             }));
           });
           
-          // Set the default value
-          $("#reasoning-effort").val(defaultValue);
+          // Don't override reasoning_effort if we're loading from params
+          if (!window.isLoadingParams) {
+            // Set the value - preserve existing value if present, otherwise use default
+            if (previousValue && availableOptions.includes(previousValue)) {
+              // Keep the previous value if it's valid for this model
+              $("#reasoning-effort").val(previousValue);
+            } else {
+              // Use the default value from model spec
+              $("#reasoning-effort").val(defaultValue);
+            }
+          }
         }
       }
     } else {
       $("#reasoning-effort").prop("disabled", true);
       // Restore default options when disabled
       $("#reasoning-effort").empty();
+      $("#reasoning-effort").append($('<option>', { value: 'minimal', text: 'minimal' }));
       $("#reasoning-effort").append($('<option>', { value: 'low', text: 'low' }));
       $("#reasoning-effort").append($('<option>', { value: 'medium', text: 'medium' }));
       $("#reasoning-effort").append($('<option>', { value: 'high', text: 'high' }));
@@ -740,10 +753,11 @@ $(function () {
     Object.assign(params, apps[appValue]);
     
     // Debug: Check if reasoning_effort is present in app settings
-    if (appValue === "JupyterNotebookClaude") {
-      console.log("JupyterNotebookClaude app settings:", apps[appValue]);
-      console.log("reasoning_effort in app:", apps[appValue].reasoning_effort);
-    }
+    console.log(`\n=== changeApp Debug for ${appValue} ===`);
+    console.log(`Apps object for ${appValue}:`, apps[appValue]);
+    console.log(`reasoning_effort in apps:`, apps[appValue].reasoning_effort);
+    console.log(`params before loadParams:`, params);
+    console.log(`params.reasoning_effort:`, params.reasoning_effort);
     // Only set initiate_from_assistant to false if the app explicitly defines it as false
     // Don't override if it's already been set by setParams()
     if (apps[appValue].hasOwnProperty('initiate_from_assistant') && apps[appValue]['initiate_from_assistant'] === false) {

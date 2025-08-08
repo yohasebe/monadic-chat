@@ -134,6 +134,13 @@ module GeminiHelper
       user_max_tokens = options["max_tokens"] || 800
       
       case reasoning_effort
+      when "minimal"
+        if is_flash_model
+          budget_tokens = [(user_max_tokens * 0.15).to_i, 4000].min
+        else  # Pro model
+          budget_tokens = [[(user_max_tokens * 0.15).to_i, 5000].max, 32768].min
+          budget_tokens = [budget_tokens, 128].max
+        end
       when "low"
         if is_flash_model
           budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
@@ -506,6 +513,13 @@ module GeminiHelper
         user_max_tokens = max_tokens || 8192
         
         case reasoning_effort
+        when "minimal"
+          if is_flash_model
+            budget_tokens = [(user_max_tokens * 0.15).to_i, 4000].min
+          else  # Pro model
+            budget_tokens = [[(user_max_tokens * 0.15).to_i, 5000].max, 32768].min
+            budget_tokens = [budget_tokens, 128].max
+          end
         when "low"
           if is_flash_model
             budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min

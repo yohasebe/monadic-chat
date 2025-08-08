@@ -4,9 +4,22 @@ window.MathJax = {
   },
   tex: {
     inlineMath:  [ ['$', '$'], ['\\(', '\\)'] ],
-    displayMath: [ ['$$', '$$'], ['\\[','\\]'] ],
+    displayMath: [ 
+      ['$$', '$$'], 
+      ['\\[','\\]'],
+      ['\\begin{equation}', '\\end{equation}'],
+      ['\\begin{equation*}', '\\end{equation*}'],
+      ['\\begin{align}', '\\end{align}'],
+      ['\\begin{align*}', '\\end{align*}'],
+      ['\\begin{gather}', '\\end{gather}'],
+      ['\\begin{gather*}', '\\end{gather*}'],
+      ['\\begin{alignat}', '\\end{alignat}'],
+      ['\\begin{alignat*}', '\\end{alignat*}']
+    ],
     processEscapes: true,
+    processEnvironments: true,
     packages: {'[+]': ['ams', 'noerrors']},
+    tags: 'ams',
     macros: {
       "R": "{\\mathbb{R}}",
       "N": "{\\mathbb{N}}",

@@ -98,6 +98,64 @@ module MonadicProviderInterface
   def process_monadic_response(content, app)
     return content unless monadic_mode? && content && !content.empty?
     
+    # Handle GPT-5 multiple JSON responses more robustly
+    if content.is_a?(String)
+      # First, try to parse as a single JSON object
+      begin
+        parsed = JSON.parse(content)
+        if parsed.is_a?(Hash) && parsed.key?("message")
+          # It's already valid monadic JSON
+          return content
+        end
+      rescue JSON::ParserError
+        # Not a single valid JSON, continue with multiple JSON handling
+      end
+      
+      # Handle concatenated JSON objects (GPT-5 preambles issue)
+      if content.include?("}\n{") || content.include?("}{")
+        json_matches = []
+        
+        # Split by common patterns and try to parse each part
+        parts = content.split(/(?<=\})\s*(?=\{)/)
+        
+        parts.each do |part|
+          begin
+            json_obj = JSON.parse(part.strip)
+            if json_obj.is_a?(Hash)
+              json_matches << json_obj
+            end
+          rescue JSON::ParserError
+            # Try to fix common issues
+            fixed_part = part.strip
+            # Add missing braces if needed
+            fixed_part = "{" + fixed_part unless fixed_part.start_with?("{")
+            fixed_part = fixed_part + "}" unless fixed_part.end_with?("}")
+            
+            begin
+              json_obj = JSON.parse(fixed_part)
+              if json_obj.is_a?(Hash)
+                json_matches << json_obj
+              end
+            rescue JSON::ParserError
+              # Skip this part if it can't be parsed
+            end
+          end
+        end
+        
+        # Find the most relevant JSON object
+        if json_matches.length > 0
+          # Prefer the one with "message" key
+          main_response = json_matches.find { |obj| obj.key?("message") }
+          # If none have "message", use the last one
+          main_response ||= json_matches.last
+          
+          if main_response
+            content = JSON.generate(main_response)
+          end
+        end
+      end
+    end
+    
     if defined?(APPS) && APPS[app]&.respond_to?(:monadic_map)
       APPS[app].monadic_map(content)
     else

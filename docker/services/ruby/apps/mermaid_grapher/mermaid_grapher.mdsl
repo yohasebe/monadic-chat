@@ -203,7 +203,7 @@ Mermaid code goes here (without "mermaid" tags and Markdown code block)
   
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ["gpt-5", "gpt-4.1"]
     temperature 0.0
   end
   

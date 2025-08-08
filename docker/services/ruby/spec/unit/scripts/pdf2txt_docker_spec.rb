@@ -4,7 +4,7 @@ require 'open3'
 require 'json'
 require 'fileutils'
 
-RSpec.describe "pdf2txt.py in Docker" do
+RSpec.describe "pdf2txt.py in Docker", :integration do
   let(:container_name) { "monadic-chat-python-container" }
   let(:script_path) { "/monadic/scripts/converters/pdf2txt.py" }
   let(:data_dir) { File.expand_path("~/monadic/data") }

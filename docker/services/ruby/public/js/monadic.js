@@ -1244,13 +1244,9 @@ $(function () {
     }, 3000); // 3 second timeout is enough for normal operations to complete
 
     // Clear messages if we just reset to ensure fresh start
-    if (window.SessionState && window.SessionState.shouldForceNewSession()) {
-      messages.length = 0;
+    if (window.SessionState.shouldForceNewSession()) {
+      window.SessionState.clearMessages();
       window.SessionState.clearForceNewSession();
-    } else if (window.forceNewSession === true) {
-      // Fallback for backward compatibility
-      messages.length = 0;
-      window.forceNewSession = false;
     }
     
     if (messages.length > 0) {
@@ -1284,7 +1280,9 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      if ($("#initiate-from-assistant").is(":checked")) {
+      // Only initiate from assistant if it's a fresh conversation (no existing messages)
+      // This prevents auto-generation when importing conversations
+      if ($("#initiate-from-assistant").is(":checked") && messages.length === 0) {
         $("#temp-card").show();
         $("#user-panel").hide();
         $("#monadic-spinner").show(); // Show spinner for initial assistant message
@@ -1367,7 +1365,8 @@ $(function () {
     if (messages.length === 0) {
       // Add a temporary object to messages array to prevent duplicates
       const tempMid = "temp_" + Math.floor(Math.random() * 100000);
-      messages.push({ role: "user", text: userMessageText, mid: tempMid, temp: true });
+      // Use SessionState for centralized state management
+      window.SessionState.addMessage({ role: "user", text: userMessageText, mid: tempMid, temp: true });
       
       // Show loading indicators but don't create a card yet
       // The actual card will be created when server responds

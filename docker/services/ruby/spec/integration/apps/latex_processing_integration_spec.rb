@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'open3'
 require 'fileutils'
 
-RSpec.describe "LaTeX Processing Integration Tests" do
+RSpec.describe "LaTeX Processing Integration Tests", :integration do
   let(:container_name) { "monadic-chat-python-container" }
   let(:data_dir) { File.expand_path("~/monadic/data") }
   

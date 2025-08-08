@@ -2718,7 +2718,7 @@ function connect_websocket(callback) {
       }
       case "past_messages": {
         // If we just reset, ignore past messages completely
-        if (window.forceNewSession === true) {
+        if ((window.SessionState && window.SessionState.shouldForceNewSession()) || window.forceNewSession === true) {
           messages.length = 0;
           $("#discourse").empty();
           setStats(formatInfo([]), "info");

@@ -777,6 +777,14 @@ module StringUtils
         "CODE_BLOCK_PLACEHOLDER_#{code_blocks.size - 1}"
       end
       
+      # Fix common LLM output issues with math environments
+      # Replace $\begin{align}...\end{align}$ with proper display math
+      t4 = t4.gsub(/\$\s*\\begin\{(align|align\*|equation|equation\*|gather|gather\*|alignat|alignat\*)\}([\s\S]*?)\\end\{\1\}\s*\$/m) do
+        env = $1
+        content = $2
+        "\\begin{#{env}}#{content}\\end{#{env}}"
+      end
+      
       # Process the text outside of code blocks
       result = ""
       current_pos = 0

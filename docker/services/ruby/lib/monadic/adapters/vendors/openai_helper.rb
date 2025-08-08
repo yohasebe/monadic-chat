@@ -91,7 +91,9 @@ module OpenAIHelper
     "o3-pro",
     "o3",
     "o4-mini"
+    # GPT-5 models use Chat Completions API for better tool support
   ]
+  
   
   # Models that use responses API for web search
   RESPONSES_API_WEBSEARCH_MODELS = [
@@ -293,6 +295,8 @@ module OpenAIHelper
     
     app = obj["app_name"]
     api_key = CONFIG["OPENAI_API_KEY"]
+    
+    # Log removed - not needed in production
 
     # Get the parameters from the session
     initial_prompt = if session[:messages].empty?
@@ -485,7 +489,11 @@ module OpenAIHelper
       body["stream"] = true
     end
 
-    if non_tool_model || role == "tool"
+    # GPT-5 models can use tools even though they are reasoning models
+    # Only skip tools for explicit non-tool models or when processing tool results
+    skip_tools = non_tool_model || role == "tool"
+    
+    if skip_tools
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] OpenAI: Skipping tools because non_tool_model=#{non_tool_model} or role='#{role}'")
@@ -506,6 +514,8 @@ module OpenAIHelper
       
       # Get tools from app settings first
       app_tools = APPS[app]&.settings&.[]("tools")
+      
+      # Tool detection logging removed - not needed in production
       
       if tools_param && !tools_param.empty?
         # If tools_param is provided, prefer app_tools if available
@@ -530,11 +540,7 @@ module OpenAIHelper
         body.delete("tool_choice")
       end
       
-      if CONFIG["EXTRA_LOGGING"] && body["tools"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] OpenAI: Including #{body["tools"].length} tools for app='#{app}', role='#{role}', call_depth=#{call_depth}")
-        extra_log.close
-      end
+      # Basic tool logging kept for debugging tool issues
     end
 
     
@@ -885,20 +891,37 @@ module OpenAIHelper
       end
       
       # Add instructions (system prompt) if available
-      if body["messages"].first && body["messages"].first["role"] == "developer"
-        # Extract the first developer message as instructions
-        developer_msg = body["messages"].first
-        if developer_msg["content"].is_a?(Array)
-          instructions_text = developer_msg["content"].find { |c| c["type"] == "text" }&.dig("text")
+      if body["messages"].first && (body["messages"].first["role"] == "developer" || body["messages"].first["role"] == "system")
+        # Extract the first developer/system message as instructions
+        system_msg = body["messages"].first
+        if system_msg["content"].is_a?(Array)
+          instructions_text = system_msg["content"].find { |c| c["type"] == "text" }&.dig("text")
         else
-          instructions_text = developer_msg["content"]
+          instructions_text = system_msg["content"]
         end
         
         if instructions_text
           responses_body["instructions"] = instructions_text
-          # Remove the developer message from input as it's now in instructions
-          input_messages.shift
+          # Remove the system message from input_messages as it's now in instructions
+          # Find and remove it from input_messages (not body["messages"])
+          if input_messages.first && (input_messages.first["role"] == "developer" || input_messages.first["role"] == "system")
+            input_messages.shift
+          end
         end
+      end
+      
+      # Ensure we have at least one message in input
+      if input_messages.empty?
+        # Add a default user message if input is empty
+        input_messages << {
+          "role" => "user",
+          "content" => [
+            {
+              "type" => "input_text",
+              "text" => "Let's start"
+            }
+          ]
+        }
       end
       
       # Support for stateful conversations (future use)
@@ -911,21 +934,7 @@ module OpenAIHelper
         responses_body["background"] = true
       end
       
-      # Support for structured outputs
-      if body["response_format"] && body["response_format"]["type"] == "json_object"
-        responses_body["text"] = {
-          "format" => {
-            "type" => "json",
-            "json_schema" => body["response_format"]["json_schema"] || {
-              "name" => "response",
-              "schema" => {
-                "type" => "object",
-                "additionalProperties" => true
-              }
-            }
-          }
-        }
-      end
+      # We'll handle structured outputs after tools are added (moved below)
       
       # Add web search tool for responses API if needed
       if obj["use_responses_api_for_websearch"]
@@ -959,11 +968,12 @@ module OpenAIHelper
         # Add custom function tools if available
         if body["tools"] && !body["tools"].empty?
           # Convert function tools to Responses API format
-          # Responses API expects a flat structure for functions
+          # Responses API expects a flattened structure for functions
           function_tools = body["tools"].map do |tool|
             tool_json = JSON.parse(tool.to_json)
             
             if tool_json["type"] == "function" && tool_json["function"]
+              # Flatten the structure for Responses API
               {
                 "type" => "function",
                 "name" => tool_json["function"]["name"],
@@ -988,12 +998,30 @@ module OpenAIHelper
         
       end
       
+      # Support for structured outputs
+      if body["response_format"] && body["response_format"]["type"] == "json_object"
+        responses_body["text"] = {
+          "format" => {
+            "type" => "json",
+            "json_schema" => body["response_format"]["json_schema"] || {
+              "name" => "response",
+              "schema" => {
+                "type" => "object",
+                "additionalProperties" => true
+              }
+            }
+          }
+        }
+      end
+      
       # Use responses body instead
       body = responses_body
       
-      # Debug log the final body for responses API
-      if obj["use_responses_api_for_websearch"]
-        DebugHelper.debug("Final Responses API request body: #{body.inspect}", category: :api, level: :debug)
+      # Simplified logging for Responses API
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Responses API: model=#{body['model']}, tools=#{body['tools']&.length || 0}")
+        extra_log.close
       end
       
     else
@@ -1211,7 +1239,7 @@ module OpenAIHelper
           begin
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
+            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
               extra_log.puts(JSON.pretty_generate(json))
             end
             
@@ -1259,6 +1287,7 @@ module OpenAIHelper
             if json.dig("choices", 0, "delta", "tool_calls")
               res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
               block&.call res
+              
 
               tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
 
@@ -1287,17 +1316,23 @@ module OpenAIHelper
       pp e.inspect
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log.close
-    end
-
     result = texts.empty? ? nil : texts.first[1]
+    
+    
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        extra_log.close unless extra_log.closed?
+      rescue
+        # Already closed, ignore
+      end
+    end
 
     if result
       if obj["monadic"]
         choice = result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
           message = choice["message"]["content"]
+          
           
           # Use performance-optimized processing with caching
           cache_key = MonadicPerformance.generate_cache_key("openai", obj["model"], body["messages"])
@@ -1321,6 +1356,7 @@ module OpenAIHelper
       end
     end
 
+    
     if tools.any?
       call_depth += 1
 
@@ -1362,6 +1398,8 @@ module OpenAIHelper
         end
 
         tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+        
+        
         new_results = process_functions(app, session, tools, context, call_depth, &block)
         
         # Check if we should stop retrying due to repeated errors
@@ -1399,6 +1437,9 @@ module OpenAIHelper
 
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
+    
+    # Function processing logging removed - not needed in production
+    
     tools.each do |tool_call|
       function_call = tool_call["function"]
       function_name = function_call["name"]
@@ -1514,7 +1555,7 @@ module OpenAIHelper
           begin
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
+            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
               extra_log.puts(JSON.pretty_generate(json))
             end
             
@@ -1563,6 +1604,7 @@ module OpenAIHelper
                 texts[id] ||= ""
                 texts[id] += fragment
                 
+                
                 res = { "type" => "fragment", "content" => fragment }
                 block&.call res
               end
@@ -1578,6 +1620,7 @@ module OpenAIHelper
             when "response.output_item.added"
               # New output item added
               item = json["item"]
+              
               if item && item["type"] == "function_call"
                 # Store the function name and ID for later use
                 item_id = item["id"]
@@ -1594,33 +1637,40 @@ module OpenAIHelper
             when "response.output_item.done"
               # Output item completed
               item = json["item"]
+              
               if item && item["type"] == "function_call"
                 item_id = item["id"]
-                if item_id && tools[item_id]
-                  # Update with final data
+                if item_id
+                  # Create or update tool entry
+                  tools[item_id] ||= {}
                   tools[item_id]["name"] = item["name"] if item["name"]
                   tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
+                  tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
                   tools[item_id]["completed"] = true
                 end
               end
               
-            when "response.function_call_arguments.delta", "response.function_call.arguments.delta"
+            when "response.function_call_arguments.delta", "response.function_call.arguments.delta", "response.function_call.delta"
               # Tool call arguments fragment
               item_id = json["item_id"]
               delta = json["delta"]
+              
               if item_id && delta
                 tools[item_id] ||= {}
                 tools[item_id]["arguments"] ||= ""
                 tools[item_id]["arguments"] += delta
               end
               
-            when "response.function_call_arguments.done", "response.function_call.arguments.done"
+            when "response.function_call_arguments.done", "response.function_call.arguments.done", "response.function_call.done"
               # Tool call arguments completed
               item_id = json["item_id"]
               arguments = json["arguments"]
-              if item_id && arguments
+              name = json["name"]
+              
+              if item_id
                 tools[item_id] ||= {}
-                tools[item_id]["arguments"] = arguments
+                tools[item_id]["arguments"] = arguments if arguments
+                tools[item_id]["name"] = name if name
                 tools[item_id]["completed"] = true
               end
               
@@ -1771,7 +1821,11 @@ module OpenAIHelper
               block&.call res
               
               if CONFIG["EXTRA_LOGGING"]
-                extra_log.close
+                begin
+                  extra_log.close unless extra_log.closed?
+                rescue
+                  # Already closed, ignore
+                end
               end
               return [res]
               
@@ -1795,7 +1849,11 @@ module OpenAIHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log.close
+      begin
+        extra_log.close unless extra_log.closed?
+      rescue
+        # Already closed, ignore
+      end
     end
 
     # Handle tool calls if any were collected
@@ -1827,7 +1885,7 @@ module OpenAIHelper
           if tool_data["completed"] && tool_data["arguments"]
             # This is a regular function call
             function_results << {
-              "id" => item_id,
+              "id" => tool_data["call_id"] || item_id,  # Use call_id if available
               "function" => {
                 "name" => tool_data["name"] || "unknown",
                 "arguments" => tool_data["arguments"]
@@ -1836,7 +1894,7 @@ module OpenAIHelper
           elsif tool_data["mcp_completed"] && tool_data["mcp_arguments"]
             # This is an MCP call - handle differently if needed
             function_results << {
-              "id" => item_id,
+              "id" => tool_data["call_id"] || item_id,  # Use call_id if available
               "type" => "mcp",
               "function" => {
                 "name" => tool_data["name"] || "mcp_tool",
@@ -1887,6 +1945,8 @@ module OpenAIHelper
     # Return text response if no tools were called
     if texts.any?
       complete_text = texts.values.join("")
+      
+      
       response = {
         "choices" => [{
           "message" => {

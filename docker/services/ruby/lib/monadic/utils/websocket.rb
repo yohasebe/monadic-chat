@@ -247,11 +247,15 @@ module WebSocketHelper
     APPS.each do |k, v|
       apps[k] = {}
       v.settings.each do |p, m|
-        # Debug log for JupyterNotebookClaude reasoning_effort
-        if k == "JupyterNotebookClaude" && p == "reasoning_effort" && CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("[#{Time.now}] WebSocket: JupyterNotebookClaude reasoning_effort = #{m.inspect}")
-          extra_log.close
+        # Debug log for reasoning_effort in all OpenAI apps
+        if p == "reasoning_effort"
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts("[#{Time.now}] WebSocket: #{k} reasoning_effort = #{m.inspect}")
+            extra_log.close
+          end
+          # Always log to console for debugging
+          puts "WebSocket sending: #{k} reasoning_effort = #{m.inspect}"
         end
         # Special case for models array to ensure it's properly sent as JSON
         if p == "models" && m.is_a?(Array)
@@ -285,7 +289,8 @@ module WebSocketHelper
                       APPS[session["parameters"]["app_name"]]&.respond_to?(:monadic_html)
                     APPS[session["parameters"]["app_name"]].monadic_html(m["text"])
                   else
-                    markdown_to_html(m["text"])
+                    mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+                    markdown_to_html(m["text"], mathjax: mathjax_enabled)
                   end
       end
     end
@@ -436,7 +441,8 @@ module WebSocketHelper
                      APPS[session["parameters"]["app_name"]]&.respond_to?(:monadic_html)
                    APPS[session["parameters"]["app_name"]].monadic_html(content)
                  else
-                   markdown_to_html(content)
+                   mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+                   markdown_to_html(content, mathjax: mathjax_enabled)
                  end
     
     message["html"] = html_content
@@ -798,7 +804,8 @@ module WebSocketHelper
               html = if session["parameters"]["monadic"]
                        APPS[session["parameters"]["app_name"]].monadic_html(text)
                      else
-                       markdown_to_html(text)
+                       mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+                       markdown_to_html(text, mathjax: mathjax_enabled)
                      end
 
               if session["parameters"]["response_suffix"]
@@ -916,7 +923,8 @@ module WebSocketHelper
             
             # Format HTML content based on role
             if obj["role"] == "assistant"
-              new_data["html"] = markdown_to_html(text)
+              mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+              new_data["html"] = markdown_to_html(text, mathjax: mathjax_enabled)
             else
               # For user and system roles, preserve line breaks
               new_data["html"] = text

@@ -810,7 +810,14 @@ module MonadicDSL
 
       # If a value is provided, it takes precedence over environment variables
       if value
-        @state.settings[:model] = value
+        # Support both single model and array of models for fallback
+        if value.is_a?(Array)
+          @state.settings[:model_fallbacks] = value
+          # Set the first model as default
+          @state.settings[:model] = value.first
+        else
+          @state.settings[:model] = value
+        end
       # Otherwise, try to use environment variable if available
       elsif provider_env_var && ENV[provider_env_var]
         @state.settings[:model] = ENV[provider_env_var]
@@ -1163,6 +1170,11 @@ module MonadicDSL
     # Add reasoning_effort if specified
     if state.settings[:reasoning_effort]
       class_def << "        @settings[:reasoning_effort] = #{state.settings[:reasoning_effort].inspect}\n"
+    end
+    
+    # Add model_fallbacks if specified
+    if state.settings[:model_fallbacks]
+      class_def << "        @settings[:model_fallbacks] = #{state.settings[:model_fallbacks].inspect}\n"
     end
     
     # Add tools if specified

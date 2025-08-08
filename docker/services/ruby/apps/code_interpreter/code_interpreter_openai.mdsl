@@ -9,7 +9,8 @@ app "CodeInterpreterOpenAI" do
 
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ["gpt-5", "gpt-4.1"]
+    reasoning_effort "minimal"
     temperature 0.0
     presence_penalty 0.2
   end

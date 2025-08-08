@@ -2270,6 +2270,10 @@ function connect_websocket(callback) {
           
           for (const [key, value] of regularApps) {
             apps[key] = value;
+            // Debug: Log reasoning_effort for OpenAI apps
+            if (value["reasoning_effort"]) {
+              console.log(`App ${key} has reasoning_effort: ${value["reasoning_effort"]}`);
+            }
             // Use display_name if available, otherwise fall back to app_name
             const displayText = value["display_name"] || value["app_name"];
             const appIcon = value["icon"] || "";

@@ -448,6 +448,9 @@ function loadParams(params, calledFor = "loadParams") {
     return;
   }
   
+  // Set flag to prevent model change handler from resetting reasoning_effort
+  window.isLoadingParams = true;
+  
   // Update AI Assistant info badge when model is loaded
   if (params.model) {
     const selectedModel = params.model;
@@ -533,55 +536,42 @@ function loadParams(params, calledFor = "loadParams") {
   if (spec) {
     const reasoning_effort = params["reasoning_effort"];
     
-    // Debug: Log reasoning_effort for JupyterNotebookClaude
-    if (params["app_name"] === "JupyterNotebookClaude") {
-      console.log("loadParams - reasoning_effort for JupyterNotebookClaude:", reasoning_effort);
-      console.log("loadParams - all params:", params);
-    }
+    // Debug: Log reasoning_effort processing
+    console.log(`\n=== loadParams Debug for ${params["app_name"]} ===`);
+    console.log(`Model:`, model);
+    console.log(`Model spec has reasoning_effort:`, spec["reasoning_effort"] ? "YES" : "NO");
+    console.log(`reasoning_effort from params:`, reasoning_effort);
+    console.log(`Model spec reasoning_effort:`, spec["reasoning_effort"]);
     
-    if (reasoning_effort) {
-      $("#reasoning-effort").val(reasoning_effort);
-      $("#reasoning-effort").prop('disabled', false);
-      $("#max-tokens").prop("disabled", true);
-    } else {
-      if (spec["reasoning_effort"]) {
-        // Get the default reasoning_effort from the model specification if not provided in params
+    // Check if the model supports reasoning_effort
+    if (spec["reasoning_effort"]) {
+      // Model supports reasoning_effort
+      let effortValue;
+      
+      if (reasoning_effort) {
+        // Use the value from params (from MDSL or user selection)
+        effortValue = reasoning_effort;
+      } else {
+        // Use the default from model spec
         let defaultEffort = 'medium';
         try {
-          // Extract default value from model spec
           if (Array.isArray(spec["reasoning_effort"]) && spec["reasoning_effort"].length > 1) {
             defaultEffort = spec["reasoning_effort"][1];
           }
         } catch (e) {
           // Could not get default reasoning effort from model spec
         }
-        
-        // Handle both array and string formats for reasoning_effort parameter
-        let effortValue = reasoning_effort || defaultEffort;
-        if (reasoning_effort) {  // Only process if reasoning_effort was provided
-          if (Array.isArray(reasoning_effort) && reasoning_effort.length > 1) {
-            effortValue = reasoning_effort[1];
-          } else if (typeof reasoning_effort === 'string' && reasoning_effort.startsWith('[')) {
-            // Try to parse JSON string
-            try {
-              const parsed = JSON.parse(reasoning_effort);
-              if (Array.isArray(parsed) && parsed.length > 1) {
-                effortValue = parsed[1];
-              }
-            } catch (e) {
-              // If parsing fails, use the string value
-              effortValue = reasoning_effort;
-            }
-          }
-        }
-        
-        $("#reasoning-effort").val(effortValue);
-        $("#reasoning-effort").prop('disabled', false);
-        $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
-      } else {
-        $("#reasoning-effort").prop('disabled', true);
-        $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
+        effortValue = defaultEffort;
       }
+      
+      $("#reasoning-effort").val(effortValue);
+      $("#reasoning-effort").prop('disabled', false);
+      $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
+    } else {
+      // Model doesn't support reasoning_effort
+      $("#reasoning-effort").prop('disabled', true);
+      $("#reasoning-effort").val('');  // Clear the value
+      $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
       $("#max-tokens").prop("disabled", false);
     }
 
@@ -661,6 +651,9 @@ function loadParams(params, calledFor = "loadParams") {
 
   // Set context size from configuration or use default
   $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
+  
+  // Reset the flag after loading is complete
+  window.isLoadingParams = false;
 }
 
 function resetParams() {
@@ -689,6 +682,8 @@ function resetParams() {
       $("#file-div").hide();
       $("#pdf-panel").hide();
     }
+    // Reset the flag after loading is complete
+    window.isLoadingParams = false;
   }, 500);
 }
 

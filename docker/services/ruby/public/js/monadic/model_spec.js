@@ -3,42 +3,42 @@ const modelSpec = {
   "gpt-5": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "gpt-5-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "gpt-5-mini": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "gpt-5-mini-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "gpt-5-nano": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "gpt-5-nano-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
@@ -188,98 +188,98 @@ const modelSpec = {
   "o3-pro-2025-06-10": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o3-pro": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o4-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o4-mini-2025-04-16": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o3": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o3-2025-04-16": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o3-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o3-mini-2025-01-31": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o1": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o1-2024-12-17": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o1-mini": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o1-mini-2024-09-12": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": false
   },
   "o1-pro": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "o1-pro-2025-03-19": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
@@ -315,7 +315,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "medium"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"]
   },
   "o3-pro-2025-06-10": {
     "context_window": [1, 200000],
@@ -326,7 +326,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
   },
   "o3-mini": {
     "context_window": [1, 200000],
@@ -359,7 +359,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
   },
   "o3-deep-research-2025-06-26": {
     "context_window": [1, 200000],
@@ -370,7 +370,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
   },
   // O4 series models
   "o4-mini": {
@@ -404,7 +404,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
   },
   "o4-mini-deep-research-2025-06-26": {
     "context_window": [1, 200000],
@@ -415,7 +415,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
   },
   // Other OpenAI models
   "codex-mini-latest": {
@@ -461,28 +461,28 @@ const modelSpec = {
   "claude-opus-4-1-20250805": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [[1, 32000], 32000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "claude-opus-4-20250514": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [[1, 32000], 32000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "claude-sonnet-4-20250514": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [[1, 64000], 64000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
   "claude-3-7-sonnet-20250219": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [[1, 64000], 64000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },
@@ -637,7 +637,7 @@ const modelSpec = {
   "gemini-2.5-flash-lite-06-17": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -645,7 +645,7 @@ const modelSpec = {
   "gemini-2.5-flash-lite": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -653,7 +653,7 @@ const modelSpec = {
   "gemini-2.5-flash": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -661,7 +661,7 @@ const modelSpec = {
   "gemini-2.5-flash-lite-preview-06-17": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -669,7 +669,7 @@ const modelSpec = {
   "gemini-2.5-flash-preview-05-20": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -677,7 +677,7 @@ const modelSpec = {
   "gemini-2.5-pro": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -685,7 +685,7 @@ const modelSpec = {
   "gemini-2.5-pro-preview-06-05": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -693,7 +693,7 @@ const modelSpec = {
   "gemini-2.5-pro-preview-05-06": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -701,7 +701,7 @@ const modelSpec = {
   "gemini-2.5-pro-preview-03-25": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -710,7 +710,7 @@ const modelSpec = {
   "gemini-2.5-pro-exp": {
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 64000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -718,7 +718,7 @@ const modelSpec = {
   "gemini-2.5-pro-exp-03-25": {
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 64000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true
@@ -1062,12 +1062,12 @@ const modelSpec = {
   // Perplexity models
   "r1-1776": {
     "context_window" : [1, 128000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "reasoning_model": true
   },
   "sonar-deep-research": {
     "context_window" : [1, 128000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "reasoning_model": true,
   },
   "sonar-reasoning-pro": {

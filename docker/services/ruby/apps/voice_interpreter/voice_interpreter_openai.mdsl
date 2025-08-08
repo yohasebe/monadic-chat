@@ -9,7 +9,8 @@ app "VoiceInterpreterOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1-mini"
+    model ["gpt-5-mini", "gpt-4.1-mini"]
+    reasoning_effort "minimal"
     temperature 0.0
     response_format({
       type: "json_schema",

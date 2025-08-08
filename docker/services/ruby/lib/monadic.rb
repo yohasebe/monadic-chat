@@ -330,7 +330,19 @@ def init_apps
   
   klass.subclasses.each do |a|
     app = a.new
-    app.settings = ActiveSupport::HashWithIndifferentAccess.new(a.instance_variable_get(:@settings))
+    class_settings = a.instance_variable_get(:@settings)
+    
+    # Debug: Log reasoning_effort for OpenAI apps
+    if a.name.include?("OpenAI") && CONFIG["EXTRA_LOGGING"]
+      puts "#{a.name} class settings: reasoning_effort = #{class_settings[:reasoning_effort].inspect}"
+    end
+    
+    app.settings = ActiveSupport::HashWithIndifferentAccess.new(class_settings)
+    
+    # Debug: Log instance settings after assignment
+    if a.name.include?("OpenAI") && CONFIG["EXTRA_LOGGING"]
+      puts "#{a.name} instance settings: reasoning_effort = #{app.settings[:reasoning_effort].inspect}"
+    end
 
     # Evaluate the disabled expression if it's a string containing Ruby code
     if app.settings["disabled"].is_a?(String) && app.settings["disabled"].match?(/defined\?|CONFIG/)
@@ -717,16 +729,19 @@ post "/load" do
           text = msg["text"]
           
           # Handle HTML conversion based on role and settings
+          # Check if mathjax is enabled for this app
+          mathjax_enabled = json_data["parameters"]["mathjax"].to_s == "true"
+          
           if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant" && APPS[app_name]
             begin
               html = APPS[app_name].monadic_html(text)
             rescue => e
               # Log monadic HTML error and fallback to standard markdown
               logger.warn "Monadic HTML rendering error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-              html = markdown_to_html(text)
+              html = markdown_to_html(text, mathjax: mathjax_enabled)
             end
           elsif msg["role"] == "assistant"
-            html = markdown_to_html(text)
+            html = markdown_to_html(text, mathjax: mathjax_enabled)
           else
             html = text
           end
@@ -1073,7 +1088,28 @@ APPS.each do |k, v|
 
   get "/#{endpoint}" do
     session[:messages] = []
-    session[:parameters] = v.settings
+    parameters = v.settings.dup
+    
+    # Handle model fallbacks if specified
+    if parameters[:model_fallbacks] && parameters[:model_fallbacks].is_a?(Array)
+      # Try to find the first available model
+      available_model = parameters[:model_fallbacks].find do |model|
+        # Check if model is available based on API keys
+        case parameters[:provider]
+        when "openai"
+          CONFIG["OPENAI_API_KEY"] && !CONFIG["OPENAI_API_KEY"].empty?
+        when "anthropic"
+          CONFIG["ANTHROPIC_API_KEY"] && !CONFIG["ANTHROPIC_API_KEY"].empty?
+        else
+          true # For other providers, assume model is available
+        end
+      end
+      
+      # Set the available model or fallback to the first one
+      parameters[:model] = available_model || parameters[:model_fallbacks].first
+    end
+    
+    session[:parameters] = parameters
     redirect "/"
   end
 end

@@ -1,5 +1,6 @@
 // Patch for utilities.js to support Tavily API check
-// This file updates the doResetActions function to check Tavily API availability
+// This file extends the doResetActions function to check Tavily API availability
+// Uses minimal override approach - calls original function and adds extra functionality
 
 // Store original doResetActions if it exists
 if (typeof window.originalDoResetActions === 'undefined' && typeof doResetActions !== 'undefined') {
@@ -35,25 +36,17 @@ if (typeof getProviderFromGroupLocal === 'undefined') {
 }
 
 // Override doResetActions to include Tavily check
+// This now calls the original function and adds extra functionality
 window.doResetActions = function() {
-  // Store the current app selection before reset
+  // Call the original function if it exists
+  if (window.originalDoResetActions) {
+    window.originalDoResetActions.call(this);
+  }
+  
+  // Additional functionality: Check Tavily API availability
   const currentApp = $("#apps").val();
-
-  $("#message").css("height", "96px").val("");
-
-  ws.send(JSON.stringify({ "message": "RESET" }));
-  ws.send(JSON.stringify({ "message": "LOAD" }));
-
-  currentPdfData = null;
-  
-  // Set flags to indicate reset happened
-  window.forceNewSession = true;
-  window.justReset = true;
-  
-  resetParams();
-
   const model = $("#model").val();
-
+  
   // Extract provider from app_name parameter
   let provider = "OpenAI";
   if (apps[currentApp] && apps[currentApp].group) {
@@ -71,102 +64,31 @@ window.doResetActions = function() {
       .catch(err => {
         console.error('Failed to fetch environment settings:', err);
         // Fallback to basic check
-        updateWebSearchBasic(model);
+        if (typeof updateWebSearchBasic === 'function') {
+          updateWebSearchBasic(model);
+        }
       });
   } else {
     // Fallback if websearchTavilyCheck is not available
-    updateWebSearchBasic(model);
+    if (typeof updateWebSearchBasic === 'function') {
+      updateWebSearchBasic(model);
+    }
   }
-
-  // Continue with the rest of the original function
+  
+  // Update model display with reasoning effort if applicable
   if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
     $("#model-selected").text(provider + " (" + model + " - " + $("#reasoning-effort").val() + ")");
   } else {
     $("#model-selected").text(provider + " (" + model + ")");
   }
-
-  $("#resetConfirmation").modal("hide");
-  $("#main-panel").hide();
-  $("#discourse").html("").hide();
-  $("#chat").html("")
-  $("#temp-card").hide();
-  $("#config").show();
-  $("#back-to-settings").hide();
-  $("#parameter-panel").hide();
-  setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
   
-  // Set app selection back to current app instead of default
-  $("#apps").val(currentApp);
-  
-  // Update lastApp to match the current app to prevent app change dialog from appearing
-  lastApp = currentApp;
-  
+  // Update base app title
   $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
-
+  
+  // Show/hide monadic badge
   if (apps[currentApp]["monadic"]) {
     $("#monadic-badge").show();
   } else {
     $("#monadic-badge").hide();
   }
-
-  if (apps[currentApp]["tools"]) {
-    $("#tools-badge").show();
-  } else {
-    $("#tools-badge").hide();
-  }
-
-  if (apps[currentApp]["mathjax"]) {
-    $("#math-badge").show();
-  } else {
-    $("#math-badge").hide();
-  }
-
-  $("#base-app-icon").html(apps[currentApp]["icon"]);
-  $("#base-app-desc").html(apps[currentApp]["description"]);
-
-  $("#model_and_file").show();
-  $("#model_parameters").show();
-
-  $("#image-file").show();
-
-  $("#initial-prompt-toggle").prop("checked", false).trigger("change");
-  $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 };
-
-// Basic websearch update without Tavily check
-window.updateWebSearchBasic = function(model) {
-  if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
-    $("#websearch").prop("disabled", false);
-    if ($("#websearch").is(":checked")) {
-      $("#websearch-badge").show();
-    } else {
-      $("#websearch-badge").hide();
-    }
-  } else {
-    $("#websearch").prop("disabled", true);
-    $("#websearch-badge").hide();
-  }
-};
-
-// Also update when app changes
-$(document).on('change', '#apps', function() {
-  const currentApp = $(this).val();
-  if (apps[currentApp]) {
-    let provider = "OpenAI";
-    if (apps[currentApp].group) {
-      provider = window.getProviderFromGroup ? window.getProviderFromGroup(apps[currentApp].group) : window.getProviderFromGroupLocal(apps[currentApp].group);
-    }
-    
-    // Check Tavily API when app changes
-    if (window.websearchTavilyCheck) {
-      fetch('/api/environment')
-        .then(response => response.json())
-        .then(data => {
-          window.websearchTavilyCheck.updateWebSearchState(provider, data.has_tavily_key);
-        })
-        .catch(err => {
-          console.error('Failed to fetch environment settings:', err);
-        });
-    }
-  }
-});

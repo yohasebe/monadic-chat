@@ -910,9 +910,14 @@ function doResetActions() {
   $("#parameter-panel").hide();
   setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
   
-  // Set flags to indicate reset happened
-  window.forceNewSession = true;
-  window.justReset = true;
+  // Set flags to indicate reset happened using centralized state management
+  if (window.SessionState) {
+    window.SessionState.setResetFlags();
+  } else {
+    // Fallback for backward compatibility
+    window.forceNewSession = true;
+    window.justReset = true;
+  }
   
   // Set app selection back to current app instead of default
   $("#apps").val(currentApp);

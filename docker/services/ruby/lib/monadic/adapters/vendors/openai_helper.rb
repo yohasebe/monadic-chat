@@ -56,7 +56,11 @@ module OpenAIHelper
   REASONING_MODELS = [
     "o3",
     "o4",
-    "o1"
+    "o1",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5-chat"
   ]
 
   # complete string match

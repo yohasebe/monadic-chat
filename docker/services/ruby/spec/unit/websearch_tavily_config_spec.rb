@@ -69,8 +69,8 @@ RSpec.describe 'Websearch Tavily Configuration' do
     it 'patch handles app switching correctly' do
       content = File.read(utilities_patch_js)
       
-      # Check for app change handler
-      expect(content).to include('$(document).on(\'change\', \'#apps\'')
+      # Check that patch calls original function and adds provider detection
+      expect(content).to include('window.originalDoResetActions')
       expect(content).to include('getProviderFromGroup')
     end
   end

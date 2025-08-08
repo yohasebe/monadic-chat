@@ -1244,11 +1244,13 @@ $(function () {
     }, 3000); // 3 second timeout is enough for normal operations to complete
 
     // Clear messages if we just reset to ensure fresh start
-    alert("Debug: window.forceNewSession = " + window.forceNewSession + ", messages.length before = " + messages.length);
-    if (window.forceNewSession === true) {
+    if (window.SessionState && window.SessionState.shouldForceNewSession()) {
+      messages.length = 0;
+      window.SessionState.clearForceNewSession();
+    } else if (window.forceNewSession === true) {
+      // Fallback for backward compatibility
       messages.length = 0;
       window.forceNewSession = false;
-      alert("Debug: Cleared messages, new length = " + messages.length);
     }
     
     if (messages.length > 0) {
@@ -1282,10 +1284,6 @@ $(function () {
       $("#main-panel").show();
       $("#discourse").show();
 
-      // Debug checkbox state
-      const checkbox = $("#initiate-from-assistant");
-      alert("Debug: checkbox exists=" + checkbox.length + ", checked=" + checkbox.is(":checked") + ", prop checked=" + checkbox.prop("checked"));
-      
       if ($("#initiate-from-assistant").is(":checked")) {
         $("#temp-card").show();
         $("#user-panel").hide();

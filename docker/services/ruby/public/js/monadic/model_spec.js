@@ -3,44 +3,44 @@ const modelSpec = {
   "gpt-5": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high" ], "low"],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": true
   },
   "gpt-5-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high" ], "low"],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": true
   },
   "gpt-5-mini": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high" ], "low"],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": true
   },
   "gpt-5-mini-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high" ], "low"],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": true
   },
   "gpt-5-nano": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["minimum", "low", "medium", "high" ], "low"]
+    "vision_capability": true
   },
   "gpt-5-nano-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimum", "low", "medium", "high" ], "low"],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": true
   },
   // gpt-4.1 models
   "gpt-4.1": {
@@ -100,6 +100,13 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "gpt-5-chat-latest": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "reasoning_effort": [["minimum", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true
   },

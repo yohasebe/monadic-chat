@@ -612,7 +612,7 @@ namespace :build do
               # If container doesn't exist, create it using docker compose
               puts "Container doesn't exist, creating new one..."
               compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-              project_dir = File.expand_path("docker", __dir__)
+              project_dir = File.expand_path("docker/services", __dir__)
               if !system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
                 puts "Warning: Failed to start pgvector container. Skipping help database build."
                 return
@@ -650,7 +650,7 @@ namespace :build do
           if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
             puts "Stopping pgvector container..."
             compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-            project_dir = File.expand_path("docker", __dir__)
+            project_dir = File.expand_path("docker/services", __dir__)
             system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop pgvector_service")
           end
         end
@@ -845,8 +845,16 @@ task :spec do
   unless pgvector_running
     puts "Starting pgvector container for tests..."
     compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-    project_dir = File.expand_path("docker", __dir__)
-    system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
+    compose_dev_file = File.expand_path("docker/services/pgvector/compose.dev.yml", __dir__)
+    project_dir = File.expand_path("docker/services", __dir__)
+    
+    # Use both compose.yml and compose.dev.yml for development
+    if File.exist?(compose_dev_file)
+      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -f '#{compose_dev_file}' -p 'monadic-chat' up -d pgvector_service")
+    else
+      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
+      puts "Warning: compose.dev.yml not found. PostgreSQL may not be accessible on port 5433."
+    end
     
     # Wait for pgvector to be ready
     puts "Waiting for pgvector to be ready..."
@@ -861,6 +869,17 @@ task :spec do
       sleep 1
     end
   end
+  
+  # Check if port 5433 is accessible
+  port_check = system("nc -zv localhost 5433 2>/dev/null")
+  unless port_check
+    puts "\n⚠️  Warning: PostgreSQL is not accessible on port 5433"
+    puts "   Tests may fail. Please ensure compose.dev.yml is being used."
+    puts "   Try restarting the container with: docker compose -f docker/services/compose.yml -f docker/services/pgvector/compose.dev.yml up -d pgvector_service\n\n"
+  end
+  
+  # Store paths before changing directory
+  root_dir = __dir__
   
   # Run tests with the new structure
   Dir.chdir("docker/services/ruby") do
@@ -880,8 +899,8 @@ ensure
   # Only stop pgvector if we started it
   if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
     puts "Stopping pgvector container..."
-    compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-    project_dir = File.expand_path("docker", __dir__)
+    compose_file = File.expand_path("docker/services/compose.yml", root_dir)
+    project_dir = File.expand_path("docker/services", root_dir)
     system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop pgvector_service")
   end
 end

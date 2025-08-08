@@ -1,0 +1,8 @@
+# Development-specific overrides for pgvector service
+# This file adds port mapping for local development and testing
+# Not used in production deployment
+
+services:
+  pgvector_service:
+    ports:
+      - "5433:5432"  # Expose PostgreSQL on port 5433 for local testing

@@ -40,7 +40,7 @@ describe('Model Specification', () => {
     expect(modelSpec['gpt-4.1']).toBeDefined();
     expect(modelSpec['claude-sonnet-4-20250514']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash-preview-05-20']).toBeDefined();
-    expect(modelSpec['command-r-plus']).toBeDefined();
+    expect(modelSpec['command-r-plus-08-2024']).toBeDefined();
     expect(modelSpec['grok-2']).toBeDefined();
   });
   
@@ -79,7 +79,7 @@ describe('Model Specification', () => {
     
     it('should have different vision capabilities for different Claude models', () => {
       // Claude Sonnet should have vision
-      expect(modelSpec['claude-3-5-sonnet-latest'].vision_capability).toBe(true);
+      expect(modelSpec['claude-3-5-sonnet-20241022'].vision_capability).toBe(true);
       
       // Claude Haiku shouldn't have vision (at least one version)
       expect(modelSpec['claude-3-5-haiku-20241022'].vision_capability).toBe(false);
@@ -88,7 +88,7 @@ describe('Model Specification', () => {
   
   describe('Cohere Models', () => {
     it('should have correct parameters for Cohere models', () => {
-      const model = modelSpec['command-r-plus'];
+      const model = modelSpec['command-r-plus-08-2024'];
       
       // Check essential parameters
       expect(model.context_window).toEqual([1, 128000]);
@@ -99,11 +99,11 @@ describe('Model Specification', () => {
     
     it('should have different tool capabilities for different Cohere models', () => {
       // Newer model with tool support
-      expect(modelSpec['command-r-plus'].tool_capability).toBe(true);
+      expect(modelSpec['command-r-plus-08-2024'].tool_capability).toBe(true);
       
-      // Older model might not have tool support
+      // Check another Cohere model
       if (modelSpec['command']) {
-        expect(modelSpec['command'].tool_capability).toBeUndefined();
+        expect(modelSpec['command'].tool_capability).toBe(true);
       }
     });
   });

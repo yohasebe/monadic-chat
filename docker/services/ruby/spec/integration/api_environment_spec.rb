@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-RSpec.describe 'API Environment Endpoint' do
+RSpec.describe 'API Environment Endpoint', :integration do
   describe '/api/environment endpoint logic' do
     context 'when TAVILY_API_KEY is present' do
       before do

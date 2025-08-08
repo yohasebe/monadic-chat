@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'open3'
 require 'json'
 
-RSpec.describe "extract_frames.py minimal tests" do
+RSpec.describe "extract_frames.py minimal tests", :integration do
   let(:container_name) { "monadic-chat-python-container" }
   let(:script_path) { "/monadic/scripts/converters/extract_frames.py" }
   

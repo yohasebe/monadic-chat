@@ -175,9 +175,10 @@ function setCopyCodeButton(element) {
 let wsHandlers = window.wsHandlers;
 
 const apps = {}
-let messages = [];
-let originalParams = {};
-let params = {}
+// Use global variables which are proxied to SessionState
+// let messages = []; // Removed - using global messages instead
+// let originalParams = {}; // Removed - using global originalParams instead  
+// let params = {} // Removed - using global params instead
 
 let reconnectDelay = 1000;
 
@@ -2718,15 +2719,15 @@ function connect_websocket(callback) {
       }
       case "past_messages": {
         // If we just reset, ignore past messages completely
-        if ((window.SessionState && window.SessionState.shouldForceNewSession()) || window.forceNewSession === true) {
-          messages.length = 0;
+        if (window.SessionState.shouldForceNewSession()) {
+          window.SessionState.clearMessages();
           $("#discourse").empty();
           setStats(formatInfo([]), "info");
           $("#start-label").text("Start Session");
           break;
         }
         
-        messages.length = 0;
+        window.SessionState.clearMessages();
         $("#discourse").empty();
 
         data["content"].forEach((msg, index) => {
@@ -2734,7 +2735,7 @@ function connect_websocket(callback) {
             return;
           }
 
-          messages.push(msg);
+          window.SessionState.addMessage(msg);
 
           if (index === 0 && msg["role"] === "system") {
             return;
@@ -3073,7 +3074,7 @@ function connect_websocket(callback) {
         
         if (!handled) {
           // Fallback to inline handling
-          messages.push(data["content"]);
+          window.SessionState.addMessage(data["content"]);
 
           let html = data["content"]["html"];
 
@@ -3200,7 +3201,7 @@ function connect_websocket(callback) {
         // Check if we have a temporary message to remove first
         const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
         if (tempMessageIndex !== -1) {
-          messages.splice(tempMessageIndex, 1);
+          window.SessionState.removeMessage(tempMessageIndex);
         }
         
         // Create the proper message object
@@ -3208,7 +3209,7 @@ function connect_websocket(callback) {
         if (data["content"]["images"] !== undefined) {
           message_obj.images = data["content"]["images"];
         }
-        messages.push(message_obj);
+        window.SessionState.addMessage(message_obj);
         
         // Format content for display
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
@@ -3299,7 +3300,7 @@ function connect_websocket(callback) {
           }
           
           // Add to messages array - this ensures last message detection works correctly
-          messages.push(messageObj);
+          window.SessionState.addMessage(messageObj);
         }
         
         // Apply appropriate styling based on current settings
@@ -3419,7 +3420,7 @@ function connect_websocket(callback) {
           // Remove temporary message if it exists
           const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
           if (tempMessageIndex !== -1) {
-            messages.splice(tempMessageIndex, 1);
+            window.SessionState.removeMessage(tempMessageIndex);
           }
           
           // Remove any UI cards that may have been created during this initial message

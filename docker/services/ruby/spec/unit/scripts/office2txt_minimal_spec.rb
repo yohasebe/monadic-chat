@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'open3'
 require 'json'
 
-RSpec.describe "office2txt.py minimal tests" do
+RSpec.describe "office2txt.py minimal tests", :integration do
   let(:container_name) { "monadic-chat-python-container" }
   let(:script_path) { "/monadic/scripts/converters/office2txt.py" }
   

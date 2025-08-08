@@ -417,7 +417,7 @@ function deleteMessage(mid) {
   
   // If the message exists, remove it from the messages array
   if (index !== -1) {
-    messages.splice(index, 1);
+    window.SessionState.removeMessage(index);
     ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
     mids.delete(mid);
   }
@@ -932,13 +932,7 @@ function doResetActions() {
   setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
   
   // Set flags to indicate reset happened using centralized state management
-  if (window.SessionState) {
-    window.SessionState.setResetFlags();
-  } else {
-    // Fallback for backward compatibility
-    window.forceNewSession = true;
-    window.justReset = true;
-  }
+  window.SessionState.setResetFlags();
   
   // Set app selection back to current app instead of default
   $("#apps").val(currentApp);
@@ -999,7 +993,9 @@ function doResetActions() {
     reconnect_websocket(ws);
   }
   window.scroll({ top: 0 });
-  messages.length = 0;
+  
+  // Clear messages using SessionState
+  window.SessionState.clearMessages();
 }
 
 let collapseStates = {};

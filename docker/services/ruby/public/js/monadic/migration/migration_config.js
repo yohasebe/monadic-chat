@@ -10,11 +10,11 @@
     
     // Individual feature flags
     features: {
-      messages: false,      // Message management migration
-      session: false,       // Session state migration
-      app: false,          // App state migration
-      websocket: false,    // WebSocket state migration
-      events: false        // Event system migration
+      messages: false,     // Message array migration
+      session: false,      // Session state migration
+      app: false,         // App state migration
+      ui: false,          // UI state migration
+      audio: false        // Audio state migration
     },
     
     // Debug options

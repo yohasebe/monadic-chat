@@ -30,11 +30,16 @@
       // Auto-enable in development
       if (window.location.hostname === 'localhost') {
         this.enabled = true;
-        this.features.messages = true;  // Start with message migration
+        // Enable all stable migrations
+        this.features.messages = true;
+        this.features.session = true;
+        this.features.app = true;
+        this.features.ui = true;
+        this.features.audio = true;
         this.debug.logging = false;     // Keep logging off unless debugging
         this.debug.validation = true;   // Enable validation in dev
         
-        console.log('[MigrationConfig] Development mode - migration enabled for messages');
+        console.log('[MigrationConfig] Development mode - all stable migrations enabled');
       }
       
       // Check for URL parameters

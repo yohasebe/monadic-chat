@@ -104,17 +104,25 @@ function setCookieValues() {
 }
 
 function listModels(models, openai = false) {
-  // Array of strings to identify beta models
+  // Array of patterns to identify different model types
+  // Note: gpt-5-chat-latest is excluded from GPT-5 category as it doesn't support reasoning_effort
+  const gpt5ModelPatterns = [/^gpt-5(?:-(?:mini|nano))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
   const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.\d)\b/];
   const betaModelPatterns = [/^\bo\d\b/];
 
-  // Separate regular models and beta models
+  // Separate models by type
+  const gpt5Models = [];
   const regularModels = [];
   const betaModels = [];
   const otherModels = [];
 
   for (let model of models) {
-    if (regularModelPatterns.some(pattern => pattern.test(model))) {
+    // Special case: gpt-5-chat-latest goes to other models
+    if (model === 'gpt-5-chat-latest') {
+      otherModels.push(model);
+    } else if (gpt5ModelPatterns.some(pattern => pattern.test(model))) {
+      gpt5Models.push(model);
+    } else if (regularModelPatterns.some(pattern => pattern.test(model))) {
       regularModels.push(model);
     } else if (betaModelPatterns.some(pattern => pattern.test(model))) {
       betaModels.push(model);
@@ -127,24 +135,37 @@ function listModels(models, openai = false) {
   let modelOptions = [];
 
   if (openai) {
-    // Include dummy options when openai is true
-    modelOptions = [
-      '<option disabled>──gpt-models──</option>',
-      ...regularModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      ),
-      '<option disabled>──reasoning models──</option>',
-      ...betaModels.map(model =>
+    // Include GPT-5 section at the top if GPT-5 models are available
+    if (gpt5Models.length > 0) {
+      modelOptions.push('<option disabled>──GPT-5 (Latest)──</option>');
+      modelOptions.push(...gpt5Models.map(model =>
         `<option value="${model}" data-model-type="reasoning">${model}</option>`
-      ),
-      '<option disabled>──other models──</option>',
-      ...otherModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      )
-    ];
+      ));
+    }
+    
+    // Include regular GPT models
+    modelOptions.push('<option disabled>──gpt-models──</option>');
+    modelOptions.push(...regularModels.map(model =>
+      `<option value="${model}">${model}</option>`
+    ));
+    
+    // Include reasoning models
+    modelOptions.push('<option disabled>──reasoning models──</option>');
+    modelOptions.push(...betaModels.map(model =>
+      `<option value="${model}" data-model-type="reasoning">${model}</option>`
+    ));
+    
+    // Include other models
+    modelOptions.push('<option disabled>──other models──</option>');
+    modelOptions.push(...otherModels.map(model =>
+      `<option value="${model}">${model}</option>`
+    ));
   } else {
     // Exclude dummy options when openai is false
     modelOptions = [
+      ...gpt5Models.map(model =>
+        `<option value="${model}">${model}</option>`
+      ),
       ...regularModels.map(model =>
         `<option value="${model}">${model}</option>`
       ),

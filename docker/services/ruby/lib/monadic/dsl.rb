@@ -845,6 +845,11 @@ module MonadicDSL
       @state.settings[:reasoning_effort] = value
     end
     
+    def verbosity(value)
+      # GPT-5 verbosity setting: "high", "medium", or "low"
+      @state.settings[:verbosity] = value
+    end
+    
     def presence_penalty(value)
       @state.settings[:presence_penalty] = value
     end

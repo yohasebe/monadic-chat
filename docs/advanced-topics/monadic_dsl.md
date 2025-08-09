@@ -74,6 +74,10 @@ llm do
   model "claude-3-5-sonnet-20241022"  # Model name
   temperature 0.7  # Response randomness (0.0-1.0)
   max_tokens 4000  # Maximum response length
+  
+  # GPT-5 specific parameters (OpenAI only):
+  # verbosity "low"  # Controls output length: "high", "medium", or "low"
+  # reasoning_effort "minimal"  # Reasoning tokens: "minimal", "low", "medium", "high"
 end
 ```
 
@@ -89,6 +93,40 @@ Supported providers:
 - `ollama` (Local models via Ollama)
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
+
+#### Advanced LLM Parameters
+
+**GPT-5 Specific Parameters (OpenAI only):**
+
+```ruby
+llm do
+  provider "openai"
+  model ["gpt-5", "gpt-4.1"]  # Model fallback mechanism
+  
+  # Verbosity controls output token generation (GPT-5 only)
+  verbosity "low"  # Options: "high", "medium", "low"
+  # - "high": Detailed, comprehensive responses
+  # - "medium": Balanced responses (default)
+  # - "low": Concise, brief responses (better latency)
+  
+  # Reasoning effort controls reasoning token usage (GPT-5, o3 series)
+  reasoning_effort "minimal"  # Options: "minimal", "low", "medium", "high"
+  # - "minimal": Fastest responses, minimal reasoning (GPT-5 default)
+  # - "low": Balanced performance and reasoning
+  # - "medium": Enhanced reasoning capabilities
+  # - "high": Maximum reasoning (o3-pro default)
+end
+```
+
+**Model Fallback Mechanism:**
+
+```ruby
+llm do
+  provider "openai"
+  model ["gpt-5", "gpt-4.1"]  # Primary model, then fallback
+  # System will automatically use gpt-4.1 if gpt-5 is unavailable
+end
+```
 
 ### 3. System Prompt
 

@@ -96,6 +96,12 @@ module OpenAIHelper
     "gpt-5-nano"
   ]
   
+  # Models that are known to be slow and need a "This may take a while" message
+  SLOW_MODELS = [
+    "o3-pro",
+    "o3"
+  ]
+  
   
   # Models that use responses API for web search
   RESPONSES_API_WEBSEARCH_MODELS = [
@@ -310,6 +316,7 @@ module OpenAIHelper
     prompt_suffix = obj["prompt_suffix"]
     model = obj["model"]
     reasoning_effort = obj["reasoning_effort"]
+    verbosity = obj["verbosity"]  # GPT-5 verbosity setting
 
     # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
     if obj["ai_user"] == "true"
@@ -459,6 +466,11 @@ module OpenAIHelper
                        nil
                      end
 
+    # Add verbosity for GPT-5 models (works in both Chat Completions and Responses API)
+    if verbosity && model.to_s.include?("gpt-5")
+      body["verbosity"] = verbosity
+    end
+    
     if reasoning_model
       body["reasoning_effort"] = reasoning_effort || "medium"
       body.delete("temperature")
@@ -783,8 +795,8 @@ module OpenAIHelper
       # Use responses API for o3-pro
       target_uri = "#{API_ENDPOINT}/responses"
       
-      # Send processing status only for long-running models (o3-pro), not for web search
-      if block && RESPONSES_API_MODELS.include?(original_user_model)
+      # Send processing status only for long-running models (o3-pro, o3), not for fast models like GPT-5
+      if block && SLOW_MODELS.include?(original_user_model)
         processing_msg = {
           "type" => "processing_status",
           "content" => "This may take a while."
@@ -1044,10 +1056,14 @@ module OpenAIHelper
         
       end
       
-      # Support for structured outputs
+      # Support for structured outputs and verbosity
       # Check if text.format was already set by configure_monadic_response
       if body["text"] && body["text"]["format"]
         responses_body["text"] = body["text"]
+        # Add verbosity to existing text object if specified for GPT-5
+        if body["verbosity"] && model.to_s.include?("gpt-5")
+          responses_body["text"]["verbosity"] = body["verbosity"]
+        end
       elsif body["response_format"] && body["response_format"]["type"] == "json_object"
         responses_body["text"] = {
           "format" => {
@@ -1061,6 +1077,13 @@ module OpenAIHelper
             }
           }
         }
+      else
+        # If no text.format but verbosity is specified for GPT-5
+        if body["verbosity"] && model.to_s.include?("gpt-5")
+          responses_body["text"] = {
+            "verbosity" => body["verbosity"]
+          }
+        end
       end
       
       # Use responses body instead

@@ -12,39 +12,6 @@ app "VoiceInterpreterOpenAI" do
     model ["gpt-5-mini", "gpt-4.1-mini"]
     reasoning_effort "minimal"
     temperature 0.0
-    response_format({
-      type: "json_schema",
-      json_schema: {
-        name: "translate_response",
-        schema: {
-          type: "object",
-          properties: {
-            message: {
-              type: "string",
-              description: "ONLY the translated text with NO preamble, explanation, or meta-commentary."
-            },
-            context: {
-              type: "object",
-              properties: {
-                source_lang: {
-                  type: "string",
-                  description: "The source language of the original text. Once established, maintain this for the entire conversation unless explicitly changed."
-                },
-                target_lang: {
-                  type: "string",
-                  description: "The target language for the translation. Once established, maintain this for the entire conversation unless explicitly changed."
-                }
-              },
-              required: ["source_lang", "target_lang"],
-              additionalProperties: false
-            }
-          },
-          required: ["message", "context"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    })
   end
 
   system_prompt <<~TEXT

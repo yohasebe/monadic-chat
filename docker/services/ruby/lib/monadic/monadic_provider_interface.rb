@@ -58,11 +58,27 @@ module MonadicProviderInterface
   }.freeze
 
   # Configure provider-specific JSON response format
-  def configure_monadic_response(body, provider_type, app_type = nil)
+  def configure_monadic_response(body, provider_type, app_type = nil, use_responses_api = false)
     return body unless monadic_mode?
 
     case provider_type
-    when :openai, :deepseek, :grok
+    when :openai
+      if use_responses_api
+        # For Responses API (GPT-5, o3, etc.), use text.format with structured schema
+        schema = app_type&.to_s&.include?("chat_plus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
+        body["text"] = {
+          "format" => {
+            "type" => "json_schema",
+            "name" => "monadic_response",
+            "schema" => schema,
+            "strict" => true
+          }
+        }
+      else
+        # For Chat Completions API, use response_format
+        body["response_format"] = { "type" => "json_object" }
+      end
+    when :deepseek, :grok
       body["response_format"] = { "type" => "json_object" }
     when :perplexity
       body["response_format"] = build_perplexity_schema(app_type)

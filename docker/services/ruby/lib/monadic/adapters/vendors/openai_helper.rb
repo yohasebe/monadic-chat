@@ -90,8 +90,10 @@ module OpenAIHelper
   RESPONSES_API_MODELS = [
     "o3-pro",
     "o3",
-    "o4-mini"
-    # GPT-5 models use Chat Completions API for better tool support
+    "o4-mini",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano"
   ]
   
   
@@ -480,7 +482,7 @@ module OpenAIHelper
       end
 
       # Use the new unified interface for monadic mode
-      body = configure_monadic_response(body, :openai, app)
+      body = configure_monadic_response(body, :openai, app, use_responses_api)
     end
 
     if non_stream_model
@@ -490,8 +492,9 @@ module OpenAIHelper
     end
 
     # GPT-5 models can use tools even though they are reasoning models
-    # Only skip tools for explicit non-tool models or when processing tool results
-    skip_tools = non_tool_model || role == "tool"
+    # Only skip tools for explicit non-tool models
+    # For GPT-5 and other reasoning models using Responses API, keep tools even on tool responses
+    skip_tools = non_tool_model || (role == "tool" && !use_responses_api)
     
     if skip_tools
       if CONFIG["EXTRA_LOGGING"]
@@ -795,74 +798,117 @@ module OpenAIHelper
         role = msg["role"] || msg[:role]
         content = msg["content"] || msg[:content]
         
-        # Skip tool messages for Responses API (they should not be in the input)
+        # Handle tool messages for Responses API
         if role == "tool"
-          next
-        end
-        
-        # Responses API uses specific text types based on role
-        # System and user messages use "input_text", assistant messages use "output_text"
-        text_type = (role == "assistant") ? "output_text" : "input_text"
-        
-        # Handle messages with complex content (text + images)
-        if content.is_a?(Array)
-          # Convert content types for responses API
-          converted_content = content.map do |item|
-            case item["type"]
-            when "text"
-              {
-                "type" => text_type,
-                "text" => item["text"]
+          # Convert to function_call_output format for Responses API
+          {
+            "type" => "function_call_output",
+            "call_id" => msg["tool_call_id"] || msg["call_id"] || msg[:tool_call_id] || msg[:call_id],
+            "output" => content.to_s
+          }
+        else
+          # For assistant messages, we need to include tool_calls if present
+          if role == "assistant" && (msg["tool_calls"] || msg[:tool_calls])
+            tool_calls = msg["tool_calls"] || msg[:tool_calls]
+            # Convert assistant message with tool calls for Responses API
+            output_items = []
+            
+            # Add text content if present
+            if content
+              output_items << {
+                "type" => "message",
+                "role" => "assistant",
+                "content" => [
+                  {
+                    "type" => "output_text",
+                    "text" => content.to_s
+                  }
+                ]
               }
-            when "image_url"
-              # Extract media type and base64 data from data URL
-              url = item["image_url"]["url"]
-              if url.start_with?("data:")
-                match = url.match(/^data:(image\/\w+);base64,(.+)$/)
-                if match
-                  media_type = match[1]
-                  base64_data = match[2]
+            end
+            
+            # Add function calls
+            tool_calls.each do |tool_call|
+              call_id = tool_call["id"] || tool_call[:id]
+              # Generate fc_ prefixed ID if needed
+              fc_id = call_id.start_with?("fc_") ? call_id : "fc_#{SecureRandom.hex(16)}"
+              
+              output_items << {
+                "type" => "function_call",
+                "id" => fc_id,
+                "call_id" => call_id,
+                "name" => tool_call.dig("function", "name") || tool_call.dig(:function, :name),
+                "arguments" => tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments)
+              }
+            end
+            
+            output_items
+          else
+            # Responses API uses specific text types based on role
+            # System and user messages use "input_text", assistant messages use "output_text"
+            text_type = (role == "assistant") ? "output_text" : "input_text"
+            
+            # Handle messages with complex content (text + images)
+            if content.is_a?(Array)
+              # Convert content types for responses API
+              converted_content = content.map do |item|
+                case item["type"]
+                when "text"
+                  {
+                    "type" => text_type,
+                    "text" => item["text"]
+                  }
+                when "image_url"
+                  # Extract media type and base64 data from data URL
+                  url = item["image_url"]["url"]
+                  if url.start_with?("data:")
+                    match = url.match(/^data:(image\/\w+);base64,(.+)$/)
+                    if match
+                      media_type = match[1]
+                      base64_data = match[2]
+                    else
+                      # Default to jpeg if pattern doesn't match
+                      media_type = "image/jpeg"
+                      base64_data = url.sub(/^data:image\/\w+;base64,/, '')
+                    end
+                  else
+                    # If not a data URL, assume it's already base64
+                    media_type = "image/jpeg"
+                    base64_data = url
+                  end
+                  
+                  {
+                    "type" => "input_image",
+                    "source" => {
+                      "type" => "base64",
+                      "media_type" => media_type,
+                      "data" => base64_data
+                    }
+                  }
                 else
-                  # Default to jpeg if pattern doesn't match
-                  media_type = "image/jpeg"
-                  base64_data = url.sub(/^data:image\/\w+;base64,/, '')
+                  item  # Keep as is for unknown types
                 end
-              else
-                # If not a data URL, assume it's already base64
-                media_type = "image/jpeg"
-                base64_data = url
               end
               
               {
-                "type" => "input_image",
-                "source" => {
-                  "type" => "base64",
-                  "media_type" => media_type,
-                  "data" => base64_data
-                }
+                "role" => role,
+                "content" => converted_content
               }
             else
-              item  # Keep as is for unknown types
+              # Simple text content
+              {
+                "role" => role,
+                "content" => [
+                  {
+                    "type" => text_type,
+                    "text" => content.to_s
+                  }
+                ]
+              }
             end
           end
-          
-          {
-            "role" => role,
-            "content" => converted_content
-          }
-        else
-          # Simple text content
-          {
-            "role" => role,
-            "content" => [
-              {
-                "type" => text_type,
-                "text" => content.to_s
-              }
-            ]
-          }
         end
-      end.compact  # Remove nil entries from skipped tool messages
+      end.flatten.compact  # Flatten and remove nil entries
       
       # Create responses API body
       responses_body = {
@@ -999,7 +1045,10 @@ module OpenAIHelper
       end
       
       # Support for structured outputs
-      if body["response_format"] && body["response_format"]["type"] == "json_object"
+      # Check if text.format was already set by configure_monadic_response
+      if body["text"] && body["text"]["format"]
+        responses_body["text"] = body["text"]
+      elsif body["response_format"] && body["response_format"]["type"] == "json_object"
         responses_body["text"] = {
           "format" => {
             "type" => "json",

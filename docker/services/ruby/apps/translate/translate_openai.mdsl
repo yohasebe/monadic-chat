@@ -39,57 +39,6 @@ app "TranslateOpenAI" do
     model ["gpt-5", "gpt-4.1"]
     reasoning_effort "minimal"
     temperature 0.2
-    response_format({
-      type: "json_schema",
-      json_schema: {
-        name: "translate_response",
-        schema: {
-          type: "object",
-          properties: {
-            message: {
-              type: "string",
-              description: "The translated text."
-            },
-            context: {
-              type: "object",
-              properties: {
-                source_lang: {
-                  type: "string",
-                  description: "The source language for the translation."
-                },
-                target_lang: {
-                  type: "string",
-                  description: "The target language for the translation."
-                },
-                vocabulary: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      original_text: {
-                        type: "string",
-                        description: "The original text."
-                      },
-                      translation: {
-                        type: "string",
-                        description: "The translation of the original text."
-                      }
-                    },
-                    required: ["original_text", "translation"],
-                    additionalProperties: false
-                  }
-                }
-              },
-              required: ["source_lang", "target_lang", "vocabulary"],
-              additionalProperties: false
-            }
-          },
-          required: ["message", "context"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    })
   end
   
   features do

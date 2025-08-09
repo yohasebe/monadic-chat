@@ -79,11 +79,16 @@ WEBSEARCH_MODEL=gpt-4o-mini
 Reasoning models use advanced computational processes to think through problems step-by-step before responding. Monadic Chat automatically detects these models and adjusts parameters accordingly.
 
 ### OpenAI Reasoning Models
+- **GPT-5 Series**: gpt-5, gpt-5-mini, gpt-5-nano
+  - Uses Responses API for enhanced tool handling
+  - Supports "minimal" reasoning effort for optimal performance
+  - 400K context window, 128K max output tokens
 - **O1 Series**: o1, o1-mini, o1-preview, o1-pro
 - **O3 Series**: o3, o3-pro
 - **O4 Series**: o4-mini
 
-These models use `reasoning_effort` parameter ("low", "medium", "high") instead of temperature settings.
+These models use `reasoning_effort` parameter ("minimal", "low", "medium", "high") instead of temperature settings.
+Note: GPT-5 models support full tool/function calling despite being reasoning models.
 
 ### Gemini Thinking Models
 - **2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview

@@ -120,6 +120,18 @@ class SyntaxTreeOpenAI < MonadicApp
       extension: "sh"
     )
     
+    # Check if the result contains error messages
+    # run_result should be a string, but handle other types gracefully
+    if run_result.is_a?(String) && (run_result.include?("Error:") || run_result.include?("timed out"))
+      return "Error generating syntax tree: #{run_result}"
+    end
+    
+    # Check if SVG file was created
+    svg_path = File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "#{base_filename}.svg")
+    unless File.exist?(svg_path)
+      return "Error: Syntax tree SVG was not generated. Please check the bracket notation format."
+    end
+    
     "#{base_filename}.svg"
   end
 

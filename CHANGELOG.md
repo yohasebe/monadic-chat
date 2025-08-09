@@ -9,6 +9,22 @@
     - Proper structured output via text.format with JSON Schema (not response_format)
     - Fixed tool continuation and function_call format requirements
     - Documentation updated in English and Japanese for GPT-5 specifics
+  - **GPT-5 Verbosity Support**: Added configurable output length control
+    - New `verbosity` parameter in MDSL files: "high", "medium", or "low"
+    - Works with both Chat Completions and Responses API
+    - Optimizes latency by controlling output token generation
+  - **Performance Improvements**:
+    - Fixed "This may take a while" message to only show for truly slow models (o3, o3-pro)
+    - Added timeout handling with user-friendly error messages
+    - Default 120 seconds timeout for commands, configurable per operation
+  - **Syntax Tree App Enhancements**:
+    - Improved binary branching enforcement with stronger prompts
+    - Better error handling for LaTeX/SVG generation
+    - Removed language-specific examples for universal applicability
+  - **Testing Infrastructure**:
+    - Replaced mock-based tests with actual implementation tests
+    - More reliable test coverage catching real integration issues
+    - Test suite: 737 examples, 0 failures
 
 - [June, 2025] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations

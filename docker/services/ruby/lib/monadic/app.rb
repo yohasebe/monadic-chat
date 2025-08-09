@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require 'ostruct'
+require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
 require_relative "./utils/flask_app_client"
@@ -438,17 +440,17 @@ class MonadicApp
         docker cp #{file_path} #{container}:#{SHARED_VOL}/#{filename}
       DOCKER
 
-      stdout, stderr, status = self.capture_command(docker_command)
+      stdout, stderr, status = self.capture_command(docker_command, timeout: 30)  # 30 seconds for file copy
       unless status.success?
         raise "Error occurred during file copy: #{stderr}"
       end
 
-      # Execute the code in the container
+      # Execute the code in the container with longer timeout for complex operations
       docker_command = <<~DOCKER
         docker exec -w #{SHARED_VOL} #{container} #{command} #{filename}
       DOCKER
 
-    stdout, stderr, status = self.capture_command(docker_command)
+    stdout, stderr, status = self.capture_command(docker_command, timeout: 180)  # 3 minutes for code execution
 
       # Wait briefly for filesystem synchronization
       sleep COMMAND_DELAY
@@ -546,16 +548,25 @@ class MonadicApp
     Time.now.to_s
   end
 
-  def capture_command(command)
-    self.class.capture_command(command)
+  def capture_command(command, timeout: 120)
+    self.class.capture_command(command, timeout: timeout)
   end
 
-  def self.capture_command(command)
+  def self.capture_command(command, timeout: 120)  # Default 120 seconds timeout
     unless command
       return ["Error: command is required.", nil, 1]
     end
 
-    stdout, stderr, status = Open3.capture3(command)
+    begin
+      require 'timeout'
+      stdout, stderr, status = nil, nil, nil
+      
+      Timeout::timeout(timeout) do
+        stdout, stderr, status = Open3.capture3(command)
+      end
+    rescue Timeout::Error
+      error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."
+      return ["", error_msg, OpenStruct.new(success?: false)]
 
     # output log data of input and output
     # create a log (COMMAND_LOG_FILE) to store the command and its output
@@ -568,6 +579,7 @@ class MonadicApp
     end
 
     [stdout, stderr, status]
+    end
   end
 
   def self.doc2markdown(filename)

@@ -1,9 +1,13 @@
 - [August, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
-  - **GPT-5 Models**: Added model definitions for upcoming OpenAI GPT-5 series
+  - **GPT-5 Models**: Full implementation for OpenAI GPT-5 series
     - gpt-5, gpt-5-mini, gpt-5-nano with 400K context window
     - 128K max output tokens and reasoning token support
-    - Models defined in model_spec.js (awaiting general availability)
+    - Uses Responses API for enhanced tool handling
+    - Supports "minimal" reasoning effort for optimal performance
+    - Model fallback mechanism: Primary GPT-5, fallback to GPT-4.1
+    - Proper structured output via text.format with JSON Schema
+    - Fixed tool continuation and function_call format requirements
 
 - [June, 2025] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations

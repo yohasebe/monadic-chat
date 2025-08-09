@@ -79,11 +79,16 @@ WEBSEARCH_MODEL=gpt-4o-mini
 推論モデルは高度な計算プロセスを使用して、応答する前に問題を段階的に思考します。Monadic Chatはこれらのモデルを自動的に検出し、パラメータを調整します。
 
 ### OpenAI推論モデル
+- **GPT-5シリーズ**: gpt-5、gpt-5-mini、gpt-5-nano
+  - 拡張ツール処理のためResponses APIを使用
+  - 最適なパフォーマンスのため「minimal」推論努力をサポート
+  - 400Kコンテキストウィンドウ、128K最大出力トークン
 - **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
 - **O3シリーズ**: o3、o3-pro
 - **O4シリーズ**: o4-mini
 
-これらのモデルはtemperature設定の代わりに`reasoning_effort`パラメータ（"low"、"medium"、"high"）を使用します。
+これらのモデルはtemperature設定の代わりに`reasoning_effort`パラメータ（"minimal"、"low"、"medium"、"high"）を使用します。
+注：GPT-5モデルは推論モデルでありながら、完全なツール/関数呼び出しをサポートします。
 
 ### Gemini思考モデル
 - **2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview

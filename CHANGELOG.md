@@ -24,7 +24,14 @@
   - **Testing Infrastructure**:
     - Replaced mock-based tests with actual implementation tests
     - More reliable test coverage catching real integration issues
-    - Test suite: 737 examples, 0 failures
+    - Test suite: 751 examples, 0 failures
+  - **Monadic Apps Fix**: Fixed context display for all monadic apps using GPT-5
+    - Language Practice Plus, Chat Plus, and others now properly show context in UI
+    - Fixed both Chat Completions and Responses API handlers
+    - Added type safety for Hash, String, and other response types
+  - **GPT-5 Token Limits**: Set appropriate defaults based on official specs
+    - All GPT-5 variants: 128K max output tokens (400K context window)
+    - Automatic fallback to model defaults when not specified in MDSL
 
 - [June, 2025] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations

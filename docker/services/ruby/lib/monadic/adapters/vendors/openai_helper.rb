@@ -325,6 +325,13 @@ module OpenAIHelper
       max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
     end
     
+    # If no max_tokens specified, use model defaults for reasoning models
+    if max_completion_tokens.nil? || max_completion_tokens == 0
+      require_relative '../../utils/model_defaults'
+      max_completion_tokens = Monadic::Utils::ModelDefaults.get_max_tokens(original_user_model)
+      DebugHelper.debug("OpenAI: Using default max_tokens #{max_completion_tokens} for model #{original_user_model}", category: :api, level: :info)
+    end
+    
     # Get image generation flag
     image_generation = obj["image_generation"] == "true"
     
@@ -1420,9 +1427,15 @@ module OpenAIHelper
           
           # Update the choice with processed content
           if processed.is_a?(Hash)
-            choice["message"]["content"] = processed["message"] || JSON.generate(processed)
-          else
+            # For monadic responses, we need to preserve the entire JSON structure
+            # not just the "message" field, so the UI can display the "context" properly
+            choice["message"]["content"] = JSON.generate(processed)
+          elsif processed.is_a?(String)
+            # If it's already a JSON string, use it as-is
             choice["message"]["content"] = processed
+          else
+            # Fallback: convert to string
+            choice["message"]["content"] = processed.to_s
           end
         end
       end
@@ -2054,10 +2067,18 @@ module OpenAIHelper
         end
         
         # Update the choice with processed content
+        # IMPORTANT: Preserve full JSON structure for monadic apps (message + context)
+        # This ensures UI cards display context information correctly
         if processed.is_a?(Hash)
-          choice["message"]["content"] = processed["message"] || JSON.generate(processed)
-        else
+          # For monadic responses, we need to preserve the entire JSON structure
+          # not just the "message" field, so the UI can display the "context" properly
+          choice["message"]["content"] = JSON.generate(processed)
+        elsif processed.is_a?(String)
+          # If it's already a JSON string, use it as-is
           choice["message"]["content"] = processed
+        else
+          # Fallback: convert to string
+          choice["message"]["content"] = processed.to_s
         end
       end
       

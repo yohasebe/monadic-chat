@@ -31,6 +31,27 @@ module Monadic
           "max_output_tokens" => 4096
         },
         # OpenAI models
+        # GPT-5 models: 400K context window, 128K max output, reasoning token support
+        # Knowledge cutoffs: gpt-5 (Oct 2024), gpt-5-mini/nano (May 2024)
+        "gpt-5" => {
+          "max_output_tokens" => 128000  # 128K max output tokens
+        },
+        "gpt-5-mini" => {
+          "max_output_tokens" => 128000  # 128K max output tokens
+        },
+        "gpt-5-nano" => {
+          "max_output_tokens" => 128000  # 128K max output tokens
+        },
+        # o3 series reasoning models
+        "o3-pro" => {
+          "max_output_tokens" => 32768  # Very high for extensive reasoning
+        },
+        "o3" => {
+          "max_output_tokens" => 16384  # High for reasoning
+        },
+        "o3-mini" => {
+          "max_output_tokens" => 8192   # Moderate for mini variant
+        },
         "gpt-4.5-preview" => {
           "max_output_tokens" => 16384
         },

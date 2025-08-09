@@ -2,6 +2,35 @@
 
 This page documents all breaking changes from previous versions to help users migrate to Monadic Chat 1.0.0.
 
+## Version 1.0.0-beta.4
+
+### GPT-5 Token Limits
+
+#### What Changed
+- **GPT-5 models now use 128K max output tokens by default** (previously 4096)
+- This matches the official OpenAI specifications
+- Affects all GPT-5 variants: gpt-5, gpt-5-mini, gpt-5-nano
+
+#### Impact
+- **Positive**: GPT-5 models can now generate much longer responses
+- **Cost Consideration**: Higher token limits may increase API costs
+- **Performance**: Longer responses may take more time to generate
+
+#### Monadic Apps JSON Fix
+
+#### What Changed
+- **Fixed context display for monadic apps using GPT-5 models**
+- Previously, context information was lost when using Responses API
+- Now preserves full JSON structure (message + context)
+
+#### Affected Apps
+- Language Practice Plus
+- Chat Plus
+- Novel Writer
+- Voice Interpreter
+- Translate
+- Jupyter Notebook
+
 ## Version 1.0.0-beta.2
 
 ### Web Search in Chat Apps

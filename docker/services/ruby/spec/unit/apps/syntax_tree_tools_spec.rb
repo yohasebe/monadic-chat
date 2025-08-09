@@ -73,6 +73,35 @@ RSpec.describe SyntaxTreeOpenAI do
       expect(result).to include('[.VP')
     end
     
+    it 'handles prime notation correctly without creating quotes' do
+      # Test case from the actual Japanese example
+      result = app.send(:convert_to_qtree, "[S [NP [N' [N test]]] [VP [V' [V run]]]]")
+      
+      # Should have prime symbols, not quotes or double primes
+      expect(result).to include("[.N'")
+      expect(result).to include("[.V'")
+      
+      # Should NOT have double quotes or escaped quotes
+      expect(result).not_to include('""')
+      expect(result).not_to include("''")
+      expect(result).not_to include('\\"')
+      expect(result).not_to include("\\ensuremath")
+    end
+    
+    it 'handles complex Japanese syntax tree with primes' do
+      # Simplified version of the problematic tree
+      input = "[S [KP [NP [N' [N 先生]]] [K が]] [S' [VP [V' [V なる]]] [T た]]]"
+      result = app.send(:convert_to_qtree, input)
+      
+      # Check that N' and V' are handled correctly
+      expect(result).to include("[.N'")
+      expect(result).to include("[.V'")
+      expect(result).to include("[.S'")
+      
+      # No unwanted quotes
+      expect(result).not_to include('""')
+    end
+    
     it 'escapes LaTeX special characters' do
       result = app.send(:convert_to_qtree, '[S [NP John_&_Mary] [VP run$s]]')
       # Check that special characters are escaped

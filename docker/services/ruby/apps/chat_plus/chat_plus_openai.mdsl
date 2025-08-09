@@ -27,56 +27,6 @@ app "ChatPlusOpenAI" do
     model ["gpt-5", "gpt-4.1"]
     reasoning_effort "minimal"
     context_size 100
-    response_format({
-      type: "json_schema",
-      json_schema: {
-        name: "chat_monadic_response",
-        schema: {
-          type: "object",
-          properties: {
-            message: {
-              type: "string",
-              description: "The response message to the user."
-            },
-            context: {
-              type: "object",
-              properties: {
-                reasoning: {
-                  type: "string",
-                  description: "The reasoning and thought process behind your response."
-                },
-                topics: {
-                  type: "array",
-                  items: {
-                    type: "string",
-                    description: "A list of topics discussed in the conversation."
-                  }
-                },
-                people: {
-                  type: "array",
-                  items: {
-                    type: "string",
-                    description: "A list of people and their relationships mentioned in the conversation."
-                  }
-                },
-                notes: {
-                  type: "array",
-                  items: {
-                    type: "string",
-                    description: "A list of user preferences and other important information."
-                  }
-                }
-              },
-              required: ["reasoning", "topics", "people", "notes"],
-              additionalProperties: false
-            }
-          },
-          required: ["message", "context"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    })
   end
   
   display_name "Chat Plus"

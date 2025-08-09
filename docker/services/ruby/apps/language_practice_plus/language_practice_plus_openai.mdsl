@@ -29,42 +29,6 @@ app "LanguagePracticePlusOpenAI" do
     reasoning_effort "minimal"
     temperature 0.4
     context_size 100
-    response_format({
-      type: "json_schema",
-      json_schema: {
-        name: "language_practice_plus_response",
-        schema: {
-          type: "object",
-          properties: {
-            message: {
-              type: "string",
-              description: "Your response to the user's message."
-            },
-            context: {
-              type: "object",
-              properties: {
-                target_lang: {
-                  type: "string",
-                  description: "The target language to practice."
-                },
-                language_advice: {
-                  type: "array",
-                  items: {
-                    type: "string"
-                  },
-                  description: "An array of pieces of your language advice to the user."
-                }
-              },
-              required: ["target_lang", "language_advice"],
-              additionalProperties: false
-            }
-          },
-          required: ["message", "context"],
-          additionalProperties: false
-        },
-        strict: true
-      }
-    })
   end
   
   display_name "Language Practice Plus"

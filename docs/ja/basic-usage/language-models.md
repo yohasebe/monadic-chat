@@ -80,15 +80,18 @@ WEBSEARCH_MODEL=gpt-4o-mini
 
 ### OpenAI推論モデル
 - **GPT-5シリーズ**: gpt-5、gpt-5-mini、gpt-5-nano
-  - 拡張ツール処理のためResponses APIを使用
+  - 拡張ツール処理と構造化出力のためResponses APIを使用
   - 最適なパフォーマンスのため「minimal」推論努力をサポート
   - 400Kコンテキストウィンドウ、128K最大出力トークン
+  - 適切な継続を伴う完全なツール/関数呼び出しサポート
+  - text.formatとJSON Schemaによる構造化出力（response_formatではない）
+  - 利用不可時はGPT-4.1モデルに自動フォールバック
 - **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
 - **O3シリーズ**: o3、o3-pro
 - **O4シリーズ**: o4-mini
 
 これらのモデルはtemperature設定の代わりに`reasoning_effort`パラメータ（"minimal"、"low"、"medium"、"high"）を使用します。
-注：GPT-5モデルは推論モデルでありながら、完全なツール/関数呼び出しをサポートします。
+注：GPT-5モデルは他の推論モデルと異なり、Responses APIで完全なツール/関数呼び出しを独自にサポートします。
 
 ### Gemini思考モデル
 - **2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
@@ -109,6 +112,7 @@ WEBSEARCH_MODEL=gpt-4o-mini
 Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのためOpenAIのAPIキーを設定することをお勧めします。ただし、チャットで使いたいモデルがOpenAIのモデルでない場合、必ずしもOpenAIのAPIキーを設定する必要はありません。
 
 ### 利用可能なモデル
+- **GPT-5シリーズ**: gpt-5、gpt-5-mini、gpt-5-nano（400Kコンテキスト、128K出力）
 - **GPT-4.5シリーズ**: gpt-4.5-preview、gpt-4.5-preview-2025-02-27
 - **GPT-4.1シリーズ**: gpt-4.1、gpt-4.1-mini、gpt-4.1-nano（100万トークン以上のコンテキストウィンドウ）
 - **GPT-4oシリーズ**: gpt-4o、gpt-4o-mini、gpt-4o-audio-preview

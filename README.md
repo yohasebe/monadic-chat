@@ -4,7 +4,7 @@
 
 <a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge" alt="License"></a>
-<a href="https://yohasebe.github.io/monadic-chat/#/developer/testing_guide"><img src="https://img.shields.io/badge/tests-737_passing-success?style=for-the-badge" alt="Tests"></a>
+<a href="https://yohasebe.github.io/monadic-chat/#/developer/testing_guide"><img src="https://img.shields.io/badge/tests-751_passing-success?style=for-the-badge" alt="Tests"></a>
   
   ---
   

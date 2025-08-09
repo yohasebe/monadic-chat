@@ -9,11 +9,33 @@ class SyntaxTreeOpenAI < MonadicApp
   def render_syntax_tree(bracket_notation:, language:)
     return "Error: bracket notation is required." if bracket_notation.to_s.empty?
 
+    # Debug: Log the input bracket notation to check for stray quotes
+    if CONFIG["EXTRA_LOGGING"]
+      DebugHelper.debug("Syntax Tree input bracket notation: #{bracket_notation.inspect}", category: :app, level: :info)
+    end
+    
+    # Clean up any stray quotes that might have been added
+    # Remove quotes around terminals that aren't meant to be there
+    cleaned_notation = bracket_notation.gsub(/\[\s*"([^"\[\]]+)"\s*\]/, '[\1]')
+    
+    # CRITICAL: Remove trailing spaces and extra brackets that cause LaTeX issues
+    # This handles cases like "[T た]] ]" where there's an extra bracket at the end
+    cleaned_notation = cleaned_notation.strip
+    
+    # Balance brackets - count and remove excess closing brackets
+    open_count = cleaned_notation.count('[')
+    close_count = cleaned_notation.count(']')
+    if close_count > open_count
+      # Remove excess closing brackets from the end
+      excess = close_count - open_count
+      cleaned_notation = cleaned_notation.gsub(/\s*\]{#{excess}}\s*$/, '')
+    end
+    
     timestamp = Time.now.to_i.to_s
     base_filename = "syntree_#{timestamp}"
     
-    # Convert bracket notation to LaTeX code
-    latex_code = generate_latex_syntax_tree(bracket_notation, language)
+    # Convert bracket notation to LaTeX code (use cleaned notation)
+    latex_code = generate_latex_syntax_tree(cleaned_notation, language)
     
     # Create a shell script to run LaTeX and convert to SVG with error recovery
     script_code = <<~BASH
@@ -193,9 +215,19 @@ class SyntaxTreeOpenAI < MonadicApp
     
     # Fix separated apostrophes before processing
     # Handle cases where V' is written as "V '" with a space
+    # Also handle double apostrophes that might be interpreted as quotes
     escaped_notation = escaped_notation.gsub(/\[(\w+)\s+(['''])([\s\[\]])/) do
       "[#{$1}#{$2}#{$3}"
     end
+    
+    # IMPORTANT: Handle double apostrophes that LaTeX interprets as quotes
+    # Replace '' with single ' to avoid quote rendering
+    escaped_notation = escaped_notation.gsub(/(\w)''/, '\1\'')
+    escaped_notation = escaped_notation.gsub(/(\w)''/, '\1\'')  # Smart quotes version
+    
+    # Also remove any standalone quotes that might appear
+    escaped_notation = escaped_notation.gsub(/\[\s*"\s*\]/, '[]')  # Remove lone quotes in brackets
+    escaped_notation = escaped_notation.gsub(/\s+""\s+/, ' ')      # Remove empty quotes
     
     # Convert underscores to spaces in terminal nodes (leaf nodes)
     # This allows "was_raced" to be displayed as "was raced" in the SVG
@@ -212,20 +244,28 @@ class SyntaxTreeOpenAI < MonadicApp
     
     # Add dots to all nodes (both terminal and non-terminal)
     # Updated regex to handle node labels with apostrophes and other characters
-    # Wrap labels containing apostrophes in braces to keep them together
     result = escaped_notation.gsub(/\[([^\s\[\]]+)/) do |match|
       label = $1
-      # If the label contains an apostrophe (including regular apostrophe), wrap it in braces
+      # Handle prime notation (X', N', V', etc.) for LaTeX
+      # tikz-qtree handles prime notation directly without special escaping
+      # Just ensure we use the correct prime symbol
       if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
-        "[.{#{label}}"
+        # Replace various apostrophe types with standard apostrophe for consistency
+        # tikz-qtree will render this correctly as a prime symbol
+        latex_label = label.gsub(/['''''']/, "'")
+        "[.#{latex_label}"
       else
         "[.#{label}"
       end
     end
     
-    # Ensure proper spacing after terminal nodes
+    # Ensure proper spacing after terminal nodes and remove any stray quotes
     result = result.gsub(/(\[\.[^\s\[\]]+)\s+([^\[\]]+)\]/) do
-      "#{$1} #{$2.strip} ]"
+      node_label = $1
+      terminal_content = $2.strip
+      # Remove any quotes that might have been accidentally added
+      terminal_content = terminal_content.gsub(/^["']|["']$/, '')
+      "#{node_label} #{terminal_content} ]"
     end
     
     result

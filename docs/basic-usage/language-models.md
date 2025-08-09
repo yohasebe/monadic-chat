@@ -80,15 +80,18 @@ Reasoning models use advanced computational processes to think through problems 
 
 ### OpenAI Reasoning Models
 - **GPT-5 Series**: gpt-5, gpt-5-mini, gpt-5-nano
-  - Uses Responses API for enhanced tool handling
+  - Uses Responses API for enhanced tool handling and structured outputs
   - Supports "minimal" reasoning effort for optimal performance
   - 400K context window, 128K max output tokens
+  - Full tool/function calling support with proper continuation
+  - Structured outputs via text.format with JSON Schema (not response_format)
+  - Automatic fallback to GPT-4.1 models when unavailable
 - **O1 Series**: o1, o1-mini, o1-preview, o1-pro
 - **O3 Series**: o3, o3-pro
 - **O4 Series**: o4-mini
 
 These models use `reasoning_effort` parameter ("minimal", "low", "medium", "high") instead of temperature settings.
-Note: GPT-5 models support full tool/function calling despite being reasoning models.
+Note: GPT-5 models uniquely support full tool/function calling with the Responses API, unlike other reasoning models.
 
 ### Gemini Thinking Models
 - **2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
@@ -109,6 +112,7 @@ Note: GPT-5 models support full tool/function calling despite being reasoning mo
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.
 
 ### Available Models
+- **GPT-5 Series**: gpt-5, gpt-5-mini, gpt-5-nano (400K context, 128K output)
 - **GPT-4.5 Series**: gpt-4.5-preview, gpt-4.5-preview-2025-02-27
 - **GPT-4.1 Series**: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano (1M+ context window)
 - **GPT-4o Series**: gpt-4o, gpt-4o-mini, gpt-4o-audio-preview

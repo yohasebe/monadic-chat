@@ -3,11 +3,12 @@
   - **GPT-5 Models**: Full implementation for OpenAI GPT-5 series
     - gpt-5, gpt-5-mini, gpt-5-nano with 400K context window
     - 128K max output tokens and reasoning token support
-    - Uses Responses API for enhanced tool handling
+    - Uses Responses API for enhanced tool handling and structured outputs
     - Supports "minimal" reasoning effort for optimal performance
     - Model fallback mechanism: Primary GPT-5, fallback to GPT-4.1
-    - Proper structured output via text.format with JSON Schema
+    - Proper structured output via text.format with JSON Schema (not response_format)
     - Fixed tool continuation and function_call format requirements
+    - Documentation updated in English and Japanese for GPT-5 specifics
 
 - [June, 2025] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations

@@ -1657,6 +1657,11 @@ function connect_websocket(callback) {
   ws.onmessage = function (event) {
     // Register a safety timeout to prevent UI getting stuck in disabled state
     // This will be cleared for normal responses but will run if something goes wrong
+    // Use longer timeout for providers known to have slower initial responses
+    const currentProvider = window.currentLLMProvider || '';
+    const isSlowProvider = ['deepseek', 'perplexity'].includes(currentProvider.toLowerCase());
+    const timeoutDuration = isSlowProvider ? 60000 : 30000; // 60s for slow providers, 30s for others
+    
     const messageTimeout = setTimeout(function() {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
         
@@ -1670,9 +1675,10 @@ function connect_websocket(callback) {
         if (window.responseStarted !== undefined) window.responseStarted = false;
         if (window.callingFunction !== undefined) window.callingFunction = false;
         
-        setAlert("<i class='fas fa-exclamation-triangle'></i> Operation timed out. UI reset.", "warning");
+        const providerInfo = isSlowProvider ? ` (${currentProvider} may have slower initial responses)` : '';
+        setAlert("<i class='fas fa-exclamation-triangle'></i> Operation timed out. UI reset." + providerInfo, "warning");
       }
-    }, 15000);  // 15 seconds timeout
+    }, timeoutDuration);  // Dynamic timeout based on provider
     
     let data;
     try {

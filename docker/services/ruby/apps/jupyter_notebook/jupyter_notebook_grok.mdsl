@@ -13,9 +13,7 @@ app "JupyterNotebookGrok" do
     provider "grok"
     model "grok-4-0709"  # Use exact model name for proper functionality
     temperature 0.0  # Set to 0 for deterministic outputs
-    max_tokens 4096
-    tool_choice "auto"  # Can be "auto", "required", "none", or specific tool
-    parallel_function_calling true  # Enable parallel tool calls for batch operations
+    reasoning_effort "minimal"
   end
 
   system_prompt <<~TEXT

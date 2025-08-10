@@ -736,6 +736,11 @@ $(function () {
     // All providers now support AI User functionality
     const selectedApp = apps[appValue];
     
+    // Store current provider for timeout handling
+    if (selectedApp && selectedApp.group) {
+      window.currentLLMProvider = getProviderFromGroup(selectedApp.group).toLowerCase();
+    }
+    
     // Always enable AI User toggle for all providers
     $("#ai-user-toggle").prop("disabled", false);
     

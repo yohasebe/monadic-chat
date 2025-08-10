@@ -14,7 +14,8 @@ module NetworkErrorHandler
   # Provider-specific timeout overrides
   PROVIDER_TIMEOUTS = {
     claude: { open: 10, read: 300, write: 300 },
-    perplexity: { open: 5, read: 600, write: 600 }
+    perplexity: { open: 5, read: 600, write: 600 },
+    deepseek: { open: 15, read: 180, write: 180 }  # DeepSeek needs longer timeout for cold starts
   }.freeze
 
   # Retry configuration

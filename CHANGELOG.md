@@ -1,5 +1,15 @@
 - [August, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
+  - **Gemini 2.5 Function Calling**: Fixed function calling with reasoning_effort parameter
+    - Discovered fundamental trade-off: Cannot have both function calling and structured JSON output
+    - Function calling requires `reasoning_effort: minimal` for Gemini 2.5 models
+    - Structured output (monadic mode) requires NO reasoning_effort parameter
+    - Migrated most apps to gemini-2.5-flash for better cost/performance ratio
+    - Separated info-gathering tools from action tools to prevent exhausting tool call limits
+  - **Jupyter Notebook**: Added Gemini and Grok support
+    - Full function calling support for Jupyter operations
+    - Natural language responses with embedded notebook links
+    - Optimized for each provider's capabilities
   - **GPT-5 Models**: Full implementation for OpenAI GPT-5 series
     - gpt-5, gpt-5-mini, gpt-5-nano with 400K context window
     - 128K max output tokens and reasoning token support

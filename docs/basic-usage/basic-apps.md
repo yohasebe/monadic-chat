@@ -39,7 +39,7 @@ The table below shows which apps are available for which AI model providers.
 | Content Reader | ✅ | | | | | | | | |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## Assistant :id=assistant
@@ -583,6 +583,8 @@ Jupyter Notebook apps are also available for the following models:
 
 - OpenAI
 - Anthropic Claude
+- Google Gemini (with `reasoning_effort: minimal` for function calling)
+- xAI Grok
 
 ### Monadic Chat Help
 

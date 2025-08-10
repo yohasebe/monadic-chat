@@ -158,6 +158,8 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini.
   - gemini-2.5-flash, gemini-2.5-pro (with adjustable reasoning dial)
   - gemini-2.5-flash-preview-05-20, gemini-2.5-pro-exp-03-25 (experimental)
   - Deep Think mode available for enhanced reasoning
+  - **Important**: Function calling requires `reasoning_effort: minimal`
+  - **Note**: Cannot have both function calling and structured JSON output simultaneously
 - **Gemini 2.0 Series**: 
   - gemini-2.0-flash, gemini-2.0-flash-thinking-exp (thinking/reasoning models)
   - 1M token context window

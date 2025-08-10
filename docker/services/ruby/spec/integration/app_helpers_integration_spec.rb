@@ -25,8 +25,17 @@ module TestMonadicAppBehavior
     container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
     
     if container_running
-      output = `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
-      status = $?.success?
+      # Use timeout to prevent hanging
+      require 'timeout'
+      begin
+        output = Timeout.timeout(30) do
+          `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
+        end
+        status = $?.success?
+      rescue Timeout::Error
+        output = "Command timed out after 30 seconds"
+        status = false
+      end
     else
       if container == "ruby"
         data_dir = File.join(Dir.home, "monadic", "data")
@@ -413,9 +422,10 @@ RSpec.describe "App Helpers Integration", type: :integration do
       # Test screenshot capture with webpage_fetcher.py
       screenshot_command = [
         "python /monadic/scripts/cli_tools/webpage_fetcher.py",
-        "--url", "https://example.com",
+        "--url", "https://httpbin.org/html",  # Use a more reliable test URL
         "--mode", "png",
-        "--filepath", "/monadic/data/"
+        "--filepath", "/monadic/data/",
+        "--timeout-sec", "10"  # Add explicit timeout
       ].join(" ")
       
       result = test_instance.send_command(
@@ -427,7 +437,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
       expect(result).to match(/saved|\.png/)
       
       # Clean up any generated files
-      test_instance.run_bash_command(command: "rm -f /monadic/data/*example*.png")
+      test_instance.run_bash_command(command: "rm -f /monadic/data/*httpbin*.png")
     end
   end
 

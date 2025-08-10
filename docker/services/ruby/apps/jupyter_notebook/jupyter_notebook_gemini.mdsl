@@ -1,0 +1,354 @@
+app "JupyterNotebookGemini" do
+  description <<~TEXT
+    Interactive Jupyter notebook environment powered by Gemini. Create, edit, and execute notebooks with AI assistance. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  
+  icon "rocket"
+  
+  display_name "Jupyter Notebook"
+  
+  # Jupyter functionality is already included in MonadicHelper
+  
+  llm do
+    provider "gemini"
+    # Now supports both Gemini 2.0 and 2.5 models
+    model ["gemini-2.5-flash", "gemini-2.0-flash"]  # 2.5 as primary, 2.0 as fallback
+    temperature 0.0  # Set to 0 for deterministic outputs
+    max_tokens 8192
+    reasoning_effort "minimal"  # Critical for proper function calling with Gemini 2.5
+  end
+
+  system_prompt <<~TEXT
+    You are an expert Jupyter Notebook assistant. Your primary role is to create, edit, and execute Jupyter notebooks.
+    
+    IMPORTANT: For your first message, simply introduce yourself and ask what the user would like to work on. Do NOT call any tools in your first response.
+    
+    ## Tool Calling Instructions
+    
+    When asked to perform any task, you MUST use the provided function tools.
+    Do not generate pseudo-code or text descriptions of what you would do.
+    
+    Required workflow:
+    1. Use `run_jupyter` to start JupyterLab if needed
+    2. Use `create_jupyter_notebook` to create a new notebook
+    3. Use `add_jupyter_cells` to add code or markdown cells
+    4. Use other tools as appropriate for the task
+    
+    Always use the actual function calling mechanism, not text output.
+    
+    ## Core Rules
+    
+    1. **Cell Format** (CRITICAL):
+       ```json
+       {
+         "cell_type": "code",
+         "source": "import numpy as np\\nimport pandas as pd"
+       }
+       ```
+       - cell_type MUST come first
+       - source MUST be a single string (use \\n for line breaks)
+    
+    2. **Always Execute Tasks**:
+       - When asked to create something, DO IT immediately
+       - Don't explain how to do it, just do it
+    
+    3. **Verify Results**:
+       - Check tool responses for errors
+       - Only report success when confirmed
+       - Report actual errors to users
+    
+    4. **File Reading**:
+       - .ipynb, .py, .csv, .json, .txt → fetch_text_from_file
+       - .pdf → fetch_text_from_pdf
+       - .xlsx, .docx → fetch_text_from_office
+    
+    ## Examples
+    
+    **Creating a plot:**
+    ```json
+    [
+      {"cell_type": "code", "source": "import matplotlib.pyplot as plt\\nimport numpy as np"},
+      {"cell_type": "code", "source": "x = np.linspace(0, 10, 100)\\ny = np.sin(x)\\nplt.plot(x, y)\\nplt.show()"}
+    ]
+    ```
+    
+    **Loading data:**
+    ```json
+    [
+      {"cell_type": "code", "source": "import pandas as pd"},
+      {"cell_type": "code", "source": "df = pd.read_csv('data.csv')\\ndf.head()"}
+    ]
+    ```
+    
+    ## Response Format
+    
+    Provide clear, natural language responses including:
+    - Whether JupyterLab is running
+    - The notebook name and link
+    - What libraries were imported
+    - Current progress status
+    
+    Notebook link format: <a href='http://localhost:8889/lab/tree/NOTEBOOK_NAME.ipynb' target='_blank'>NOTEBOOK_NAME.ipynb</a>
+    
+    ## Error Handling
+    
+    - If cells don't add: Report the error, don't claim success
+    - For code errors: Use get_jupyter_cells_with_results to diagnose
+    - Maximum 3 retry attempts for any operation
+  TEXT
+
+  # Define tools for Jupyter Notebook operations
+  tools [
+    {
+      "name" => "run_jupyter",
+      "description" => "Start or stop JupyterLab server",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "command" => {
+            "type" => "string",
+            "description" => "Command to run (start or stop)",
+            "enum" => ["start", "stop"]
+          }
+        },
+        "required" => ["command"]
+      }
+    },
+    {
+      "name" => "create_jupyter_notebook",
+      "description" => "Create a new Jupyter notebook",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "Base filename for the notebook (without .ipynb extension)"
+          }
+        },
+        "required" => ["filename"]
+      }
+    },
+    {
+      "name" => "add_jupyter_cells",
+      "description" => "Add and run cells in a Jupyter notebook",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "The notebook filename"
+          },
+          "cells" => {
+            "type" => "array",
+            "description" => "Array of cell objects to add",
+            "items" => {
+              "type" => "object",
+              "properties" => {
+                "cell_type" => {
+                  "type" => "string",
+                  "enum" => ["code", "markdown"]
+                },
+                "source" => {
+                  "type" => "string",
+                  "description" => "Cell content"
+                }
+              }
+            }
+          },
+          "run" => {
+            "type" => "boolean",
+            "description" => "Whether to run the cells after adding",
+            "default" => true
+          },
+          "escaped" => {
+            "type" => "boolean",
+            "description" => "Whether content is escaped",
+            "default" => false
+          }
+        },
+        "required" => ["filename", "cells"]
+      }
+    },
+    {
+      "name" => "delete_jupyter_cell",
+      "description" => "Delete a cell from a Jupyter notebook",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "The notebook filename"
+          },
+          "index" => {
+            "type" => "integer",
+            "description" => "The index of the cell to delete (0-based)"
+          }
+        },
+        "required" => ["filename", "index"]
+      }
+    },
+    {
+      "name" => "update_jupyter_cell",
+      "description" => "Update the content of a cell in a Jupyter notebook",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "The notebook filename"
+          },
+          "index" => {
+            "type" => "integer",
+            "description" => "The index of the cell to update (0-based)"
+          },
+          "content" => {
+            "type" => "string",
+            "description" => "The new content for the cell"
+          },
+          "cell_type" => {
+            "type" => "string",
+            "description" => "The type of cell (code or markdown)",
+            "enum" => ["code", "markdown"]
+          }
+        },
+        "required" => ["filename", "index", "content"]
+      }
+    },
+    {
+      "name" => "get_jupyter_cells_with_results",
+      "description" => "Get all cells with their execution results, including error information",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "The notebook filename"
+          }
+        },
+        "required" => ["filename"]
+      }
+    },
+    {
+      "name" => "execute_and_fix_jupyter_cells",
+      "description" => "Execute cells and get error information for fixing",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "The notebook filename"
+          },
+          "max_retries" => {
+            "type" => "integer",
+            "description" => "Maximum number of retry attempts",
+            "default" => 3
+          }
+        },
+        "required" => ["filename"]
+      }
+    },
+    {
+      "name" => "run_code",
+      "description" => "Run program code and return the output",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "command" => {
+            "type" => "string",
+            "description" => "Program that execute the code (e.g., 'python')"
+          },
+          "code" => {
+            "type" => "string",
+            "description" => "Program code to be executed"
+          },
+          "extension" => {
+            "type" => "string",
+            "description" => "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
+          }
+        },
+        "required" => ["command", "code", "extension"]
+      }
+    },
+    {
+      "name" => "fetch_text_from_file",
+      "description" => "Fetch the text from a file and return its content",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "file" => {
+            "type" => "string",
+            "description" => "File name or file path"
+          }
+        },
+        "required" => ["file"]
+      }
+    },
+    {
+      "name" => "fetch_text_from_pdf",
+      "description" => "Extract text content from a PDF file",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "pdf" => {
+            "type" => "string",
+            "description" => "The filename of the PDF to read"
+          }
+        },
+        "required" => ["pdf"]
+      }
+    },
+    {
+      "name" => "fetch_text_from_office",
+      "description" => "Extract text content from Office files",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "file" => {
+            "type" => "string",
+            "description" => "The filename of the Office file to read"
+          }
+        },
+        "required" => ["file"]
+      }
+    },
+    {
+      "name" => "write_to_file",
+      "description" => "Write content to a file",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "File name or file path"
+          },
+          "content" => {
+            "type" => "string",
+            "description" => "Content to write to the file"
+          }
+        },
+        "required" => ["filename", "content"]
+      }
+    },
+    {
+      "name" => "list_jupyter_notebooks",
+      "description" => "List all Jupyter notebooks in the data directory",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {},
+        "required" => []
+      }
+    }
+  ]
+
+  # Disable monadic mode for better function calling compatibility (like Grok)
+  # Use natural language responses with embedded context information
+  monadic false
+  
+  # Enable assistant initiation for better user experience
+  initiate_from_assistant true
+  
+  features do
+    disabled !CONFIG["GEMINI_API_KEY"]
+    jupyter true  # Enable Jupyter functionality
+  end
+end

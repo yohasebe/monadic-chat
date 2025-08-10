@@ -8,9 +8,9 @@ require 'json'
 # Load the application
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
-# Load configuration for integration tests
+# Load configuration for integration tests FIRST
 require 'dotenv'
-CONFIG = {}
+CONFIG = {} unless defined?(CONFIG)
 
 # Try multiple config paths
 config_paths = [
@@ -34,6 +34,26 @@ if config_path
   puts "Loaded #{CONFIG.keys.count} config values from #{config_path}" if ENV["DEBUG"]
 else
   puts "No config file found at: #{config_paths.join(', ')}" if ENV["DEBUG"]
+end
+
+# Initialize global variables used by the application
+$MODELS = {} unless defined?($MODELS)
+APPS = {} unless defined?(APPS)
+
+# Load core application files AFTER CONFIG is set
+require_relative '../lib/monadic/app'
+require_relative '../lib/monadic/core'
+require_relative '../lib/monadic/dsl'
+require_relative '../lib/monadic/adapters/vendors/grok_helper'
+
+# Re-initialize APPS after loading core files
+unless APPS.any?
+  # Load Jupyter Notebook Grok app for testing
+  mdsl_path = File.expand_path('../apps/jupyter_notebook/jupyter_notebook_grok.mdsl', __dir__)
+  if File.exist?(mdsl_path)
+    require_relative '../apps/jupyter_notebook/jupyter_notebook_tools'
+    load mdsl_path
+  end
 end
 
 # Load custom retry mechanism

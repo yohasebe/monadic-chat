@@ -749,6 +749,16 @@ module MonadicDSL
       @state.settings[:include_modules] = modules.map(&:to_s)
     end
     
+    # Monadic mode for structured output
+    def monadic(value)
+      @state.features[:monadic] = value
+    end
+    
+    # Assistant initiation flag
+    def initiate_from_assistant(value)
+      @state.features[:initiate_from_assistant] = value
+    end
+    
     def llm(&block)
       LLMConfiguration.new(@state).instance_eval(&block)
     end
@@ -757,14 +767,19 @@ module MonadicDSL
       SimplifiedFeatureConfiguration.new(@state).instance_eval(&block)
     end
     
-    def tools(&block)
-      # Convert provider to symbol
-      provider = @state.settings[:provider].to_s.downcase.to_sym
-      
-      tool_config = ToolConfiguration.new(@state, provider)
-      tool_config.instance_eval(&block) if block_given?
-      
-      @state.settings[:tools] = tool_config.to_h
+    def tools(tools_array = nil, &block)
+      if tools_array
+        # Direct array of tools provided (e.g., for Gemini/OpenAI style)
+        @state.settings[:tools] = tools_array
+      elsif block_given?
+        # Convert provider to symbol
+        provider = @state.settings[:provider].to_s.downcase.to_sym
+        
+        tool_config = ToolConfiguration.new(@state, provider)
+        tool_config.instance_eval(&block)
+        
+        @state.settings[:tools] = tool_config.to_h
+      end
     end
   end
   
@@ -864,6 +879,17 @@ module MonadicDSL
     
     def context_size(value)
       @state.settings[:context_size] = value
+    end
+    
+    def tool_choice(value)
+      # Support for tool choice configuration
+      # Can be "auto", "required", "none", or specific tool object
+      @state.settings[:tool_choice] = value
+    end
+    
+    def parallel_function_calling(value)
+      # Support for parallel function calling (default: true)
+      @state.settings[:parallel_function_calling] = value
     end
     
     def method_missing(method_name, *args)
@@ -1185,6 +1211,16 @@ module MonadicDSL
     # Add tools if specified
     if state.settings[:tools]
       class_def << "        @settings[:tools] = #{state.settings[:tools].inspect}\n"
+    end
+    
+    # Add tool_choice if specified
+    if state.settings[:tool_choice]
+      class_def << "        @settings[:tool_choice] = #{state.settings[:tool_choice].inspect}\n"
+    end
+    
+    # Add parallel_function_calling if specified
+    if state.settings[:parallel_function_calling]
+      class_def << "        @settings[:parallel_function_calling] = #{state.settings[:parallel_function_calling].inspect}\n"
     end
     
     class_def << "      end\n"

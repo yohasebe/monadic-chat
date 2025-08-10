@@ -301,31 +301,39 @@ module GrokHelper
       extra_log.close
     end
     
-    # Only include tools if this is not a tool response
-    if role != "tool"
-      if obj["tools"] && !obj["tools"].empty?
-        # Use app tools if available, otherwise fallback to empty array
-        body["tools"] = app_tools || []
-        body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
-      elsif app_tools && !app_tools.empty?
-        # If no tools param but app has tools, use them
-        body["tools"] = app_tools
-        body["tool_choice"] = "auto"
-      else
-        body.delete("tools")
-        body.delete("tool_choice")
+    # Include tools based on role and availability
+    # For Grok, we need to include tools even for tool responses to allow continued function calling
+    # Other providers may not need tools in tool responses
+    if obj["tools"] && !obj["tools"].empty?
+      # Use app tools if available, otherwise fallback to empty array
+      body["tools"] = app_tools || []
+      # Use tool_choice from settings or default to "auto"
+      body["tool_choice"] = obj["tool_choice"] || "auto" if body["tools"] && !body["tools"].empty?
+    elsif app_tools && !app_tools.empty?
+      # If no tools param but app has tools, use them
+      body["tools"] = app_tools
+      body["tool_choice"] = obj["tool_choice"] || "auto"
+    else
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+    
+    # Add parallel_function_calling if specified (default is true for Grok)
+    if body["tools"] && !body["tools"].empty? && obj["parallel_function_calling"] == false
+      body["parallel_function_calling"] = false
+    end
+    
+    # Debug log final tools being sent
+    if CONFIG["EXTRA_LOGGING"] && body["tools"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] === Grok Final Tools (role: #{role}) ===")
+      extra_log.puts("Number of tools: #{body['tools'].length}")
+      extra_log.puts("Tool names: #{body['tools'].map { |t| t.dig('function', 'name') || t['name'] }.inspect}")
+      if role == "tool"
+        extra_log.puts("Including tools in tool response for continued function calling")
       end
-      
-      # Debug log final tools being sent
-      if CONFIG["EXTRA_LOGGING"] && body["tools"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] === Grok Final Tools ===")
-        extra_log.puts("Number of tools: #{body['tools'].length}")
-        extra_log.puts("Tool names: #{body['tools'].map { |t| t.dig('function', 'name') || t['name'] }.inspect}")
-        extra_log.puts("First tool structure: #{body['tools'].first.inspect}")
-        extra_log.close
-      end
-    end # end of role != "tool"
+      extra_log.close
+    end
     
     # Add search_parameters for native Grok Live Search
     if websearch_native
@@ -631,22 +639,35 @@ module GrokHelper
                 extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
                 extra_log.puts("\n[#{Time.now}] Grok tool call detected in streaming response:")
                 extra_log.puts("Tool call delta: #{json.dig('choices', 0, 'delta', 'tool_calls').inspect}")
+                extra_log.puts("Finish reason: #{finish_reason}")
                 extra_log.close
               end
               
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
-
-              tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
-
-              if tid
+              # Grok returns complete tool calls in a single chunk
+              # Check if this is a complete tool call (has finish_reason)
+              if finish_reason == "tool_calls"
+                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                block&.call res
+                
+                # Store the complete tool call
+                tid = json["id"] || "default"
                 tools[tid] = json
-                tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
-                tools[tid]["choices"][0].delete("delta")
+                
+                # Mark as complete tool call for Grok
+                tools[tid]["grok_complete_tool_call"] = true
               else
-                new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                existing_tool_call = tools.values.last.dig("choices", 0, "message")
-                existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
+                # Handle partial tool calls (should be rare for Grok)
+                tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
+
+                if tid
+                  tools[tid] = json
+                  tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
+                  tools[tid]["choices"][0].delete("delta")
+                else
+                  new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
+                  existing_tool_call = tools.values.last.dig("choices", 0, "message")
+                  existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
+                end
               end
             elsif json.dig("choices", 0, "delta", "content")
               # Merge text fragments based on "id"
@@ -740,29 +761,63 @@ module GrokHelper
 
     if tools.any?
       context = []
-      if result
-        merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
-        context << merged
+      
+      # Check if this is a Grok complete tool call
+      is_grok_complete = tools.values.first["grok_complete_tool_call"] == true
+      
+      if is_grok_complete
+        # Handle Grok's complete tool call
+        tool_response = tools.values.first
+        tool_calls = tool_response.dig("choices", 0, "delta", "tool_calls") || 
+                     tool_response.dig("choices", 0, "message", "tool_calls")
+        
+        if tool_calls
+          # Build proper context for tool execution
+          tool_message = {
+            "role" => "assistant",
+            "content" => nil,
+            "tool_calls" => tool_calls
+          }
+          context << tool_message
+          
+          call_depth += 1
+          if call_depth > MAX_FUNC_CALLS
+            return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+          end
+          
+          # Process the tools and get results
+          # This will execute tools and call API again to get Grok's response
+          new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
+          
+          # Return the results from Grok's response after tool execution
+          return new_results || []
+        end
       else
-        context << tools.first[1].dig("choices", 0, "message")
-      end
+        # Original logic for non-Grok or partial tool calls
+        if result
+          merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
+          context << merged
+        else
+          context << tools.first[1].dig("choices", 0, "message")
+        end
 
-      tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+        tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
 
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
-      end
+        call_depth += 1
+        if call_depth > MAX_FUNC_CALLS
+          return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+        end
 
-      new_results = process_functions(app, session, tools, context, call_depth, &block)
+        new_results = process_functions(app, session, tools, context, call_depth, &block)
 
-      # return Array
-      if result && new_results
-        [result].concat new_results
-      elsif new_results
-        new_results
-      elsif result
-        [result]
+        # return Array
+        if result && new_results
+          [result].concat new_results
+        elsif new_results
+          new_results
+        elsif result
+          [result]
+        end
       end
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
@@ -778,6 +833,8 @@ module GrokHelper
 
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
+    tool_results = []
+    
     tools.each do |tool_call|
       function_call = tool_call["function"]
       function_name = function_call["name"]
@@ -803,23 +860,73 @@ module GrokHelper
 
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+        
+        # Log tool execution
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("\n[#{Time.now}] Tool executed: #{function_name}")
+          extra_log.puts("Arguments: #{argument_hash.inspect}")
+          extra_log.puts("Result: #{function_return.to_s[0..200]}...")
+          extra_log.close
+        end
       rescue StandardError => e
         DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
         DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
         function_return = "ERROR: #{e.message}"
       end
 
-      context << {
+      tool_result = {
         tool_call_id: tool_call["id"],
         role: "tool",
         name: function_name,
         content: function_return.to_s
       }
+      
+      context << tool_result
+      tool_results << tool_result
     end
 
     obj["function_returns"] = context
-
-    # return Array
-    api_request("tool", session, call_depth: call_depth, &block)
+    
+    # For Grok, we should always continue with another API call after tool execution
+    # to get the natural language response from the model
+    if call_depth < MAX_FUNC_CALLS
+      # Log that we're making follow-up call
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Making follow-up API call after tool execution (depth: #{call_depth})")
+        extra_log.close
+      end
+      
+      # Continue with next API call to get final response
+      # The model will decide if more tools are needed or provide final answer
+      new_results = api_request("tool", session, call_depth: call_depth, &block)
+      
+      # Log the results
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Follow-up API call returned: #{new_results.inspect[0..500]}...")
+        extra_log.close
+      end
+      
+      return new_results
+    else
+      # Max depth reached, return tool results
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Max call depth reached (#{MAX_FUNC_CALLS}), returning tool results")
+        extra_log.close
+      end
+      
+      return [{
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => tool_results.map { |r| r[:content] }.join("\n")
+          },
+          "finish_reason" => "stop"
+        }]
+      }]
+    end
   end
 end

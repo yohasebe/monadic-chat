@@ -22,6 +22,8 @@ app "ChatPlusGemini" do
 
     Requirements:
     - The response MUST be valid JSON - no text before or after the JSON object
+    - DO NOT wrap the JSON in markdown code blocks (no ```json or ```)
+    - Start directly with { and end with }
     - "message": Your response to the user (can include markdown formatting)
     - "reasoning": Explain your thought process for this response
     - "topics": Array of ALL topics discussed in the entire conversation (accumulated)
@@ -32,9 +34,10 @@ app "ChatPlusGemini" do
   TEXT
   
   llm do
-    provider "google"
-    model "gemini-2.5-flash"
+    provider "gemini"  # Fixed: should be "gemini" not "google"
+    model ["gemini-2.5-flash", "gemini-2.0-flash"]
     context_size 100
+    # reasoning_effort removed - causes JSON formatting issues in monadic mode
   end
   
   display_name "Chat Plus"

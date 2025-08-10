@@ -8,6 +8,31 @@ require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 
+# GeminiHelper Module - Interface for Google's Gemini AI Models
+#
+# IMPORTANT NOTES ON GEMINI 2.5 MODELS:
+# 
+# 1. Function Calling vs Structured Output Trade-off:
+#    - Gemini 2.5 models cannot simultaneously support function calling and structured JSON output
+#    - For function calling: MUST use `reasoning_effort: minimal`
+#    - For structured JSON (monadic mode): MUST NOT use reasoning_effort parameter
+#    
+# 2. Tool Management Strategy:
+#    - Info-gathering tools (read-only) are separated from action tools
+#    - Info tools: get_jupyter_cells_with_results, list_jupyter_notebooks (no call limits)
+#    - Action tools: create_jupyter_notebook, run_jupyter, add_jupyter_cells (limited to 5 calls)
+#    - This prevents exhausting tool call limits with read operations
+#
+# 3. Reasoning Effort Configuration:
+#    - "minimal": Required for function calling with Gemini 2.5 models
+#    - Omit parameter: Required for structured JSON output (monadic mode)
+#    - Cannot have both: Choose based on app requirements
+#
+# 4. Known Issues and Solutions:
+#    - JSON wrapped in markdown: Remove reasoning_effort and add explicit instructions
+#    - Function calls not working: Add reasoning_effort: minimal
+#    - Tool call limits: Separate info tools from action tools
+#
 module GeminiHelper
   include InteractionUtils
   include ErrorPatternDetector
@@ -104,10 +129,16 @@ module GeminiHelper
 
     # Check if this is a thinking model (Gemini 2.5) - moved before body creation
     is_thinking_model = false
+    # Detect specific model type for proper thinking configuration
+    is_25_pro = model =~ /gemini-2\.5-pro/i
+    is_25_flash = model =~ /gemini-2\.5-flash(?!-lite)/i  # Match flash but not flash-lite
+    is_25_flash_lite = model =~ /gemini-2\.5-flash-lite/i
+    
     if options["reasoning_effort"] || model =~ /2\.5.*preview/i
       is_thinking_model = true
       if CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"
+        puts "  Model type: Pro=#{is_25_pro}, Flash=#{is_25_flash}, Flash-Lite=#{is_25_flash_lite}"
       end
     end
     
@@ -130,40 +161,73 @@ module GeminiHelper
     else
       # For thinking models, configure thinking budget
       reasoning_effort = options["reasoning_effort"] || "low"
-      is_flash_model = model && model.include?("flash")
       user_max_tokens = options["max_tokens"] || 800
       
       case reasoning_effort
+      when "none"
+        # Disable thinking completely for better function calling performance
+        budget_tokens = 0
       when "minimal"
-        if is_flash_model
-          budget_tokens = [(user_max_tokens * 0.15).to_i, 4000].min
-        else  # Pro model
-          budget_tokens = [[(user_max_tokens * 0.15).to_i, 5000].max, 32768].min
-          budget_tokens = [budget_tokens, 128].max
+        # Set minimal thinking based on model capabilities:
+        # - 2.5 Pro: minimum 128 (cannot disable)
+        # - 2.5 Flash: can use 0 to disable
+        # - 2.5 Flash Lite: doesn't think by default
+        if is_25_pro
+          budget_tokens = 128  # Minimum for Pro model
+        elsif is_25_flash
+          budget_tokens = 0  # Flash can disable thinking
+        elsif is_25_flash_lite
+          budget_tokens = 0  # Flash Lite doesn't think by default
+        else
+          budget_tokens = 0  # Default to 0 for unknown models
         end
       when "low"
-        if is_flash_model
-          budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
-        else  # Pro model
-          budget_tokens = [[(user_max_tokens * 0.3).to_i, 10000].max, 32768].min
-          budget_tokens = [budget_tokens, 128].max
+        if is_25_pro
+          budget_tokens = [(user_max_tokens * 0.2).to_i, 5000].min
+          budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
+        elsif is_25_flash
+          budget_tokens = [(user_max_tokens * 0.2).to_i, 4000].min
+        elsif is_25_flash_lite
+          budget_tokens = 512  # Minimum for Flash Lite when it thinks
+        else
+          budget_tokens = [(user_max_tokens * 0.2).to_i, 4000].min
         end
       when "medium"
-        if is_flash_model
+        if is_25_pro
+          budget_tokens = [(user_max_tokens * 0.6).to_i, 20000].min
+          budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
+        elsif is_25_flash
           budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
-        else  # Pro model
-          budget_tokens = [[(user_max_tokens * 0.6).to_i, 20000].max, 32768].min
-          budget_tokens = [budget_tokens, 128].max
+        elsif is_25_flash_lite
+          budget_tokens = [(user_max_tokens * 0.6).to_i, 8000].min
+          budget_tokens = [budget_tokens, 512].max  # Ensure minimum for Flash Lite
+        else
+          budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
         end
       when "high"
-        if is_flash_model
-          budget_tokens = [[(user_max_tokens * 0.8).to_i, 24000].min, 24576].min
-        else  # Pro model
-          budget_tokens = [[(user_max_tokens * 0.8).to_i, 28000].max, 32768].min
-          budget_tokens = [budget_tokens, 128].max
+        if is_25_pro
+          budget_tokens = [(user_max_tokens * 0.8).to_i, 28000].min
+          budget_tokens = [[budget_tokens, 128].max, 32768].min  # Max 32768 for Pro
+        elsif is_25_flash
+          budget_tokens = [(user_max_tokens * 0.8).to_i, 24000].min
+          budget_tokens = [budget_tokens, 24576].min  # Max 24576 for Flash
+        elsif is_25_flash_lite
+          budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
+          budget_tokens = [[budget_tokens, 512].max, 24576].min  # Max 24576 for Flash Lite
+        else
+          budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
         end
       else
-        budget_tokens = is_flash_model ? 8000 : 10000
+        # Default values based on model type
+        if is_25_pro
+          budget_tokens = 10000
+        elsif is_25_flash
+          budget_tokens = 8000
+        elsif is_25_flash_lite
+          budget_tokens = 4000
+        else
+          budget_tokens = 8000
+        end
       end
       
       # Set thinking configuration
@@ -414,6 +478,24 @@ module GeminiHelper
     nil
   end
 
+  # Helper method to determine which tools should be available next for thinking models
+  def get_next_allowed_tools(completed_tools)
+    # Define the expected sequence for Jupyter operations
+    if completed_tools.empty?
+      # First, we need to start Jupyter or create a notebook
+      ["run_jupyter", "create_jupyter_notebook", "list_jupyter_notebooks"]
+    elsif completed_tools.include?("run_jupyter") && !completed_tools.include?("create_jupyter_notebook")
+      # After starting Jupyter, create a notebook
+      ["create_jupyter_notebook", "list_jupyter_notebooks"]
+    elsif completed_tools.include?("create_jupyter_notebook") && !completed_tools.include?("add_jupyter_cells")
+      # After creating notebook, add cells
+      ["add_jupyter_cells", "get_jupyter_cells_with_results"]
+    else
+      # Allow all tools if we're past the initial sequence
+      nil  # This will allow all tools
+    end
+  end
+
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
@@ -506,43 +588,84 @@ module GeminiHelper
       # Configure thinking for Gemini 2.5 models with reasoning_effort
       if is_thinking_model && reasoning_effort
         model = obj["model"]
-        is_flash_model = model && model.include?("flash")
+        # Detect specific model type for proper thinking configuration
+        is_25_pro = model =~ /gemini-2\.5-pro/i
+        is_25_flash = model =~ /gemini-2\.5-flash(?!-lite)/i  # Match flash but not flash-lite
+        is_25_flash_lite = model =~ /gemini-2\.5-flash-lite/i
+        
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "GeminiHelper api_request: Model type detection - Pro=#{is_25_pro}, Flash=#{is_25_flash}, Flash-Lite=#{is_25_flash_lite}"
+        end
         
         # Calculate thinking budget based on reasoning_effort
-        # Gemini 2.5 Flash: 0-24,576, Pro: 128-32,768
+        # 2.5 Pro: 128-32,768, 2.5 Flash: 0-24,576, 2.5 Flash Lite: 512-24,576 (doesn't think by default)
         user_max_tokens = max_tokens || 8192
         
         case reasoning_effort
+        when "none"
+          # Disable thinking completely for better function calling performance
+          budget_tokens = 0
         when "minimal"
-          if is_flash_model
-            budget_tokens = [(user_max_tokens * 0.15).to_i, 4000].min
-          else  # Pro model
-            budget_tokens = [[(user_max_tokens * 0.15).to_i, 5000].max, 32768].min
-            budget_tokens = [budget_tokens, 128].max
+          # Set minimal thinking based on model capabilities:
+          # - 2.5 Pro: minimum 128 (cannot disable)
+          # - 2.5 Flash: can use 0 to disable
+          # - 2.5 Flash Lite: doesn't think by default
+          if is_25_pro
+            budget_tokens = 128  # Minimum for Pro model
+          elsif is_25_flash
+            budget_tokens = 0  # Flash can disable thinking
+          elsif is_25_flash_lite
+            budget_tokens = 0  # Flash Lite doesn't think by default
+          else
+            budget_tokens = 0  # Default to 0 for unknown models
           end
         when "low"
-          if is_flash_model
+          if is_25_pro
+            budget_tokens = [(user_max_tokens * 0.3).to_i, 10000].min
+            budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
+          elsif is_25_flash
             budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
-          else  # Pro model
-            budget_tokens = [[(user_max_tokens * 0.3).to_i, 10000].max, 32768].min
-            budget_tokens = [budget_tokens, 128].max
+          elsif is_25_flash_lite
+            budget_tokens = 512  # Minimum for Flash Lite when it thinks
+          else
+            budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
           end
         when "medium"
-          if is_flash_model
+          if is_25_pro
+            budget_tokens = [(user_max_tokens * 0.6).to_i, 20000].min
+            budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
+          elsif is_25_flash
             budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
-          else  # Pro model
-            budget_tokens = [[(user_max_tokens * 0.6).to_i, 20000].max, 32768].min
-            budget_tokens = [budget_tokens, 128].max
+          elsif is_25_flash_lite
+            budget_tokens = [(user_max_tokens * 0.6).to_i, 8000].min
+            budget_tokens = [budget_tokens, 512].max  # Ensure minimum for Flash Lite
+          else
+            budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
           end
         when "high"
-          if is_flash_model
-            budget_tokens = [[(user_max_tokens * 0.8).to_i, 24000].min, 24576].min
-          else  # Pro model
-            budget_tokens = [[(user_max_tokens * 0.8).to_i, 28000].max, 32768].min
-            budget_tokens = [budget_tokens, 128].max
+          if is_25_pro
+            budget_tokens = [(user_max_tokens * 0.8).to_i, 28000].min
+            budget_tokens = [[budget_tokens, 128].max, 32768].min  # Max 32768 for Pro
+          elsif is_25_flash
+            budget_tokens = [(user_max_tokens * 0.8).to_i, 24000].min
+            budget_tokens = [budget_tokens, 24576].min  # Max 24576 for Flash
+          elsif is_25_flash_lite
+            budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
+            budget_tokens = [[budget_tokens, 512].max, 24576].min  # Max 24576 for Flash Lite
+          else
+            budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
           end
         else
-          budget_tokens = is_flash_model ? 8000 : 10000
+          # Default values based on model type
+          if is_25_pro
+            budget_tokens = 10000
+          elsif is_25_flash
+            budget_tokens = 8000
+          elsif is_25_flash_lite
+            budget_tokens = 4000
+          else
+            budget_tokens = 8000
+          end
         end
         
         # Set thinking configuration using correct structure
@@ -605,11 +728,11 @@ module GeminiHelper
       }
     end
 
+    # Get tools from app settings (needed for both regular calls and tool result processing)
+    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+    
     # Skip tool setup if we're processing tool results
     if role != "tool"
-      # Get tools from app settings
-      app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
-      
       # Debug settings
       DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
       DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
@@ -634,6 +757,8 @@ module GeminiHelper
           body["tools"] = [app_tools]
         end
         
+        # For initial function calls, use ANY mode to ensure tools are called
+        # This is especially important for Jupyter apps with initiate_from_assistant
         body["tool_config"] = {
           "function_calling_config" => {
             "mode" => "ANY"
@@ -664,11 +789,111 @@ module GeminiHelper
           "parts" => parts
         }
       end
-      body["tool_config"] = {
-        "function_calling_config" => {
-          "mode" => "NONE"
+      
+      # For most apps, we want to stop tool calling after processing results
+      # to prevent infinite loops. However, some apps may need multiple sequential calls.
+      
+      # Check if this is a thinking model (Gemini 2.5)
+      is_thinking_model = obj["model"] && obj["model"].include?("2.5")
+      
+      # Check if this is a Jupyter app that needs multiple tool calls
+      is_jupyter_app = app.to_s.include?("jupyter") || 
+                       (session[:parameters]["app_name"] && session[:parameters]["app_name"].to_s.include?("Jupyter"))
+      
+      # Check what tools have been called so far
+      tool_names = obj["tool_results"].map { |r| r.dig("functionResponse", "name") }.compact
+      
+      # For Gemini 2.5 thinking models, we now know they support function calling
+      # according to the official documentation
+      if is_jupyter_app
+        # Separate information-gathering tools from action tools
+        info_tools = ["get_jupyter_cells_with_results", "list_jupyter_notebooks"]
+        action_tools = ["create_jupyter_notebook", "run_jupyter", "add_jupyter_cells", 
+                       "update_jupyter_cell", "delete_jupyter_cell", 
+                       "execute_and_fix_jupyter_cells", "run_code"]
+        
+        # Count only action tools (info tools don't count toward limits)
+        action_tool_names = tool_names.reject { |name| info_tools.include?(name) }
+        
+        # Check what types of operations have been performed
+        has_notebook_creation = action_tool_names.any? { |name| 
+          ["create_jupyter_notebook", "run_jupyter"].include?(name)
         }
-      }
+        
+        has_cell_operations = action_tool_names.any? { |name| 
+          ["add_jupyter_cells", "update_jupyter_cell", "delete_jupyter_cell"].include?(name)
+        }
+        
+        has_execution = action_tool_names.any? { |name|
+          ["execute_and_fix_jupyter_cells", "run_code"].include?(name)
+        }
+        
+        # Count only action tool calls (not info gathering)
+        action_tool_count = action_tool_names.length
+        
+        # Determine whether to allow more tool calls based on operation flow
+        should_stop = false
+        
+        # Allow notebook creation followed by cell operations
+        # Only stop after we have BOTH operations
+        if has_notebook_creation && has_cell_operations
+          should_stop = true
+        end
+        
+        # If we've done any execution, stop to show results
+        if has_execution
+          should_stop = true
+        end
+        
+        # Stop if we've made too many ACTION calls (info calls don't count)
+        if action_tool_count >= 5  # Allow enough calls for create + add cells + potential fixes
+          should_stop = true
+        end
+        
+        if should_stop
+          # Disable tools completely to force text response
+          body["tool_config"] = {
+            "function_calling_config" => {
+              "mode" => "NONE"
+            }
+          }
+          body.delete("tools")
+        else
+          # Still need to call more tools
+          if app_tools
+            if app_tools.is_a?(Array)
+              body["tools"] = [{"function_declarations" => app_tools}]
+            else
+              body["tools"] = [app_tools]
+            end
+            
+            # Allow tool calls for essential operations
+            # Use action count, not total count
+            if action_tool_count < 2  # Allow at least 2 ACTION tool calls (create + add cells)
+              body["tool_config"] = {
+                "function_calling_config" => {
+                  "mode" => "ANY"  # Force tool calls for essential operations
+                }
+              }
+            else
+              # After 2 action calls, be more restrictive
+              body["tool_config"] = {
+                "function_calling_config" => {
+                  "mode" => "AUTO"  # Let model decide, but we have stop conditions above
+                }
+              }
+            end
+          end
+        end
+      else
+        # For non-Jupyter apps, disable tools after any tool execution to prevent loops
+        body["tool_config"] = {
+          "function_calling_config" => {
+            "mode" => "NONE"
+          }
+        }
+        body.delete("tools")
+      end
     end
 
     # Remove empty function_declarations to avoid API error
@@ -768,6 +993,9 @@ module GeminiHelper
 
     # Convert the HTTP::Response::Body to a string and then process line by line
     res.each_line do |chunk|
+      # Check if we should stop processing due to STOP finish reason
+      break if finish_reason == "stop"
+      
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -822,6 +1050,8 @@ module GeminiHelper
               finish_reason = "length"
             when "STOP"
               finish_reason = "stop"
+              # For thinking models, we should stop processing after receiving STOP
+              # to avoid infinite loops
             when "SAFETY"
               finish_reason = "safety"
             when "CITATION"
@@ -851,6 +1081,12 @@ module GeminiHelper
             next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
 
             content["parts"]&.each do |part|
+              # Debug: Log all parts for Jupyter debugging
+              if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
+                puts "[DEBUG Gemini Jupyter] Part keys: #{part.keys.inspect}"
+                puts "[DEBUG Gemini Jupyter] Part content: #{part.inspect}" if part["functionCall"]
+              end
+              
               # Debug: Log if we have search grounding metadata
               if CONFIG["EXTRA_LOGGING"] && part["grounding_metadata"]
                 puts "[DEBUG Gemini] Found grounding metadata (search results): #{part["grounding_metadata"].inspect}"
@@ -867,8 +1103,11 @@ module GeminiHelper
                   "content" => thinking_fragment
                 }
                 block&.call res
-                
-              elsif part["text"]
+                # Skip thinking content - it's internal reasoning, not output
+                next
+              end
+              
+              if part["text"]
                 fragment = part["text"]
                 
                 # Special processing for media generator app to strip code blocks
@@ -983,6 +1222,7 @@ module GeminiHelper
         end
         buffer = String.new
       end
+      
     rescue StandardError => e
       # Log error but continue processing
       STDERR.puts "Error processing JSON data chunk: #{e.message}"
@@ -1172,10 +1412,12 @@ module GeminiHelper
         ]
       }
       
-      # Add thinking content if present (similar to Claude)
-      if thinking_parts.any?
-        response_data["choices"][0]["message"]["thinking"] = thinking_parts.join("\n")
-      end
+      # Don't add thinking content to final response 
+      # (it's already been streamed to the user during processing)
+      # This prevents duplicate display of thinking content
+      # if thinking_parts.any?
+      #   response_data["choices"][0]["message"]["thinking"] = thinking_parts.join("\n")
+      # end
       
       # Apply monadic transformation if enabled
       obj = session[:parameters]
@@ -1199,6 +1441,12 @@ module GeminiHelper
     
     # Initialize tool_results array in session parameters if it doesn't exist
     session_params["tool_results"] ||= []
+    
+    # Log tool calls for debugging
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Tools] Processing #{tool_calls.length} tool calls:"
+      tool_calls.each { |tc| puts "  - #{tc['name']} with args: #{tc['args'].inspect[0..200]}" }
+    end
     
     # Process each tool call
     tool_calls.each do |tool_call|
@@ -1242,6 +1490,11 @@ module GeminiHelper
         
         # Call the function with the provided arguments
         function_return = send(function_name.to_sym, **argument_hash)
+        
+        # Log the result for debugging
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
+        end
         
         # Process the returned content
         if function_return
@@ -1431,6 +1684,14 @@ module GeminiHelper
     end
     
     # Make the API request with the tool results
+    # Log the call depth for debugging
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Gemini] Tool call depth: #{call_depth}, making API request with tool results"
+    end
+    
+    # Remove the artificial limit - let MAX_FUNC_CALLS handle it
+    # The real issue might be elsewhere
+    
     api_request("tool", session, call_depth: call_depth, &block)
   end
 

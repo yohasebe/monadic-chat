@@ -242,11 +242,18 @@ module MonadicProviderInterface
   end
 
   def configure_gemini_response(body, app_type)
-    schema = app_type&.to_s&.include?("chat_plus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
+    # Skip structured output for thinking models as they don't support it properly with function calling
+    # Thinking models are identified by having thinkingConfig in generationConfig
+    is_thinking_model = body.dig("generationConfig", "thinkingConfig").is_a?(Hash)
     
-    body["generationConfig"] ||= {}
-    body["generationConfig"]["responseMimeType"] = "application/json"
-    body["generationConfig"]["responseSchema"] = schema
+    # Only apply structured output for non-thinking models
+    unless is_thinking_model
+      schema = app_type&.to_s&.include?("chat_plus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
+      
+      body["generationConfig"] ||= {}
+      body["generationConfig"]["responseMimeType"] = "application/json"
+      body["generationConfig"]["responseSchema"] = schema
+    end
   end
 
   def configure_ollama_response(body, app_type)

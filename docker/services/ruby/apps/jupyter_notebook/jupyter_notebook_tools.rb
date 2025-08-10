@@ -13,6 +13,13 @@ class JupyterNotebookClaude < MonadicApp
   # No additional implementation needed
 end
 
+class JupyterNotebookGemini < MonadicApp
+  include GeminiHelper if defined?(GeminiHelper)
+  # All methods are inherited from MonadicApp which includes MonadicHelper
+  # No additional implementation needed
+end
+
+
 # Shared utilities for Jupyter Notebook apps
 module JupyterNotebookShared
   private

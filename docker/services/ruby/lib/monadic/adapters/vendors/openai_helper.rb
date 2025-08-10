@@ -1669,11 +1669,13 @@ module OpenAIHelper
                     if item["type"] == "text" && item["text"]
                       id = response_data["id"] || "default"
                       texts[id] ||= ""
-                      new_text = item["text"]
-                      # Only add if it's new content
-                      if !texts[id].include?(new_text)
-                        texts[id] += new_text
-                        res = { "type" => "fragment", "content" => new_text }
+                      current_text = item["text"]
+                      
+                      # Calculate the delta - only send the new portion
+                      if current_text.length > texts[id].length
+                        delta = current_text[texts[id].length..-1]
+                        texts[id] = current_text  # Update stored text
+                        res = { "type" => "fragment", "content" => delta }
                         block&.call res
                       end
                     end

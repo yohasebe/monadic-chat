@@ -1191,13 +1191,14 @@ module ClaudeHelper
     content = []
     obj = session[:parameters]
     
-    # Always log to STDERR for debugging
-    # Processing #{tools.length} tools
+    # Log tool calls for debugging
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Tools] Processing #{tools.length} tool calls:"
+      tools.each { |tc| puts "  - #{tc['name']} with input: #{tc['input'].to_s[0..200]}" }
+    end
     
     tools.each do |tool_call|
       tool_name = tool_call["name"]
-      
-      # Processing tool: #{tool_name}
 
       begin
         argument_hash = tool_call["input"]
@@ -1234,6 +1235,11 @@ module ClaudeHelper
           tool_return = app_instance.send(tool_name.to_sym)
         else
           tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+        end
+        
+        # Log the result for debugging (unified format)
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}"
         end
       rescue => e
         if CONFIG["EXTRA_LOGGING"]

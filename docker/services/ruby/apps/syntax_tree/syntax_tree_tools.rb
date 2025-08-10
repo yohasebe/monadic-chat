@@ -242,30 +242,43 @@ class SyntaxTreeOpenAI < MonadicApp
       "#{prefix}#{content}#{suffix}"
     end
     
-    # Add dots to all nodes (both terminal and non-terminal)
-    # Updated regex to handle node labels with apostrophes and other characters
-    result = escaped_notation.gsub(/\[([^\s\[\]]+)/) do |match|
+    # Process all bracketed structures
+    # First handle leaf nodes (no nested brackets)
+    result = escaped_notation.gsub(/\[([^\[\]]+)\]/) do |match|
+      content = $1.strip
+      parts = content.split(/\s+/, 2)
+      
+      if parts.length == 1
+        # Single label node (like [V'] or [S])
+        label = parts[0]
+        if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
+          latex_label = label.gsub(/['''''']/, "'")
+          "[.#{latex_label} ]"
+        else
+          "[.#{label} ]"
+        end
+      else
+        # Node with terminal (like [NP John's])
+        label = parts[0]
+        terminal = parts[1]
+        if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
+          latex_label = label.gsub(/['''''']/, "'")
+          "[.#{latex_label} #{terminal} ]"
+        else
+          "[.#{label} #{terminal} ]"
+        end
+      end
+    end
+    
+    # Then handle remaining parent nodes with nested structures
+    result = result.gsub(/\[([^\s\[\]]+)(?=\s*\[)/) do |match|
       label = $1
-      # Handle prime notation (X', N', V', etc.) for LaTeX
-      # tikz-qtree handles prime notation directly without special escaping
-      # Just ensure we use the correct prime symbol
       if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
-        # Replace various apostrophe types with standard apostrophe for consistency
-        # tikz-qtree will render this correctly as a prime symbol
         latex_label = label.gsub(/['''''']/, "'")
         "[.#{latex_label}"
       else
         "[.#{label}"
       end
-    end
-    
-    # Ensure proper spacing after terminal nodes and remove any stray quotes
-    result = result.gsub(/(\[\.[^\s\[\]]+)\s+([^\[\]]+)\]/) do
-      node_label = $1
-      terminal_content = $2.strip
-      # Remove any quotes that might have been accidentally added
-      terminal_content = terminal_content.gsub(/^["']|["']$/, '')
-      "#{node_label} #{terminal_content} ]"
     end
     
     result

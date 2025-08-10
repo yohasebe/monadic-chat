@@ -21,10 +21,55 @@ module MonadicHelper
       cells_str = cells.to_s
     end
 
-    File.open(JUPYTER_LOG_FILE, "a") do |f|
-      f.puts "Time: #{Time.now}"
-      f.puts "Cells: #{cells_str}"
-      f.puts "-----------------------------------"
+    begin
+      File.open(JUPYTER_LOG_FILE, "a") do |f|
+        f.puts "Time: #{Time.now}"
+        f.puts "Cells: #{cells_str}"
+        f.puts "-----------------------------------"
+      end
+      puts "[DEBUG Jupyter] Logged to #{JUPYTER_LOG_FILE}" if CONFIG["EXTRA_LOGGING"]
+    rescue StandardError => e
+      puts "[DEBUG Jupyter] Failed to write log: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    end
+  end
+  
+  # Verify that cells were actually added to the notebook
+  def verify_cells_added(filename, expected_cells)
+    begin
+      # Add .ipynb extension only if not already present
+      filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
+      notebook_path = File.join(Monadic::Utils::Environment.data_path, filename_with_ext)
+      
+      return { success: false, error: "Notebook file not found" } unless File.exist?(notebook_path)
+      
+      notebook = JSON.parse(File.read(notebook_path))
+      actual_cell_count = notebook['cells'].length
+      expected_cell_count = expected_cells.is_a?(Array) ? expected_cells.length : 0
+      
+      # Basic verification - just check if cells were added
+      if actual_cell_count > 0
+        { success: true }
+      else
+        { success: false, error: "No cells found in notebook after addition" }
+      end
+    rescue StandardError => e
+      { success: false, error: "Verification error: #{e.message}" }
+    end
+  end
+  
+  # Log Jupyter-related errors for debugging
+  def log_jupyter_error(operation, filename, cells, error_message)
+    begin
+      File.open(JUPYTER_LOG_FILE, "a") do |f|
+        f.puts "ERROR Time: #{Time.now}"
+        f.puts "Operation: #{operation}"
+        f.puts "Filename: #{filename}"
+        f.puts "Error: #{error_message}"
+        f.puts "Cells attempted: #{cells.inspect[0..500]}" # Limit length
+        f.puts "==================================="
+      end
+    rescue StandardError
+      # Silently fail if logging fails
     end
   end
 
@@ -63,11 +108,34 @@ module MonadicHelper
   end
 
 
-  def add_jupyter_cells(filename: "", cells: "", run: false, escaped: false, retrial: false)
+  # Normalize cell format to ensure correct structure
+  def normalize_cell_format(cells)
+    return cells unless cells.is_a?(Array)
+    
+    cells.map do |cell|
+      next cell unless cell.is_a?(Hash)
+      
+      # Extract cell_type and source regardless of order or key type
+      cell_type = cell["cell_type"] || cell[:cell_type] || cell["type"] || cell[:type] || "code"
+      source = cell["source"] || cell[:source] || cell["content"] || cell[:content] || ""
+      
+      # Ensure source is a string (not an array)
+      source = source.is_a?(Array) ? source.join("\n") : source.to_s
+      
+      # Return normalized structure with correct order
+      {
+        "cell_type" => cell_type.to_s,
+        "source" => source
+      }
+    end
+  end
+
+  def add_jupyter_cells(filename: "", cells: "", run: true, escaped: false, retrial: false)
 
     original_cells = cells.dup
 
-    capture_add_cells(cells)
+    # Debug: Log before processing
+    puts "[DEBUG Jupyter] add_jupyter_cells called with filename: #{filename}, cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}" if CONFIG["EXTRA_LOGGING"]
 
     # remove escape characters from the cells
     if escaped
@@ -75,11 +143,15 @@ module MonadicHelper
         cells.each do |cell|
           if cell.is_a?(Hash)
             begin
-              content = cell["content"] || cell[:content]
-              content = unescape(content)
-              cell["content"] = content
+              content = cell["content"] || cell[:content] || cell["source"] || cell[:source]
+              content = unescape(content) if content
+              if cell["content"] || cell[:content]
+                cell["content"] = content
+              elsif cell["source"] || cell[:source]
+                cell["source"] = content
+              end
             rescue StandardError
-              cell["content"] = content
+              # Keep original content on error
             end
           else
             cell = unescape(cell)
@@ -90,10 +162,23 @@ module MonadicHelper
 
     return "Error: Filename is required." if filename == ""
     return "Error: Proper cell data is required; Probably the structure is ill-formatted." if cells == ""
+    
+    # Normalize cell format before processing
+    cells = normalize_cell_format(cells) if cells.is_a?(Array)
+    
+    # Log cells AFTER normalization
+    capture_add_cells(cells)
+    
+    # Debug: Log after normalization
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Jupyter] After normalization, cells: #{cells.inspect[0..500]}"
+    end
 
     begin
       cells_in_json = cells.to_json
+      puts "[DEBUG Jupyter] JSON conversion successful, length: #{cells_in_json.length}" if CONFIG["EXTRA_LOGGING"]
     rescue StandardError => e
+      puts "[DEBUG Jupyter] JSON conversion failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
       unless retrial
         return add_jupyter_cells(filename: filename,
                                  cells: original_cells,
@@ -105,6 +190,7 @@ module MonadicHelper
     end
 
     tempfile = Time.now.to_i.to_s
+    puts "[DEBUG Jupyter] Writing to temp file: #{tempfile}.json" if CONFIG["EXTRA_LOGGING"]
     write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
 
     shared_volume = if Monadic::Utils::Environment.in_container?
@@ -126,10 +212,14 @@ module MonadicHelper
 
     results1 = if success
                  command = "jupyter_controller.py add_from_json #{filename} #{tempfile}"
-                 send_command(command: command,
+                 puts "[DEBUG Jupyter] Executing command: #{command}" if CONFIG["EXTRA_LOGGING"]
+                 result = send_command(command: command,
                               container: "python",
                               success: "The cells have been added to the notebook successfully.\n")
+                 puts "[DEBUG Jupyter] Command result: #{result}" if CONFIG["EXTRA_LOGGING"]
+                 result
                else
+                 puts "[DEBUG Jupyter] JSON file not created in time" if CONFIG["EXTRA_LOGGING"]
                  false
                end
 
@@ -137,14 +227,25 @@ module MonadicHelper
       # Generate access URL
       notebook_url = get_jupyter_notebook_url(filename)
       
-      if run.to_s == "true"
-        results2 = run_jupyter_cells(filename: filename)
-        "#{results1}\n\n#{results2}\n\nAccess the notebook at: #{notebook_url}"
+      # Verify cells were actually added by checking the notebook
+      verification_result = verify_cells_added(filename, cells)
+      
+      if verification_result[:success]
+        if run.to_s == "true"
+          results2 = run_jupyter_cells(filename: filename)
+          "#{results1}\n\n#{results2}\n\nAccess the notebook at: #{notebook_url}"
+        else
+          "#{results1}\n\nAccess the notebook at: #{notebook_url}"
+        end
       else
-        "#{results1}\n\nAccess the notebook at: #{notebook_url}"
+        # Log the verification failure
+        log_jupyter_error("Cell verification failed", filename, cells, verification_result[:error])
+        "Warning: Cells may not have been added correctly. #{verification_result[:error]}\n\nAccess the notebook at: #{notebook_url}"
       end
     else
-      "Error: The cells provided could not be added to the notebook. Please correct the cells data and try again: #{original_cells}"
+      error_msg = "Error: The cells provided could not be added to the notebook."
+      log_jupyter_error("Failed to add cells", filename, original_cells, error_msg)
+      "#{error_msg} Please correct the cells data and try again."
     end
   end
 

@@ -1,0 +1,262 @@
+app "JupyterNotebookGrok" do
+  description <<~TEXT
+    Interactive Jupyter notebook environment powered by Grok 4. Create, edit, and execute notebooks with AI assistance. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+  TEXT
+  
+  icon "rocket"
+  
+  display_name "Jupyter Notebook"
+  
+  # Jupyter functionality is already included in MonadicHelper
+  
+  llm do
+    provider "grok"
+    model "grok-4-0709"  # Use exact model name for proper functionality
+    temperature 0.0  # Set to 0 for deterministic outputs
+    max_tokens 4096
+    tool_choice "auto"  # Can be "auto", "required", "none", or specific tool
+    parallel_function_calling true  # Enable parallel tool calls for batch operations
+  end
+
+  system_prompt <<~TEXT
+    You are an agent that can create and read Jupyter Notebooks.
+    
+    IMPORTANT: After executing tools, always include a status summary in your response:
+    
+    **Status:**
+    - Jupyter Running: [Yes/No]
+    - Notebook Created: [Yes/No] 
+    - Notebook Name: [filename or N/A]
+    - Link: [URL or N/A]
+    - Imported Modules: [list or N/A]
+    - Defined Functions: [list or N/A]
+    
+    Include this status block at the end of every response.
+    
+    CRITICAL PERFORMANCE RULE: Work incrementally to prevent timeouts and improve user experience.
+    - Add 3-5 cells per batch (not per response!)
+    - Complete related operations together before asking for confirmation
+    - Only ask for continuation after completing a meaningful unit of work
+
+    When the user mentions a filename, use the appropriate function to read it:
+    - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`
+    - PDF files: Use `fetch_text_from_pdf`
+    - Office files (.xlsx, .docx): Use `fetch_text_from_office`
+
+    CRITICAL EXECUTION RULE: Always EXECUTE tasks rather than just explaining them!
+    
+    WRONG approach (DO NOT DO):
+    - User: "Create a data analysis notebook"
+    - You: "To create a notebook, you would need to... Here's how you could do it..."
+    
+    CORRECT approach (ALWAYS DO):
+    - User: "Create a data analysis notebook"
+    - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
+    - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
+    
+    BATCH PROCESSING: Execute multiple related operations in a SINGLE response!
+    1. If JupyterLab is not running AND notebook doesn't exist: 
+       - Start Jupyter → Create notebook → Add initial cells → ALL IN ONE RESPONSE
+    2. If adding multiple cells or imports:
+       - Add ALL related cells in ONE call to `add_jupyter_cells`
+    3. NEVER just describe what could be done - ALWAYS DO IT
+    
+    When generating notebook links in the context.link field, always use the full URL format:
+    "link": "<a href='http://localhost:8889/lab/tree/ACTUAL_NOTEBOOK_NAME.ipynb' target='_blank'>ACTUAL_NOTEBOOK_NAME.ipynb</a>"
+    Replace ACTUAL_NOTEBOOK_NAME with the actual filename of the notebook you created or are working with.
+
+    ACTION-ORIENTED APPROACH:
+    1. When user asks for something specific: DO IT immediately
+    2. When user asks "how to": Show by DOING, not by explaining
+    3. Group related operations in ONE batch for efficiency
+    4. Only ask for confirmation after completing meaningful work
+    
+    Examples of immediate execution:
+    - "Plot a sine wave" → Create cells with imports + plotting code + execute
+    - "Load this CSV" → Create cells to load and display the data
+    - "Add error handling" → Add the error handling code to the notebook
+    
+    GOOD Example:
+    - User: "Create a data analysis notebook"
+    - Action: Create notebook + add ALL basic imports (pandas, numpy, matplotlib, seaborn) in ONE go
+    - Message: "I've set up the notebook with data analysis libraries. Should I continue with data loading?"
+    
+    BAD Example (DO NOT DO THIS):
+    - Add pandas → Ask confirmation → Add numpy → Ask confirmation → etc.
+    
+    This prevents long processing times and gives users control over the implementation process.
+
+    When adding cells to a notebook:
+    - Use `add_jupyter_cells` with the notebook filename and an array of cells
+    - Each cell should have this structure:
+      {
+        "cell_type": "code" or "markdown",
+        "source": ["line 1", "line 2", ...] or "single line content"
+      }
+    - The function will run the cells and return output
+    
+    When errors occur in cells:
+    1. First, use `get_jupyter_cells_with_results` to check current cell states
+    2. If errors are found, use `delete_jupyter_cell` to remove the problematic cell
+    3. Use `add_jupyter_cells` to add a corrected version
+    4. Alternatively, use `execute_and_fix_jupyter_cells` for automated error detection
+    5. Maximum 3 retry attempts to prevent infinite loops
+    
+    IMPORTANT: DO NOT repeatedly execute the same cells or similar code:
+    - Each cell should be executed ONCE unless fixing an error
+    - If a cell runs successfully, do NOT re-run it
+    - When fixing errors, limit retries to 2 attempts maximum
+    - If still failing after 2 attempts, explain the issue to the user
+    
+    Common fixes:
+    - ModuleNotFoundError: Add import statements or use !pip install
+    - NameError: Check variable definitions and scope
+    - SyntaxError: Fix code syntax
+    - Font/plotting errors: Use appropriate font settings
+
+    Important guidelines:
+    - Import modules before using them in code cells
+    - For mathematical formulas in markdown cells:
+      - Inline math: `$formula$`
+      - Display math: `$$formula$$`
+    - Use font "Noto Sans CJK JP" for CJK characters
+    - Track variables, functions, and modules used across the session
+    - Don't add duplicate cells with the same content
+    
+    CELL CREATION STRATEGY:
+    - Maximum 3-5 cells per add_jupyter_cells call
+    - Maximum 50 lines of code total per response
+    - Group related operations together (e.g., imports + basic setup)
+    - After each batch, inform progress and ask about continuation
+    - Balance efficiency with user control
+    
+    Example of batch operation:
+    ```
+    add_jupyter_cells(
+      filename: "example.ipynb",
+      cells: [
+        {"cell_type": "code", "source": "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt"},
+        {"cell_type": "code", "source": "data = pd.read_csv('data.csv')"},
+        {"cell_type": "code", "source": "plt.plot(data['x'], data['y'])\nplt.show()"}
+      ],
+      run: true
+    )
+    ```
+
+    Only use `check_environment` when:
+    - The user explicitly asks about the environment
+    - You encounter an error and need to troubleshoot
+    
+    If the user needs to install packages:
+    - Tell them to run `!pip install PACKAGE_NAME` in a notebook cell
+    - Wait for confirmation before proceeding
+
+    CRITICAL TOOL EXECUTION RULES:
+    1. When you need to perform actions, call the appropriate tools FIRST
+    2. Tools will return results immediately - wait for all results
+    3. After ALL necessary tools are executed, provide a conversational response
+    4. DO NOT try to format your response as JSON - just respond naturally
+    
+    MULTI-STEP TOOL EXECUTION:
+    - User asks to create a notebook → Call tools in sequence:
+      1. run_jupyter (command: "start")
+      2. create_jupyter_notebook (filename: "appropriate_name")
+      3. add_jupyter_cells (if needed)
+    - Only after all tools complete, provide your response
+    
+    Track these states mentally to avoid repeating operations:
+    - jupyter_running: Whether JupyterLab is running
+    - notebook_created: Whether a notebook has been created
+    - notebook_filename: The current notebook name
+    
+    When generating notebook links, use this format:
+    http://localhost:8889/lab/tree/ACTUAL_NOTEBOOK_NAME.ipynb
+    
+    IMPORTANT MESSAGE GUIDELINES:
+    - After completing actions: Describe what was done and what the user can do next
+    - If you need user input: End with a clear question
+    - Good: "I've created the notebook 'analysis.ipynb' with data analysis libraries. You can access it at http://localhost:8889/lab/tree/analysis.ipynb. What would you like to analyze?"
+    - Bad: "I'm setting up the notebook. Please wait..."
+    
+    IMPORTANT: For your first message, provide a welcoming introduction explaining your capabilities. Do NOT use any tools in the first message. Just explain what you can do and ask the user what they'd like to work on.
+  TEXT
+
+  features do
+    disabled !CONFIG["XAI_API_KEY"]
+    easy_submit false
+    auto_speech false
+    image true
+    pdf false
+    monadic false  # Natural language responses for proper tool execution
+    jupyter true
+    mathjax true
+    initiate_from_assistant true
+  end
+
+  tools do
+    define_tool "run_jupyter", "Start or stop JupyterLab" do
+      parameter :command, "string", "Command to run (start or stop)", required: true
+    end
+
+    define_tool "create_jupyter_notebook", "Create a new Jupyter notebook" do
+      parameter :filename, "string", "Base filename for the notebook", required: true
+    end
+
+    define_tool "add_jupyter_cells", "Add and run cells in a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :cells, "array", "Array of cell objects to add", required: true
+      parameter :run, "boolean", "Whether to run the cells after adding", required: false
+      parameter :escaped, "boolean", "Whether content is escaped", required: false
+    end
+    
+    define_tool "delete_jupyter_cell", "Delete a cell from a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :index, "integer", "The index of the cell to delete (0-based)", required: true
+    end
+    
+    define_tool "update_jupyter_cell", "Update the content of a cell in a Jupyter notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :index, "integer", "The index of the cell to update (0-based)", required: true
+      parameter :content, "string", "The new content for the cell", required: true
+      parameter :cell_type, "string", "The type of cell (code or markdown)", required: false
+    end
+    
+    define_tool "get_jupyter_cells_with_results", "Get all cells with their execution results, including error information" do
+      parameter :filename, "string", "The notebook filename", required: true
+    end
+    
+    define_tool "execute_and_fix_jupyter_cells", "Execute cells and get error information for fixing" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :max_retries, "integer", "Maximum number of retry attempts", required: false
+    end
+
+    define_tool "run_code", "Run program code and return the output." do
+      parameter :command, "string", "Program that execute the code (e.g., 'python')", required: true
+      parameter :code, "string", "Program code to be executed.", required: true
+      parameter :extension, "string", "File extension of the code when it is temporarily saved to be run (e.g., 'py')", required: true
+    end
+
+    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
+      parameter :file, "string", "File name or file path", required: true
+    end
+
+    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file." do
+      parameter :pdf, "string", "The filename of the PDF to read", required: true
+    end
+
+    define_tool "fetch_text_from_office", "Extract text content from Office files." do
+      parameter :file, "string", "The filename of the Office file to read", required: true
+    end
+
+    define_tool "write_to_file", "Write content to a file." do
+      parameter :filename, "string", "File name or file path", required: true
+      parameter :content, "string", "Content to write to the file", required: true
+    end
+
+    define_tool "check_environment", "Check the environment setup and available tools." do
+    end
+    
+    define_tool "list_jupyter_notebooks", "List all Jupyter notebooks in the data directory" do
+    end
+  end
+end

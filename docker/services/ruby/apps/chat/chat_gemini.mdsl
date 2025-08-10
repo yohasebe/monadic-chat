@@ -25,7 +25,8 @@ app "ChatGemini" do
   
   llm do
     provider "gemini"
-    model "gemini-2.5-flash"
+    model ["gemini-2.5-flash", "gemini-2.0-flash"]
+    reasoning_effort "minimal"  # Optimized for better responsiveness
   end
   
   display_name "Chat"

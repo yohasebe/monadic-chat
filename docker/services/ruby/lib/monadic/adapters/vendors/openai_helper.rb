@@ -1523,7 +1523,11 @@ module OpenAIHelper
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
     
-    # Function processing logging removed - not needed in production
+    # Log tool calls for debugging
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Tools] Processing #{tools.length} tool calls:"
+      tools.each { |tc| puts "  - #{tc.dig('function', 'name')} with args: #{tc.dig('function', 'arguments').to_s[0..200]}" }
+    end
     
     tools.each do |tool_call|
       function_call = tool_call["function"]
@@ -1553,6 +1557,11 @@ module OpenAIHelper
           function_return = APPS[app].send(function_name.to_sym)
         else
           function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+        end
+        
+        # Log the result for debugging
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
         end
       rescue StandardError => e
         pp e.message

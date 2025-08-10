@@ -184,8 +184,8 @@ module RealAudioTestHelper
     return 0.0 if transcribed.nil? || transcribed.empty?
     
     # Normalize both strings for comparison
-    original_normalized = original.downcase.gsub(/[^a-z0-9\s]/, '').strip
-    transcribed_normalized = transcribed.downcase.gsub(/[^a-z0-9\s]/, '').strip
+    original_normalized = original.downcase.gsub(/[^a-z0-9\s\-]/, '').strip
+    transcribed_normalized = transcribed.downcase.gsub(/[^a-z0-9\s\-]/, '').strip
     
     # If normalized versions match exactly, perfect accuracy
     if original_normalized == transcribed_normalized
@@ -204,13 +204,13 @@ module RealAudioTestHelper
       transcribed_normalized.gsub!(/\b#{word}\b/, digit)
     end
     
-    # Also try the reverse (digits to words)
-    number_map.each do |word, digit|
-      transcribed_normalized.gsub!(/\b#{digit}\b/, word) if original_normalized.include?(word)
-    end
+    # Handle hyphenated numbers (e.g., "1-2-3-4-5" vs "1 2 3 4 5")
+    original_with_spaces = original_normalized.gsub('-', ' ')
+    transcribed_with_spaces = transcribed_normalized.gsub('-', ' ')
     
-    # Check again after number normalization
-    if original_normalized == transcribed_normalized
+    # Check again after number normalization and hyphen handling
+    if original_normalized == transcribed_normalized || 
+       original_with_spaces == transcribed_with_spaces
       return 1.0
     end
     

@@ -9,8 +9,9 @@ app "CodeInterpreterGemini" do
 
   llm do
     provider "gemini"
-    model "gemini-2.5-pro"
+    model ["gemini-2.5-flash", "gemini-2.0-flash"]  # 2.5 flash as primary, 2.0 as fallback
     temperature 0.0
+    reasoning_effort "minimal"  # Essential for proper function calling with Gemini 2.5
   end
 
   system_prompt <<~TEXT

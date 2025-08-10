@@ -384,6 +384,11 @@ class MonadicApp
     last_error = nil
 
     begin
+      # Check if trying to run JavaScript/Node.js code
+      if command == "node" || extension == "js" || extension == "mjs" || extension == "ts"
+        return "Error: JavaScript/Node.js execution is not currently supported. The Python container does not have Node.js installed. Please use Python code instead, or consider using the Code Interpreter app which may have broader language support."
+      end
+
       # Set appropriate paths based on environment
       if Monadic::Utils::Environment.in_container?
         data_dir = SHARED_VOL

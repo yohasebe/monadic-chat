@@ -16,8 +16,11 @@ The table below shows which apps are available for which AI model providers.
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | | | | | | | | |
+| Math Tutor | ✅ | ✅ | ✅ | | | | ✅ | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -37,10 +40,7 @@ The table below shows which apps are available for which AI model providers.
 | Video Describer | ✅ | | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Monadic Chat Help | ✅ | | | | | | | | |
+| Monadic Help | ✅ | | | | | | | | |
 
 ## Assistant :id=assistant
 
@@ -110,9 +110,19 @@ This is basically the same as Chat, but for questions about events that occurred
 
 ![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
-This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
+This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers. Math Tutor includes tools for running Python code to generate visualizations and perform calculations.
 
 !> **Caution:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
+
+Math Tutor apps are available for the following models:
+
+- OpenAI (GPT-4o, GPT-4o mini, GPT-5)
+- Anthropic Claude (3.5 Sonnet, 3.5 Haiku)
+- Google Gemini (2.0 Flash, 2.5 Flash)
+- xAI Grok (Grok 4)
+- Anthropic Claude
+- Google Gemini
+- xAI Grok
 
 ### Second Opinion
 
@@ -572,19 +582,27 @@ Coding Assistant apps are also available for the following models:
 
 This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
-> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
+**Advanced Features:**
+- Create and manage Jupyter notebooks with automatic error correction
+- Execute code cells and handle errors automatically
+- Restart kernel to clear notebook state
+- Move cells to different positions (simplified implementation)
+- Insert cells at specific positions (simplified implementation)
+
+> **Automatic Startup**: When you launch any Jupyter Notebook app, the JupyterLab server starts automatically if it's not already running. You don't need to manually start it first.
+
+> You can also manually start or stop JupyterLab by asking the AI agent, or by using the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-<!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
+Jupyter Notebook apps are available for the following models:
+- OpenAI
+- Anthropic Claude
+- Google Gemini
+- xAI Grok
 
 !> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
-Jupyter Notebook apps are also available for the following models:
-
-- OpenAI
-- Anthropic Claude
-- Google Gemini (with `reasoning_effort: minimal` for function calling)
-- xAI Grok
+<!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
 
 ### Monadic Chat Help
 

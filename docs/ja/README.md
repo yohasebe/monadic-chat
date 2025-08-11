@@ -125,7 +125,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🌐 **Visual Web Explorer** - Webページのスクリーンショット撮影やテキスト抽出（OpenAI、Claude、Gemini、Grok）
 - 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話（OpenAI）
 - 📊 **DrawIO Grapher** - DrawIO形式でプロフェッショナルな図表を作成（OpenAI、Claude）
-- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI）
+- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI、Claude、Gemini、Grok）
 - 💬 **Second Opinion** - 異なるAIプロバイダーから検証意見を取得（すべてのプロバイダー対応）
 - 📄 **PDF Navigator** - ベクトルデータベース（RAG）を使用したPDF文書のナビゲートと分析（OpenAI）
 - 📊 **Mermaid Grapher** - Mermaid構文を使用したフローチャートと図表の作成（すべてのプロバイダー対応）

@@ -215,7 +215,8 @@ module GrokHelper
     message = nil
     data = nil
 
-    if role != "tool"
+    # Skip message processing for tool/function_return roles
+    if role != "tool" && role != "function_return"
       message = obj["message"].to_s
       
       # Reset model switch notification flag for new user messages
@@ -392,9 +393,24 @@ module GrokHelper
       }
     end
 
-    if role == "tool"
+    # Handle function_return role (used after tool execution)
+    if role == "function_return" && obj["function_returns"]
+      # Add tool results to the message history
       body["messages"] += obj["function_returns"]
-      # Don't add tool_choice when role is "tool" - tools aren't included in these requests
+      
+      # Log the function returns being added
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Adding function returns to messages")
+        extra_log.puts("Number of function returns: #{obj["function_returns"].length}")
+        obj["function_returns"].each do |result|
+          extra_log.puts("  - #{result[:name] || result['name']}: #{result[:content].to_s[0..100]}...")
+        end
+        extra_log.close
+      end
+    elsif role == "tool"
+      # Legacy support for "tool" role (deprecated)
+      body["messages"] += obj["function_returns"] if obj["function_returns"]
     end
 
     last_text = context.last["text"]
@@ -866,7 +882,7 @@ module GrokHelper
           extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
           extra_log.puts("\n[#{Time.now}] Tool executed: #{function_name}")
           extra_log.puts("Arguments: #{argument_hash.inspect}")
-          extra_log.puts("Result: #{function_return.to_s[0..200]}...")
+          extra_log.puts("Result: #{function_return.to_s[0..500]}...")
           extra_log.close
         end
       rescue StandardError => e
@@ -886,43 +902,57 @@ module GrokHelper
       tool_results << tool_result
     end
 
-    obj["function_returns"] = context
+    # Store tool results in session for reference
+    obj["function_returns"] = tool_results
     
-    # For Grok, we should always continue with another API call after tool execution
+    # For Grok, we need to continue the conversation after tool execution
     # to get the natural language response from the model
     if call_depth < MAX_FUNC_CALLS
       # Log that we're making follow-up call
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("\n[#{Time.now}] Making follow-up API call after tool execution (depth: #{call_depth})")
+        extra_log.puts("Tool results to be included: #{tool_results.length} results")
         extra_log.close
       end
       
-      # Continue with next API call to get final response
-      # The model will decide if more tools are needed or provide final answer
-      new_results = api_request("tool", session, call_depth: call_depth, &block)
+      # CRITICAL FIX: Use "function_return" as role instead of "tool"
+      # This tells api_request to properly handle the tool results
+      new_results = api_request("function_return", session, call_depth: call_depth, &block)
       
       # Log the results
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Follow-up API call returned: #{new_results.inspect[0..500]}...")
+        extra_log.puts("\n[#{Time.now}] Follow-up API call completed")
+        if new_results && new_results.is_a?(Array) && !new_results.empty?
+          content = new_results.dig(0, "choices", 0, "message", "content")
+          extra_log.puts("Response content preview: #{content.to_s[0..200]}...") if content
+        else
+          extra_log.puts("Warning: No valid response received")
+        end
         extra_log.close
       end
       
       return new_results
     else
-      # Max depth reached, return tool results
+      # Max depth reached, provide a helpful message
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Max call depth reached (#{MAX_FUNC_CALLS}), returning tool results")
+        extra_log.puts("\n[#{Time.now}] Max call depth reached (#{MAX_FUNC_CALLS})")
         extra_log.close
+      end
+      
+      # Create a proper response that includes tool results with explanation
+      summary = "Completed #{tool_results.length} tool execution(s):\n\n"
+      tool_results.each do |result|
+        summary += "• #{result[:name]}: #{result[:content][0..100]}#{result[:content].length > 100 ? '...' : ''}\n"
       end
       
       return [{
         "choices" => [{
           "message" => {
             "role" => "assistant",
-            "content" => tool_results.map { |r| r[:content] }.join("\n")
+            "content" => summary
           },
           "finish_reason" => "stop"
         }]

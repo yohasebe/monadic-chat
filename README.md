@@ -114,7 +114,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📖 **Content Reader** - Extract and analyze content from files and URLs (All providers)
 - 🔍 **Research Assistant** - Web search and research with comprehensive analysis (All providers)
 - 🎙️ **Voice Chat** - Interactive voice conversations with TTS/STT (All providers)
-- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude)
+- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude, Gemini, Grok)
 
 ### Specialized Applications
 
@@ -124,7 +124,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)
 - 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation (OpenAI)
 - 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
-- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI)
+- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI, Claude, Gemini, Grok)
 - 💬 **Second Opinion** - Get verification from different AI providers for accuracy (All providers)
 - 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (OpenAI)
 - 📊 **Mermaid Grapher** - Create flowcharts and diagrams using Mermaid syntax (All providers)

@@ -16,8 +16,11 @@
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | | | | | | | | |
+| Math Tutor | ✅ | ✅ | ✅ | | | | ✅ | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -37,10 +40,7 @@
 | Video Describer | ✅ | | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | | | | | |
-| Monadic Chat Help | ✅ | | | | | | | | |
+| Monadic Help | ✅ | | | | | | | | |
 
 ## アシスタント :id=assistant
 
@@ -110,9 +110,19 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 
 ![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
-AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。数式の表示が必要なやりとりを行うのに適しています。
+AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。数式の表示が必要なやりとりを行うのに適しています。Math TutorにはPythonコードを実行してグラフを生成したり計算を行ったりするツールが含まれています。
 
 !> **注意:** LLMの数学的計算能力には制約があり、誤った結果が出力されることがあります。計算の正確性が求められる場合は、Code Interpreterアプリなどで実際に計算を行うことをお勧めします。
+
+Math Tutorアプリは以下のモデルで利用可能です：
+
+- OpenAI (GPT-4o, GPT-4o mini, GPT-5)
+- Anthropic Claude (3.5 Sonnet, 3.5 Haiku)
+- Google Gemini (2.0 Flash, 2.5 Flash)
+- xAI Grok (Grok 4)
+- Anthropic Claude  
+- Google Gemini
+- xAI Grok
 
 ### Second Opinion
 
@@ -548,15 +558,25 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。
 
-?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
+**高度な機能:**
+- 自動エラー修正機能付きのJupyterノートブック作成・管理
+- コードセルの実行とエラーの自動処理
+- ノートブックの状態をクリアするためのカーネル再起動
+- セルの位置変更（簡易実装）
+- 特定位置へのセル挿入（簡易実装）
+
+?> **自動起動**: Jupyter Notebookアプリを起動すると、JupyterLabサーバーがまだ起動していない場合は自動的に起動されます。手動で事前に起動する必要はありません。
+
+?> JupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼することもできますし、Monadic Chatコンソールパネルのメニューから手動で行うこともできます（`Start JupyterLab`, `Stop JupyterLab`）。
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-!> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
-
-下記の言語モデルでJupyter Notebookアプリが利用可能です。
-
+Jupyter Notebookアプリは以下のモデルで利用可能です：
 - OpenAI
 - Anthropic Claude
+- Google Gemini
+- xAI Grok
+
+!> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
 
 ### Monadic Chat Help
 

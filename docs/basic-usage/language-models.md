@@ -10,7 +10,7 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 | Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
 | Gemini | ✅ All models | ✅ | ✅⁴ |
 | Mistral | ✅ Select models⁵ | ✅ | ✅⁴ |
-| Cohere | ✅ Vision models⁷ | ✅ | ✅⁴ |
+| Cohere | ✅ Vision models⁷ | ⚠️⁹ | ✅⁴ |
 | xAI Grok | ✅ Vision models⁶ | ✅ | ✅ Native |
 | Perplexity | ✅ All models | ❌ | ✅ Native |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
@@ -23,7 +23,8 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 ⁵ Pixtral, mistral-medium-latest, and mistral-small-latest models  
 ⁶ grok-2-vision models only  
 ⁷ command-a-vision models only  
-⁸ Depends on specific model capabilities
+⁸ Depends on specific model capabilities  
+⁹ Limited - cannot chain multiple tool calls (single tool per request only)
 
 ## Default Models Configuration
 
@@ -80,32 +81,28 @@ Reasoning models use advanced computational processes to think through problems 
 
 ### OpenAI Reasoning Models
 - **GPT-5 Series**: gpt-5, gpt-5-mini, gpt-5-nano
-  - Uses Responses API for enhanced tool handling and structured outputs
-  - Supports "minimal" reasoning effort for optimal performance
+  - Uses Responses API
   - 400K context window, 128K max output tokens
-  - Full tool/function calling support with proper continuation
-  - Structured outputs via text.format with JSON Schema (not response_format)
-  - Automatic fallback to GPT-4.1 models when unavailable
+  - Tool/function calling support
 - **O1 Series**: o1, o1-mini, o1-preview, o1-pro
 - **O3 Series**: o3, o3-pro
 - **O4 Series**: o4-mini
 
 These models use `reasoning_effort` parameter ("minimal", "low", "medium", "high") instead of temperature settings.
-Note: GPT-5 models uniquely support full tool/function calling with the Responses API, unlike other reasoning models.
 
 ### Gemini Thinking Models
 - **2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
-- Advanced reasoning with adjustable computing budget
+- Adjustable thinking budget parameter
 
 ### Mistral Reasoning Models
 - **Magistral Series**: magistral-medium, magistral-small
-- Multilingual reasoning capabilities (French, German, Spanish, Italian, etc.)
+- Multilingual support (French, German, Spanish, Italian, etc.)
 
-### Key Differences from Standard Models
-- Use `reasoning_effort` instead of temperature
-- Limited function calling support
-- Web search requires automatic model switching
-- Some models don't support streaming (o1-pro, o3-pro)
+### Technical Specifications
+- Use `reasoning_effort` parameter instead of temperature
+- Function calling limitations vary by model
+- Web search may require model switching
+- Streaming not available for: o1-pro, o3-pro
 
 ## OpenAI Models
 
@@ -155,11 +152,10 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini.
 
 ### Available Models
 - **Gemini 2.5 Series**: 
-  - gemini-2.5-flash, gemini-2.5-pro (with adjustable reasoning dial)
+  - gemini-2.5-flash, gemini-2.5-pro
   - gemini-2.5-flash-preview-05-20, gemini-2.5-pro-exp-03-25 (experimental)
-  - Deep Think mode available for enhanced reasoning
-  - **Important**: Function calling requires `reasoning_effort: minimal`
-  - **Note**: Cannot have both function calling and structured JSON output simultaneously
+  - Deep Think mode available
+  - **Technical Note**: Function calling requires `reasoning_effort: minimal`, structured JSON output unavailable with this setting
 - **Gemini 2.0 Series**: 
   - gemini-2.0-flash, gemini-2.0-flash-thinking-exp (thinking/reasoning models)
   - 1M token context window

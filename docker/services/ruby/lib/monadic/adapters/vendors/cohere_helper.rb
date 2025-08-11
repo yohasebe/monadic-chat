@@ -1250,6 +1250,38 @@ module CohereHelper
         function_return = "Error executing function: #{e.message}"
       end
 
+      # Process function return to detect generated images and enhance the response
+      processed_return = function_return.to_s
+      
+      # Check if files were generated (especially images)
+      if processed_return.include?("File(s) generated or modified:")
+        # Extract file paths
+        file_matches = processed_return.scan(/\/data\/[^\s,]+(?:\.\w+)?/)
+        
+        # For each file path, check if it's an image and enhance the response
+        image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
+        image_files = []
+        
+        file_matches.each do |file_path|
+          # Clean up the file path (remove trailing punctuation)
+          clean_path = file_path.gsub(/[,;.]$/, '')
+          
+          # Check if it's an image file
+          if image_extensions.any? { |ext| clean_path.downcase.end_with?(ext) }
+            image_files << clean_path
+          end
+        end
+        
+        # If we found image files, add explicit instructions to the result
+        if !image_files.empty?
+          processed_return += "\n\nIMPORTANT: Display the generated image(s) using the following HTML:\n"
+          image_files.each do |img_path|
+            processed_return += "<div class=\"generated_image\"><img src=\"#{img_path}\" /></div>\n"
+          end
+          processed_return += "\nPlease include the above HTML in your response to show the image(s) to the user."
+        end
+      end
+
       # Format tool results maintaining exact tool_call_id
       context << {
         "role" => "tool",
@@ -1262,7 +1294,7 @@ module CohereHelper
               "data" => {
                 "results" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? 
                             JSON.generate(function_return) : 
-                            function_return.to_s
+                            processed_return
               }
             }
           }

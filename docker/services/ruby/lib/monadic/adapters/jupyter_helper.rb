@@ -38,9 +38,16 @@ module MonadicHelper
     begin
       # Add .ipynb extension only if not already present
       filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-      notebook_path = File.join(Monadic::Utils::Environment.data_path, filename_with_ext)
       
-      return { success: false, error: "Notebook file not found" } unless File.exist?(notebook_path)
+      # Use the same path resolution as other Jupyter functions
+      shared_volume = if Monadic::Utils::Environment.in_container?
+                        MonadicApp::SHARED_VOL
+                      else
+                        MonadicApp::LOCAL_SHARED_VOL
+                      end
+      notebook_path = File.join(shared_volume, filename_with_ext)
+      
+      return { success: false, error: "Notebook file not found at #{notebook_path}" } unless File.exist?(notebook_path)
       
       notebook = JSON.parse(File.read(notebook_path))
       actual_cell_count = notebook['cells'].length
@@ -136,6 +143,31 @@ module MonadicHelper
 
     # Debug: Log before processing
     puts "[DEBUG Jupyter] add_jupyter_cells called with filename: #{filename}, cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}" if CONFIG["EXTRA_LOGGING"]
+    
+    # Handle case where filename doesn't have timestamp but the actual file does
+    # If the exact filename doesn't exist, try to find a matching file with timestamp
+    if filename && !filename.empty? && !filename.end_with?(".ipynb")
+      shared_volume = if Monadic::Utils::Environment.in_container?
+                        MonadicApp::SHARED_VOL
+                      else
+                        MonadicApp::LOCAL_SHARED_VOL
+                      end
+      
+      exact_path = File.join(shared_volume, "#{filename}.ipynb")
+      
+      # If exact file doesn't exist, look for files with timestamp pattern
+      unless File.exist?(exact_path)
+        pattern = File.join(shared_volume, "#{filename}_*.ipynb")
+        matching_files = Dir.glob(pattern).sort_by { |f| File.mtime(f) }.reverse
+        
+        if matching_files.any?
+          # Use the most recently created matching file
+          most_recent = matching_files.first
+          filename = File.basename(most_recent, ".ipynb")
+          puts "[DEBUG Jupyter] Found matching notebook with timestamp: #{filename}" if CONFIG["EXTRA_LOGGING"]
+        end
+      end
+    end
 
     # remove escape characters from the cells
     if escaped

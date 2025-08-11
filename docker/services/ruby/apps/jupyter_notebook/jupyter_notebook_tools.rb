@@ -19,6 +19,11 @@ class JupyterNotebookGemini < MonadicApp
   # No additional implementation needed
 end
 
+class JupyterNotebookGrok < MonadicApp
+  include GrokHelper if defined?(GrokHelper)
+  # All methods are inherited from MonadicApp which includes MonadicHelper
+  # No additional implementation needed
+end
 
 # Shared utilities for Jupyter Notebook apps
 module JupyterNotebookShared

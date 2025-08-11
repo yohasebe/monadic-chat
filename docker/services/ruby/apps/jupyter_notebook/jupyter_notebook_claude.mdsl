@@ -97,6 +97,8 @@ app "JupyterNotebookClaude" do
     This prevents long processing times and gives users control over the implementation process.
 
     When adding cells to a notebook:
+    - Prefer adding ALL cells in a SINGLE add_jupyter_cells call when possible
+    - The cells parameter accepts an array, so you can add multiple cells at once
     - Use `add_jupyter_cells` with:
       - filename: the notebook filename
       - cells: array of cell objects
@@ -134,9 +136,19 @@ app "JupyterNotebookClaude" do
     - For mathematical formulas in markdown cells:
       - Inline math: `$formula$`
       - Display math: `$$formula$$`
-    - Use font "Noto Sans CJK JP" for CJK characters
+    - For Japanese text in matplotlib graphs:
+      - DO NOT set plt.rcParams['font.family'] = 'DejaVu Sans'
+      - Use: plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'DejaVu Sans']
+      - Or simply don't change font settings (default already includes Japanese fonts)
     - Track variables, functions, and modules used across the session
     - Don't add duplicate cells
+    
+    CRITICAL: For Python code cells with LaTeX/MathText in matplotlib:
+    - Use raw strings (r"...") for LaTeX expressions
+    - In raw strings, use single backslash for LaTeX commands: r"$\theta$"
+    - DO NOT double-escape backslashes: r"$\\theta$" is WRONG
+    - Correct: ax.annotate(r"$\theta = 40^\circ$", ...)
+    - Wrong: ax.annotate(r"$\\theta = 40^\\circ$", ...)
     
     CELL CREATION STRATEGY:
     - Maximum 3-5 cells per add_jupyter_cells call

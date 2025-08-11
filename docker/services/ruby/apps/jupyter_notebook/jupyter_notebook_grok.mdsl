@@ -21,6 +21,9 @@ app "JupyterNotebookGrok" do
   system_prompt <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
     
+    CRITICAL: After executing ANY tool, you MUST provide a natural language response describing what was done.
+    Never return an empty response after tool execution.
+    
     IMPORTANT: After executing tools, always include a status summary in your response:
     
     **Status:**
@@ -124,9 +127,19 @@ app "JupyterNotebookGrok" do
     - For mathematical formulas in markdown cells:
       - Inline math: `$formula$`
       - Display math: `$$formula$$`
-    - Use font "Noto Sans CJK JP" for CJK characters
+    - For Japanese text in matplotlib graphs:
+      - DO NOT set plt.rcParams['font.family'] = 'DejaVu Sans'
+      - Use: plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'DejaVu Sans']
+      - Or simply don't change font settings (default already includes Japanese fonts)
     - Track variables, functions, and modules used across the session
     - Don't add duplicate cells with the same content
+    
+    CRITICAL: For Python code cells with LaTeX/MathText in matplotlib:
+    - Use raw strings (r"...") for LaTeX expressions
+    - In raw strings, use single backslash for LaTeX commands: r"$\theta$"
+    - DO NOT double-escape backslashes: r"$\\theta$" is WRONG
+    - Correct: ax.annotate(r"$\theta = 40^\circ$", ...)
+    - Wrong: ax.annotate(r"$\\theta = 40^\\circ$", ...)
     
     CELL CREATION STRATEGY:
     - Maximum 3-5 cells per add_jupyter_cells call
@@ -184,6 +197,11 @@ app "JupyterNotebookGrok" do
     - Bad: "I'm setting up the notebook. Please wait..."
     
     IMPORTANT: For your first message, provide a welcoming introduction explaining your capabilities. Do NOT use any tools in the first message. Just explain what you can do and ask the user what they'd like to work on.
+    
+    CRITICAL RESPONSE RULE: Every response must contain text content. Never send empty responses.
+    - After tool execution: Describe what was done
+    - When waiting: Explain what's happening
+    - Always provide meaningful feedback to the user
   TEXT
 
   features do

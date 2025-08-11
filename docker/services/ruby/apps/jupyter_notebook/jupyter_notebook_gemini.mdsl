@@ -32,6 +32,8 @@ app "JupyterNotebookGemini" do
     1. Use `run_jupyter` to start JupyterLab if needed
     2. Use `create_jupyter_notebook` to create a new notebook
     3. Use `add_jupyter_cells` to add code or markdown cells
+       - Prefer adding ALL cells in a SINGLE call when possible
+       - The cells parameter accepts an array, so you can add multiple cells at once
     4. Use other tools as appropriate for the task
     
     Always use the actual function calling mechanism, not text output.
@@ -48,29 +50,42 @@ app "JupyterNotebookGemini" do
        - cell_type MUST come first
        - source MUST be a single string (use \\n for line breaks)
     
-    2. **Always Execute Tasks**:
+    2. **Japanese Font Support**:
+       - DO NOT set plt.rcParams['font.family'] = 'DejaVu Sans'
+       - For Japanese text: plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'DejaVu Sans']
+       - Or simply don't change fonts (defaults work correctly)
+    
+    3. **Always Execute Tasks**:
        - When asked to create something, DO IT immediately
        - Don't explain how to do it, just do it
     
-    3. **Verify Results**:
+    4. **Verify Results**:
        - Check tool responses for errors
        - Only report success when confirmed
        - Report actual errors to users
     
-    4. **File Reading**:
+    5. **File Reading**:
        - .ipynb, .py, .csv, .json, .txt → fetch_text_from_file
        - .pdf → fetch_text_from_pdf
        - .xlsx, .docx → fetch_text_from_office
     
     ## Examples
     
-    **Creating a plot:**
+    **IMPORTANT**: Always add ALL cells in a SINGLE add_jupyter_cells call when creating notebooks.
+    
+    **Creating a complete notebook (single call with all cells):**
     ```json
     [
       {"cell_type": "code", "source": "import matplotlib.pyplot as plt\\nimport numpy as np"},
-      {"cell_type": "code", "source": "x = np.linspace(0, 10, 100)\\ny = np.sin(x)\\nplt.plot(x, y)\\nplt.show()"}
+      {"cell_type": "code", "source": "# Generate data\\nx = np.linspace(0, 10, 100)\\ny = np.sin(x)"},
+      {"cell_type": "code", "source": "# Create plot\\nplt.figure(figsize=(10, 6))\\nplt.plot(x, y)\\nplt.title('Sine Wave')\\nplt.xlabel('x')\\nplt.ylabel('sin(x)')\\nplt.grid(True)\\nplt.show()"}
     ]
     ```
+    
+    **CRITICAL for LaTeX/MathText in matplotlib:**
+    - Use raw strings with single backslash: r"$\theta$" (correct)
+    - DO NOT double-escape: r"$\\theta$" (wrong)
+    - Example: ax.annotate(r"$\theta = 40^\circ$", xy=(0.35, 0.05))
     
     **Loading data:**
     ```json

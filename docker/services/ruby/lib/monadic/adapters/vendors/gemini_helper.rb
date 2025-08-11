@@ -233,7 +233,7 @@ module GeminiHelper
       # Set thinking configuration
       body["generationConfig"]["thinkingConfig"] = {
         "thinkingBudget" => budget_tokens,
-        "includeThoughts" => true
+        "includeThoughts" => false  # Don't include thoughts in the final output
       }
     end
     
@@ -327,6 +327,8 @@ module GeminiHelper
             content["parts"].each do |part|
               # Skip thinking parts for non-streaming response
               next if part["thought"] == true
+              # Also skip modelThinking parts
+              next if part["modelThinking"]
               
               # Handle both part["text"] and part itself being a hash with "text" key
               if part["text"]
@@ -671,7 +673,7 @@ module GeminiHelper
         # Set thinking configuration using correct structure
         body["generationConfig"]["thinkingConfig"] = {
           "thinkingBudget" => budget_tokens,
-          "includeThoughts" => true
+          "includeThoughts" => false  # Don't include thoughts in the final output
         }
       end
     end
@@ -757,11 +759,11 @@ module GeminiHelper
           body["tools"] = [app_tools]
         end
         
-        # For initial function calls, use ANY mode to ensure tools are called
-        # This is especially important for Jupyter apps with initiate_from_assistant
+        # Use AUTO mode to let model decide when to call tools
+        # ANY mode can cause issues with Gemini
         body["tool_config"] = {
           "function_calling_config" => {
-            "mode" => "ANY"
+            "mode" => "AUTO"
           }
         }
       elsif websearch
@@ -834,11 +836,8 @@ module GeminiHelper
         # Determine whether to allow more tool calls based on operation flow
         should_stop = false
         
-        # Allow notebook creation followed by cell operations
-        # Only stop after we have BOTH operations
-        if has_notebook_creation && has_cell_operations
-          should_stop = true
-        end
+        # Don't stop immediately after first cell operation
+        # Allow multiple add_jupyter_cells calls
         
         # If we've done any execution, stop to show results
         if has_execution
@@ -867,22 +866,13 @@ module GeminiHelper
               body["tools"] = [app_tools]
             end
             
-            # Allow tool calls for essential operations
-            # Use action count, not total count
-            if action_tool_count < 2  # Allow at least 2 ACTION tool calls (create + add cells)
-              body["tool_config"] = {
-                "function_calling_config" => {
-                  "mode" => "ANY"  # Force tool calls for essential operations
-                }
+            # Always use AUTO mode for Jupyter apps
+            # Let the model decide when to call tools
+            body["tool_config"] = {
+              "function_calling_config" => {
+                "mode" => "AUTO"
               }
-            else
-              # After 2 action calls, be more restrictive
-              body["tool_config"] = {
-                "function_calling_config" => {
-                  "mode" => "AUTO"  # Let model decide, but we have stop conditions above
-                }
-              }
-            end
+            }
           end
         end
       else
@@ -1084,7 +1074,12 @@ module GeminiHelper
               # Debug: Log all parts for Jupyter debugging
               if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
                 puts "[DEBUG Gemini Jupyter] Part keys: #{part.keys.inspect}"
-                puts "[DEBUG Gemini Jupyter] Part content: #{part.inspect}" if part["functionCall"]
+                if part["functionCall"]
+                  puts "[DEBUG Gemini Jupyter] Function call detected: #{part["functionCall"].inspect}"
+                end
+                if part["text"] && part["text"].length > 0
+                  puts "[DEBUG Gemini Jupyter] Text fragment (first 100 chars): #{part["text"][0..100]}"
+                end
               end
               
               # Debug: Log if we have search grounding metadata
@@ -1107,12 +1102,48 @@ module GeminiHelper
                 next
               end
               
+              # Also check for modelThinking field (alternative format)
+              if part["modelThinking"] && part["modelThinking"]["thought"]
+                thinking_fragment = part["modelThinking"]["thought"]
+                thinking_parts << thinking_fragment
+                
+                res = {
+                  "type" => "thinking",
+                  "content" => thinking_fragment
+                }
+                block&.call res
+                # Skip this part
+                next
+              end
+              
               if part["text"]
                 fragment = part["text"]
                 
+                # Special handling for Math Tutor FIRST - needs priority
+                # Debug: Log the actual app_name
+                if CONFIG["EXTRA_LOGGING"] && fragment.include?("```")
+                  puts "[DEBUG] App name: '#{session[:parameters]["app_name"]}'"
+                  puts "[DEBUG] Display name: '#{session[:parameters]["display_name"]}'"
+                end
+                
+                if session[:parameters]["app_name"].to_s.include?("MathTutor") || 
+                   session[:parameters]["display_name"].to_s.include?("Math Tutor")
+                  # For Math Tutor, only extract image HTML from code blocks
+                  # Don't interfere with other content to avoid breaking MathJax
+                  if fragment =~ /```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im
+                    image_html = $1
+                    # Replace just the code block containing the image with the raw HTML
+                    fragment = fragment.gsub(/```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im, '\1')
+                    
+                    if CONFIG["EXTRA_LOGGING"]
+                      puts "[DEBUG Math Tutor] Extracted image HTML from code block"
+                    end
+                  end
                 # Special processing for media generator app to strip code blocks
                 # Extract HTML from code blocks - for both media generator and code interpreter apps
-                if (is_media_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter") || 
+                # Skip this processing for Jupyter Notebook as it needs different handling
+                elsif !session[:parameters]["app_name"].to_s.include?("Jupyter") &&
+                   (is_media_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter") || 
                     session[:parameters]["app_name"].to_s.include?("Video Generator")) && fragment.include?("```")
                   # Strip all code block markers for Video Generator app
                   if session[:parameters]["app_name"].to_s.include?("Video Generator")
@@ -1154,8 +1185,8 @@ module GeminiHelper
                     code_sections = []
                     
                     # Extract HTML sections
-                    fragment.scan(/<div class="generated_(image|video)">.*?<(img|video).*?src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg|mp4|webm|ogg)".*?>.*?<\/div>/im) do |match|
-                      html_sections << match[0]
+                    fragment.scan(/<div class="generated_(image|video)">.*?<(img|video).*?src="\/data\/.*?\.(?:png|jpg|jpeg|gif|svg|mp4|webm|ogg)".*?>.*?<\/div>/im) do
+                      html_sections << $&  # Use $& to get the entire matched string
                     end
                     
                     # Extract code blocks (without the HTML)
@@ -1184,9 +1215,16 @@ module GeminiHelper
                       fragment = new_fragment.strip
                     end
                   elsif fragment.include?("```html") && fragment.include?("```")
-                    # Extract HTML between code markers
-                    html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
-                    fragment = html_content
+                    # Extract HTML between code markers - handle multiline properly
+                    if fragment =~ /```html\s*(.*?)\s*```/m
+                      html_content = $1
+                      # Replace the entire code block with just the HTML content
+                      fragment = fragment.gsub(/```html\s*.*?\s*```/m, html_content)
+                    else
+                      # Fallback to original simple replacement
+                      html_content = fragment.gsub(/```html\s+/, "").gsub(/\s+```/, "")
+                      fragment = html_content
+                    end
                   elsif fragment.match(/```(\w+)?/)
                     # For media generator app only, remove any code block markers
                     if is_media_generator
@@ -1259,9 +1297,54 @@ module GeminiHelper
       end
 
       begin
+        if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
+          puts "[DEBUG Gemini Jupyter] Processing #{tool_calls.length} function calls"
+          tool_calls.each do |tc|
+            puts "[DEBUG Gemini Jupyter] Function: #{tc["name"]}, Args keys: #{tc["args"]&.keys}"
+          end
+        end
+        
+        # Check if this is a Math Tutor run_code call
+        is_math_tutor_code = (session[:parameters]["app_name"].to_s.include?("MathTutor") || 
+                              session[:parameters]["display_name"].to_s.include?("Math Tutor")) && 
+                             tool_calls.any? { |tc| tc["name"] == "run_code" }
+        
         new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
+        
+        # For Math Tutor, inject HTML for generated images
+        if is_math_tutor_code && new_results
+          if CONFIG["EXTRA_LOGGING"]
+            puts "[DEBUG Math Tutor] Checking tool results for image files"
+          end
+          
+          # Check if any image files were generated
+          result_text = new_results.to_s
+          if result_text =~ /File\(s\) generated.*?(\/data\/[^,\s]+\.(?:svg|png|jpg|jpeg|gif))/i
+            image_file = $1
+            if CONFIG["EXTRA_LOGGING"]
+              puts "[DEBUG Math Tutor] Found generated image: #{image_file}"
+            end
+            
+            # Inject HTML for the image
+            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"#{image_file}\" />\n</div>"
+            
+            # Send the HTML as a fragment
+            res = {
+              "type" => "fragment",
+              "content" => image_html
+            }
+            block&.call res
+          end
+        end
+        
+        if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
+          puts "[DEBUG Gemini Jupyter] Function results received: #{new_results.class}"
+        end
       rescue StandardError => e
         new_results = [{ "type" => "error", "content" => "ERROR: #{e.message}" }]
+        if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
+          puts "[DEBUG Gemini Jupyter] Function call error: #{e.message}"
+        end
       end
 
       if result && new_results
@@ -1271,6 +1354,25 @@ module GeminiHelper
             tool_result_content = new_results.dig(0, "choices", 0, "message", "content").to_s.strip
           else
             tool_result_content = new_results.to_s.strip
+          end
+          
+          # Special handling for Math Tutor run_code results
+          if (session[:parameters]["app_name"].to_s.include?("MathTutor") || 
+              session[:parameters]["display_name"].to_s.include?("Math Tutor")) && 
+             tool_calls.any? { |tc| tc["name"] == "run_code" }
+            if CONFIG["EXTRA_LOGGING"]
+              puts "[DEBUG Math Tutor] Processing run_code result: #{tool_result_content[0..200]}"
+            end
+            
+            # Check if image files were generated
+            if tool_result_content =~ /File\(s\) generated.*?(\/data\/[^,\s;]+\.(?:svg|png|jpg|jpeg|gif))/i
+              image_file = $1
+              if CONFIG["EXTRA_LOGGING"]
+                puts "[DEBUG Math Tutor] Appending HTML for image: #{image_file}"
+              end
+              # Append HTML directly to the tool result
+              tool_result_content += "\n\n<div class=\"generated_image\">\n  <img src=\"#{image_file}\" />\n</div>"
+            end
           end
           
           # Don't add generic content if tool_result_content is empty for video/image generation
@@ -1332,6 +1434,25 @@ module GeminiHelper
             # If we have nothing, provide a fallback message
             elsif final_result.empty? && tool_result_content.empty?
               final_result = "Function was called but no content was returned."
+            end
+          end
+          
+          # For Math Tutor, send the HTML image tag directly to frontend if present
+          if (session[:parameters]["app_name"].to_s.include?("MathTutor") || 
+              session[:parameters]["display_name"].to_s.include?("Math Tutor")) && 
+             final_result.include?("<div class=\"generated_image\">")
+            # Extract and send the HTML portion separately
+            if final_result =~ /(<div class="generated_image">.*?<\/div>)/m
+              image_html = $1
+              # Send the image HTML as a fragment to the frontend
+              res = {
+                "type" => "fragment",
+                "content" => image_html
+              }
+              block&.call res
+              
+              # Remove the HTML from the final result so it's not duplicated
+              final_result = final_result.gsub(/<div class="generated_image">.*?<\/div>/m, '').strip
             end
           end
           
@@ -1455,6 +1576,14 @@ module GeminiHelper
       begin
         # Parse arguments from the tool call
         argument_hash = tool_call["args"] || {}
+        
+        # Debug logging for Jupyter add_jupyter_cells
+        if CONFIG["EXTRA_LOGGING"] && function_name == "add_jupyter_cells"
+          puts "[DEBUG Gemini Jupyter] add_jupyter_cells arguments before conversion:"
+          puts "  - Raw args: #{argument_hash.inspect}"
+          puts "  - cells type: #{argument_hash["cells"]&.class}"
+          puts "  - cells value: #{argument_hash["cells"]&.inspect[0..500]}"
+        end
         
         # Convert string keys to symbols for method calling
         argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|

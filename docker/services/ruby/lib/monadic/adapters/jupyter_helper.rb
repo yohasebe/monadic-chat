@@ -193,7 +193,17 @@ module MonadicHelper
     end
 
     return "Error: Filename is required." if filename == ""
-    return "Error: Proper cell data is required; Probably the structure is ill-formatted." if cells == ""
+    
+    # More detailed error reporting for cells parameter
+    if cells.nil?
+      return "Error: Cells parameter is nil. Expected an array of cell objects."
+    elsif cells == ""
+      return "Error: Cells parameter is an empty string. Expected an array of cell objects with 'cell_type' and 'source' properties."
+    elsif !cells.is_a?(Array)
+      return "Error: Cells parameter is not an array. Received: #{cells.class}. Expected an array of cell objects."
+    elsif cells.empty?
+      return "Error: Cells array is empty. Please provide at least one cell with 'cell_type' and 'source' properties."
+    end
     
     # Normalize cell format before processing
     cells = normalize_cell_format(cells) if cells.is_a?(Array)

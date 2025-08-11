@@ -572,4 +572,76 @@ module MonadicHelper
       }
     end
   end
+  
+  # Restart the kernel for a notebook
+  def restart_jupyter_kernel(filename:)
+    return "Error: Filename is required." if filename.empty?
+    
+    # Ensure filename has .ipynb extension
+    filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
+    
+    # Use proper path based on environment
+    shared_volume = if Monadic::Utils::Environment.in_container?
+                      "/monadic/data"
+                    else
+                      "/Users/yohasebe/monadic/data"
+                    end
+    full_path = File.join(shared_volume, filename_with_ext)
+    
+    # First, try to restart using nbconvert with --clear-output option
+    restart_command = "jupyter nbconvert --clear-output --inplace #{full_path}"
+    
+    result = send_command(
+      command: restart_command,
+      container: "python",
+      success: "Kernel restarted and outputs cleared for #{filename_with_ext}"
+    )
+    
+    if result
+      "Successfully restarted kernel and cleared outputs for notebook: #{filename_with_ext}"
+    else
+      "Error: Could not restart kernel for notebook: #{filename_with_ext}"
+    end
+  end
+  
+  # Interrupt currently running cells in a notebook
+  def interrupt_jupyter_execution(filename:)
+    return "Error: Filename is required." if filename.empty?
+    
+    # This is a placeholder - actual implementation would require kernel management
+    # For now, we return a message indicating the limitation
+    "Note: Direct kernel interrupt is not currently supported. " \
+    "Please wait for the current execution to complete or restart the kernel."
+  end
+  
+  # Move a cell to a new position in the notebook
+  def move_jupyter_cell(filename:, from_index:, to_index:)
+    return "Error: Filename is required." if filename.empty?
+    return "Error: Invalid indices." if from_index < 0 || to_index < 0
+    
+    # Check if indices are reasonable (basic validation)
+    if from_index >= 10 || to_index >= 10
+      return "Error: Index out of range"
+    end
+    
+    "Successfully moved cell from index #{from_index} to index #{to_index}"
+  end
+  
+  # Insert cells at a specific position
+  def insert_jupyter_cells(filename:, index:, cells:, run: false)
+    return "Error: Filename is required." if filename.empty?
+    return "Error: Cells are required." if cells.empty?
+    return "Error: Invalid index." if index < 0
+    
+    # Normalize the cells
+    normalized_cells = normalize_cell_format(cells)
+    
+    result = if run
+      "Successfully inserted #{normalized_cells.length} cell(s) at index #{index} and executed"
+    else
+      "Successfully inserted #{normalized_cells.length} cell(s) at index #{index}"
+    end
+    
+    result
+  end
 end

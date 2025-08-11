@@ -88,6 +88,11 @@ app "JupyterNotebookOpenAI" do
     4. Alternatively, use `execute_and_fix_jupyter_cells` for automated error detection
     5. Maximum 3 retry attempts to prevent infinite loops
     
+    Advanced notebook management:
+    - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
+    - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
+    - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
+    
     IMPORTANT: DO NOT repeatedly execute the same cells or similar code:
     - Each cell should be executed ONCE unless fixing an error
     - If a cell runs successfully, do NOT re-run it
@@ -243,6 +248,27 @@ app "JupyterNotebookOpenAI" do
     end
     
     define_tool "list_jupyter_notebooks", "List all Jupyter notebooks in the data directory" do
+    end
+    
+    define_tool "restart_jupyter_kernel", "Restart the kernel for a notebook and clear all outputs" do
+      parameter :filename, "string", "The notebook filename", required: true
+    end
+    
+    define_tool "interrupt_jupyter_execution", "Interrupt currently running cells (Note: Limited support)" do
+      parameter :filename, "string", "The notebook filename", required: true
+    end
+    
+    define_tool "move_jupyter_cell", "Move a cell to a new position in the notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :from_index, "integer", "The current index of the cell to move (0-based)", required: true
+      parameter :to_index, "integer", "The target index position (0-based)", required: true
+    end
+    
+    define_tool "insert_jupyter_cells", "Insert cells at a specific position in the notebook" do
+      parameter :filename, "string", "The notebook filename", required: true
+      parameter :index, "integer", "The position to insert cells at (0-based)", required: true
+      parameter :cells, "array", "Array of cell objects to insert", required: true
+      parameter :run, "boolean", "Whether to run the cells after inserting", required: false
     end
   end
 end

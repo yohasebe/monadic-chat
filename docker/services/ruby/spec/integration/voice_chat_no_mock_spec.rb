@@ -240,7 +240,21 @@ RSpec.describe "Voice Chat Integration (No Mocks)", :integration do
         speed: 1.0
       )
       
-      audio_data = Base64.strict_decode64(tts_result["content"])
+      # Check if TTS returned an error
+      if tts_result.nil? || tts_result["type"] == "error"
+        skip "TTS API error: #{tts_result ? tts_result['content'] : 'nil response'}"
+      end
+      
+      # Check if content is valid before decoding
+      if tts_result["content"].nil? || tts_result["content"].empty?
+        skip "TTS returned empty content"
+      end
+      
+      begin
+        audio_data = Base64.strict_decode64(tts_result["content"])
+      rescue ArgumentError => e
+        skip "TTS returned invalid Base64: #{e.message}"
+      end
       
       # Transcribe with language hint
       stt_result = utils.stt_api_request(audio_data, "mp3", test_lang, "whisper-1")

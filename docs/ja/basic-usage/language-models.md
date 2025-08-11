@@ -10,7 +10,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 | Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
 | Gemini | ✅ 全モデル | ✅ | ✅⁴ |
 | Mistral | ✅ 一部モデル⁵ | ✅ | ✅⁴ |
-| Cohere | ✅ Visionモデル⁷ | ✅ | ✅⁴ |
+| Cohere | ✅ Visionモデル⁷ | ⚠️⁹ | ✅⁴ |
 | xAI Grok | ✅ Visionモデル⁶ | ✅ | ✅ ネイティブ |
 | Perplexity | ✅ 全モデル | ❌ | ✅ ネイティブ |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
@@ -23,7 +23,8 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 ⁵ Pixtral、mistral-medium-latest、mistral-small-latestモデル  
 ⁶ grok-2-visionモデルのみ  
 ⁷ command-a-visionモデルのみ  
-⁸ 使用する特定のモデルの機能に依存
+⁸ 使用する特定のモデルの機能に依存  
+⁹ 制限あり - 複数のツール呼び出しを連鎖できません（リクエストごとに単一ツールのみ）
 
 ## デフォルトモデルの設定
 
@@ -80,32 +81,28 @@ WEBSEARCH_MODEL=gpt-4o-mini
 
 ### OpenAI推論モデル
 - **GPT-5シリーズ**: gpt-5、gpt-5-mini、gpt-5-nano
-  - 拡張ツール処理と構造化出力のためResponses APIを使用
-  - 最適なパフォーマンスのため「minimal」推論努力をサポート
+  - Responses APIを使用
   - 400Kコンテキストウィンドウ、128K最大出力トークン
-  - 適切な継続を伴う完全なツール/関数呼び出しサポート
-  - text.formatとJSON Schemaによる構造化出力（response_formatではない）
-  - 利用不可時はGPT-4.1モデルに自動フォールバック
+  - ツール/関数呼び出しサポート
 - **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
 - **O3シリーズ**: o3、o3-pro
 - **O4シリーズ**: o4-mini
 
 これらのモデルはtemperature設定の代わりに`reasoning_effort`パラメータ（"minimal"、"low"、"medium"、"high"）を使用します。
-注：GPT-5モデルは他の推論モデルと異なり、Responses APIで完全なツール/関数呼び出しを独自にサポートします。
 
 ### Gemini思考モデル
 - **2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
-- 調整可能なthinking budgetでの高度な推論
+- thinking budgetパラメータ調整可能
 
 ### Mistral推論モデル
 - **Magistralシリーズ**: magistral-medium、magistral-small
-- 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
+- 多言語サポート（フランス語、ドイツ語、スペイン語、イタリア語など）
 
-### 標準モデルとの主な違い
-- temperatureの代わりに`reasoning_effort`を使用
-- ファンクションコーリングのサポート制限
-- ウェブ検索は自動的なモデル切り替えが必要
-- 一部のモデルはストリーミング非対応（o1-pro、o3-pro）
+### 技術仕様
+- temperatureの代わりに`reasoning_effort`パラメータを使用
+- 関数呼び出しの制限はモデルにより異なる
+- Web検索時にモデル切り替えが発生する場合がある
+- ストリーミング非対応: o1-pro、o3-pro
 
 ## OpenAI Models
 
@@ -155,9 +152,10 @@ Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用
 
 ### 利用可能なモデル
 - **Gemini 2.5シリーズ**: 
-  - gemini-2.5-flash、gemini-2.5-pro（推論レベルを調整可能）
+  - gemini-2.5-flash、gemini-2.5-pro
   - gemini-2.5-flash-preview-05-20、gemini-2.5-pro-exp-03-25（実験版）
-  - Deep Thinkモードで推論機能を強化可能
+  - Deep Thinkモード利用可能
+  - **技術的制約**: 関数呼び出しには`reasoning_effort: minimal`が必要、この設定では構造化JSON出力は利用不可
 - **Gemini 2.0シリーズ**: 
   - gemini-2.0-flash、gemini-2.0-flash-thinking-exp（思考/推論モデル）
   - 100万トークンのコンテキストウィンドウ
@@ -193,9 +191,9 @@ COHERE_API_KEY=api_key
 Mistral APIキーを設定すると、Mistralを用いたアプリを使用することができます。
 
 ### 利用可能なモデル
-- **Magistralシリーズ**: magistral-medium、magistral-small（推論モデル）
-  - 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
-  - 秒間1,000トークンのパフォーマンス
+- **Magistralシリーズ**: magistral-medium、magistral-small
+  - 多言語サポート（フランス語、ドイツ語、スペイン語、イタリア語など）
+  - 1,000トークン/秒
 - **大規模モデル**: mistral-large-latest、mistral-medium-latest（ビジョン）、mistral-small-latest（ビジョン）
 - **Pixtralシリーズ**: pixtral-large-latest、pixtral-large-2411、pixtral-12b-latest（すべてビジョンモデル）
 - **小規模モデル**: mistral-saba-latest、ministral-3b-latest、ministral-8b-latest

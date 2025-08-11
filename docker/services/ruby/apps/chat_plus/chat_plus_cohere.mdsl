@@ -33,7 +33,7 @@ app "ChatPlusCohere" do
   
   llm do
     provider "cohere"
-    model "command-r-plus"
+    model "command-a-03-2025"
     context_size 100
   end
   

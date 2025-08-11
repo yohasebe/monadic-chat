@@ -1,4 +1,4 @@
-app "MathTutorOpenAI" do
+app "MathTutorGrok" do
   display_name "Math Tutor"
   description <<~TEXT
     Interactive math tutoring with MathJax notation. Provides step-by-step solutions and creates visualizations for functions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
@@ -136,20 +136,21 @@ app "MathTutorOpenAI" do
   TEXT
   
   llm do
-    provider "OpenAI"
-    model ["gpt-5", "gpt-4.1"]
-    reasoning_effort "minimal"
+    provider "grok"
+    model "grok-4-0709"
     temperature 0.0
-    presence_penalty 0.2
+    max_tokens 4096
+    tool_choice "auto"  # Enable tool usage
   end
   
   features do
-    disabled !CONFIG["OPENAI_API_KEY"]
+    disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
     image true
     mathjax true
+    group "xAI"
   end
   
   tools do

@@ -32,15 +32,7 @@ RSpec.describe "Selenium Integration", :integration do
 
   describe "webpage_fetcher.py functionality" do
     it "captures screenshots of webpages" do
-      # Check if we can reach external URLs
-      begin
-        require 'net/http'
-        uri = URI('https://example.com')
-        Net::HTTP.get_response(uri)
-      rescue => e
-        skip "Cannot reach external URLs: #{e.message}"
-      end
-      
+      # Test with example.com which should be accessible
       command = [
         "python", "/monadic/scripts/cli_tools/webpage_fetcher.py",
         "--url", "https://example.com",
@@ -50,11 +42,13 @@ RSpec.describe "Selenium Integration", :integration do
       
       output = `docker exec monadic-chat-python-container #{command} 2>&1`
       
-      # Check for successful save message or skip if timeout
-      if output.include?("connection timed out")
+      # Check for successful save message or skip if there's a network issue
+      if output.include?("connection timed out") || output.include?("Failed to fetch")
         skip "Network connectivity issue - Selenium cannot reach external URLs"
       end
-      expect(output).to include("saved")
+      
+      # The script should output a success message
+      expect(output).to match(/Successfully saved screenshot to:.*\.png/)
     end
 
     it "converts webpages to markdown" do
@@ -67,8 +61,13 @@ RSpec.describe "Selenium Integration", :integration do
       
       output = `docker exec monadic-chat-python-container #{command} 2>&1`
       
+      # Skip if network issue
+      if output.include?("connection timed out") || output.include?("Failed to fetch")
+        skip "Network connectivity issue - Selenium cannot reach external URLs"
+      end
+      
       # Check for successful save
-      expect(output).to include("Successfully saved")
+      expect(output).to match(/Successfully saved.*\.md/)
     end
 
     it "handles invalid URLs gracefully" do

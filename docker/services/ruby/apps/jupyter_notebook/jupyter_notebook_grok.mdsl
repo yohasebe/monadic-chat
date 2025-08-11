@@ -14,6 +14,8 @@ app "JupyterNotebookGrok" do
     model "grok-4-0709"  # Use exact model name for proper functionality
     temperature 0.0  # Set to 0 for deterministic outputs
     reasoning_effort "minimal"
+    max_tokens 4096  # Adequate for Jupyter operations
+    tool_choice "auto"  # Default tool choice setting
   end
 
   system_prompt <<~TEXT

@@ -120,9 +120,6 @@ Math Tutor apps are available for the following models:
 - Anthropic Claude (3.5 Sonnet, 3.5 Haiku)
 - Google Gemini (2.0 Flash, 2.5 Flash)
 - xAI Grok (Grok 4)
-- Anthropic Claude
-- Google Gemini
-- xAI Grok
 
 ### Second Opinion
 

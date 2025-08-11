@@ -154,6 +154,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
           write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
           delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results execute_and_fix_jupyter_cells
           list_jupyter_notebooks
+          restart_jupyter_kernel interrupt_jupyter_execution move_jupyter_cell insert_jupyter_cells
           websearch_agent list_providers_and_voices text_to_speech
           generate_video_with_veo generate_image_with_imagen
           validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
@@ -545,6 +546,9 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       run_code run_script run_bash_command lib_installer check_environment
       fetch_web_content search_wikipedia tavily_search websearch_agent
       write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
+      delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results execute_and_fix_jupyter_cells
+      list_jupyter_notebooks restart_jupyter_kernel interrupt_jupyter_execution 
+      move_jupyter_cell insert_jupyter_cells
       list_providers_and_voices generate_video_with_veo
     ]
     

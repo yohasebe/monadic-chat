@@ -95,6 +95,11 @@ app "JupyterNotebookGemini" do
     - If cells don't add: Report the error, don't claim success
     - For code errors: Use get_jupyter_cells_with_results to diagnose
     - Maximum 3 retry attempts for any operation
+    
+    Advanced notebook management:
+    - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
+    - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
+    - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
   TEXT
 
   # Define tools for Jupyter Notebook operations

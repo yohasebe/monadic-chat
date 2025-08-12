@@ -4,7 +4,7 @@ require_relative "../../utils/interaction_utils"
 
 module GrokHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 10  # Balanced for Grok-4
+  MAX_FUNC_CALLS = 20  # Balanced for Grok-4
   API_ENDPOINT = "https://api.x.ai/v1"
 
   OPEN_TIMEOUT = 60

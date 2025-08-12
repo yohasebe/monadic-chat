@@ -93,16 +93,22 @@ module MonadicDSL
       # Only handle the simplified DSL format
       app_state = eval(@content, TOPLEVEL_BINDING, @file)
       
-      # After creating the class from MDSL, check for and load corresponding tools file
+      # After creating the class from MDSL, check for and load corresponding files
       base_name = File.basename(@file, '.*')
       dir_path = File.dirname(@file)
       
       # Remove provider suffix (e.g., _openai, _claude) to get base app name
       app_base_name = base_name.sub(/_\w+$/, '')
-      tools_file = File.join(dir_path, "#{app_base_name}_tools.rb")
       
+      # Load constants file if it exists
+      constants_file = File.join(dir_path, "#{app_base_name}_constants.rb")
+      if File.exist?(constants_file)
+        require constants_file
+      end
+      
+      # Load tools file if it exists
+      tools_file = File.join(dir_path, "#{app_base_name}_tools.rb")
       if File.exist?(tools_file)
-        # Load the tools file to add methods to the class
         require tools_file
       end
       

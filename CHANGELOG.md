@@ -1,5 +1,10 @@
 - [August, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
+  - **Math Tutor Consolidation**: Unified implementation across all providers
+    - Created shared `math_tutor_constants.rb` module with common prompts and settings
+    - All Math Tutor MDSL files now reference shared constants
+    - Reduces duplication from 4 x 144 lines to 1 x 150 lines of shared code
+    - DSL loader enhanced to auto-load `*_constants.rb` files alongside tools
   - **Unified Error Handling System**: Consistent error messages across all providers
     - Standardized format: `Error: [Category] - Message. Suggestion (Code: XXX)`
     - Smart error categorization with actionable suggestions

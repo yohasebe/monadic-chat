@@ -1669,7 +1669,16 @@ module OpenAIHelper
               
             when "response.in_progress"
               # Response in progress - check for any output
+              # Note: For GPT-5, we skip this event as it duplicates response.output_text.delta
+              # Only process for models that don't emit response.output_text.delta events
               response_data = json["response"]
+              current_model = json["model"] || response_data&.dig("metadata", "model") || query["model"] || obj["model"]
+              
+              # Skip for GPT-5 models as they emit proper delta events
+              if current_model && current_model.to_s.include?("gpt-5")
+                next
+              end
+              
               if response_data
                 
                 if response_data["output"] && !response_data["output"].empty?
@@ -1699,7 +1708,6 @@ module OpenAIHelper
                 id = json["response_id"] || json["item_id"] || "default"
                 texts[id] ||= ""
                 texts[id] += fragment
-                
                 
                 res = { "type" => "fragment", "content" => fragment }
                 block&.call res

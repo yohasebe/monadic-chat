@@ -737,6 +737,36 @@ module StringUtils
     
     # Apply markdown normalization to ensure proper parsing
     text = normalize_markdown(text)
+    
+    # Pre-process to handle Japanese brackets with bold markdown
+    # Replace **「text」** with temporary placeholder to protect from smart punctuation
+    bold_brackets = []
+    text = text.gsub(/\*\*([「『【〈《〔｛（].*?[」』】〉》〕｝）])\*\*/m) do |match|
+      content = $1
+      bold_brackets << content
+      "BOLD_BRACKET_PLACEHOLDER_#{bold_brackets.size - 1}"
+    end
+    
+    # Also handle numbered lists with bold text
+    # Protect bold text in numbered lists from smart punctuation interference
+    list_bold_items = []
+    # Process line by line to handle multiple bold items in lists
+    lines = text.split("\n")
+    text = lines.map do |line|
+      if line =~ /^(\d+\.\s+)/
+        prefix = $1
+        rest_of_line = line[prefix.length..-1]
+        # Replace all bold items in this line
+        rest_of_line = rest_of_line.gsub(/\*\*(.+?)\*\*/) do |match|
+          content = $1
+          list_bold_items << content
+          "LIST_BOLD_PLACEHOLDER_#{list_bold_items.size - 1}"
+        end
+        "#{prefix}#{rest_of_line}"
+      else
+        line
+      end
+    end.join("\n")
 
     # insert a newline after a line that does not end with a newline
     pattern = Regexp.new('^(\s*#{1,6}\s+.*)(\n)(?!\n)')
@@ -970,6 +1000,16 @@ module StringUtils
       css = theme_obj.render(scope: ".highlight")
     end
 
+    # Restore bold brackets placeholders
+    bold_brackets.each_with_index do |content, index|
+      html.gsub!("BOLD_BRACKET_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
+    end
+    
+    # Restore list bold placeholders
+    list_bold_items.each_with_index do |content, index|
+      html.gsub!("LIST_BOLD_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
+    end
+    
     # Always include the necessary CSS for syntax highlighting
     # But avoid duplicating it in each message by using a minimal inline style
     html_with_css = <<~HTML

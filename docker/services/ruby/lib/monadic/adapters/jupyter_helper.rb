@@ -157,14 +157,30 @@ module MonadicHelper
       
       # If exact file doesn't exist, look for files with timestamp pattern
       unless File.exist?(exact_path)
-        pattern = File.join(shared_volume, "#{filename}_*.ipynb")
+        # Handle case where Grok uses fake timestamp like "20241001_120000"
+        # Extract base name without any timestamp
+        base_name = filename.gsub(/_\d{8}_\d{6}$/, '')  # Remove fake timestamp if present
+        
+        # Look for files with the same base name but different (real) timestamps
+        pattern = File.join(shared_volume, "#{base_name}_*.ipynb")
         matching_files = Dir.glob(pattern).sort_by { |f| File.mtime(f) }.reverse
         
         if matching_files.any?
           # Use the most recently created matching file
           most_recent = matching_files.first
+          original_filename = filename  # Store original for logging
           filename = File.basename(most_recent, ".ipynb")
-          puts "[DEBUG Jupyter] Found matching notebook with timestamp: #{filename}" if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Jupyter] Found matching notebook with real timestamp: #{filename} (was looking for #{original_filename})" if CONFIG["EXTRA_LOGGING"]
+          
+          # Log for debugging
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts("\n[#{Time.now}] Corrected fake timestamp in add_jupyter_cells:")
+            extra_log.puts("  Original filename: #{original_filename}")
+            extra_log.puts("  Base name: #{base_name}")
+            extra_log.puts("  Found file: #{filename}")
+            extra_log.close
+          end
         end
       end
     end
@@ -192,17 +208,43 @@ module MonadicHelper
       end
     end
 
-    return "Error: Filename is required." if filename == ""
+    if filename == ""
+      require_relative '../utils/error_handler'
+      return ErrorHandler.format_validation_error(
+        field: "Filename",
+        requirement: "Please provide a notebook filename"
+      )
+    end
     
     # More detailed error reporting for cells parameter
     if cells.nil?
-      return "Error: Cells parameter is nil. Expected an array of cell objects."
+      require_relative '../utils/error_handler'
+      return ErrorHandler.format_validation_error(
+        field: "Cells",
+        requirement: "Expected an array of cell objects",
+        value: nil
+      )
     elsif cells == ""
-      return "Error: Cells parameter is an empty string. Expected an array of cell objects with 'cell_type' and 'source' properties."
+      require_relative '../utils/error_handler'
+      return ErrorHandler.format_validation_error(
+        field: "Cells",
+        requirement: "Expected an array of cell objects with 'cell_type' and 'source' properties",
+        value: ""
+      )
     elsif !cells.is_a?(Array)
-      return "Error: Cells parameter is not an array. Received: #{cells.class}. Expected an array of cell objects."
+      require_relative '../utils/error_handler'
+      return ErrorHandler.format_validation_error(
+        field: "Cells",
+        requirement: "Expected an array of cell objects, but received #{cells.class}",
+        value: cells.class.to_s
+      )
     elsif cells.empty?
-      return "Error: Cells array is empty. Please provide at least one cell with 'cell_type' and 'source' properties."
+      require_relative '../utils/error_handler'
+      return ErrorHandler.format_validation_error(
+        field: "Cells array",
+        requirement: "Please provide at least one cell with 'cell_type' and 'source' properties",
+        value: "empty array"
+      )
     end
     
     # Normalize cell format before processing
@@ -359,9 +401,9 @@ module MonadicHelper
       end
       
       if notebook_filename
-        # Get base jupyter URL
-        jupyter_url = get_jupyter_base_url
-        result = "Access the notebook at: #{jupyter_url}/lab/tree/#{notebook_filename}"
+        # Return in the format expected by Grok's process_functions
+        # This format allows extraction of the actual filename with timestamp
+        result = "Notebook '#{notebook_filename}' created successfully. Access it at: #{get_jupyter_base_url}/lab/tree/#{notebook_filename}"
       else
         # For backward compatibility, handle old format responses
         jupyter_host = get_jupyter_host

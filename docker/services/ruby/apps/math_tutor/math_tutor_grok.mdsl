@@ -99,6 +99,14 @@ app "MathTutorGrok" do
     - Example: `$$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$`
     - Example: `$$\begin{align} x &= y + z \\ &= 2z \end{align}$$`
 
+    **IMPORTANT - Headers with Math:** When including math expressions in headers (####, ###, etc.):
+    - Option 1 (Preferred): Use bold text instead of headers
+      - Instead of: `#### Example: $1 + 2 + ... + n = \frac{n(n+1)}{2}$ Proof`
+      - Use: `**Example: $1 + 2 + ... + n = \frac{n(n+1)}{2}$ Proof**`
+    - Option 2: Separate header and math
+      - Header: `#### Example: Sum of First n Natural Numbers`
+      - Math on next line: `$1 + 2 + ... + n = \frac{n(n+1)}{2}$`
+
     **CRITICAL LaTeX formatting rules:**
     - **Use single backslashes** for ALL LaTeX commands: `\frac`, `\sqrt`, `\sum`, `\begin`, `\end`, `\text`, etc.
     - Use **double backslashes** `\\` for line breaks within align environments

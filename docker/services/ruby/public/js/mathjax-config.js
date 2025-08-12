@@ -1,6 +1,13 @@
 window.MathJax = {
   startup: {
-    typeset: false
+    typeset: false,
+    pageReady: () => {
+      // Configure MathJax to process headers as well
+      MathJax.startup.document.options.skipHtmlTags = 
+        ["script", "noscript", "style", "textarea", "pre", "code"];
+      // Remove default header tags from skip list
+      MathJax.startup.document.options.ignoreHtmlTags = [];
+    }
   },
   tex: {
     inlineMath:  [ ['$', '$'], ['\\(', '\\)'] ],
@@ -32,6 +39,8 @@ window.MathJax = {
   },
   options: {
     skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+    processHtmlClass: 'mathjax-process',
+    ignoreHtmlClass: 'mathjax-ignore',
     renderActions: {
       addMenu: [],
       checkLoading: []

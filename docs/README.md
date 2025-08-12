@@ -115,7 +115,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 📖 **Content Reader** - Extract and analyze content from files and URLs (All providers)
 - 🔍 **Research Assistant** - Web search and research with comprehensive analysis (All providers)
 - 🎙️ **Voice Chat** - Interactive voice conversations with TTS/STT (All providers)
-- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude)
+- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude, Gemini, Grok)
 
 ### Specialized Applications
 

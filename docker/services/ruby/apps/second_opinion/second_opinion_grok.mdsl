@@ -12,7 +12,7 @@ app "SecondOpinionGrok" do
   
   llm do
     provider "grok"
-    model "grok-3-mini-fast"
+    model "grok-4-0709"
     temperature 0.0
   end
 

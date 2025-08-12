@@ -1,5 +1,20 @@
 - [August, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
+  - **Unified Error Handling System**: Consistent error messages across all providers
+    - Standardized format: `Error: [Category] - Message. Suggestion (Code: XXX)`
+    - Smart error categorization with actionable suggestions
+    - Progressive migration starting with Jupyter and Grok helpers
+  - **MathJax Enhancement**: Fixed math rendering in header tags
+    - Modified configuration to process h1-h6 tags
+    - Added best practices to Math Tutor prompts
+  - **Grok Jupyter Notebook**: Resolved filename timestamp issues
+    - Implemented post-processing workaround for Grok's API limitations
+    - Ensures users always see correct notebook filenames
+  - **Math Tutor Expansion**: Added support for Claude, Gemini, and Grok
+    - Previously OpenAI-only, now available for all major providers
+  - **Testing Infrastructure**: Expanded to 1253 comprehensive tests
+    - Enhanced test reliability with real implementation tests
+    - Improved coverage across all components
   - **Gemini 2.5 Function Calling**: Fixed function calling with reasoning_effort parameter
     - Discovered fundamental trade-off: Cannot have both function calling and structured JSON output
     - Function calling requires `reasoning_effort: minimal` for Gemini 2.5 models
@@ -34,7 +49,7 @@
   - **Testing Infrastructure**:
     - Replaced mock-based tests with actual implementation tests
     - More reliable test coverage catching real integration issues
-    - Test suite: 751 examples, 0 failures
+    - Test suite: 1253 examples, 0 failures
   - **Monadic Apps Fix**: Fixed context display for all monadic apps using GPT-5
     - Language Practice Plus, Chat Plus, and others now properly show context in UI
     - Fixed both Chat Completions and Responses API handlers

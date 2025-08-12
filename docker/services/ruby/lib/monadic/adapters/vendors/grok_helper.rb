@@ -4,12 +4,12 @@ require_relative "../../utils/interaction_utils"
 
 module GrokHelper
   include InteractionUtils
-  MAX_FUNC_CALLS = 20
+  MAX_FUNC_CALLS = 10  # Balanced for Grok-4
   API_ENDPOINT = "https://api.x.ai/v1"
 
-  OPEN_TIMEOUT = 20
-  READ_TIMEOUT = 120
-  WRITE_TIMEOUT = 120
+  OPEN_TIMEOUT = 60
+  READ_TIMEOUT = 300
+  WRITE_TIMEOUT = 300
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -66,7 +66,14 @@ module GrokHelper
     
     # Get API key
     api_key = CONFIG["XAI_API_KEY"]
-    return "Error: XAI_API_KEY not found" if api_key.nil?
+    if api_key.nil?
+      require_relative '../../utils/error_handler'
+      return ErrorHandler.format_error(
+        category: :configuration,
+        message: "XAI_API_KEY not found",
+        suggestion: "Please set your xAI API key in the configuration"
+      )
+    end
     
     # Set the headers for the API request
     headers = {
@@ -167,7 +174,11 @@ module GrokHelper
       return "ERROR: #{error_response.dig("error", "message") || error_response["error"]}"
     end
   rescue StandardError => e
-    return "Error: #{e.message}"
+    require_relative '../../utils/error_handler'
+    return ErrorHandler.format_provider_error(
+      provider: "xAI Grok",
+      error: e
+    )
   end
 
   # Connect to OpenAI API and get a response
@@ -215,8 +226,8 @@ module GrokHelper
     message = nil
     data = nil
 
-    # Skip message processing for tool/function_return roles
-    if role != "tool" && role != "function_return"
+    # Skip message processing for tool role (but still process context)
+    if role != "tool"
       message = obj["message"].to_s
       
       # Reset model switch notification flag for new user messages
@@ -284,6 +295,8 @@ module GrokHelper
       body["response_format"] = APPS[app].settings["response_format"]
     end
 
+    # Grok cannot execute tools with structured output enabled
+    # Keep simple json_object format for compatibility
     if obj["monadic"] || obj["json"]
       body["response_format"] ||= { "type" => "json_object" }
     end
@@ -291,21 +304,12 @@ module GrokHelper
     # Get tools from app settings
     app_tools = APPS[app]&.settings&.[]("tools")
     
-    # Debug logging for tools
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] === Grok Tool Debug ===")
-      extra_log.puts("App: #{app}")
-      extra_log.puts("Role: #{role}")
-      extra_log.puts("obj['tools']: #{obj['tools'].inspect}")
-      extra_log.puts("app_tools: #{app_tools.inspect}")
-      extra_log.close
-    end
-    
     # Include tools based on role and availability
-    # For Grok, we need to include tools even for tool responses to allow continued function calling
-    # Other providers may not need tools in tool responses
-    if obj["tools"] && !obj["tools"].empty?
+    # When role is "tool" (sending tool results back), don't include tools to prevent infinite loops
+    if role == "tool"
+      body.delete("tools")
+      body.delete("tool_choice")
+    elsif obj["tools"] && !obj["tools"].empty?
       # Use app tools if available, otherwise fallback to empty array
       body["tools"] = app_tools || []
       # Use tool_choice from settings or default to "auto"
@@ -393,24 +397,43 @@ module GrokHelper
       }
     end
 
-    # Handle function_return role (used after tool execution)
-    if role == "function_return" && obj["function_returns"]
-      # Add tool results to the message history
-      body["messages"] += obj["function_returns"]
+    # Handle tool role - send tool results back to Grok
+    if role == "tool" && obj["function_returns"]
+      # First, add the assistant message with tool_calls if it exists
+      if obj["assistant_tool_calls"]
+        assistant_message = {
+          "role" => "assistant",
+          "content" => [{"type" => "text", "text" => ""}],  # Empty content for tool calls
+          "tool_calls" => obj["assistant_tool_calls"]
+        }
+        body["messages"] << assistant_message
+      end
       
-      # Log the function returns being added
+      # Then add tool results to the message history with proper format
+      # According to Grok docs, tool results must have role="tool", content, and tool_call_id
+      obj["function_returns"].each do |result|
+        tool_message = {
+          "role" => "tool",
+          "content" => result["content"],
+          "tool_call_id" => result["tool_call_id"]
+        }
+        body["messages"] << tool_message
+      end
+      
+      # Log the tool results being added
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Adding function returns to messages")
-        extra_log.puts("Number of function returns: #{obj["function_returns"].length}")
-        obj["function_returns"].each do |result|
-          extra_log.puts("  - #{result[:name] || result['name']}: #{result[:content].to_s[0..100]}...")
+        extra_log.puts("\n[#{Time.now}] Adding tool results to messages for Grok")
+        if obj["assistant_tool_calls"]
+          extra_log.puts("Assistant tool calls: #{obj['assistant_tool_calls'].length} calls")
         end
+        extra_log.puts("Number of tool results: #{obj["function_returns"].length}")
+        obj["function_returns"].each do |result|
+          extra_log.puts("  - #{result['name']}: tool_call_id=#{result['tool_call_id']}, content_preview=#{result['content'].to_s[0..100]}...")
+        end
+        extra_log.puts("Total messages being sent: #{body['messages'].length}")
         extra_log.close
       end
-    elsif role == "tool"
-      # Legacy support for "tool" role (deprecated)
-      body["messages"] += obj["function_returns"] if obj["function_returns"]
     end
 
     last_text = context.last["text"]
@@ -422,10 +445,17 @@ module GrokHelper
     if last_text != "" && prompt_suffix.to_s != ""
       new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""
       if body.dig("messages", -1, "content")
-        body["messages"].last["content"].each do |content_item|
-          if content_item["type"] == "text"
-            content_item["text"] = new_text
+        last_content = body["messages"].last["content"]
+        # Check if content is an array (normal case) or string (tool result case)
+        if last_content.is_a?(Array)
+          last_content.each do |content_item|
+            if content_item["type"] == "text"
+              content_item["text"] = new_text
+            end
           end
+        elsif last_content.is_a?(String)
+          # For tool results, content is just a string, so replace it directly
+          body["messages"].last["content"] = new_text
         end
       end
     end
@@ -443,10 +473,16 @@ module GrokHelper
 
     if initial_prompt != "" && obj["system_prompt_suffix"].to_s != ""
       new_text = initial_prompt + "\n\n" + obj["system_prompt_suffix"].strip
-      body["messages"].first["content"].each do |content_item|
-        if content_item["type"] == "text"
-          content_item["text"] = new_text
+      first_content = body["messages"].first["content"]
+      # Check if content is an array (normal case) or string
+      if first_content.is_a?(Array)
+        first_content.each do |content_item|
+          if content_item["type"] == "text"
+            content_item["text"] = new_text
+          end
         end
+      elsif first_content.is_a?(String)
+        body["messages"].first["content"] = new_text
       end
     end
 
@@ -650,18 +686,20 @@ module GrokHelper
             end
 
             # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
-            if json.dig("choices", 0, "delta", "tool_calls")
+            # Also handle the case where finish_reason is "tool_calls" with empty delta
+            if json.dig("choices", 0, "delta", "tool_calls") || finish_reason == "tool_calls"
               if CONFIG["EXTRA_LOGGING"]
                 extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
                 extra_log.puts("\n[#{Time.now}] Grok tool call detected in streaming response:")
                 extra_log.puts("Tool call delta: #{json.dig('choices', 0, 'delta', 'tool_calls').inspect}")
                 extra_log.puts("Finish reason: #{finish_reason}")
+                extra_log.puts("Empty delta with tool_calls finish_reason") if finish_reason == "tool_calls" && !json.dig("choices", 0, "delta", "tool_calls")
                 extra_log.close
               end
               
-              # Grok returns complete tool calls in a single chunk
-              # Check if this is a complete tool call (has finish_reason)
-              if finish_reason == "tool_calls"
+              # IMPORTANT: Grok returns tool_calls in chunks, then sends finish_reason="tool_calls" with empty delta
+              if json.dig("choices", 0, "delta", "tool_calls")
+                # This chunk contains the actual tool_calls
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
                 
@@ -671,6 +709,15 @@ module GrokHelper
                 
                 # Mark as complete tool call for Grok
                 tools[tid]["grok_complete_tool_call"] = true
+              elsif finish_reason == "tool_calls" && tools.any?
+                # This is the final chunk with finish_reason but no delta
+                # The tool_calls were already stored in previous chunks
+                # Just mark that we should process them
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts("\n[#{Time.now}] Final tool_calls chunk received, tools stored: #{tools.keys.inspect}")
+                  extra_log.close
+                end
               else
                 # Handle partial tool calls (should be rare for Grok)
                 tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
@@ -784,17 +831,34 @@ module GrokHelper
       if is_grok_complete
         # Handle Grok's complete tool call
         tool_response = tools.values.first
+        
+        # Grok returns tool_calls at different levels depending on the response structure
         tool_calls = tool_response.dig("choices", 0, "delta", "tool_calls") || 
-                     tool_response.dig("choices", 0, "message", "tool_calls")
+                     tool_response.dig("choices", 0, "message", "tool_calls") ||
+                     tool_response.dig("choices", 0, "tool_calls")  # Check at choice level too
+        
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("\n[#{Time.now}] Checking for tool_calls in Grok response:")
+          extra_log.puts("  Tool response keys: #{tool_response.keys.inspect}")
+          if tool_response["choices"]
+            extra_log.puts("  Tool response choices: #{tool_response["choices"].inspect[0..500]}")
+          end
+          extra_log.puts("  - At delta level: #{tool_response.dig("choices", 0, "delta", "tool_calls").inspect[0..100]}")
+          extra_log.puts("  - At message level: #{tool_response.dig("choices", 0, "message", "tool_calls").inspect[0..100]}")
+          extra_log.puts("  - At choice level: #{tool_response.dig("choices", 0, "tool_calls").inspect[0..100]}")
+          extra_log.puts("  Tool calls found: #{!tool_calls.nil?}")
+          if tool_calls
+            extra_log.puts("  Tool calls content: #{tool_calls.inspect[0..500]}")
+          end
+          extra_log.close
+        end
         
         if tool_calls
-          # Build proper context for tool execution
-          tool_message = {
-            "role" => "assistant",
-            "content" => nil,
-            "tool_calls" => tool_calls
-          }
-          context << tool_message
+          # Store the assistant message with tool_calls for the next API request
+          # This will be added to messages in api_request when role == "tool"
+          obj = session[:parameters]
+          obj["assistant_tool_calls"] = tool_calls
           
           call_depth += 1
           if call_depth > MAX_FUNC_CALLS
@@ -802,37 +866,34 @@ module GrokHelper
           end
           
           # Process the tools and get results
-          # This will execute tools and call API again to get Grok's response
-          new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
-          
+          new_results = process_functions(app, session, tool_calls, call_depth, &block)
           # Return the results from Grok's response after tool execution
           return new_results || []
         end
       else
-        # Original logic for non-Grok or partial tool calls
-        if result
-          merged = result["choices"][0]["message"].merge(tools.first[1]["choices"][0]["message"])
-          context << merged
-        else
-          context << tools.first[1].dig("choices", 0, "message")
-        end
-
-        tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
+        # Handle partial tool calls (should be rare for Grok but keeping for compatibility)
+        tool_calls = tools.first[1].dig("choices", 0, "message", "tool_calls")
+        
+        # Store assistant tool_calls for next request
+        obj = session[:parameters]
+        obj["assistant_tool_calls"] = tool_calls
 
         call_depth += 1
         if call_depth > MAX_FUNC_CALLS
           return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
         end
 
-        new_results = process_functions(app, session, tools, context, call_depth, &block)
+        new_results = process_functions(app, session, tool_calls, call_depth, &block)
 
-        # return Array
+        # Return results
         if result && new_results
           [result].concat new_results
         elsif new_results
           new_results
         elsif result
           [result]
+        else
+          []
         end
       end
     elsif result
@@ -847,7 +908,48 @@ module GrokHelper
     end
   end
 
-  def process_functions(app, session, tools, context, call_depth, &block)
+  def build_tool_response(tool_results)
+    response_parts = []
+    
+    tool_results.each do |result|
+      case result["name"]
+      when "create_jupyter_notebook"
+        if result["content"].include?("created successfully")
+          if result["content"] =~ /Notebook '([^']+)' created successfully/
+            notebook_filename = $1
+            response_parts << "✅ Created notebook: **#{notebook_filename}**"
+            response_parts << "📎 <a href=\"http://localhost:8889/lab/tree/#{notebook_filename}\" target=\"_blank\">Open #{notebook_filename} in JupyterLab</a>"
+          else
+            response_parts << result["content"]
+          end
+        else
+          response_parts << result["content"]
+        end
+        
+      when "add_jupyter_cells"
+        response_parts << "✅ Added cells to the notebook"
+        
+      when "run_jupyter"
+        if result["content"].include?("started")
+          response_parts << "✅ JupyterLab server started"
+        elsif result["content"].include?("already running")
+          response_parts << "ℹ️ JupyterLab was already running"
+        else
+          response_parts << result["content"]
+        end
+        
+      when "run_code"
+        response_parts << "**Code Output:**\n```\n#{result["content"]}\n```"
+        
+      else
+        response_parts << "✅ Executed: #{result["name"]}"
+      end
+    end
+    
+    response_parts.join("\n\n")
+  end
+  
+  def process_functions(app, session, tools, call_depth, &block)
     obj = session[:parameters]
     tool_results = []
     
@@ -866,6 +968,47 @@ module GrokHelper
         argument_hash = {}
       end
 
+      # CRITICAL FIX: Replace incorrect filenames with the stored correct one
+      # This applies to any Jupyter function that takes a filename parameter
+      if obj["current_notebook_filename"] && argument_hash["filename"]
+        jupyter_functions = ["add_jupyter_cells", "delete_jupyter_cell", "update_jupyter_cell", 
+                           "get_jupyter_cells_with_results", "execute_and_fix_jupyter_cells",
+                           "restart_jupyter_kernel", "interrupt_jupyter_execution", 
+                           "move_jupyter_cell", "insert_jupyter_cells"]
+        
+        if jupyter_functions.include?(function_name)
+          provided_filename = argument_hash["filename"].to_s.gsub(/\.ipynb$/, '')
+          stored_filename = obj["current_notebook_filename"].gsub(/\.ipynb$/, '')
+          
+          # Check if the provided file actually exists
+          shared_volume = if Monadic::Utils::Environment.in_container?
+                            MonadicApp::SHARED_VOL
+                          else
+                            MonadicApp::LOCAL_SHARED_VOL
+                          end
+          provided_path = File.join(shared_volume, "#{provided_filename}.ipynb")
+          
+          # If the provided file doesn't exist, use the stored filename
+          if !File.exist?(provided_path) && obj["current_notebook_filename"]
+            # Extract base names to check if they're related
+            stored_base_name = stored_filename.gsub(/_\d{8}_\d{6}$/, '')
+            provided_base_name = provided_filename.gsub(/_\d{8}_\d{6}$/, '')
+            
+            # Only replace if the base names match (same notebook, different timestamp)
+            if stored_base_name == provided_base_name
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("\n[#{Time.now}] Replacing non-existent filename in #{function_name}:")
+                extra_log.puts("  Original: #{argument_hash["filename"]} (file doesn't exist)")
+                extra_log.puts("  Replaced with: #{stored_filename} (stored filename)")
+                extra_log.close
+              end
+              argument_hash["filename"] = stored_filename
+            end
+          end
+        end
+      end
+
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
         # skip if the value is nil or null but not if it is of the string class
         next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
@@ -876,6 +1019,26 @@ module GrokHelper
 
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+        
+        # CRITICAL: If this is create_jupyter_notebook, extract the actual filename with timestamp
+        # and store it in session for subsequent tool calls AND for the LLM to use in its response
+        if function_name == "create_jupyter_notebook" && function_return.include?("created successfully")
+          # Extract actual notebook filename with timestamp
+          if function_return =~ /Notebook '([^']+)' created successfully/
+            actual_notebook_name = $1
+            # Store in session for subsequent tool calls
+            obj["current_notebook_filename"] = actual_notebook_name
+            obj["current_notebook_link"] = "<a href='http://localhost:8889/lab/tree/#{actual_notebook_name}' target='_blank'>Open #{actual_notebook_name}</a>"
+            
+            
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts("\n[#{Time.now}] Stored notebook name: #{actual_notebook_name}")
+              extra_log.puts("Stored notebook link: #{obj["current_notebook_link"]}")
+              extra_log.close
+            end
+          end
+        end
         
         # Log tool execution
         if CONFIG["EXTRA_LOGGING"]
@@ -891,61 +1054,32 @@ module GrokHelper
         function_return = "ERROR: #{e.message}"
       end
 
+      # Format tool result for Grok API
       tool_result = {
-        tool_call_id: tool_call["id"],
-        role: "tool",
-        name: function_name,
-        content: function_return.to_s
+        "tool_call_id" => tool_call["id"],
+        "role" => "tool",
+        "name" => function_name,
+        "content" => function_return.to_s
       }
       
-      context << tool_result
       tool_results << tool_result
     end
 
-    # Store tool results in session for reference
+    # Store tool results in session for API request
     obj["function_returns"] = tool_results
     
-    # For Grok, we need to continue the conversation after tool execution
-    # to get the natural language response from the model
-    if call_depth < MAX_FUNC_CALLS
-      # Log that we're making follow-up call
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Making follow-up API call after tool execution (depth: #{call_depth})")
-        extra_log.puts("Tool results to be included: #{tool_results.length} results")
-        extra_log.close
-      end
-      
-      # CRITICAL FIX: Use "function_return" as role instead of "tool"
-      # This tells api_request to properly handle the tool results
-      new_results = api_request("function_return", session, call_depth: call_depth, &block)
-      
-      # Log the results
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Follow-up API call completed")
-        if new_results && new_results.is_a?(Array) && !new_results.empty?
-          content = new_results.dig(0, "choices", 0, "message", "content")
-          extra_log.puts("Response content preview: #{content.to_s[0..200]}...") if content
-        else
-          extra_log.puts("Warning: No valid response received")
-        end
-        extra_log.close
-      end
-      
-      return new_results
-    else
-      # Max depth reached, provide a helpful message
+    # Check if we've reached max call depth
+    if call_depth >= MAX_FUNC_CALLS
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("\n[#{Time.now}] Max call depth reached (#{MAX_FUNC_CALLS})")
         extra_log.close
       end
       
-      # Create a proper response that includes tool results with explanation
+      # Return a summary when max depth is reached
       summary = "Completed #{tool_results.length} tool execution(s):\n\n"
       tool_results.each do |result|
-        summary += "• #{result[:name]}: #{result[:content][0..100]}#{result[:content].length > 100 ? '...' : ''}\n"
+        summary += "• #{result['name']}: #{result['content'][0..100]}#{result['content'].length > 100 ? '...' : ''}\n"
       end
       
       return [{
@@ -958,5 +1092,92 @@ module GrokHelper
         }]
       }]
     end
+    
+    # CORRECT FLOW: Send tool results back to Grok to get natural language response
+    # According to documentation, we must send tool results with role="tool" back to Grok
+    
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] Sending tool results back to Grok (depth: #{call_depth})")
+      extra_log.puts("Number of tool results: #{tool_results.length}")
+      tool_results.each do |result|
+        extra_log.puts("  - #{result['name']}: tool_call_id=#{result['tool_call_id']}")
+      end
+      extra_log.close
+    end
+    
+    # Build a helpful response that includes actual results
+    response_content = build_tool_response(tool_results)
+    
+    # Make API request with tool results to get Grok's natural language response
+    # Use "tool" as role to indicate we're sending tool results
+    new_results = api_request("tool", session, call_depth: call_depth + 1, &block)
+    
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] Received response from Grok after tool execution")
+      if new_results && new_results.is_a?(Array) && !new_results.empty?
+        content = new_results.dig(0, "choices", 0, "message", "content")
+        extra_log.puts("Response preview: #{content.to_s[0..200]}...") if content
+      end
+      extra_log.close
+    end
+    
+    # CRITICAL FIX: Post-process Grok's response to replace incorrect filenames
+    if new_results && new_results.is_a?(Array) && !new_results.empty?
+      content = new_results.dig(0, "choices", 0, "message", "content")
+      
+      if content && obj["current_notebook_filename"]
+        actual_filename = obj["current_notebook_filename"]
+        base_name = actual_filename.gsub(/_\d{8}_\d{6}\.ipynb$/, '')
+        
+        # Replace incorrect filename patterns with the actual filename
+        # Pattern 1: Without timestamp
+        content = content.gsub(/\b#{Regexp.escape(base_name)}\.ipynb\b/i, actual_filename)
+        
+        # Pattern 2: With ANY timestamp (catches all fake timestamps)
+        content = content.gsub(/\b#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb\b/i, actual_filename)
+        
+        # Pattern 3: Fix URLs
+        content = content.gsub(%r{http://localhost:8889/lab/tree/#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb}i,
+                              "http://localhost:8889/lab/tree/#{actual_filename}")
+        
+        # Update the response with corrected content
+        new_results[0]["choices"][0]["message"]["content"] = content
+        
+      end
+    end
+    
+    # If Grok returns empty response after tool execution, provide a fallback
+    if new_results.nil? || new_results.empty? || 
+       !new_results.dig(0, "choices", 0, "message", "content") ||
+       new_results.dig(0, "choices", 0, "message", "content").to_s.strip.empty?
+      
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Grok returned empty response after tool execution, using fallback")
+        extra_log.close
+      end
+      
+      # Build a fallback response based on tool results
+      fallback_content = response_content || "Tools executed successfully."
+      
+      # Add information from session if available
+      if obj["current_notebook_link"]
+        fallback_content += "\n\n#{obj["current_notebook_link"]}"
+      end
+      
+      return [{
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => fallback_content
+          },
+          "finish_reason" => "stop"
+        }]
+      }]
+    end
+    
+    return new_results
   end
 end

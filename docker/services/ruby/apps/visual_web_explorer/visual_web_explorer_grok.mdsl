@@ -43,7 +43,7 @@ app "VisualWebExplorerGrok" do
 
   llm do
     provider "xai"
-    model "grok-3-mini"
+    model "grok-4-0709"
     temperature 0.0
   end
 

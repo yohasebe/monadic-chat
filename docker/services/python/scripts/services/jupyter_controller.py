@@ -60,6 +60,11 @@ def create_notebook(notebook_path):
     nb = nbf.v4.new_notebook()
     write_notebook(notebook_path, nb)
     print(f"Notebook created at {notebook_path}")
+    # Verify the file was actually created
+    if os.path.exists(notebook_path):
+        print(f"[DEBUG] File verified to exist: {notebook_path}")
+    else:
+        print(f"[ERROR] File was NOT created: {notebook_path}")
 
 def add_cells_to_notebook(notebook_path, new_cells, max_retries=5, retry_delay=1):
     for attempt in range(max_retries):

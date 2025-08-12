@@ -7,7 +7,93 @@ require_relative '../../../lib/monadic/utils/error_handler'
 require_relative '../../../lib/monadic/utils/debug_helper'
 
 RSpec.describe ErrorHandler do
-  # Test class that includes ErrorHandler
+  # Test the new unified error formatting methods
+  describe 'Unified Error System' do
+    describe '.format_error' do
+      it 'formats basic error message' do
+        result = ErrorHandler.format_error(
+          category: :api,
+          message: "Request failed"
+        )
+        expect(result).to eq("Error: [API Error] - Request failed")
+      end
+
+      it 'includes suggestion when provided' do
+        result = ErrorHandler.format_error(
+          category: :validation,
+          message: "Invalid input",
+          suggestion: "Check your data format"
+        )
+        expect(result).to eq("Error: [Invalid Input] - Invalid input. Check your data format")
+      end
+
+      it 'includes error code when provided' do
+        result = ErrorHandler.format_error(
+          category: :api,
+          message: "Request failed",
+          code: "E001"
+        )
+        expect(result).to eq("Error: [API Error] - Request failed (Code: E001)")
+      end
+    end
+
+    describe '.format_provider_error' do
+      it 'formats provider error with rate limit detection' do
+        result = ErrorHandler.format_provider_error(
+          provider: "OpenAI",
+          error: "Rate limit exceeded"
+        )
+        expect(result).to include("[Rate Limit]")
+        expect(result).to include("OpenAI")
+        expect(result).to include("Please wait before retrying")
+      end
+
+      it 'formats provider error with authentication detection' do
+        result = ErrorHandler.format_provider_error(
+          provider: "Claude",
+          error: "Unauthorized: Invalid API key"
+        )
+        expect(result).to include("[Authentication Error]")
+        expect(result).to include("Claude")
+        expect(result).to include("Check your API key configuration")
+      end
+    end
+
+    describe '.format_tool_error' do
+      it 'formats tool execution error' do
+        result = ErrorHandler.format_tool_error(
+          tool: "create_jupyter_notebook",
+          error: "Permission denied"
+        )
+        expect(result).to include("[Tool Error]")
+        expect(result).to include("create_jupyter_notebook")
+        expect(result).to include("Permission denied")
+      end
+    end
+
+    describe '.format_validation_error' do
+      it 'formats required field error' do
+        result = ErrorHandler.format_validation_error(
+          field: "Filename",
+          requirement: "Please provide a valid filename"
+        )
+        expect(result).to include("[Invalid Input]")
+        expect(result).to include("Filename is required")
+      end
+
+      it 'formats invalid value error' do
+        result = ErrorHandler.format_validation_error(
+          field: "Temperature",
+          requirement: "Must be between 0 and 1",
+          value: "2.5"
+        )
+        expect(result).to include("[Invalid Input]")
+        expect(result).to include("Temperature has invalid value")
+      end
+    end
+  end
+
+  # Test class that includes ErrorHandler for backward compatibility
   class TestErrorHandler
     include ErrorHandler
   end

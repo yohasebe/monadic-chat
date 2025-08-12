@@ -315,6 +315,32 @@ RSpec.describe StringUtils do
       expect(result).to eq("42")
     end
     
+    it "handles bold text with Japanese brackets" do
+      text = "これが**「ベースレート無視」**という有名な錯覚です"
+      result = StringUtils.markdown_to_html(text)
+      expect(result).to include("<strong>「ベースレート無視」</strong>")
+    end
+    
+    it "handles bold text in numbered lists" do
+      text = <<~MARKDOWN
+        1. **最初に持っている情報（事前確率）**に、
+        2. **新しい情報（尤度）**を加えて、
+        3. **考えを更新する（事後確率）**
+      MARKDOWN
+      result = StringUtils.markdown_to_html(text)
+      expect(result).to include("<strong>最初に持っている情報（事前確率）</strong>")
+      expect(result).to include("<strong>新しい情報（尤度）</strong>")
+      expect(result).to include("<strong>考えを更新する（事後確率）</strong>")
+    end
+    
+    it "handles multiple Japanese bracket types in bold" do
+      text = "**『重要』**、**【注意】**、**《参考》**"
+      result = StringUtils.markdown_to_html(text)
+      expect(result).to include("<strong>『重要』</strong>")
+      expect(result).to include("<strong>【注意】</strong>")
+      expect(result).to include("<strong>《参考》</strong>")
+    end
+    
     it "automatically normalizes malformed markdown" do
       # Malformed markdown with indented code block without blank lines
       text = "Some text\n    ```ruby\n    puts 'Hello'\n    ```\nMore text"

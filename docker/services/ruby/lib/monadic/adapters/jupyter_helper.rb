@@ -347,7 +347,9 @@ module MonadicHelper
                     else
                       MonadicApp::LOCAL_SHARED_VOL
                     end
-    filepath = File.join(shared_volume, filename)
+    # Ensure filename has .ipynb extension
+    filename_with_ext = filename.end_with?('.ipynb') ? filename : "#{filename}.ipynb"
+    filepath = File.join(shared_volume, filename_with_ext)
 
     if res
       output = get_last_cell_output(filepath)

@@ -171,6 +171,7 @@ RSpec.describe "VideoGeneratorVeo" do
         1,
         "16:9",
         "allow_adult",
+        nil,  # negative_prompt
         5,
         mock_api_key
       )
@@ -191,6 +192,7 @@ RSpec.describe "VideoGeneratorVeo" do
         1,
         "16:9",
         "allow_adult",
+        nil,  # negative_prompt
         5,
         mock_api_key
       )

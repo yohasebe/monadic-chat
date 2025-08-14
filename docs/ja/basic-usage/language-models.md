@@ -155,11 +155,18 @@ Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用
   - gemini-2.5-flash、gemini-2.5-pro
   - gemini-2.5-flash-preview-05-20、gemini-2.5-pro-exp-03-25（実験版）
   - Deep Thinkモード利用可能
-  - **技術的制約**: 関数呼び出しには`reasoning_effort: minimal`が必要、この設定では構造化JSON出力は利用不可
+  - **技術的制約**: 関数呼び出しには`reasoning_effort: "low"`が必要、この設定では構造化JSON出力は利用不可
 - **Gemini 2.0シリーズ**: 
   - gemini-2.0-flash、gemini-2.0-flash-thinking-exp（思考/推論モデル）
   - 100万トークンのコンテキストウィンドウ
 - **Imagen 3**: imagen-3.0-generate-002（画像生成用）
+
+### Google検索グラウンディング
+Geminiモデルでウェブ検索を有効にすると、Googleのネイティブ検索グラウンディングが検索結果に関する豊富なメタデータを提供します：
+- 使用された検索クエリ
+- 関連性スコア付きのグラウンディングチャンク
+- 検索結果への直接リンク
+このメタデータは利用可能な場合、応答に自動的に表示されます。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 

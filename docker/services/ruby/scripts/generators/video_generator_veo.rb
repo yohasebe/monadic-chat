@@ -6,15 +6,16 @@ require "json"
 require "optparse"
 require "fileutils"
 require "open3"
+require "openssl"
 
 # Define constants for API and configuration
 
 # Use Vertex AI API endpoint instead of GenerativeLanguage API
 
 # Model selection
-USE_VEO3_FOR_TEXT = true  # Use Veo 3 for text-to-video
-veo2model = "veo-2.0-generate-001"
+USE_VEO3_FAST = false  # Use faster Veo 3 model (lower quality but quicker)
 veo3model = "veo-3.0-generate-preview"
+veo3fastmodel = "veo-3.0-fast-generate-preview"
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function
@@ -25,12 +26,12 @@ DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
 
 # Define valid parameter values
 
-VALID_ASPECT_RATIOS = ["16:9", "9:16"]
-# Person generation values depend on model
-VALID_PERSON_GENERATION_VEO2 = ["dont_allow", "allow_adult", "allow_all"]
-VALID_PERSON_GENERATION_VEO3 = ["allow_all", "dont_allow", "allow_adult"]
-# Union of all valid values (remove duplicates)
-VALID_PERSON_GENERATION = (VALID_PERSON_GENERATION_VEO2 + VALID_PERSON_GENERATION_VEO3).uniq
+# Veo 3 only supports 16:9 aspect ratio
+VALID_ASPECT_RATIOS_VEO3 = ["16:9"]
+# Person generation values for Veo 3
+# Text-to-video: "allow_all"
+# Image-to-video: "allow_adult"
+VALID_PERSON_GENERATION_VEO3 = ["allow_all", "allow_adult", "dont_allow"]
 VALID_DURATION_SECONDS = (5..8).to_a
 
 # Default options
@@ -39,7 +40,9 @@ DEFAULT_OPTIONS = {
   number_of_videos: 1,          # Default to 1 video
   aspect_ratio: "16:9",         # Default aspect ratio
   person_generation: nil,        # Will be set based on model and image presence
-  duration_seconds: 5,          # Default duration in seconds
+  negative_prompt: nil,         # Optional negative prompt for Veo 3
+  duration_seconds: 5,          # Default duration in seconds (Veo 3 generates 8 seconds)
+  fast_mode: false,             # Use fast generation mode for Veo 3
   debug: false                  # Debug mode flag
 }
 
@@ -233,7 +236,7 @@ end
 
 # Make API request to initialize video generation
 
-def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio, person_generation, duration_seconds, api_key)
+def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio, person_generation, negative_prompt, duration_seconds, api_key)
   # Use the current model set by generate_video function
   api_endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{$current_model}:predictLongRunning"
   url = "#{api_endpoint}?key=#{api_key}"
@@ -256,6 +259,12 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
       # Note: Veo 3 always generates 1 video per request (no sampleCount parameter)
     }
   }
+  
+  # Add negative prompt for Veo 3 if provided
+  if negative_prompt && !negative_prompt.empty? && $current_model.start_with?("veo-3")
+    body[:instances][0][:negativePrompt] = negative_prompt
+    STDERR.puts "Added negative prompt for Veo 3: #{negative_prompt}" if $debug
+  end
   
   # Add image if provided - use Vertex AI structure
   if image_path && !image_path.empty?
@@ -289,22 +298,11 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
           STDERR.puts "DEBUG: Determined mime type from extension: #{mime_type}" if $debug
         end
         
-        # Use different format based on model
-        # Veo 2 requires both bytesBase64Encoded and mimeType
-        if $current_model == "veo-2.0-generate-001"
-          body[:instances][0][:image] = {
-            bytesBase64Encoded: base64_data,
-            mimeType: mime_type
-          }
-        else
-          # Veo 3 might use different format (currently not working for image-to-video)
-          body[:instances][0][:image] = {
-            inline_data: {
-              mime_type: mime_type,
-              data: base64_data
-            }
-          }
-        end
+        # Veo 3 uses the same format for image-to-video
+        body[:instances][0][:image] = {
+          bytesBase64Encoded: base64_data,
+          mimeType: mime_type
+        }
         
         STDERR.puts "Successfully encoded image from: #{resolved_path}"
         STDERR.puts "DEBUG: Added image to request body with base64 encoding and mimeType: #{mime_type}" if $debug
@@ -319,22 +317,60 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
   STDERR.puts "Sending request to: #{api_endpoint}"
   STDERR.puts "Request body: #{JSON.pretty_generate(body)}"
   
-  response = HTTP.headers(headers).post(url, json: body)
+  # Add retry logic for SSL/connection errors
+  max_connection_retries = 3
+  retry_count = 0
+  response = nil
   
-  # Separate debugging info to STDERR only, not mixing with the response object
-  STDERR.puts "Raw Response Status: #{response.status}"
-  STDERR.puts "Raw Response Headers: #{response.headers.to_h}"
-  
-  # Don't log the entire response body to avoid corrupting the JSON response
-  response_preview = response.body.to_s[0..100]
-  STDERR.puts "Raw Response Body (preview): #{response_preview}..."
+  begin
+    # Use a timeout and follow redirects, with SSL verification
+    http_client = HTTP.timeout(connect: 30, read: 60)
+                     .follow(max_hops: 5)
+    
+    response = http_client.headers(headers).post(url, json: body)
+    
+    # Separate debugging info to STDERR only, not mixing with the response object
+    STDERR.puts "Raw Response Status: #{response.status}"
+    STDERR.puts "Raw Response Headers: #{response.headers.to_h}"
+    
+    # Don't log the entire response body to avoid corrupting the JSON response
+    response_preview = response.body.to_s[0..100]
+    STDERR.puts "Raw Response Body (preview): #{response_preview}..."
+    
+  rescue HTTP::Error, OpenSSL::SSL::SSLError, Errno::ECONNRESET, SocketError => e
+    retry_count += 1
+    if retry_count < max_connection_retries
+      STDERR.puts "Connection error (attempt #{retry_count}/#{max_connection_retries}): #{e.class} - #{e.message}"
+      STDERR.puts "This may be a temporary network issue. Retrying in 5 seconds..."
+      sleep 5
+      retry
+    else
+      STDERR.puts "ERROR: API request failed after #{max_connection_retries} attempts"
+      STDERR.puts "Error type: #{e.class}"
+      STDERR.puts "Error message: #{e.message}"
+      STDERR.puts "Possible causes:"
+      STDERR.puts "  - Network connectivity issues"
+      STDERR.puts "  - DNS resolution problems in Docker"
+      STDERR.puts "  - SSL certificate verification issues"
+      STDERR.puts "  - API endpoint temporarily unavailable"
+      
+      # Create a mock error response using OpenStruct
+      require 'ostruct'
+      error_body = { "error" => { "message" => "API request failed - #{e.class}: #{e.message}" } }
+      response = OpenStruct.new(
+        status: OpenStruct.new(code: 500, success?: false),
+        body: error_body.to_json,
+        headers: OpenStruct.new(to_h: { 'Content-Type' => 'application/json' })
+      )
+    end
+  end
   
   response
 end
 
 # Check the status of a video generation operation
 
-def check_operation_status(operation_name, api_key, max_retries = 45, retry_interval = 5)
+def check_operation_status(operation_name, api_key, max_retries = 84, retry_interval = 5)
   operation_url = "#{API_OPERATION_ENDPOINT}/#{operation_name}?key=#{api_key}"
   
   STDERR.puts "Checking operation status at: #{operation_url}"
@@ -342,23 +378,31 @@ def check_operation_status(operation_name, api_key, max_retries = 45, retry_inte
   retries = 0
   
   while retries < max_retries
-    response = HTTP.get(operation_url)
-    
-    if response.status.success?
-      operation_data = JSON.parse(response.body.to_s)
+    begin
+      # Add timeout and retry for connection errors
+      response = HTTP.timeout(connect: 30, read: 60).get(operation_url)
       
-      if operation_data["done"]
-        STDERR.puts "Operation completed"
-        return operation_data
+      if response.status.success?
+        operation_data = JSON.parse(response.body.to_s)
+        
+        if operation_data["done"]
+          STDERR.puts "Operation completed"
+          return operation_data
+        else
+          STDERR.puts "Operation still in progress (attempt #{retries + 1}/#{max_retries}), waiting #{retry_interval} seconds..."
+          sleep retry_interval
+          retries += 1
+        end
       else
-        STDERR.puts "Operation still in progress (attempt #{retries + 1}/#{max_retries}), waiting #{retry_interval} seconds..."
-        sleep retry_interval
-        retries += 1
+        STDERR.puts "Error checking operation status: #{response.status.code}"
+        STDERR.puts response.body.to_s
+        return { "error" => { "message" => "Failed to check operation status: HTTP #{response.status.code}" } }
       end
-    else
-      STDERR.puts "Error checking operation status: #{response.status.code}"
-      STDERR.puts response.body.to_s
-      return { "error" => { "message" => "Failed to check operation status: HTTP #{response.status.code}" } }
+    rescue HTTP::Error, OpenSSL::SSL::SSLError, Errno::ECONNRESET => e
+      STDERR.puts "Connection error while checking status: #{e.message}"
+      STDERR.puts "Retrying in #{retry_interval} seconds..."
+      sleep retry_interval
+      retries += 1
     end
   end
   
@@ -534,33 +578,30 @@ end
 
 # Main function to generate videos
 
-def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio = "16:9", person_generation = nil, duration_seconds = 5, num_retrials = 3)
+def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio = "16:9", person_generation = nil, negative_prompt = nil, fast_mode = false, duration_seconds = 5, num_retrials = 3)
   # Convert parameters to proper strings to prevent JSON encoding issues
   prompt = prompt.to_s
-  aspect_ratio = aspect_ratio.to_s
+  negative_prompt = negative_prompt.to_s if negative_prompt
   
-  # Select model based on whether image is provided
-  # Use Veo 2 for image-to-video, Veo 3 for text-to-video
-  if image_path && !image_path.to_s.empty?
-    # Use Veo 2 for image-to-video generation
-    $current_model = "veo-2.0-generate-001"
-    use_veo3 = false
-    STDERR.puts "Using Veo 2 for image-to-video generation"
-  else
-    # Use Veo 3 for text-to-video if enabled, otherwise Veo 2
-    $current_model = USE_VEO3_FOR_TEXT ? "veo-3.0-generate-preview" : "veo-2.0-generate-001"
-    use_veo3 = USE_VEO3_FOR_TEXT
-    STDERR.puts "Using #{use_veo3 ? 'Veo 3' : 'Veo 2'} for text-to-video generation"
-  end
+  # Veo 3 only supports 16:9 aspect ratio
+  aspect_ratio = "16:9"
+  STDERR.puts "Note: Veo 3 only supports 16:9 aspect ratio. Using 16:9." if aspect_ratio != "16:9"
   
-  # Adjust person_generation based on model and whether image is provided
+  # Select between standard and fast Veo 3 models
+  $current_model = (USE_VEO3_FAST || fast_mode) ? "veo-3.0-fast-generate-preview" : "veo-3.0-generate-preview"
+  STDERR.puts "Using Veo 3 #{fast_mode ? '(fast mode)' : '(standard mode)'} for #{image_path && !image_path.to_s.empty? ? 'image-to-video' : 'text-to-video'} generation"
+  
+  # Adjust person_generation based on whether image is provided
+  # Veo 3 requirements:
+  # - Text-to-video: "allow_all"
+  # - Image-to-video: "allow_adult"
   if person_generation.nil?
-    if use_veo3 && !image_path
-      # Veo 3 text-to-video: allow_all
-      person_generation = "allow_all"
-    else
-      # Veo 2 or image-to-video: allow_adult
+    if image_path && !image_path.to_s.empty?
+      # Image-to-video: allow_adult
       person_generation = "allow_adult"
+    else
+      # Text-to-video: allow_all
+      person_generation = "allow_all"
     end
   end
   person_generation = person_generation.to_s
@@ -575,11 +616,14 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
     "duration_seconds" => duration_seconds
   }
   
-  # Add image path to params if provided
+  # Add optional parameters if provided
   params["image_path"] = image_path.to_s if image_path && !image_path.to_s.empty?
+  params["negative_prompt"] = negative_prompt if negative_prompt && !negative_prompt.empty?
+  params["fast_mode"] = fast_mode if fast_mode
   
   # Set a master timeout for the entire operation
-  master_timeout = 300 # 5 minutes total timeout
+  # Veo 3 can take up to 6 minutes, so set timeout to 7 minutes for safety
+  master_timeout = 420 # 7 minutes total timeout
   start_time = Time.now
   
   begin
@@ -587,6 +631,7 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
     # Output to stdout - LLM will extract information from this
     puts "Generating video with prompt: \"#{prompt}\"..."
     puts "Using parameters: #{params.inspect}"
+    puts "Note: Veo 3 generation takes 11 seconds to 6 minutes."
     puts "Operation will timeout after #{master_timeout / 60} minutes if no result is received."
     
     # Step 1: Initiate video generation
@@ -596,6 +641,7 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
       number_of_videos, 
       aspect_ratio, 
       person_generation,
+      negative_prompt,
       duration_seconds,
       api_key
     )
@@ -695,17 +741,17 @@ def parse_options
       options[:number_of_videos] = num
     end
     
-    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (16:9 or 9:16)") do |ratio|
-      unless VALID_ASPECT_RATIOS.include?(ratio)
-        puts "ERROR: Invalid aspect ratio. Valid values are: #{VALID_ASPECT_RATIOS.join(', ')}"
+    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (Veo 3 only supports 16:9)") do |ratio|
+      unless VALID_ASPECT_RATIOS_VEO3.include?(ratio)
+        puts "ERROR: Invalid aspect ratio. Veo 3 only supports: #{VALID_ASPECT_RATIOS_VEO3.join(', ')}"
         exit
       end
       options[:aspect_ratio] = ratio
     end
     
     opts.on("-g", "--person-generation MODE", "Person generation mode") do |mode|
-      unless VALID_PERSON_GENERATION.include?(mode)
-        puts "ERROR: Invalid person generation mode. Valid values are: #{VALID_PERSON_GENERATION.join(', ')}"
+      unless VALID_PERSON_GENERATION_VEO3.include?(mode)
+        puts "ERROR: Invalid person generation mode. Valid values are: #{VALID_PERSON_GENERATION_VEO3.join(', ')}"
         exit
       end
       options[:person_generation] = mode
@@ -717,6 +763,14 @@ def parse_options
         exit
       end
       options[:duration_seconds] = seconds
+    end
+    
+    opts.on("--negative-prompt PROMPT", "Negative prompt (what to avoid in the video, Veo 3 only)") do |neg_prompt|
+      options[:negative_prompt] = neg_prompt
+    end
+    
+    opts.on("--fast", "Use fast generation mode (Veo 3 only, lower quality but quicker)") do
+      options[:fast_mode] = true
     end
     
     opts.on("-h", "--help", "Show this help message") do
@@ -745,20 +799,25 @@ end
 
 def show_sample_usage
   puts "Sample usage:"
-  puts "\n# Basic usage with defaults (text-to-video)"
+  puts "\n# Basic text-to-video with Veo 3"
   puts "#{$PROGRAM_NAME} -p \"Panning wide shot of a calico kitten sleeping in the sunshine\""
-  puts "\n# Image-to-video with specific aspect ratio"
-  puts "#{$PROGRAM_NAME} -p \"Panning wide shot of a calico kitten sleeping in the sunshine\" -i cat.jpg -a \"16:9\""
+  puts "\n# Image-to-video with Veo 3"
+  puts "#{$PROGRAM_NAME} -p \"Make the cat play with a ball\" -i cat.jpg"
+  puts "\n# With negative prompt"
+  puts "#{$PROGRAM_NAME} -p \"A peaceful garden scene\" --negative-prompt \"people, cars, buildings\""
+  puts "\n# Fast mode for quicker generation"
+  puts "#{$PROGRAM_NAME} -p \"Ocean waves at sunset\" --fast"
   puts "\n# With all options specified"
   puts "#{$PROGRAM_NAME} \\"
   puts "  -p \"Panning wide shot of a calico kitten sleeping in the sunshine\" \\"
   puts "  -i cat.jpg \\"
-  puts "  -n 1 \\"
-  puts "  -a \"16:9\" \\"
-  puts "  -g \"dont_allow\" \\"
-  puts "  -d 8"
+  puts "  --negative-prompt \"dogs, cars\" \\"
+  puts "  --fast"
   puts "\n# For debugging"
   puts "#{$PROGRAM_NAME} -p \"Panning wide shot of a calico kitten\" --debug"
+  puts "\nNote: Veo 3 only supports 16:9 aspect ratio"
+  puts "      Text-to-video uses person_generation=\"allow_all\" by default"
+  puts "      Image-to-video uses person_generation=\"allow_adult\" by default"
   puts "\nUse -h or --help for full options list"
 end
 
@@ -786,6 +845,8 @@ if __FILE__ == $PROGRAM_NAME
     1, # Force to generate only one video
     options[:aspect_ratio],
     options[:person_generation],
+    options[:negative_prompt],
+    options[:fast_mode],
     options[:duration_seconds]
   )
   

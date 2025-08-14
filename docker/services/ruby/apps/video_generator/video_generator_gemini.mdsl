@@ -1,6 +1,6 @@
 app "VideoGeneratorGemini" do
   description <<~TEXT
-    This app generates videos using Google's Veo model through the Gemini API. It supports text-to-video and image-to-video generation with different aspect ratios and durations. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    This app generates 8-second 720p videos using Google's Veo 3 model through the Gemini API. It supports both text-to-video and image-to-video generation with synchronized audio. Place images in ~/monadic/data/ for image-to-video. Generation takes 11 seconds to 6 minutes. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   icon "fa-solid fa-film"
@@ -14,23 +14,50 @@ app "VideoGeneratorGemini" do
   end
 
   system_prompt <<~TEXT
-      You help users create videos using Google's Veo model via the Gemini API. 
+      You help users create videos using Google's Veo 3 model via the Gemini API. 
+
+      IMPORTANT INFORMATION FOR USERS:
+      
+      Before generating videos, inform users about these important details:
+      
+      📹 **Video Specifications (Fixed)**
+      - Resolution: 720p
+      - Frame Rate: 24 fps
+      - Duration: 8 seconds
+      - Aspect Ratio: 16:9 only (Veo 3 limitation)
+      - Videos per request: 1
+      
+      📁 **For Image-to-Video Generation**
+      - Place your image in the shared folder: ~/monadic/data/
+      - Specify the filename in your message (e.g., "Use cat.jpg to create a video")
+      - The prompt will still be used to guide the video generation
+      
+      ⏱️ **Generation Time**
+      - Video generation takes 11 seconds to 6 minutes
+      - Please be patient while your video is being created
+      - The system will wait up to 7 minutes for completion
+      
+      🎬 **Capabilities**
+      - Text-to-video: Create videos from text descriptions
+      - Image-to-video: Animate still images with your prompt
+      - Negative prompts: Specify what to avoid in the video
+      - Synchronized audio is automatically generated
 
       IMPORTANT INSTRUCTIONS
 
-      Please generate videos using Google's Veo model. Follow these steps:
+      Please generate videos using Google's Veo 3 model. Follow these steps:
 
       1. If the user's prompt is not in English, translate it to English while preserving all creative details.
 
       2. Determine if this is text-to-video or image-to-video:
-         - Text-to-video: Use the text description only (uses Veo 3)
-         - Image-to-video: Use the uploaded image as first frame (uses Veo 2 for compatibility)
+         - Text-to-video: Use the text description only
+         - Image-to-video: Use the image from ~/monadic/data/ folder
 
       3. Call the `generate_video_with_veo` function with these parameters:
          - prompt: English version of the user's request (required)
-         - image_path: Path to the image file (only for image-to-video)
-         - aspect_ratio: "16:9" (landscape) or "9:16" (portrait)
-         - person_generation: Do not specify this parameter (it will be auto-selected)
+         - image_path: Filename only (e.g., "cat.jpg") for images in ~/monadic/data/
+         - aspect_ratio: Always "16:9" (Veo 3 only supports this)
+         - person_generation: Do not specify (auto-selected based on mode)
 
       4. The function will return a JSON response that indicates whether the video was successfully generated.
          - On success, it will provide the filename of the generated video
@@ -77,14 +104,15 @@ app "VideoGeneratorGemini" do
           </video>
         </div
 
-      8. Video generation takes several minutes (typically 2-6 minutes). The system waits up to 5 minutes for a response.
-         Please inform the user that they need to be patient and check their data directory afterwards.
+      8. Video generation takes 11 seconds to 6 minutes. The system waits up to 7 minutes for completion.
+         Always inform users about the wait time before starting generation.
 
       9. Here are some example requests:
 
         - "Create a video of a sunset over mountains" → Text-to-video generation
-        - "Turn this image into a video" (with uploaded image) → Image-to-video generation
-        - "Generate a vertical video of a dancing robot" → Use 9:16 aspect ratio
+        - "Use cat.jpg to create a video of a cat playing" → Image-to-video (image must be in ~/monadic/data/)
+        - "Generate a video of robots, avoiding humans" → Uses negative prompt feature
+        - Note: All videos are 16:9 aspect ratio (Veo 3 limitation)
 
       IMPORTANT: Once again, after function execution, output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
     TEXT
@@ -101,11 +129,12 @@ app "VideoGeneratorGemini" do
   end
 
   tools do
-    define_tool "generate_video_with_veo", "Generate videos using Google's Veo model." do
+    define_tool "generate_video_with_veo", "Generate 8-second 720p videos using Google's Veo 3 model (24fps, 16:9 aspect ratio)." do
       parameter :prompt, "string", "The prompt to generate a video from (should be in English for best results).", required: true
-      parameter :image_path, "string", "Optional path to an image file to use as the first frame for image-to-video generation.", required: false
-      parameter :aspect_ratio, "string", "The aspect ratio of the generated video (landscape or portrait).", required: false
-      parameter :person_generation, "string", "Controls whether to allow generating videos of people.", required: false
+      parameter :image_path, "string", "Optional: Filename of image in ~/monadic/data/ for image-to-video generation (e.g., 'cat.jpg').", required: false
+      parameter :aspect_ratio, "string", "Always use '16:9' (Veo 3 only supports this aspect ratio).", required: false
+      parameter :person_generation, "string", "Do not specify - automatically set based on generation mode.", required: false
+      parameter :negative_prompt, "string", "Optional: What to avoid in the video (e.g., 'people, cars, buildings').", required: false
     end
   end
 end

@@ -2002,7 +2002,7 @@ module GeminiHelper
   end
   
   # Helper function to generate video with Veo model
-  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, duration_seconds: nil, session: nil)
+  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, negative_prompt: nil, duration_seconds: nil, session: nil)
     
     # Try to get image data from session and create temporary file
     actual_image_path = nil
@@ -2147,24 +2147,32 @@ module GeminiHelper
     # Use shellwords to properly escape all parameters
     require 'shellwords'
     
+    # Veo 3 specifications (fixed values)
+    # - Resolution: 720p
+    # - Frame Rate: 24 fps
+    # - Duration: 8 seconds
+    # - Aspect Ratio: 16:9 only
+    # - Videos per request: 1
+    
     parts = []
     parts << "video_generator_veo.rb"
     parts << "-p"
     parts << prompt.to_s
     parts << "-a"
-    parts << aspect_ratio if aspect_ratio
+    parts << "16:9"  # Always use 16:9 for Veo 3
     parts << "-n"
     parts << "1"  # Always force number_of_videos to 1
-    if person_generation && !person_generation.to_s.empty?
-      parts << "-g"
-      parts << person_generation
-    end
-    if duration_seconds
-      parts << "-d"
-      parts << duration_seconds.to_s
+    
+    # Add negative prompt if provided
+    if negative_prompt && !negative_prompt.to_s.empty?
+      parts << "--negative-prompt"
+      parts << negative_prompt.to_s
     end
     
-    # Add image path if available
+    # Person generation is auto-selected based on image presence
+    # Don't specify it manually - let the script handle it
+    
+    # Add image path if available (should be filename only from ~/monadic/data/)
     if final_image_path && !final_image_path.empty?
       parts << "-i"
       parts << final_image_path

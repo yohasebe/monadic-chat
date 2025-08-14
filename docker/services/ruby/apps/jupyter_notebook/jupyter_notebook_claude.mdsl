@@ -14,7 +14,7 @@ app "JupyterNotebookClaude" do
     model "claude-sonnet-4-20250514"
     temperature 0.0
     context_size 100
-    reasoning_effort "none"  # Disable thinking for smoother tool execution
+    reasoning_effort "minimal"  # Optimal for function calling with fast responses
   end
 
   system_prompt <<~TEXT

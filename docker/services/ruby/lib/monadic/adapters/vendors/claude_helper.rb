@@ -442,8 +442,8 @@ module ClaudeHelper
     if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"
       case obj["reasoning_effort"]
       when "minimal"
-        # Use half of low effort for minimal
-        budget_tokens = [(user_max_tokens * 0.25).to_i, 8000].min
+        # Use half of low effort for minimal, ensuring minimum of 1024
+        budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
         max_tokens = user_max_tokens  # Keep original value
       when "low"
         # Use proportional approach based on user's max_tokens
@@ -1023,40 +1023,42 @@ module ClaudeHelper
     # Process tool calls if any exist
     if tool_calls.any? && call_depth <= MAX_FUNC_CALLS
       call_depth += 1
-      # Process each tool call individually
-      responses = tool_calls.map do |tool_call|
-        context = []
-        context << {
-          "role" => "assistant",
-          "content" => []
+      
+      # Build context for all tool calls
+      context = []
+      context << {
+        "role" => "assistant",
+        "content" => []
+      }
+
+      if thinking_result || @thinking.to_s != ""
+        thinking = thinking_result || @thinking.to_s
+        signature = thinking_signature || @signature
+        thinking_block = {
+          "type" => "thinking",
+          "thinking" => thinking,
+          "signature" => signature
         }
+        context.last["content"] << thinking_block
+      end
 
-        if thinking_result || @thinking.to_s != ""
-          thinking = thinking_result || @thinking.to_s
-          signature = thinking_signature || @signature
-          thinking_block = {
-            "type" => "thinking",
-            "thinking" => thinking,
-            "signature" => signature
-          }
-          context.last["content"] << thinking_block
-        end
+      if redacted_thinking_result
+        context.last["content"] << {
+          "type" => "redacted_thinking",
+          "data" => redacted_thinking_result
+        }
+      end
 
-        if redacted_thinking_result
-          context.last["content"] << {
-            "type" => "redacted_thinking",
-            "data" => redacted_thinking_result
-          }
-        end
+      if text_result
+        content = {
+          "type" => "text",
+          "text" => text_result
+        }
+        context.last["content"] << content
+      end
 
-        if text_result
-          content ={
-            "type" => "text",
-            "text" => text_result
-          }
-          context.last["content"] << content
-        end
-
+      # Process all tool calls and add them to context
+      tool_calls.each do |tool_call|
         # Parse tool call input
         begin
           # Handle empty string input for tools with no parameters
@@ -1114,12 +1116,10 @@ module ClaudeHelper
           "name" => tool_call["name"],
           "input" => tool_call["input"]
         }
-
-        # Process single tool call
-        process_functions(app, session, [tool_call], context, call_depth, &block)
       end
 
-      return responses.last
+      # Process all tool calls in batch
+      return process_functions(app, session, tool_calls, context, call_depth, &block)
 
       # Process regular text response
     elsif text_result

@@ -480,7 +480,7 @@ module PerplexityHelper
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
       body["messages"] << {
         "role" => "user",
-        "content" => [{ "type" => "text", "text" => "Let's start" }]
+        "content" => [{ "type" => "text", "text" => "Please proceed according to your system instructions and introduce yourself." }]
       }
     # Case 2: If there's a system message followed by an assistant message
     # (This happens on second turn when the inserted user message is lost)
@@ -495,7 +495,7 @@ module PerplexityHelper
       # Insert user message right before the first assistant message
       body["messages"].insert(assistant_index, {
         "role" => "user",
-        "content" => [{ "type" => "text", "text" => "Let's start" }]
+        "content" => [{ "type" => "text", "text" => "Please proceed according to your system instructions and introduce yourself." }]
       })
     end
 

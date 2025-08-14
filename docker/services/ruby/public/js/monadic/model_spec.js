@@ -473,7 +473,7 @@ const modelSpec = {
     "vision_capability": true
   },
   "claude-sonnet-4-20250514": {
-    "context_window" : [1, 200000],
+    "context_window" : [1, 1000000],
     "max_output_tokens" : [[1, 64000], 64000],
     "reasoning_effort": [["none", "minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
@@ -1007,7 +1007,6 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
     "vision_capability": true
   },
   "grok-3": {

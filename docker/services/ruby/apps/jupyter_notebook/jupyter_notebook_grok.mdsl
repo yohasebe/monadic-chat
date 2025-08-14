@@ -35,7 +35,7 @@ app "JupyterNotebookGrok" do
     - Jupyter Running: [Yes/No]
     - Notebook Created: [Yes/No] 
     - Notebook Name: [filename or N/A]
-    - Link: [URL or N/A]
+    - Link: <a href='http://localhost:8889/lab/tree/[filename].ipynb' target='_blank'>[filename].ipynb</a> or N/A
     - Imported Modules: [list or N/A]
     - Defined Functions: [list or N/A]
     
@@ -81,6 +81,9 @@ app "JupyterNotebookGrok" do
     - Use this SAME filename for all subsequent add_jupyter_cells operations
     - ALWAYS use HTML anchor tags with target="_blank" for links to ensure they open in new tabs
     - ⚠️ NEVER use "20241001_120000" or any fake timestamp in your links!
+    
+    Notebook link format: <a href='http://localhost:8889/lab/tree/ACTUAL_NOTEBOOK_NAME.ipynb' target='_blank'>ACTUAL_NOTEBOOK_NAME.ipynb</a>
+    Replace ACTUAL_NOTEBOOK_NAME with the actual filename returned by create_jupyter_notebook.
 
     When executing tasks:
     1. Execute user requests immediately without unnecessary explanation

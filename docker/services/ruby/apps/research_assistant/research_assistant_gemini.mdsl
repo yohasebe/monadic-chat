@@ -6,7 +6,7 @@ app "ResearchAssistantGemini" do
   llm do
     provider "gemini"
     model ["gemini-2.5-flash", "gemini-2.0-flash"]
-    reasoning_effort "minimal"  # Essential for function calls with Gemini 2.5
+    reasoning_effort "low"  # Better balance for function calling with Gemini 2.5
   end
 
   display_name "Research Assistant"

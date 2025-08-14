@@ -116,4 +116,4 @@ E2E_DEBUG=1             # E2E test debugging
 - No attribution to AI assistants
 - Clear, concise commit messages
 
-## Current Test Count: 1253 passing tests
+## Current Test Count: 1269 passing tests

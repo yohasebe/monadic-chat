@@ -70,10 +70,6 @@ llm do
   model "claude-3-5-sonnet-20241022"  # モデル名
   temperature 0.7  # レスポンスのランダム性 (0.0-1.0)
   max_tokens 4000  # 最大レスポンス長
-  
-  # GPT-5固有のパラメータ（OpenAIのみ）:
-  # verbosity "low"  # 出力長の制御: "high", "medium", "low"
-  # reasoning_effort "minimal"  # 推論トークン: "minimal", "low", "medium", "high"
 end
 ```
 
@@ -89,40 +85,6 @@ end
 - `ollama` - [https://ollama.ai](https://ollama.ai) (ローカルモデル)
 
 どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
-
-#### 高度なLLMパラメータ
-
-**GPT-5固有のパラメータ（OpenAIのみ）:**
-
-```ruby
-llm do
-  provider "openai"
-  model ["gpt-5", "gpt-4.1"]  # モデルフォールバック機構
-  
-  # Verbosityは出力トークン生成を制御（GPT-5のみ）
-  verbosity "low"  # オプション: "high", "medium", "low"
-  # - "high": 詳細で包括的な応答
-  # - "medium": バランスの取れた応答（デフォルト）
-  # - "low": 簡潔で短い応答（レイテンシが向上）
-  
-  # Reasoning effortは推論トークン使用量を制御（GPT-5、o3シリーズ）
-  reasoning_effort "minimal"  # オプション: "minimal", "low", "medium", "high"
-  # - "minimal": 最速応答、最小限の推論（GPT-5デフォルト）
-  # - "low": パフォーマンスと推論のバランス
-  # - "medium": 強化された推論能力
-  # - "high": 最大推論（o3-proデフォルト）
-end
-```
-
-**モデルフォールバック機構:**
-
-```ruby
-llm do
-  provider "openai"
-  model ["gpt-5", "gpt-4.1"]  # プライマリモデル、次にフォールバック
-  # gpt-5が利用できない場合、システムは自動的にgpt-4.1を使用
-end
-```
 
 ### 3. システムプロンプト
 

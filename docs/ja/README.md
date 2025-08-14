@@ -4,7 +4,7 @@
 
 <a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge" alt="License"></a>
-<a href="/ja/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1253_passing-success?style=for-the-badge" alt="Tests"></a>
+<a href="/ja/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1060_passing-success?style=for-the-badge" alt="Tests"></a>
   
   ---
   
@@ -125,7 +125,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 🌐 **Visual Web Explorer** - Webページのスクリーンショット撮影やテキスト抽出（OpenAI、Claude、Gemini、Grok）
 - 🗣️ **Voice Interpreter** - 言語翻訳機能付きリアルタイム音声会話（OpenAI）
 - 📊 **DrawIO Grapher** - DrawIO形式でプロフェッショナルな図表を作成（OpenAI、Claude）
-- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI、Claude、Gemini、Grok）
+- 🧮 **Math Tutor** - MathJaxレンダリング対応の対話型数学指導（OpenAI）
 - 💬 **Second Opinion** - 異なるAIプロバイダーから検証意見を取得（すべてのプロバイダー対応）
 - 📄 **PDF Navigator** - ベクトルデータベース（RAG）を使用したPDF文書のナビゲートと分析（OpenAI）
 - 📊 **Mermaid Grapher** - Mermaid構文を使用したフローチャートと図表の作成（すべてのプロバイダー対応）

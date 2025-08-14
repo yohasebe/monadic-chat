@@ -99,47 +99,14 @@ end
 - Check for memory leaks in long conversations
 - Test with large context sizes
 
-## Testing Philosophy
-
-### Prefer Real Implementation Tests
-Monadic Chat follows a **mock-free testing philosophy** whenever possible:
-
-- **Real Behavior**: Test actual implementations instead of mocked behavior
-- **Integration Focus**: Test how components work together in real scenarios
-- **Reliability**: Catch real integration issues that mocks might miss
-- **Confidence**: Tests that pass with real implementations provide higher confidence
-
-### When to Use Mocks
-Mocks are acceptable in specific scenarios:
-- External API calls (to avoid rate limits and costs)
-- Time-sensitive operations (when testing timeouts)
-- Destructive file system operations
-- Complex Docker container operations
-
-### Example: Mock-Free Testing
-```ruby
-# Instead of mocking command execution:
-# allow(Open3).to receive(:capture3).and_return(["output", "", status])
-
-# Use actual command execution:
-describe "MonadicApp.capture_command" do
-  it "executes real commands" do
-    stdout, stderr, status = MonadicApp.capture_command("echo 'test'", timeout: 5)
-    expect(stdout.strip).to eq("test")
-    expect(status.success?).to be true
-  end
-end
-```
-
 ## Integration Testing
 
 If your app uses external services:
 
-1. **Prefer Real Integration** when possible and practical
+1. **Mock External APIs** during development
 2. **Test with Real APIs** before release
 3. **Handle API Failures** gracefully
 4. **Respect Rate Limits**
-5. **Use Mocks Sparingly** only for external services
 
 ## Example Test Scenarios
 

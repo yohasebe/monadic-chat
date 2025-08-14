@@ -40,9 +40,6 @@ This page provides a comprehensive reference for all configuration options in Mo
 | `XAI_DEFAULT_MODEL` | Default model for Grok apps | `grok-2-latest` | `grok-beta` |
 | `AI_USER_MODEL` | Model for AI-generated user messages | `gpt-4o-mini` | `gpt-4o` |
 | `WEBSEARCH_MODEL` | Model for web search queries | `gpt-4o-mini` | `gpt-4o` |
-| `REASONING_EFFORT` | Reasoning effort for supported models¹ | (model default) | `minimal`, `low`, `medium`, `high` |
-
-¹ Applies to OpenAI reasoning models (o1, o3, gpt-5 series) and Gemini 2.5 models when using function calling
 
 ## System Settings
 

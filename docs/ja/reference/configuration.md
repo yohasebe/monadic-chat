@@ -40,9 +40,6 @@
 | `XAI_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `grok-2-latest` | `grok-beta` |
 | `AI_USER_MODEL` | AI生成ユーザーメッセージ用のモデル | `gpt-4o-mini` | `gpt-4o` |
 | `WEBSEARCH_MODEL` | ウェブ検索クエリ用のモデル | `gpt-4o-mini` | `gpt-4o` |
-| `REASONING_EFFORT` | 対応モデルの推論努力レベル¹ | (モデルのデフォルト) | `minimal`, `low`, `medium`, `high` |
-
-¹ OpenAI推論モデル（o1、o3、gpt-5シリーズ）およびGemini 2.5モデル（関数呼び出し使用時）に適用
 
 ## システム設定
 

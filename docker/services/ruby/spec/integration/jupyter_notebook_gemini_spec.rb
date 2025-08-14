@@ -51,8 +51,8 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
       end
 
       it "has reasoning_effort configured for Gemini 2.5" do
-        # Gemini 2.5 requires reasoning_effort: minimal for proper function calling
-        expect(app_instance.settings[:reasoning_effort]).to eq("minimal")
+        # Gemini 2.5 uses reasoning_effort: low for balanced performance
+        expect(app_instance.settings[:reasoning_effort]).to eq("low")
       end
 
       it "has monadic mode DISABLED for function calling compatibility" do
@@ -206,8 +206,8 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         # Tools available
         expect(app_instance.settings[:tools]).not_to be_empty
         
-        # Reasoning effort minimal for Gemini 2.5 function calling
-        expect(app_instance.settings[:reasoning_effort]).to eq("minimal")
+        # Reasoning effort low for Gemini 2.5 balanced performance
+        expect(app_instance.settings[:reasoning_effort]).to eq("low")
         
         # Assistant initiation enabled with proper tool mode management
         expect(app_instance.settings[:initiate_from_assistant]).to eq(true)

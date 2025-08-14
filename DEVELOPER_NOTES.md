@@ -24,9 +24,12 @@
 
 #### Gemini 2.5
 - Trade-off: Cannot have both function calling and structured JSON simultaneously
-- Use `reasoning_effort: minimal` for function calling apps
+- Use `reasoning_effort: "low"` for function calling apps (better balance)
 - Remove `reasoning_effort` for monadic mode apps
 - Gemini 2.5 Flash recommended for cost/performance balance
+- **Google Search Grounding**: Native support with metadata display
+  - Shows search queries, grounding chunks, and search entry points
+  - Automatically appended to response when web search is enabled
 
 #### Cohere Command-A
 - Critical: Cannot chain multiple tool calls

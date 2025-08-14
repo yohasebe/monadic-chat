@@ -155,11 +155,18 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini.
   - gemini-2.5-flash, gemini-2.5-pro
   - gemini-2.5-flash-preview-05-20, gemini-2.5-pro-exp-03-25 (experimental)
   - Deep Think mode available
-  - **Technical Note**: Function calling requires `reasoning_effort: minimal`, structured JSON output unavailable with this setting
+  - **Technical Note**: Function calling requires `reasoning_effort: "low"`, structured JSON output unavailable with this setting
 - **Gemini 2.0 Series**: 
   - gemini-2.0-flash, gemini-2.0-flash-thinking-exp (thinking/reasoning models)
   - 1M token context window
 - **Imagen 3**: imagen-3.0-generate-002 (for image generation)
+
+### Google Search Grounding
+When web search is enabled with Gemini models, Google's native search grounding provides rich metadata about search results:
+- Search queries used
+- Grounding chunks with relevance scores
+- Direct links to search results
+This metadata is automatically displayed in the response when available.
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 

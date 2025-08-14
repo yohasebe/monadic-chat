@@ -38,7 +38,7 @@ app "ChatGemini" do
     initiate_from_assistant false
     image true
     sourcecode true
-    websearch false
+    websearch true
     group "Google"
   end
   

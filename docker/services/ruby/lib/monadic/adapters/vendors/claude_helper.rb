@@ -688,9 +688,12 @@ module ClaudeHelper
     has_user_message = body["messages"].any? { |msg| msg["role"] == "user" }
     
     if !has_user_message && obj["initiate_from_assistant"]
+      # Generic prompt that asks the assistant to follow system instructions
+      initial_message = "Please proceed according to your system instructions and introduce yourself."
+      
       body["messages"] << {
         "role" => "user",
-        "content" => [{ "type" => "text", "text" => "Let's start" }]
+        "content" => [{ "type" => "text", "text" => initial_message }]
       }
     end
 

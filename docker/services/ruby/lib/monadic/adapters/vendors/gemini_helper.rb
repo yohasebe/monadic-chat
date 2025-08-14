@@ -726,7 +726,7 @@ module GeminiHelper
     if body["contents"].empty? && initial_prompt.to_s != ""
       body["contents"] << {
         "role" => "user",
-        "parts" => [{ "text" => "Let's start" }]
+        "parts" => [{ "text" => "Please proceed according to your system instructions and introduce yourself." }]
       }
     end
 
@@ -980,6 +980,7 @@ module GeminiHelper
     thinking_parts = []  # Store thinking content
     tool_calls = []
     finish_reason = nil
+    @grounding_html = nil  # Store grounding metadata HTML to append to response
 
     # Convert the HTTP::Response::Body to a string and then process line by line
     res.each_line do |chunk|
@@ -1033,6 +1034,69 @@ module GeminiHelper
           end
           
           candidates&.each do |candidate|
+            
+            # Check for grounding metadata at candidate level (skip empty objects)
+            if candidate["groundingMetadata"] && 
+               !candidate["groundingMetadata"].empty? && 
+               @grounding_html.nil?
+              grounding_data = candidate["groundingMetadata"]
+              
+              # Always log when grounding metadata is found
+              if defined?(MonadicApp::EXTRA_LOG_FILE)
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts "[Gemini] Found grounding metadata at candidate level:"
+                  log.puts "  - webSearchQueries: #{grounding_data["webSearchQueries"]&.inspect}"
+                  log.puts "  - groundingChunks count: #{grounding_data["groundingChunks"]&.length}"
+                  
+                  if CONFIG["EXTRA_LOGGING"]
+                    log.puts "[DEBUG Gemini] Full grounding data structure:"
+                    log.puts JSON.pretty_generate(grounding_data)
+                  end
+                end
+              end
+              
+              # Display search metadata
+              if grounding_data["webSearchQueries"] && !grounding_data["webSearchQueries"].empty?
+                search_info = "<div class='search-metadata' style='margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px;'>"
+                search_info += "<details style='cursor: pointer;'>"
+                # Escape search queries for HTML
+                escaped_queries = grounding_data["webSearchQueries"].map do |q|
+                  q.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                end
+                search_info += "<summary style='font-weight: bold; color: #666;'>🔍 Web Search: #{escaped_queries.join(", ")}</summary>"
+                
+                if grounding_data["groundingChunks"] && !grounding_data["groundingChunks"].empty?
+                  search_info += "<div style='margin-top: 10px;'>"
+                  search_info += "<p style='margin: 5px 0; font-weight: bold;'>Sources:</p>"
+                  search_info += "<ul style='margin: 5px 0; padding-left: 20px;'>"
+                  
+                  grounding_data["groundingChunks"].each_with_index do |chunk, idx|
+                    if chunk["web"]
+                      url = chunk["web"]["uri"]
+                      title = chunk["web"]["title"] || "Source #{idx + 1}"
+                      title = title.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                      search_info += "<li style='margin: 3px 0;'><a href='#{url}' target='_blank' rel='noopener noreferrer' style='color: #0066cc;'>#{title}</a></li>"
+                    end
+                  end
+                  
+                  search_info += "</ul>"
+                  search_info += "</div>"
+                end
+                
+                search_info += "</details>"
+                search_info += "</div>"
+                
+                # Store the HTML to append to final response
+                @grounding_html = search_info
+                
+                if defined?(MonadicApp::EXTRA_LOG_FILE)
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts "[Gemini] Grounding metadata HTML stored for final response (candidate level)"
+                    log.puts "[Gemini] HTML preview: #{search_info[0..200]}..."
+                  end
+                end
+              end
+            end
 
             finish_reason = candidate["finishReason"]
             case finish_reason
@@ -1082,9 +1146,69 @@ module GeminiHelper
                 end
               end
               
-              # Debug: Log if we have search grounding metadata
-              if CONFIG["EXTRA_LOGGING"] && part["grounding_metadata"]
-                puts "[DEBUG Gemini] Found grounding metadata (search results): #{part["grounding_metadata"].inspect}"
+              # Process and display grounding metadata for web search results (part level)
+              # Only process if we haven't already captured it at candidate level
+              if @grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
+                grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
+                
+                # Log when found at part/json level
+                if CONFIG["EXTRA_LOGGING"] && defined?(MonadicApp::EXTRA_LOG_FILE)
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts "[Gemini] Found grounding metadata at #{part["grounding_metadata"] ? "part" : "json"} level"
+                    log.puts "  - webSearchQueries: #{grounding_data["webSearchQueries"]&.inspect}"
+                    log.puts "  - groundingChunks count: #{grounding_data["groundingChunks"]&.length}"
+                    log.puts "[DEBUG Gemini] Full grounding metadata structure:"
+                    log.puts JSON.pretty_generate(grounding_data)
+                    log.puts "  - searchEntryPoint exists: #{!grounding_data["searchEntryPoint"].nil?}"
+                  end
+                end
+                
+                # Build search metadata display if we have search queries and sources
+                if grounding_data["webSearchQueries"] && !grounding_data["webSearchQueries"].empty?
+                  search_info = "<div class='search-metadata' style='margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px;'>"
+                  search_info += "<details style='cursor: pointer;'>"
+                  # Escape search queries for HTML
+                escaped_queries = grounding_data["webSearchQueries"].map do |q|
+                  q.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                end
+                search_info += "<summary style='font-weight: bold; color: #666;'>🔍 Web Search: #{escaped_queries.join(", ")}</summary>"
+                  
+                  # Display source citations if available
+                  if grounding_data["groundingChunks"] && !grounding_data["groundingChunks"].empty?
+                    search_info += "<div style='margin-top: 10px;'>"
+                    search_info += "<p style='margin: 5px 0; font-weight: bold;'>Sources:</p>"
+                    search_info += "<ul style='margin: 5px 0; padding-left: 20px;'>"
+                    
+                    grounding_data["groundingChunks"].each_with_index do |chunk, idx|
+                      if chunk["web"]
+                        url = chunk["web"]["uri"]
+                        title = chunk["web"]["title"] || "Source #{idx + 1}"
+                        # Escape HTML in title to prevent XSS
+                        title = title.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                        search_info += "<li style='margin: 3px 0;'><a href='#{url}' target='_blank' rel='noopener noreferrer' style='color: #0066cc;'>#{title}</a></li>"
+                      end
+                    end
+                    
+                    search_info += "</ul>"
+                    search_info += "</div>"
+                  end
+                  
+                  search_info += "</details>"
+                  search_info += "</div>"
+                  
+                  # Store the HTML to append to final response
+                  @grounding_html = search_info
+                  
+                  if CONFIG["EXTRA_LOGGING"] && defined?(MonadicApp::EXTRA_LOG_FILE)
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts "[Gemini] Grounding metadata HTML stored for final response (part level)"
+                      log.puts "[Gemini] HTML preview: #{search_info[0..200]}..."
+                    end
+                  end
+                  
+                  # Clear the grounding data to avoid duplicate processing
+                  json_obj.delete("groundingMetadata") if json_obj["groundingMetadata"]
+                end
               end
               
               # Check if this part contains thinking content
@@ -1523,6 +1647,23 @@ module GeminiHelper
       
       # Check if the entire response is a single Markdown code block and unwrap it
       final_content = unwrap_single_markdown_code_block(final_content)
+      
+      # Append grounding metadata HTML if present
+      if @grounding_html
+        final_content += "\n\n" + @grounding_html
+        if defined?(MonadicApp::EXTRA_LOG_FILE)
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[Gemini] Appended grounding metadata HTML to final response"
+            log.puts "[Gemini] Final content length: #{final_content.length}"
+          end
+        end
+      else
+        if defined?(MonadicApp::EXTRA_LOG_FILE)
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[Gemini] No grounding HTML to append"
+          end
+        end
+      end
       
       response_data = {
         "choices" => [

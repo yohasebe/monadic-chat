@@ -791,9 +791,12 @@ module OpenAIHelper
     # Handle initiate_from_assistant case where only system message exists
     # This matches Perplexity's working implementation
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      # Generic prompt that asks the assistant to follow system instructions
+      initial_message = "Please proceed according to your system instructions and introduce yourself."
+      
       body["messages"] << {
         "role" => "user",
-        "content" => [{ "type" => "text", "text" => "Let's start" }]
+        "content" => [{ "type" => "text", "text" => initial_message }]
       }
     end
 

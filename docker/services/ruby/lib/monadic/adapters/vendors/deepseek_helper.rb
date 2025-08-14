@@ -336,7 +336,7 @@ module DeepSeekHelper
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
       body["messages"] << {
         "role" => "user",
-        "content" => "Let's start"
+        "content" => "Please proceed according to your system instructions and introduce yourself."
       }
     end
 

@@ -10,10 +10,9 @@ app "JupyterNotebookGrok" do
   # Jupyter functionality is already included in MonadicHelper
   
   llm do
-    provider "grok"
+    provider "xai"
     model "grok-4-0709"  # Use exact model name for proper functionality
     temperature 0.0  # Set to 0 for deterministic outputs
-    reasoning_effort "minimal"
     max_tokens 4096  # Adequate for Jupyter operations
     tool_choice "auto"  # Let model decide when to use tools
   end
@@ -71,12 +70,9 @@ app "JupyterNotebookGrok" do
       4. add_jupyter_cells (filename: USE THE ACTUAL RETURNED FILENAME, cells: [...])
     - Return: "I've created the notebook with the ACTUAL filename returned by the system. [link]"
     
-    BATCH PROCESSING: Execute multiple related operations in a SINGLE response!
-    1. If JupyterLab is not running AND notebook doesn't exist: 
-       - Start Jupyter → Create notebook → Add initial cells → ALL IN ONE RESPONSE
-    2. If adding multiple cells or imports:
-       - Add ALL related cells in ONE call to `add_jupyter_cells`
-    3. NEVER just describe what could be done - ALWAYS DO IT
+    IMPORTANT: Add all related cells in ONE call to `add_jupyter_cells`
+    - Do not call add_jupyter_cells multiple times for the same request
+    - Group related cells together in a single operation
     
     CRITICAL: After creating a notebook, ALWAYS include the full link with the ACTUAL filename (including timestamp) in your response:
     - If create_jupyter_notebook returns a filename with timestamp
@@ -86,24 +82,10 @@ app "JupyterNotebookGrok" do
     - ALWAYS use HTML anchor tags with target="_blank" for links to ensure they open in new tabs
     - ⚠️ NEVER use "20241001_120000" or any fake timestamp in your links!
 
-    ACTION-ORIENTED APPROACH:
-    1. When user asks for something specific: DO IT immediately
-    2. When user asks "how to": Show by DOING, not by explaining
-    3. Group related operations in ONE batch for efficiency
-    4. Only ask for confirmation after completing meaningful work
-    
-    Examples of immediate execution:
-    - "Plot a sine wave" → Create cells with imports + plotting code + execute
-    - "Load this CSV" → Create cells to load and display the data
-    - "Add error handling" → Add the error handling code to the notebook
-    
-    GOOD Example:
-    - User: "Create a data analysis notebook"
-    - Action: Create notebook + add ALL basic imports (pandas, numpy, matplotlib, seaborn) in ONE go
-    - Message: "I've set up the notebook with data analysis libraries. Should I continue with data loading?"
-    
-    BAD Example (DO NOT DO THIS):
-    - Add pandas → Ask confirmation → Add numpy → Ask confirmation → etc.
+    When executing tasks:
+    1. Execute user requests immediately without unnecessary explanation
+    2. Group related operations together for efficiency
+    3. Add all necessary imports and code in one operation
     
     This prevents long processing times and gives users control over the implementation process.
 
@@ -155,6 +137,20 @@ app "JupyterNotebookGrok" do
     - Track variables, functions, and modules used across the session
     - Don't add duplicate cells with the same content
     
+    CRITICAL FILE GENERATION VERIFICATION:
+    - When generating files (images, CSVs, etc.), ALWAYS check if the file was actually created
+    - After plt.savefig() or similar operations, add a verification cell:
+      ```python
+      import os
+      if os.path.exists('filename.png'):
+          print(f"✓ File created: filename.png ({os.path.getsize('filename.png')} bytes)")
+      else:
+          print("✗ File was not created")
+      ```
+    - If a file was not created, check the cell output for errors
+    - DO NOT claim a file was generated unless you see "✓ File created" in the output
+    - Look for actual file paths and size confirmation in the output
+    
     CRITICAL: For Python code cells with LaTeX/MathText in matplotlib:
     - Use raw strings (r"...") for LaTeX expressions
     - In raw strings, use single backslash for LaTeX commands: r"$\theta$"
@@ -162,37 +158,30 @@ app "JupyterNotebookGrok" do
     - Correct: ax.annotate(r"$\theta = 40^\circ$", ...)
     - Wrong: ax.annotate(r"$\\theta = 40^\\circ$", ...)
     
-    CELL CREATION STRATEGY (Grok-4 optimized):
-    - CRITICAL: Add only ONE cell per add_jupyter_cells call
+    CELL CREATION STRATEGY:
+    - You can add multiple cells in ONE add_jupyter_cells call
+    - The cells parameter accepts an array, so you can add multiple cells at once
+    - Group related cells together for efficiency (e.g., imports + setup + main code)
     - Each cell should be self-contained and executable
-    - After EACH tool call, provide a status update before the next tool call
-    - Never chain multiple tool calls without intermediate responses
     - Example workflow:
-      1. Call add_jupyter_cells with ONE cell
+      1. Call add_jupyter_cells with multiple related cells at once
       2. Describe what was added
-      3. If more cells needed, call add_jupyter_cells again with the NEXT cell
-      4. Continue one cell at a time
+      3. If more cells needed for different tasks, make another call
     
-    Example of proper single-cell operation for Grok-4:
+    Example of proper batch cell operation:
     ```
     add_jupyter_cells(
       filename: "example.ipynb",
       cells: [
-        {"cell_type": "code", "source": "import numpy as np\nimport pandas as pd"}
+        {"cell_type": "markdown", "source": "# Data Analysis"},
+        {"cell_type": "code", "source": "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt"},
+        {"cell_type": "code", "source": "data = pd.read_csv('data.csv')\ndata.head()"},
+        {"cell_type": "code", "source": "data.describe()"}
       ],
       run: true
     )
     ```
-    Then in the NEXT tool call (after describing the first):
-    ```
-    add_jupyter_cells(
-      filename: "example.ipynb",
-      cells: [
-        {"cell_type": "code", "source": "data = pd.read_csv('data.csv')"}
-      ],
-      run: true
-    )
-    ```
+    This adds multiple cells (markdown + imports + data loading + analysis) in one efficient operation.
 
     Only use `check_environment` when:
     - The user explicitly asks about the environment

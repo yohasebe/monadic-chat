@@ -23,7 +23,7 @@ app "ChatPlusGrok" do
   TEXT
   
   llm do
-    provider "grok"
+    provider "xai"
     model "grok-4-0709"
     context_size 100
     response_format({ type: "json_object" })

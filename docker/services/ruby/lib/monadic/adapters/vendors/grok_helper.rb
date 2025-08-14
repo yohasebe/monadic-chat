@@ -99,12 +99,14 @@ module GrokHelper
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
-    case options["reasoning_effort"]
-    when "low"
-      body["reasoning_effort"] = "low"
-    when "medium", "high"
-      body["reasoning_effort"] = "high"
-    end
+    # Grok-4 does not support reasoning_effort
+    # (Grok-3 did support it, but current model is Grok-4)
+    # case options["reasoning_effort"]
+    # when "low"
+    #   body["reasoning_effort"] = "low"
+    # when "medium", "high"
+    #   body["reasoning_effort"] = "high"
+    # end
     
     # Add search_parameters if requested
     if options["search_parameters"]
@@ -312,12 +314,76 @@ module GrokHelper
     elsif obj["tools"] && !obj["tools"].empty?
       # Use app tools if available, otherwise fallback to empty array
       body["tools"] = app_tools || []
-      # Use tool_choice from settings or default to "auto"
-      body["tool_choice"] = obj["tool_choice"] || "auto" if body["tools"] && !body["tools"].empty?
+      
+      # Special handling for Code Interpreter apps with Grok
+      if app && app.include?("CodeInterpreter") && body["tools"] && !body["tools"].empty?
+        # Determine tool_choice based on context
+        if body["messages"].is_a?(Array) && body["messages"].length > 1
+          # Check if the last assistant message contains code execution results
+          last_assistant_msg = body["messages"].reverse.find { |m| m["role"] == "assistant" }
+          
+          if last_assistant_msg
+            # Extract content text
+            assistant_content = if last_assistant_msg["content"].is_a?(Array)
+                                 last_assistant_msg["content"].map { |c| c["text"] if c["type"] == "text" }.compact.join(" ")
+                               else
+                                 last_assistant_msg["content"].to_s
+                               end
+            
+            # If last response was a code execution, next message is likely a follow-up
+            # Use "auto" to allow natural conversation
+            if assistant_content =~ /File\(s\) generated|Output:|<div class="generated_image">|✓ File created/
+              body["tool_choice"] = obj["tool_choice"] || "auto"
+            else
+              # Otherwise, for Code Interpreter, prefer tool usage
+              # But only after initial greeting (more than 2 messages total)
+              body["tool_choice"] = obj["tool_choice"] || (body["messages"].length > 2 ? "required" : "auto")
+            end
+          else
+            # No assistant message yet, use auto
+            body["tool_choice"] = obj["tool_choice"] || "auto"
+          end
+        else
+          # Initial state, use auto
+          body["tool_choice"] = obj["tool_choice"] || "auto"
+        end
+      else
+        # Use tool_choice from settings or default
+        body["tool_choice"] = obj["tool_choice"] || "auto"
+      end
+      
+      # Remove tool_choice if no tools
+      body.delete("tool_choice") if body["tools"].nil? || body["tools"].empty?
     elsif app_tools && !app_tools.empty?
       # If no tools param but app has tools, use them
       body["tools"] = app_tools
-      body["tool_choice"] = obj["tool_choice"] || "auto"
+      
+      # Same logic for Code Interpreter
+      if app && app.include?("CodeInterpreter")
+        if body["messages"].is_a?(Array) && body["messages"].length > 1
+          last_assistant_msg = body["messages"].reverse.find { |m| m["role"] == "assistant" }
+          
+          if last_assistant_msg
+            assistant_content = if last_assistant_msg["content"].is_a?(Array)
+                                 last_assistant_msg["content"].map { |c| c["text"] if c["type"] == "text" }.compact.join(" ")
+                               else
+                                 last_assistant_msg["content"].to_s
+                               end
+            
+            if assistant_content =~ /File\(s\) generated|Output:|<div class="generated_image">|✓ File created/
+              body["tool_choice"] = obj["tool_choice"] || "auto"
+            else
+              body["tool_choice"] = obj["tool_choice"] || (body["messages"].length > 2 ? "required" : "auto")
+            end
+          else
+            body["tool_choice"] = obj["tool_choice"] || "auto"
+          end
+        else
+          body["tool_choice"] = obj["tool_choice"] || "auto"
+        end
+      else
+        body["tool_choice"] = obj["tool_choice"] || "auto"
+      end
     else
       body.delete("tools")
       body.delete("tool_choice")
@@ -391,9 +457,25 @@ module GrokHelper
 
     # Handle initiate_from_assistant case where only system message exists
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+      # For Code Interpreter apps, use a more specific initial message that encourages tool usage
+      if app && (app.include?("CodeInterpreter") || app.include?("code_interpreter"))
+        initial_message = "Use the check_environment function to verify the Python environment, then introduce yourself and explain what you can do."
+      else
+        initial_message = "Please proceed according to your system instructions and introduce yourself."
+      end
+      
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Grok initiate_from_assistant triggered")
+        extra_log.puts("App: #{app}")
+        extra_log.puts("Adding initial user message: #{initial_message}")
+        extra_log.puts("Tools available: #{body['tools']&.length || 0}")
+        extra_log.close
+      end
+      
       body["messages"] << {
         "role" => "user",
-        "content" => [{ "type" => "text", "text" => "Let's start" }]
+        "content" => [{ "type" => "text", "text" => initial_message }]
       }
     end
 
@@ -511,9 +593,18 @@ module GrokHelper
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       extra_log.puts("\n[#{Time.now}] Grok final API request:")
+      extra_log.puts("App: #{app}")
       extra_log.puts("URL: #{target_uri}")
+      extra_log.puts("Model: #{body['model']}")
       extra_log.puts("Tool choice: #{body['tool_choice'].inspect}")
       extra_log.puts("Number of tools: #{body['tools']&.length || 0}")
+      extra_log.puts("Number of messages: #{body['messages']&.length || 0}")
+      # Log last user message for debugging
+      last_user_msg = body["messages"].reverse.find { |m| m["role"] == "user" }
+      if last_user_msg
+        content_preview = last_user_msg["content"].to_s[0..100]
+        extra_log.puts("Last user message preview: #{content_preview}")
+      end
       if body['tools'] && body['tools'].any?
         extra_log.puts("Tool signatures:")
         body['tools'].each do |tool|
@@ -527,15 +618,17 @@ module GrokHelper
 
 
     # Process tool calls if any
-    body["messages"].each do |msg|
-      next unless msg["tool_calls"] || msg[:tool_call]
+    if body["messages"].is_a?(Array)
+      body["messages"].each do |msg|
+        next unless msg["tool_calls"] || msg[:tool_call]
 
-      if !msg["role"] && !msg[:role]
-        msg["role"] = "assistant"
-      end
-      tool_calls = msg["tool_calls"] || msg[:tool_call]
-      tool_calls.each do |tool_call|
-        tool_call.delete("index")
+        if !msg["role"] && !msg[:role]
+          msg["role"] = "assistant"
+        end
+        tool_calls = msg["tool_calls"] || msg[:tool_call]
+        tool_calls.each do |tool_call|
+          tool_call.delete("index")
+        end
       end
     end
 
@@ -939,7 +1032,21 @@ module GrokHelper
         end
         
       when "run_code"
-        response_parts << "**Code Output:**\n```\n#{result["content"]}\n```"
+        output_content = result["content"]
+        response_parts << "**Code Output:**\n```\n#{output_content}\n```"
+        
+        # Check if image files were generated (similar to Gemini's handling)
+        if output_content =~ /✓ File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
+          filename = $1
+          # Add HTML for displaying the image
+          response_parts << "<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
+          
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts("\n[#{Time.now}] Grok auto-injected image HTML for: /data/#{filename}")
+            extra_log.close
+          end
+        end
         
       else
         response_parts << "✅ Executed: #{result["name"]}"
@@ -1019,6 +1126,57 @@ module GrokHelper
 
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+        
+        # GROK-SPECIFIC FIX: Check if SVG files were created with HTML escaping
+        # This is a workaround for Grok's tendency to HTML-escape SVG content
+        if function_name == "run_code" && function_return.to_s.include?("File(s) generated")
+          # Extract file paths from the output
+          if function_return =~ /File\(s\) generated.*?: ([^;]+)/
+            file_list = $1
+            files = file_list.split(",").map(&:strip)
+            
+            files.each do |file_path|
+              if file_path.end_with?(".svg")
+                # Convert /data/ path to actual file path
+                actual_path = file_path.gsub("/data/", "")
+                
+                # Determine the full path based on environment
+                full_path = if Monadic::Utils::Environment.in_container?
+                              File.join("/monadic/data", actual_path)
+                            else
+                              File.join(File.expand_path("~/monadic/data"), actual_path)
+                            end
+                
+                # Check and fix HTML-escaped SVG content
+                begin
+                  if File.exist?(full_path)
+                    content = File.read(full_path)
+                    if content.include?("&lt;svg") || content.include?("&gt;")
+                      fixed_content = content.gsub("&lt;", "<")
+                                            .gsub("&gt;", ">")
+                                            .gsub("&quot;", '"')
+                                            .gsub("&amp;", "&")
+                      File.write(full_path, fixed_content)
+                      
+                      if CONFIG["EXTRA_LOGGING"]
+                        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                        extra_log.puts("\n[#{Time.now}] Grok: Fixed HTML-escaped SVG file: #{actual_path}")
+                        extra_log.close
+                      end
+                    end
+                  end
+                rescue => e
+                  # Log error but don't fail the entire operation
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts("\n[#{Time.now}] Grok: Failed to fix SVG file #{actual_path}: #{e.message}")
+                    extra_log.close
+                  end
+                end
+              end
+            end
+          end
+        end
         
         # CRITICAL: If this is create_jupyter_notebook, extract the actual filename with timestamp
         # and store it in session for subsequent tool calls AND for the LLM to use in its response
@@ -1123,9 +1281,34 @@ module GrokHelper
       extra_log.close
     end
     
-    # CRITICAL FIX: Post-process Grok's response to replace incorrect filenames
+    # CRITICAL FIX: Post-process Grok's response to replace incorrect filenames and fix image paths
     if new_results && new_results.is_a?(Array) && !new_results.empty?
       content = new_results.dig(0, "choices", 0, "message", "content")
+      
+      # Fix image paths for Code Interpreter
+      if content && (obj["app_name"].to_s.include?("CodeInterpreter") || 
+                     obj["display_name"].to_s.include?("Code Interpreter"))
+        # Check if Grok is showing verification output but not proper image HTML
+        if content =~ /✓ File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
+          filename = $1
+          # Check if the HTML is already there
+          unless content.include?("<div class=\"generated_image\">")
+            # Find where to inject the HTML (after the output section)
+            if content =~ /(Output:.*?```[^`]*```)/m
+              output_section = $1
+              # Add the image HTML after the output section
+              image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
+              content = content.sub(output_section, output_section + image_html)
+              
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("\n[#{Time.now}] Grok auto-fixed image display for: /data/#{filename}")
+                extra_log.close
+              end
+            end
+          end
+        end
+      end
       
       if content && obj["current_notebook_filename"]
         actual_filename = obj["current_notebook_filename"]

@@ -23,15 +23,9 @@ RSpec.describe 'Websearch Tavily Configuration' do
           content = File.read(app_file)
           app_name = File.basename(app_file, '.mdsl')
           
-          # Gemini has native Google Search integration, so it's enabled by default
-          if app_name == 'chat_gemini'
-            expect(content).to match(/websearch\s+true/), 
-              "Expected #{app_name} to have 'websearch true' for native Google Search"
-          else
-            # Other providers require user to enable websearch manually
-            expect(content).to match(/websearch\s+false/), 
-              "Expected #{app_name} to have 'websearch false' for user control"
-          end
+          # Check that websearch is false (user must enable it manually)
+          expect(content).to match(/websearch\s+false/), 
+            "Expected #{app_name} to have 'websearch false' for user control"
         end
       end
 

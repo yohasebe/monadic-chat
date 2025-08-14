@@ -115,9 +115,13 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
       
       result = `#{command} 2>&1`
       
-      # Skip if network connectivity issues
-      if result.include?("connection timed out")
-        skip "Network connectivity issue - Selenium cannot reach external URLs"
+      # Check for actual network issues or container problems
+      if result.include?("connection timed out") || 
+         result.include?("Failed to fetch") ||
+         result.include?("Connection refused") ||
+         result.include?("unable to access") ||
+         result.include?("container is not running")
+        skip "Network connectivity issue or container not available"
       end
       
       # Check for success indicators

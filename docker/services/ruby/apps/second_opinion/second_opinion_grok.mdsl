@@ -11,7 +11,7 @@ app "SecondOpinionGrok" do
   include_modules "SecondOpinionAgent"
   
   llm do
-    provider "grok"
+    provider "xai"
     model "grok-4-0709"
     temperature 0.0
   end

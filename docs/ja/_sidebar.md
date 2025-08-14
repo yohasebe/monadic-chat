@@ -50,7 +50,6 @@
 - **開発者ガイド**
 
     <!-- - [重要な変更 (1.0.0)](/ja/developer/breaking-changes.md) -->
-    - [フロントエンドアーキテクチャ](/ja/developer/frontend-architecture.md)
     - [開発ワークフロー](/ja/developer/development_workflow.md)
     - [Rakeタスク](/ja/developer/rake_tasks.md)
     - [アセット管理](/ja/developer/assets.md)

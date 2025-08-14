@@ -16,11 +16,8 @@
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | ✅ | ✅ | | | | ✅ | | |
+| Math Tutor | ✅ | | | | | | | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -40,7 +37,10 @@
 | Video Describer | ✅ | | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
-| Monadic Help | ✅ | | | | | | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Monadic Chat Help | ✅ | | | | | | | | |
 
 ## アシスタント :id=assistant
 
@@ -110,16 +110,9 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 
 ![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
-AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。数式の表示が必要なやりとりを行うのに適しています。Math TutorにはPythonコードを実行してグラフを生成したり計算を行ったりするツールが含まれています。
+AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記を用いて応答するアプリケーションです。数式の表示が必要なやりとりを行うのに適しています。
 
 !> **注意:** LLMの数学的計算能力には制約があり、誤った結果が出力されることがあります。計算の正確性が求められる場合は、Code Interpreterアプリなどで実際に計算を行うことをお勧めします。
-
-Math Tutorアプリは以下のモデルで利用可能です：
-
-- OpenAI (GPT-4o, GPT-4o mini, GPT-5)
-- Anthropic Claude (3.5 Sonnet, 3.5 Haiku)
-- Google Gemini (2.0 Flash, 2.5 Flash)
-- xAI Grok (Grok 4)
 
 ### Second Opinion
 
@@ -273,21 +266,17 @@ OpenAIバージョンは最新のgpt-image-1モデルを使用し、3つの主�
 このアプリケーションは、Gemini APIを通じてGoogleのVeoモデルを使用して動画を生成します。テキストから動画への変換や、画像から動画への変換の両方が可能で、異なるアスペクト比や長さに対応しています。
 
 **主な機能：**
-- **テキストから動画生成**: Veo 3を使用してテキストの説明から動画を作成
-- **画像から動画生成**: Veo 2を使用して既存の画像を第1フレームとしてアニメーションを作成
+- **テキストから動画生成**: テキストの説明から動画を作成
+- **画像から動画生成**: 既存の画像を第1フレームとして使用し、アニメーションを作成
 - **アスペクト比オプション**: 横向き（16:9）、縦向き（9:16）の選択が可能
-- **自動モデル選択**: 最適な互換性のため、テキストから動画にはVeo 3、画像から動画にはVeo 2を自動選択
+- **人物生成の制御**: 人物を含む動画の生成を許可または制限するオプション
 
-**技術詳細：**
-- **Veo 3 (veo-3.0-generate-preview)**: テキストから動画生成に使用、高度な機能を提供
-- **Veo 2 (veo-2.0-generate-001)**: 画像から動画生成に使用、実証済みの互換性
-- **人物生成**: モデルと生成タイプに基づいて自動的に設定
 
 **使用方法：**
 1. テキストから動画: 作成したい動画の詳細な説明を提供
 2. 画像から動画: 画像をアップロードし、どのようにアニメーションするか説明
-3. 入力内容に基づいて適切なVeoモデルが自動的に選択されます
-4. AIがリクエストを処理して動画を生成
+3. 希望するアスペクト比や人物生成の設定を指定
+4. AIがGoogleのVeoモデルを使用してリクエストを処理
 
 ?> **注意:** 動画生成は通常2～6分かかります。生成された動画は「共有フォルダ」に保存され、チャットインターフェースに表示されます。
 
@@ -555,25 +544,15 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。
 
-**高度な機能:**
-- 自動エラー修正機能付きのJupyterノートブック作成・管理
-- コードセルの実行とエラーの自動処理
-- ノートブックの状態をクリアするためのカーネル再起動
-- セルの位置変更（簡易実装）
-- 特定位置へのセル挿入（簡易実装）
-
-?> **自動起動**: Jupyter Notebookアプリを起動すると、JupyterLabサーバーがまだ起動していない場合は自動的に起動されます。手動で事前に起動する必要はありません。
-
-?> JupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼することもできますし、Monadic Chatコンソールパネルのメニューから手動で行うこともできます（`Start JupyterLab`, `Stop JupyterLab`）。
+?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-Jupyter Notebookアプリは以下のモデルで利用可能です：
+!> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
+
+下記の言語モデルでJupyter Notebookアプリが利用可能です。
+
 - OpenAI
 - Anthropic Claude
-- Google Gemini
-- xAI Grok
-
-!> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
 
 ### Monadic Chat Help
 

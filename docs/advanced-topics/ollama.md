@@ -73,7 +73,7 @@ After the model finishes downloading, you'll see an interactive Ollama shell pro
 
 The models you've added will be available for selection in the "Chat" app (Ollama version).
 
-!> Loading locally downloaded models into the Docker container can take some time. The Ollama app will automatically become available once the container setup is complete.
+!> Loading locally downloaded models into the Docker container can take some time. Reload the web interface if the model doesn't appear immediately, especially after adding a new model or restarting Monadic Chat.
 
 ## Technical Details
 

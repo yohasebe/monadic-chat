@@ -51,7 +51,6 @@
 - **Developer Guide**
 
     <!-- - [Breaking Changes (1.0.0)](/developer/breaking-changes.md) -->
-    - [Frontend Architecture](/developer/frontend-architecture.md)
     - [Development Workflow](/developer/development_workflow.md)
     - [Testing Guide](/developer/testing_guide.md)
     - [Rake Tasks](/developer/rake_tasks.md)

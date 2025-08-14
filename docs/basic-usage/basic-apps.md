@@ -16,11 +16,8 @@ The table below shows which apps are available for which AI model providers.
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | ✅ | ✅ | | | | ✅ | | |
+| Math Tutor | ✅ | | | | | | | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -40,7 +37,10 @@ The table below shows which apps are available for which AI model providers.
 | Video Describer | ✅ | | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
-| Monadic Help | ✅ | | | | | | | | |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Monadic Chat Help | ✅ | | | | | | | | |
 
 ## Assistant :id=assistant
 
@@ -110,16 +110,9 @@ This is basically the same as Chat, but for questions about events that occurred
 
 ![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
-This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers. Math Tutor includes tools for running Python code to generate visualizations and perform calculations.
+This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
 
 !> **Caution:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
-
-Math Tutor apps are available for the following models:
-
-- OpenAI (GPT-4o, GPT-4o mini, GPT-5)
-- Anthropic Claude (3.5 Sonnet, 3.5 Haiku)
-- Google Gemini (2.0 Flash, 2.5 Flash)
-- xAI Grok (Grok 4)
 
 ### Second Opinion
 
@@ -274,24 +267,20 @@ Image Generator apps are also available for the following models:
 
 ![Video Generator app icon](../assets/icons/video-generator.png ':size=40')
 
-This application generates videos using Google's Veo models through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
+This application generates videos using Google's Veo model through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
 
 **Key Features:**
-- **Text-to-video generation**: Create videos from text descriptions using Veo 3
-- **Image-to-video generation**: Animate existing images by using them as the first frame using Veo 2
+- **Text-to-video generation**: Create videos from text descriptions
+- **Image-to-video generation**: Animate existing images by using them as the first frame
 - **Aspect ratio options**: Choose between landscape (16:9) and portrait (9:16) formats
-- **Automatic model selection**: Uses Veo 3 for text-to-video and Veo 2 for image-to-video for optimal compatibility
+- **Person generation control**: Option to allow or restrict generation of videos containing people
 
-**Technical Details:**
-- **Veo 3 (veo-3.0-generate-preview)**: Used for text-to-video generation with advanced capabilities
-- **Veo 2 (veo-2.0-generate-001)**: Used for image-to-video generation for proven compatibility
-- **Person generation**: Automatically configured based on the model and generation type
 
 **Usage:**
 1. For text-to-video: Provide a detailed description of the video you want to create
 2. For image-to-video: Upload an image and describe how it should be animated
-3. The appropriate Veo model will be automatically selected based on your input
-4. The AI will process your request and generate a video
+3. Specify the desired aspect ratio and person generation preferences
+4. The AI will process your request using Google's Veo model
 
 ?> **Note:** Video generation typically takes 2-6 minutes to complete. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
 
@@ -579,27 +568,17 @@ Coding Assistant apps are also available for the following models:
 
 This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
-**Advanced Features:**
-- Create and manage Jupyter notebooks with automatic error correction
-- Execute code cells and handle errors automatically
-- Restart kernel to clear notebook state
-- Move cells to different positions (simplified implementation)
-- Insert cells at specific positions (simplified implementation)
-
-> **Automatic Startup**: When you launch any Jupyter Notebook app, the JupyterLab server starts automatically if it's not already running. You don't need to manually start it first.
-
-> You can also manually start or stop JupyterLab by asking the AI agent, or by using the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
+> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-Jupyter Notebook apps are available for the following models:
-- OpenAI
-- Anthropic Claude
-- Google Gemini
-- xAI Grok
+<!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
 
 !> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
-<!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
+Jupyter Notebook apps are also available for the following models:
+
+- OpenAI
+- Anthropic Claude
 
 ### Monadic Chat Help
 

@@ -10,7 +10,7 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 | Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
 | Gemini | ✅ All models | ✅ | ✅⁴ |
 | Mistral | ✅ Select models⁵ | ✅ | ✅⁴ |
-| Cohere | ✅ Vision models⁷ | ⚠️⁹ | ✅⁴ |
+| Cohere | ✅ Vision models⁷ | ✅ | ✅⁴ |
 | xAI Grok | ✅ Vision models⁶ | ✅ | ✅ Native |
 | Perplexity | ✅ All models | ❌ | ✅ Native |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
@@ -23,8 +23,7 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 ⁵ Pixtral, mistral-medium-latest, and mistral-small-latest models  
 ⁶ grok-2-vision models only  
 ⁷ command-a-vision models only  
-⁸ Depends on specific model capabilities  
-⁹ Limited - cannot chain multiple tool calls (single tool per request only)
+⁸ Depends on specific model capabilities
 
 ## Default Models Configuration
 
@@ -80,36 +79,31 @@ WEBSEARCH_MODEL=gpt-4o-mini
 Reasoning models use advanced computational processes to think through problems step-by-step before responding. Monadic Chat automatically detects these models and adjusts parameters accordingly.
 
 ### OpenAI Reasoning Models
-- **GPT-5 Series**: gpt-5, gpt-5-mini, gpt-5-nano
-  - Uses Responses API
-  - 400K context window, 128K max output tokens
-  - Tool/function calling support
 - **O1 Series**: o1, o1-mini, o1-preview, o1-pro
 - **O3 Series**: o3, o3-pro
 - **O4 Series**: o4-mini
 
-These models use `reasoning_effort` parameter ("minimal", "low", "medium", "high") instead of temperature settings.
+These models use `reasoning_effort` parameter ("low", "medium", "high") instead of temperature settings.
 
 ### Gemini Thinking Models
 - **2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
-- Adjustable thinking budget parameter
+- Advanced reasoning with adjustable computing budget
 
 ### Mistral Reasoning Models
 - **Magistral Series**: magistral-medium, magistral-small
-- Multilingual support (French, German, Spanish, Italian, etc.)
+- Multilingual reasoning capabilities (French, German, Spanish, Italian, etc.)
 
-### Technical Specifications
-- Use `reasoning_effort` parameter instead of temperature
-- Function calling limitations vary by model
-- Web search may require model switching
-- Streaming not available for: o1-pro, o3-pro
+### Key Differences from Standard Models
+- Use `reasoning_effort` instead of temperature
+- Limited function calling support
+- Web search requires automatic model switching
+- Some models don't support streaming (o1-pro, o3-pro)
 
 ## OpenAI Models
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.
 
 ### Available Models
-- **GPT-5 Series**: gpt-5, gpt-5-mini, gpt-5-nano (400K context, 128K output)
 - **GPT-4.5 Series**: gpt-4.5-preview, gpt-4.5-preview-2025-02-27
 - **GPT-4.1 Series**: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano (1M+ context window)
 - **GPT-4o Series**: gpt-4o, gpt-4o-mini, gpt-4o-audio-preview
@@ -152,21 +146,13 @@ By setting the Google Gemini API key, you can use apps that utilize Gemini.
 
 ### Available Models
 - **Gemini 2.5 Series**: 
-  - gemini-2.5-flash, gemini-2.5-pro
+  - gemini-2.5-flash, gemini-2.5-pro (with adjustable reasoning dial)
   - gemini-2.5-flash-preview-05-20, gemini-2.5-pro-exp-03-25 (experimental)
-  - Deep Think mode available
-  - **Technical Note**: Function calling requires `reasoning_effort: "low"`, structured JSON output unavailable with this setting
+  - Deep Think mode available for enhanced reasoning
 - **Gemini 2.0 Series**: 
   - gemini-2.0-flash, gemini-2.0-flash-thinking-exp (thinking/reasoning models)
   - 1M token context window
 - **Imagen 3**: imagen-3.0-generate-002 (for image generation)
-
-### Google Search Grounding
-When web search is enabled with Gemini models, Google's native search grounding provides rich metadata about search results:
-- Search queries used
-- Grounding chunks with relevance scores
-- Direct links to search results
-This metadata is automatically displayed in the response when available.
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 

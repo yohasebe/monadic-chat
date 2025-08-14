@@ -1,5 +1,10 @@
 - [August, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
+  - **Claude Performance Optimizations**: Improved tool calling efficiency
+    - Implemented batch processing for multiple tool calls in single API request
+    - Set `reasoning_effort: minimal` for all Claude Sonnet 4 function-calling apps
+    - Fixed minimum thinking_budget_tokens (1024) requirement for minimal mode
+    - Significantly improved Jupyter Notebook cell addition performance
   - **Math Tutor Consolidation**: Unified implementation across all providers
     - Created shared `math_tutor_constants.rb` module with common prompts and settings
     - All Math Tutor MDSL files now reference shared constants

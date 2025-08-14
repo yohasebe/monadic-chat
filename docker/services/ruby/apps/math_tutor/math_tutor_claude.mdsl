@@ -9,7 +9,7 @@ app "MathTutorClaude" do
     provider "anthropic"
     model "claude-sonnet-4-20250514"
     temperature 0.0
-    reasoning_effort "none"  # Disable thinking for better tool execution
+    reasoning_effort "minimal"  # Optimal for function calling with fast responses
   end
   
   features do

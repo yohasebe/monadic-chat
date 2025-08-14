@@ -73,6 +73,66 @@ module JSONRepair
     extract_code_execution_params(json_string)
   end
   
+  # Extract parameters from potentially truncated add_jupyter_cells JSON
+  def self.extract_jupyter_cells_params(json_string)
+    # First try normal repair
+    result = attempt_repair(json_string)
+    return result unless result["_json_repair_failed"]
+    
+    # Manual extraction for Jupyter cells parameters
+    params = {}
+    
+    # Extract filename parameter
+    if match = json_string.match(/"filename"\s*:\s*"([^"]+)"/)
+      params["filename"] = match[1]
+    end
+    
+    # Extract cells array (complex structure, may be truncated)
+    if match = json_string.match(/"cells"\s*:\s*(\[.*)/m)
+      cells_json = match[1]
+      
+      # Try to parse the cells array
+      begin
+        # Add closing brackets if needed
+        open_brackets = cells_json.count('[')
+        close_brackets = cells_json.count(']')
+        cells_json += ']' * [open_brackets - close_brackets, 0].max
+        
+        # Add closing braces if needed
+        open_braces = cells_json.count('{')
+        close_braces = cells_json.count('}')
+        cells_json += '}' * [open_braces - close_braces, 0].max
+        
+        params["cells"] = JSON.parse(cells_json)
+      rescue JSON::ParserError
+        # If cells parsing fails, try to extract at least the cell types and partial content
+        cells = []
+        
+        # Extract individual cells using pattern matching
+        cells_json.scan(/\{[^}]*"cell_type"\s*:\s*"([^"]+)"[^}]*"source"\s*:\s*"([^"]*)/m) do |type, source|
+          cells << {
+            "cell_type" => type,
+            "source" => source + (source.end_with?('\\') ? '' : ' # [Content may have been truncated]')
+          }
+        end
+        
+        params["cells"] = cells unless cells.empty?
+      end
+    end
+    
+    # Extract run parameter (boolean)
+    if match = json_string.match(/"run"\s*:\s*(true|false)/)
+      params["run"] = match[1] == "true"
+    end
+    
+    # Extract escaped parameter (boolean)
+    if match = json_string.match(/"escaped"\s*:\s*(true|false)/)
+      params["escaped"] = match[1] == "true"
+    end
+    
+    params
+  end
+  
   # Common extraction logic for both run_script and run_code
   def self.extract_code_execution_params(json_string)
     # First try normal repair

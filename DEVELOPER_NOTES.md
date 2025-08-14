@@ -17,6 +17,15 @@
 
 ### Provider-Specific Limitations
 
+#### Claude (Anthropic)
+- **Batch Processing**: All tool calls now processed in single API request for better performance
+- **Reasoning Effort**: Use `minimal` for function-calling apps (optimal performance)
+- **Thinking Budget**: Minimum 1024 tokens required for `minimal` reasoning mode
+- **Best Practices**: 
+  - Set `reasoning_effort: "minimal"` for all tool-heavy apps
+  - Use `reasoning_effort: "none"` only when thinking is completely unnecessary
+  - Batch processing improves Jupyter Notebook cell addition significantly
+
 #### Grok (xAI)
 - Cannot use structured output (`monadic: true`) with tool execution
 - Jupyter Notebook requires post-processing to fix filename issues

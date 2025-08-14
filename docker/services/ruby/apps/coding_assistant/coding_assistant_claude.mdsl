@@ -19,8 +19,9 @@ app "CodingAssistantClaude" do
   
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-20250514	"
+    model "claude-sonnet-4-20250514"
     temperature 0.0
+    reasoning_effort "minimal"  # Optimal for function calling with fast responses
   end
   
   display_name "Coding Assistant"

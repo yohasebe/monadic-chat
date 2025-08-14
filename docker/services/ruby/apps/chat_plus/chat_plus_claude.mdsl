@@ -35,6 +35,7 @@ app "ChatPlusClaude" do
     provider "anthropic"
     model "claude-sonnet-4-20250514"
     context_size 100
+    reasoning_effort "minimal"  # Optimal for function calling with fast responses
   end
   
   display_name "Chat Plus"

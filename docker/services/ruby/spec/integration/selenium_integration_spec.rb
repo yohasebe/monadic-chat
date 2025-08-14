@@ -42,9 +42,13 @@ RSpec.describe "Selenium Integration", :integration do
       
       output = `docker exec monadic-chat-python-container #{command} 2>&1`
       
-      # Check for successful save message or skip if there's a network issue
-      if output.include?("connection timed out") || output.include?("Failed to fetch")
-        skip "Network connectivity issue - Selenium cannot reach external URLs"
+      # Check for actual network issues or container problems
+      if output.include?("connection timed out") || 
+         output.include?("Failed to fetch") ||
+         output.include?("Connection refused") ||
+         output.include?("unable to access") ||
+         output.include?("container is not running")
+        skip "Network connectivity issue or container not available"
       end
       
       # The script should output a success message
@@ -61,9 +65,13 @@ RSpec.describe "Selenium Integration", :integration do
       
       output = `docker exec monadic-chat-python-container #{command} 2>&1`
       
-      # Skip if network issue
-      if output.include?("connection timed out") || output.include?("Failed to fetch")
-        skip "Network connectivity issue - Selenium cannot reach external URLs"
+      # Check for actual network issues or container problems
+      if output.include?("connection timed out") || 
+         output.include?("Failed to fetch") ||
+         output.include?("Connection refused") ||
+         output.include?("unable to access") ||
+         output.include?("container is not running")
+        skip "Network connectivity issue or container not available"
       end
       
       # Check for successful save

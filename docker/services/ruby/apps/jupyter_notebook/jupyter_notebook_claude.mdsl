@@ -34,6 +34,19 @@ app "JupyterNotebookClaude" do
     - Only ask for confirmation after completing meaningful units of work
     - DO NOT split basic setup across multiple responses
     
+    MATPLOTLIB BEST PRACTICES:
+    - For Japanese text in plots, always set font configuration at the beginning:
+      ```python
+      import matplotlib.pyplot as plt
+      plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+      plt.rcParams['axes.unicode_minus'] = False
+      ```
+    - For LaTeX in annotations, avoid mixing LaTeX and non-LaTeX text:
+      - WRONG: r"$x=\\pi$ 付近"  (mixes LaTeX with Japanese)
+      - CORRECT: r"$x=\pi$" for math only, or f"x=π 付近" without LaTeX
+    - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
+    - Prefer simple annotations without LaTeX when possible to avoid parsing errors
+    
     Your response MUST be a valid JSON object with this structure:
     {
       "message": "Your response to the user with markdown",

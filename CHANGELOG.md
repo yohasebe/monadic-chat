@@ -10,6 +10,11 @@
     - Users can request step-by-step execution at any time
     - Default is batch processing for efficiency
     - Automatically notifies for very large tasks (>20 cells for Jupyter, >5 executions for Code Interpreter)
+  - **Matplotlib Best Practices**: Added guidance to prevent common plotting errors
+    - Font configuration for Japanese text support
+    - LaTeX annotation syntax corrections
+    - Deprecated function updates (get_cmap, seaborn styles)
+    - Prevents mixing LaTeX with non-ASCII text in annotations
   - **Math Tutor Consolidation**: Unified implementation across all providers
     - Created shared `math_tutor_constants.rb` module with common prompts and settings
     - All Math Tutor MDSL files now reference shared constants

@@ -5,11 +5,11 @@
     - Set `reasoning_effort: minimal` for all Claude Sonnet 4 function-calling apps
     - Fixed minimum thinking_budget_tokens (1024) requirement for minimal mode
     - Significantly improved Jupyter Notebook cell addition performance
-  - **Workload Estimation Feature**: Added task complexity estimation for better UX
-    - Jupyter Notebook apps now estimate workload for tasks >10 cells or >3 phases
-    - Code Interpreter apps estimate for tasks >5 executions or >3 phases
-    - Users can choose: complete at once, step-by-step, or basic implementation
-    - Improves transparency and gives users control over complex operations
+  - **Workload Management Feature**: Improved user control over batch vs step-by-step execution
+    - Initial greeting now mentions batch processing option for efficiency
+    - Users can request step-by-step execution at any time
+    - Default is batch processing for efficiency
+    - Automatically notifies for very large tasks (>20 cells for Jupyter, >5 executions for Code Interpreter)
   - **Math Tutor Consolidation**: Unified implementation across all providers
     - Created shared `math_tutor_constants.rb` module with common prompts and settings
     - All Math Tutor MDSL files now reference shared constants

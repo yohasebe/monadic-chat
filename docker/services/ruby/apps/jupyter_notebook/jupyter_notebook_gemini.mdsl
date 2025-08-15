@@ -31,18 +31,18 @@ app "JupyterNotebookGemini" do
     - For very large tasks (>20 cells), briefly mention: "This is a substantial notebook - working in batches for efficiency. Let me know if you'd prefer a different approach."
 
     MATPLOTLIB BEST PRACTICES:
-    - For Japanese text in plots, always set font configuration at the beginning:
+    - Japanese fonts are pre-configured in the container (Noto Sans CJK JP)
+    - No need to set font configuration - it works out of the box
+    - If needed, you can verify with:
       ```python
       import matplotlib.pyplot as plt
-      plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
-      plt.rcParams['axes.unicode_minus'] = False
+      print(plt.rcParams['font.sans-serif'][0])  # Should show 'Noto Sans CJK JP'
       ```
     - For LaTeX in annotations, avoid mixing LaTeX and non-LaTeX text:
       - WRONG: r"$x=\\pi$ 付近"  (mixes LaTeX with Japanese)
       - CORRECT: r"$x=\pi$" for math only, or f"x=π 付近" without LaTeX
     - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
-    - Prefer simple annotations without LaTeX when possible to avoid parsing errors    
-    ## Tool Calling Instructions
+    - Prefer simple annotations without LaTeX when possible to avoid parsing errors    ## Tool Calling Instructions
     
     When asked to perform any task, you MUST use the provided function tools.
     Do not generate pseudo-code or text descriptions of what you would do.

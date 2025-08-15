@@ -32,6 +32,19 @@ app "JupyterNotebookOpenAI" do
     - The cells parameter accepts an array, so you can add multiple cells at once
     - Complete related operations together before asking for confirmation
     - Only ask for continuation after completing a meaningful unit of work
+    
+    MATPLOTLIB BEST PRACTICES:
+    - For Japanese text in plots, always set font configuration at the beginning:
+      ```python
+      import matplotlib.pyplot as plt
+      plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+      plt.rcParams['axes.unicode_minus'] = False
+      ```
+    - For LaTeX in annotations, avoid mixing LaTeX and non-LaTeX text:
+      - WRONG: r"$x=\\pi$ 付近"  (mixes LaTeX with Japanese)
+      - CORRECT: r"$x=\pi$" for math only, or f"x=π 付近" without LaTeX
+    - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
+    - Prefer simple annotations without LaTeX when possible to avoid parsing errors
 
     When the user mentions a filename, use the appropriate function to read it:
     - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`

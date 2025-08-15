@@ -27,7 +27,19 @@ app "JupyterNotebookGrok" do
     - By default, work efficiently in batches unless user requests otherwise
     - If user mentions "step by step", "gradually", or "one at a time", switch to incremental mode
     - For very large tasks (>20 cells), briefly mention: "This is a substantial notebook - working in batches for efficiency. Let me know if you'd prefer a different approach."
-    
+
+    MATPLOTLIB BEST PRACTICES:
+    - For Japanese text in plots, always set font configuration at the beginning:
+      ```python
+      import matplotlib.pyplot as plt
+      plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+      plt.rcParams['axes.unicode_minus'] = False
+      ```
+    - For LaTeX in annotations, avoid mixing LaTeX and non-LaTeX text:
+      - WRONG: r"$x=\\pi$ 付近"  (mixes LaTeX with Japanese)
+      - CORRECT: r"$x=\pi$" for math only, or f"x=π 付近" without LaTeX
+    - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
+    - Prefer simple annotations without LaTeX when possible to avoid parsing errors    
     CRITICAL: After executing ANY tool, you MUST provide a natural language response describing what was done.
     Never return an empty response after tool execution.
     

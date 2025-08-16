@@ -1,23 +1,33 @@
-# Development History
+# Development History & Technical Notes
 
 *For current technical documentation, see [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md)*
 
 ## August 2025 Updates
 
-### Latest Fixes (2025-08-16)
-- **Claude Jupyter Notebook**: Confirmed monadic mode incompatibility with tool execution
-- **Jupyter Notebook Greeting**: Reverted initial greeting changes that interfered with context formatting
-- **Font Configuration**: Corrected Matplotlib to use pre-installed Noto Sans CJK JP fonts
+### Session 3 - 2025-08-16
 
-### Previous Fixes (2025-08-14)
-- **Claude Batch Processing**: Implemented batch processing for multiple tool calls, improving Jupyter Notebook performance
-- **Claude Reasoning Effort**: Set optimal `reasoning_effort: minimal` for all Claude Sonnet 4 apps for better function calling
-- **Thinking Budget Fix**: Fixed minimum thinking_budget_tokens requirement (1024) for Claude's minimal reasoning mode
+#### Major Findings
+- **Monadic Mode Investigation**: Thoroughly tested Claude's compatibility with monadic mode + tool execution
+  - Attempted multiple approaches including JSON reminders and response post-processing
+  - Confirmed fundamental incompatibility due to thinking blocks and markdown formatting habits
+  - Decision: Keep `monadic: false` for Claude's tool-heavy apps
 
-### Earlier Fixes (2025-08-13)
-- **GPT-5 Streaming**: Fixed duplicate characters issue by skipping redundant `response.in_progress` events
-- **Math Tutor Consolidation**: Created shared constants module reducing 576 lines to 150 lines
-- **Markdown Bold Rendering**: Fixed bold text not rendering with Japanese brackets and in numbered lists
+#### Fixes Implemented
+- **Claude Jupyter Notebook**: Confirmed and documented monadic mode incompatibility
+- **Jupyter Notebook Greeting**: Reverted workload management changes that interfered with context
+- **Font Configuration**: Fixed Matplotlib to use pre-installed Noto Sans CJK JP fonts
+- **Documentation**: Comprehensive updates to technical docs and user guides
+
+### Session 2 - 2025-08-14
+- **Claude Batch Processing**: Implemented single API request for multiple tool calls
+- **Claude Reasoning Effort**: Set `reasoning_effort: minimal` for all Claude Sonnet 4 apps
+- **Thinking Budget**: Fixed minimum 1024 tokens requirement for minimal reasoning mode
+- **Workload Management**: Added upfront batch processing notifications
+
+### Session 1 - 2025-08-13
+- **GPT-5 Streaming**: Fixed duplicate characters in response.in_progress events
+- **Math Tutor**: Consolidated shared constants (576 → 150 lines)
+- **Markdown Rendering**: Fixed bold text with Japanese brackets and numbered lists
 
 ### Major Improvements
 - **Unified Error Handling System**: Consistent error messages across all providers with user-friendly suggestions
@@ -57,19 +67,61 @@
 - Some providers have inconsistent tool response formats
 - Monadic mode incompatible with certain tool-heavy workflows
 
-## Claude Monadic Mode Notes
+## Technical Deep Dive: Claude Monadic Mode
 
-### Current Status
-Claude's monadic mode is incompatible with tool-heavy applications due to:
-1. **Thinking blocks**: Claude uses `thinking` blocks that interfere with JSON formatting
-2. **Markdown habits**: Naturally wraps JSON in code blocks (```json)
-3. **Response structure**: Multiple content blocks complicate JSON extraction
+### The Problem
+Claude's monadic mode fails with tool execution due to fundamental architecture differences:
 
-### Future Considerations
-If attempting to enable monadic mode for Claude in the future:
-- Consider disabling `reasoning_effort` (set to "none")
-- Implement response post-processing to extract JSON from code blocks
-- Add explicit instructions against markdown formatting at multiple points
-- Test thoroughly with tool execution scenarios
+1. **Thinking Blocks Interference**
+   ```json
+   // Claude's response structure
+   {
+     "type": "thinking",
+     "thinking": "Let me analyze..."
+   },
+   {
+     "type": "text", 
+     "text": "```json\n{...}\n```"  // JSON wrapped in markdown
+   }
+   ```
+
+2. **Automatic Markdown Formatting**
+   - Claude instinctively wraps JSON in \`\`\`json blocks
+   - Even with explicit instructions, this behavior persists
+   - Post-tool execution responses lose JSON structure
+
+3. **API-Level Differences**
+   - OpenAI: Native `response_format: {type: "json_object"}` 
+   - Claude: Relies on system prompt instructions only
+   - Tool execution creates new context that breaks continuity
+
+### Attempted Solutions (All Failed)
+1. ✗ Adding JSON reminders after tool execution
+2. ✗ Explicit "no markdown" instructions at multiple points
+3. ✗ Response post-processing to extract JSON from code blocks
+4. ✗ Disabling reasoning_effort to avoid thinking blocks
+
+### Current Resolution
+- **Decision**: Use `monadic: false` for all Claude tool-heavy apps
+- **Rationale**: Provider-specific optimization over forced uniformity
+- **Impact**: Claude Jupyter Notebook works perfectly without monadic mode
+
+## Lessons Learned
+
+### Provider Compatibility Matrix
+| Feature | OpenAI | Claude | Gemini | Grok |
+|---------|--------|--------|--------|------|
+| Monadic Mode | ✅ | ✅* | ✅* | ✅* |
+| Tool Execution | ✅ | ✅ | ✅ | ✅ |
+| Monadic + Tools | ✅ | ❌ | ❌ | ❌ |
+| Batch Processing | ✅ | ✅ | ✅ | ⚠️ |
+
+*Works for non-tool apps only
+
+### Best Practices Established
+1. **Don't force uniformity** - Let each provider use its strengths
+2. **Test thoroughly** - Monadic mode + tools requires extensive testing
+3. **Document limitations** - Clear documentation prevents future confusion
+4. **Provider-specific configs** - Optimize for each provider's architecture
 
 For detailed technical information, configuration guidelines, and testing procedures, please refer to [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md).

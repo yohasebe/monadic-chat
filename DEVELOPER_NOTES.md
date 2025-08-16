@@ -21,10 +21,12 @@
 - **Batch Processing**: All tool calls now processed in single API request for better performance
 - **Reasoning Effort**: Use `minimal` for function-calling apps (optimal performance)
 - **Thinking Budget**: Minimum 1024 tokens required for `minimal` reasoning mode
+- **Jupyter Notebook**: Requires `monadic: false` for proper tool execution (unlike OpenAI)
 - **Best Practices**: 
   - Set `reasoning_effort: "minimal"` for all tool-heavy apps
   - Use `reasoning_effort: "none"` only when thinking is completely unnecessary
   - Batch processing improves Jupyter Notebook cell addition significantly
+  - Disable monadic mode for apps with heavy tool usage
 
 #### Grok (xAI)
 - Cannot use structured output (`monadic: true`) with tool execution
@@ -101,7 +103,10 @@ E2E_DEBUG=1             # E2E test debugging
 | DeepSeek | ✅   | ✅              | ❌      | ✅       | ✅    | ❌         |
 | Ollama   | ✅   | ❌              | ❌      | ❌       | ❌    | ❌         |
 
-*Grok Jupyter has filename display limitations (workaround implemented)
+*Notes:
+- Grok Jupyter has filename display limitations (workaround implemented)
+- Claude, Gemini, and Grok Jupyter require `monadic: false` for tool execution
+- Only OpenAI Jupyter successfully uses `monadic: true` with tools
 
 ## Development Guidelines
 
@@ -124,5 +129,22 @@ E2E_DEBUG=1             # E2E test debugging
 - Focus on technical changes
 - No attribution to AI assistants
 - Clear, concise commit messages
+
+## Monadic Mode vs Tool Execution
+
+### Key Finding
+Providers handle the combination of monadic mode (structured JSON responses) and tool execution differently:
+
+| Provider | Monadic + Tools | Solution |
+|----------|----------------|----------|
+| OpenAI   | ✅ Works       | Can use `monadic: true` |
+| Claude   | ❌ Conflicts   | Must use `monadic: false` |
+| Gemini   | ❌ Conflicts   | Must use `monadic: false` |
+| Grok     | ❌ Conflicts   | Must use `monadic: false` |
+
+### Implementation Guidelines
+- For tool-heavy apps (Jupyter, Code Interpreter), prefer `monadic: false` for consistency
+- Exception: OpenAI can maintain `monadic: true` if JSON structure is beneficial
+- Test thoroughly when combining monadic mode with tool execution
 
 ## Current Test Count: 1269 passing tests

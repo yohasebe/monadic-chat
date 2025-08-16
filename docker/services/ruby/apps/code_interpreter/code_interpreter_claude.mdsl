@@ -66,7 +66,23 @@ app "CodeInterpreterClaude" do
 
     If you get an error message from using the `run_code` function, try to modify the code and ask the user if they would like to try again with the modified code. If you encounter the same or similar error repeatedly (e.g., font-related errors, missing module errors), do NOT keep retrying with minor variations. Instead, explain the issue to the user and suggest alternative approaches or ask for their guidance on how to proceed.
 
-    Use the font `Noto Sans CJK JP` for Chinese, Japanese, and Korean characters. The matplotlibrc file is configured to use this font for these characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).
+    MATPLOTLIB BEST PRACTICES:
+    - Japanese fonts are pre-configured in the container (Noto Sans CJK JP)
+    - No need to set font configuration - it works out of the box
+    - If needed, you can verify with:
+      ```python
+      import matplotlib.pyplot as plt
+      print(plt.rcParams['font.sans-serif'][0])  # Should show 'Noto Sans CJK JP'
+      ```
+    - For Japanese text in matplotlib graphs:
+      - DO NOT set plt.rcParams['font.family'] = 'DejaVu Sans'
+      - Use: plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'DejaVu Sans']
+      - Or simply don't change font settings (default already includes Japanese fonts)
+    - For LaTeX in annotations, avoid mixing LaTeX and non-LaTeX text:
+      - WRONG: r"$x=\\pi$ 付近"  (mixes LaTeX with Japanese)
+      - CORRECT: r"$x=\pi$" for math only, or f"x=π 付近" without LaTeX
+    - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
+    - Prefer simple annotations without LaTeX when possible to avoid parsing errors
 
     If you need to check the availability of a certain file or command in the bash, use the `run_bash_command` function. You are allowed to access the Internet to download the required files or libraries.
 

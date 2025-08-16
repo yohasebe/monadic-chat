@@ -1,4 +1,19 @@
-- [August, 2025] 1.0.0-beta.4
+- [August 16, 2025] Latest Updates
+  - **Monadic Mode Investigation**: Comprehensive testing of Claude's compatibility
+    - Confirmed fundamental incompatibility between Claude's thinking mode and JSON structure
+    - Claude, Gemini, and Grok require `monadic: false` for tool-heavy applications
+    - Only OpenAI successfully combines monadic mode with extensive tool usage
+    - Documented technical limitations and future considerations
+  - **Jupyter Notebook Configuration**: Optimized provider-specific settings
+    - Reverted Claude to `monadic: false` for stable tool execution
+    - Fixed context formatting issues from workload management changes
+    - Corrected font configurations to use pre-installed Noto Sans CJK JP
+  - **Documentation Enhancements**: Updated technical and user documentation
+    - Added provider compatibility matrix for monadic mode + tools
+    - Documented Claude's specific limitations with thinking blocks
+    - Enhanced both English and Japanese docsify documentation
+
+- [August 14-15, 2025] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
   - **Claude Performance Optimizations**: Improved tool calling efficiency
     - Implemented batch processing for multiple tool calls in single API request

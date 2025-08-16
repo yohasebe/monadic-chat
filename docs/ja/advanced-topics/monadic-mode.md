@@ -34,6 +34,8 @@ Monadicモードは統一インターフェースを通じてすべてのプロ�
 
 !> **重要**: ツール/関数呼び出しを多用するアプリケーション（Jupyter NotebookやCode Interpreterなど）では、一部のプロバイダーで`monadic: false`が必要です。OpenAIのみがMonadicモードとツールの広範な使用を正常に組み合わせることができます。
 
+?> **Claude固有の注意**: Claudeの思考モード（`reasoning_effort`）は`thinking`ブロックを生成し、JSON構造を妨げます。Monadicモードを強制すると、ClaudeはJSONをマークダウンのコードブロックで囲む傾向があります。ツール多用アプリケーションでは、Claudeは常に`monadic: false`を使用してください。
+
 ## アーキテクチャ
 
 Monadic機能は複数のモジュールを通じて実装されています：

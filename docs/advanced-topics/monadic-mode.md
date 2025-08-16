@@ -37,6 +37,8 @@ All providers in Monadic Chat support monadic mode through a unified interface. 
 
 !> **Important**: For applications that heavily use tool/function calling (like Jupyter Notebook or Code Interpreter), some providers require `monadic: false` for proper operation. Only OpenAI successfully combines monadic mode with extensive tool usage.
 
+?> **Claude Specific Note**: Claude's thinking mode (`reasoning_effort`) creates `thinking` blocks that interfere with JSON structure. When forced to use monadic mode, Claude tends to wrap JSON in markdown code blocks. For tool-heavy applications, always use `monadic: false` with Claude.
+
 ?> **Note**: The `monadic` and `toggle` features are mutually exclusive. The choice between them determines how context is displayed in the UI - `monadic` uses collapsible JSON views while `toggle` uses HTML-based sections. Both approaches maintain conversation context effectively.
 
 ## Architecture

@@ -397,6 +397,12 @@ module ClaudeHelper
       else
         text = msg["text"]
       end
+      
+      # Add JSON format reminder after tool execution in monadic mode
+      if role == "tool" && monadic_mode? && system_prompts.empty?
+        json_reminder = "\n\nIMPORTANT: Your response MUST be a valid JSON object with 'message' and 'context' fields as specified in your initial instructions."
+        text = text + json_reminder
+      end
 
       sp = { type: "text", text: text }
       

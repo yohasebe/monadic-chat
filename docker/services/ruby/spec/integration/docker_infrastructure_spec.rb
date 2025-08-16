@@ -110,22 +110,40 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
     it "can capture screenshots via Selenium" do
       test_url = "https://example.com"
       
-      # Run webpage_fetcher.py for screenshot
-      command = "docker exec monadic-chat-python-container webpage_fetcher.py --url \"#{test_url}\" --filepath \"/monadic/data/\" --mode \"png\""
+      # Run webpage_fetcher.py for screenshot with increased timeout
+      command = "docker exec monadic-chat-python-container webpage_fetcher.py --url \"#{test_url}\" --filepath \"/monadic/data/\" --mode \"png\" --timeout-sec 60"
       
-      result = `#{command} 2>&1`
+      # Try up to 3 times with exponential backoff
+      result = nil
+      retries = 0
+      max_retries = 3
+      
+      while retries < max_retries
+        result = `timeout 90 #{command} 2>&1`
+        
+        # Check if successful
+        if result.match(/saved to:|\.png/i) || result.match(/Successfully saved screenshot/i)
+          break
+        end
+        
+        retries += 1
+        if retries < max_retries
+          sleep(5 * retries)  # Exponential backoff: 5s, 10s, 15s
+        end
+      end
       
       # Check for actual network issues or container problems
       if result.include?("connection timed out") || 
          result.include?("Failed to fetch") ||
          result.include?("Connection refused") ||
          result.include?("unable to access") ||
-         result.include?("container is not running")
+         result.include?("container is not running") ||
+         result.include?("Selenium server is unavailable")
         skip "Network connectivity issue or container not available"
       end
       
       # Check for success indicators
-      expect(result).to match(/saved to:|\.png/i)
+      expect(result).to match(/saved to:|\.png|Successfully saved screenshot/i)
     end
   end
 

@@ -161,7 +161,15 @@ RSpec.describe "VideoGeneratorVeo" do
     end
     
     before do
-      allow(HTTP).to receive_message_chain(:headers, :post).and_return(mock_response)
+      # Mock the HTTP client chain: timeout -> follow -> headers -> post
+      http_with_timeout = double("HTTP with timeout")
+      http_with_follow = double("HTTP with follow")
+      http_with_headers = double("HTTP with headers")
+      
+      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
+      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
+      allow(http_with_headers).to receive(:post).and_return(mock_response)
     end
     
     it "sends correct request for text-to-video" do
@@ -225,7 +233,10 @@ RSpec.describe "VideoGeneratorVeo" do
           }.to_json
         )
         
-        allow(HTTP).to receive(:get).and_return(mock_response)
+        # Mock HTTP with timeout
+        http_with_timeout = double("HTTP with timeout")
+        allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+        allow(http_with_timeout).to receive(:get).and_return(mock_response)
         
         result = check_operation_status(mock_operation_name, mock_api_key, 1, 0.1)
         expect(result["done"]).to be true
@@ -247,7 +258,10 @@ RSpec.describe "VideoGeneratorVeo" do
         )
         
         call_count = 0
-        allow(HTTP).to receive(:get) do
+        # Mock HTTP with timeout for multiple calls
+        http_with_timeout = double("HTTP with timeout")
+        allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+        allow(http_with_timeout).to receive(:get) do
           call_count += 1
           call_count == 1 ? pending_response : complete_response
         end
@@ -264,7 +278,10 @@ RSpec.describe "VideoGeneratorVeo" do
           body: { name: mock_operation_name, done: false }.to_json
         )
         
-        allow(HTTP).to receive(:get).and_return(mock_response)
+        # Mock HTTP with timeout
+        http_with_timeout = double("HTTP with timeout")
+        allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+        allow(http_with_timeout).to receive(:get).and_return(mock_response)
         
         result = check_operation_status(mock_operation_name, mock_api_key, 1, 0.1)
         expect(result["error"]["message"]).to include("timed out")
@@ -383,7 +400,15 @@ RSpec.describe "VideoGeneratorVeo" do
         headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
       )
       
-      allow(HTTP).to receive_message_chain(:headers, :post).and_return(error_response)
+      # Mock the HTTP client chain for error case
+      http_with_timeout = double("HTTP with timeout")
+      http_with_follow = double("HTTP with follow")
+      http_with_headers = double("HTTP with headers")
+      
+      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
+      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
+      allow(http_with_headers).to receive(:post).and_return(error_response)
       
       result = generate_video(test_prompt)
       

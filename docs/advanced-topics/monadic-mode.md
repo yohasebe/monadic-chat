@@ -25,15 +25,17 @@ In Monadic Mode, each response from the AI includes both a message and a structu
 
 All providers in Monadic Chat support monadic mode through a unified interface. This includes:
 
-- **OpenAI** - Native `response_format` support
-- **Claude** - JSON through system prompts
-- **Gemini** - `responseMimeType` configuration
+- **OpenAI** - Native `response_format` support (works well with tools)
+- **Claude** - JSON through system prompts (requires `monadic: false` for tool-heavy apps)
+- **Gemini** - `responseMimeType` configuration (cannot combine with function calling)
 - **Mistral** - `response_format` with JSON schema
-- **Cohere** - Structured output support
+- **Cohere** - Structured output support (limited to single tool calls)
 - **DeepSeek** - JSON output format
 - **Perplexity** - Structured response capabilities
-- **Grok** - JSON format support
+- **Grok** - JSON format support (incompatible with tool execution)
 - **Ollama** - `format: "json"` option
+
+!> **Important**: For applications that heavily use tool/function calling (like Jupyter Notebook or Code Interpreter), some providers require `monadic: false` for proper operation. Only OpenAI successfully combines monadic mode with extensive tool usage.
 
 ?> **Note**: The `monadic` and `toggle` features are mutually exclusive. The choice between them determines how context is displayed in the UI - `monadic` uses collapsible JSON views while `toggle` uses HTML-based sections. Both approaches maintain conversation context effectively.
 
@@ -50,7 +52,7 @@ The monadic functionality is implemented through several modules:
 
 ### 1. Jupyter Notebook App
 
-The Jupyter Notebook app uses Monadic Mode to track the state of a Python notebook session:
+The Jupyter Notebook app uses Monadic Mode to track the state of a Python notebook session (Note: Only OpenAI's implementation uses monadic mode; Claude, Gemini, and Grok require `monadic: false` for proper tool execution):
 
 ```yaml
 # Context structure maintained by the app

@@ -23,13 +23,16 @@ Monadicモードでは、AIからの各レスポンスにメッセージと構�
 
 Monadicモードは統一インターフェースを通じてすべてのプロバイダーでサポートされています：
 
-- **OpenAI/DeepSeek/Perplexity/Grok** - `response_format`によるネイティブサポート
-- **Claude** - システムプロンプトによるJSON構造化
-- **Gemini** - `responseMimeType`と`responseSchema`の設定
-- **Mistral/Cohere** - JSONスキーマを使用した`response_format`
+- **OpenAI** - `response_format`によるネイティブサポート（ツール実行との併用可能）
+- **Claude** - システムプロンプトによるJSON構造化（ツール多用アプリでは`monadic: false`が必要）
+- **Gemini** - `responseMimeType`と`responseSchema`の設定（関数呼び出しとの併用不可）
+- **Grok** - JSON形式サポート（ツール実行との併用不可）
+- **Mistral** - JSONスキーマを使用した`response_format`
+- **Cohere** - 構造化出力サポート（単一ツール呼び出しのみ）
+- **DeepSeek/Perplexity** - JSONフォーマットサポート
 - **Ollama** - `format: "json"`とシステム指示
 
-?> **注意**: すべてのプロバイダーがMonadicモードをサポートするようになりました。標準モード（`monadic: false`）は、構造化されたコンテキスト管理を必要としない場合に使用します。
+!> **重要**: ツール/関数呼び出しを多用するアプリケーション（Jupyter NotebookやCode Interpreterなど）では、一部のプロバイダーで`monadic: false`が必要です。OpenAIのみがMonadicモードとツールの広範な使用を正常に組み合わせることができます。
 
 ## アーキテクチャ
 
@@ -44,7 +47,7 @@ Monadic機能は複数のモジュールを通じて実装されています：
 
 ### 1. Jupyter Notebookアプリ
 
-Jupyter NotebookアプリはMonadicモードを使用してPythonノートブックセッションの状態を追跡します：
+Jupyter NotebookアプリはMonadicモードを使用してPythonノートブックセッションの状態を追跡します（注：OpenAIの実装のみがMonadicモードを使用。Claude、Gemini、Grokは適切なツール実行のために`monadic: false`が必要）：
 
 ```yaml
 # アプリが維持するコンテキスト構造

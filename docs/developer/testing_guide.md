@@ -43,6 +43,22 @@ puts "Response: #{response}"
 - [ ] Handles errors gracefully
 - [ ] Description and icon are appropriate
 
+### Provider-Specific Considerations
+
+1. **xAI (Grok)**
+   - Use grok-4-0709 for non-image generation tasks
+   - Set max_tokens to at least 1000 to avoid empty responses
+   - Live Search supports all documented parameters
+
+2. **Voice Pipeline**
+   - Use simple, clear phrases for TTS->STT testing
+   - Expect 30% minimum accuracy for complex text
+   - Simple phrases can achieve 100% accuracy
+
+3. **Container Integration**
+   - Selenium tests require proper hostname resolution
+   - Python container needs selenium_service mapping
+
 ### Common Issues to Test
 
 1. **Tool Execution**

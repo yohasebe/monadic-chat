@@ -35,6 +35,13 @@
 #### Grok (xAI)
 - Cannot use structured output (`monadic: true`) with tool execution
 - Jupyter Notebook requires post-processing to fix filename issues
+- **Model Requirements**: 
+  - grok-4-0709 requires minimum 1000 max_tokens (returns empty responses with less)
+  - Use grok-4-0709 as default for non-image generation tasks
+- **Live Search Parameters**: Full support for all documented parameters
+  - Web, X, News, RSS sources with configurable filters
+  - Date range filtering with date_from and date_to
+  - Country, website filters, and safe search options
 - Recommendation: Use for simple tool tasks, not complex workflows
 
 #### Gemini 2.5
@@ -52,6 +59,17 @@
 - Not suitable for Jupyter Notebook or complex workflows
 
 ## Testing Infrastructure
+
+### Container Networking
+- **Selenium Integration**: Python container requires hostname mapping for selenium_service
+  - Automatic fix applied in tests: maps to monadic-chat-selenium-container
+  - webpage_fetcher.py uses selenium_service hostname by default
+
+### Voice Pipeline Testing
+- **TTS->STT Tests**: Use simple, common phrases for better accuracy
+  - Avoid complex punctuation and special characters
+  - Accuracy threshold: 30% minimum for reliable testing
+  - Clear phrases achieve 100% accuracy
 
 ### Test Organization
 ```bash

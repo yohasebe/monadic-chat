@@ -4,10 +4,8 @@ module WebSearchAgent
     
     provider = self.class.name.downcase
     
-    # For OpenAI with native websearch support (gpt-4.1, gpt-4.1-mini),
-    # this method should never be called because OpenAI handles the search internally.
-    # If it is called, it means the native search feature might not be working properly.
-    # In this case, fall back to Tavily if available.
+    # For providers with native websearch support, this method should not be called
+    # as they handle search internally through their own mechanisms
     if provider.include?("openai")
       DebugHelper.debug("WebSearchAgent: OpenAI native websearch should handle this internally", category: :web_search, level: :warning)
       
@@ -19,6 +17,10 @@ module WebSearchAgent
         # Return a message indicating that native search should have handled this
         return "Web search results are being processed by the AI model's native capabilities. Please continue with your response based on the search query: #{query}"
       end
+    elsif provider.include?("gemini")
+      DebugHelper.debug("WebSearchAgent: Gemini uses URL Context for web search", category: :web_search, level: :info)
+      # Gemini uses URL Context feature instead of Tavily
+      return "Web search is handled through Gemini's native URL Context feature. Processing query: #{query}"
     end
     
     # For providers that use Tavily (Mistral, Cohere, DeepSeek, Ollama)

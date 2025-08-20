@@ -546,15 +546,6 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true
   },
-  "command-r7b-12-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
-  },
   "c4ai-aya-vision-32b": {
     "context_window" : [1, 16000],
     "max_output_tokens" : [1, 4000],
@@ -591,8 +582,34 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true
   },
-  "command": {
+  "c4ai-aya-vision-8b": {
+    "context_window" : [1, 8000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.09], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "vision_capability": true
+  },
+  "command-light": {
     "context_window" : [1, 4000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.09], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true
+  },
+  "c4ai-aya-expanse-8b": {
+    "context_window" : [1, 8000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.09], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0]
+  },
+  "command-r-plus": {
+    "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.01, 0.09], 0.75],
@@ -1002,6 +1019,14 @@ const modelSpec = {
   },
   // xAI models
   "grok-4-0709": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "grok-4-0709-eu": {
     "context_window" : [1, 256000],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],

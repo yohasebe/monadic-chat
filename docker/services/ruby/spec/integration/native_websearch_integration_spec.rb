@@ -183,7 +183,7 @@ RSpec.describe "Native Web Search Integration", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-3",
           "websearch" => true,
           "temperature" => 0.0,
           "max_tokens" => 500,
@@ -220,35 +220,19 @@ RSpec.describe "Native Web Search Integration", :integration do
         content += message_response["content"]["text"] rescue message_response["content"].to_s
       end
       
-      # Debug output
-      puts "\n[DEBUG] xAI Response Analysis:"
-      puts "  Total responses: #{responses.length}"
-      puts "  Response types: #{responses.map { |r| r["type"] }.uniq.join(", ")}"
-      puts "  Fragment count: #{responses.select { |r| r["type"] == "fragment" }.length}"
-      puts "  Content length: #{content.length}"
-      puts "  First 200 chars: #{content[0..199]}" if content.length > 0
-      
-      # Show all responses for debugging
-      puts "  All responses:"
-      responses.each_with_index do |resp, i|
-        puts "    #{i}. Type: #{resp["type"]}, Content: #{resp["content"].to_s[0..200]}"
+      # Remove debug output for cleaner test results
+      if ENV["DEBUG_XAI_TESTS"]
+        puts "\n[DEBUG] xAI Response Analysis:"
+        puts "  Total responses: #{responses.length}"
+        puts "  Response types: #{responses.map { |r| r["type"] }.uniq.join(", ")}"
+        puts "  Fragment count: #{responses.select { |r| r["type"] == "fragment" }.length}"
+        puts "  Content length: #{content.length}"
+        puts "  First 200 chars: #{content[0..199]}" if content.length > 0
       end
       
-      # xAI Live Search may not work in test environment with certain models
-      # This is a known limitation and doesn't affect production usage
-      if content.length < 10
-        # Try with a different model if grok-4-0709 doesn't work
-        if session[:parameters]["model"] == "grok-4-0709" && responses.length <= 3
-          skip "xAI Live Search with grok-4-0709 not returning content in test environment - this is expected behavior"
-        else
-          skip "xAI Live Search not returning sufficient content in test environment (got #{content.length} chars)"
-        end
-      else
-        # More lenient matching for various response formats
-        expect(content.length).to be > 50, "Should have substantial content"
-        # Accept any reasonable response about technology or current topics
-        expect(content).not_to be_empty
-      end
+      # Verify response content
+      expect(content.length).to be > 50, "Should have substantial content from xAI Live Search"
+      expect(content.downcase).to match(/tokyo|weather|temperature|°c|°f|celsius|fahrenheit|sunny|cloudy|rain/i)
     end
   end
 

@@ -387,10 +387,33 @@ RSpec.describe "VideoGeneratorVeo" do
       http_with_follow = double("HTTP with follow")
       http_with_headers = double("HTTP with headers")
       
+      # Define mock_response
+      initial_response = double("HTTP::Response",
+        status: double("status", code: 200, success?: true),
+        body: { name: mock_operation_name }.to_json,
+        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
+      )
+      
       allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
       allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
       allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
-      allow(http_with_headers).to receive(:post).and_return(mock_response)
+      allow(http_with_headers).to receive(:post).and_return(initial_response)
+      
+      # Mock check_operation_status
+      allow_any_instance_of(Object).to receive(:check_operation_status).and_return({
+        "done" => true,
+        "response" => {
+          "generateVideoResponse" => {
+            "generatedSamples" => [
+              {
+                "video" => {
+                  "uri" => "https://example.com/video.mp4"
+                }
+              }
+            ]
+          }
+        }
+      })
       
       # Mock save_video to return a filename
       allow_any_instance_of(Object).to receive(:save_video).and_return("1234567890_0_16x9.mp4")
@@ -432,10 +455,33 @@ RSpec.describe "VideoGeneratorVeo" do
       http_with_follow = double("HTTP with follow")
       http_with_headers = double("HTTP with headers")
       
+      # Define mock_response
+      initial_response = double("HTTP::Response",
+        status: double("status", code: 200, success?: true),
+        body: { name: mock_operation_name }.to_json,
+        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
+      )
+      
       allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
       allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
       allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
-      allow(http_with_headers).to receive(:post).and_return(mock_response)
+      allow(http_with_headers).to receive(:post).and_return(initial_response)
+      
+      # Mock check_operation_status
+      allow_any_instance_of(Object).to receive(:check_operation_status).and_return({
+        "done" => true,
+        "response" => {
+          "generateVideoResponse" => {
+            "generatedSamples" => [
+              {
+                "video" => {
+                  "uri" => "https://example.com/video.mp4"
+                }
+              }
+            ]
+          }
+        }
+      })
       
       # Mock save_video to return a filename
       allow_any_instance_of(Object).to receive(:save_video).and_return("1234567890_0_16x9.mp4")

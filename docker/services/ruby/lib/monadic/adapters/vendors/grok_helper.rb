@@ -408,15 +408,59 @@ module GrokHelper
     
     # Add search_parameters for native Grok Live Search
     if websearch_native
-      body["search_parameters"] = {
+      # Build search parameters with support for all documented options
+      search_params = {
         "mode" => "on",  # "on" forces live search, "auto" lets model decide
-        "return_citations" => true,
-        "sources" => [
-          { "type" => "web" },
-          { "type" => "news" },
-          { "type" => "x" }
-        ]
+        "return_citations" => true
       }
+      
+      # Configure data sources with their supported parameters
+      sources = []
+      
+      # Web source with optional parameters
+      web_source = { "type" => "web" }
+      web_source["country"] = obj["web_country"] if obj["web_country"]
+      web_source["excluded_websites"] = obj["excluded_websites"] if obj["excluded_websites"]
+      web_source["allowed_websites"] = obj["allowed_websites"] if obj["allowed_websites"]
+      web_source["safe_search"] = obj["safe_search"] if obj["safe_search"]
+      sources << web_source
+      
+      # X (Twitter) source with optional parameters
+      if obj.fetch("enable_x_search", true) # Default to enabled for backward compatibility
+        x_source = { "type" => "x" }
+        x_source["included_x_handles"] = obj["included_x_handles"] if obj["included_x_handles"]
+        x_source["excluded_x_handles"] = obj["excluded_x_handles"] if obj["excluded_x_handles"]
+        x_source["post_favorite_count"] = obj["post_favorite_count"] if obj["post_favorite_count"]
+        x_source["post_view_count"] = obj["post_view_count"] if obj["post_view_count"]
+        sources << x_source
+      end
+      
+      # News source with optional parameters
+      if obj.fetch("enable_news_search", true) # Default to enabled for backward compatibility
+        news_source = { "type" => "news" }
+        news_source["country"] = obj["news_country"] || obj["web_country"] if obj["news_country"] || obj["web_country"]
+        news_source["excluded_websites"] = obj["news_excluded_websites"] || obj["excluded_websites"] if obj["news_excluded_websites"] || obj["excluded_websites"]
+        news_source["safe_search"] = obj["news_safe_search"] || obj["safe_search"] if obj["news_safe_search"] || obj["safe_search"]
+        sources << news_source
+      end
+      
+      # RSS source with links parameter
+      if obj["rss_links"] && !obj["rss_links"].empty?
+        rss_source = {
+          "type" => "rss",
+          "links" => obj["rss_links"]
+        }
+        sources << rss_source
+      end
+      
+      # Add configured sources to search parameters
+      search_params["sources"] = sources unless sources.empty?
+      
+      # Add date range if specified
+      search_params["date_from"] = obj["date_from"] if obj["date_from"]
+      search_params["date_to"] = obj["date_to"] if obj["date_to"]
+      
+      body["search_parameters"] = search_params
       
       # Debug logging for web search
       DebugHelper.debug("Grok: Native Live Search enabled with search_parameters", category: :api, level: :debug)
@@ -425,13 +469,14 @@ module GrokHelper
         extra_log.puts("\n[#{Time.now}] === Grok API Request Started ===")
         extra_log.puts("App: #{app}")
         extra_log.puts("Websearch enabled: #{websearch}")
-        extra_log.puts("Search parameters: #{body["search_parameters"].inspect}")
+        extra_log.puts("Search parameters: #{JSON.pretty_generate(body["search_parameters"])}")
+        extra_log.puts("Number of sources configured: #{sources.length}")
         extra_log.close
       end
       
       # Debug logging
       if DebugHelper.extra_logging?
-        DebugHelper.debug("Grok Live Search enabled with search_parameters:\n#{JSON.pretty_generate(body["search_parameters"])}", category: :api, level: :info)
+        DebugHelper.debug("Grok Live Search enabled with #{sources.length} data sources:\n#{JSON.pretty_generate(body["search_parameters"])}", category: :api, level: :info)
       end
     end
 

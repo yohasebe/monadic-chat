@@ -529,13 +529,11 @@ module GeminiHelper
     # Limit to maximum allowed URLs
     urls = urls.first(MAX_URL_CONTEXT)
     
-    # Convert URLs to Gemini's URL context format
-    url_parts = urls.map do |url|
-      { "url" => url }
-    end
+    # According to Gemini docs, URLs should be included in the text, not as separate parts
+    # The URL context tool will automatically extract and process them
     
-    DebugHelper.debug("Gemini URL Context: Processing #{url_parts.length} URLs", category: :api, level: :debug)
-    url_parts
+    DebugHelper.debug("Gemini URL Context: Processing #{urls.length} URLs", category: :api, level: :debug)
+    urls
   end
   
   # Helper method to search for URLs based on query (placeholder for actual search logic)
@@ -984,17 +982,35 @@ module GeminiHelper
     if websearch && role == "user"
       DebugHelper.debug("Gemini: Adding URL Context for web search", category: :api, level: :debug)
       
+      # Add the url_context tool to enable URL retrieval
+      if !body["tools"]
+        body["tools"] = []
+      end
+      
+      # Add url_context tool (according to Gemini docs)
+      body["tools"] << { "url_context" => {} }
+      
       # Extract search query from the latest user message
       latest_message = body["contents"].last
       if latest_message && latest_message["role"] == "user" && latest_message["parts"]
         user_text = latest_message["parts"].find { |p| p["text"] }&.dig("text")
         
         if user_text
-          # For now, we'll add a system instruction about URL Context capability
-          # In a production environment, you might want to:
-          # 1. Parse the user query to extract search terms
-          # 2. Use a search API to find relevant URLs
-          # 3. Add those URLs to the content
+          # Check if the message contains a search-like query
+          if user_text =~ /search|find|what is|who is|when|where|how|latest|recent|news|information about/i
+            # Generate search URLs
+            urls = search_urls_for_query(user_text)
+            
+            if urls && !urls.empty?
+              # According to docs, URLs should be included in the text itself
+              # Append URLs to the user's message text
+              url_text = urls.join("\n")
+              existing_text = latest_message["parts"][0]["text"]
+              latest_message["parts"][0]["text"] = "#{existing_text}\n\n#{url_text}"
+              
+              DebugHelper.debug("Gemini: Added #{urls.length} URLs to message text", category: :api, level: :debug)
+            end
+          end
           
           # Add system instruction for URL Context if not already present
           if !body["systemInstruction"]
@@ -1011,21 +1027,7 @@ module GeminiHelper
             ]
           end
           
-          # Add URLs to the message for URL Context processing
-          # Check if the message contains a search-like query
-          if user_text =~ /search|find|what is|who is|when|where|how|latest|recent|news|information about/i
-            # Generate search URLs (simplified for now)
-            urls = search_urls_for_query(user_text)
-            url_parts = process_url_context(urls)
-            
-            if url_parts && !url_parts.empty?
-              # Add URL parts to the message
-              latest_message["parts"].concat(url_parts)
-              DebugHelper.debug("Gemini: Added #{url_parts.length} URLs to context", category: :api, level: :debug)
-            end
-          end
-          
-          DebugHelper.debug("Gemini: URL Context system instruction added", category: :api, level: :debug)
+          DebugHelper.debug("Gemini: URL Context enabled with tool", category: :api, level: :debug)
         end
       end
     end

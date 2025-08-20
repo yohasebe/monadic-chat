@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "uri"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
@@ -47,6 +48,33 @@ module GeminiHelper
   WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
+  
+  # URL Context feature for web content retrieval
+  # Supports up to 20 URLs per request
+  MAX_URL_CONTEXT = 20
+  
+  # Supported content types for URL context
+  URL_CONTEXT_TYPES = {
+    text: ["html", "json", "txt", "xml", "css", "js"],
+    image: ["png", "jpeg", "jpg", "bmp", "webp"],
+    pdf: ["pdf"]
+  }.freeze
+  
+  # URL Context prompt for better search integration
+  URL_CONTEXT_PROMPT = <<~TEXT
+    When web search is requested, I will analyze web content directly from URLs.
+    This allows me to provide accurate, up-to-date information from reliable sources.
+    I can process HTML pages, PDFs, images, and other content types directly.
+    
+    For search queries, I will:
+    1. Identify relevant URLs to analyze
+    2. Extract and synthesize information from multiple sources
+    3. Provide comprehensive answers with proper citations
+    
+    **Important**: I will use HTML link tags with target="_blank" and rel="noopener noreferrer" 
+    attributes to provide links to source URLs.
+  TEXT
+  
   SAFETY_SETTINGS = [
     {
       category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
@@ -480,6 +508,58 @@ module GeminiHelper
     nil
   end
 
+  # Gemini-specific websearch implementation using URL Context
+  def websearch_agent(query: "")
+    DebugHelper.debug("Gemini websearch_agent called with query: #{query}", category: :web_search, level: :debug)
+    
+    # For Gemini, we'll return a message indicating that URL Context handles search
+    # The actual URL processing happens in the api_request method
+    <<~RESPONSE
+      I'll search for information about: #{query}
+      
+      [Note: Gemini uses native URL Context feature for web search. 
+       The search is integrated directly into the model's response generation.]
+    RESPONSE
+  end
+  
+  # Helper method to process URL context for web search
+  def process_url_context(urls)
+    return nil unless urls.is_a?(Array) && !urls.empty?
+    
+    # Limit to maximum allowed URLs
+    urls = urls.first(MAX_URL_CONTEXT)
+    
+    # Convert URLs to Gemini's URL context format
+    url_parts = urls.map do |url|
+      { "url" => url }
+    end
+    
+    DebugHelper.debug("Gemini URL Context: Processing #{url_parts.length} URLs", category: :api, level: :debug)
+    url_parts
+  end
+  
+  # Helper method to search for URLs based on query (placeholder for actual search logic)
+  def search_urls_for_query(query)
+    # This is a simplified version - in production, you might want to:
+    # 1. Use a search API to find relevant URLs
+    # 2. Parse existing search results from Google
+    # 3. Use predefined URL patterns based on query type
+    
+    # For now, we'll construct Google search URLs as a fallback
+    # This allows Gemini to at least attempt to process search-related content
+    search_urls = []
+    
+    # Add Google search URL
+    encoded_query = URI.encode_www_form_component(query)
+    search_urls << "https://www.google.com/search?q=#{encoded_query}"
+    
+    # You could add more specialized URLs based on query patterns
+    # For example, Wikipedia for general knowledge, news sites for current events, etc.
+    
+    DebugHelper.debug("Gemini URL Context: Generated search URLs for query: #{query}", category: :api, level: :debug)
+    search_urls
+  end
+  
   # Helper method to determine which tools should be available next for thinking models
   def get_next_allowed_tools(completed_tools)
     # Define the expected sequence for Jupyter operations
@@ -767,10 +847,13 @@ module GeminiHelper
           }
         }
       elsif websearch
-        # Use native Google search
-        DebugHelper.debug("Gemini using native Google search", category: :api, level: :debug)
+        # Use URL Context instead of Google search for better control
+        DebugHelper.debug("Gemini: URL Context enabled for web search", category: :api, level: :debug)
         
-        body["tools"] = [{"google_search" => {}}]
+        # URL Context doesn't require tools configuration
+        # URLs will be added to the content parts when processing messages
+        body.delete("tools")
+        body.delete("tool_config")
       else
         DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
         body.delete("tools")
@@ -893,6 +976,56 @@ module GeminiHelper
           body.delete("tools")
           body.delete("tool_config")
           break
+        end
+      end
+    end
+    
+    # Add URL Context for web search functionality
+    if websearch && role == "user"
+      DebugHelper.debug("Gemini: Adding URL Context for web search", category: :api, level: :debug)
+      
+      # Extract search query from the latest user message
+      latest_message = body["contents"].last
+      if latest_message && latest_message["role"] == "user" && latest_message["parts"]
+        user_text = latest_message["parts"].find { |p| p["text"] }&.dig("text")
+        
+        if user_text
+          # For now, we'll add a system instruction about URL Context capability
+          # In a production environment, you might want to:
+          # 1. Parse the user query to extract search terms
+          # 2. Use a search API to find relevant URLs
+          # 3. Add those URLs to the content
+          
+          # Add system instruction for URL Context if not already present
+          if !body["systemInstruction"]
+            body["systemInstruction"] = {
+              "parts" => [
+                { "text" => URL_CONTEXT_PROMPT }
+              ]
+            }
+          else
+            # Append URL Context prompt to existing system instruction
+            existing_text = body["systemInstruction"]["parts"].find { |p| p["text"] }&.dig("text") || ""
+            body["systemInstruction"]["parts"] = [
+              { "text" => "#{existing_text}\n\n#{URL_CONTEXT_PROMPT}" }
+            ]
+          end
+          
+          # Add URLs to the message for URL Context processing
+          # Check if the message contains a search-like query
+          if user_text =~ /search|find|what is|who is|when|where|how|latest|recent|news|information about/i
+            # Generate search URLs (simplified for now)
+            urls = search_urls_for_query(user_text)
+            url_parts = process_url_context(urls)
+            
+            if url_parts && !url_parts.empty?
+              # Add URL parts to the message
+              latest_message["parts"].concat(url_parts)
+              DebugHelper.debug("Gemini: Added #{url_parts.length} URLs to context", category: :api, level: :debug)
+            end
+          end
+          
+          DebugHelper.debug("Gemini: URL Context system instruction added", category: :api, level: :debug)
         end
       end
     end

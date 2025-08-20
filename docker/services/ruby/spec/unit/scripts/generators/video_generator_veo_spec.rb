@@ -382,6 +382,16 @@ RSpec.describe "VideoGeneratorVeo" do
     end
     
     it "generates video successfully" do
+      # Mock the HTTP client chain for success case
+      http_with_timeout = double("HTTP with timeout")
+      http_with_follow = double("HTTP with follow")
+      http_with_headers = double("HTTP with headers")
+      
+      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
+      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
+      allow(http_with_headers).to receive(:post).and_return(mock_response)
+      
       # Mock save_video to return a filename
       allow_any_instance_of(Object).to receive(:save_video).and_return("1234567890_0_16x9.mp4")
       
@@ -417,6 +427,16 @@ RSpec.describe "VideoGeneratorVeo" do
     end
     
     it "enforces single video generation" do
+      # Mock the HTTP client chain for success case
+      http_with_timeout = double("HTTP with timeout")
+      http_with_follow = double("HTTP with follow")
+      http_with_headers = double("HTTP with headers")
+      
+      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
+      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
+      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
+      allow(http_with_headers).to receive(:post).and_return(mock_response)
+      
       # Mock save_video to return a filename
       allow_any_instance_of(Object).to receive(:save_video).and_return("1234567890_0_16x9.mp4")
       

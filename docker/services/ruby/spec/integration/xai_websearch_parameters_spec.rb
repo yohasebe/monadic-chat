@@ -40,7 +40,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-3",
           "websearch" => true,
           "web_country" => "JP",
           "excluded_websites" => ["spam.com"],
@@ -75,12 +75,9 @@ RSpec.describe "xAI Live Search Parameters", :integration do
         content += message_response["content"]["text"] rescue message_response["content"].to_s
       end
       
-      # Skip if no content returned (test environment limitation)
-      if content.length < 10
-        skip "xAI Live Search with grok-4-0709 not returning content in test environment - this is expected behavior"
-      else
-        expect(content.downcase).to match(/tokyo|weather|japan|°|temperature/i)
-      end
+      # Verify response content
+      expect(content.length).to be > 10, "Should receive content from xAI Live Search"
+      expect(content.downcase).to match(/tokyo|weather|japan|°|temperature|celsius|fahrenheit/i)
     end
     
     it "supports X source with handle filters" do
@@ -109,7 +106,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-3",
           "websearch" => true,
           "included_x_handles" => ["@elonmusk"],
           "post_favorite_count" => 1000,
@@ -143,11 +140,9 @@ RSpec.describe "xAI Live Search Parameters", :integration do
         ""
       end
       
-      if content.length < 10
-        skip "xAI Live Search with grok-4-0709 not returning content in test environment - this is expected behavior"
-      else
-        expect(content).not_to be_empty
-      end
+      # Verify response content
+      expect(content.length).to be > 10, "Should receive content from xAI Live Search"
+      expect(content).not_to be_empty
     end
     
     it "supports date range filtering" do
@@ -180,7 +175,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-3",
           "websearch" => true,
           "date_from" => date_from,
           "date_to" => date_to,
@@ -214,11 +209,9 @@ RSpec.describe "xAI Live Search Parameters", :integration do
         ""
       end
       
-      if content.length < 10
-        skip "xAI Live Search with grok-4-0709 not returning content in test environment - this is expected behavior"
-      else
-        expect(content.downcase).to match(/ai|artificial intelligence|technology/i)
-      end
+      # Verify response content
+      expect(content.length).to be > 10, "Should receive content from xAI Live Search"
+      expect(content.downcase).to match(/ai|artificial intelligence|technology|news/i)
     end
   end
 end

@@ -39,10 +39,10 @@ RSpec.describe "xAI Live Search - Tube Screamer Query", :integration do
     session = {
       messages: [],
       parameters: {
-        "model" => "grok-3",
+        "model" => "grok-4-0709",
         "websearch" => true,
         "temperature" => 0.3,
-        "max_tokens" => 500,
+        "max_tokens" => 1000,
         "context_size" => 5,
         "app_name" => "test",
         "message" => "What is the secret behind the popularity of the Tube Screamer guitar pedal? Why do so many guitarists love it? Please search for recent discussions and expert opinions about its mid-frequency boost, smooth overdrive, and why it became a standard in the guitar world."

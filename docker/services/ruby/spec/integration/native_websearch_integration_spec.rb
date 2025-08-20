@@ -22,9 +22,11 @@ RSpec.describe "Native Web Search Integration", :integration do
 
     it "performs web search with gpt-4.1-mini model" do
       require_relative "../../lib/monadic/adapters/vendors/openai_helper"
+      require_relative "../../lib/monadic/utils/string_utils"
       
       class TestOpenAI
         include OpenAIHelper
+        include StringUtils
         
         def self.name
           "OpenAI"
@@ -33,6 +35,10 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add missing helper methods
         def markdown_to_html(text, mathjax: false)
           text # Simple passthrough for testing
+        end
+        
+        def detect_language(text)
+          "en" # Simple stub for testing
         end
       end
       
@@ -83,9 +89,11 @@ RSpec.describe "Native Web Search Integration", :integration do
 
     it "performs web search with Claude 3.5 Sonnet" do
       require_relative "../../lib/monadic/adapters/vendors/claude_helper"
+      require_relative "../../lib/monadic/utils/string_utils"
       
       class TestClaude
         include ClaudeHelper
+        include StringUtils
         
         def self.name
           "Claude"
@@ -94,6 +102,10 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add missing helper methods
         def markdown_to_html(text, mathjax: false)
           text # Simple passthrough for testing
+        end
+        
+        def detect_language(text)
+          "en" # Simple stub for testing
         end
       end
       
@@ -137,9 +149,11 @@ RSpec.describe "Native Web Search Integration", :integration do
 
     it "performs live search with Grok model" do
       require_relative "../../lib/monadic/adapters/vendors/grok_helper"
+      require_relative "../../lib/monadic/utils/string_utils"
       
       class TestGrok
         include GrokHelper
+        include StringUtils
         
         def self.name
           "Grok"
@@ -148,6 +162,10 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add missing helper methods
         def markdown_to_html(text, mathjax: false)
           text # Simple passthrough for testing
+        end
+        
+        def detect_language(text)
+          "en" # Simple stub for testing
         end
       end
       
@@ -194,9 +212,11 @@ RSpec.describe "Native Web Search Integration", :integration do
 
     it "uses URL context for web search" do
       require_relative "../../lib/monadic/adapters/vendors/gemini_helper"
+      require_relative "../../lib/monadic/utils/string_utils"
       
       class TestGemini
         include GeminiHelper
+        include StringUtils
         
         def self.name
           "Gemini"
@@ -205,6 +225,10 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add missing helper methods
         def markdown_to_html(text, mathjax: false)
           text # Simple passthrough for testing
+        end
+        
+        def detect_language(text)
+          "en" # Simple stub for testing
         end
         
         def translate_role(role)
@@ -253,9 +277,11 @@ RSpec.describe "Native Web Search Integration", :integration do
 
     it "uses built-in web search capabilities" do
       require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
+      require_relative "../../lib/monadic/utils/string_utils"
       
       class TestPerplexity
         include PerplexityHelper
+        include StringUtils
         
         def self.name
           "Perplexity"
@@ -264,6 +290,10 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add missing helper methods
         def markdown_to_html(text, mathjax: false)
           text # Simple passthrough for testing
+        end
+        
+        def detect_language(text)
+          "en" # Simple stub for testing
         end
       end
       
@@ -350,9 +380,11 @@ RSpec.describe "Native Web Search Integration", :integration do
     it "handles search errors gracefully" do
       # Test with invalid configuration
       require_relative "../../lib/monadic/adapters/vendors/gemini_helper"
+      require_relative "../../lib/monadic/utils/string_utils"
       
       class TestGeminiError
         include GeminiHelper
+        include StringUtils
         
         def self.name
           "Gemini"
@@ -361,6 +393,10 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add missing helper methods
         def markdown_to_html(text, mathjax: false)
           text # Simple passthrough for testing
+        end
+        
+        def detect_language(text)
+          "en" # Simple stub for testing
         end
         
         def translate_role(role)

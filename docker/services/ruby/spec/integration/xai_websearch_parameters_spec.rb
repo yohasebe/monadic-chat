@@ -40,13 +40,13 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-3",
+          "model" => "grok-4-0709",
           "websearch" => true,
           "web_country" => "JP",
           "excluded_websites" => ["spam.com"],
           "safe_search" => true,
           "temperature" => 0.0,
-          "max_tokens" => 100,
+          "max_tokens" => 1000,
           "context_size" => 5,
           "app_name" => "test",
           "message" => "What is the weather in Tokyo today? Brief answer."
@@ -106,12 +106,12 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-3",
+          "model" => "grok-4-0709",
           "websearch" => true,
           "included_x_handles" => ["@elonmusk"],
           "post_favorite_count" => 1000,
           "temperature" => 0.0,
-          "max_tokens" => 100,
+          "max_tokens" => 1000,
           "context_size" => 5,
           "app_name" => "test",
           "message" => "What did Elon Musk recently post about? Brief summary."
@@ -175,12 +175,12 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-3",
+          "model" => "grok-4-0709",
           "websearch" => true,
           "date_from" => date_from,
           "date_to" => date_to,
           "temperature" => 0.0,
-          "max_tokens" => 100,
+          "max_tokens" => 1000,
           "context_size" => 5,
           "app_name" => "test",
           "message" => "What happened in AI news this week? Brief summary."

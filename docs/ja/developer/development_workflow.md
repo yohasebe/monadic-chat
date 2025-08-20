@@ -1,83 +1,27 @@
 # 開発ワークフロー
 
-このドキュメントには、Monadic Chatプロジェクトに貢献する開発者向けのガイドラインと指示が含まれています。
+このドキュメントは、Monadic Chatプロジェクトに貢献する開発者向けのガイドラインです。
 
-?> このドキュメントは、Monadic Chat のレシピファイルの開発者ではなく、Monadic Chat自体の開発者向けです。
+?> このドキュメントは、Monadic Chat自体の開発者向けです。アプリケーション開発者向けではありません。
 
 ## テスト :id=testing
 
-### テストフレームワーク :id=test-frameworks
-- **JavaScript**: フロントエンドコードのテストにJestを使用
-- **Ruby**: バックエンドコードのテストにRSpecを使用
-
-### テスト構造 :id=test-structure
-- JavaScriptテストは `test/frontend/` に配置
-- Rubyテストは `docker/services/ruby/spec/` に配置（約64ファイル）
-  - ユニットテスト: `spec/unit/` - 高速で独立したテスト（26ファイル）
-  - 統合テスト: `spec/integration/` - Dockerサービスとの連携テスト（13ファイル）
-  - システムテスト: `spec/system/` - アプリ検証テスト（2ファイル）
-  - E2Eテスト: `spec/e2e/` - WebSocketを使用した完全なワークフローテスト（16ファイル、一部統合済み）
-- アプリ固有の診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/{app_name}/` に配置
-- Jestの設定は `jest.config.js` に定義
-- JavaScriptのグローバルテスト設定は `test/setup.js` に定義
-
-!> **注意:** E2Eテストは `with_e2e_retry(max_attempts: 3, wait: 10)` の形式を使用する必要があります。
-
-### アプリ固有の診断スクリプト :id=app-specific-test-scripts
-特定のテストや診断が必要なアプリケーションの場合：
-- 診断スクリプトは診断ディレクトリに配置: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
-- 説明的な名前を使用: `test_feature_name.sh` または `diagnose_issue.rb`
-- アプリ固有の診断スクリプトをプロジェクトルートディレクトリに配置しない
-- 例: Concept Visualizerの診断スクリプトは `docker/services/ruby/scripts/diagnostics/apps/concept_visualizer/` に配置
-
-!> **重要:** 診断スクリプトは `apps/{app_name}/test/` ディレクトリに配置してはいけません。アプリ内の `test/` サブディレクトリ内のファイルは、テストスクリプトがアプリケーションとしてロードされるのを防ぐため、アプリロード時に無視されます。
-
 ### テスト実行方法 :id=running-tests
 
-?> **注意:** `rake server:debug`を使用して開発する場合、RubyテストはローカルのRuby環境を使用してホスト上で直接実行されます。開発環境ではRubyコンテナは使用されません。
-
-#### 開発環境
-- **Rubyコンテナ**: 使用しません - ローカルのRuby環境を使用
-- **その他のコンテナ**: Python、PostgreSQL、Seleniumコンテナは起動している必要があります
-- **スクリプト**: CLIツールとスクリプトは`docker/services/ruby/scripts/`からローカルで実行されます
-
-#### Rubyテスト
 ```bash
-# すべてのRubyテストを実行
+# すべてのテストを実行
 rake spec
 
-# 特定のテストカテゴリを実行
-rake spec_unit        # ユニットテストのみ（高速）
-rake spec_integration # 統合テスト
-rake spec_system      # システムテスト
-rake spec_e2e         # E2Eテスト（サーバー起動が必要）
-
-# パターンに一致するテストを実行
-bundle exec rspec spec/unit/*_spec.rb
+# JavaScriptテストを実行
+npm test
 ```
 
-#### E2Eテスト
-E2Eテストはサーバーが動作している必要があります：
-```bash
-# 自動セットアップ付きですべてのE2Eテストを実行
-rake spec_e2e
+### テスト構造 :id=test-structure
+- JavaScriptテスト: `test/frontend/`
+- Rubyテスト: `docker/services/ruby/spec/`
+- アプリ診断: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 
-# このrakeタスクは自動的に：
-# - Dockerコンテナが動作していることを確認
-# - 必要に応じてサーバーを起動
-# - すべてのE2Eテストを実行
-# - プロバイダーカバレッジサマリーを表示
-```
-
-
-#### JavaScriptテスト
-```bash
-rake jstest        # 成功するJavaScriptテストを実行
-npm test           # 上記と同じ
-rake jstest_all    # すべてのJavaScriptテストを実行
-npm run test:watch # ウォッチモードでテストを実行
-npm run test:coverage # カバレッジレポート付きでテストを実行
-```
+!> **重要:** `apps/{app_name}/test/` ディレクトリにテストスクリプトを配置しないでください
 
 #### すべてのテスト
 ```bash

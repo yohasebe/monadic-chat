@@ -1,82 +1,27 @@
 # Development Workflow
 
-This document contains guidelines and instructions for developers contributing to the Monadic Chat project.
+This document provides guidelines for developers contributing to the Monadic Chat project.
 
 ?> This document is for developers of Monadic Chat itself, not for developers of Monadic Chat applications.
 
 ## Testing :id=testing
 
-### Test Frameworks :id=test-frameworks
-- **JavaScript**: Uses Jest for frontend code testing
-- **Ruby**: Uses RSpec for backend code testing
-
-### Test Structure :id=test-structure
-- JavaScript tests are in `test/frontend/`
-- Ruby tests are in `docker/services/ruby/spec/`
-  - Unit tests: `spec/unit/` - Fast, isolated tests
-  - Integration tests: `spec/integration/` - Tests with Docker services
-  - System tests: `spec/system/` - App validation tests
-  - E2E tests: `spec/e2e/` - Full workflow tests with WebSocket
-- App-specific diagnostic scripts are in `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
-- Jest configuration in `jest.config.js`
-- Global test setup for JavaScript in `test/setup.js`
-
-### App-Specific Test Scripts :id=app-specific-test-scripts
-For applications that require specific testing or diagnosis:
-- Place test scripts in the diagnostics directory: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
-- Use descriptive names: `test_feature_name.sh` or `diagnose_issue.rb`
-- Avoid placing app-specific test scripts in the project root directory
-- Example: Concept Visualizer test scripts are in `docker/services/ruby/scripts/diagnostics/apps/concept_visualizer/`
-
-!> **Important:** Test scripts should NOT be placed in `apps/{app_name}/test/` directories, as files in `test/` subdirectories within apps are ignored during app loading to prevent test scripts from being loaded as applications.
-
 ### Running Tests :id=running-tests
 
-?> **Note:** When using `rake server:debug` for development, Ruby tests run directly on the host using your local Ruby environment. The Ruby container is NOT used in development.
-
-#### Development Environment
-- **Ruby Container**: Not used - local Ruby environment is used instead
-- **Other Containers**: Python, PostgreSQL, and Selenium containers must be running
-- **Scripts**: CLI tools and scripts run locally from `docker/services/ruby/scripts/`
-
-#### Ruby Tests
 ```bash
-# Run all Ruby tests
+# Run all tests
 rake spec
 
-# Run specific test categories
-rake spec_unit        # Unit tests only (fast)
-rake spec_integration # Integration tests (requires containers)
-rake spec_system      # System tests
-rake spec_e2e         # E2E tests (requires server running)
-
-# Run tests matching a pattern
-bundle exec rspec spec/unit/*_spec.rb
+# Run JavaScript tests
+npm test
 ```
 
-!> **Important:** Vendor helper modules (OpenAIHelper, ClaudeHelper, etc.) do not have dedicated test files. Their functionality is tested indirectly through E2E tests, following the "no mocks" testing philosophy.
+### Test Structure :id=test-structure
+- JavaScript tests: `test/frontend/`
+- Ruby tests: `docker/services/ruby/spec/`
+- App diagnostics: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 
-#### E2E Tests
-E2E tests require the server to be running:
-```bash
-# Run all E2E tests with automatic setup
-rake spec_e2e
-
-# The rake task automatically:
-# - Checks that Docker containers are running
-# - Starts the server if needed
-# - Runs all E2E tests
-# - Shows provider coverage summary
-```
-
-#### JavaScript Tests
-```bash
-rake jstest        # Run passing JavaScript tests
-npm test           # Same as above
-rake jstest_all    # Run all JavaScript tests
-npm run test:watch # Run tests in watch mode
-npm run test:coverage # Run tests with coverage report
-```
+!> **Important:** Do not place test scripts in `apps/{app_name}/test/` directories
 
 #### All Tests
 ```bash

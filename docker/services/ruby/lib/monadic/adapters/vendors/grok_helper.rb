@@ -184,7 +184,7 @@ module GrokHelper
   end
 
   # Connect to OpenAI API and get a response
-  def api_request(role, session, call_depth: 0, &block)
+  def api_request(role, session, call_depth: 0, disable_streaming: false, &block)
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -286,7 +286,8 @@ module GrokHelper
     # Store the original model for comparison later
     original_user_model = model
 
-    body["stream"] = true
+    # Disable streaming when processing tool results to avoid hanging
+    body["stream"] = !disable_streaming
     body["n"] = 1
     body["temperature"] = temperature if temperature
     body["presence_penalty"] = presence_penalty if presence_penalty
@@ -1341,14 +1342,16 @@ module GrokHelper
     
     # Make API request with tool results to get Grok's natural language response
     # Use "tool" as role to indicate we're sending tool results
+    # IMPORTANT: Disable streaming for tool result processing to avoid hanging
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       extra_log.puts("\n[#{Time.now}] About to make recursive API request with tool results")
       extra_log.puts("  Call depth: #{call_depth + 1}")
+      extra_log.puts("  Streaming disabled for tool result processing")
       extra_log.close
     end
     
-    new_results = api_request("tool", session, call_depth: call_depth + 1, &block)
+    new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
     
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")

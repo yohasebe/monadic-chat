@@ -1094,6 +1094,31 @@ module GrokHelper
           end
         end
         
+      when "generate_image_with_grok"
+        # Parse the tool result to build proper HTML response
+        begin
+          if result["content"].is_a?(String)
+            content_json = JSON.parse(result["content"])
+            if content_json["success"] && content_json["filename"]
+              # Build the HTML response as specified in the system prompt
+              response_parts << "<div class=\"revised_prompt\">"
+              response_parts << "  <b>Revised Prompt</b>: #{content_json["revised_prompt"]}"
+              response_parts << "</div>"
+              response_parts << "<div class=\"generated_image\">"
+              response_parts << "  <img src=\"/data/#{content_json["filename"]}\">"
+              response_parts << "</div>"
+            else
+              # Generation failed
+              error_msg = content_json["message"] || "Image generation failed"
+              response_parts << "❌ #{error_msg}"
+            end
+          else
+            response_parts << result["content"]
+          end
+        rescue JSON::ParserError => e
+          response_parts << "❌ Error processing image generation result: #{e.message}"
+        end
+        
       else
         response_parts << "✅ Executed: #{result["name"]}"
       end
@@ -1463,10 +1488,24 @@ module GrokHelper
       end
     end
     
-    # If Grok returns empty response after tool execution, provide a fallback
-    if new_results.nil? || new_results.empty? || 
-       !new_results.dig(0, "choices", 0, "message", "content") ||
-       new_results.dig(0, "choices", 0, "message", "content").to_s.strip.empty?
+    # If Grok returns empty or inadequate response after tool execution, provide a fallback
+    content_check = new_results.dig(0, "choices", 0, "message", "content").to_s.strip if new_results
+    is_inadequate = false
+    
+    # Check if response is empty or just echoing the prompt
+    if new_results.nil? || new_results.empty? || !content_check || content_check.empty?
+      is_inadequate = true
+    elsif obj["current_image_filename"] && !content_check.include?("<img") && !content_check.include?("generated_image")
+      # For image generation, if the response doesn't contain image HTML, it's inadequate
+      is_inadequate = true
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Grok response missing image HTML, using fallback")
+        extra_log.close
+      end
+    end
+    
+    if is_inadequate
       
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")

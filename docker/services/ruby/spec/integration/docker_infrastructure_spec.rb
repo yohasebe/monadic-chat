@@ -110,35 +110,49 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
     it "can capture screenshots via Selenium" do
       # First check if Selenium container is running
       selenium_running = `docker ps --format '{{.Names}}' | grep -q monadic-chat-selenium-container && echo "running"`.strip == "running"
-      skip "Selenium container not running" unless selenium_running
+      expect(selenium_running).to eq(true)
       
-      # Check network connectivity between containers
-      network_test = `docker exec monadic-chat-python-container ping -c 1 -W 2 monadic-chat-selenium-container 2>&1`
-      if network_test.include?("unknown host") || network_test.include?("Unreachable")
-        # Try to fix network issue by restarting containers
-        `docker restart monadic-chat-selenium-container 2>&1`
-        sleep 5
+      # Wait for Selenium to be ready (with longer timeout)
+      selenium_ready = false
+      15.times do
+        status = `docker exec monadic-chat-selenium-container curl -s http://localhost:4444/wd/hub/status 2>&1`
+        if status.include?("ready") && status.include?("true")
+          selenium_ready = true
+          break
+        end
+        sleep 2
+      end
+      expect(selenium_ready).to eq(true)
+      
+      # Use a more reliable test URL
+      test_url = "https://httpbin.org/html"
+      
+      # Run webpage_fetcher.py with reasonable timeout
+      command = "docker exec monadic-chat-python-container python /monadic/scripts/cli_tools/webpage_fetcher.py " \
+                "--url \"#{test_url}\" --filepath \"/tmp/\" --mode \"png\" --timeout-sec 30"
+      
+      # Use longer timeout for the test itself
+      result = `timeout 120 #{command} 2>&1`
+      
+      # Debug output
+      if ENV["DEBUG_TESTS"] || result.include?("error") || result.include?("timed out")
+        puts "Selenium test command: #{command}"
+        puts "Selenium test output: #{result}"
       end
       
-      # Setup selenium service resolution
-      setup_cmd = 'docker exec monadic-chat-python-container sh -c "' \
-                  'python -c \\"import sys; sys.path.insert(0, \\\\\\"/monadic/scripts/cli_tools\\\\\\"); ' \
-                  'from webpage_fetcher import WebpageFetcher; ' \
-                  'fetcher = WebpageFetcher(); ' \
-                  'fetcher.fetch_webpage(\\\\\\"https://example.com\\\\\\", \\\\\\"png\\\\\\", \\\\\\"/tmp/test.png\\\\\\", timeout_sec=10)\\" 2>&1"'
+      # Check for success with various possible success messages
+      success_indicators = [
+        "Successfully saved screenshot",
+        "saved to",
+        ".png",
+        "httpbin.org"
+      ]
       
-      result = `timeout 30 #{setup_cmd}`
-      
-      # More flexible success check
-      if result.include?("connection timed out") || result.include?("Connection refused")
-        # Network issue - skip test instead of failing
-        skip "Selenium network connectivity issue: #{result.lines.first}"
-      elsif result.include?("Successfully") || result.include?("saved") || result.include?(".png")
-        expect(result).to match(/Successfully|saved|\.png/i)
+      if success_indicators.any? { |indicator| result.include?(indicator) }
+        expect(result).to match(/Successfully saved screenshot|saved to.*\.png|httpbin\.org.*\.png/i)
       else
-        # Log the actual error for debugging
-        puts "Selenium test output: #{result}" if ENV["DEBUG_TESTS"]
-        skip "Selenium screenshot test skipped due to environment issue"
+        # If it still fails, provide detailed error information
+        fail "Selenium screenshot capture failed. Output: #{result}"
       end
     end
   end

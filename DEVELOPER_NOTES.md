@@ -49,6 +49,10 @@
 - Use `reasoning_effort: "low"` for function calling apps (better balance)
 - Remove `reasoning_effort` for monadic mode apps
 - Gemini 2.5 Flash recommended for cost/performance balance
+- **Web Search Implementation**: Dual tool approach for comprehensive capabilities
+  - `google_search` tool for general web queries (no function_calling_config needed)
+  - `url_context` tool automatically activated when URLs detected in messages
+  - Provides both search and URL scraping capabilities
 - **Google Search Grounding**: Native support with metadata display
   - Shows search queries, grounding chunks, and search entry points
   - Automatically appended to response when web search is enabled
@@ -61,9 +65,10 @@
 ## Testing Infrastructure
 
 ### Container Networking
-- **Selenium Integration**: Python container requires hostname mapping for selenium_service
-  - Automatic fix applied in tests: maps to monadic-chat-selenium-container
-  - webpage_fetcher.py uses selenium_service hostname by default
+- **Selenium Integration**: Docker network correctly resolves selenium_service hostname
+  - selenium_service resolves to 172.18.0.4 in Docker network
+  - No manual hostname mapping required
+  - Test URL changed from example.com to httpbin.org for better reliability
 
 ### Voice Pipeline Testing
 - **TTS->STT Tests**: Use simple, common phrases for better accuracy
@@ -97,6 +102,7 @@ POSTGRES_PORT=5433        # Test environment
 EXTRA_LOGGING=true       # Verbose logging
 DEBUG_TESTS=true         # Test debug mode
 E2E_DEBUG=1             # E2E test debugging
+HOST_OS=`uname -s`      # Required for Docker Compose (set in Rakefile)
 ```
 
 ## JavaScript Architecture

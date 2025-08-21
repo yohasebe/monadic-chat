@@ -1365,18 +1365,45 @@ module GrokHelper
     # Build a helpful response that includes actual results
     response_content = build_tool_response(tool_results)
     
-    # Make API request with tool results to get Grok's natural language response
-    # Use "tool" as role to indicate we're sending tool results
-    # IMPORTANT: Disable streaming for tool result processing to avoid hanging
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] About to make recursive API request with tool results")
-      extra_log.puts("  Call depth: #{call_depth + 1}")
-      extra_log.puts("  Streaming disabled for tool result processing")
-      extra_log.close
+    # Check if this is an image generation that we've already built a complete response for
+    has_image_generation = tool_results.any? { |r| r["name"] == "generate_image_with_grok" }
+    skip_api_call = false
+    
+    if has_image_generation && response_content.include?("<img")
+      # We have a complete HTML response for image generation, no need to call Grok
+      skip_api_call = true
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete image response")
+        extra_log.close
+      end
     end
     
-    new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
+    if skip_api_call
+      # Build the response directly without calling Grok
+      new_results = [{
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => response_content
+          },
+          "finish_reason" => "stop"
+        }]
+      }]
+    else
+      # Make API request with tool results to get Grok's natural language response
+      # Use "tool" as role to indicate we're sending tool results
+      # IMPORTANT: Disable streaming for tool result processing to avoid hanging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] About to make recursive API request with tool results")
+        extra_log.puts("  Call depth: #{call_depth + 1}")
+        extra_log.puts("  Streaming disabled for tool result processing")
+        extra_log.close
+      end
+      
+      new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
+    end
     
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")

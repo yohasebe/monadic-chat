@@ -245,7 +245,7 @@ RSpec.describe "Gemini Grounding Metadata Integration" do
     end
   end
 
-  describe "google_search tool configuration" do
+  describe "google_search and url_context tool configuration" do
     it "includes google_search tool when websearch is enabled" do
       body = {
         "contents" => [],
@@ -277,6 +277,47 @@ RSpec.describe "Gemini Grounding Metadata Integration" do
       end
       
       expect(body["tools"]).to be_nil
+    end
+    
+    it "adds url_context tool when URLs are detected in message" do
+      body = {
+        "contents" => [],
+        "tools" => []
+      }
+      
+      message = "Check this URL: https://example.com/page"
+      url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
+      
+      if message.match?(url_pattern)
+        body["tools"] << { "url_context" => {} }
+      end
+      
+      expect(body["tools"]).to include({ "url_context" => {} })
+    end
+    
+    it "combines google_search and url_context when both are needed" do
+      body = {
+        "contents" => [],
+        "tools" => []
+      }
+      
+      # Simulate websearch enabled
+      websearch = true
+      message = "Search for AI news and check https://example.com"
+      url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
+      
+      if websearch
+        body["tools"] << {"google_search" => {}}
+      end
+      
+      if message.match?(url_pattern)
+        body["tools"] << { "url_context" => {} }
+      end
+      
+      expect(body["tools"]).to eq([
+        {"google_search" => {}},
+        {"url_context" => {}}
+      ])
     end
   end
 end

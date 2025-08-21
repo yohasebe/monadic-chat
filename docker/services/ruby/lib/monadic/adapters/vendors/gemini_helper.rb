@@ -829,7 +829,31 @@ module GeminiHelper
         end
       end
       
-      if has_function_declarations
+      if has_function_declarations && websearch
+        # Both function declarations and web search are needed
+        DebugHelper.debug("Gemini: Both function declarations and Google Search enabled", category: :api, level: :debug)
+        
+        # Combine function declarations and google_search tool
+        if app_tools.is_a?(Array)
+          body["tools"] = [
+            {"function_declarations" => app_tools},
+            {"google_search" => {}}
+          ]
+        else
+          body["tools"] = [
+            app_tools,
+            {"google_search" => {}}
+          ]
+        end
+        
+        # Use AUTO mode for function calling
+        body["tool_config"] = {
+          "function_calling_config" => {
+            "mode" => "AUTO"
+          }
+        }
+      elsif has_function_declarations
+        # Only function declarations (no web search)
         # Convert the tools format if it's an array (initialize_from_assistant apps)
         if app_tools.is_a?(Array)
           body["tools"] = [{"function_declarations" => app_tools}]
@@ -849,20 +873,33 @@ module GeminiHelper
         DebugHelper.debug("Gemini: Google Search enabled for web search", category: :api, level: :debug)
         
         # Set up google_search tool (recommended for current models)
+        # Note: google_search doesn't need function_calling_config
         body["tools"] = [{
           "google_search" => {}
         }]
         
-        # Let the model decide when to use search
-        body["tool_config"] = {
-          "function_calling_config" => {
-            "mode" => "AUTO"
-          }
-        }
+        # Remove tool_config for google_search as it's not a function declaration
+        body.delete("tool_config")
       else
         DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
         body.delete("tools")
         body.delete("tool_config")
+      end
+      
+      # Check if user message contains URLs and add URL Context tool if needed
+      if role == "user" && message.to_s != ""
+        url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
+        if message.match?(url_pattern)
+          DebugHelper.debug("Gemini: URLs detected in message, adding URL Context tool", category: :api, level: :debug)
+          
+          # Add URL Context tool to existing tools or create new tools array
+          body["tools"] ||= []
+          body["tools"] << { "url_context" => {} }
+          
+          # Extract URLs for logging
+          urls = message.scan(url_pattern)
+          DebugHelper.debug("Gemini: Found URLs: #{urls.inspect}", category: :api, level: :debug)
+        end
       end
     end  # end of role != "tool"
 
@@ -1123,6 +1160,7 @@ module GeminiHelper
     tool_calls = []
     finish_reason = nil
     @grounding_html = nil  # Store grounding metadata HTML to append to response
+    @url_context_html = nil  # Store URL context metadata HTML to append to response
 
     # Convert the HTTP::Response::Body to a string and then process line by line
     res.each_line do |chunk|
@@ -1176,6 +1214,60 @@ module GeminiHelper
           end
           
           candidates&.each do |candidate|
+            
+            # Check for URL Context metadata at candidate level
+            if candidate["urlContextMetadata"] && 
+               !candidate["urlContextMetadata"].empty? && 
+               @url_context_html.nil?
+              url_context_data = candidate["urlContextMetadata"]
+              
+              # Log URL Context metadata
+              if defined?(MonadicApp::EXTRA_LOG_FILE)
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts "[Gemini] Found URL Context metadata at candidate level:"
+                  log.puts "  - URL metadata count: #{url_context_data["urlMetadata"]&.length}"
+                  
+                  if CONFIG["EXTRA_LOGGING"]
+                    log.puts "[DEBUG Gemini] Full URL Context data structure:"
+                    log.puts JSON.pretty_generate(url_context_data)
+                  end
+                end
+              end
+              
+              # Display URL Context metadata
+              if url_context_data["urlMetadata"] && !url_context_data["urlMetadata"].empty?
+                url_info = "<div class='url-context-metadata' style='margin: 10px 0; padding: 10px; background: #f0f8ff; border-radius: 5px;'>"
+                url_info += "<details style='cursor: pointer;'>"
+                url_info += "<summary style='font-weight: bold; color: #666;'>📄 URL Context: #{url_context_data["urlMetadata"].length} URL(s) processed</summary>"
+                url_info += "<div style='margin-top: 10px;'>"
+                url_info += "<ul style='margin: 5px 0; padding-left: 20px;'>"
+                
+                url_context_data["urlMetadata"].each do |url_meta|
+                  url = url_meta["retrievedUrl"]
+                  status = url_meta["urlRetrievalStatus"]
+                  status_emoji = case status
+                                  when "URL_RETRIEVAL_STATUS_SUCCESS" then "✅"
+                                  when "URL_RETRIEVAL_STATUS_UNSAFE" then "⚠️"
+                                  else "❌"
+                                  end
+                  url_info += "<li style='margin: 3px 0;'>#{status_emoji} <a href='#{url}' target='_blank' rel='noopener noreferrer' style='color: #0066cc;'>#{url}</a></li>"
+                end
+                
+                url_info += "</ul>"
+                url_info += "</div>"
+                url_info += "</details>"
+                url_info += "</div>"
+                
+                # Store the HTML to append to final response
+                @url_context_html = url_info
+                
+                if defined?(MonadicApp::EXTRA_LOG_FILE)
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts "[Gemini] URL Context metadata HTML stored for final response"
+                  end
+                end
+              end
+            end
             
             # Check for grounding metadata at candidate level (skip empty objects)
             if candidate["groundingMetadata"] && 
@@ -1789,6 +1881,16 @@ module GeminiHelper
       
       # Check if the entire response is a single Markdown code block and unwrap it
       final_content = unwrap_single_markdown_code_block(final_content)
+      
+      # Append URL context metadata HTML if present
+      if @url_context_html
+        final_content += "\n\n" + @url_context_html
+        if defined?(MonadicApp::EXTRA_LOG_FILE)
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[Gemini] Appended URL context metadata HTML to final response"
+          end
+        end
+      end
       
       # Append grounding metadata HTML if present
       if @grounding_html

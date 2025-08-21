@@ -4,6 +4,20 @@
 
 ## August 2025 Updates
 
+### Session 6 - 2025-08-22
+
+#### xAI Jupyter Notebook Sequential Execution
+- **Issue Identified**: xAI/Grok struggles with simultaneous tool calls in Jupyter Notebook
+  - When user requests "create notebook and add graph", AI may only execute partial steps
+  - Requires 2-3 interactions before properly executing all requested operations
+- **Root Cause**: Tool execution limitations in xAI API
+  - Cannot reliably chain multiple tool calls in single response
+  - Often executes only first tool and ignores subsequent requests
+- **Solution Implemented**: Enhanced initial greeting with clear guidance
+  - Explains step-by-step approach is required for best results
+  - Provides examples of how to break down complex requests
+  - Sets proper user expectations for sequential operations
+
 ### Session 5 - 2025-08-21
 
 #### Gemini Web Search Implementation

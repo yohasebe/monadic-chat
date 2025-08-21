@@ -175,4 +175,16 @@ Providers handle the combination of monadic mode (structured JSON responses) and
 - Exception: OpenAI can maintain `monadic: true` if JSON structure is beneficial
 - Test thoroughly when combining monadic mode with tool execution
 
+## xAI/Grok Specific Limitations
+
+### Sequential Tool Execution Required
+- xAI cannot reliably execute multiple tools in a single response
+- Complex requests must be broken down into sequential steps
+- Jupyter Notebook apps should guide users to make step-by-step requests
+
+### Best Practices for xAI Apps
+- Use clear initial greetings explaining sequential operation requirement
+- Provide examples of how to break down complex requests
+- Set proper user expectations about step-by-step execution
+
 ## Current Test Count: 1269 passing tests

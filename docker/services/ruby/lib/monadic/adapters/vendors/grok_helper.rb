@@ -1341,7 +1341,22 @@ module GrokHelper
     
     # Make API request with tool results to get Grok's natural language response
     # Use "tool" as role to indicate we're sending tool results
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] About to make recursive API request with tool results")
+      extra_log.puts("  Call depth: #{call_depth + 1}")
+      extra_log.close
+    end
+    
     new_results = api_request("tool", session, call_depth: call_depth + 1, &block)
+    
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts("\n[#{Time.now}] Returned from recursive API request")
+      extra_log.puts("  Results type: #{new_results.class}")
+      extra_log.puts("  Results empty?: #{new_results.nil? || (new_results.respond_to?(:empty?) && new_results.empty?)}")
+      extra_log.close
+    end
     
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")

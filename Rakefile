@@ -613,6 +613,8 @@ namespace :build do
               puts "Container doesn't exist, creating new one..."
               compose_file = File.expand_path("docker/services/compose.yml", __dir__)
               project_dir = File.expand_path("docker/services", __dir__)
+              # Set HOST_OS for Docker Compose
+              ENV['HOST_OS'] ||= `uname -s`.chomp
               if !system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
                 puts "Warning: Failed to start pgvector container. Skipping help database build."
                 return
@@ -838,6 +840,9 @@ task :spec do
   ENV['POSTGRES_PORT'] ||= '5433'
   ENV['POSTGRES_USER'] ||= 'postgres'
   ENV['POSTGRES_PASSWORD'] ||= 'postgres'
+  
+  # Set HOST_OS for Docker Compose
+  ENV['HOST_OS'] ||= `uname -s`.chomp
   
   # Start pgvector container for tests that require it
   pgvector_running = system("docker ps | grep -q monadic-chat-pgvector-container")

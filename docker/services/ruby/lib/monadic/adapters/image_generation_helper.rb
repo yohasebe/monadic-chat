@@ -69,14 +69,37 @@ module MonadicHelper
 
 
   def generate_image_with_grok(prompt: "")
-
+    require 'json'
+    
     command = "image_generator_grok.rb -p \"#{prompt}\""
     
-    # Simply pass the command output directly to the LLM
-    # Let the LLM extract the filename(s) from the output text
+    # Get the command output with its standard prefix
     result = send_command(command: command, container: "ruby")
     
-    # Just return the raw command output - LLM will extract filename
-    return result
+    # Extract JSON from the command output
+    # The send_command adds a prefix "Command has been executed with the following output: \n"
+    # We need to extract the actual JSON part
+    begin
+      # Remove the standard command prefix to get the clean JSON
+      json_start = result.index('{')
+      if json_start
+        json_str = result[json_start..-1]
+        parsed = JSON.parse(json_str)
+        # Return the clean JSON string for the LLM to process
+        return JSON.generate(parsed)
+      else
+        # No JSON found in output
+        return JSON.generate({
+          success: false,
+          message: "No valid JSON response from image generator"
+        })
+      end
+    rescue JSON::ParserError => e
+      # Return error in expected format
+      return JSON.generate({
+        success: false,
+        message: "Failed to parse image generator response: #{e.message}"
+      })
+    end
   end
 end

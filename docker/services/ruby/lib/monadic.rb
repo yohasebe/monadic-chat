@@ -543,8 +543,8 @@ end
 load_app_files
 APPS = init_apps
 
-# Start MCP server if enabled
-if CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true"
+# Start MCP server if enabled (skip in test environment)
+if (CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true") && !defined?(RSpec)
   puts "MCP Server configuration detected, attempting to start..."
   
   # Ensure EventMachine is available before starting MCP server

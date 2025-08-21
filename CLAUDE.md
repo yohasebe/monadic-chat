@@ -4,6 +4,32 @@
 
 ## August 2025 Updates
 
+### Session 5 - 2025-08-21
+
+#### Gemini Web Search Implementation
+- **Dual Tool Approach**: Implemented Google Search + URL Context tools for comprehensive web capabilities
+  - Google Search (`google_search`) tool for general web queries
+  - URL Context (`url_context`) tool automatically activated when URLs detected in messages
+  - Fixed "Function calling config is set without function_declarations" error
+- **Type Safety**: Resolved Hash type checking error in message URL detection logic
+
+#### xAI Live Search Stability
+- **Test Reliability**: Improved xAI Live Search test stability
+  - Added retry mechanism with multiple query variations
+  - Increased max_tokens to 2000 for more consistent responses
+  - Tests now pass reliably across different network conditions
+
+#### Infrastructure Improvements
+- **HOST_OS Environment Variable**: Fixed Docker Compose warnings by setting HOST_OS in Rakefile
+- **Selenium Test Fix**: Resolved persistent timeout issues without skipping
+  - Changed test URL from example.com to httpbin.org for better reliability
+  - Confirmed selenium_service hostname resolution works correctly in Docker network
+  - Increased readiness check attempts and timeout values
+  - Fixed RSpec expectation syntax issues
+
+#### Model Updates
+- **Cohere**: Added missing `command-a-reasoning-08-2025` model to model_spec.js
+
 ### Session 4 - 2025-08-20
 
 #### xAI Live Search Enhancement

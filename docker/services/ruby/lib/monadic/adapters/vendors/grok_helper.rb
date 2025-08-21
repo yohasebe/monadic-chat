@@ -1406,6 +1406,14 @@ module GrokHelper
       if content && obj["current_image_filename"]
         actual_image_filename = obj["current_image_filename"]
         
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("\n[#{Time.now}] Starting image filename post-processing")
+          extra_log.puts("  Actual filename: #{actual_image_filename}")
+          extra_log.puts("  Content preview before: #{content[0..200]}...")
+          extra_log.close
+        end
+        
         # Replace various placeholder patterns with the actual filename
         # Pattern 1: Date-like placeholders (e.g., 20231012-123456.png)
         content = content.gsub(/\d{8}-\d{6}\.png/i, actual_image_filename)
@@ -1417,14 +1425,23 @@ module GrokHelper
         content = content.gsub(/src="\/data\/\d{8}-\d{6}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
         content = content.gsub(/src="\/data\/\d{10}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
         
+        # Pattern 4: Any placeholder-looking filename
+        content = content.gsub(/\/data\/[a-zA-Z0-9_-]+\.png/, "/data/#{actual_image_filename}")
+        
         # Update the response with corrected content
         new_results[0]["choices"][0]["message"]["content"] = content
         
         if CONFIG["EXTRA_LOGGING"]
           extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
           extra_log.puts("\n[#{Time.now}] Post-processed image filename: replaced placeholders with #{actual_image_filename}")
+          extra_log.puts("  Content preview after: #{content[0..200]}...")
           extra_log.close
         end
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] No image filename post-processing: current_image_filename not in session")
+        extra_log.puts("  Session keys: #{obj.keys.inspect}")
+        extra_log.close
       end
     end
     

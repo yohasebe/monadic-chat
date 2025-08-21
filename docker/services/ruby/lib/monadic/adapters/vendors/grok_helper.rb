@@ -1243,6 +1243,33 @@ module GrokHelper
           end
         end
         
+        # CRITICAL: If this is generate_image_with_grok, extract the actual filename
+        # and store it in session for post-processing the LLM response
+        if function_name == "generate_image_with_grok" && function_return.is_a?(String)
+          begin
+            # Parse the JSON response
+            image_result = JSON.parse(function_return)
+            if image_result["success"] && image_result["filename"]
+              actual_image_filename = image_result["filename"]
+              # Store in session for post-processing
+              obj["current_image_filename"] = actual_image_filename
+              
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("\n[#{Time.now}] Stored image filename: #{actual_image_filename}")
+                extra_log.close
+              end
+            end
+          rescue JSON::ParserError => e
+            # Log error but don't fail
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts("\n[#{Time.now}] Failed to parse image generator response: #{e.message}")
+              extra_log.close
+            end
+          end
+        end
+        
         # Log tool execution
         if CONFIG["EXTRA_LOGGING"]
           extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1373,6 +1400,31 @@ module GrokHelper
         # Update the response with corrected content
         new_results[0]["choices"][0]["message"]["content"] = content
         
+      end
+      
+      # Post-process image filenames if we have a stored image filename
+      if content && obj["current_image_filename"]
+        actual_image_filename = obj["current_image_filename"]
+        
+        # Replace various placeholder patterns with the actual filename
+        # Pattern 1: Date-like placeholders (e.g., 20231012-123456.png)
+        content = content.gsub(/\d{8}-\d{6}\.png/i, actual_image_filename)
+        
+        # Pattern 2: Timestamp-only placeholders (e.g., 123456789.png)
+        content = content.gsub(/(?<!\d)\d{10}\.png/i, actual_image_filename)
+        
+        # Pattern 3: In image src attributes
+        content = content.gsub(/src="\/data\/\d{8}-\d{6}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
+        content = content.gsub(/src="\/data\/\d{10}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
+        
+        # Update the response with corrected content
+        new_results[0]["choices"][0]["message"]["content"] = content
+        
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("\n[#{Time.now}] Post-processed image filename: replaced placeholders with #{actual_image_filename}")
+          extra_log.close
+        end
       end
     end
     

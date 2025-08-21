@@ -845,13 +845,20 @@ module GeminiHelper
           }
         }
       elsif websearch
-        # Use URL Context instead of Google search for better control
-        DebugHelper.debug("Gemini: URL Context enabled for web search", category: :api, level: :debug)
+        # Use Google Search grounding tool for web search
+        DebugHelper.debug("Gemini: Google Search enabled for web search", category: :api, level: :debug)
         
-        # URL Context doesn't require tools configuration
-        # URLs will be added to the content parts when processing messages
-        body.delete("tools")
-        body.delete("tool_config")
+        # Set up google_search tool (recommended for current models)
+        body["tools"] = [{
+          "google_search" => {}
+        }]
+        
+        # Let the model decide when to use search
+        body["tool_config"] = {
+          "function_calling_config" => {
+            "mode" => "AUTO"
+          }
+        }
       else
         DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
         body.delete("tools")

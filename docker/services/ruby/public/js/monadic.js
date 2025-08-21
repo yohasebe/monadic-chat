@@ -336,8 +336,6 @@ $(function () {
     
     // Setup AI User button
     $("#ai_user").off("click").on("click", function () {
-      console.log("AI User button clicked");
-      
       // Force enable AI User
       params["ai_user"] = "true";
       
@@ -757,12 +755,6 @@ $(function () {
     const currentMathjax = $("#mathjax").prop('checked');
     Object.assign(params, apps[appValue]);
     
-    // Debug: Check if reasoning_effort is present in app settings
-    console.log(`\n=== changeApp Debug for ${appValue} ===`);
-    console.log(`Apps object for ${appValue}:`, apps[appValue]);
-    console.log(`reasoning_effort in apps:`, apps[appValue].reasoning_effort);
-    console.log(`params before loadParams:`, params);
-    console.log(`params.reasoning_effort:`, params.reasoning_effort);
     // Only set initiate_from_assistant to false if the app explicitly defines it as false
     // Don't override if it's already been set by setParams()
     if (apps[appValue].hasOwnProperty('initiate_from_assistant') && apps[appValue]['initiate_from_assistant'] === false) {

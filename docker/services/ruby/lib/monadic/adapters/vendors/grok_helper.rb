@@ -1381,6 +1381,10 @@ module GrokHelper
     
     if skip_api_call
       # Build the response directly without calling Grok
+      # Send the response through the streaming callback
+      block&.call({ "type" => "fragment", "content" => response_content })
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+      
       new_results = [{
         "choices" => [{
           "message" => {

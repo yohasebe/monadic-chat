@@ -887,7 +887,7 @@ module GeminiHelper
       end
       
       # Check if user message contains URLs and add URL Context tool if needed
-      if role == "user" && message.to_s != ""
+      if role == "user" && defined?(message) && message.is_a?(String) && message != ""
         url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
         if message.match?(url_pattern)
           DebugHelper.debug("Gemini: URLs detected in message, adding URL Context tool", category: :api, level: :debug)

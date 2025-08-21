@@ -31,6 +31,14 @@ In the basic Jupyter Notebook app of Monadic Chat, you can do the following by i
 - Load notebooks from the shared folder
 - Add new cells to notebooks
 
+### Provider-Specific Limitations
+
+#### xAI/Grok
+When using Jupyter Notebook with xAI/Grok models:
+- **Sequential operations required**: Cannot execute multiple tools in a single request
+- **Step-by-step approach**: Break down complex requests (e.g., "Create notebook" then "Add graph")
+- **Initial guidance**: The AI will explain the sequential approach in its greeting message
+
 
 ## Jupyter Access in Different Modes
 

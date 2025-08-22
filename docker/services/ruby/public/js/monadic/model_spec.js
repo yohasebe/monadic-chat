@@ -573,6 +573,17 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true
   },
+  "command-a-reasoning-08-2025": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 32000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "reasoning_effort": [["disabled", "enabled"], "enabled"],
+    "reasoning_model": true
+  },
   "command-r-plus-08-2024": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4000],

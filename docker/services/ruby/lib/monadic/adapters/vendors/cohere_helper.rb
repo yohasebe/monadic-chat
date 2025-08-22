@@ -1027,7 +1027,10 @@ module CohereHelper
                   # For now, we don't send thinking content to the UI
                   # It could be logged if needed
                   DebugHelper.debug("Cohere thinking: #{thinking}", category: :api, level: :debug) if CONFIG["EXTRA_LOGGING"]
-                elsif text = content["text"]
+                end
+                
+                # Also check for text content (both thinking and text can be present)
+                if text = content["text"]
                   buffer += text
                   texts << text
 
@@ -1188,34 +1191,54 @@ module CohereHelper
       
       # The "DONE" message tells the client to request HTML, which resets the status
       [res]
-    elsif result
-      # Return final text result exactly like the command_r_helper does
+    else
+      # Handle regular text response or empty response (e.g., only thinking content)
+      # Always send DONE message to complete the stream
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       
-      # Apply monadic transformation if enabled
-      final_result = result
-      if obj["monadic"] && final_result
-        # Process through unified interface
-        processed = process_monadic_response(final_result, app)
-        # Validate the response
-        validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-        final_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
-      end
-      
-      [
-        {
-          "choices" => [
+      if result
+        # Apply monadic transformation if enabled
+        final_result = result
+        if obj["monadic"] && final_result
+          # Process through unified interface
+          processed = process_monadic_response(final_result, app)
+          # Validate the response
+          validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
+          final_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
+        end
+        
+        [
+          {
+            "choices" => [
+              {
+                "finish_reason" => finish_reason, 
+                "message" => { "content" => final_result }
+              }
+            ]
+          }
+        ]
+      else
+        # No text content (only thinking or genuinely empty response)
+        # Check if this was a reasoning model with thinking content
+        if obj["reasoning_model"] && obj["reasoning_effort"] == "enabled"
+          # For reasoning models with thinking enabled but no text output,
+          # return a message indicating thinking completed
+          [
             {
-              "finish_reason" => finish_reason, 
-              "message" => { "content" => final_result }
+              "choices" => [
+                {
+                  "finish_reason" => finish_reason || "stop",
+                  "message" => { "content" => "[Reasoning completed - no text response generated]" }
+                }
+              ]
             }
           ]
-        }
-      ]
-    else
-      # Handle empty tool results
-      api_request("empty_tool_results", session, call_depth: call_depth, &block)
+        else
+          # For other cases, handle as empty tool results
+          api_request("empty_tool_results", session, call_depth: call_depth, &block)
+        end
+      end
     end
   end
 

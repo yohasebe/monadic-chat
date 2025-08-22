@@ -23,6 +23,9 @@
   - More reliable function call outputs
   - Better parameter parsing in Code Interpreter
   - Reduced JSON parsing errors
+- **Testing**: 
+  - `spec/lib/monadic/adapters/vendors/deepseek_strict_mode_spec.rb`
+  - 12 test cases covering all schema transformation scenarios
 
 ### Unified Error Handling System
 - **Implementation**: Centralized error handler at `/lib/monadic/utils/error_handler.rb`
@@ -91,6 +94,9 @@
   - Thinking mode incompatible with conversation history containing assistant messages
   - Single-text workaround attempted but not fully effective
   - Recommendation: Use without thinking for 2nd+ messages or consider alternative providers
+- **Testing**:
+  - `spec/lib/monadic/adapters/vendors/cohere_reasoning_spec.rb`
+  - 9 test cases for conversation formatting and reasoning detection
 
 ## Testing Infrastructure
 
@@ -117,9 +123,23 @@ bundle exec rspec
 # Run specific test file
 bundle exec rspec spec/e2e/code_interpreter_spec.rb
 
+# Run vendor adapter tests
+bundle exec rspec spec/lib/monadic/adapters/vendors/
+
 # Run with debug output
 EXTRA_LOGGING=true bundle exec rspec spec/e2e/research_assistant_workflow_spec.rb --format documentation
 ```
+
+### Vendor Adapter Tests
+- **DeepSeek Strict Mode**: `spec/lib/monadic/adapters/vendors/deepseek_strict_mode_spec.rb`
+  - Schema conversion to strict format
+  - Nested object handling
+  - anyOf/oneOf/allOf processing
+  - Activation logic testing
+- **Cohere Reasoning**: `spec/lib/monadic/adapters/vendors/cohere_reasoning_spec.rb`
+  - Conversation text formatting
+  - Reasoning model detection
+  - Message handling
 
 ### PostgreSQL Test Configuration
 - Test database runs on port 5433 (production uses 5432)

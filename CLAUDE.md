@@ -24,6 +24,10 @@
   - Disabled for deepseek-reasoner (no function calling support)
   - Can be disabled via `strict_function_calling: false` parameter
   - Can be forced via `DEEPSEEK_STRICT_MODE: true` in config
+- **Benefits for Code Interpreter**:
+  - More reliable function parameter parsing
+  - Reduced errors in code execution requests
+  - Better compliance with tool schemas
 
 #### Cohere Reasoning Model Integration
 - **Model Added**: command-a-reasoning-08-2025 (256K context, 32K output)

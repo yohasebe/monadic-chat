@@ -8,13 +8,14 @@ module DeepSeekHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
+  BETA_API_ENDPOINT = "https://api.deepseek.com/beta"
   OPEN_TIMEOUT = 10
   READ_TIMEOUT = 120
   WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  # websearch tools
+  # websearch tools (strict-mode compatible)
   WEBSEARCH_TOOLS = [
     {
       type: "function",
@@ -31,6 +32,7 @@ module DeepSeekHelper
             }
           },
           required: ["url"],
+          additionalProperties: false
         }
       }
     },
@@ -49,10 +51,14 @@ module DeepSeekHelper
             },
             n: {
               type: "integer",
-              description: "number of results to return (default: 3)."
+              description: "number of results to return (default: 3).",
+              minimum: 1,
+              maximum: 10,
+              default: 3
             }
           },
           required: ["query"],
+          additionalProperties: false
         }
       }
     }
@@ -94,6 +100,71 @@ module DeepSeekHelper
 
     def vendor_name
       "DeepSeek"
+    end
+
+    # Convert tools to strict mode format
+    def convert_to_strict_tools(tools)
+      return nil if tools.nil? || tools.empty?
+      
+      tools.map do |tool|
+        # Skip if already has strict property
+        if tool.dig(:function, :strict) || tool.dig("function", "strict")
+          tool
+        else
+          # Deep clone the tool
+          strict_tool = JSON.parse(JSON.generate(tool))
+          
+          # Add strict: true
+          if strict_tool["function"]
+            strict_tool["function"]["strict"] = true
+            
+            # Ensure parameters meet strict mode requirements
+            if strict_tool["function"]["parameters"]
+              params = strict_tool["function"]["parameters"]
+              
+              # Ensure additionalProperties is false for objects
+              if params["type"] == "object"
+                params["additionalProperties"] = false
+                
+                # Ensure all properties are in required array
+                if params["properties"] && !params["required"]
+                  params["required"] = params["properties"].keys
+                end
+              end
+              
+              # Process nested objects
+              if params["properties"]
+                params["properties"].each do |prop_name, prop_schema|
+                  if prop_schema["type"] == "object"
+                    prop_schema["additionalProperties"] = false
+                    if prop_schema["properties"] && !prop_schema["required"]
+                      prop_schema["required"] = prop_schema["properties"].keys
+                    end
+                  end
+                end
+              end
+            end
+          end
+          
+          strict_tool
+        end
+      end
+    end
+
+    # Check if strict mode should be enabled
+    def use_strict_mode?(obj)
+      # Enable strict mode for deepseek-chat model when function calling is used
+      # Can be controlled via configuration or per-request parameter
+      model = obj["model"] || "deepseek-chat"
+      
+      # Check if explicitly disabled
+      return false if obj["strict_function_calling"] == false
+      
+      # Enable by default for deepseek-chat model
+      return true if model.include?("deepseek-chat")
+      
+      # Disabled for deepseek-reasoner as it doesn't support function calling
+      false
     end
 
     def list_models
@@ -362,11 +433,6 @@ module DeepSeekHelper
           body["tools"].uniq!
         end
         body["tool_choice"] = "auto"
-        
-        # Debug logging for tools
-        DebugHelper.debug("DeepSeek tools configured: #{body["tools"].map { |t| t.dig(:function, :name) || t.dig("function", "name") }.join(", ")}", category: :api, level: :debug)
-        DebugHelper.debug("DeepSeek tool_choice: #{body["tool_choice"]}", category: :api, level: :debug)
-        DebugHelper.debug("DeepSeek tools full: #{body["tools"].inspect}", category: :api, level: :verbose)
       elsif app_tools && !app_tools.empty?
         # Only app tools, no websearch
         body["tools"] = app_tools
@@ -375,6 +441,32 @@ module DeepSeekHelper
         # No tools at all - don't send empty array
         body.delete("tools")
         body.delete("tool_choice")
+      end
+      
+      # Apply strict mode if enabled and tools are present
+      if body["tools"] && !body["tools"].empty? && DeepSeekHelper.use_strict_mode?(obj)
+        DebugHelper.debug("DeepSeek: Enabling strict function calling mode", category: :api, level: :info)
+        
+        # Convert tools to strict format
+        body["tools"] = DeepSeekHelper.convert_to_strict_tools(body["tools"])
+        
+        # Log the conversion
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] DeepSeek Strict Mode: Converting #{body["tools"].size} tools"
+            body["tools"].each do |tool|
+              f.puts "  - #{tool.dig("function", "name")}: strict=#{tool.dig("function", "strict")}"
+            end
+          end
+        end
+      end
+      
+      # Debug logging for tools
+      if body["tools"]
+        DebugHelper.debug("DeepSeek tools configured: #{body["tools"].map { |t| t.dig(:function, :name) || t.dig("function", "name") }.join(", ")}", category: :api, level: :debug)
+        DebugHelper.debug("DeepSeek tool_choice: #{body["tool_choice"]}", category: :api, level: :debug)
+        DebugHelper.debug("DeepSeek strict mode: #{DeepSeekHelper.use_strict_mode?(obj)}", category: :api, level: :debug)
+        DebugHelper.debug("DeepSeek tools full: #{body["tools"].inspect}", category: :api, level: :verbose)
       end
       
       # Final check: ensure tools is not an empty array
@@ -409,8 +501,14 @@ module DeepSeekHelper
       end
     end
 
-    target_uri = "#{API_ENDPOINT}/chat/completions"
+    # Use beta endpoint if strict mode is enabled
+    use_strict = body["tools"] && !body["tools"].empty? && DeepSeekHelper.use_strict_mode?(obj)
+    target_uri = use_strict ? "#{BETA_API_ENDPOINT}/chat/completions" : "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
+    
+    if use_strict
+      DebugHelper.debug("DeepSeek: Using beta API endpoint for strict function calling", category: :api, level: :info)
+    end
     
     # Debug the final API request body
     DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)

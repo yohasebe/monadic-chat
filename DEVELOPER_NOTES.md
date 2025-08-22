@@ -2,6 +2,20 @@
 
 ## System Architecture Improvements (August 2025)
 
+### DeepSeek Strict Function Calling (Beta)
+- **Implementation**: Automatic conversion to strict JSON schema format
+- **Endpoint**: Uses `https://api.deepseek.com/beta` when strict mode enabled
+- **Schema Requirements**:
+  - All objects must have `additionalProperties: false`
+  - All object properties must be listed in `required` array
+  - Nested objects are processed recursively
+  - Supports: object, string, number, integer, boolean, array, enum, anyOf
+- **Activation**: 
+  - Enabled by default for deepseek-chat model with tools
+  - Disabled for deepseek-reasoner (no function calling support)
+  - Can override with `strict_function_calling: false` parameter
+- **Benefits**: More reliable and predictable function call outputs
+
 ### Unified Error Handling System
 - **Implementation**: Centralized error handler at `/lib/monadic/utils/error_handler.rb`
 - **Format**: `Error: [Category] - Message. Suggestion (Code: XXX)`

@@ -6,6 +6,25 @@
 
 ### Session 6 - 2025-08-22
 
+#### DeepSeek Strict Function Calling
+- **Feature Added**: Strict mode for function calling (Beta)
+  - Automatically enabled for deepseek-chat model when tools are present
+  - Uses beta API endpoint: `https://api.deepseek.com/beta`
+  - Ensures model output strictly adheres to JSON schema requirements
+- **Implementation Details**:
+  - Adds `strict: true` to function definitions
+  - Sets `additionalProperties: false` for all objects
+  - Ensures all properties are listed in required arrays
+  - Processes nested objects recursively
+- **Configuration**:
+  - Enabled by default for deepseek-chat
+  - Disabled for deepseek-reasoner (no function calling support)
+  - Can be disabled via `strict_function_calling: false` parameter
+- **Benefits**:
+  - More reliable function call outputs
+  - Better schema compliance
+  - Reduced parsing errors
+
 #### Cohere Reasoning Model Integration
 - **Model Added**: command-a-reasoning-08-2025 (256K context, 32K output)
   - Supports thinking/reasoning with `reasoning_effort: ["disabled", "enabled"]`

@@ -2,6 +2,7 @@
 
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -146,7 +147,10 @@ module MistralHelper
     
     # Get API key
     api_key = CONFIG["MISTRAL_API_KEY"]
-    return "Error: MISTRAL_API_KEY not found" if api_key.nil?
+    return Monadic::Utils::ErrorFormatter.api_key_error(
+      provider: "Mistral",
+      env_var: "MISTRAL_API_KEY"
+    ) if api_key.nil?
     
     # Set headers
     headers = {
@@ -253,9 +257,15 @@ module MistralHelper
           return parsed_response["choices"][0]["message"]["content"].to_s
         end
         
-        return "Error: Unexpected response format"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Mistral",
+          message: "Unexpected response format"
+        )
       rescue => e
-        return "Error: #{e.message}"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Mistral",
+          message: e.message
+        )
       end
     else
       begin
@@ -267,13 +277,23 @@ module MistralHelper
                        else
                          error_data["error"] || "Unknown error"
                        end
-        return "Error: #{error_message}"
+        return Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Mistral",
+          message: error_message,
+          code: res.status.code
+        )
       rescue => e
-        return "Error: Failed to parse error response"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Mistral",
+          message: "Failed to parse error response"
+        )
       end
     end
   rescue => e
-    return "Error: #{e.message}"
+    return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Mistral",
+          message: e.message
+        )
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -282,7 +302,10 @@ module MistralHelper
       api_key = CONFIG["MISTRAL_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      error_message = "ERROR: MISTRAL_API_KEY not found. Please set the MISTRAL_API_KEY environment variable in the ~/monadic/config/env file."
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Mistral",
+        env_var: "MISTRAL_API_KEY"
+      )
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -531,7 +554,11 @@ module MistralHelper
       unless res.status.success?
         err_json = JSON.parse(res.body)
         formatted_error = format_api_error(err_json, "mistral")
-        error_message = "API ERROR: #{formatted_error}"
+        error_message = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Mistral",
+          message: error_report["message"] || "Unknown API error",
+          code: res.status.code
+        )
         res = { "type" => "error", "content" => error_message }
         block&.call res
         return [res]
@@ -542,8 +569,12 @@ module MistralHelper
         sleep RETRY_DELAY
         retry
       else
-        error_message = "ERROR: The request has timed out."
-        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+        error_message = Monadic::Utils::ErrorFormatter.network_error(
+          provider: "Mistral",
+          message: "Request timed out",
+          timeout: true
+        )
+        res = { "type" => "error", "content" => error_message }
         block&.call res
         return [res]
       end
@@ -747,7 +778,11 @@ module MistralHelper
           end
         rescue StandardError => e
           # Function call failed
-          function_return = "ERROR: #{e.message}"
+          function_return = Monadic::Utils::ErrorFormatter.tool_error(
+            provider: "Mistral",
+            tool_name: function_name,
+            message: e.message
+          )
         end
 
         # Add to function returns with proper encoding
@@ -854,7 +889,10 @@ module MistralHelper
     [response]
   rescue StandardError => e
     # Log and return error
-    error_message = "ERROR: #{e.message}"
+    error_message = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Mistral",
+      message: "Unexpected error: #{e.message}"
+    )
     res = { "type" => "error", "content" => error_message }
     block&.call res
     [res]

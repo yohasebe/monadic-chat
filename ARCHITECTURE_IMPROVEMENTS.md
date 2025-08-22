@@ -6,6 +6,17 @@
 
 After extensive work on provider integrations and feature implementations, several architectural patterns and improvement opportunities have emerged.
 
+## Recently Completed Improvements (August 2025)
+
+### ✅ Unified Error Formatting System
+- **Implementation**: Centralized error formatter (`/lib/monadic/utils/error_formatter.rb`)
+- **Coverage**: All 8 providers now use consistent error messages
+- **Format**: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
+- **Benefits**: 
+  - Users receive clear, actionable error messages
+  - Easier debugging with provider identification
+  - Consistent experience across all providers
+
 ## Key Improvement Areas
 
 ### 1. Provider Implementation Consistency

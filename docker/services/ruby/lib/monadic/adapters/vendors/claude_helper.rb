@@ -1,6 +1,7 @@
 require 'fileutils'
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
@@ -291,16 +292,29 @@ module ClaudeHelper
         return text if text
         
         # If all else fails, return the entire response for debugging
-        return "ERROR: Could not extract text content from Claude API response. Full response: #{parsed_response.inspect[0..200]}..."
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Claude",
+          message: "Could not extract text content from API response"
+        )
       rescue => e
-        return "ERROR: Failed to process Claude API response: #{e.message}"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Claude", 
+          message: "Failed to process API response: #{e.message}"
+        )
       end
     else
       error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      return "ERROR: #{error_response.dig("error", "message") || error_response["error"]}"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Claude",
+        message: error_response.dig("error", "message") || error_response["error"] || "No response received",
+        code: res&.status&.code
+      )
     end
   rescue StandardError => e
-    return "Error: #{e.message}"
+    return Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Claude",
+      message: e.message
+    )
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -322,7 +336,10 @@ module ClaudeHelper
       
       raise if api_key.nil?
     rescue StandardError => e
-      error_message = "ERROR: ANTHROPIC_API_KEY not found. Please set the ANTHROPIC_API_KEY environment variable in the ~/monadic/config/env file."
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Claude",
+        env_var: "ANTHROPIC_API_KEY"
+      )
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -807,8 +824,12 @@ module ClaudeHelper
       unless res.status.success?
         error_report = JSON.parse(res.body)["error"]
         pp error_report
-        formatted_error = format_api_error(error_report, "claude")
-        res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Claude",
+          message: error_report["message"] || "Unknown API error",
+          code: res.status.code
+        )
+        res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
       end
@@ -828,8 +849,12 @@ module ClaudeHelper
         sleep RETRY_DELAY
         retry
       else
-        pp error_message = "The request has timed out."
-        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+        error_message = Monadic::Utils::ErrorFormatter.network_error(
+          provider: "Claude",
+          message: "Request timed out",
+          timeout: true
+        )
+        res = { "type" => "error", "content" => error_message }
         block&.call res
         [res]
       end
@@ -837,7 +862,11 @@ module ClaudeHelper
       pp e.message
       pp e.backtrace
       pp e.inspect
-      res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+      error_message = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Claude",
+        message: "Unexpected error: #{e.message}"
+      )
+      res = { "type" => "error", "content" => error_message }
       block&.call res
       [res]
     end
@@ -1249,7 +1278,11 @@ module ClaudeHelper
           extra_log.puts("ERROR calling function: #{e.class} - #{e.message}")
           extra_log.puts("Backtrace: #{e.backtrace.first(5).join("\n")}")
         end
-        tool_return = "Error: #{e.message}"
+        tool_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "Claude",
+          tool_name: tool_name,
+          message: e.message
+        )
       end
 
       unless tool_return

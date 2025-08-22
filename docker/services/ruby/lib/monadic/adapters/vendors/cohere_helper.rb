@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -126,7 +127,10 @@ module CohereHelper
     
     # Get the API key
     api_key = CONFIG["COHERE_API_KEY"]
-    return "Error: COHERE_API_KEY not found" if api_key.nil?
+    return Monadic::Utils::ErrorFormatter.api_key_error(
+      provider: "Cohere",
+      env_var: "COHERE_API_KEY"
+    ) if api_key.nil?
     
     # Set the headers
     headers = {
@@ -251,7 +255,10 @@ module CohereHelper
         end
         
         # Fall back to standard fields
-        return result["text"] || result["message"] || result["generated_text"] || "Error: No text in response"
+        return result["text"] || result["message"] || result["generated_text"] || Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Cohere",
+          message: "No text found in response"
+        )
       rescue => e
         return "Error parsing response: #{e.message}"
       end
@@ -260,13 +267,22 @@ module CohereHelper
         error_body = response&.body.to_s
         error_data = JSON.parse(error_body)
         error = error_data["message"] || "Unknown error"
-        return "Error: #{error}"
+        return Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Cohere",
+          message: error
+        )
       rescue => e
-        return "Error: API error response"
+        return Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Cohere",
+          message: "API error response"
+        )
       end
     end
   rescue => e
-    return "Error: #{e.message}"
+    return Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Cohere",
+      message: e.message
+    )
   end
   
   # Helper method to format messages for Cohere's API format
@@ -377,13 +393,19 @@ module CohereHelper
       end
     else
       log_to_extra("No valid messages array found in options")
-      return "Error: Invalid options format - no messages found"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Cohere",
+        message: "Invalid options format - no messages found"
+      )
     end
     
     # Ensure we have enough context (at least one message besides system prompt)
     if messages.size < 2
       log_to_extra("Not enough conversation context (messages size: #{messages.size})")
-      return "Error: Not enough conversation context for Cohere AI User"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Cohere",
+        message: "Not enough conversation context for Cohere AI User"
+      )
     end
     
     # Make sure we end with an assistant message for proper user response generation
@@ -404,7 +426,10 @@ module CohereHelper
   def process_cohere_response(response)
     if response.nil?
       log_to_extra("No response received from Cohere API")
-      return "Error: No response received from Cohere API"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Cohere",
+        message: "No response received from Cohere API"
+      )
     end
     
     if !response.status.success?
@@ -423,7 +448,11 @@ module CohereHelper
         end
       end
       
-      return "Error: Cohere API returned error - #{error_message}"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Cohere",
+        message: "API returned error - #{error_message}",
+        code: response_code
+      )
     end
     
     # Response was successful, process it
@@ -435,7 +464,10 @@ module CohereHelper
       # If empty response, return error
       if raw_body.empty?
         log_to_extra("Empty response body")
-        return "Error: Empty response from Cohere API"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Cohere",
+          message: "Empty response from API"
+        )
       end
       
       # Parse JSON
@@ -607,7 +639,10 @@ module CohereHelper
       api_key = CONFIG["COHERE_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: COHERE_API_KEY not found. Please set the COHERE_API_KEY environment variable in the ~/monadic/config/env file."
+      pp error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Cohere",
+        env_var: "COHERE_API_KEY"
+      )
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -1041,7 +1076,12 @@ module CohereHelper
         next unless i == MAX_RETRIES - 1
         
         pp error_message = "Network error: #{e.message}"
-        res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+        formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+          provider: "Cohere",
+          message: error_message,
+          timeout: true
+        )
+        res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
       end
@@ -1056,7 +1096,12 @@ module CohereHelper
                     end
       pp error_report
       formatted_error = format_api_error(error_report, "cohere")
-      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Cohere",
+        message: error_body["message"] || "Unknown API error",
+        code: res.status.code
+      )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       return [res]
     end
@@ -1071,7 +1116,11 @@ module CohereHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Cohere",
+      message: "Unexpected error: #{e.message}"
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
@@ -1294,7 +1343,10 @@ module CohereHelper
 
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Maximum function call depth exceeded" }]
+        return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Cohere",
+          message: "Maximum function call depth exceeded"
+        ) }]
       end
 
       # Execute tool calls and get results

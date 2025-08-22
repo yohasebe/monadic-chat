@@ -3,6 +3,7 @@
 
 require "uri"
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../monadic_provider_interface"
@@ -153,7 +154,10 @@ module GeminiHelper
     
     # Get API key
     api_key = CONFIG["GEMINI_API_KEY"]
-    return "Error: GEMINI_API_KEY not found" if api_key.nil?
+    return Monadic::Utils::ErrorFormatter.api_key_error(
+      provider: "Gemini",
+      env_var: "GEMINI_API_KEY"
+    ) if api_key.nil?
 
     # Check if this is a thinking model (Gemini 2.5) - moved before body creation
     is_thinking_model = false
@@ -329,7 +333,10 @@ module GeminiHelper
 
       # Check for valid response
       if !response || !response.status
-        return "Error: No response from Gemini API"
+        return Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Gemini",
+          message: "No response from API"
+        )
       end
       
       # Process successful response
@@ -397,15 +404,25 @@ module GeminiHelper
             puts "First candidate: #{parsed_response["candidates"][0].inspect}"
           end
         end
-        return "Error: Unable to extract text from Gemini response"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "Gemini",
+          message: "Unable to extract text from response"
+        )
       else
         # Handle error response
         error_data = JSON.parse(response.body) rescue {}
         error_message = error_data.dig("error", "message") || "Unknown error"
-        return "Error: #{error_message}"
+        return Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Gemini",
+          message: error_message,
+          code: res.status.code
+        )
       end
     rescue StandardError => e
-      return "Error: #{e.message}"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Gemini",
+        message: e.message
+      )
     end
   end
   
@@ -584,7 +601,10 @@ module GeminiHelper
       raise if api_key.nil?
     rescue StandardError
       # ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file.
-      error_message = "ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file."
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Gemini",
+        env_var: "GEMINI_API_KEY"
+      )
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -1113,7 +1133,12 @@ module GeminiHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)
       formatted_error = format_api_error(error_report, "gemini")
-      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Gemini",
+        message: error_report["error"]["message"] || "Unknown API error",
+        code: res.status.code
+      )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       return [res]
     end
@@ -1129,13 +1154,26 @@ module GeminiHelper
       sleep RETRY_DELAY * num_retrial
       retry
     else
-      error_message = e.is_a?(OpenSSL::SSL::SSLError) ? "SSL ERROR: #{e.message}" : "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP/SSL ERROR: #{error_message}" }
+      error_message = e.is_a?(OpenSSL::SSL::SSLError) ? 
+        Monadic::Utils::ErrorFormatter.network_error(
+          provider: "Gemini",
+          message: "SSL error: #{e.message}"
+        ) :
+        Monadic::Utils::ErrorFormatter.network_error(
+          provider: "Gemini",
+          message: "Request timed out",
+          timeout: true
+        )
+      res = { "type" => "error", "content" => error_message }
       block&.call res
       [res]
     end
   rescue StandardError => e
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    error_message = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Gemini",
+      message: "Unexpected error: #{e.message}"
+    )
+    res = { "type" => "error", "content" => error_message }
     block&.call res
     [res]
   end
@@ -1651,7 +1689,10 @@ module GeminiHelper
 
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+        return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Gemini",
+          message: "Maximum function call depth exceeded"
+        ) }]
       end
 
       begin
@@ -1699,7 +1740,10 @@ module GeminiHelper
           puts "[DEBUG Gemini Jupyter] Function results received: #{new_results.class}"
         end
       rescue StandardError => e
-        new_results = [{ "type" => "error", "content" => "ERROR: #{e.message}" }]
+        new_results = [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Gemini",
+          message: e.message
+        ) }]
         if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
           puts "[DEBUG Gemini Jupyter] Function call error: #{e.message}"
         end
@@ -2109,7 +2153,11 @@ module GeminiHelper
         end
       rescue StandardError => e
         # Error handling for function invocation
-        error_message = "ERROR: Function call failed: #{function_name}. #{e.message}"
+        error_message = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "Gemini",
+          tool_name: function_name,
+          message: e.message
+        )
         STDERR.puts error_message
         
         # If this is a video generation function error, provide a more informative message
@@ -2691,7 +2739,11 @@ module GeminiHelper
       end
       
     rescue StandardError => e
-      return { success: false, error: "Error: #{e.message}" }.to_json
+      return { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
+        provider: "Gemini",
+        tool_name: "execute_mermaid_generation",
+        message: e.message
+      ) }.to_json
     end
   end
 

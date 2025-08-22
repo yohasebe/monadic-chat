@@ -4,6 +4,7 @@ require 'fileutils'
 require 'base64'
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
@@ -287,10 +288,17 @@ module OpenAIHelper
       # Properly read error response body content
       error_body = res && res.body ? (res.body.respond_to?(:read) ? res.body.read : res.body.to_s) : nil
       error_response = error_body ? JSON.parse(error_body) : { "error" => "No response received" }
-      return "ERROR: #{error_response["error"]["message"] || error_response["error"]}"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "OpenAI",
+        message: error_response["error"]["message"] || error_response["error"],
+        code: res.status.code
+      )
     end
   rescue StandardError => e
-    return "Error: #{e.message}"
+    return Monadic::Utils::ErrorFormatter.api_error(
+      provider: "OpenAI",
+      message: e.message
+    )
   end
 
   # Connect to OpenAI API and get a response
@@ -1158,7 +1166,12 @@ module OpenAIHelper
       error_report = JSON.parse(res.body)["error"]
       pp error_report
       formatted_error = format_api_error(error_report, "openai")
-      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "OpenAI",
+        message: error_report["error"]["message"] || "Unknown API error",
+        code: res.status.code
+      )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       return [res]
     end
@@ -1262,7 +1275,12 @@ module OpenAIHelper
       retry
     else
       pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+        provider: "OpenAI",
+        message: error_message,
+        timeout: true
+      )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       [res]
     end
@@ -1270,7 +1288,11 @@ module OpenAIHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "OpenAI",
+      message: "Unexpected error: #{e.message}"
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
@@ -1569,7 +1591,11 @@ module OpenAIHelper
       rescue StandardError => e
         pp e.message
         pp e.backtrace
-        function_return = "ERROR: #{e.message}"
+        function_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "OpenAI",
+          tool_name: function_name,
+          message: e.message
+        )
       end
 
       # Use the error handler module to check for repeated errors
@@ -1924,7 +1950,11 @@ module OpenAIHelper
             when "response.error"
               # Error occurred
               error_msg = json.dig("error", "message") || "Unknown error"
-              res = { "type" => "error", "content" => "API ERROR: #{error_msg}" }
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "OpenAI",
+                message: error_msg
+              )
+              res = { "type" => "error", "content" => formatted_error }
               block&.call res
               
               if CONFIG["EXTRA_LOGGING"]
@@ -2126,7 +2156,11 @@ module OpenAIHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "OpenAI",
+      message: "Unexpected error: #{e.message}"
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end

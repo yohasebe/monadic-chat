@@ -58,9 +58,17 @@
   - Automatically appended to response when web search is enabled
 
 #### Cohere Command-A
-- Critical: Cannot chain multiple tool calls
-- Single tool execution per request only
-- Not suitable for Jupyter Notebook or complex workflows
+- **Reasoning Model**: command-a-reasoning-08-2025 (256K context, 32K output)
+  - Supports thinking/reasoning with `reasoning_effort: ["disabled", "enabled"]`
+  - Uses `thinking: { type: "enabled" }` API parameter
+- **Critical Limitations**:
+  - Cannot chain multiple tool calls (single tool execution per request)
+  - API returns error 422 "No valid response generated" when thinking enabled with assistant messages
+  - Not suitable for Jupyter Notebook or complex workflows
+- **Known Issues**:
+  - Thinking mode incompatible with conversation history containing assistant messages
+  - Single-text workaround attempted but not fully effective
+  - Recommendation: Use without thinking for 2nd+ messages or consider alternative providers
 
 ## Testing Infrastructure
 

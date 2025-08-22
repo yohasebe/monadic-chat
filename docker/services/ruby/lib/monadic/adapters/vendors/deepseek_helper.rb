@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 require 'strscan'
 require 'securerandom'
 
@@ -230,7 +231,12 @@ module DeepSeekHelper
     
     # Get API key
     api_key = CONFIG["DEEPSEEK_API_KEY"]
-    return "Error: DEEPSEEK_API_KEY not found" if api_key.nil?
+    if api_key.nil?
+      return Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "DeepSeek",
+        env_var: "DEEPSEEK_API_KEY"
+      )
+    end
     
     # Set headers
     headers = {
@@ -306,21 +312,40 @@ module DeepSeekHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+        content = parsed_response.dig("choices", 0, "message", "content")
+        return content if content
+        
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "DeepSeek",
+          message: "No content in response"
+        )
       rescue => e
-        return "Error: #{e.message}"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "DeepSeek",
+          message: e.message
+        )
       end
     else
       begin
         error_data = response && response.body ? JSON.parse(response.body) : {}
         error_message = error_data["error"] || "Unknown error"
-        return "Error: #{error_message}"
+        return Monadic::Utils::ErrorFormatter.api_error(
+          provider: "DeepSeek",
+          message: error_message,
+          code: response&.status&.code
+        )
       rescue => e
-        return "Error: Failed to parse error response"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+          provider: "DeepSeek",
+          message: "Failed to parse error response"
+        )
       end
     end
   rescue => e
-    return "Error: #{e.message}"
+    return Monadic::Utils::ErrorFormatter.unknown_error(
+      provider: "DeepSeek",
+      message: e.message
+    )
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -331,7 +356,11 @@ module DeepSeekHelper
       api_key = CONFIG["DEEPSEEK_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: DEEPSEEK_API_KEY not found. Please set the DEEPSEEK_API_KEY environment variable in the ~/monadic/config/env file."
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "DeepSeek",
+        env_var: "DEEPSEEK_API_KEY"
+      )
+      pp error_message
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -549,7 +578,12 @@ module DeepSeekHelper
       error_report = JSON.parse(res.body)
       pp error_report
       formatted_error = format_api_error(error_report, "deepseek")
-      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+      error_message = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "DeepSeek",
+        message: formatted_error,
+        code: res.status.code
+      )
+      res = { "type" => "error", "content" => error_message }
       block&.call res
       return [res]
     end

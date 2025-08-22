@@ -838,6 +838,18 @@ module CohereHelper
     # Add optional parameters with validation
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
+    
+    # Handle reasoning (thinking) parameter for reasoning models
+    if obj["reasoning_model"] && obj["reasoning_effort"]
+      case obj["reasoning_effort"]
+      when "enabled"
+        body["thinking"] = { "type" => "enabled" }
+        DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]}", category: :api, level: :info)
+      when "disabled"
+        body["thinking"] = { "type" => "disabled" }
+        DebugHelper.debug("Cohere: Reasoning disabled for #{obj["model"]}", category: :api, level: :info)
+      end
+    end
 
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :cohere, app)
@@ -1010,7 +1022,12 @@ module CohereHelper
             when "content-start"
             when "content-delta"
               if content = json.dig("delta", "message", "content")
-                if text = content["text"]
+                # Handle thinking content for reasoning models
+                if thinking = content["thinking"]
+                  # For now, we don't send thinking content to the UI
+                  # It could be logged if needed
+                  DebugHelper.debug("Cohere thinking: #{thinking}", category: :api, level: :debug) if CONFIG["EXTRA_LOGGING"]
+                elsif text = content["text"]
                   buffer += text
                   texts << text
 

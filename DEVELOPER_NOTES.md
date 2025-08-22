@@ -7,14 +7,22 @@
 - **Endpoint**: Uses `https://api.deepseek.com/beta` when strict mode enabled
 - **Schema Requirements**:
   - All objects must have `additionalProperties: false`
-  - All object properties must be listed in `required` array
-  - Nested objects are processed recursively
+  - **Critical**: ALL object properties must be listed in `required` array (not just some)
+  - Nested objects, arrays, anyOf/oneOf/allOf are processed recursively
   - Supports: object, string, number, integer, boolean, array, enum, anyOf
+- **Special Response Markers**:
+  - Streaming responses may contain `<｜tool▁call▁end｜>` markers
+  - These are automatically filtered from content
+  - Non-streaming responses don't include these markers
 - **Activation**: 
   - Enabled by default for deepseek-chat model with tools
   - Disabled for deepseek-reasoner (no function calling support)
   - Can override with `strict_function_calling: false` parameter
-- **Benefits**: More reliable and predictable function call outputs
+  - Force enable with `DEEPSEEK_STRICT_MODE: true` in config
+- **Benefits**: 
+  - More reliable function call outputs
+  - Better parameter parsing in Code Interpreter
+  - Reduced JSON parsing errors
 
 ### Unified Error Handling System
 - **Implementation**: Centralized error handler at `/lib/monadic/utils/error_handler.rb`

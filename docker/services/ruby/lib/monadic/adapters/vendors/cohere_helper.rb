@@ -844,20 +844,6 @@ module CohereHelper
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
     
-    # ALWAYS log for command-a-reasoning model
-    if obj["model"] && obj["model"].include?("reasoning")
-      File.open("/tmp/cohere_debug.log", "a") do |f|
-        f.puts "[#{Time.now}] === COHERE REASONING DEBUG ==="
-        f.puts "Model: #{obj["model"]}"
-        f.puts "reasoning_model flag: #{obj["reasoning_model"].inspect}"
-        f.puts "reasoning_effort: #{obj["reasoning_effort"].inspect}"
-        f.puts "Messages count: #{messages.size}"
-        f.puts "Message roles: #{messages.map { |m| m["role"] }.inspect}"
-        f.puts "Has assistant?: #{messages.any? { |m| m["role"] == "assistant" }}"
-        f.puts "================================"
-      end
-    end
-    
     # Handle reasoning (thinking) parameter for command-a-reasoning models
     # Check if this is a reasoning model by model name and reasoning_effort is set
     is_reasoning_model = obj["model"] && obj["model"].include?("reasoning")

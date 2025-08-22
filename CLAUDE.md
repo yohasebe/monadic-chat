@@ -7,62 +7,22 @@
 ### Session 6 - 2025-08-22
 
 #### DeepSeek Strict Function Calling
-- **Feature Added**: Strict mode for function calling (Beta)
-  - Uses beta API endpoint: `https://api.deepseek.com/beta`
-  - Ensures model output strictly adheres to JSON schema requirements
-- **Implementation Details**:
-  - Adds `strict: true` to function definitions
-  - Sets `additionalProperties: false` for all objects
-  - **IMPORTANT**: ALL properties must be in required arrays (strict mode requirement)
-  - Processes nested objects, arrays, and anyOf/oneOf/allOf schemas recursively
-- **Special Markers Handling**:
-  - DeepSeek may return markers like `<｜tool▁call▁end｜>` in streaming responses
-  - Added code to filter these markers from fragments and final content
-  - Markers don't appear in non-streaming mode
-- **Configuration**:
-  - Enabled by default for deepseek-chat model with tools
-  - Disabled for deepseek-reasoner (no function calling support)
-  - Can be disabled via `strict_function_calling: false` parameter
-  - Can be forced via `DEEPSEEK_STRICT_MODE: true` in config
-- **Benefits for Code Interpreter**:
-  - More reliable function parameter parsing
-  - Reduced errors in code execution requests
-  - Better compliance with tool schemas
-- **Test Coverage**: 
-  - 12 comprehensive tests for schema conversion logic
-  - Validates strict mode activation, nested object handling, and anyOf/oneOf schemas
-  - All tests passing
+- **Implementation**: Beta API endpoint with strict JSON schema validation
+  - ALL properties must be in required arrays
+  - Filters special markers (`<｜tool▁call▁end｜>`) from streaming responses
+  - Enabled by default for deepseek-chat, improves Code Interpreter reliability
+  - 12 tests covering schema conversion and activation logic
 
 #### Cohere Reasoning Model Integration
 - **Model Added**: command-a-reasoning-08-2025 (256K context, 32K output)
-  - Supports thinking/reasoning with `reasoning_effort: ["disabled", "enabled"]`
-  - Fixed duplicate model entry in model_spec.js causing nil reasoning_model flag
-- **Critical API Limitation**: Cohere returns error 422 "No valid response generated" when:
-  - thinking is enabled (`thinking: { type: "enabled" }`) AND
-  - assistant messages exist in conversation history
-- **Workaround Attempted**: Single-text conversation format
-  - Combines all messages into single user message to bypass API limitation
-  - Implementation challenge: Messages array was being overwritten after workaround
-  - Fixed by checking if messages already set before assignment
-  - **Current Status**: Workaround not fully effective - API still returns errors
-- **Enhanced Debugging**: Added comprehensive API request/response logging
-  - Logs full request body including messages and thinking parameters
-  - Captures ERROR finish reasons with detailed error messages
-- **Test Coverage**:
-  - 9 tests for conversation formatting and reasoning detection
-  - Validates single-text conversion for workaround attempts
+- **Known Issue**: Error 422 when thinking enabled with assistant messages in history
+  - Single-text workaround attempted but not fully effective
+  - Enhanced debugging added for API requests/responses
+  - 9 tests for conversation formatting logic
 
 #### xAI Jupyter Notebook Sequential Execution
-- **Issue Identified**: xAI/Grok struggles with simultaneous tool calls in Jupyter Notebook
-  - When user requests "create notebook and add graph", AI may only execute partial steps
-  - Requires 2-3 interactions before properly executing all requested operations
-- **Root Cause**: Tool execution limitations in xAI API
-  - Cannot reliably chain multiple tool calls in single response
-  - Often executes only first tool and ignores subsequent requests
-- **Solution Implemented**: Enhanced initial greeting with clear guidance
-  - Explains step-by-step approach is required for best results
-  - Provides examples of how to break down complex requests
-  - Sets proper user expectations for sequential operations
+- **Issue**: Cannot reliably chain multiple tool calls in single response
+- **Solution**: Enhanced initial greeting explaining step-by-step approach required
 
 ### Session 5 - 2025-08-21
 

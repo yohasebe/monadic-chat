@@ -1,6 +1,7 @@
 # Development History & Technical Notes
 
-*For current technical documentation, see [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md)*
+*For current technical documentation, see [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md)*  
+*For architecture improvements and future directions, see [ARCHITECTURE_IMPROVEMENTS.md](ARCHITECTURE_IMPROVEMENTS.md)*
 
 ## August 2025 Updates
 

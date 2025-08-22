@@ -28,12 +28,21 @@
   - 12 test cases covering all schema transformation scenarios
 
 ### Unified Error Handling System
-- **Implementation**: Centralized error handler at `/lib/monadic/utils/error_handler.rb`
-- **Format**: `Error: [Category] - Message. Suggestion (Code: XXX)`
-- **Categories**: API Error, Invalid Input, Configuration Error, Tool Error, Network Error, etc.
-- **Smart Detection**: Automatically categorizes errors and provides actionable suggestions
-- **Migration**: Progressive - Jupyter and Grok helpers updated as examples
-- **Testing**: 37 comprehensive test cases covering all error scenarios
+- **Implementation**: Centralized error formatter at `/lib/monadic/utils/error_formatter.rb`
+- **Format**: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
+- **Categories**: 
+  - API Key Error - Missing or invalid API keys
+  - API Error - Provider API errors with status codes
+  - Network Error - Timeouts and connection issues
+  - Parsing Error - Response parsing failures
+  - Tool Execution Error - Function call failures
+- **Coverage**: All 8 providers (Claude, Cohere, DeepSeek, Gemini, OpenAI, xAI, Perplexity, Mistral)
+- **Benefits**:
+  - Consistent error format across all providers
+  - Clear provider identification in errors
+  - User-friendly suggestions for resolution
+  - HTTP status codes included when available
+- **Testing**: Comprehensive test suite at `spec/lib/monadic/utils/error_formatter_spec.rb`
 
 ### MathJax Header Rendering Fix
 - **Issue**: Math expressions in headers (h1-h6) not rendering

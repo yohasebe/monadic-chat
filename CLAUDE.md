@@ -5,6 +5,20 @@
 
 ## August 2025 Updates
 
+### Session 7 - 2025-08-22
+
+#### Unified Error Formatting System
+- **Implementation**: Centralized error formatter for consistent user experience
+  - All 8 providers (Claude, Cohere, DeepSeek, Gemini, OpenAI, xAI, Perplexity, Mistral) updated
+  - Standardized format: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
+  - Categories: API Key Error, API Error, Network Error, Parsing Error, Tool Execution Error
+  - User-friendly suggestions for common issues (e.g., "Set API_KEY in ~/monadic/config/env")
+- **Benefits**:
+  - Consistent error messages across all providers
+  - Easier debugging with clear provider identification
+  - Actionable suggestions for users to resolve issues
+  - Reduced confusion from provider-specific error formats
+
 ### Session 6 - 2025-08-22
 
 #### DeepSeek Strict Function Calling

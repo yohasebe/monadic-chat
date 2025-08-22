@@ -1,4 +1,23 @@
-- [August 16, 2025] Latest Updates
+- [August 22, 2025] Latest Updates
+  - **Unified Error Formatting System**: Consistent error messages across all providers
+    - Implemented centralized error formatter for all 8 AI providers
+    - Standardized format: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
+    - User-friendly suggestions for common issues (e.g., API key setup instructions)
+    - Categories: API Key Error, API Error, Network Error, Parsing Error, Tool Execution Error
+    - Clear provider identification in all error messages
+  - **DeepSeek Strict Function Calling**: Beta API integration for improved reliability
+    - Automatic schema conversion with ALL properties in required arrays
+    - Special marker filtering (`<｜tool▁call▁end｜>`) from streaming responses
+    - Enabled by default for deepseek-chat model
+    - Significantly improves Code Interpreter parameter parsing
+    - 12 comprehensive tests for schema conversion logic
+  - **Cohere Reasoning Model**: Added command-a-reasoning-08-2025
+    - 256K context window, 32K output capacity
+    - Known limitation: Error 422 with thinking + assistant messages
+    - Enhanced debugging for API request/response analysis
+    - 9 tests for conversation formatting workarounds
+
+- [August 16, 2025] Previous Updates
   - **Monadic Mode Investigation**: Comprehensive testing of Claude's compatibility
     - Confirmed fundamental incompatibility between Claude's thinking mode and JSON structure
     - Claude, Gemini, and Grok require `monadic: false` for tool-heavy applications

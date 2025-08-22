@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 
 module GrokHelper
   include InteractionUtils
@@ -70,7 +71,10 @@ module GrokHelper
       require_relative '../../utils/error_handler'
       return ErrorHandler.format_error(
         category: :configuration,
-        message: "XAI_API_KEY not found",
+        message: Monadic::Utils::ErrorFormatter.api_key_error(
+          provider: "xAI",
+          env_var: "XAI_API_KEY"
+        ),
         suggestion: "Please set your xAI API key in the configuration"
       )
     end
@@ -173,7 +177,11 @@ module GrokHelper
       return parsed_response.dig("choices", 0, "message", "content")
     else
       error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      return "ERROR: #{error_response.dig("error", "message") || error_response["error"]}"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "xAI",
+        message: error_response.dig("error", "message") || error_response["error"],
+        code: res.status.code
+      )
     end
   rescue StandardError => e
     require_relative '../../utils/error_handler'
@@ -693,14 +701,24 @@ module GrokHelper
         
         
         formatted_error = format_api_error(error_data, "grok")
-        res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "xAI",
+          message: error_report["error"]["message"] || "Unknown API error",
+          code: res.status.code
+        )
+        res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
       rescue StandardError => e
         DebugHelper.debug("Error parsing API error response: #{e.message}", category: :api, level: :error)
         DebugHelper.debug("Raw response body: #{res.body.to_s[0..500]}", category: :api, level: :debug)
         DebugHelper.debug("Response status: #{res.status}", category: :api, level: :debug)
-        res = { "type" => "error", "content" => "API ERROR: Unknown error occurred (#{res.status})" }
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "xAI",
+          message: "Unknown error occurred",
+          code: res.status.code
+        )
+        res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
       end
@@ -730,7 +748,12 @@ module GrokHelper
     else
       error_message = "The request has timed out."
       DebugHelper.debug(error_message, category: :api, level: :error)
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+          provider: "xAI",
+          message: error_message,
+          timeout: true
+        )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       [res]
     end
@@ -738,7 +761,11 @@ module GrokHelper
     DebugHelper.debug("API request error: #{e.message}", category: :api, level: :error)
     DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
     DebugHelper.debug("Error details: #{e.inspect}", category: :api, level: :debug)
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "xAI",
+      message: "Unexpected error: #{e.message}"
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
@@ -1001,7 +1028,10 @@ module GrokHelper
           
           call_depth += 1
           if call_depth > MAX_FUNC_CALLS
-            return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+            return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+              provider: "xAI",
+              message: "Maximum function call depth exceeded"
+            ) }]
           end
           
           # Process the tools and get results
@@ -1307,7 +1337,11 @@ module GrokHelper
       rescue StandardError => e
         DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
         DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
-        function_return = "ERROR: #{e.message}"
+        function_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "xAI",
+          tool_name: function_name,
+          message: e.message
+        )
       end
 
       # Format tool result for Grok API

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/error_formatter"
 
 module PerplexityHelper
   include InteractionUtils
@@ -37,7 +38,10 @@ module PerplexityHelper
     
     # Get API key
     api_key = CONFIG["PERPLEXITY_API_KEY"]
-    return "Error: PERPLEXITY_API_KEY not found" if api_key.nil?
+    return Monadic::Utils::ErrorFormatter.api_key_error(
+      provider: "Perplexity",
+      env_var: "PERPLEXITY_API_KEY"
+    ) if api_key.nil?
     
     # Set headers
     headers = {
@@ -99,21 +103,37 @@ module PerplexityHelper
       if response && response.status && response.status.success?
         begin
           parsed_response = JSON.parse(response.body)
-          return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+          return parsed_response.dig("choices", 0, "message", "content") || Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: "No content in response"
+          )
         rescue => e
-          return "Error: #{e.message}"
+          return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: e.message
+          )
         end
       else
         begin
           error_data = response && response.body ? JSON.parse(response.body) : {}
           error_message = error_data.dig("error", "message") || error_data["error"] || "Unknown error"
-          return "Error: #{error_message}"
+          return Monadic::Utils::ErrorFormatter.api_error(
+            provider: "Perplexity",
+            message: error_message,
+            code: res.status.code
+          )
         rescue => e
-          return "Error: Failed to parse error response"
+          return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: "Failed to parse error response"
+          )
         end
       end
       
-      return "Error: Failed to get AI User response"
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Perplexity",
+        message: "Failed to get AI User response"
+      )
     end
     
     # Regular non-AI User conversation processing
@@ -221,21 +241,37 @@ module PerplexityHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+        return parsed_response.dig("choices", 0, "message", "content") || Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: "No content in response"
+          )
       rescue => e
-        return "Error: #{e.message}"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: e.message
+          )
       end
     else
       begin
         error_data = response && response.body ? JSON.parse(response.body) : {}
         error_message = error_data.dig("error", "message") || error_data["error"] || "Unknown error"
-        return "Error: #{error_message}"
+        return Monadic::Utils::ErrorFormatter.api_error(
+            provider: "Perplexity",
+            message: error_message,
+            code: res.status.code
+          )
       rescue => e
-        return "Error: Failed to parse error response"
+        return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: "Failed to parse error response"
+          )
       end
     end
   rescue => e
-    return "Error: #{e.message}"
+    return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Perplexity",
+            message: e.message
+          )
   end
 
   # Connect to OpenAI API and get a response
@@ -261,7 +297,10 @@ module PerplexityHelper
     
     
     unless api_key && !api_key.empty?
-      error_message = "ERROR: PERPLEXITY_API_KEY not found or empty"
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Perplexity",
+        env_var: "PERPLEXITY_API_KEY"
+      )
       pp error_message
       res = { "type" => "error", "content" => error_message }
       block&.call res
@@ -618,11 +657,21 @@ module PerplexityHelper
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
         formatted_error = format_api_error(error_data, "perplexity")
-        res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Perplexity",
+          message: error_report["error"]["message"] || "Unknown API error",
+          code: res.status.code
+        )
+        res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
       rescue StandardError
-        res = { "type" => "error", "content" => "API ERROR: Unknown error occurred" }
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Perplexity",
+          message: "Unknown error occurred",
+          code: res.status.code
+        )
+        res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
       end
@@ -649,7 +698,12 @@ module PerplexityHelper
       retry
     else
       pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+        provider: "Perplexity",
+        message: error_message,
+        timeout: true
+      )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       [res]
     end
@@ -657,7 +711,11 @@ module PerplexityHelper
     pp e.message
     pp e.backtrace
     pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Perplexity",
+      message: "Unexpected error: #{e.message}"
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
@@ -1085,7 +1143,10 @@ module PerplexityHelper
 
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+        return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Perplexity",
+          message: "Maximum function call depth exceeded"
+        ) }]
       end
 
       new_results = process_functions(app, session, tools, context, call_depth, &block)
@@ -1124,7 +1185,11 @@ module PerplexityHelper
     pp "[ERROR] Error class: #{e.class}"
     pp "[ERROR] Backtrace:"
     pp e.backtrace[0..5]
-    res = { "type" => "error", "content" => "ERROR: #{e.message}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "Perplexity",
+      message: e.message
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
@@ -1159,7 +1224,11 @@ module PerplexityHelper
       rescue StandardError => e
         pp e.message
         pp e.backtrace
-        function_return = "ERROR: #{e.message}"
+        function_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "Perplexity",
+          tool_name: function_name,
+          message: e.message
+        )
       end
 
       context << {

@@ -28,6 +28,10 @@
   - More reliable function parameter parsing
   - Reduced errors in code execution requests
   - Better compliance with tool schemas
+- **Test Coverage**: 
+  - 12 comprehensive tests for schema conversion logic
+  - Validates strict mode activation, nested object handling, and anyOf/oneOf schemas
+  - All tests passing
 
 #### Cohere Reasoning Model Integration
 - **Model Added**: command-a-reasoning-08-2025 (256K context, 32K output)
@@ -44,6 +48,9 @@
 - **Enhanced Debugging**: Added comprehensive API request/response logging
   - Logs full request body including messages and thinking parameters
   - Captures ERROR finish reasons with detailed error messages
+- **Test Coverage**:
+  - 9 tests for conversation formatting and reasoning detection
+  - Validates single-text conversion for workaround attempts
 
 #### xAI Jupyter Notebook Sequential Execution
 - **Issue Identified**: xAI/Grok struggles with simultaneous tool calls in Jupyter Notebook

@@ -153,6 +153,10 @@ module DeepSeekHelper
 
     # Check if strict mode should be enabled
     def use_strict_mode?(obj)
+      # TEMPORARILY DISABLED: Strict mode causes special markers in response
+      # TODO: Handle special markers like <｜tool▁call▁end｜> before re-enabling
+      return false
+      
       # Enable strict mode for deepseek-chat model when function calling is used
       # Can be controlled via configuration or per-request parameter
       model = obj["model"] || "deepseek-chat"
@@ -763,6 +767,20 @@ module DeepSeekHelper
     text_result = texts.empty? ? nil : texts.first[1]
 
     if text_result
+      # Remove DeepSeek special markers from content if present
+      content = text_result.dig("choices", 0, "message", "content")
+      if content
+        # Remove special markers like <｜tool▁call▁end｜> and <｜tool▁calls▁end｜>
+        content = content.gsub(/<｜[^｜]+｜>/m, "").strip
+        text_result["choices"][0]["message"]["content"] = content
+        
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] DeepSeek: Cleaned special markers from content"
+          end
+        end
+      end
+      
       # Check if DeepSeek has output function calls as text
       if text_result.dig("choices", 0, "message", "content") =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
         json_match = $1

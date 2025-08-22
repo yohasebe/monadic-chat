@@ -120,29 +120,7 @@ module DeepSeekHelper
             
             # Ensure parameters meet strict mode requirements
             if strict_tool["function"]["parameters"]
-              params = strict_tool["function"]["parameters"]
-              
-              # Ensure additionalProperties is false for objects
-              if params["type"] == "object"
-                params["additionalProperties"] = false
-                
-                # Ensure all properties are in required array
-                if params["properties"] && !params["required"]
-                  params["required"] = params["properties"].keys
-                end
-              end
-              
-              # Process nested objects
-              if params["properties"]
-                params["properties"].each do |prop_name, prop_schema|
-                  if prop_schema["type"] == "object"
-                    prop_schema["additionalProperties"] = false
-                    if prop_schema["properties"] && !prop_schema["required"]
-                      prop_schema["required"] = prop_schema["properties"].keys
-                    end
-                  end
-                end
-              end
+              ensure_strict_schema(strict_tool["function"]["parameters"])
             end
           end
           
@@ -150,13 +128,41 @@ module DeepSeekHelper
         end
       end
     end
+    
+    # Recursively ensure schema meets strict mode requirements
+    def ensure_strict_schema(schema)
+      return unless schema.is_a?(Hash)
+      
+      if schema["type"] == "object"
+        # STRICT MODE REQUIREMENT: All object properties must be required
+        schema["additionalProperties"] = false
+        
+        # Set ALL properties as required (strict mode requirement)
+        if schema["properties"]
+          schema["required"] = schema["properties"].keys
+          
+          # Recursively process nested schemas
+          schema["properties"].each do |prop_name, prop_schema|
+            ensure_strict_schema(prop_schema)
+          end
+        end
+      elsif schema["type"] == "array" && schema["items"]
+        # Process array items schema
+        ensure_strict_schema(schema["items"])
+      elsif schema["anyOf"]
+        # Process each alternative schema
+        schema["anyOf"].each { |alt_schema| ensure_strict_schema(alt_schema) }
+      elsif schema["oneOf"]
+        # Process each alternative schema
+        schema["oneOf"].each { |alt_schema| ensure_strict_schema(alt_schema) }
+      elsif schema["allOf"]
+        # Process each combined schema
+        schema["allOf"].each { |alt_schema| ensure_strict_schema(alt_schema) }
+      end
+    end
 
     # Check if strict mode should be enabled
     def use_strict_mode?(obj)
-      # TEMPORARILY DISABLED: Strict mode causes special markers in response
-      # TODO: Handle special markers like <｜tool▁call▁end｜> before re-enabling
-      return false
-      
       # Enable strict mode for deepseek-chat model when function calling is used
       # Can be controlled via configuration or per-request parameter
       model = obj["model"] || "deepseek-chat"
@@ -164,7 +170,12 @@ module DeepSeekHelper
       # Check if explicitly disabled
       return false if obj["strict_function_calling"] == false
       
+      # Check if explicitly enabled via config
+      return true if CONFIG["DEEPSEEK_STRICT_MODE"] == true
+      
       # Enable by default for deepseek-chat model
+      # NOTE: Special markers like <｜tool▁call▁end｜> are part of the response format
+      # and will be cleaned up in the response processing
       return true if model.include?("deepseek-chat")
       
       # Disabled for deepseek-reasoner as it doesn't support function calling
@@ -679,11 +690,22 @@ module DeepSeekHelper
                   fragment = delta["content"].to_s
                   choice["message"]["content"] << fragment
 
+                  # Log special markers if detected
+                  if fragment =~ /<｜[^｜]+｜>/
+                    DebugHelper.debug("DeepSeek special marker detected: #{fragment}", category: :api, level: :info)
+                    if CONFIG["EXTRA_LOGGING"]
+                      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                        f.puts "[#{Time.now}] DeepSeek special marker in fragment: #{fragment}"
+                      end
+                    end
+                  end
+
                   # Check if DeepSeek is outputting function calls as text
                   if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
                     # DeepSeek is outputting function calls as text, don't send fragments
                     # We'll handle this after the full message is received
-                  elsif fragment.length > 0
+                  elsif fragment.length > 0 && !fragment.match?(/<｜[^｜]+｜>/)
+                    # Don't send special markers as fragments
                     res = {
                       "type" => "fragment",
                       "content" => fragment,

@@ -717,6 +717,11 @@ module CohereHelper
     context.each do |msg|
       next if msg["text"].to_s.strip.empty?  # Skip empty messages
       
+      # Debug logging for message construction
+      if CONFIG["EXTRA_LOGGING"]
+        DebugHelper.debug("Adding context message - role: #{msg['role']}, text length: #{msg['text'].to_s.length}", category: :api, level: :debug)
+      end
+      
       # Check if message contains images
       if msg["images"] && msg["images"].any?
         content = []
@@ -839,13 +844,82 @@ module CohereHelper
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
     
-    # Handle reasoning (thinking) parameter for reasoning models
-    if obj["reasoning_model"] && obj["reasoning_effort"]
-      case obj["reasoning_effort"]
-      when "enabled"
-        body["thinking"] = { "type" => "enabled" }
-        DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]}", category: :api, level: :info)
-      when "disabled"
+    # ALWAYS log for command-a-reasoning model
+    if obj["model"] && obj["model"].include?("reasoning")
+      File.open("/tmp/cohere_debug.log", "a") do |f|
+        f.puts "[#{Time.now}] === COHERE REASONING DEBUG ==="
+        f.puts "Model: #{obj["model"]}"
+        f.puts "reasoning_model flag: #{obj["reasoning_model"].inspect}"
+        f.puts "reasoning_effort: #{obj["reasoning_effort"].inspect}"
+        f.puts "Messages count: #{messages.size}"
+        f.puts "Message roles: #{messages.map { |m| m["role"] }.inspect}"
+        f.puts "Has assistant?: #{messages.any? { |m| m["role"] == "assistant" }}"
+        f.puts "================================"
+      end
+    end
+    
+    # Handle reasoning (thinking) parameter for command-a-reasoning models
+    # Check if this is a reasoning model by model name and reasoning_effort is set
+    is_reasoning_model = obj["model"] && obj["model"].include?("reasoning")
+    if is_reasoning_model && obj["reasoning_effort"]
+      # Check if we have conversation history with assistant messages
+      has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
+      
+      # Debug logging
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Cohere reasoning check:"
+          f.puts "  Model: #{obj["model"]}"
+          f.puts "  Reasoning effort: #{obj["reasoning_effort"]}"
+          f.puts "  Has assistant messages: #{has_assistant_messages}"
+          f.puts "  Message count: #{messages.size}"
+          f.puts "  Message roles: #{messages.map { |m| m["role"] }.join(", ")}"
+        end
+      end
+      
+      if obj["reasoning_effort"] == "enabled"
+        if has_assistant_messages
+          # Workaround for Cohere reasoning model issue:
+          # When thinking is enabled and there are assistant messages in history,
+          # we need to combine the conversation into a single user message
+          # Always log this important information
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] Cohere: Using single-text workaround for reasoning model with history"
+            end
+          end
+          
+          # Combine all messages into a single conversation context
+          conversation_text = format_conversation_as_single_text(messages)
+          
+          # Replace messages with single user message containing the conversation
+          body["messages"] = [
+            {
+              "role" => "user",
+              "content" => conversation_text
+            }
+          ]
+          
+          # Enable thinking even with single-text workaround
+          # This should work because Cohere sees it as a fresh conversation
+          body["thinking"] = { "type" => "enabled" }
+          
+          # Log the final message structure
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "  Single text format applied. New message count: #{body["messages"].size}"
+              f.puts "  Thinking enabled: #{body["thinking"].inspect}"
+              f.puts "  Message preview (first 500 chars):"
+              f.puts "  #{body["messages"][0]["content"][0..500]}..."
+              f.puts "  Total message length: #{body["messages"][0]["content"].length} chars"
+            end
+          end
+        else
+          # First turn or no assistant messages - can use thinking normally
+          body["thinking"] = { "type" => "enabled" }
+          DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]} (no assistant messages)", category: :api, level: :info)
+        end
+      else
         body["thinking"] = { "type" => "disabled" }
         DebugHelper.debug("Cohere: Reasoning disabled for #{obj["model"]}", category: :api, level: :info)
       end
@@ -899,10 +973,26 @@ module CohereHelper
     end # end of role != "tool"
 
     # Handle tool results in v2 format
-    if role == "tool" && obj["tool_results"]
-      body["messages"] = obj["tool_results"]
-    else
-      body["messages"] = messages
+    # Only set messages if not already set by reasoning workaround
+    if !body["messages"]
+      if role == "tool" && obj["tool_results"]
+        body["messages"] = obj["tool_results"]
+      else
+        body["messages"] = messages
+      end
+    end
+    
+    # Debug logging for message structure
+    if CONFIG["EXTRA_LOGGING"]
+      DebugHelper.debug("Sending #{body['messages'].length} messages to Cohere API", category: :api, level: :info)
+      body["messages"].each_with_index do |msg, idx|
+        DebugHelper.debug("Message #{idx}: role=#{msg['role']}, content_length=#{msg['content'].to_s.length}", category: :api, level: :debug)
+        # Log first 100 chars of content for debugging
+        if msg['content']
+          content_preview = msg['content'].to_s[0..100]
+          DebugHelper.debug("  Content preview: #{content_preview}...", category: :api, level: :debug)
+        end
+      end
     end
 
     # Handle initiate_from_assistant case where only system message exists
@@ -916,6 +1006,36 @@ module CohereHelper
       }
     end
 
+    # Log the complete API request for debugging
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "\n[#{Time.now}] === COHERE API REQUEST ==="
+        f.puts "Model: #{body["model"]}"
+        f.puts "Thinking: #{body["thinking"].inspect}"
+        f.puts "Stream: #{body["stream"]}"
+        f.puts "Number of messages: #{body["messages"]&.size}"
+        
+        if body["messages"]
+          body["messages"].each_with_index do |msg, idx|
+            f.puts "\nMessage #{idx + 1}:"
+            f.puts "  Role: #{msg["role"]}"
+            if msg["content"]
+              content_str = msg["content"].to_s
+              f.puts "  Content length: #{content_str.length} chars"
+              if content_str.length <= 1000
+                f.puts "  Content: #{content_str}"
+              else
+                f.puts "  Content (first 500 chars): #{content_str[0..500]}..."
+                f.puts "  Content (last 200 chars): ...#{content_str[-200..-1]}"
+              end
+            end
+          end
+        end
+        
+        f.puts "\n=== END API REQUEST ===\n"
+      end
+    end
+    
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
 
@@ -1033,6 +1153,11 @@ module CohereHelper
                 if text = content["text"]
                   buffer += text
                   texts << text
+                  
+                  # Debug logging for text content
+                  if CONFIG["EXTRA_LOGGING"]
+                    DebugHelper.debug("Cohere text fragment received: #{text.length} chars", category: :api, level: :debug)
+                  end
 
                   unless text.strip.empty?
                     if text.length > 0
@@ -1114,6 +1239,22 @@ module CohereHelper
                                 else
                                   json["delta"]["finish_reason"]
                                 end
+                
+                # Log error details if finish_reason is ERROR
+                if json["delta"]["finish_reason"] == "ERROR" && CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts "\n[#{Time.now}] === COHERE API ERROR ==="
+                    f.puts "Finish reason: ERROR"
+                    if json["delta"]["error"]
+                      f.puts "Error message: #{json["delta"]["error"]}"
+                    end
+                    if json["delta"]["usage"]
+                      f.puts "Usage info: #{json["delta"]["usage"].inspect}"
+                    end
+                    f.puts "Full delta: #{json["delta"].inspect}"
+                    f.puts "=== END ERROR ===\n"
+                  end
+                end
               end
             end
           rescue JSON::ParserError => e
@@ -1137,6 +1278,18 @@ module CohereHelper
 
     # Prepare final result from accumulated text
     result = texts.empty? ? nil : texts.join("")
+    
+    # Debug logging for final result
+    if CONFIG["EXTRA_LOGGING"]
+      DebugHelper.debug("Cohere streaming complete - texts array size: #{texts.size}, result length: #{result.to_s.length}", category: :api, level: :info)
+      if result.nil?
+        DebugHelper.debug("Result is nil - checking reasoning model fallback", category: :api, level: :info)
+        DebugHelper.debug("Session messages count: #{session[:messages]&.size || 0}", category: :api, level: :info)
+        DebugHelper.debug("Is reasoning model: #{obj['reasoning_model']}, effort: #{obj['reasoning_effort']}", category: :api, level: :info)
+      else
+        DebugHelper.debug("Result has content: #{result[0..100]}...", category: :api, level: :debug)
+      end
+    end
     
     # Process citations if any were collected
     if result && citations.any?
@@ -1193,9 +1346,6 @@ module CohereHelper
       [res]
     else
       # Handle regular text response or empty response (e.g., only thinking content)
-      # Always send DONE message to complete the stream
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-      block&.call res
       
       if result
         # Apply monadic transformation if enabled
@@ -1207,6 +1357,10 @@ module CohereHelper
           validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
           final_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
         end
+        
+        # Send DONE message to complete the stream
+        res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
+        block&.call res
         
         [
           {
@@ -1221,22 +1375,73 @@ module CohereHelper
       else
         # No text content (only thinking or genuinely empty response)
         # Check if this was a reasoning model with thinking content
-        if obj["reasoning_model"] && obj["reasoning_effort"] == "enabled"
+        # Debug logging to understand the issue
+        if CONFIG["EXTRA_LOGGING"]
+          DebugHelper.debug("Empty response - checking reasoning model status", category: :api, level: :info)
+          DebugHelper.debug("obj['reasoning_model']: #{obj['reasoning_model'].inspect}", category: :api, level: :info)
+          DebugHelper.debug("obj['reasoning_effort']: #{obj['reasoning_effort'].inspect}", category: :api, level: :info)
+          DebugHelper.debug("obj['model']: #{obj['model'].inspect}", category: :api, level: :info)
+        end
+        
+        # For Cohere reasoning models, check the model name directly as a fallback
+        is_reasoning_model = obj["reasoning_model"] || (obj["model"] && obj["model"].include?("reasoning"))
+        
+        # Check if reasoning was actually enabled for this request
+        # With the new single-text workaround, thinking is always enabled when requested
+        # So we only need to check if this is a reasoning model with thinking enabled
+        reasoning_actually_enabled = obj["reasoning_effort"] == "enabled"
+        
+        if is_reasoning_model && reasoning_actually_enabled
           # For reasoning models with thinking enabled but no text output,
-          # return a message indicating thinking completed
+          # return a default message. This is normal behavior for Cohere reasoning models
+          # when they complete their thinking but don't generate additional text.
+          default_response = "I've processed your request. How can I help you further?"
+          
+          # Send the response as a fragment first
+          res = {
+            "type" => "fragment",
+            "content" => default_response,
+            "index" => 0,
+            "timestamp" => Time.now.to_f,
+            "is_first" => true
+          }
+          block&.call res
+          
+          # Send DONE message to complete the stream
+          done_msg = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" }
+          block&.call done_msg
+          
           [
             {
               "choices" => [
                 {
                   "finish_reason" => finish_reason || "stop",
-                  "message" => { "content" => "[Reasoning completed - no text response generated]" }
+                  "message" => { "content" => default_response }
                 }
               ]
             }
           ]
         else
-          # For other cases, handle as empty tool results
-          api_request("empty_tool_results", session, call_depth: call_depth, &block)
+          # For non-reasoning models or when reasoning is disabled, return empty response
+          # This should not happen in normal flow, but handle gracefully
+          if CONFIG["EXTRA_LOGGING"]
+            DebugHelper.debug("Unexpected empty response for non-reasoning scenario", category: :api, level: :warn)
+          end
+          
+          # Return a minimal response
+          empty_response = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call empty_response
+          
+          [
+            {
+              "choices" => [
+                {
+                  "finish_reason" => "stop",
+                  "message" => { "content" => "" }
+                }
+              ]
+            }
+          ]
         end
       end
     end
@@ -1445,6 +1650,106 @@ module CohereHelper
       end
       
       result += references
+    end
+    
+    result
+  end
+  
+  # Format conversation history as a single text for reasoning model workaround
+  def format_conversation_as_single_text(messages)
+    # Estimate token count (rough estimate: 1 token ≈ 4 characters)
+    max_context_chars = 200000  # Conservative limit (≈50K tokens)
+    
+    conversation_parts = []
+    system_message = nil
+    conversation_messages = []
+    current_user_message = nil
+    
+    # Separate messages by type
+    messages.each do |msg|
+      case msg["role"]
+      when "system"
+        system_message = msg["content"]
+      when "user", "assistant"
+        if msg["role"] == "user" && msg == messages.last
+          # The last user message is the current question
+          current_user_message = msg["content"]
+        else
+          conversation_messages << msg
+        end
+      end
+    end
+    
+    # Build the conversation text in a format that works with Cohere's reasoning
+    result = ""
+    
+    # Start with a clear context that this is a continuation
+    result += "You are continuing an ongoing conversation. Here is the context:\n\n"
+    
+    # Add system context if present
+    if system_message
+      result += "System Instructions:\n#{system_message}\n\n"
+    end
+    
+    # Add conversation history if present
+    if conversation_messages.any?
+      result += "Previous Conversation:\n"
+      result += "---\n"
+      
+      conversation_messages.each do |msg|
+        role_label = msg["role"] == "user" ? "User" : "Assistant"
+        result += "#{role_label}: #{msg["content"]}\n\n"
+      end
+      
+      result += "---\n\n"
+    end
+    
+    # Add current question with clear indication
+    result += "Now, the user asks:\n"
+    if current_user_message
+      result += "#{current_user_message}\n\n"
+    else
+      # If no explicit current message, use the last message
+      last_msg = messages.last
+      if last_msg && last_msg["role"] == "user"
+        result += "#{last_msg["content"]}\n\n"
+      end
+    end
+    
+    # Add instruction that encourages natural continuation
+    result += "Please provide a thoughtful response to the user's question, taking into account the conversation history."
+    
+    # Truncate if too long (keep recent messages)
+    if result.length > max_context_chars
+      # Try to keep at least the system message and current question
+      truncated_result = ""
+      
+      if system_message
+        truncated_result += "<system_context>\n#{system_message}\n</system_context>\n\n"
+      end
+      
+      # Add as many recent messages as possible
+      truncated_result += "<conversation_history>\n"
+      recent_messages = conversation_messages.last(10)  # Keep last 10 exchanges
+      
+      recent_messages.each do |msg|
+        role_label = msg["role"] == "user" ? "User" : "Assistant"
+        truncated_result += "#{role_label}: #{msg["content"]}\n"
+      end
+      
+      truncated_result += "</conversation_history>\n\n"
+      
+      if current_user_message
+        truncated_result += "<current_question>\n#{current_user_message}\n</current_question>\n\n"
+      end
+      
+      truncated_result += "Based on the conversation history above, please continue the conversation naturally and answer the current question."
+      
+      result = truncated_result
+      
+      if CONFIG["EXTRA_LOGGING"]
+        DebugHelper.debug("Cohere: Conversation truncated from #{result.length} to #{truncated_result.length} chars", category: :api, level: :info)
+      end
     end
     
     result

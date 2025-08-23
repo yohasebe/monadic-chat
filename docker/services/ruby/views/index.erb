@@ -333,14 +333,14 @@
                 <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer">GitHub</a></span>
               </div>
             </div>
-            <div class="mb-4" style="display: flex; align-items: center;">
+            <div class="mb-3" style="display: flex; align-items: center;">
               <div id="monadic-version">
                 <span class="text text-secondary"><i class="fa-solid fa-circle-info"></i> Version:</span> <span class="text text-secondary" id="monadic-version-number"></span>
               </div>
             </div>
             
-            <div class="mb-2">
-              <label for="interface-language" class="div-label mb-2"><i class="fa-solid fa-globe"></i> Conversation Language</label>
+            <div class="mb-3">
+              <label for="interface-language" class="div-label mb-1"><i class="fa-solid fa-globe"></i> Conversation Language</label>
               <select class="form-select form-select-sm" id="interface-language">
                 <% Monadic::Utils::LanguageConfig.all_languages.each do |lang| %>
                   <option value="<%= lang[:code] %>"><%= lang[:display] %></option>

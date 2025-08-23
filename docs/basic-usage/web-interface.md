@@ -58,7 +58,7 @@ The interface supports 58 languages, displayed with their native names and Engli
 
 - Configure the speech-to-text (STT) language for voice input
 - Set the text-to-speech (TTS) language for audio output  
-- Instruct the AI assistant to respond in your chosen language
+- Instruct the AI assistant to respond in your chosen language (works with all providers: OpenAI, Claude, Gemini, DeepSeek, Grok, Mistral, Perplexity, and Cohere)
 - Automatically apply Right-to-Left (RTL) text display for Arabic, Hebrew, Persian, and Urdu
 
 ### Dynamic Language Switching :id=dynamic-language-switching

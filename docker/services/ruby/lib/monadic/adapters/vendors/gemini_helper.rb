@@ -6,6 +6,7 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -779,7 +780,28 @@ module GeminiHelper
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :gemini, app)
 
-    body["contents"] = context.compact.map do |msg|
+    # Extract system message for systemInstruction
+    system_message = context.find { |msg| msg["role"] == "system" }
+    non_system_messages = context.select { |msg| msg["role"] != "system" }
+    
+    # Set systemInstruction if there's a system message
+    if system_message
+      system_parts = [system_message["text"]]
+      
+      # Add language preference if set
+      if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+        language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+        system_parts << language_prompt if !language_prompt.empty?
+      end
+      
+      body["systemInstruction"] = {
+        "parts" => [
+          { "text" => system_parts.join("\n\n---\n\n") }
+        ]
+      }
+    end
+
+    body["contents"] = non_system_messages.compact.map do |msg|
       message = {
         "role" => translate_role(msg["role"]),
         "parts" => [
@@ -789,7 +811,7 @@ module GeminiHelper
       message
     end
 
-    if body["contents"].last["role"] == "user"
+    if body["contents"].last && body["contents"].last["role"] == "user"
       # Apply monadic transformation if in monadic mode
       if obj["monadic"].to_s == "true" && role == "user"
         body["contents"].last["parts"].each do |part|
@@ -821,7 +843,7 @@ module GeminiHelper
     end
 
     # Handle initiate_from_assistant case where only system message exists
-    if body["contents"].empty? && initial_prompt.to_s != ""
+    if body["contents"].empty? && body["systemInstruction"]
       body["contents"] << {
         "role" => "user",
         "parts" => [{ "text" => "Please proceed according to your system instructions and introduce yourself." }]

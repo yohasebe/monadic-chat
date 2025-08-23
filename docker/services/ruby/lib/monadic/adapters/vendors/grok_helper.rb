@@ -2,6 +2,7 @@
 
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
+require_relative "../../utils/language_config"
 
 module GrokHelper
   include InteractionUtils
@@ -492,21 +493,35 @@ module GrokHelper
     # The context is added to the body
 
     messages_containing_img = false
+    system_message_modified = false
     body["messages"] = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-      if msg["images"] && role == "user"
-        msg["images"].each do |img|
-          messages_containing_img = true
-          message["content"] << {
-            "type" => "image_url",
-            "image_url" => {
-              "url" => img["data"],
-              "detail" => "high"
-            }
-          }
+      if msg["role"] == "system" && !system_message_modified
+        system_message_modified = true
+        content_parts = [{ "type" => "text", "text" => msg["text"] }]
+        
+        # Add language preference if set
+        if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+          language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+          content_parts << { "type" => "text", "text" => "\n\n---\n\n" + language_prompt } if !language_prompt.empty?
         end
+        
+        { "role" => msg["role"], "content" => content_parts }
+      else
+        message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
+        if msg["images"] && role == "user"
+          msg["images"].each do |img|
+            messages_containing_img = true
+            message["content"] << {
+              "type" => "image_url",
+              "image_url" => {
+                "url" => img["data"],
+                "detail" => "high"
+              }
+            }
+          end
+        end
+        message
       end
-      message
     end
 
     # Handle initiate_from_assistant case where only system message exists

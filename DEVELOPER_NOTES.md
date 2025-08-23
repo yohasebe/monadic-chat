@@ -246,4 +246,31 @@ Providers handle the combination of monadic mode (structured JSON responses) and
 - Provide examples of how to break down complex requests
 - Set proper user expectations about step-by-step execution
 
-## Current Test Count: 1269 passing tests
+## Language Support Implementation
+
+### Universal Language Injection
+All providers now support language preference injection through consistent patterns:
+
+| Provider | Implementation Method | Special Considerations |
+|----------|----------------------|------------------------|
+| OpenAI | System message append | Supports both regular and reasoning models |
+| Claude | System message append | Already had implementation |
+| DeepSeek | System message parts join | Uses `---` separator |
+| Gemini | systemInstruction field | Separate from contents array |
+| Grok | Content array with type/text | Multiple text parts in array |
+| Mistral | String concatenation | Simple text join with separator |
+| Perplexity | Content array | Special Voice Chat handling |
+| Cohere | Initial prompt parts | Joins with separator |
+
+### Language-Aware Apps
+Apps are categorized by their language behavior:
+- **Full Support**: Standard chat apps respect language selector
+- **Partial Support**: Translation/language apps use preference for greetings only
+- **Core Functionality**: These apps manage languages independently for their primary purpose
+
+### Perplexity Voice Chat Considerations
+- Avoid triggering web searches with system instructions
+- Use natural conversation starters: "Hi there! How are you today?"
+- Explicitly discourage unnecessary searches in system prompt
+
+## Current Test Count: 1281 passing tests

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
+require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -723,11 +724,18 @@ module CohereHelper
     messages = []
     messages_containing_img = false
 
-    initial_prompt_with_suffix = if websearch
-                                   initial_prompt.to_s + WEBSEARCH_PROMPT
-                                 else
-                                   initial_prompt.to_s
-                                 end
+    initial_prompt_parts = [initial_prompt.to_s]
+    
+    # Add language preference if set
+    if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+      language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+      initial_prompt_parts << language_prompt if !language_prompt.empty?
+    end
+    
+    # Add websearch prompt if enabled
+    initial_prompt_parts << WEBSEARCH_PROMPT if websearch
+    
+    initial_prompt_with_suffix = initial_prompt_parts.join("\n\n---\n\n")
 
     # Check if any messages contain images first
     context.each do |msg|

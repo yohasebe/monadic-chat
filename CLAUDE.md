@@ -5,6 +5,27 @@
 
 ## August 2025 Updates
 
+### Session 9 - 2025-08-23
+
+#### Universal Language Injection for All Providers
+- **Complete Provider Coverage**: Extended language support to ALL AI providers
+  - Previously only OpenAI and Claude had language injection
+  - Now includes: DeepSeek, Gemini, Grok, Mistral, Perplexity, and Cohere
+  - Each provider required unique implementation based on message structure
+- **Gemini Special Handling**: 
+  - Refactored to properly use `systemInstruction` field instead of mixing with contents
+  - Fixed nil error for `initiate_from_assistant` apps when contents array is empty
+  - System messages now correctly separated from conversation messages
+- **Perplexity Voice Chat Optimization**:
+  - Changed initial prompt from "Please proceed according to your system instructions" to "Hi there! How are you today?"
+  - Prevents unwanted web searches for system prompt keywords
+  - Enhanced system prompt to discourage unnecessary searches in casual conversation
+- **Language-Aware Apps Enhancement**:
+  - Voice Interpreter, Translate, Language Practice (all 8 providers), Language Practice Plus
+  - Apps now greet users in their preferred language while maintaining core functionality
+  - Created LANGUAGE_AWARE_APPS.md documenting app behavior with language settings
+- **Test Coverage**: Added provider_language_injection_spec.rb with 12 comprehensive tests
+
 ### Session 8 - 2025-08-23
 
 #### Comprehensive Language Selector Feature

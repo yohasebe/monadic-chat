@@ -56,7 +56,7 @@ Monadic Chatは、Infoパネルにある統合言語セレクターを通じて�
 
 - 音声入力のための音声認識（STT）言語を設定
 - 音声出力のための音声合成（TTS）言語を設定
-- AIアシスタントが選択した言語で応答するよう指示
+- AIアシスタントが選択した言語で応答するよう指示（全プロバイダー対応：OpenAI、Claude、Gemini、DeepSeek、Grok、Mistral、Perplexity、Cohere）
 - アラビア語、ヘブライ語、ペルシャ語、ウルドゥー語の場合、右から左（RTL）のテキスト表示を自動適用
 
 ### 動的な言語切り替え :id=dynamic-language-switching

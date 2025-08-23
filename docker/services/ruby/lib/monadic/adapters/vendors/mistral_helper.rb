@@ -3,6 +3,7 @@
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
+require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -458,11 +459,24 @@ module MistralHelper
     end  # end of role != "tool"
 
     # Add all messages to body
+    system_message_modified = false
     body["messages"] = context.reject do |msg|
                          msg["role"] == "tool"
                        end.map do |msg|
+      # Special handling for system messages with language injection
+      if msg["role"] == "system" && !system_message_modified
+        system_message_modified = true
+        content_parts = [msg["text"]]
+        
+        # Add language preference if set
+        if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+          language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+          content_parts << language_prompt if !language_prompt.empty?
+        end
+        
+        { "role" => msg["role"], "content" => content_parts.join("\n\n---\n\n") }
       # Check if message contains images
-      if msg["images"] && msg["role"] == "user"
+      elsif msg["images"] && msg["role"] == "user"
         content = []
         
         # Add text content

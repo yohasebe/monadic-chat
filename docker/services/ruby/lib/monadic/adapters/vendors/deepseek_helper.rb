@@ -2,6 +2,7 @@
 
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
+require_relative "../../utils/language_config"
 require 'strscan'
 require 'securerandom'
 
@@ -439,9 +440,20 @@ module DeepSeekHelper
 
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
-      if websearch && !system_message_modified && msg["role"] == "system" 
+      if msg["role"] == "system" && !system_message_modified
         system_message_modified = true
-        { "role" => msg["role"], "content" => msg["text"] + "\n\n---\n\n" + WEBSEARCH_PROMPT }
+        content_parts = [msg["text"]]
+        
+        # Add language preference if set
+        if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+          language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+          content_parts << language_prompt if !language_prompt.empty?
+        end
+        
+        # Add websearch prompt if enabled
+        content_parts << WEBSEARCH_PROMPT if websearch
+        
+        { "role" => msg["role"], "content" => content_parts.join("\n\n---\n\n") }
       else
         { "role" => msg["role"], "content" => msg["text"] }
       end

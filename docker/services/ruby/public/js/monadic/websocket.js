@@ -2009,6 +2009,18 @@ function connect_websocket(callback) {
       case "pong": {
         break;
       }
+      
+      case "language_updated": {
+        // Show notification about language change
+        const languageName = data.language_name || data.language;
+        setAlert(`<i class='fa-solid fa-globe'></i> Language changed to ${languageName}`, "success");
+        
+        // Update the selector if needed (in case it was changed server-side)
+        if (data.language && $("#interface-language").val() !== data.language) {
+          $("#interface-language").val(data.language);
+        }
+        break;
+      }
 
       case "processing_status": {
         // Show processing status as alert, not in connection-status

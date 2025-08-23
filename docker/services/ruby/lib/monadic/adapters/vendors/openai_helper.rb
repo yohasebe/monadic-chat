@@ -671,6 +671,13 @@ module OpenAIHelper
               else
                 text = "Formatting re-enabled\n---\n" + content_item["text"]
               end
+              
+              # Inject language preference from runtime settings
+              if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+                language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+                text += language_prompt unless language_prompt.empty?
+              end
+              
               content_item["text"] = text
             end
           end
@@ -765,6 +772,12 @@ module OpenAIHelper
       # Add system prompt suffix if present
       if obj["system_prompt_suffix"].to_s != ""
         parts << obj["system_prompt_suffix"].strip
+      end
+      
+      # Add language preference from runtime settings
+      if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+        language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+        parts << language_prompt.strip unless language_prompt.empty?
       end
       
       if parts.length > 1

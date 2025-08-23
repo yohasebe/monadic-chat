@@ -1951,6 +1951,14 @@ $(function () {
     setCookie("interface-language", params["interface_language"], 30);
     // Also update the legacy asr_lang parameter for backward compatibility
     params["asr_lang"] = params["interface_language"];
+    
+    // If session is active, send UPDATE_LANGUAGE message to server
+    if (sessionStarted && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        message: "UPDATE_LANGUAGE",
+        new_language: params["interface_language"]
+      }));
+    }
   });
 
   $("#tts-speed").on("input", function () {

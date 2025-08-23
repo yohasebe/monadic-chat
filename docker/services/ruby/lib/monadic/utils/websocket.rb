@@ -610,6 +610,7 @@ module WebSocketHelper
           elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
+          language = obj["interface_language"] || "auto"
           
           # Special handling for Web Speech API
           if provider == "webspeech" || provider == "web-speech"
@@ -622,7 +623,8 @@ module WebSocketHelper
                                       provider: provider,
                                       voice: voice,
                                       speed: speed,
-                                      response_format: response_format)
+                                      response_format: response_format,
+                                      language: language)
           end
           @channel.push(res_hash.to_json)
         when "TTS_STREAM"
@@ -639,6 +641,7 @@ module WebSocketHelper
           elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
+          language = obj["interface_language"] || "auto"
           # model = obj["model"]
           
           
@@ -653,7 +656,8 @@ module WebSocketHelper
                             provider: provider,
                             voice: voice,
                             speed: speed,
-                            response_format: response_format) do |fragment|
+                            response_format: response_format,
+                            language: language) do |fragment|
               @channel.push(fragment.to_json)
           end
           end
@@ -847,6 +851,13 @@ module WebSocketHelper
           end
         when "SYSTEM_PROMPT"
           text = obj["content"] || ""
+          
+          # Add language preference to system prompt if specified
+          interface_language = obj["interface_language"]
+          if interface_language && interface_language != "auto"
+            language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(interface_language)
+            text << language_prompt unless language_prompt.empty?
+          end
 
           if obj["mathjax"]
             # the blank line at the beginning is important!
@@ -1007,6 +1018,7 @@ module WebSocketHelper
           text = obj["text"]
           speed = obj["tts_speed"]
           response_format = "mp3"
+          language = obj["interface_language"] || "auto"
           
           # Process text with PragmaticSegmenter to split into sentences
           ps = PragmaticSegmenter::Segmenter.new(text: text)
@@ -1095,7 +1107,8 @@ module WebSocketHelper
                                           provider: provider,
                                           voice: voice,
                                           speed: speed,
-                                          response_format: response_format)
+                                          response_format: response_format,
+                                          language: language)
                 # Add segment information for proper sequencing
                 if res_hash && res_hash["type"] == "audio"
                   res_hash["segment_index"] = i
@@ -1160,6 +1173,7 @@ module WebSocketHelper
             speed = obj["tts_speed"]
             response_format = "mp3"
             model = "tts-1"
+            language = obj["interface_language"] || "auto"
           end
 
           thread = Thread.new do
@@ -1258,7 +1272,8 @@ module WebSocketHelper
                                                    provider: provider,
                                                    voice: voice,
                                                    speed: speed,
-                                                   response_format: response_format)
+                                                   response_format: response_format,
+                                                   language: language)
                           # Add sequence_id to the result if it's a hash
                           res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
                         end
@@ -1346,7 +1361,8 @@ module WebSocketHelper
                                             provider: provider, 
                                             voice: voice,
                                             speed: speed,
-                                            response_format: response_format)
+                                            response_format: response_format,
+                                            language: language)
                   # Add sequence_id to the result if it's a hash
                   res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
                 end

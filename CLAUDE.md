@@ -5,6 +5,25 @@
 
 ## August 2025 Updates
 
+### Session 8 - 2025-08-23
+
+#### Comprehensive Language Selector Feature
+- **Implementation**: Unified language control for UI and AI interactions
+  - Created `LanguageConfig` module with 57 language support (matching Whisper API)
+  - Moved language selector from settings panel to info panel for better visibility
+  - Native language names with English in parentheses (e.g., "日本語 (Japanese)")
+  - Single selector controls both STT/TTS and AI response language
+- **System Integration**:
+  - Language preference injected into system prompts for AI responses
+  - STT automatically uses selected language (nil for "auto")
+  - TTS receives language parameter with provider-specific handling
+  - Works with `initiate_from_assistant` mode
+- **Technical Details**:
+  - Default "auto" for backward compatibility
+  - Proper handling of "auto" to prevent API errors
+  - Language prompt added in English regardless of selected language
+  - All WebSocket messages carry `interface_language` parameter
+
 ### Session 7 - 2025-08-22
 
 #### Unified Error Formatting System

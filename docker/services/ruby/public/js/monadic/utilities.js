@@ -752,7 +752,9 @@ function setParams() {
   params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice").val();
   params["gemini_tts_voice"] = $("#gemini-tts-voice").val();
   params["tts_speed"] = $("#tts-speed").val();
-  params["asr_lang"] = $("#asr-lang").val();
+  params["interface_language"] = $("#interface-language").val();
+  // Keep asr_lang for backward compatibility
+  params["asr_lang"] = params["interface_language"];
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
 

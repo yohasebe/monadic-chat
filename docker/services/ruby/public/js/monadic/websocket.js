@@ -2159,7 +2159,7 @@ function connect_websocket(callback) {
             $("#tts-provider").val("openai-tts-4o").trigger("change");
           }
           $("#start").prop("disabled", false);
-          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #interface-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
           // TTS speed is already enabled by default and should remain enabled
           
           // Update the available AI User providers when token is verified

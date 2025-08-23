@@ -145,7 +145,7 @@ $(function () {
   // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
 
-  $("#send, #clear, #voice, #tts-voice, #asr-lang, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+  $("#send, #clear, #voice, #tts-voice, #interface-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
   // Keep TTS speed control always enabled as it's used by multiple TTS providers
   $("#tts-speed").prop("disabled", false);
 
@@ -1280,6 +1280,7 @@ $(function () {
         monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
+        interface_language: params["interface_language"] || "auto",
       }));
 
       // Initialize audio before showing the UI
@@ -1945,9 +1946,11 @@ $(function () {
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
   });
 
-  $("#asr-lang").on("change", function () {
-    params["asr_lang"] = $("#asr-lang option:selected").val();
-    setCookie("asr-lang", params["asr_lang"], 30);
+  $("#interface-language").on("change", function () {
+    params["interface_language"] = $("#interface-language option:selected").val();
+    setCookie("interface-language", params["interface_language"], 30);
+    // Also update the legacy asr_lang parameter for backward compatibility
+    params["asr_lang"] = params["interface_language"];
   });
 
   $("#tts-speed").on("input", function () {

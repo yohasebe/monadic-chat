@@ -1,4 +1,14 @@
-- [August 22, 2025] Latest Updates
+- [August 23, 2025] Latest Updates
+  - **Comprehensive Language Selector**: Unified language control for UI and AI
+    - Moved language selector from settings panel to info panel for better visibility
+    - Single selector controls STT, TTS, and AI response language
+    - 57 languages supported with native names display (e.g., "日本語 (Japanese)")
+    - Language preference automatically injected into system prompts
+    - Proper "auto" handling to prevent API errors
+    - Works seamlessly with initiate_from_assistant mode
+    - All WebSocket messages now carry interface_language parameter
+
+- [August 22, 2025] Recent Updates
   - **Unified Error Formatting System**: Consistent error messages across all providers
     - Implemented centralized error formatter for all 8 AI providers
     - Standardized format: `[Provider] Category: Message (Code: XXX) Suggestion: Action`

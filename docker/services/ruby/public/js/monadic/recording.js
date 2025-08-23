@@ -353,7 +353,7 @@ voiceButton.on("click", function () {
               return;
             }
             
-            let lang_code = $("#asr-lang").val();
+            let lang_code = $("#interface-language").val();
             // Extract format from the MIME type
             let format = "webm"; // Default fallback
             if (mediaRecorder.mimeType) {

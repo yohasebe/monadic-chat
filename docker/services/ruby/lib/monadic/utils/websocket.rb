@@ -590,6 +590,14 @@ module WebSocketHelper
         
         msg = obj["message"] || ""
         
+        # Debug logging for all messages when EXTRA_LOGGING is enabled
+        if CONFIG["EXTRA_LOGGING"] && msg == "UPDATE_LANGUAGE"
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] WebSocket received UPDATE_LANGUAGE message")
+          extra_log.puts("  Full obj: #{obj.inspect}")
+          extra_log.close
+        end
+        
         # Debug logging for research assistant apps
         if obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
           puts "[DEBUG WebSocket] Received message type: #{msg.inspect}"
@@ -862,6 +870,13 @@ module WebSocketHelper
           interface_language = obj["interface_language"]
           session[:runtime_settings][:language] = interface_language || "auto"
           
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts("[#{Time.now}] SYSTEM_PROMPT: Set language to #{session[:runtime_settings][:language]}")
+            extra_log.puts("  Full runtime_settings: #{session[:runtime_settings].inspect}")
+            extra_log.close
+          end
+          
           # Don't add language to the stored system prompt
           # It will be injected dynamically during API calls
 
@@ -1003,6 +1018,17 @@ module WebSocketHelper
             session[:runtime_settings][:language] = new_language
             session[:runtime_settings][:language_updated_at] = Time.now
             
+            if CONFIG["EXTRA_LOGGING"]
+              puts "[DEBUG] UPDATE_LANGUAGE: Changed from #{old_language} to #{new_language}"
+              puts "[DEBUG] Session runtime_settings after update: #{session[:runtime_settings].inspect}"
+              
+              # Log to file as well
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts("[#{Time.now}] UPDATE_LANGUAGE: #{old_language} -> #{new_language}")
+              extra_log.puts("  Runtime settings: #{session[:runtime_settings].inspect}")
+              extra_log.close
+            end
+            
             # Notify client of successful update
             language_name = if new_language == "auto"
                               "Automatic"
@@ -1013,7 +1039,8 @@ module WebSocketHelper
             @channel.push({
               "type" => "language_updated",
               "language" => new_language,
-              "language_name" => language_name
+              "language_name" => language_name,
+              "text_direction" => Monadic::Utils::LanguageConfig.text_direction(new_language)
             }.to_json)
           end
         when "STOP_TTS"

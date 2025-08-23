@@ -2019,6 +2019,17 @@ function connect_websocket(callback) {
         if (data.language && $("#interface-language").val() !== data.language) {
           $("#interface-language").val(data.language);
         }
+        
+        // Update RTL/LTR for message areas based on text direction
+        if (data.text_direction) {
+          if (data.text_direction === "rtl") {
+            $("body").addClass("rtl-messages");
+            console.log("RTL messages enabled for:", data.language);
+          } else {
+            $("body").removeClass("rtl-messages");
+            console.log("LTR messages enabled for:", data.language);
+          }
+        }
         break;
       }
 

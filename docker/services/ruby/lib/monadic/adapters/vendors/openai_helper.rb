@@ -675,7 +675,12 @@ module OpenAIHelper
               # Inject language preference from runtime settings
               if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
                 language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-                text += language_prompt unless language_prompt.empty?
+                if CONFIG["EXTRA_LOGGING"]
+                  puts "[DEBUG] OpenAI Reasoning Model Language Injection:"
+                  puts "  - Language: #{session[:runtime_settings][:language]}"
+                  puts "  - Prompt length: #{language_prompt.length}"
+                end
+                text += "\n\n" + language_prompt unless language_prompt.empty?
               end
               
               content_item["text"] = text
@@ -775,9 +780,31 @@ module OpenAIHelper
       end
       
       # Add language preference from runtime settings
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] OpenAI Language Injection Check:"
+        extra_log.puts "  - session.object_id = #{session.object_id}"
+        extra_log.puts "  - session[:runtime_settings] exists? = #{!session[:runtime_settings].nil?}"
+        extra_log.puts "  - runtime_settings content = #{session[:runtime_settings].inspect}" if session[:runtime_settings]
+        extra_log.puts "  - language = #{session[:runtime_settings][:language]}" if session[:runtime_settings]
+        extra_log.close
+      end
+      
       if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
         language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] OpenAI Language Injection ACTIVE:"
+          extra_log.puts "  - Language: #{session[:runtime_settings][:language]}"
+          extra_log.puts "  - Prompt length: #{language_prompt.length}"
+          extra_log.puts "  - Adding to parts: #{!language_prompt.empty?}"
+          extra_log.close
+        end
         parts << language_prompt.strip unless language_prompt.empty?
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] OpenAI Language Injection SKIPPED - conditions not met"
+        extra_log.close
       end
       
       if parts.length > 1

@@ -2289,4 +2289,60 @@ img.base64-image,
 .base64-image {
   margin-top: 1.5rem;
 }
+
+/* RTL (Right-to-Left) language support - Applied only to message content areas */
+
+/* RTL for message display area */
+.rtl-messages .card-text {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL for individual messages */
+.rtl-messages .user-message .message-content,
+.rtl-messages .assistant-message .message-content {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL for lists in messages */
+.rtl-messages .card-text ul,
+.rtl-messages .card-text ol {
+  padding-right: 1.5rem;
+  padding-left: 0;
+  direction: rtl;
+  text-align: right;
+}
+
+.rtl-messages .card-text li {
+  text-align: right;
+}
+
+/* Keep code blocks LTR even in RTL messages */
+.rtl-messages .card-text pre,
+.rtl-messages .card-text code {
+  direction: ltr;
+  text-align: left;
+}
+
+/* RTL for blockquotes in messages */
+.rtl-messages .card-text blockquote {
+  border-left: none;
+  border-right: 4px solid #ddd;
+  padding-right: 1rem;
+  padding-left: 0;
+  text-align: right;
+}
+
+/* RTL for message input textarea */
+.rtl-messages #message {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Keep message headers (User/Assistant labels) in LTR */
+.rtl-messages .message-header {
+  direction: ltr;
+  text-align: left;
+}
 }

@@ -231,4 +231,30 @@ Claude's monadic mode fails with tool execution due to fundamental architecture 
 3. **Document limitations** - Clear documentation prevents future confusion
 4. **Provider-specific configs** - Optimize for each provider's architecture
 
+### Session 6 - 2025-08-23
+
+#### Language Selector Implementation
+- **Unified Language Control**: Implemented comprehensive language selector in Info panel
+  - Single selector controlling STT, TTS, and AI response language
+  - 58 languages supported with native name display (e.g., "日本語 (Japanese)")
+  - Cookie-based persistence for user preferences
+  - Dynamic language switching during active sessions
+
+- **Technical Implementation**:
+  - Created `LanguageConfig` module for centralized language management
+  - Runtime settings architecture to keep language out of message history
+  - WebSocket UPDATE_LANGUAGE message for mid-session changes
+  - System prompt injection for provider-specific language instructions
+
+- **RTL Language Support**: Added proper Right-to-Left text display
+  - Supports Arabic, Hebrew, Persian, and Urdu
+  - CSS class `.rtl-messages` applies RTL only to message content areas
+  - UI components remain LTR for consistent navigation
+  - Automatic detection and switching based on language selection
+
+- **Testing Coverage**: Comprehensive test suite added
+  - 28 new tests for language configuration and RTL support
+  - WebSocket message handling tests
+  - All existing tests updated and passing
+
 For detailed technical information, configuration guidelines, and testing procedures, please refer to [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md).

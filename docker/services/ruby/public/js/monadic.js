@@ -1952,12 +1952,25 @@ $(function () {
     // Also update the legacy asr_lang parameter for backward compatibility
     params["asr_lang"] = params["interface_language"];
     
-    // If session is active, send UPDATE_LANGUAGE message to server
-    if (sessionStarted && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+    // Update RTL/LTR interface
+    updateRTLInterface(params["interface_language"]);
+    
+    console.log("Language changed to:", params["interface_language"]);
+    console.log("WebSocket state:", window.ws ? window.ws.readyState : "null");
+    
+    // If WebSocket is open, send UPDATE_LANGUAGE message to server
+    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+      const message = {
         message: "UPDATE_LANGUAGE",
         new_language: params["interface_language"]
-      }));
+      };
+      console.log("Sending UPDATE_LANGUAGE:", message);
+      window.ws.send(JSON.stringify(message));
+    } else {
+      console.log("Cannot send UPDATE_LANGUAGE - WebSocket not open");
+      if (window.ws) {
+        console.log("WebSocket readyState:", window.ws.readyState);
+      }
     }
   });
 
@@ -2158,12 +2171,43 @@ $(function () {
     }
   });
 
+  // Helper function to check if a language is RTL (defined globally)
+  function isRTLLanguage(langCode) {
+    const rtlLanguages = ["ar", "he", "fa", "ur"];
+    return rtlLanguages.includes(langCode);
+  }
+  
+  // Helper function to update RTL for message areas only (defined globally)
+  function updateRTLInterface(langCode) {
+    if (isRTLLanguage(langCode)) {
+      $("body").addClass("rtl-messages");
+      console.log("RTL messages enabled for:", langCode);
+    } else {
+      $("body").removeClass("rtl-messages");
+      console.log("LTR messages enabled for:", langCode);
+    }
+  }
+  
   $(document).ready(function () {
     $("#initial-prompt").css("display", "none");
     $("#initial-prompt-toggle").prop("checked", false);
     $("#ai-user-initial-prompt").css("display", "none");
     $("#ai-user-initial-prompt-toggle").prop("checked", false);
     $("#ai-user-toggle").prop("checked", false);
+    
+    // Initialize interface language from cookie
+    const savedLanguage = getCookie("interface-language");
+    if (savedLanguage) {
+      $("#interface-language").val(savedLanguage);
+      params["interface_language"] = savedLanguage;
+      params["asr_lang"] = savedLanguage; // Backward compatibility
+      // Set RTL/LTR on page load
+      updateRTLInterface(savedLanguage);
+    } else {
+      // Default to auto if no cookie
+      params["interface_language"] = "auto";
+      params["asr_lang"] = "auto";
+    }
     
     // Setup search dialog close handlers - UI elements will close search on click
     if (uiUtils && uiUtils.setupSearchCloseHandlers) {

@@ -340,7 +340,7 @@
             </div>
             
             <div class="mb-2">
-              <label for="interface-language" class="div-label mb-2"><i class="fa-solid fa-globe"></i> Interface Language</label>
+              <label for="interface-language" class="div-label mb-2"><i class="fa-solid fa-globe"></i> Conversation Language</label>
               <select class="form-select form-select-sm" id="interface-language">
                 <% Monadic::Utils::LanguageConfig.all_languages.each do |lang| %>
                   <option value="<%= lang[:code] %>"><%= lang[:display] %></option>

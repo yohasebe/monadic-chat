@@ -414,6 +414,12 @@ module ClaudeHelper
       else
         text = msg["text"]
       end
+      
+      # Inject language preference from runtime settings if it's the first system prompt
+      if system_prompts.empty? && session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
+        language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+        text += language_prompt unless language_prompt.empty?
+      end
 
       sp = { type: "text", text: text }
       

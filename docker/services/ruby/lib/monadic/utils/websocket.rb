@@ -852,12 +852,18 @@ module WebSocketHelper
         when "SYSTEM_PROMPT"
           text = obj["content"] || ""
           
-          # Add language preference to system prompt if specified
+          # Initialize runtime settings for this session
+          session[:runtime_settings] ||= {
+            language: "auto",
+            language_updated_at: nil
+          }
+          
+          # Store language preference in runtime settings (not in system prompt)
           interface_language = obj["interface_language"]
-          if interface_language && interface_language != "auto"
-            language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(interface_language)
-            text << language_prompt unless language_prompt.empty?
-          end
+          session[:runtime_settings][:language] = interface_language || "auto"
+          
+          # Don't add language to the stored system prompt
+          # It will be injected dynamically during API calls
 
           if obj["mathjax"]
             # the blank line at the beginning is important!
@@ -982,6 +988,34 @@ module WebSocketHelper
           end
         when "AUDIO"
           handle_audio_message(ws, obj)
+        when "UPDATE_LANGUAGE"
+          # Handle language change during session
+          old_language = session[:runtime_settings][:language] if session[:runtime_settings]
+          new_language = obj["new_language"]
+          
+          # Initialize runtime_settings if not exists
+          session[:runtime_settings] ||= {
+            language: "auto",
+            language_updated_at: nil
+          }
+          
+          if old_language != new_language
+            session[:runtime_settings][:language] = new_language
+            session[:runtime_settings][:language_updated_at] = Time.now
+            
+            # Notify client of successful update
+            language_name = if new_language == "auto"
+                              "Automatic"
+                            else
+                              Monadic::Utils::LanguageConfig::LANGUAGES[new_language][:english]
+                            end
+            
+            @channel.push({
+              "type" => "language_updated",
+              "language" => new_language,
+              "language_name" => language_name
+            }.to_json)
+          end
         when "STOP_TTS"
           # Stop any running TTS thread
           if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?

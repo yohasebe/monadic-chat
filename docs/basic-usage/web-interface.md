@@ -48,6 +48,34 @@ Server mode allows multiple clients to connect to a single Monadic Chat instance
 
 You can configure the application mode in the Console Settings panel on startup or through configuration variables in `~/monadic/config/env`.
 
+## Language Settings :id=language-settings
+
+Monadic Chat provides comprehensive language support through a unified language selector located in the Info panel:
+
+### Supported Languages :id=supported-languages
+
+The interface supports 58 languages, displayed with their native names and English translations (e.g., "日本語 (Japanese)", "العربية (Arabic)"). You can select your preferred language from the dropdown menu, which will:
+
+- Configure the speech-to-text (STT) language for voice input
+- Set the text-to-speech (TTS) language for audio output  
+- Instruct the AI assistant to respond in your chosen language
+- Automatically apply Right-to-Left (RTL) text display for Arabic, Hebrew, Persian, and Urdu
+
+### Dynamic Language Switching :id=dynamic-language-switching
+
+You can change the language at any time during an active conversation:
+- The new language preference takes effect immediately for new messages
+- Previous messages in the conversation remain unchanged
+- Your language preference is saved in a cookie and restored on your next visit
+
+### RTL Language Support :id=rtl-support
+
+For Right-to-Left languages, Monadic Chat automatically:
+- Displays message content with RTL text alignment
+- Adjusts the message input field for RTL typing
+- Maintains LTR layout for UI elements to preserve navigation consistency
+- Keeps code blocks and technical content in LTR format for readability
+
 ## System Settings Screen :id=system-settings-screen
 
 ![](../assets/images/chat-settings.png ':size=700')

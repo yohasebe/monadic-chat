@@ -416,12 +416,41 @@ module ClaudeHelper
       end
       
       # Inject language preference from runtime settings if it's the first system prompt
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Claude Language Injection Check:"
+        extra_log.puts "  - system_prompts.empty? = #{system_prompts.empty?}"
+        extra_log.puts "  - session[:runtime_settings] exists? = #{!session[:runtime_settings].nil?}"
+        extra_log.puts "  - runtime_settings content = #{session[:runtime_settings].inspect}" if session[:runtime_settings]
+        extra_log.puts "  - language = #{session[:runtime_settings][:language]}" if session[:runtime_settings]
+        extra_log.close
+      end
+      
       if system_prompts.empty? && session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
         language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-        text += language_prompt unless language_prompt.empty?
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] Claude Language Injection ACTIVE:"
+          extra_log.puts "  - Language: #{session[:runtime_settings][:language]}"
+          extra_log.puts "  - Prompt length: #{language_prompt.length}"
+          extra_log.puts "  - Adding to text: #{!language_prompt.empty?}"
+          extra_log.close
+        end
+        text += "\n\n" + language_prompt unless language_prompt.empty?
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Language Injection SKIPPED - conditions not met"
+        extra_log.close
       end
 
       sp = { type: "text", text: text }
+      
+      if CONFIG["EXTRA_LOGGING"] && system_prompts.empty?
+        puts "[DEBUG] First system prompt created:"
+        puts "  - Text length: #{text.length}"
+        puts "  - First 200 chars: #{text[0..200].inspect}"
+        puts "  - Last 200 chars: #{text[-200..-1].inspect}" if text.length > 200
+      end
       
       # Add cache_control only for the first MAX_PC_PROMPTS system prompts with sufficient tokens
       if obj["prompt_caching"] && system_prompt_count <= MAX_PC_PROMPTS && msg["tokens"] && msg["tokens"] > MIN_PROMPT_CACHING

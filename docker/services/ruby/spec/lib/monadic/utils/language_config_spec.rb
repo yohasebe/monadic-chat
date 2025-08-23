@@ -27,8 +27,8 @@ RSpec.describe Monadic::Utils::LanguageConfig do
   describe ".system_prompt_for_language" do
     it "returns language instruction for valid language codes" do
       prompt = described_class.system_prompt_for_language("ja")
-      expect(prompt).to include("Please respond in Japanese")
-      expect(prompt).to include("If the user writes in Japanese")
+      expect(prompt).to include("You MUST respond in Japanese")
+      expect(prompt).to include("Always use Japanese for your responses")
     end
 
     it "returns empty string for 'auto'" do

@@ -102,7 +102,10 @@ module Monadic
           # Generate appropriate prompt based on language
           <<~PROMPT.strip
             
-            Please respond in #{english_name}. If the user writes in #{english_name}, continue the conversation in #{english_name}. If the user switches to another language, follow their lead while maintaining clarity.
+            IMPORTANT: You MUST respond in #{english_name}. This is a language preference set by the user.
+            - Always use #{english_name} for your responses
+            - Even if the user writes in a different language, respond in #{english_name} unless explicitly asked to switch
+            - Maintain natural, fluent #{english_name} throughout the conversation
           PROMPT
         end
 
@@ -141,6 +144,17 @@ module Monadic
           else
             false
           end
+        end
+        
+        # Check if a language is RTL (Right-to-Left)
+        def rtl_language?(language_code)
+          rtl_languages = ["ar", "he", "fa", "ur"]
+          rtl_languages.include?(language_code)
+        end
+        
+        # Get text direction for a language
+        def text_direction(language_code)
+          rtl_language?(language_code) ? "rtl" : "ltr"
         end
       end
     end
